@@ -57,6 +57,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Keep nested bullet, numbered, and description lists inside callout items,
+  including their IDs and roles. Following callout items no longer become
+  literal child-list text. Nested callouts retain the outer code block's
+  validation, and callout footnotes precede child footnotes without duplicates.
+  Blocks attached to callout items with `+` report their parse errors instead of
+  silently disappearing.
+  As before, acdc requires a preceding verbatim block to start a callout list;
+  Asciidoctor also recognizes standalone callout lists.
+
 - Parse footnotes inside `xref:target[...]` labels without ending the reference
   at the footnote's closing bracket. Named notes, trailing label text, and code
   with `subs=+macros` now work like the `<<target,...>>` form. The resulting

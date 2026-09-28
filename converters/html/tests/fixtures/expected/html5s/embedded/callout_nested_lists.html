@@ -1,0 +1,193 @@
+<section class="doc-section level-1">
+<h2 id="_bullet_children">Bullet children</h2>
+<div class="listing-block">
+<pre>code <b class="conum">(1)</b> <b class="conum">(2)</b></pre>
+</div>
+<section id="bullet-callouts" class="colist arabic">
+<h6 class="block-title">Annotations</h6>
+<ol class="callout-list arabic">
+<li>First bullet parent.<div id="bullet-child" class="ulist marked">
+<ul>
+<li>
+Nested bullet.<div class="ulist">
+<ul>
+<li>
+Deep bullet.</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+</li>
+<li>Second bullet parent.</li>
+</ol>
+</section>
+<p>See <a href="#bullet-child">Child list</a> and <a href="#bullet-callouts">Annotations</a>.</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_ordered_children_after_a_blank_line">Ordered children after a blank line</h2>
+<div class="listing-block">
+<pre>code <b class="conum">(1)</b> <b class="conum">(2)</b></pre>
+</div>
+<ol class="callout-list arabic">
+<li>First ordered parent.<div class="olist arabic">
+<ol class="arabic">
+<li>
+Nested ordered.<div class="olist loweralpha">
+<ol class="loweralpha" type="a">
+<li>
+Deep ordered.</li>
+</ol>
+</div>
+</li>
+</ol>
+</div>
+</li>
+<li>Second ordered parent.</li>
+</ol>
+</section>
+<section class="doc-section level-1">
+<h2 id="_description_children">Description children</h2>
+<div class="listing-block">
+<pre>code <b class="conum">(1)</b> <b class="conum">(2)</b></pre>
+</div>
+<ol class="callout-list arabic">
+<li>First description parent.<div id="description-child" class="dlist">
+<dl>
+<dt>
+Term</dt>
+<dd>
+Nested description.</dd>
+</dl>
+</div>
+</li>
+<li>Second description parent.</li>
+</ol>
+<p>See <a href="#description-child">Description list</a>.</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_explicit_children">Explicit children</h2>
+<div class="listing-block">
+<pre>code <b class="conum">(1)</b> <b class="conum">(2)</b></pre>
+</div>
+<ol class="callout-list arabic">
+<li>First explicit parent.<div id="explicit-child" class="ulist">
+<ul>
+<li>
+Explicit bullet.</li>
+</ul>
+</div>
+</li>
+<li>Second explicit parent.<p>Attached paragraph.</p>
+</li>
+</ol>
+<p>See <a href="#explicit-child">Explicit list</a>.</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_explicit_paragraph_returns_to_parent">Explicit paragraph returns to parent</h2>
+<div class="listing-block">
+<pre>code <b class="conum">(1)</b> <b class="conum">(2)</b></pre>
+</div>
+<ol class="callout-list arabic">
+<li>First paragraph parent.<p>Paragraph attached to first.</p>
+</li>
+<li>Second paragraph parent.</li>
+</ol>
+</section>
+<section class="doc-section level-1">
+<h2 id="_inline_registration_order">Inline registration order</h2>
+<div class="listing-block">
+<pre>code <b class="conum">(1)</b> <b class="conum">(2)</b></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Parent <sup class="footnote-ref" id="_footnoteref_1">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup> and Parent term.<div class="ulist">
+<ul>
+<li>
+Child <sup class="footnote-ref" id="_footnoteref_2">[<a href="#_footnote_2" title="View footnote 2" role="doc-noteref">2</a>]</sup> and Child term.</li>
+</ul>
+</div>
+</li>
+<li>Last <sup class="footnote-ref" id="_footnoteref_3">[<a href="#_footnote_3" title="View footnote 3" role="doc-noteref">3</a>]</sup>.</li>
+</ol>
+</section>
+<section class="doc-section level-1">
+<h2 id="_callout_markers_before_description_delimiters">Callout markers before description delimiters</h2>
+<div class="listing-block">
+<pre>code <b class="conum">(1)</b> <b class="conum">(2)</b></pre>
+</div>
+<ol class="callout-list arabic">
+<li>First marker parent.</li>
+<li>Name:: value remains callout text.</li>
+</ol>
+</section>
+<section class="doc-section level-1">
+<h2 id="_separate_lists">Separate lists</h2>
+<div class="listing-block">
+<pre>code <b class="conum">(1)</b> <b class="conum">(2)</b></pre>
+</div>
+<ol class="callout-list arabic">
+<li>First separated parent.</li>
+<li>Second separated parent.</li>
+</ol>
+<div id="separate-child" class="ulist">
+<ul>
+<li>
+Separate list.</li>
+</ul>
+</div>
+<p>See <a href="#separate-child">Separate list</a>.</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_blank_metadata_separates_the_child">Blank metadata separates the child</h2>
+<div class="listing-block">
+<pre>code <b class="conum">(1)</b></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Before separate child.</li>
+</ol>
+<div id="blank-child" class="ulist marked">
+<ul>
+<li>
+Separate child after blank metadata.</li>
+</ul>
+</div>
+<p>See <a href="#blank-child">Separate child</a>.</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_literal_controls">Literal controls</h2>
+<div class="ulist">
+<ul>
+<li>
+Ordinary bullet.
+&lt;2&gt; Literal continuation outside a callout.</li>
+</ul>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+Ordinary ordered item.
+&lt;2&gt; Literal ordered continuation.</li>
+</ol>
+</div>
+<div class="dlist">
+<dl>
+<dt>
+Term</dt>
+<dd>
+Ordinary description.
+&lt;2&gt; Literal description continuation.</dd>
+</dl>
+</div>
+<p>Escaped \&lt;2&gt; marker.</p>
+</section>
+<section class="footnotes" aria-label="Footnotes" role="doc-endnotes">
+<hr>
+<ol class="footnotes">
+<li class="footnote" id="_footnote_1" role="doc-endnote">
+Parent note. <a class="footnote-backref" href="#_footnoteref_1" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+<li class="footnote" id="_footnote_2" role="doc-endnote">
+Child note. <a class="footnote-backref" href="#_footnoteref_2" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+<li class="footnote" id="_footnote_3" role="doc-endnote">
+Last note. <a class="footnote-backref" href="#_footnoteref_3" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+</ol>
+</section>

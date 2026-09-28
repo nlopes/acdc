@@ -1,0 +1,129 @@
+= Callout list children
+
+== Bullet children
+
+----
+code <1> <2>
+----
+[[bullet-callouts]]
+.Annotations
+<1> First bullet parent.
+[[bullet-child,Child list]]
+[.marked]
+* Nested bullet.
+** Deep bullet.
+<2> Second bullet parent.
+
+See <<bullet-child>> and <<bullet-callouts>>.
+
+== Ordered children after a blank line
+
+----
+code <.> <.>
+----
+<.> First ordered parent.
+
+. Nested ordered.
+.. Deep ordered.
+<.> Second ordered parent.
+
+== Description children
+
+----
+code <1> <2>
+----
+<1> First description parent.
+[[description-child]]
+Term:: Nested description.
+<2> Second description parent.
+
+See <<description-child,Description list>>.
+
+== Explicit children
+
+----
+code <1> <2>
+----
+<1> First explicit parent.
++
+[[explicit-child]]
+* Explicit bullet.
+<2> Second explicit parent.
++
+Attached paragraph.
+
+See <<explicit-child,Explicit list>>.
+
+== Explicit paragraph returns to parent
+
+----
+code <1> <2>
+----
+<1> First paragraph parent.
++
+Paragraph attached to first.
+<2> Second paragraph parent.
+
+== Inline registration order
+
+----
+code <1> <2>
+----
+<1> Parent footnote:[Parent note.] and ((Parent term)).
+* Child footnote:[Child note.] and ((Child term)).
+<2> Last footnote:[Last note.].
+
+== Callout markers before description delimiters
+
+----
+code <1> <2>
+----
+<1> First marker parent.
+<2> Name:: value remains callout text.
+
+== Separate lists
+
+----
+code <1> <2>
+----
+<1> First separated parent.
+<2> Second separated parent.
+
+//-
+
+[[separate-child]]
+* Separate list.
+
+See <<separate-child,Separate list>>.
+
+== Blank metadata separates the child
+
+----
+code <1>
+----
+<1> Before separate child.
+
+[[blank-child]]
+[.marked]
+* Separate child after blank metadata.
+
+//-
+
+See <<blank-child,Separate child>>.
+
+== Literal controls
+
+* Ordinary bullet.
+<2> Literal continuation outside a callout.
+
+//-
+
+. Ordinary ordered item.
+<2> Literal ordered continuation.
+
+//-
+
+Term:: Ordinary description.
+<2> Literal description continuation.
+
+Escaped \<2> marker.

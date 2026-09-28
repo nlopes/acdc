@@ -17,6 +17,11 @@ use acdc_parser::{AttributeValue, Options as ParserOptions, SafeMode, parse, par
 type Error = Box<dyn StdError>;
 
 #[test]
+fn callout_nested_lists_keep_unique_link_targets() -> Result<(), Error> {
+    check_link_label_footnote_targets("callout_nested_lists")
+}
+
+#[test]
 fn xref_nested_footnotes_have_separate_unique_targets() -> Result<(), Error> {
     check_link_label_footnote_targets("xref_nested_footnotes")?;
     #[cfg(feature = "pre-spec-subs")]

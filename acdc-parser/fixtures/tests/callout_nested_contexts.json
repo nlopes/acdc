@@ -1,0 +1,717 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Nested callout contexts",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 25
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 25
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "outer ",
+          "location": [
+            {
+              "line": 4,
+              "col": 1
+            },
+            {
+              "line": 4,
+              "col": 6
+            }
+          ]
+        },
+        {
+          "name": "callout_reference",
+          "type": "inline",
+          "variant": "explicit",
+          "number": 1,
+          "location": [
+            {
+              "line": 4,
+              "col": 7
+            },
+            {
+              "line": 4,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " ",
+          "location": [
+            {
+              "line": 4,
+              "col": 10
+            },
+            {
+              "line": 4,
+              "col": 10
+            }
+          ]
+        },
+        {
+          "name": "callout_reference",
+          "type": "inline",
+          "variant": "explicit",
+          "number": 2,
+          "location": [
+            {
+              "line": 4,
+              "col": 11
+            },
+            {
+              "line": 4,
+              "col": 13
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "list",
+      "type": "block",
+      "variant": "callout",
+      "items": [
+        {
+          "name": "listItem",
+          "type": "block",
+          "callout": {
+            "name": "callout_reference",
+            "type": "inline",
+            "variant": "explicit",
+            "number": 1,
+            "location": [
+              {
+                "line": 6,
+                "col": 1
+              },
+              {
+                "line": 6,
+                "col": 16
+              }
+            ]
+          },
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Outer first.",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 5
+                },
+                {
+                  "line": 6,
+                  "col": 16
+                }
+              ]
+            }
+          ],
+          "blocks": [
+            {
+              "name": "open",
+              "type": "block",
+              "form": "delimited",
+              "delimiter": "--",
+              "blocks": [
+                {
+                  "name": "listing",
+                  "type": "block",
+                  "form": "delimited",
+                  "delimiter": "----",
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "inner ",
+                      "location": [
+                        {
+                          "line": 10,
+                          "col": 1
+                        },
+                        {
+                          "line": 10,
+                          "col": 6
+                        }
+                      ]
+                    },
+                    {
+                      "name": "callout_reference",
+                      "type": "inline",
+                      "variant": "explicit",
+                      "number": 1,
+                      "location": [
+                        {
+                          "line": 10,
+                          "col": 7
+                        },
+                        {
+                          "line": 10,
+                          "col": 9
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 9,
+                      "col": 1
+                    },
+                    {
+                      "line": 11,
+                      "col": 4
+                    }
+                  ]
+                },
+                {
+                  "name": "list",
+                  "type": "block",
+                  "variant": "callout",
+                  "items": [
+                    {
+                      "name": "listItem",
+                      "type": "block",
+                      "callout": {
+                        "name": "callout_reference",
+                        "type": "inline",
+                        "variant": "explicit",
+                        "number": 1,
+                        "location": [
+                          {
+                            "line": 12,
+                            "col": 1
+                          },
+                          {
+                            "line": 12,
+                            "col": 16
+                          }
+                        ]
+                      },
+                      "principal": [
+                        {
+                          "name": "text",
+                          "type": "string",
+                          "value": "Inner first.",
+                          "location": [
+                            {
+                              "line": 12,
+                              "col": 5
+                            },
+                            {
+                              "line": 12,
+                              "col": 16
+                            }
+                          ]
+                        }
+                      ],
+                      "blocks": [
+                        {
+                          "name": "list",
+                          "type": "block",
+                          "variant": "unordered",
+                          "marker": "*",
+                          "items": [
+                            {
+                              "name": "listItem",
+                              "type": "block",
+                              "marker": "*",
+                              "principal": [
+                                {
+                                  "name": "text",
+                                  "type": "string",
+                                  "value": "Inner bullet.",
+                                  "location": [
+                                    {
+                                      "line": 13,
+                                      "col": 3
+                                    },
+                                    {
+                                      "line": 13,
+                                      "col": 15
+                                    }
+                                  ]
+                                }
+                              ],
+                              "location": [
+                                {
+                                  "line": 13,
+                                  "col": 1
+                                },
+                                {
+                                  "line": 13,
+                                  "col": 15
+                                }
+                              ]
+                            }
+                          ],
+                          "location": [
+                            {
+                              "line": 13,
+                              "col": 1
+                            },
+                            {
+                              "line": 13,
+                              "col": 15
+                            }
+                          ]
+                        }
+                      ],
+                      "location": [
+                        {
+                          "line": 12,
+                          "col": 1
+                        },
+                        {
+                          "line": 13,
+                          "col": 15
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 12,
+                      "col": 1
+                    },
+                    {
+                      "line": 13,
+                      "col": 15
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 8,
+                  "col": 1
+                },
+                {
+                  "line": 14,
+                  "col": 2
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 6,
+              "col": 1
+            },
+            {
+              "line": 14,
+              "col": 2
+            }
+          ]
+        },
+        {
+          "name": "listItem",
+          "type": "block",
+          "callout": {
+            "name": "callout_reference",
+            "type": "inline",
+            "variant": "explicit",
+            "number": 2,
+            "location": [
+              {
+                "line": 15,
+                "col": 1
+              },
+              {
+                "line": 15,
+                "col": 17
+              }
+            ]
+          },
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Outer second.",
+              "location": [
+                {
+                  "line": 15,
+                  "col": 5
+                },
+                {
+                  "line": 15,
+                  "col": 17
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 15,
+              "col": 1
+            },
+            {
+              "line": 15,
+              "col": 17
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 6,
+          "col": 1
+        },
+        {
+          "line": 15,
+          "col": 17
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Enclosed literal control",
+          "location": [
+            {
+              "line": 17,
+              "col": 4
+            },
+            {
+              "line": 17,
+              "col": 27
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "listing",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "----",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "outer ",
+              "location": [
+                {
+                  "line": 20,
+                  "col": 1
+                },
+                {
+                  "line": 20,
+                  "col": 6
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "explicit",
+              "number": 1,
+              "location": [
+                {
+                  "line": 20,
+                  "col": 7
+                },
+                {
+                  "line": 20,
+                  "col": 9
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " ",
+              "location": [
+                {
+                  "line": 20,
+                  "col": 10
+                },
+                {
+                  "line": 20,
+                  "col": 10
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "explicit",
+              "number": 2,
+              "location": [
+                {
+                  "line": 20,
+                  "col": 11
+                },
+                {
+                  "line": 20,
+                  "col": 13
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 19,
+              "col": 1
+            },
+            {
+              "line": 21,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "callout",
+          "items": [
+            {
+              "name": "listItem",
+              "type": "block",
+              "callout": {
+                "name": "callout_reference",
+                "type": "inline",
+                "variant": "explicit",
+                "number": 1,
+                "location": [
+                  {
+                    "line": 22,
+                    "col": 1
+                  },
+                  {
+                    "line": 22,
+                    "col": 26
+                  }
+                ]
+              },
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Before compound block.",
+                  "location": [
+                    {
+                      "line": 22,
+                      "col": 5
+                    },
+                    {
+                      "line": 22,
+                      "col": 26
+                    }
+                  ]
+                }
+              ],
+              "blocks": [
+                {
+                  "name": "open",
+                  "type": "block",
+                  "form": "delimited",
+                  "delimiter": "--",
+                  "blocks": [
+                    {
+                      "name": "list",
+                      "type": "block",
+                      "variant": "unordered",
+                      "marker": "*",
+                      "items": [
+                        {
+                          "name": "listItem",
+                          "type": "block",
+                          "marker": "*",
+                          "principal": [
+                            {
+                              "name": "text",
+                              "type": "string",
+                              "value": "Ordinary enclosed bullet.\n<2> Literal enclosed continuation.",
+                              "location": [
+                                {
+                                  "line": 25,
+                                  "col": 3
+                                },
+                                {
+                                  "line": 26,
+                                  "col": 34
+                                }
+                              ]
+                            }
+                          ],
+                          "location": [
+                            {
+                              "line": 25,
+                              "col": 1
+                            },
+                            {
+                              "line": 26,
+                              "col": 34
+                            }
+                          ]
+                        }
+                      ],
+                      "location": [
+                        {
+                          "line": 25,
+                          "col": 1
+                        },
+                        {
+                          "line": 26,
+                          "col": 34
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 24,
+                      "col": 1
+                    },
+                    {
+                      "line": 27,
+                      "col": 2
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 22,
+                  "col": 1
+                },
+                {
+                  "line": 27,
+                  "col": 2
+                }
+              ]
+            },
+            {
+              "name": "listItem",
+              "type": "block",
+              "callout": {
+                "name": "callout_reference",
+                "type": "inline",
+                "variant": "explicit",
+                "number": 2,
+                "location": [
+                  {
+                    "line": 28,
+                    "col": 1
+                  },
+                  {
+                    "line": 28,
+                    "col": 25
+                  }
+                ]
+              },
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "After compound block.",
+                  "location": [
+                    {
+                      "line": 28,
+                      "col": 5
+                    },
+                    {
+                      "line": 28,
+                      "col": 25
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 28,
+                  "col": 1
+                },
+                {
+                  "line": 28,
+                  "col": 25
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 22,
+              "col": 1
+            },
+            {
+              "line": 28,
+              "col": 25
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 17,
+          "col": 1
+        },
+        {
+          "line": 28,
+          "col": 25
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 28,
+      "col": 25
+    }
+  ]
+}

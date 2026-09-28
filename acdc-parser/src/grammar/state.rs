@@ -88,6 +88,9 @@ pub(crate) struct ParserState<'a> {
     /// under `sectnums`.
     pub(crate) toc_entries: Vec<TocEntry<'a>>,
     pub(crate) block_context: BlockContext,
+    /// Base offset of the input containing the active callout list.
+    /// Reparsed delimited-block content must not terminate that list.
+    pub(crate) callout_list_offset: Option<usize>,
     pub(crate) last_block_was_verbatim: bool,
     /// Callout references found in the last verbatim block (for validation with callout
     /// lists)
@@ -536,6 +539,7 @@ impl<'a> ParserState<'a> {
             xref_caption_label_snapshots: Rc::default(),
             toc_entries: Vec::new(),
             block_context: BlockContext::Document,
+            callout_list_offset: None,
             last_block_was_verbatim: false,
             last_verbatim_callouts: Vec::new(),
             current_file: None,
@@ -575,6 +579,7 @@ impl<'a> ParserState<'a> {
             xref_caption_label_snapshots: Rc::default(),
             toc_entries: Vec::new(),
             block_context: BlockContext::Document,
+            callout_list_offset: None,
             last_block_was_verbatim: false,
             last_verbatim_callouts: Vec::new(),
             current_file: None,
@@ -615,6 +620,7 @@ impl<'a> ParserState<'a> {
             xref_caption_label_snapshots: Rc::clone(&parent.xref_caption_label_snapshots),
             toc_entries: Vec::new(),
             block_context: BlockContext::Document,
+            callout_list_offset: None,
             last_block_was_verbatim: false,
             last_verbatim_callouts: Vec::new(),
             // Inherit the file so inline sub-parse nodes are stamped with the correct

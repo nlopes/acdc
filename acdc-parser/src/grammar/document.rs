@@ -4747,6 +4747,11 @@ peg::parser! {
         rule list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
         = list_with_continuation(start, offset, block_metadata, true)
 
+        // Reject disabled alternatives before they can register inline macros;
+        // PEG backtracking does not undo those registrations.
+        rule list_continuation_allowed(allow: bool)
+        = {? allow.then_some(()).ok_or("continuation belongs to parent") }
+
         // Parameterized list rule - allow_continuation controls whether list items can consume
         // explicit continuations. Set to false when parsing lists inside continuation blocks
         // to prevent nested lists from consuming parent-level continuations.
@@ -4911,7 +4916,7 @@ peg::parser! {
         = "//" [^'\n']* (&eol() / ![_])  // Line comment separator
         / whitespace()* "[" whitespace()* "]" whitespace()* (&eol() / ![_])  // Empty block attributes
 
-        rule unordered_list_principal_continuation(current_marker: &str, parent_ordered_marker: Option<&'input str>) -> &'input str
+        rule unordered_list_principal_continuation(offset: usize, current_marker: &str, parent_ordered_marker: Option<&'input str>) -> &'input str
         = eol()
           !(
               &eol()
@@ -4920,10 +4925,11 @@ peg::parser! {
               / &at_section_start()
               / &at_list_separator_content()
               / &nested_unordered_child_after_metadata(current_marker, parent_ordered_marker)
+              / &at_callout_parent_item(offset)
           )
           line:$((!eol() [_])*) { line }
 
-        rule ordered_list_principal_continuation(current_marker: &str, parent_unordered_marker: Option<&'input str>) -> &'input str
+        rule ordered_list_principal_continuation(offset: usize, current_marker: &str, parent_unordered_marker: Option<&'input str>) -> &'input str
         = eol()
           !(
               &eol()
@@ -4932,6 +4938,7 @@ peg::parser! {
               / &at_section_start()
               / &at_list_separator_content()
               / &nested_ordered_child_after_metadata(current_marker, parent_unordered_marker)
+              / &at_callout_parent_item(offset)
           )
           line:$((!eol() [_])*) { line }
 
@@ -4972,7 +4979,8 @@ peg::parser! {
         // Parse first item content after marker has been consumed by unordered_list
         // marker_start is the position where the marker began, for correct location tracking
         rule unordered_list_item_after_marker(offset: usize, block_metadata: &BlockParsingMetadata<'input>, allow_continuation: bool, marker: &'input str, marker_start: usize, parent_ordered_marker: Option<&'input str>) -> Result<(ListItem<'input>, usize), Error>
-        = item:unordered_list_item_with_continuation_after_marker(offset, block_metadata, marker, marker_start, parent_ordered_marker) {? if allow_continuation { Ok(item) } else { Err("skip") } }
+        = list_continuation_allowed(allow_continuation)
+          item:unordered_list_item_with_continuation_after_marker(offset, block_metadata, marker, marker_start, parent_ordered_marker) { item }
         / item:unordered_list_item_no_continuation_after_marker(offset, block_metadata, marker, marker_start, parent_ordered_marker) { item }
 
         // Zero-cost guards for the front-of-alternative branch selector in
@@ -5032,7 +5040,8 @@ peg::parser! {
         // Parse first item content after marker has been consumed by ordered_list
         // marker_start is the position where the marker began, for correct location tracking
         rule ordered_list_item_after_marker(offset: usize, block_metadata: &BlockParsingMetadata<'input>, allow_continuation: bool, marker: &'input str, marker_start: usize, parent_unordered_marker: Option<&'input str>) -> Result<(ListItem<'input>, usize), Error>
-        = item:ordered_list_item_with_continuation_after_marker(offset, block_metadata, marker, marker_start, parent_unordered_marker) {? if allow_continuation { Ok(item) } else { Err("skip") } }
+        = list_continuation_allowed(allow_continuation)
+          item:ordered_list_item_with_continuation_after_marker(offset, block_metadata, marker, marker_start, parent_unordered_marker) { item }
         / item:ordered_list_item_no_continuation_after_marker(offset, block_metadata, marker, marker_start, parent_unordered_marker) { item }
 
         rule ordered_list_rest_item(offset: usize, block_metadata: &BlockParsingMetadata<'input>, parent_unordered_marker: Option<&'input str>, allow_continuation: bool, base_marker: &str) -> Result<(ListItem<'input>, usize), Error>
@@ -5056,7 +5065,8 @@ peg::parser! {
         // (by always parsing continuations then discarding them) would consume input
         // needed by the parent rule. This structural duplication is intentional.
         rule unordered_list_item(offset: usize, block_metadata: &BlockParsingMetadata<'input>, allow_continuation: bool, parent_ordered_marker: Option<&'input str>) -> Result<(ListItem<'input>, usize), Error>
-        = item:unordered_list_item_with_continuation(offset, block_metadata, parent_ordered_marker) {? if allow_continuation { Ok(item) } else { Err("skip") } }
+        = list_continuation_allowed(allow_continuation)
+          item:unordered_list_item_with_continuation(offset, block_metadata, parent_ordered_marker) { item }
         / item:unordered_list_item_no_continuation(offset, block_metadata, parent_ordered_marker) { item }
 
         rule unordered_list_item_with_continuation(offset: usize, block_metadata: &BlockParsingMetadata<'input>, parent_ordered_marker: Option<&'input str>) -> Result<(ListItem<'input>, usize), Error>
@@ -5069,7 +5079,7 @@ peg::parser! {
         first_line:$((!(eol()) [_])*)
         // Parse continuation lines that are part of the same paragraph
         // Stop at: blank line, list item start, explicit continuation marker, section heading, or list separator
-        continuation_lines:unordered_list_principal_continuation(marker, parent_ordered_marker)*
+        continuation_lines:unordered_list_principal_continuation(offset, marker, parent_ordered_marker)*
         first_line_end:position!()
         // Try to parse nested list (ordered, or unordered with deeper markers)
         // Don't consume newlines if we're at a list separator (comment or [])
@@ -5134,7 +5144,7 @@ peg::parser! {
         checked:checklist_item()?
         first_line_start:position!()
         first_line:$((!(eol()) [_])*)
-        continuation_lines:unordered_list_principal_continuation(marker, parent_ordered_marker)*
+        continuation_lines:unordered_list_principal_continuation(offset, marker, parent_ordered_marker)*
         first_line_end:position!()
         // Nested items can still have nested lists, but those also cannot consume parent continuations
         // NOTE: nested_content is NOT optional here - if no nested content matches, the entire
@@ -5186,7 +5196,7 @@ peg::parser! {
         checked:checklist_item()?
         first_line_start:position!()
         first_line:$((!(eol()) [_])*)
-        continuation_lines:unordered_list_principal_continuation(marker, parent_ordered_marker)*
+        continuation_lines:unordered_list_principal_continuation(offset, marker, parent_ordered_marker)*
         first_line_end:position!()
         nested:(!at_list_separator() nested_content:unordered_list_item_nested_after_principal(offset, block_metadata, marker, parent_ordered_marker) { nested_content })?
         explicit_continuations:(!at_list_separator() cont:(
@@ -5231,7 +5241,7 @@ peg::parser! {
         checked:checklist_item()?
         first_line_start:position!()
         first_line:$((!(eol()) [_])*)
-        continuation_lines:unordered_list_principal_continuation(marker, parent_ordered_marker)*
+        continuation_lines:unordered_list_principal_continuation(offset, marker, parent_ordered_marker)*
         first_line_end:position!()
         nested:(!at_list_separator() nested_content:unordered_list_item_nested_after_principal(offset, block_metadata, marker, parent_ordered_marker) { nested_content })?
         immediate_continuations:(!at_list_separator() cont:list_explicit_continuation_immediate(offset, block_metadata) { cont })*
@@ -5366,7 +5376,8 @@ peg::parser! {
 
         // See comment on unordered_list_item for why *_with/without_continuation variants exist.
         rule ordered_list_item(offset: usize, block_metadata: &BlockParsingMetadata<'input>, allow_continuation: bool, parent_unordered_marker: Option<&'input str>) -> Result<(ListItem<'input>, usize), Error>
-        = item:ordered_list_item_with_continuation(offset, block_metadata, parent_unordered_marker) {? if allow_continuation { Ok(item) } else { Err("skip") } }
+        = list_continuation_allowed(allow_continuation)
+          item:ordered_list_item_with_continuation(offset, block_metadata, parent_unordered_marker) { item }
         / item:ordered_list_item_no_continuation(offset, block_metadata, parent_unordered_marker) { item }
 
         rule ordered_list_item_with_continuation(offset: usize, block_metadata: &BlockParsingMetadata<'input>, parent_unordered_marker: Option<&'input str>) -> Result<(ListItem<'input>, usize), Error>
@@ -5378,7 +5389,7 @@ peg::parser! {
         first_line:$((!(eol()) [_])*)
         // Parse continuation lines that are part of the same paragraph
         // Stop at: blank line, list item start, explicit continuation marker, section heading, or list separator
-        continuation_lines:ordered_list_principal_continuation(marker, parent_unordered_marker)*
+        continuation_lines:ordered_list_principal_continuation(offset, marker, parent_unordered_marker)*
         first_line_end:position!()
         // Try to parse nested list (unordered, or ordered with deeper markers)
         // Don't consume newlines if we're at a list separator (comment or [])
@@ -5442,7 +5453,7 @@ peg::parser! {
         whitespace()
         first_line_start:position!()
         first_line:$((!(eol()) [_])*)
-        continuation_lines:ordered_list_principal_continuation(marker, parent_unordered_marker)*
+        continuation_lines:ordered_list_principal_continuation(offset, marker, parent_unordered_marker)*
         first_line_end:position!()
         // Nested items can still have nested lists, but those also cannot consume parent continuations
         // NOTE: nested_content is NOT optional here - if no nested content matches, the entire
@@ -5491,7 +5502,7 @@ peg::parser! {
         = whitespace()
         first_line_start:position!()
         first_line:$((!(eol()) [_])*)
-        continuation_lines:ordered_list_principal_continuation(marker, parent_unordered_marker)*
+        continuation_lines:ordered_list_principal_continuation(offset, marker, parent_unordered_marker)*
         first_line_end:position!()
         nested:(!at_list_separator() nested_content:ordered_list_item_nested_after_principal(offset, block_metadata, marker, parent_unordered_marker) { nested_content })?
         explicit_continuations:(!at_list_separator() cont:(
@@ -5535,7 +5546,7 @@ peg::parser! {
         = whitespace()
         first_line_start:position!()
         first_line:$((!(eol()) [_])*)
-        continuation_lines:ordered_list_principal_continuation(marker, parent_unordered_marker)*
+        continuation_lines:ordered_list_principal_continuation(offset, marker, parent_unordered_marker)*
         first_line_end:position!()
         nested:(!at_list_separator() nested_content:ordered_list_item_nested_after_principal(offset, block_metadata, marker, parent_unordered_marker) { nested_content })?
         immediate_continuations:(!at_list_separator() cont:list_explicit_continuation_immediate(offset, block_metadata) { cont })*
@@ -5679,17 +5690,38 @@ peg::parser! {
             }
         }
 
+        // Stop child lists and attached paragraphs before the next parent item,
+        // leaving its marker for callout_list_rest_item. The offset check keeps
+        // markers in reparsed delimited blocks outside this boundary.
+        rule at_callout_parent_item(offset: usize)
+        = whitespace()* callout_list_marker() whitespace() {?
+            (state.callout_list_offset == Some(offset)).then_some(()).ok_or("not a callout parent")
+        }
+
+        // Save the enclosing scope for callout_list to restore after parsing its
+        // items. Keep the preceding code block's references local for validation,
+        // since child listings can replace the shared catalog.
+        rule enter_callout_list(offset: usize) -> (Option<usize>, Vec<CalloutRef>)
+        = {
+            let parent = state.callout_list_offset.replace(offset);
+            state.last_block_was_verbatim = false;
+            (parent, std::mem::take(&mut state.last_verbatim_callouts))
+        }
+
         rule callout_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
         // !not_after_verbatim_block(): callout lists only make sense after source/listing
         // blocks The double negative succeeds only when last_block_was_verbatim is true
         = !not_after_verbatim_block()
-        // OPTIMIZATION: This positive lookahead fails fast when not at a callout marker
-        // (<1>, <.>, etc.) Without it, callout_list_item would be called and fail - same
-        // result, just slower
+        // Match the mandatory item prefix before changing callout scope.
         &(whitespace()* callout_list_marker() whitespace())
+        context:enter_callout_list(offset)
         first:callout_list_item(offset, block_metadata)
         rest:(callout_list_rest_item(offset, block_metadata))*
         {
+            let (parent, callouts) = context;
+            state.callout_list_offset = parent;
+            state.last_block_was_verbatim = false;
+            state.last_verbatim_callouts.clear();
             tracing::debug!("Found callout list block");
             let mut content = vec![first?];
             for item in rest {
@@ -5726,9 +5758,7 @@ peg::parser! {
 
                 // Check if the EXPECTED callout exists in the verbatim block
                 // (This warns when sequence is broken and the expected number is missing)
-                let callout_exists = state
-                    .last_verbatim_callouts
-                    .iter()
+                let callout_exists = callouts.iter()
                     .any(|c| c.number == expected_number);
                 if !callout_exists {
                     state.add_generic_warning_at(
@@ -5737,10 +5767,6 @@ peg::parser! {
                     );
                 }
             }
-
-            // Reset the flag after successfully parsing the callout list
-            state.last_block_was_verbatim = false;
-            state.last_verbatim_callouts.clear();
 
             Ok(Block::CalloutList(CalloutList {
                 title: block_metadata.title.clone(),
@@ -5756,6 +5782,46 @@ peg::parser! {
             Ok(item)
         }
 
+        // Probe for an implicit child without consuming input. A parent marker
+        // takes precedence even when its text contains a description delimiter.
+        rule callout_child_marker(offset: usize)
+        = !at_callout_parent_item(offset) (
+            &(whitespace()* (unordered_list_marker() / ordered_list_marker()) whitespace())
+            / check_line_is_description_list(offset)
+        )
+
+        // Attach an implicit child before callout_list_item handles explicit `+`
+        // blocks. Metadata must be adjacent to the principal text; a blank line
+        // before metadata starts a separate list.
+        rule callout_list_nested(offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
+        = eol() child:(
+            &((attribute_or_anchor_line_match() eol()*)+ callout_child_marker(offset))
+            start:position!()
+            metadata:parsed_nested_list_metadata(offset, block_metadata.parent_section_level)
+            list:callout_child_list(start, offset, &metadata) { list }
+            / eol()* callout_child_marker(offset) start:position!()
+            metadata:callout_child_metadata(block_metadata)
+            list:callout_child_list(start, offset, &metadata) { list }
+        ) { child }
+
+        // Inherit section context and text settings without copying the parent's
+        // ID, title, or style onto a child that has no metadata of its own.
+        rule callout_child_metadata(parent: &BlockParsingMetadata<'input>) -> BlockParsingMetadata<'input>
+        = {
+            BlockParsingMetadata {
+                parent_section_level: parent.parent_section_level,
+                substitutions: parent.substitutions,
+                hardbreaks: parent.hardbreaks,
+                ..BlockParsingMetadata::default()
+            }
+        }
+
+        // Disable child continuations so `+` blocks remain for the owning callout item.
+        rule callout_child_list(start: usize, offset: usize, metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
+        = unordered_list(start, offset, metadata, None, false, false)
+        / ordered_list(start, offset, metadata, None, false, false)
+        / description_list(start, offset, metadata, false)
+
         rule callout_list_item(offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<(CalloutListItem<'input>, String, usize), Error>
         = whitespace()*
         marker:callout_list_marker()
@@ -5768,47 +5834,27 @@ peg::parser! {
         // headers, or block attributes.
         continuation_lines:(
             eol()
+            !check_line_is_description_list(offset)
             !(whitespace()* (callout_list_marker() / unordered_list_marker() / ordered_list_marker() / section_level_marker() whitespace() / "[" / "+" whitespace()* eol() / eol()))
             line:$((!(eol()) [_])*)
             { line }
         )*
         first_line_end:position!()
+        principal:callout_list_principal(offset, block_metadata, first_line_start, first_line_end, first_line, &continuation_lines)
+        nested:(!at_list_separator() child:callout_list_nested(offset, block_metadata) { child })?
         explicit_continuations:(!at_list_separator() cont:(
             list_explicit_continuation_immediate(offset, block_metadata)
             / list_explicit_continuation_ancestor(offset, block_metadata)
         ) { cont })*
         list_dangling_continuation()?
         {
-            // Combine first line and continuation lines
-            let principal_text_owned = if continuation_lines.is_empty() {
-                first_line.to_string()
-            } else {
-                let mut text = first_line.to_string();
-                for cont_line in continuation_lines {
-                    text.push('\n');
-                    text.push_str(cont_line);
-                }
-                text
-            };
-            let principal_text: &'input str = state.intern_str(&principal_text_owned);
+            let principal = principal?;
+            let item_end = calculate_item_end(first_line.is_empty() && continuation_lines.is_empty(), span_start, first_line_end);
 
-            // The end position for the list item should be at the last character of content
-            let item_end = if principal_text.is_empty() {
-                span_start
-            } else {
-                first_line_end.saturating_sub(1)
-            };
-
-            // Process principal text as inline nodes
-            let principal = if principal_text.trim().is_empty() {
-                vec![]
-            } else {
-                let (principal, _) =
-                    process_inlines(state, block_metadata, first_line_start, first_line_end, offset, principal_text)?;
-                principal
-            };
-
-            let blocks = explicit_continuations.into_iter().flatten().collect::<Vec<_>>();
+            let blocks = nested
+                .into_iter()
+                .chain(explicit_continuations)
+                .collect::<Result<Vec<_>, _>>()?;
 
             let location = state.create_location(span_start+offset, item_end+offset);
 
@@ -5829,6 +5875,18 @@ peg::parser! {
                 blocks,
                 location: state.create_location(span_start+offset, actual_end+offset),
             }, marker.to_string(), actual_end))
+        }
+
+        // Run before child parsing to register footnotes in source order;
+        // the callout item's final action runs after its children are parsed.
+        rule callout_list_principal(offset: usize, metadata: &BlockParsingMetadata<'input>, start: usize, end: usize, first: &'input str, rest: &[&'input str]) -> Result<Vec<InlineNode<'input>>, Error>
+        = {
+            let text = assemble_principal_text(state, first, rest);
+            if text.trim().is_empty() {
+                Ok(Vec::new())
+            } else {
+                process_inlines(state, metadata, start, end, offset, text).map(|(nodes, _)| nodes)
+            }
         }
 
         rule checklist_item() -> ListItemCheckedStatus
@@ -5900,6 +5958,7 @@ peg::parser! {
         = !at_dlist_block_boundary()
         eol()*
         !attribute_or_anchor_line_match()
+        !at_callout_parent_item(offset)
         check_start_of_description_list(offset)
         item:description_list_item(offset, block_metadata)
         {
@@ -5922,6 +5981,7 @@ peg::parser! {
             // dlist-specific stop conditions.
             (eol()
              !eol()                                    // not a blank line
+             !at_callout_parent_item(offset)
              !check_line_is_description_list(offset)
              !(whitespace()* (unordered_list_marker() / ordered_list_marker()) whitespace())  // not a list item
              !("+" (whitespace() / eol() / ![_]))      // not a continuation marker
@@ -6323,6 +6383,7 @@ peg::parser! {
             / eol() markdown_code_delimiter()
             / eol() comment_delimiter()
             / eol() open_delimiter() &(whitespace()* eol())
+            / eol() at_callout_parent_item(offset)
             / eol() !not_after_verbatim_block() &(whitespace()* callout_list_marker() whitespace())
             / eol() list(start, offset, block_metadata)
             / eol() &("+" (whitespace() / eol() / ![_]))  // Stop at list continuation marker

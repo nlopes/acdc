@@ -1,0 +1,28 @@
+= Nested callout contexts
+
+----
+outer <1> <2>
+----
+<1> Outer first.
++
+--
+----
+inner <1>
+----
+<1> Inner first.
+* Inner bullet.
+--
+<2> Outer second.
+
+== Enclosed literal control
+
+----
+outer <1> <2>
+----
+<1> Before compound block.
++
+--
+* Ordinary enclosed bullet.
+<2> Literal enclosed continuation.
+--
+<2> After compound block.

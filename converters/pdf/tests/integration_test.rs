@@ -12,6 +12,20 @@ use acdc_converters_pdf::{PdfOptions, Processor};
 type Error = Box<dyn std::error::Error>;
 
 #[test]
+fn callout_nested_lists_keep_their_pdf_destinations() -> Result<(), Error> {
+    let input = "= Callout destinations\n\nSee <<child,Child>> and <<last,Last>>.\n\n<<<\n\n----\ncode <1> <2>\n----\n<1> First.\n[[child]]\n* Nested.\n<2> [[last]]Second.\n";
+    let pdf = render_input(input)?;
+    assert_eq!(internal_link_pages(&pdf, 1)?, [2, 2]);
+    let text = pdf.extract_text(&[2])?;
+    assert_eq!(text.matches("Second.").count(), 1);
+    assert!(
+        !text.contains("<2>"),
+        "the second callout must be a list item"
+    );
+    Ok(())
+}
+
+#[test]
 fn xref_nested_footnotes_keep_their_own_page_destination() -> Result<(), Error> {
     for label in [
         "xref:target[Before footnote:[Nested body.] after]",
