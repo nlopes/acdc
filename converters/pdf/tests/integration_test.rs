@@ -12,6 +12,50 @@ use acdc_converters_pdf::{PdfOptions, Processor};
 type Error = Box<dyn std::error::Error>;
 
 #[test]
+fn nested_links_have_separate_pdf_destinations() -> Result<(), Error> {
+    let pdf = render_input(
+        "= Links\n\nlink:https://outer.example[Before mailto:inner@example.org[Inner] after]\n",
+    )?;
+    let page = *pdf.get_pages().get(&1).ok_or("missing page")?;
+    let mut links = Vec::new();
+    for annotation in pdf.get_page_annotations(page)? {
+        let uri = annotation
+            .get(b"A")?
+            .as_dict()?
+            .get(b"URI")?
+            .as_str()?
+            .to_vec();
+        let [left, _, right, _] = annotation.get(b"Rect")?.as_array()?.as_slice() else {
+            return Err("invalid annotation rectangle".into());
+        };
+        links.push((left.as_float()?, right.as_float()?, uri));
+    }
+    links.sort_by(|a, b| a.0.total_cmp(&b.0));
+    assert_eq!(links.len(), 3);
+    assert_eq!(
+        links
+            .iter()
+            .map(|link| link.2.as_slice())
+            .collect::<Vec<_>>(),
+        [
+            b"https://outer.example".as_slice(),
+            b"mailto:inner@example.org".as_slice(),
+            b"https://outer.example".as_slice()
+        ]
+    );
+    for pair in links.windows(2) {
+        let [left, right] = pair else {
+            return Err("missing adjacent links".into());
+        };
+        assert!(
+            left.1 <= right.0 + 0.01,
+            "overlapping link rectangles: {links:?}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
 fn link_label_quotes_keep_pdf_uri_annotations() -> Result<(), Error> {
     let source = r#"= Quoted labels
 

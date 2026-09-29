@@ -17,6 +17,30 @@ use acdc_parser::{AttributeValue, Options as ParserOptions, SafeMode, parse, par
 type Error = Box<dyn StdError>;
 
 #[test]
+fn nested_links_keep_separate_anchors_and_targets() -> Result<(), Error> {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/source/html/embedded/nested_links.adoc");
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        for embedded in [true, false] {
+            let output = render_fixture(&path, variant, embedded)?;
+            check_link_structure(&output, "nested_links")?;
+            for target in [
+                "mailto:first@example.org",
+                "mailto:only@example.org",
+                "https://image.example",
+                "https://middle.example",
+            ] {
+                assert!(
+                    output.contains(&format!("href=\"{target}\"")),
+                    "missing target {target}"
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+#[test]
 fn link_label_quotes_keep_footnote_links_separate() -> Result<(), Error> {
     check_link_label_footnote_targets("link_label_quotes")
 }
@@ -84,30 +108,35 @@ fn check_link_label_footnote_targets(name: &str) -> Result<(), Error> {
         .join(format!("tests/fixtures/source/html/embedded/{name}.adoc"));
     for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
         let output = render_fixture(&path, variant, true)?;
-        let mut inside_anchor = false;
-        let mut footnote_links = 0;
-        let mut ids = HashSet::new();
-        for part in output.split('<').skip(1) {
-            let tag = part.split_once('>').ok_or("unterminated HTML tag")?.0;
-            if tag.starts_with("a ") {
-                assert!(!inside_anchor, "nested anchor in {name}: <{tag}>");
-                inside_anchor = true;
-                footnote_links += usize::from(tag.contains("href=\"#_footnote"));
-            } else if tag == "/a" {
-                assert!(inside_anchor, "unmatched closing anchor in {name}");
-                inside_anchor = false;
-            }
-            if let Some((_, tail)) = tag.split_once(" id=\"") {
-                let id = tail.split_once('"').ok_or("unterminated ID")?.0;
-                assert!(ids.insert(id), "duplicate ID {id} in {name}");
-            }
+        check_link_structure(&output, name)?;
+    }
+    Ok(())
+}
+
+fn check_link_structure(output: &str, name: &str) -> Result<(), Error> {
+    let mut inside_anchor = false;
+    let mut footnote_links = 0;
+    let mut ids = HashSet::new();
+    for part in output.split('<').skip(1) {
+        let tag = part.split_once('>').ok_or("unterminated HTML tag")?.0;
+        if tag.starts_with("a ") {
+            assert!(!inside_anchor, "nested anchor in {name}: <{tag}>");
+            inside_anchor = true;
+            footnote_links += usize::from(tag.contains("href=\"#_footnote"));
+        } else if tag == "/a" {
+            assert!(inside_anchor, "unmatched closing anchor in {name}");
+            inside_anchor = false;
         }
-        assert!(!inside_anchor, "unclosed anchor in {name}");
-        assert!(footnote_links > 0, "no footnote links in {name}");
-        for tail in output.split("href=\"#").skip(1) {
-            let id = tail.split_once('"').ok_or("unterminated link")?.0;
-            assert!(ids.contains(id), "missing target {id} in {name}");
+        if let Some((_, tail)) = tag.split_once(" id=\"") {
+            let id = tail.split_once('"').ok_or("unterminated ID")?.0;
+            assert!(ids.insert(id), "duplicate ID {id} in {name}");
         }
+    }
+    assert!(!inside_anchor, "unclosed anchor in {name}");
+    assert!(footnote_links > 0, "no footnote links in {name}");
+    for tail in output.split("href=\"#").skip(1) {
+        let id = tail.split_once('"').ok_or("unterminated link")?.0;
+        assert!(ids.contains(id), "missing target {id} in {name}");
     }
     Ok(())
 }

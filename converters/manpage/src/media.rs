@@ -171,19 +171,12 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             return Ok(());
         };
 
-        if inline {
-            writeln!(self.writer_mut(), "\\c")?;
-        }
         let target = escape_roff_macro_argument(target);
         let label = escape_rendered_roff_macro_argument(&label);
-        let suffix = if inline { "\\c" } else { "" };
-        writeln!(
-            self.writer_mut(),
-            ".URL \"{target}\" \"{label}\" \"{suffix}\""
-        )?;
         if inline {
-            self.strip_next_leading_space = true;
+            return self.write_link_command("URL", &target, &label, "\\c");
         }
+        writeln!(self.writer_mut(), ".URL \"{target}\" \"{label}\" \"\"")?;
         Ok(())
     }
 }

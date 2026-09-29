@@ -16,6 +16,7 @@ use acdc_parser::{
 use crate::{
     Error, Processor,
     escape::{EscapeMode, escape_roff_macro_argument, manify},
+    inlines::{LinkLabel, contains_link},
 };
 
 #[derive(Clone, Copy)]
@@ -50,6 +51,8 @@ pub struct ManpageVisitor<'a, 'd, W: Write> {
     pub(crate) text_boundaries: TextBoundaries,
     /// Text casing applied while preserving inline markup.
     pub(crate) text_case: TextCase,
+    /// Buffer the current label so nested links can be emitted as separate commands.
+    pub(crate) link_label: Option<LinkLabel>,
     /// Title of the first level-1 section for name-section validation.
     first_section_title: Option<String>,
     /// Title of the second level-1 section (for SYNOPSIS validation).
@@ -71,6 +74,7 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
             index_collection: IndexCollection::Enabled,
             text_boundaries: TextBoundaries::BOTH,
             text_case: TextCase::Preserve,
+            link_label: None,
             first_section_title: None,
             second_section_title: None,
         }
@@ -93,10 +97,8 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
     /// Create a visitor that renders into `writer` with this visitor's inline
     /// context.
     ///
-    /// Roff macros such as `.URL` and `.MTO` take their label as a quoted
-    /// argument, so that text is rendered into a buffer first. It still belongs
-    /// to the surrounding context: text inside a level-1 section reference
-    /// upper-cases, label included.
+    /// Copied text retains its casing and index-registration policy, but has
+    /// its own output and link-label state.
     pub(crate) fn nested_visitor<'w, W2: Write>(
         &mut self,
         writer: &'w mut W2,
@@ -190,6 +192,10 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
         let mut partial_bytes = 0;
 
         for next_node in nodes {
+            // Trailing punctuation is a macro argument; another link needs its own line.
+            if contains_link(next_node) {
+                break;
+            }
             match next_node {
                 InlineNode::PlainText(text) => {
                     // Stop if text starts with whitespace
@@ -633,6 +639,9 @@ impl<'a, W: Write> Visitor<'a> for ManpageVisitor<'a, '_, W> {
 
 impl<'a, W: Write> WritableVisitor<'a> for ManpageVisitor<'a, '_, W> {
     fn writer_mut(&mut self) -> &mut dyn Write {
-        &mut self.writer
+        match self.link_label.as_mut() {
+            Some(label) => &mut label.content,
+            None => &mut self.writer,
+        }
     }
 }

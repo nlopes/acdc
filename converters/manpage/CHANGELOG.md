@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Render links inside other link labels as separate roff commands, preserving their text and destinations. Nested labels no longer lose text or make groff abort; this deliberately differs from malformed Asciidoctor manpage output.
+
 - Preserve literal quotes and commas in link labels unless attribute-list
   syntax applies. Accept escaped quotes in quoted link, URL, and mailto labels,
   including repeated backslashes, passthroughs, and enabled code. Link and URL

@@ -146,11 +146,117 @@ fn restore_em_dash_line_prefixes(content: &str, escaped: &str) -> Option<String>
     Some(restored)
 }
 
+pub(crate) struct LinkLabel {
+    command: &'static str,
+    target: String,
+    pub(crate) content: Vec<u8>,
+    split: bool,
+}
+
+pub(crate) fn contains_link(node: &InlineNode<'_>) -> bool {
+    let children = match node {
+        InlineNode::Macro(
+            InlineMacro::Link(_)
+            | InlineMacro::Url(_)
+            | InlineMacro::Mailto(_)
+            | InlineMacro::Autolink(_)
+            | InlineMacro::CrossReference(_),
+        ) => return true,
+        InlineNode::Macro(InlineMacro::Image(image)) => {
+            return image.metadata.attributes.contains_key("link");
+        }
+        InlineNode::BoldText(n) => &n.content,
+        InlineNode::ItalicText(n) => &n.content,
+        InlineNode::MonospaceText(n) => &n.content,
+        InlineNode::HighlightText(n) => &n.content,
+        InlineNode::SubscriptText(n) => &n.content,
+        InlineNode::SuperscriptText(n) => &n.content,
+        InlineNode::CurvedQuotationText(n) => &n.content,
+        InlineNode::CurvedApostropheText(n) => &n.content,
+        InlineNode::Macro(InlineMacro::IndexTerm(n)) if n.is_visible() => n.term(),
+        InlineNode::PlainText(_)
+        | InlineNode::RawText(_)
+        | InlineNode::VerbatimText(_)
+        | InlineNode::StandaloneCurvedApostrophe(_)
+        | InlineNode::LineBreak(_)
+        | InlineNode::InlineAnchor(_)
+        | InlineNode::Macro(_)
+        | InlineNode::CalloutRef(_)
+        | _ => return false,
+    };
+    children.iter().any(contains_link)
+}
+
 impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
+    fn flush_link_label(&mut self, trailing: &str, finish: bool) -> Result<(), Error> {
+        if let Some(label) = self.link_label.as_mut() {
+            let text = String::from_utf8_lossy(&label.content);
+            let text = escape_rendered_roff_macro_argument(text.trim());
+            let trailing = escape_rendered_roff_macro_argument(trailing);
+            // A child command must never become part of its parent's quoted argument.
+            if !text.is_empty() || (finish && !label.split) {
+                writeln!(
+                    self.writer,
+                    "\\c\n.{} \"{}\" \"{text}\" \"{trailing}\"",
+                    label.command, label.target
+                )?;
+            } else if finish {
+                write!(self.writer, "{trailing}")?;
+            }
+            label.content.clear();
+            label.split = true;
+        }
+        Ok(())
+    }
+
+    fn with_link_label(
+        &mut self,
+        target: String,
+        mailto: bool,
+        trailing: &str,
+        render: impl FnOnce(&mut Self) -> Result<(), Error>,
+    ) -> Result<(), Error> {
+        self.flush_link_label("", false)?;
+        let previous = self.link_label.replace(LinkLabel {
+            command: if mailto { "MTO" } else { "URL" },
+            target,
+            content: Vec::new(),
+            split: false,
+        });
+        let boundaries = self.text_boundaries;
+        let in_span = self.in_inline_span;
+        self.strip_next_leading_space = false;
+        self.text_boundaries = TextBoundaries::BOTH;
+        self.in_inline_span = false;
+        let result = render(self).and_then(|()| self.flush_link_label(trailing, true));
+        self.link_label = previous;
+        self.text_boundaries = boundaries;
+        self.in_inline_span = in_span;
+        self.strip_next_leading_space = true;
+        result
+    }
+
+    pub(crate) fn write_link_command(
+        &mut self,
+        command: &str,
+        target: &str,
+        label: &str,
+        trailing: &str,
+    ) -> Result<(), Error> {
+        self.flush_link_label("", false)?;
+        writeln!(
+            self.writer,
+            "\\c\n.{command} \"{target}\" \"{label}\" \"{trailing}\""
+        )?;
+        self.strip_next_leading_space = true;
+        Ok(())
+    }
+
     fn render_with_role(
         &mut self,
         role: Option<&str>,
         default: RoleDefault,
+        split: bool,
         content: impl FnOnce(&mut Self) -> Result<(), Error>,
     ) -> Result<(), Error> {
         if has_degraded_role(role) && !self.processor.inline_role_warning.replace(true) {
@@ -160,37 +266,66 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             );
         }
         let (prefix, suffix) = role_affixes(role, default);
-        write!(self.writer_mut(), "{prefix}")?;
+        self.render_affixed(&prefix, &suffix, split, content)
+    }
+
+    fn render_affixed(
+        &mut self,
+        prefix: &str,
+        suffix: &str,
+        split: bool,
+        content: impl FnOnce(&mut Self) -> Result<(), Error>,
+    ) -> Result<(), Error> {
+        // Formatting around several links belongs outside their command arguments.
+        if split {
+            self.flush_link_label("", false)?;
+            write!(self.writer, "{prefix}")?;
+        } else {
+            write!(self.writer_mut(), "{prefix}")?;
+        }
         content(self)?;
-        write!(self.writer_mut(), "{suffix}")?;
+        if split {
+            self.flush_link_label("", false)?;
+            write!(self.writer, "{suffix}")?;
+        } else {
+            write!(self.writer_mut(), "{suffix}")?;
+        }
         Ok(())
     }
 
-    fn render_link_display(
+    fn render_formatted_inlines(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        text: &[InlineNode<'_>],
+        prefix: &str,
+        suffix: &str,
+    ) -> Result<(), Error> {
+        let split = self.link_label.is_some() && text.iter().any(contains_link);
+        self.render_affixed(prefix, suffix, split, |visitor| {
+            visitor.visit_inline_nodes(traversal, text)
+        })
+    }
+
+    fn render_link_content(
         &mut self,
         traversal: &mut TraversalContext<'a>,
         text: &[InlineNode<'_>],
         fallback: &str,
         role: Option<&str>,
-    ) -> Result<String, Error> {
-        let mut output = Vec::new();
-        {
-            let mut visitor = self.nested_visitor(&mut output);
-            visitor.render_with_role(role, RoleDefault::Plain, |visitor| {
-                if text.is_empty() {
-                    write!(
-                        visitor.writer_mut(),
-                        "{}",
-                        manify(fallback, EscapeMode::Normalize)
-                    )?;
-                } else {
-                    visitor.visit_inline_nodes(traversal, text)?;
-                }
-                Ok(())
-            })?;
-        }
-        let rendered = String::from_utf8_lossy(&output).trim().to_string();
-        Ok(escape_rendered_roff_macro_argument(&rendered).into_owned())
+    ) -> Result<(), Error> {
+        let split = text.iter().any(contains_link);
+        self.render_with_role(role, RoleDefault::Plain, split, |visitor| {
+            if text.is_empty() {
+                write!(
+                    visitor.writer_mut(),
+                    "{}",
+                    manify(fallback, EscapeMode::Normalize)
+                )?;
+            } else {
+                visitor.visit_inline_nodes(traversal, text)?;
+            }
+            Ok(())
+        })
     }
 
     fn render_plain_text(&mut self, text: &str) -> Result<(), Error> {
@@ -249,22 +384,15 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             }
 
             InlineNode::BoldText(bold) => {
-                write!(self.writer_mut(), "\\fB")?;
-                self.visit_inline_nodes(traversal, &bold.content)?;
-                write!(self.writer_mut(), "\\fP")?;
+                self.render_formatted_inlines(traversal, &bold.content, "\\fB", "\\fP")?;
             }
 
             InlineNode::ItalicText(italic) => {
-                write!(self.writer_mut(), "\\fI")?;
-                self.visit_inline_nodes(traversal, &italic.content)?;
-                write!(self.writer_mut(), "\\fP")?;
+                self.render_formatted_inlines(traversal, &italic.content, "\\fI", "\\fP")?;
             }
 
             InlineNode::MonospaceText(mono) => {
-                // Monospace uses Courier font (matching asciidoctor's \f(CR)
-                write!(self.writer_mut(), "\\f(CR")?;
-                self.visit_inline_nodes(traversal, &mono.content)?;
-                write!(self.writer_mut(), "\\fP")?;
+                self.render_formatted_inlines(traversal, &mono.content, "\\f(CR", "\\fP")?;
             }
 
             InlineNode::HighlightText(highlight) => {
@@ -273,35 +401,27 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
                 } else {
                     RoleDefault::Highlight
                 };
-                self.render_with_role(highlight.role, default, |visitor| {
+                let split =
+                    self.link_label.is_some() && highlight.content.iter().any(contains_link);
+                self.render_with_role(highlight.role, default, split, |visitor| {
                     visitor.visit_inline_nodes(traversal, &highlight.content)
                 })?;
             }
 
             InlineNode::SubscriptText(sub) => {
-                // No subscript in roff - render in parentheses
-                write!(self.writer_mut(), "_(")?;
-                self.visit_inline_nodes(traversal, &sub.content)?;
-                write!(self.writer_mut(), ")")?;
+                self.render_formatted_inlines(traversal, &sub.content, "_(", ")")?;
             }
 
             InlineNode::SuperscriptText(sup) => {
-                // No superscript in roff - render in parentheses
-                write!(self.writer_mut(), "^(")?;
-                self.visit_inline_nodes(traversal, &sup.content)?;
-                write!(self.writer_mut(), ")")?;
+                self.render_formatted_inlines(traversal, &sup.content, "^(", ")")?;
             }
 
             InlineNode::CurvedQuotationText(quoted) => {
-                write!(self.writer_mut(), "\\(lq")?;
-                self.visit_inline_nodes(traversal, &quoted.content)?;
-                write!(self.writer_mut(), "\\(rq")?;
+                self.render_formatted_inlines(traversal, &quoted.content, "\\(lq", "\\(rq")?;
             }
 
             InlineNode::CurvedApostropheText(quoted) => {
-                write!(self.writer_mut(), "\\(oq")?;
-                self.visit_inline_nodes(traversal, &quoted.content)?;
-                write!(self.writer_mut(), "\\(cq")?;
+                self.render_formatted_inlines(traversal, &quoted.content, "\\(oq", "\\(cq")?;
             }
 
             InlineNode::StandaloneCurvedApostrophe(_) => {
@@ -340,29 +460,22 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         link: &Link,
     ) -> Result<(), Error> {
-        // Use .URL macro for links (matching asciidoctor)
-        // The macro must be on its own line; continuation text goes on the next line
-        let target_str = link.target.to_string();
-        let escaped_target = escape_roff_macro_argument(&target_str);
+        let target = link.target.to_string();
         let role = role_from_attributes(&link.attributes);
-        let styled_fallback = !role_affixes(role.as_deref(), RoleDefault::Plain)
-            .0
-            .is_empty();
-        let display_text = if link.text.is_empty() && !link.hides_uri_scheme() && !styled_fallback {
-            String::new()
-        } else {
-            self.render_link_display(
-                traversal,
-                &link.text,
-                link_fallback(&target_str, link.hides_uri_scheme()),
-                role.as_deref(),
-            )?
-        };
-        let w = self.writer_mut();
-        writeln!(w, "\\c\n.URL \"{escaped_target}\" \"{display_text}\" \"\"")?;
-        self.strip_next_leading_space = true;
-
-        Ok(())
+        self.with_link_label(escape_roff_macro_argument(&target), false, "", |visitor| {
+            let styled = !role_affixes(role.as_deref(), RoleDefault::Plain)
+                .0
+                .is_empty();
+            if !link.text.is_empty() || link.hides_uri_scheme() || styled {
+                visitor.render_link_content(
+                    traversal,
+                    &link.text,
+                    link_fallback(&target, link.hides_uri_scheme()),
+                    role.as_deref(),
+                )?;
+            }
+            Ok(())
+        })
     }
 
     fn render_mailto(
@@ -384,31 +497,24 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         mailto: &Mailto,
         trailing: &str,
     ) -> Result<(), Error> {
-        let target_str = mailto.target.to_string();
-        let email =
-            escape_roff_macro_argument(target_str.strip_prefix("mailto:").unwrap_or(&target_str))
-                .replace('@', "\\(at");
-
+        let target = mailto.target.to_string();
+        let email = escape_roff_macro_argument(target.strip_prefix("mailto:").unwrap_or(&target))
+            .replace('@', "\\(at");
         let role = role_from_attributes(&mailto.attributes);
-        let styled_fallback = !role_affixes(role.as_deref(), RoleDefault::Plain)
-            .0
-            .is_empty();
-        let display_text = if mailto.text.is_empty() && !styled_fallback {
-            String::new()
-        } else {
-            self.render_link_display(
-                traversal,
-                &mailto.text,
-                mailto_fallback(&target_str),
-                role.as_deref(),
-            )?
-        };
-
-        let trailing = escape_rendered_roff_macro_argument(trailing);
-        let w = self.writer_mut();
-        writeln!(w, "\\c\n.MTO \"{email}\" \"{display_text}\" \"{trailing}\"")?;
-        self.strip_next_leading_space = true;
-        Ok(())
+        self.with_link_label(email, true, trailing, |visitor| {
+            let styled = !role_affixes(role.as_deref(), RoleDefault::Plain)
+                .0
+                .is_empty();
+            if !mailto.text.is_empty() || styled {
+                visitor.render_link_content(
+                    traversal,
+                    &mailto.text,
+                    mailto_fallback(&target),
+                    role.as_deref(),
+                )?;
+            }
+            Ok(())
+        })
     }
 
     fn render_autolink(&mut self, autolink: &Autolink) -> Result<(), Error> {
@@ -425,31 +531,20 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         autolink: &Autolink,
         trailing: &str,
     ) -> Result<(), Error> {
-        let url_str = autolink.url.to_string();
-        // Use .MTO macro for mailto autolinks
-        // The macro must end with newline; continuation text goes on the next line
-        if let Some(email) = url_str.strip_prefix("mailto:") {
-            let escaped_email = escape_roff_macro_argument(email).replace('@', "\\(at");
-            let trailing = escape_rendered_roff_macro_argument(trailing);
-            let w = self.writer_mut();
-            writeln!(w, "\\c\n.MTO \"{escaped_email}\" \"\" \"{trailing}\"")?;
+        let target = autolink.url.to_string();
+        let trailing = escape_rendered_roff_macro_argument(trailing);
+        if let Some(email) = target.strip_prefix("mailto:") {
+            let email = escape_roff_macro_argument(email).replace('@', "\\(at");
+            self.write_link_command("MTO", &email, "", &trailing)
         } else {
-            // Use .URL macro for HTTP(S) links
-            let display_text = if autolink.hides_uri_scheme() {
-                escape_roff_macro_argument(link_fallback(&url_str, autolink.hides_uri_scheme()))
+            let label = if autolink.hides_uri_scheme() {
+                escape_roff_macro_argument(link_fallback(&target, true))
             } else {
                 String::new()
             };
-            let target = escape_roff_macro_argument(&url_str);
-            let trailing = escape_rendered_roff_macro_argument(trailing);
-            let w = self.writer_mut();
-            writeln!(
-                w,
-                "\\c\n.URL \"{target}\" \"{display_text}\" \"{trailing}\"",
-            )?;
+            let target = escape_roff_macro_argument(&target);
+            self.write_link_command("URL", &target, &label, &trailing)
         }
-        self.strip_next_leading_space = true;
-        Ok(())
     }
 
     /// Visit an inline macro.
@@ -497,28 +592,22 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     ) -> Result<(), Error> {
         match macro_node {
             InlineMacro::Url(url) => {
-                // URL - use .URL macro for proper rendering (matching asciidoctor)
-                // The macro must end with newline; continuation text goes on the next line
-                let target_str = url.target.to_string();
-                let escaped_target = escape_roff_macro_argument(&target_str);
+                let target = url.target.to_string();
                 let role = role_from_attributes(&url.attributes);
-                let styled_fallback = !role_affixes(role.as_deref(), RoleDefault::Plain)
-                    .0
-                    .is_empty();
-                if url.text.is_empty() && !url.hides_uri_scheme() && !styled_fallback {
-                    let w = self.writer_mut();
-                    writeln!(w, "\\c\n.URL \"{escaped_target}\" \"\" \"\"")?;
-                } else {
-                    let display_text = self.render_link_display(
-                        traversal,
-                        &url.text,
-                        link_fallback(&target_str, url.hides_uri_scheme()),
-                        role.as_deref(),
-                    )?;
-                    let w = self.writer_mut();
-                    writeln!(w, "\\c\n.URL \"{escaped_target}\" \"{display_text}\" \"\"")?;
-                }
-                self.strip_next_leading_space = true;
+                self.with_link_label(escape_roff_macro_argument(&target), false, "", |visitor| {
+                    let styled = !role_affixes(role.as_deref(), RoleDefault::Plain)
+                        .0
+                        .is_empty();
+                    if !url.text.is_empty() || url.hides_uri_scheme() || styled {
+                        visitor.render_link_content(
+                            traversal,
+                            &url.text,
+                            link_fallback(&target, url.hides_uri_scheme()),
+                            role.as_deref(),
+                        )?;
+                    }
+                    Ok(())
+                })?;
             }
 
             InlineMacro::Mailto(mailto) => {

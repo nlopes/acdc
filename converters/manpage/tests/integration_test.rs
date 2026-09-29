@@ -10,6 +10,47 @@ use acdc_parser::{Options as ParserOptions, parse, parse_file};
 
 type Error = Box<dyn std::error::Error>;
 
+#[test]
+fn nested_links_keep_roff_commands_outside_arguments() -> Result<(), Error> {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/source/embedded/nested_links.adoc");
+    let parsed = parse_file(&path, &ParserOptions::default())?;
+    let processor = Processor::new(
+        ConverterOptions::builder().embedded(true).build(),
+        ParserOptions::builder(),
+    )?;
+    let mut output = Vec::new();
+    let mut warnings = Vec::new();
+    let source = WarningSource::new("manpage");
+    let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+    processor.write_to(
+        parsed.document(),
+        &mut output,
+        Some(&path),
+        None,
+        &mut diagnostics,
+    )?;
+    let output = String::from_utf8(output)?;
+    let mut commands = 0;
+    for line in output
+        .lines()
+        .filter(|line| line.starts_with(".URL ") || line.starts_with(".MTO "))
+    {
+        assert_eq!(
+            line.matches('"').count(),
+            6,
+            "invalid roff arguments: {line}"
+        );
+        assert!(
+            !line.contains("\\n.URL") && !line.contains("\\n.MTO"),
+            "nested command: {line}"
+        );
+        commands += 1;
+    }
+    assert!(commands > 30, "missing links: {output}");
+    Ok(())
+}
+
 fn temp_output_path(name: &str, extension: &str) -> PathBuf {
     std::env::temp_dir().join(format!("acdc-{name}-{}.{extension}", std::process::id()))
 }

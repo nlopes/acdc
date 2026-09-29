@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Render nested links as separate anchors, preserving their text, destinations, formatting, and IDs. This deliberately differs from Asciidoctor HTML, which can emit invalid nested anchors.
+
 - Preserve literal quotes and commas in link labels unless attribute-list
   syntax applies. Accept escaped quotes in quoted link, URL, and mailto labels,
   including repeated backslashes, passthroughs, and enabled code. Link and URL

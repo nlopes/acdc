@@ -1,0 +1,23 @@
+= Enabled nested links
+:source-highlighter: rouge
+
+[source,text,subs=+macros]
+----
+link:https://code.example[Before mailto:code@example.org[Inner] after]
+link:https://code.example["Before mailto:code@example.org[\"Quoted\"] after",role=green]
+----
+
+[literal,subs=+macros]
+....
+https://literal.example[Before link:https://inner.example[Inner] after]
+....
+
+[subs=-macros]
+link:https://disabled.example[Before mailto:disabled@example.org[Inner] after]
+
+pass:m[link:https://pass.example[Before mailto:pass@example.org[Inner\] after\]]
+
+[source,text]
+----
+link:https://disabled.example[Before mailto:disabled@example.org[Inner] after]
+----

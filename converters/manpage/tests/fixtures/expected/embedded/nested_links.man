@@ -1,0 +1,169 @@
+.SH "SYNOPSIS"
+.sp
+Nested link examples.
+.SH "DESCRIPTION"
+.sp
+\c
+.URL "https://outer.example" "Before" ""
+\c
+.MTO "test\(atexample.org" "Inner" ""
+\c
+.URL "https://outer.example" "after" ""
+\&.
+.sp
+\c
+.URL "https://quoted.example" "Outer" ""
+\c
+.MTO "test\(atexample.org" "\e\(dqQuoted\e\(dq" ""
+\c
+.URL "https://quoted.example" "tail" ""
+
+.sp
+\c
+.URL "https://outer.example" "Before" ""
+\fB\c
+.URL "https://outer.example" "bold" ""
+\c
+.MTO "bold\(atexample.org" "\fIinner\fP" ""
+\c
+.URL "https://outer.example" "end" ""
+\fP\c
+.URL "https://outer.example" "after" ""
+\&.
+.sp
+\c
+.URL "https://outer.example" "Before" ""
+\c
+.URL "https://middle.example" "Middle" ""
+\c
+.MTO "deep\(atexample.org" "Deep" ""
+\c
+.URL "https://middle.example" "tail" ""
+\c
+.URL "https://outer.example" "after" ""
+\&.
+.sp
+\c
+.MTO "outer\(atexample.org" "Before" ""
+\c
+.URL "https://inner.example" "Inner" ""
+\c
+.MTO "outer\(atexample.org" "after" ""
+\&.
+.sp
+\c
+.URL "https://outer.example" "Before https://bare.example after" ""
+\&.
+.sp
+\c
+.URL "https://outer.example" "Before" ""
+\c
+.MTO "empty\(atexample.org" "" ""
+\c
+.URL "https://outer.example" "after" ""
+\&.
+.sp
+\c
+.MTO "first\(atexample.org" "First" ""
+\c
+.URL "https://outer.example" "after" ""
+
+.sp
+\c
+.MTO "only\(atexample.org" "Only" ""
+
+.sp
+\fB\c
+.MTO "styled\(atexample.org" "Styled only" ""
+\fP
+.sp
+\fI\c
+.MTO "role\(atexample.org" "Role only" ""
+\fP
+.sp
+\c
+.URL "https://outer.example" "Before" ""
+\c
+.MTO "test\(atexample.org" "Inner" ",after"
+\&.
+.sp
+\c
+.URL "https://outer.example" "Before" ""
+\c
+.MTO "test\(atexample.org" "Inner" ""
+\fB\c
+.URL "https://adjacent.example" "Adjacent" ""
+\fP\c
+.URL "https://outer.example" "after" ""
+\&.
+.sp
+\c
+.URL "https://outer.example" "Before Explicit and Target" ""
+\c
+.MTO "title\(atexample.org" "Title link" ""
+\c
+.URL "https://outer.example" "after" ""
+\&.
+.sp
+Before \c
+.MTO "ref\(atexample.org" "Inner" ""
+after
+.sp
+\c
+.URL "https://outer.example" "Before [1]" ""
+\c
+.MTO "test\(atexample.org" "Inner" ""
+\c
+.URL "https://outer.example" "after" ""
+\&.
+.sp
+\c
+.URL "https://outer.example" "Début" ""
+\c
+.URL "https://unicode.example" "Été & soleil" ""
+\c
+.URL "https://outer.example" "fin" ""
+\&.
+.SS "Target Title link"
+.sp
+See Target \c
+.MTO "title\(atexample.org" "Title link" ""
+, Outer, Only, and Anchor\&.
+.sp
+\c
+.URL "https://outer.example" "Before" ""
+\c
+.URL "https://image.example" "[Picture]" "\c"
+\c
+.URL "https://outer.example" "after" ""
+\&.
+.sp
+\c
+.URL "https://outer.example" "Before" ""
+\fB\c
+.URL "https://outer.example" "bold Index" ""
+\c
+.MTO "index\(atexample.org" "Inner" ""
+\fP\c
+.URL "https://outer.example" "after" ""
+\&.
+.sp
+Ordinary \c
+.URL "https://control.example" "Control" ""
+and \c
+.MTO "control\(atexample.org" "Mail" "\&."
+
+.nf
+link:https://literal.example[Outer mailto:literal@example.org[Inner] tail]
+.fi
+.SH "INDEX"
+.SS "H"
+.RS 4
+Hidden
+.br
+.RE
+.SS "I"
+.RS 4
+Index mailto:index@example.org[Inner]
+.br
+.RE

@@ -1,0 +1,134 @@
+<div id="toc" class="toc">
+<div id="toctitle">Table of Contents</div>
+<ul class="sectlevel1">
+<li>
+<a href="#_name">Name</a>
+</li>
+<li>
+<a href="#_synopsis">Synopsis</a>
+</li>
+<li>
+<a href="#_description">Description</a>
+<ul class="sectlevel2">
+<li>
+<a href="#target">Target Title link</a>
+</li>
+</ul>
+</li>
+<li>
+<a href="#_index">Index</a>
+</li>
+</ul>
+</div>
+<div class="sect1">
+<h2 id="_name">Name</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>nested-links - links inside labels</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_synopsis">Synopsis</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Nested link examples.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_description">Description</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><a href="https://outer.example">Before </a><a href="mailto:test@example.org">Inner</a><a href="https://outer.example"> after</a>.</p>
+</div>
+<div class="paragraph">
+<p><a href="https://quoted.example" class="green">Outer </a><a href="mailto:test@example.org">\"Quoted\"</a><a href="https://quoted.example" class="green"> tail</a></p>
+</div>
+<div class="paragraph">
+<p><a href="https://outer.example">Before </a><strong><a href="https://outer.example">bold </a><a href="mailto:bold@example.org"><em>inner</em></a><a href="https://outer.example"> end</a></strong><a href="https://outer.example"> after</a>.</p>
+</div>
+<div class="paragraph">
+<p><a href="https://outer.example">Before </a><a href="https://middle.example">Middle </a><a href="mailto:deep@example.org">Deep</a><a href="https://middle.example"> tail</a><a href="https://outer.example"> after</a>.</p>
+</div>
+<div class="paragraph">
+<p><a href="mailto:outer@example.org">Before </a><a href="https://inner.example">Inner</a><a href="mailto:outer@example.org"> after</a>.</p>
+</div>
+<div class="paragraph">
+<p><a href="https://outer.example">Before https://bare.example after</a>.</p>
+</div>
+<div class="paragraph">
+<p><a href="https://outer.example">Before </a><a href="mailto:empty@example.org">empty@example.org</a><a href="https://outer.example"> after</a>.</p>
+</div>
+<div class="paragraph">
+<p><span id="outer-id"></span><a href="mailto:first@example.org">First</a><a href="https://outer.example" class="green" target="_blank" rel="noopener"> after</a></p>
+</div>
+<div class="paragraph">
+<p><span id="only-id"></span><a href="mailto:only@example.org">Only</a></p>
+</div>
+<div class="paragraph">
+<p><strong><a href="mailto:styled@example.org">Styled only</a></strong></p>
+</div>
+<div class="paragraph">
+<p><a href="mailto:role@example.org">Role only</a></p>
+</div>
+<div class="paragraph">
+<p><a href="https://outer.example">Before </a><a href="mailto:test@example.org">Inner</a><a href="https://outer.example">,after</a>.</p>
+</div>
+<div class="paragraph">
+<p><a href="https://outer.example">Before </a><a href="mailto:test@example.org">Inner</a><strong><a href="https://adjacent.example">Adjacent</a></strong><a href="https://outer.example"> after</a>.</p>
+</div>
+<div class="paragraph">
+<p><a href="https://outer.example">Before </a><a href="#target">Explicit</a><a href="https://outer.example"> and </a><a href="#target">Target </a><a href="mailto:title@example.org">Title link</a><a href="https://outer.example"> after</a>.</p>
+</div>
+<div class="paragraph">
+<p><a href="#target">Before </a><a href="mailto:ref@example.org">Inner</a><a href="#target"> after</a></p>
+</div>
+<div class="paragraph">
+<p><a href="https://outer.example">Before </a><sup class="footnote" id="_footnote_nested">[<a id="_footnoteref_1" class="footnote" href="#_footnotedef_1" title="View footnote.">1</a>]</sup><a href="https://outer.example"> </a><a id="label-anchor"></a><a href="mailto:test@example.org">Inner</a><a href="https://outer.example"> after</a>.</p>
+</div>
+<div class="paragraph">
+<p><a href="https://outer.example">Début </a><a href="https://unicode.example">Été &amp; soleil</a><a href="https://outer.example"> fin</a>.</p>
+</div>
+<div class="sect2">
+<h3 id="target">Target <a href="mailto:title@example.org">Title link</a></h3>
+<div class="paragraph">
+<p>See <a href="#target">Target </a><a href="mailto:title@example.org">Title link</a>, <a href="#outer-id">Outer</a>, <a href="#only-id">Only</a>, and <a href="#label-anchor">Anchor</a>.</p>
+</div>
+<div class="paragraph">
+<p><a href="https://outer.example">Before </a><span class="image"><a class="image" href="https://image.example"><img src="inline-image-dimensions.svg" alt="Picture"></a></span><a href="https://outer.example"> after</a>.</p>
+</div>
+<div class="paragraph">
+<p><a href="https://outer.example">Before </a><strong><a href="https://outer.example">bold </a><a id="_indexterm_0"></a><a href="https://outer.example">Index </a><a href="mailto:index@example.org">Inner</a></strong><a href="https://outer.example"> </a><a id="_indexterm_1"></a><a href="https://outer.example"> after</a>.</p>
+</div>
+<div class="paragraph">
+<p>Ordinary <a href="https://control.example">Control</a> and <a href="mailto:control@example.org">Mail</a>.</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>link:https://literal.example[Outer mailto:literal@example.org[Inner] tail]</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_index">Index</h2>
+<div class="sectionbody">
+<h3 class="indexletter">H</h3>
+<dl class="indexterms">
+<dt>Hidden
+ <a href="#_indexterm_1">Target Title link</a></dt>
+</dl>
+<h3 class="indexletter">I</h3>
+<dl class="indexterms">
+<dt>Index mailto:index@example.org[Inner]
+ <a href="#_indexterm_0">Target Title link</a></dt>
+</dl>
+</div>
+</div>
+<div id="footnotes">
+<hr>
+<div class="footnote" id="_footnotedef_1">
+<a href="#_footnoteref_1">1</a>. Footnote with <a href="https://note.example">Note</a>.</div>
+</div>

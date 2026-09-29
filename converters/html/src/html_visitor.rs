@@ -193,7 +193,7 @@ pub struct HtmlVisitor<'a, 'd, W: Write> {
     /// Plain-text title of the section currently being rendered, used as the
     /// label for index back-links. `None` outside any section (e.g. preamble).
     pub(crate) current_section_title: Option<String>,
-    /// Surrounding label link, suspended around footnotes and their formatting.
+    /// Surrounding label link, suspended around child anchors and their formatting.
     pub(crate) inline_link: Option<crate::inlines::InlineLink>,
     pub(crate) captured_raw_fragments: Option<Vec<String>>,
     /// Resolved docinfo content for injection at head, header, and footer positions.

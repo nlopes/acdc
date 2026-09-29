@@ -1,0 +1,20 @@
+.EX
+Before Inner after
+Before \e"Quoted\e" after
+.EE
+.nf
+Before Inner after
+.fi
+.sp
+link:https://disabled.example[Before mailto:disabled@example.org[Inner] after]
+.sp
+\c
+.URL "https://pass.example" "Before" ""
+\c
+.MTO "pass\(atexample.org" "Inner" ""
+\c
+.URL "https://pass.example" "after" ""
+
+.EX
+link:https://disabled.example[Before mailto:disabled@example.org[Inner] after]
+.EE

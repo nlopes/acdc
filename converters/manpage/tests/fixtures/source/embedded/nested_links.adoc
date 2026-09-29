@@ -1,0 +1,65 @@
+= nested-links(1)
+:manmanual: Nested link tests
+:mansource: acdc
+:toc:
+:acdc-index:
+
+== Name
+nested-links - links inside labels
+
+== Synopsis
+Nested link examples.
+
+== Description
+
+link:https://outer.example[Before mailto:test@example.org[Inner] after].
+
+link:https://quoted.example["Outer mailto:test@example.org[\"Quoted\"] tail",role=green]
+
+link:https://outer.example[Before *bold mailto:bold@example.org[_inner_] end* after].
+
+https://outer.example[Before link:https://middle.example[Middle mailto:deep@example.org[Deep] tail] after].
+
+mailto:outer@example.org[Before https://inner.example[Inner] after].
+
+link:https://outer.example[Before https://bare.example after].
+
+link:https://outer.example[Before mailto:empty@example.org[] after].
+
+link:https://outer.example[mailto:first@example.org[First] after,id=outer-id,role=green,window=_blank]
+
+link:https://outer.example[mailto:only@example.org[Only],id=only-id]
+
+link:https://outer.example[*mailto:styled@example.org[Styled only]*]
+
+link:https://outer.example[mailto:role@example.org[Role only],role=underline]
+
+link:https://outer.example[Before mailto:test@example.org[Inner],after].
+
+link:https://outer.example[Before mailto:test@example.org[Inner]*https://adjacent.example[Adjacent]* after].
+
+link:https://outer.example[Before xref:target[Explicit] and <<target>> after].
+
+xref:target[Before mailto:ref@example.org[Inner] after]
+
+link:https://outer.example[Before footnote:nested[Footnote with https://note.example[Note].] anchor:label-anchor[]mailto:test@example.org[Inner] after].
+
+link:https://outer.example[Début https://unicode.example[Été & soleil] fin].
+
+[[target]]
+=== Target mailto:title@example.org[Title link]
+
+See <<target>>, <<outer-id,Outer>>, <<only-id,Only>>, and <<label-anchor,Anchor>>.
+
+link:https://outer.example[Before image:inline-image-dimensions.svg[Picture,link=https://image.example] after].
+
+link:https://outer.example[Before *bold ((Index mailto:index@example.org[Inner]))* (((Hidden))) after].
+
+Ordinary link:https://control.example[Control] and mailto:control@example.org[Mail].
+
+....
+link:https://literal.example[Outer mailto:literal@example.org[Inner] tail]
+....
+
+[index]
+== Index

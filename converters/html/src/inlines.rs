@@ -362,7 +362,7 @@ impl InlineLink {
             write!(writer, "</a>")?;
             self.open = false;
         } else if !self.id.is_empty() {
-            // Keep the explicit target when a label starts with a footnote marker.
+            // Keep the explicit target even when the first child needs its own anchor.
             write!(writer, "<span{}></span>", self.id)?;
             self.id.clear();
         }
@@ -370,16 +370,25 @@ impl InlineLink {
     }
 }
 
-fn link_label_needs_split(node: &InlineNode<'_>, in_reference: bool) -> bool {
+fn link_label_needs_split(node: &InlineNode<'_>, in_reference: bool, index: bool) -> bool {
     let children = match node {
-        InlineNode::Macro(InlineMacro::Footnote(_)) | InlineNode::InlineAnchor(_) => return true,
-        // An automatic reference can supply a footnote from its target's title.
-        InlineNode::Macro(InlineMacro::CrossReference(n)) if n.text.is_empty() && !in_reference => {
+        InlineNode::Macro(
+            InlineMacro::Footnote(_)
+            | InlineMacro::Link(_)
+            | InlineMacro::Url(_)
+            | InlineMacro::Mailto(_)
+            | InlineMacro::Autolink(_),
+        )
+        | InlineNode::InlineAnchor(_) => return true,
+        // Automatic references already being resolved render as text to break cycles.
+        InlineNode::Macro(InlineMacro::CrossReference(n))
+            if !n.text.is_empty() || !in_reference =>
+        {
             return true;
         }
-        InlineNode::Macro(InlineMacro::Link(n)) => &n.text,
-        InlineNode::Macro(InlineMacro::Url(n)) => &n.text,
-        InlineNode::Macro(InlineMacro::Mailto(n)) => &n.text,
+        InlineNode::Macro(InlineMacro::Image(n)) => {
+            return n.metadata.attributes.contains_key("link");
+        }
         InlineNode::Macro(InlineMacro::CrossReference(n)) => &n.text,
         InlineNode::BoldText(n) => &n.content,
         InlineNode::ItalicText(n) => &n.content,
@@ -389,6 +398,7 @@ fn link_label_needs_split(node: &InlineNode<'_>, in_reference: bool) -> bool {
         InlineNode::SuperscriptText(n) => &n.content,
         InlineNode::CurvedQuotationText(n) => &n.content,
         InlineNode::CurvedApostropheText(n) => &n.content,
+        InlineNode::Macro(InlineMacro::IndexTerm(_)) if index => return true,
         InlineNode::Macro(InlineMacro::IndexTerm(n)) if n.is_visible() => n.term(),
         InlineNode::PlainText(_)
         | InlineNode::RawText(_)
@@ -401,11 +411,11 @@ fn link_label_needs_split(node: &InlineNode<'_>, in_reference: bool) -> bool {
     };
     children
         .iter()
-        .any(|node| link_label_needs_split(node, in_reference))
+        .any(|node| link_label_needs_split(node, in_reference, index))
 }
 
 impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
-    /// Render inline content while keeping footnote links outside surrounding links.
+    /// Render inline content without nesting generated anchors inside label links.
     pub(crate) fn render_inline_node(
         &mut self,
         traversal: &mut TraversalContext<'a>,
@@ -414,7 +424,11 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         subs: &[Substitution],
     ) -> Result<(), Error> {
         if let Some(mut link) = self.inline_link.take() {
-            if link_label_needs_split(node, self.processor.xref_guard.is_resolving()) {
+            if link_label_needs_split(
+                node,
+                self.processor.xref_guard.is_resolving(),
+                self.processor.generate_index(),
+            ) {
                 link.close(self.writer_mut())?;
                 self.inline_link = Some(link);
                 self.render_inline_node_content(traversal, node, options, subs)?;
@@ -1409,7 +1423,11 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                     write!(self.writer_mut(), "{}, ", escape_pcdata(&prefix))?;
                 }
                 let split = inlines.iter().any(|node| {
-                    link_label_needs_split(node, self.processor.xref_guard.is_resolving())
+                    link_label_needs_split(
+                        node,
+                        self.processor.xref_guard.is_resolving(),
+                        self.processor.generate_index(),
+                    )
                 });
                 if split {
                     self.close_inline_link()?;
