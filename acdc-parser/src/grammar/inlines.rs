@@ -949,6 +949,37 @@ struct LinkContent<'a> {
     protected: Vec<Range<usize>>,
 }
 
+impl LinkContent<'_> {
+    // Keep nested macro delimiters protected when late attributes change offsets.
+    fn registered_protected_ranges(&self, restored: &[RestoredRange]) -> Cow<'_, [Range<usize>]> {
+        if restored.is_empty() {
+            Cow::Borrowed(self.protected.as_slice())
+        } else {
+            let reversed: Vec<_> = restored
+                .iter()
+                .map(|(a, b)| (b.clone(), a.clone()))
+                .collect();
+            Cow::Owned(
+                self.protected
+                    .iter()
+                    .map(|range| {
+                        restored_label_offset(range.start, &reversed, false)
+                            ..restored_label_offset(range.end, &reversed, false)
+                    })
+                    .collect(),
+            )
+        }
+    }
+}
+
+#[derive(Default)]
+struct ProcessedLinkContent<'a> {
+    text: Vec<InlineNode<'a>>,
+    attributes: ElementAttributes<'a>,
+    subject: Option<&'a str>,
+    body: Option<&'a str>,
+}
+
 fn process_link_content<'a>(
     state: &mut ParserState<'a>,
     metadata: &BlockParsingMetadata<'_>,
@@ -956,45 +987,79 @@ fn process_link_content<'a>(
     end: usize,
     content: &LinkContent<'a>,
     mailto: bool,
-) -> Result<(Vec<InlineNode<'a>>, ElementAttributes<'a>), crate::Error> {
-    let raw = content.raw;
-    let mut text = raw;
+) -> Result<ProcessedLinkContent<'a>, crate::Error> {
+    // URI arguments freeze when macros run; later attributes may still change
+    // the visible label, but must not introduce query values or separators.
+    let (raw, restored) = if mailto {
+        registration_source(
+            state,
+            IndexTermSegment {
+                text: content.raw,
+                start,
+            },
+        )
+    } else {
+        (content.raw, Vec::new())
+    };
+    let protected = content.registered_protected_ranges(&restored);
+    let mut text = content.raw;
     let mut offset = 0;
     let mut quote = None;
-    let mut attributes = ElementAttributes::default();
+    let mut result = ProcessedLinkContent::default();
     // Mailto uses commas to introduce subject/body slots. Other links use '=';
     // without that trigger (or in compat mode), quotes and commas are label text.
     if !state.document_attributes.contains_key("compat-mode")
         && raw.contains(if mailto { ',' } else { '=' })
     {
         text = "";
-        for (index, attribute) in super::document::scan_attribute_list(raw, &content.protected)
+        for (index, attribute) in super::document::scan_attribute_list(raw, &protected)
             .into_iter()
             .enumerate()
         {
+            let attribute_quote = raw[..attribute.value_start]
+                .chars()
+                .next_back()
+                .filter(|character| matches!(character, '\'' | '"'));
             if let Some(name) = attribute.name {
                 let name = match name.as_str() {
                     "roles" => Cow::Borrowed("role"),
                     "opts" => Cow::Borrowed("options"),
                     _ => Cow::Owned(name),
                 };
-                attributes.set(name, attribute.value.into());
+                // Named presentation attributes still see late substitutions.
+                let value = if restored.is_empty() {
+                    attribute.value
+                } else {
+                    let start = restored_label_offset(attribute.value_start, &restored, false);
+                    let end = restored_label_offset(attribute.value_end, &restored, false);
+                    let value = &content.raw[start..end];
+                    attribute_quote.map_or_else(
+                        || value.to_string(),
+                        |quote| super::document::unescape_attribute_quote(value, quote),
+                    )
+                };
+                result.attributes.set(name, value.into());
             } else if index == 0 {
-                offset = attribute.value_start;
-                text = &raw[offset..attribute.value_end];
-                quote = raw[..offset]
-                    .chars()
-                    .next_back()
-                    .filter(|character| matches!(character, '\'' | '"'));
+                quote = attribute_quote;
+                offset = restored_label_offset(attribute.value_start, &restored, false);
+                let end = restored_label_offset(attribute.value_end, &restored, false);
+                text = &content.raw[offset..end];
+            } else if mailto && matches!(index, 1 | 2) {
+                let value = state.intern_str(&attribute.value.replace("\\]", "]"));
+                if index == 1 {
+                    result.subject = Some(value);
+                } else {
+                    result.body = Some(value);
+                }
             }
         }
     }
     if let Some(label) = text.strip_suffix('^') {
         text = label;
-        attributes.insert("window".into(), "_blank".into());
+        result.attributes.insert("window".into(), "_blank".into());
     }
     if text.is_empty() {
-        return Ok((Vec::new(), attributes));
+        return Ok(result);
     }
 
     // Keep source slices intact until the label parser consumes each escape.
@@ -1009,7 +1074,7 @@ fn process_link_content<'a>(
         .inline_ctx
         .rules
         .set(InlineRules::SINGLE_QUOTED_LINK, quote == Some('\''));
-    let result = process_inlines_no_autolinks(
+    let parsed = process_inlines_no_autolinks(
         state,
         metadata,
         start + offset,
@@ -1018,7 +1083,8 @@ fn process_link_content<'a>(
         text,
     );
     state.inline_ctx.rules = rules;
-    result.map(|text| (text, attributes))
+    result.text = parsed?;
+    Ok(result)
 }
 
 peg::parser! {
@@ -1729,7 +1795,7 @@ peg::parser! {
                 ..BlockParsingMetadata::default()
             };
             let raw = content.raw;
-            let (text, attributes) = process_link_content(state, &bm, content_start, span_end, &content, false)
+            let ProcessedLinkContent { text, attributes, .. } = process_link_content(state, &bm, content_start, span_end, &content, false)
                 .map_err(|error| {
                     tracing::error!(?error, link_text = raw, "could not process link text");
                     "could not process link text"
@@ -1752,13 +1818,12 @@ peg::parser! {
 
         /// Parse `mailto:` macros with attribute handling.
         ///
-        /// `mailto:` macros have the format: `mailto:joe@example.com[text,attr1=value1,attr2=value2]`
+        /// `mailto:` macros accept `[text,subject,body]`, followed by named attributes.
         ///
         /// This is similar to link macros but the `mailto:` is directly specified rather
         /// than using the `link:` prefix.
         rule mailto_macro() -> InlineNode<'input>
-        = &"mailto:"
-        target:url()
+        = target:$("mailto:" email_address() ("?" url_path_char()*)?)
         "["
         content_start:position!() content:link_macro_content() "]"
         {?
@@ -1768,15 +1833,16 @@ peg::parser! {
                 ..BlockParsingMetadata::default()
             };
             let raw = content.raw;
-            let (text, attributes) = process_link_content(state, &bm, content_start, span_end, &content, true)
+            let ProcessedLinkContent { text, attributes, subject, body } = process_link_content(state, &bm, content_start, span_end, &content, true)
                 .map_err(|error| {
                     tracing::error!(?error, link_text = raw, "could not process link text");
                     "could not process link text"
                 })?;
-            let interned_target = state.intern_cow(target);
-            let target_source = Source::from_str_borrowed(interned_target).map_err(|_| "failed to parse mailto target")?;
+            let target_source = Source::from_str_borrowed(target).map_err(|_| "failed to parse mailto target")?;
             Ok(InlineNode::Macro(InlineMacro::Mailto(Mailto {
                 text,
+                subject,
+                body,
                 target: target_source,
                 attributes,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
@@ -1786,7 +1852,7 @@ peg::parser! {
         /// Match mailto macro without consuming - for use in negative lookaheads.
         /// Inlines the url/email_address patterns to avoid action-block processing.
         rule mailto_macro_match()
-        = "mailto:" email_address() "[" ("\\]" / !"]" [_])* "]"
+        = "mailto:" email_address() ("?" url_path_char()*)? "[" ("\\]" / !"]" [_])* "]"
 
         rule check_autolinks() -> ()
         = {? if state.inline_ctx.rules.contains(InlineRules::AUTOLINKS) { Ok(()) } else { Err("autolinks suppressed") } }
@@ -2096,7 +2162,7 @@ peg::parser! {
                 None => target,
             };
             let raw = content.raw;
-            let (text, attributes) = process_link_content(state, &bm, content_start, span_end, &content, false)
+            let ProcessedLinkContent { text, attributes, .. } = process_link_content(state, &bm, content_start, span_end, &content, false)
                 .map_err(|error| {
                     tracing::error!(?error, link_text = raw, "could not process link text");
                     "could not process link text"

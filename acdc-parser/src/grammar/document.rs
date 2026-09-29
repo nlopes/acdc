@@ -859,7 +859,7 @@ fn closing_quote(
     None
 }
 
-fn unescape_attribute_quote(value: &str, quote: char) -> String {
+pub(super) fn unescape_attribute_quote(value: &str, quote: char) -> String {
     let escaped_quote = format!("\\{quote}");
     value.replace(&escaped_quote, &quote.to_string())
 }

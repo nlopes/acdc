@@ -8,7 +8,7 @@ use acdc_converters_core::substitutions::apply_replacements;
 use acdc_converters_core::{
     Diagnostics, InlineTextTransform, TraversalContext, WarningSource, decode_numeric_char_refs,
     inlines_to_string,
-    link::{autolink_fallback, link_fallback},
+    link::{autolink_fallback, link_fallback, mailto_fallback, mailto_target},
     substitutions::{Replacements, TextBoundaries},
     visitor::{Visitor, WritableVisitor},
     xref::{XrefDisplay, resolve_xref},
@@ -667,12 +667,13 @@ fn render_inline_macro_to_writer<'a, W: Write + ?Sized>(
             maybe_render_osc8_link(&target, &text, w, processor)?;
         }
         InlineMacro::Mailto(m) => {
-            maybe_render_osc8_link(
-                m.target.to_string().as_ref(),
-                &render_inline_nodes_to_string(&m.text, processor, traversal)?,
-                w,
-                processor,
-            )?;
+            let target = m.target.to_string();
+            let text = if m.text.is_empty() {
+                mailto_fallback(&target).to_string()
+            } else {
+                render_inline_nodes_to_string(&m.text, processor, traversal)?
+            };
+            maybe_render_osc8_link(&mailto_target(m), &text, w, processor)?;
         }
         InlineMacro::Autolink(a) => {
             let target = a.url.to_string();

@@ -16,7 +16,7 @@ use acdc_converters_core::{
     document_attribute_text,
     icon::{IconMode, alt as icon_alt, image_source as icon_image_source},
     inlines_to_string,
-    link::{autolink_fallback, link_fallback, mailto_fallback},
+    link::{autolink_fallback, link_fallback, mailto_fallback, mailto_target},
     list::OrderedListNumbering,
     section::effective_section_level,
     shows_block_title,
@@ -3631,7 +3631,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 let fallback = mailto_fallback(&target);
                 self.write_link(
                     traversal,
-                    &target,
+                    &mailto_target(mailto),
                     &mailto.text,
                     Some(&mailto.attributes),
                     Some(&mailto.location),

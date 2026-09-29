@@ -1,0 +1,29 @@
+.SH "SYNOPSIS"
+.sp
+Email links.
+.SH "DESCRIPTION"
+.sp
+\c
+.MTO "normal\(atexample.org?subject=Expanded%20subject&body=Caf%C3%A9%20%26%20tea" "Normal" ""
+
+.sp
+\c
+.MTO "late\(atexample.org?subject=%7Bsubject%7D&body=%7Bbody%7D" "One, two" ""
+
+.sp
+\c
+.MTO "early\(atexample.org?subject=Expanded%20subject&body=Caf%C3%A9%20%26%20tea" "Early" ""
+
+.EX
+Code
+.EE
+.sp
+\c
+.MTO "label\(atexample.org" "One, two" ""
+
+.sp
+\c
+.MTO "pass\(atexample.org?subject=Subject&body=Body" "Pass" ""
+
+.sp
+mailto:disabled@example.org[Disabled,Subject,Body]

@@ -1,0 +1,20 @@
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>mailto-subs - substitution ordering</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_synopsis">Synopsis</h2>
+<p>Email links.</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_description">Description</h2>
+<p><a href="mailto:normal@example.org?subject=Expanded%20subject&amp;body=Caf%C3%A9%20%26%20tea">Normal</a></p>
+<p><a href="mailto:late@example.org?subject=%7Bsubject%7D&amp;body=%7Bbody%7D" class="green">One, two</a></p>
+<p><a href="mailto:early@example.org?subject=Expanded%20subject&amp;body=Caf%C3%A9%20%26%20tea">Early</a></p>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text"><span style="color:#323232;"><a href="mailto:code@example.org?subject=Subject%20text&amp;body=Body%20text">Code</a></span></code></pre>
+</div>
+<p><a href="mailto:label@example.org">One, two</a></p>
+<p><a href="mailto:pass@example.org?subject=Subject&amp;body=Body">Pass</a></p>
+<p>mailto:disabled@example.org[Disabled,Subject,Body]</p>
+</section>

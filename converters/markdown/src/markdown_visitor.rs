@@ -9,7 +9,7 @@ use acdc_converters_core::{
     code::{SourceLineOptions, default_line_comment, detect_language},
     document_attribute_text, icon,
     inline_text::InlineTextTransform,
-    link::{autolink_fallback, link_fallback, mailto_fallback},
+    link::{autolink_fallback, link_fallback, mailto_fallback, mailto_target},
     list::OrderedListNumbering,
     media::resolve_target,
     section::{
@@ -2341,11 +2341,7 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
             }
             InlineMacro::Mailto(mailto) => {
                 let target = mailto.target.to_string();
-                let destination = if target.starts_with("mailto:") {
-                    target.clone()
-                } else {
-                    format!("mailto:{target}")
-                };
+                let destination = mailto_target(mailto);
                 self.write_macro_link(
                     traversal,
                     &destination,

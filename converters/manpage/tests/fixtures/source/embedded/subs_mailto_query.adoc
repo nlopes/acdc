@@ -1,0 +1,37 @@
+= mailto-subs(1)
+:manmanual: Mailto tests
+:mansource: acdc
+:subject: Expanded subject
+:body: Café & tea
+:label: One, two
+:style: green
+:source-highlighter: syntect
+
+== Name
+mailto-subs - substitution ordering
+
+== Synopsis
+Email links.
+
+== Description
+
+mailto:normal@example.org[Normal,{subject},{body}]
+
+[subs="macros,attributes"]
+mailto:late@example.org[{label},{subject},{body},role={style}]
+
+[subs="attributes,macros"]
+mailto:early@example.org[Early,{subject},{body}]
+
+[source,text,subs=+macros]
+----
+mailto:code@example.org[Code,Subject text,Body text]
+----
+
+[subs="macros,attributes"]
+mailto:label@example.org[{label}]
+
+pass:m[mailto:pass@example.org[Pass,Subject,Body\]]
+
+[subs=-macros]
+mailto:disabled@example.org[Disabled,Subject,Body]

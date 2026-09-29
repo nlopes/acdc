@@ -12,6 +12,38 @@ use acdc_converters_pdf::{PdfOptions, Processor};
 type Error = Box<dyn std::error::Error>;
 
 #[test]
+fn mailto_query_values_reach_pdf_annotations() -> Result<(), Error> {
+    let pdf = render_input(include_str!("fixtures/source/mailto_query.adoc"))?;
+    let mut targets = Vec::new();
+    for page in pdf.get_pages().values() {
+        for annotation in pdf.get_page_annotations(*page)? {
+            targets.push(
+                annotation
+                    .get(b"A")?
+                    .as_dict()?
+                    .get(b"URI")?
+                    .as_str()?
+                    .to_vec(),
+            );
+        }
+    }
+    for expected in [
+        "mailto:both@example.org?subject=Test%20subject&body=Message%20body",
+        "mailto:fallback@example.org?subject=Test%20subject&body=Message%20body",
+        "mailto:unicode@example.org?subject=Caf%C3%A9%20%26%20tea%3F%20%2B%2050%25%20%231%20~&body=x%3Dy%20%2F%20caf%C3%A9",
+        "mailto:query@example.org?cc=copy@example.org&subject=New%20subject&body=New%20body",
+        "mailto:unquoted@example.org?subject=&body=Body",
+        "mailto:passarg@example.org?subject=one%2Ctwo&body=%2B",
+    ] {
+        assert!(
+            targets.iter().any(|target| target == expected.as_bytes()),
+            "missing URI: {expected}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
 fn nested_links_have_separate_pdf_destinations() -> Result<(), Error> {
     let pdf = render_input(
         "= Links\n\nlink:https://outer.example[Before mailto:inner@example.org[Inner] after]\n",

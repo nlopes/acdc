@@ -1,0 +1,53 @@
+= mailto-query(1)
+:manmanual: Mailto tests
+:mansource: acdc
+
+== Name
+mailto-query - email subjects and bodies
+
+== Synopsis
+Email links.
+
+== Description
+
+mailto:subject@example.org[Subject,Test subject]
+
+mailto:both@example.org[Both,Test subject,Message body]
+
+mailto:fallback@example.org[,Test subject,Message body]
+
+mailto:body@example.org[Body,"",Message body]
+
+mailto:empty@example.org[Empty,"",""]
+
+mailto:quoted@example.org[Quoted,"Hello, world","Say \"hello\", please"]
+
+mailto:unicode@example.org[Unicode,"Café & tea? + 50% #1 ~","x=y / café"]
+
+mailto:named@example.org[Named,role=green,Test subject,Message body]
+
+mailto:named-only@example.org[Named only,subject=Ignored,body=Ignored]
+
+mailto:query@example.org?cc=copy@example.org&subject=Existing[Query,New subject,New body]
+
+mailto:escape@example.org[Escape,Subject\],Body\]]
+
+mailto:control@example.org[Control]
+
+mailto:trailing@example.org[Trailing,]
+
+mailto:unquoted@example.org[Unquoted,,Body]
+
+mailto:numeric@example.org[Numeric,2=Ignored,3=Ignored]
+
+mailto:attributes@example.org[Styled,Subject,Body,role=green,id=mail]
+
+mailto:single@example.org[Single,'It\'s fine','Say "hello"']
+
+mailto:passarg@example.org[Pass argument,+one,two+,{plus}]
+
+mailto:empty-target@example.org[]
+
+mailto:plain@example.org[Plain text,"*Bold* <tag> (C)","a -> b"]
+
+\mailto:literal@example.org[Literal,Subject,Body]

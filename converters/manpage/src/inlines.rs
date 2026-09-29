@@ -8,7 +8,7 @@ use std::{borrow::Cow, io::Write, rc::Rc};
 use acdc_converters_core::substitutions::apply_replacements;
 use acdc_converters_core::{
     TraversalContext, decode_numeric_char_refs,
-    link::{link_fallback, mailto_fallback},
+    link::{link_fallback, mailto_fallback, mailto_target},
     substitutions::{Replacements, TextBoundaries},
     visitor::{Visitor, WritableVisitor},
     xref::{XrefDisplay, resolve_xref},
@@ -498,14 +498,14 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         trailing: &str,
     ) -> Result<(), Error> {
         let target = mailto.target.to_string();
-        let email = escape_roff_macro_argument(target.strip_prefix("mailto:").unwrap_or(&target))
-            .replace('@', "\\(at");
+        let destination = mailto_target(mailto);
+        let email = escape_roff_macro_argument(mailto_fallback(&destination)).replace('@', "\\(at");
         let role = role_from_attributes(&mailto.attributes);
         self.with_link_label(email, true, trailing, |visitor| {
             let styled = !role_affixes(role.as_deref(), RoleDefault::Plain)
                 .0
                 .is_empty();
-            if !mailto.text.is_empty() || styled {
+            if !mailto.text.is_empty() || styled || destination != target {
                 visitor.render_link_content(
                     traversal,
                     &mailto.text,

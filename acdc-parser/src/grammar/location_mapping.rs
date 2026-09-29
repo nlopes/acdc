@@ -457,6 +457,16 @@ fn restore_macro_passthroughs<'a>(
     }
     restore_macro_attributes(inline_macro, ctx);
 
+    if let InlineMacro::Mailto(mailto) = inline_macro {
+        for value in [&mut mailto.subject, &mut mailto.body] {
+            if let Some(text) = value
+                && let Some(restored) = ctx.restore_passthrough_text(text)
+            {
+                *value = Some(restored);
+            }
+        }
+    }
+
     let target = match inline_macro {
         InlineMacro::Link(link) => Some(&mut link.target),
         InlineMacro::Url(url) => Some(&mut url.target),

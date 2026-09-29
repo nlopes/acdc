@@ -112,6 +112,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `mailto:address[label,subject,body]` now carries percent-encoded subject and
+  body values, including Unicode, quoted commas, and empty arguments. Unlike
+  Asciidoctor 2.0.26, acdc preserves literal `&` and passthrough text instead of
+  encoding HTML entities or internal placeholders, keeps formatting and
+  typography syntax as plain email text, accepts unquoted empty
+  subjects, and correctly reads escaped apostrophes in single-quoted values.
+  Existing query headers are retained; positional subject/body values replace
+  matching headers and use `&`, rather than adding a second `?`. Message-body
+  line breaks use CRLF encoding.
+
 - Preserve inline anchor targets nested inside formatted code when macros and
   quotes are enabled, including highlighted HTML.
 

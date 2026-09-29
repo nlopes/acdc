@@ -6,7 +6,7 @@ use acdc_parser::{InlineMacro, InlineNode, Reference};
 
 use crate::{
     InlineTextTransform,
-    link::{autolink_fallback, link_fallback, mailto_fallback},
+    link::{autolink_fallback, link_fallback, mailto_fallback, mailto_target},
     xref::{XrefDisplay, XrefGuard, interdocument_xref, resolve_xref},
 };
 
@@ -62,7 +62,7 @@ pub fn resolve_code_link(
     } else if let InlineMacro::Mailto(link) = node {
         let target = link.target.to_string();
         let fallback = mailto_fallback(&target).to_string();
-        (target, &link.text, fallback)
+        (mailto_target(link), &link.text, fallback)
     } else if let InlineMacro::Autolink(link) = node {
         let target = link.url.to_string();
         let (label, brackets) = autolink_fallback(&target, link.bracketed, link.hides_uri_scheme());

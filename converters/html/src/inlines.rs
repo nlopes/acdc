@@ -49,7 +49,7 @@ use std::{
 
 use acdc_converters_core::{
     InlineTextTransform, TraversalContext, inlines_to_string,
-    link::{autolink_fallback, link_fallback, mailto_fallback},
+    link::{autolink_fallback, link_fallback, mailto_fallback, mailto_target},
     media::resolve_target,
     substitutions::{
         Replacements, TextBoundaries, restore_escaped_patterns, strip_backslash_escapes,
@@ -1212,7 +1212,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         let target_attr = window_attrs(&m.attributes);
         self.with_inline_link(
             InlineLink::new(
-                escape_href(&target_str),
+                escape_href(&mailto_target(m)),
                 id_attr,
                 format!("{class_attr}{target_attr}"),
             ),

@@ -32,6 +32,8 @@ terminal_fixture_catalog!([
     (subs_verbatim_footnotes, false, requires: feature = "highlighting"),
     (subs_verbatim_footnotes_order, false),
     (url_macro, true),
+    (mailto_query, true),
+    (subs_mailto_query, true, requires: feature = "highlighting"),
     (basic_image_block, false, requires: feature = "images"),
     (
         source_block_with_attribute_in_title,

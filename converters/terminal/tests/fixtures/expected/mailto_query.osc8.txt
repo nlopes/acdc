@@ -1,0 +1,36 @@
+[1m[4mmailto-query(1)[0m
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mName[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+mailto-query - email subjects and bodies
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mSynopsis[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+Email links.
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mDescription[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;5;12m]8;;mailto:subject@example.org?subject=Test%20subject\Subject]8;;\[39m
+[38;5;12m]8;;mailto:both@example.org?subject=Test%20subject&body=Message%20body\Both]8;;\[39m
+[38;5;12m]8;;mailto:fallback@example.org?subject=Test%20subject&body=Message%20body\fallback@example.org]8;;\[39m
+[38;5;12m]8;;mailto:body@example.org?subject=&body=Message%20body\Body]8;;\[39m
+[38;5;12m]8;;mailto:empty@example.org?subject=&body=\Empty]8;;\[39m
+[38;5;12m]8;;mailto:quoted@example.org?subject=Hello%2C%20world&body=Say%20%22hello%22%2C%20please\Quoted]8;;\[39m
+[38;5;12m]8;;mailto:unicode@example.org?subject=Caf%C3%A9%20%26%20tea%3F%20%2B%2050%25%20%231%20~&body=x%3Dy%20%2F%20caf%C3%A9\Unicode]8;;\[39m
+[38;5;12m]8;;mailto:named@example.org\Named]8;;\[39m
+[38;5;12m]8;;mailto:named-only@example.org\Named only]8;;\[39m
+[38;5;12m]8;;mailto:query@example.org?cc=copy@example.org&subject=New%20subject&body=New%20body\Query]8;;\[39m
+[38;5;12m]8;;mailto:escape@example.org?subject=Subject%5D&body=Body%5D\Escape]8;;\[39m
+[38;5;12m]8;;mailto:control@example.org\Control]8;;\[39m
+[38;5;12m]8;;mailto:trailing@example.org?subject=\Trailing]8;;\[39m
+[38;5;12m]8;;mailto:unquoted@example.org?subject=&body=Body\Unquoted]8;;\[39m
+[38;5;12m]8;;mailto:numeric@example.org\Numeric]8;;\[39m
+[38;5;12m]8;;mailto:attributes@example.org?subject=Subject&body=Body\Styled]8;;\[39m
+[38;5;12m]8;;mailto:single@example.org?subject=It%27s%20fine&body=Say%20%22hello%22\Single]8;;\[39m
+[38;5;12m]8;;mailto:passarg@example.org?subject=one%2Ctwo&body=%2B\Pass argument]8;;\[39m
+[38;5;12m]8;;mailto:empty-target@example.org\empty-target@example.org]8;;\[39m
+[38;5;12m]8;;mailto:plain@example.org?subject=%2ABold%2A%20%3Ctag%3E%20%28C%29&body=a%20-%3E%20b\Plain text]8;;\[39m
+mailto:literal@example.org[Literal,Subject,Body]

@@ -134,6 +134,12 @@ pub struct Mailto<'a> {
     #[serde(skip_serializing)]
     pub text: Vec<InlineNode<'a>>,
     pub target: Source<'a>,
+    /// The second positional argument, before URI encoding.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subject: Option<&'a str>,
+    /// The third positional argument, before URI encoding.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub body: Option<&'a str>,
     pub attributes: ElementAttributes<'a>,
     pub location: Location,
 }

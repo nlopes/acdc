@@ -57,6 +57,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Retain positional subject and body values in `mailto:address[label,subject,body]`,
+  and recognize addresses with existing query parameters. URI arguments retain
+  their values at macro substitution time while visible labels still receive
+  later attribute substitutions. Unlike Asciidoctor 2.0.26, unquoted empty
+  subjects parse safely, escaped apostrophes in single-quoted values stay in
+  their slot, and passthrough arguments retain their text for URI encoding.
+
 - Preserve literal quotes and commas in link labels unless attribute-list
   syntax applies. Accept escaped quotes in quoted link, URL, and mailto labels,
   including repeated backslashes, passthroughs, and enabled code. Link and URL

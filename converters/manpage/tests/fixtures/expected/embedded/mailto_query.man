@@ -1,0 +1,86 @@
+.SH "SYNOPSIS"
+.sp
+Email links.
+.SH "DESCRIPTION"
+.sp
+\c
+.MTO "subject\(atexample.org?subject=Test%20subject" "Subject" ""
+
+.sp
+\c
+.MTO "both\(atexample.org?subject=Test%20subject&body=Message%20body" "Both" ""
+
+.sp
+\c
+.MTO "fallback\(atexample.org?subject=Test%20subject&body=Message%20body" "fallback@example.org" ""
+
+.sp
+\c
+.MTO "body\(atexample.org?subject=&body=Message%20body" "Body" ""
+
+.sp
+\c
+.MTO "empty\(atexample.org?subject=&body=" "Empty" ""
+
+.sp
+\c
+.MTO "quoted\(atexample.org?subject=Hello%2C%20world&body=Say%20%22hello%22%2C%20please" "Quoted" ""
+
+.sp
+\c
+.MTO "unicode\(atexample.org?subject=Caf%C3%A9%20%26%20tea%3F%20%2B%2050%25%20%231%20~&body=x%3Dy%20%2F%20caf%C3%A9" "Unicode" ""
+
+.sp
+\c
+.MTO "named\(atexample.org" "Named" ""
+
+.sp
+\c
+.MTO "named\-only\(atexample.org" "Named only" ""
+
+.sp
+\c
+.MTO "query\(atexample.org?cc=copy\(atexample.org&subject=New%20subject&body=New%20body" "Query" ""
+
+.sp
+\c
+.MTO "escape\(atexample.org?subject=Subject%5D&body=Body%5D" "Escape" ""
+
+.sp
+\c
+.MTO "control\(atexample.org" "Control" ""
+
+.sp
+\c
+.MTO "trailing\(atexample.org?subject=" "Trailing" ""
+
+.sp
+\c
+.MTO "unquoted\(atexample.org?subject=&body=Body" "Unquoted" ""
+
+.sp
+\c
+.MTO "numeric\(atexample.org" "Numeric" ""
+
+.sp
+\c
+.MTO "attributes\(atexample.org?subject=Subject&body=Body" "Styled" ""
+
+.sp
+\c
+.MTO "single\(atexample.org?subject=It%27s%20fine&body=Say%20%22hello%22" "Single" ""
+
+.sp
+\c
+.MTO "passarg\(atexample.org?subject=one%2Ctwo&body=%2B" "Pass argument" ""
+
+.sp
+\c
+.MTO "empty\-target\(atexample.org" "" ""
+
+.sp
+\c
+.MTO "plain\(atexample.org?subject=%2ABold%2A%20%3Ctag%3E%20%28C%29&body=a%20\-%3E%20b" "Plain text" ""
+
+.sp
+mailto:literal@example.org[Literal,Subject,Body]
