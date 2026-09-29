@@ -199,7 +199,7 @@
             {
               "name": "text",
               "type": "string",
-              "value": "The Rust language, official docs",
+              "value": "The Rust language",
               "location": [
                 {
                   "line": 5,
@@ -207,7 +207,7 @@
                 },
                 {
                   "line": 5,
-                  "col": 86
+                  "col": 71
                 }
               ]
             }

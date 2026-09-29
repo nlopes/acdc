@@ -1,0 +1,66 @@
+.sp
+\c
+.URL "https://example.org" "One \(dqquote\(dq two" ""
+
+.sp
+\c
+.URL "https://example.org" "Expanded \(dqquote\(dq" ""
+
+.sp
+\c
+.URL "https://example.org" "Expanded \(dqquote\(dq" ""
+
+.sp
+\c
+.URL "https://example.org" "\fBBold \(dqquote\(dq label\fP" ""
+
+.EX
+One "quote" two
+One "quote" two
+One "quote" two
+.EE
+.sp
+\c
+.URL "https://example.org" "One \(dqquote\(dq ] two" ""
+
+.sp
+link:https://example.org["One \e"quote\e" two",role=green]
+.EX
+link:https://example.org["One \e"quote\e" two",role=green]
+.EE
+.sp
+\c
+.URL "https://example.org" "Label One \(dqquote\(dq [1] tail" ""
+
+.sp
+Reuse [1]\&.
+.sp
+\c
+.URL "https://example.org" "One \(dqquote\(dq" ""
+
+.sp
+\c
+.URL "https://example.org" "One \e\(dqquote\e\(dq" ""
+
+.sp
+\c
+.URL "https://example.org" "One" ""
+
+.sp
+\c
+.URL "https://example.org" "\(dqOne\(dq" ""
+
+.sp
+\c
+.URL "https://example.org" "a=b" ""
+
+.sp
+\c
+.URL "https://example.org" "\(dqa=b\(dq" ""
+
+.SH "INDEX"
+.SS "O"
+.RS 4
+One \e"quote\e"
+.br
+.RE

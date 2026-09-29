@@ -177,6 +177,12 @@ bitflags! {
         const INDEX_CATALOG = 1 << 4;
         /// Remove one closing-bracket escape inside a link label.
         const LINK_LABEL = 1 << 5;
+        /// Remove escaped double quotes from a double-quoted link label.
+        const DOUBLE_QUOTED_LINK = 1 << 6;
+        /// Remove escaped single quotes from a single-quoted link label.
+        const SINGLE_QUOTED_LINK = 1 << 7;
+        /// Quote unescaping that applies to display text after macro registration.
+        const QUOTED_LINK = Self::DOUBLE_QUOTED_LINK.bits() | Self::SINGLE_QUOTED_LINK.bits();
     }
 }
 

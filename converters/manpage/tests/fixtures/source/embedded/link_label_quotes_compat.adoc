@@ -1,0 +1,10 @@
+= Compatible link labels
+:compat-mode:
+
+link:https://example.org["One \"quote\" \] two",role=green]
+
+https://example.org["One, two",role=green]
+
+mailto:test@example.org["One, two",role=green]
+
+link:https://example.org["Literal label"]

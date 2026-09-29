@@ -6,6 +6,7 @@ use bumpalo::collections::String as BumpString;
 use std::{
     borrow::Cow,
     collections::{HashMap, HashSet, VecDeque},
+    ops::Range,
     rc::Rc,
 };
 
@@ -271,7 +272,7 @@ fn metadata_marks_discrete_heading(metadata: &str, state: &ParserState<'_>) -> b
             &[Substitution::Attributes],
             &state.document_attributes,
         );
-        let attributes = scan_attribute_list(&attributes);
+        let attributes = scan_attribute_list(&attributes, &[]);
         if let Some(first) = attributes
             .first()
             .filter(|attribute| attribute.name.is_none())
@@ -794,8 +795,7 @@ enum AttributeQuote {
 }
 
 /// One slot of an attribute list, as Asciidoctor's `AttributeList` reads it.
-/// Also used by the `xref:` macro, whose brackets are an attribute list when
-/// they hold an `=`.
+/// Also used by cross-references and links when their text holds attributes.
 #[derive(Debug)]
 pub(super) struct ScannedAttribute {
     pub(super) name: Option<String>,
@@ -842,16 +842,19 @@ fn named_attribute_parts(value: &str) -> Option<(&str, usize)> {
         .then_some((&value[..name_end], name_end + equals_offset + 1))
 }
 
-fn closing_quote(value: &str, quote: char) -> Option<usize> {
+fn closing_quote(
+    value: &str,
+    quote: char,
+    start: usize,
+    protected: &[Range<usize>],
+) -> Option<usize> {
+    // AttributeList treats a quote after any backslash run as escaped.
     let mut escaped = false;
     for (index, character) in value.char_indices().skip(1) {
-        if character == quote && !escaped {
+        if character == quote && !escaped && !inside_attribute_content(start + index, protected) {
             return Some(index);
         }
-        escaped = character == '\\' && !escaped;
-        if character != '\\' {
-            escaped = false;
-        }
+        escaped = character == '\\';
     }
     None
 }
@@ -861,7 +864,25 @@ fn unescape_attribute_quote(value: &str, quote: char) -> String {
     value.replace(&escaped_quote, &quote.to_string())
 }
 
-pub(super) fn scan_attribute_list(source: &str) -> Vec<ScannedAttribute> {
+fn inside_attribute_content(position: usize, protected: &[Range<usize>]) -> bool {
+    protected
+        .get(protected.partition_point(|range| range.end <= position))
+        .is_some_and(|range| range.contains(&position))
+}
+
+fn attribute_list_comma(source: &str, start: usize, protected: &[Range<usize>]) -> Option<usize> {
+    if protected.is_empty() {
+        return source.find(',');
+    }
+    source.char_indices().find_map(|(index, character)| {
+        (character == ',' && !inside_attribute_content(start + index, protected)).then_some(index)
+    })
+}
+
+pub(super) fn scan_attribute_list(
+    source: &str,
+    protected: &[Range<usize>],
+) -> Vec<ScannedAttribute> {
     let mut attributes = Vec::new();
     let mut cursor = 0;
 
@@ -882,7 +903,7 @@ pub(super) fn scan_attribute_list(source: &str) -> Vec<ScannedAttribute> {
 
         if let Some(quote @ ('\'' | '"')) = first {
             let quoted = &source[value_start..];
-            if let Some(close) = closing_quote(quoted, quote) {
+            if let Some(close) = closing_quote(quoted, quote, value_start, protected) {
                 let after_close = value_start + close + quote.len_utf8();
                 attributes.push(ScannedAttribute {
                     name: named.map(|(name, _)| name.to_string()),
@@ -919,8 +940,9 @@ pub(super) fn scan_attribute_list(source: &str) -> Vec<ScannedAttribute> {
             }
         }
 
-        let comma = source[value_start..]
-            .find(',')
+        // Links parse nested macros after selecting the label, so their commas
+        // must stay inside that positional value until the child parser runs.
+        let comma = attribute_list_comma(&source[value_start..], value_start, protected)
             .map(|index| value_start + index);
         let end = comma.unwrap_or(source.len());
         let trimmed = source[value_start..end].trim_end();
@@ -1205,7 +1227,7 @@ fn parse_block_attribute_list<'input>(
         &state.document_attributes,
     );
     let positions_exact = matches!(substituted, Cow::Borrowed(_));
-    let attributes = scan_attribute_list(&substituted);
+    let attributes = scan_attribute_list(&substituted, &[]);
     let mut metadata = BlockMetadata::default();
     let mut discrete = false;
     let mut title_position = None;

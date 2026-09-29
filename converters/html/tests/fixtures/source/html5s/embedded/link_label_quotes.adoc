@@ -1,0 +1,78 @@
+= Link label quotes
+:label: Expanded
+
+Before link:https://example.org["Literal label"] and https://example.net['Literal label'].
+
+link:https://example.org["One \"quote\" \] two",role=green]
+
+https://example.org["One \"quote\" two",role=green]
+
+link:guide.html['One \'quote\' two',role=green]
+
+link:https://example.org["One \'quote\' two",role=green]
+
+link:https://example.org["One \\"quote\\" two",role=green]
+
+link:https://example.org["One \\\"quote\\\" two",role=green]
+
+link:https://example.org["One \\\\"quote\\\\" two",role=green]
+
+link:https://example.org["One, two"]
+
+link:https://example.org["One, two",role=green]
+
+link:https://example.org[One, two,role=green]
+
+link:https://example.org["one=two"] and link:https://example.org[One = two]
+
+link:https://example.org["",role=green] and link:https://example.org["",role=green,window=_blank]
+
+link:https://example.org[ "Spaced \"quote\" label" ,role=green]
+
+α link:https://example.org["é \"café\" fin",role=green] ω.
+
+link:https://example.org["Line \"one\"
+two",role=green]
+
+link:https://example.org["*Bold \"quote\" label* and _italic_",role=green]
+
+link:https://example.org["{label} \"quote\"",role=green]
+
+link:https://example.org["Window \"label\"^",role=green]
+
+link:https://example.org["Window label"^] and link:https://example.org["Window label^"]
+
+mailto:test@example.org["Literal \"quote\" label"]
+
+mailto:test@example.org["Parsed \"quote\" label",role=green]
+
+mailto:test@example.org["One, two"] and mailto:test@example.org["one=two"]
+
+link:https://example.org["Unfinished,role=green] and link:https://example.org["Label"tail,role=green]
+
+link:https://example.org["One \"quote\" footnote:note[Note body.] two",role=green]
+
+Reuse footnote:note[].
+
+link:https://example.org["One \"quote\" ((term)) two",role=green]
+
+link:https://example.org["One \"quote\" anchor:target[Target] two",role=green]
+
+See <<target>>.
+
+[title="One \\"quote\\" two"]
+Block title control.
+
+[[xref-target]]
+Target.
+
+xref:xref-target["One \\"quote\\" two",role=green]
+
+link:https://example.org["Label ((One \"quote\")) footnote:quoted[Note \"quote\".] tail",role=green]
+
+Reuse footnote:quoted[].
+
+link:https://example.org[image:inline-image-dimensions.svg[Linked image,width=20],role=green]
+
+[index]
+== Index

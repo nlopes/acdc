@@ -2,10 +2,11 @@ use std::{borrow::Cow, ops::Range};
 
 use crate::{
     Anchor, AttributeValue, Autolink, BlockMetadata, Bold, Button, CurvedApostrophe,
-    CurvedQuotation, Footnote, Form, Highlight, ICON_SIZES, Icon, Image, IndexTerm, IndexTermKind,
-    IndexTermRelationship, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, Mailto,
-    Menu, Monospace, Pass, PassthroughKind, Plain, Raw, Source, StandaloneCurvedApostrophe, Stem,
-    StemNotation, Subscript, Substitution, Superscript, Title, Url,
+    CurvedQuotation, ElementAttributes, Footnote, Form, Highlight, ICON_SIZES, Icon, Image,
+    IndexTerm, IndexTermKind, IndexTermRelationship, InlineMacro, InlineNode, Italic, Keyboard,
+    LineBreak, Link, Mailto, Menu, Monospace, Pass, PassthroughKind, Plain, Raw, Source,
+    StandaloneCurvedApostrophe, Stem, StemNotation, Subscript, Substitution, Superscript, Title,
+    Url,
     grammar::{
         ParserState, inline_preprocessing,
         inline_preprocessor::{InlinePreprocessorParserState, ProcessedKind, SourceMap},
@@ -72,7 +73,7 @@ fn xref_macro_text(raw: &str, compat_mode: bool) -> XrefMacroText<'_> {
         xrefstyle: None,
         role: None,
     };
-    for (index, attribute) in super::document::scan_attribute_list(raw)
+    for (index, attribute) in super::document::scan_attribute_list(raw, &[])
         .into_iter()
         .enumerate()
     {
@@ -385,6 +386,7 @@ fn parse_index_term<'a>(
     let catalog = if plan.precedes(&Substitution::Macros, &Substitution::Attributes)
         || plan.precedes(&Substitution::Macros, &Substitution::Quotes)
         || plan.precedes(&Substitution::Macros, &Substitution::Replacements)
+        || state.inline_ctx.rules.intersects(InlineRules::QUOTED_LINK)
         || source
             .chars()
             .any(|character| matches!(character, ':' | '<' | '[' | '@'))
@@ -393,6 +395,8 @@ fn parse_index_term<'a>(
         inline_ctx.offset = 0;
         inline_ctx.substitutions = plan.through(&Substitution::Macros);
         inline_ctx.rules.insert(InlineRules::INDEX_CATALOG);
+        // Index labels register before the enclosing link unescapes its quotes.
+        inline_ctx.rules.remove(InlineRules::QUOTED_LINK);
         let mut child = ParserState::for_inline_parsing(source, state, inline_ctx);
         if restored_ranges.is_empty() {
             child.attribute_value_ranges = state
@@ -939,27 +943,82 @@ macro_rules! process_inlines_or_err {
     };
 }
 
-fn process_link_text<'a>(
+#[derive(Debug)]
+struct LinkContent<'a> {
+    raw: &'a str,
+    protected: Vec<Range<usize>>,
+}
+
+fn process_link_content<'a>(
     state: &mut ParserState<'a>,
     metadata: &BlockParsingMetadata<'_>,
     start: usize,
     end: usize,
-    text: &'a str,
-) -> Result<Vec<InlineNode<'a>>, crate::Error> {
-    // The child parser inherits this rule; restore the enclosing grammar on errors too.
+    content: &LinkContent<'a>,
+    mailto: bool,
+) -> Result<(Vec<InlineNode<'a>>, ElementAttributes<'a>), crate::Error> {
+    let raw = content.raw;
+    let mut text = raw;
+    let mut offset = 0;
+    let mut quote = None;
+    let mut attributes = ElementAttributes::default();
+    // Mailto uses commas to introduce subject/body slots. Other links use '=';
+    // without that trigger (or in compat mode), quotes and commas are label text.
+    if !state.document_attributes.contains_key("compat-mode")
+        && raw.contains(if mailto { ',' } else { '=' })
+    {
+        text = "";
+        for (index, attribute) in super::document::scan_attribute_list(raw, &content.protected)
+            .into_iter()
+            .enumerate()
+        {
+            if let Some(name) = attribute.name {
+                let name = match name.as_str() {
+                    "roles" => Cow::Borrowed("role"),
+                    "opts" => Cow::Borrowed("options"),
+                    _ => Cow::Owned(name),
+                };
+                attributes.set(name, attribute.value.into());
+            } else if index == 0 {
+                offset = attribute.value_start;
+                text = &raw[offset..attribute.value_end];
+                quote = raw[..offset]
+                    .chars()
+                    .next_back()
+                    .filter(|character| matches!(character, '\'' | '"'));
+            }
+        }
+    }
+    if let Some(label) = text.strip_suffix('^') {
+        text = label;
+        attributes.insert("window".into(), "_blank".into());
+    }
+    if text.is_empty() {
+        return Ok((Vec::new(), attributes));
+    }
+
+    // Keep source slices intact until the label parser consumes each escape.
+    // Reset the quote mode for nested links, then restore the enclosing mode on errors too.
     let rules = state.inline_ctx.rules;
     state.inline_ctx.rules.insert(InlineRules::LINK_LABEL);
-    let result =
-        process_inlines_no_autolinks(state, metadata, start, end, state.inline_ctx.offset, text);
+    state
+        .inline_ctx
+        .rules
+        .set(InlineRules::DOUBLE_QUOTED_LINK, quote == Some('"'));
+    state
+        .inline_ctx
+        .rules
+        .set(InlineRules::SINGLE_QUOTED_LINK, quote == Some('\''));
+    let result = process_inlines_no_autolinks(
+        state,
+        metadata,
+        start + offset,
+        end,
+        state.inline_ctx.offset,
+        text,
+    );
     state.inline_ctx.rules = rules;
-    result
-}
-
-fn strip_link_window_shorthand(text: Option<(usize, &str)>) -> (Option<(usize, &str)>, bool) {
-    match text.and_then(|(start, text)| text.strip_suffix('^').map(|text| (start, text))) {
-        Some(text) => (Some(text), true),
-        None => (text, false),
-    }
+    result.map(|text| (text, attributes))
 }
 
 peg::parser! {
@@ -1144,7 +1203,7 @@ peg::parser! {
             / &['\\'] check_index_terms() prefix:escaped_index_prefix() { prefix }
             // Escaped syntax must come next - backslash prevents any following syntax from being parsed
             / check_macros() &['\\'] anchor:escaped_anchor_macro() { anchor }
-            / &['\\'] bracket:escaped_link_bracket() { bracket }
+            / &['\\'] bracket:escaped_link_character() { bracket }
             / &['\\'] escaped_syntax:escaped_syntax() { escaped_syntax }
             // Index terms: concealed (triple parens) must come before flow (double parens)
             / check_index_terms() &['('] index_term:index_term_concealed() { index_term }
@@ -1216,10 +1275,10 @@ peg::parser! {
         = "^" inner:$([^'^' | ' ' | '\t' | '\n']+) "^" { state.intern_fmt(format_args!("^{inner}^")) }
         / "~" inner:$([^'~' | ' ' | '\t' | '\n']+) "~" { state.intern_fmt(format_args!("~{inner}~")) }
 
-        // Link labels remove one backslash, regardless of the preceding run. Raw text
-        // prevents quote and replacement stages from consuming a remaining backslash.
-        rule escaped_link_bracket() -> InlineNode<'input>
-        = content:$(escaped_link_bracket_match()) {
+        // Link labels remove one bracket or enclosing-quote escape per run. Raw text
+        // prevents later substitutions from consuming a remaining backslash.
+        rule escaped_link_character() -> InlineNode<'input>
+        = content:$(escaped_link_character_match()) {
             InlineNode::RawText(Raw {
                 content: &content[1..],
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
@@ -1227,8 +1286,15 @@ peg::parser! {
             })
         }
 
-        rule escaped_link_bracket_match()
-        = check_link_label() "\\"+ "]"
+        rule escaped_link_character_match()
+        = check_link_label() "\\"+ (
+            "]"
+            / check_link_quote(InlineRules::DOUBLE_QUOTED_LINK) "\""
+            / check_link_quote(InlineRules::SINGLE_QUOTED_LINK) "'"
+        )
+
+        rule check_link_quote(mode: InlineRules)
+        = {? state.inline_ctx.rules.contains(mode).then_some(()).ok_or("quoted link label") }
 
         rule check_link_label()
         = {? state.inline_ctx.rules.contains(InlineRules::LINK_LABEL).then_some(()).ok_or("link label") }
@@ -1350,7 +1416,12 @@ peg::parser! {
                     escaped: false,
                 })]
             } else {
-                parse_footnote_content(state, IndexTermSegment { text: content_str, start: content_start })?
+                // The note body belongs to the footnote, not the link's quoted attribute.
+                let rules = state.inline_ctx.rules;
+                state.inline_ctx.rules.remove(InlineRules::QUOTED_LINK);
+                let content = parse_footnote_content(state, IndexTermSegment { text: content_str, start: content_start });
+                state.inline_ctx.rules = rules;
+                content?
             };
 
             let plan = state.inline_ctx.substitutions;
@@ -1419,28 +1490,23 @@ peg::parser! {
         / s:$([^(']' | '\\')]+) { s }
         / "\\" { "\\" }
 
-        /// Capture link, URL, or mailto text with its original starting offset.
-        /// Quoted labels exclude their enclosing quotes. Unquoted labels keep
-        /// commas unless they introduce attributes or a trailing empty value.
-        rule link_title() -> (usize, &'input str)
-        = "\"" start:position!() title:$((!"\"" [_])*) "\"" { (start, title) }
-        / "'" start:position!() title:$((!("'" whitespace()* ("," / "]")) [_])*) "'" { (start, title) }
-        / start:position!() parts:$(balanced_link_title_part()+) { (start, parts) }
+        // Nested macro delimiters belong to their child nodes, not the outer
+        // attribute list. Keep their spans relative to this bracket content.
+        rule link_macro_content() -> LinkContent<'input>
+        = start:position!() parts:link_macro_content_part()* end:position!() {
+            LinkContent {
+                raw: &state.input[start..end],
+                protected: parts.into_iter().flatten().map(|range| range.start - start..range.end - start).collect(),
+            }
+        }
 
-        /// Parse link and URL title content while allowing an attribute-only list.
-        ///
-        /// `mailto:` deliberately uses `link_title()` directly because asciidoctor treats
-        /// `mailto:user@example.com[role=include]` as display text rather than attributes.
-        rule link_or_url_title() -> (usize, &'input str)
-        = !(whitespace()* attribute_name() "=") title:link_title() { title }
-
-        // Keep nested bracketed content for existing inline macros. An unmatched
-        // opening bracket is label text; an escaped closing bracket cannot end it.
-        rule balanced_link_title_part()
-        = "\\]"
-        / "[" balanced_bracket_content() "]"
-        / (!("\\]" / ("," whitespace()* (attribute_name() "=" / "]"))) [^'[' | ']'])+
-        / "["
+        rule link_macro_content_part() -> Option<Range<usize>>
+        = "\\]" { None }
+        / "[" balanced_bracket_content() "]" { Some(span_start..span_end) }
+        / &['('] check_index_terms() index_term_match() { Some(span_start..span_end) }
+        / &['<'] cross_reference_shorthand_match() { Some(span_start..span_end) }
+        / (!("\\]") [^'[' | ']' | '(' | '<'])+ { None }
+        / ['[' | '(' | '<'] { None }
 
         rule inline_pass() -> InlineNode<'input>
         = "pass:"
@@ -1655,48 +1721,25 @@ peg::parser! {
         rule url_macro() -> InlineNode<'input>
         = target:url()
         "["
-        content_start:position!()
-        content:(
-            title:link_or_url_title() attributes:("," att:attribute() { att })* {
-                (Some(title), attributes.into_iter().flatten().collect::<Vec<_>>())
-            } /
-            comma()? attributes:(att:attribute() comma()? { att })* {
-                (None, attributes.into_iter().flatten().collect::<Vec<_>>())
-            }
-        )
-        "]"
+        content_start:position!() content:link_macro_content() "]"
         {?
             tracing::debug!(?target, "Found url macro");
             let bm = BlockParsingMetadata {
                 substitutions: state.inline_ctx.substitutions,
                 ..BlockParsingMetadata::default()
             };
-            let (text, mut attributes) = content;
-            let (text, opens_new_window) = strip_link_window_shorthand(text);
-            if opens_new_window && !attributes.iter().any(|(name, _, _)| name == "window") {
-                attributes.push((Cow::Borrowed("window"), "_blank".into(), None));
-            }
-            let mut metadata = BlockMetadata::default();
-            for (k, v, _pos) in attributes {
-                if let AttributeValue::String(v) = v {
-                    metadata.attributes.insert(k, AttributeValue::String(v));
-                }
-            }
-            let text = if let Some((start, text)) = text {
-                process_link_text(state, &bm, start, span_end, text)
-                    .map_err(|e| {
-                        tracing::error!(?e, url_text = text, "could not process URL macro text");
-                        "could not process URL macro text"
-                    })?
-            } else {
-                vec![]
-            };
+            let raw = content.raw;
+            let (text, attributes) = process_link_content(state, &bm, content_start, span_end, &content, false)
+                .map_err(|error| {
+                    tracing::error!(?error, link_text = raw, "could not process link text");
+                    "could not process link text"
+                })?;
             let interned_target = state.intern_cow(target);
             let target_source = Source::from_str_borrowed(interned_target).map_err(|_| "failed to parse URL target")?;
             Ok(InlineNode::Macro(InlineMacro::Url(Url {
                 text,
                 target: target_source,
-                attributes: metadata.attributes.clone(),
+                attributes,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
                 hide_uri_scheme: state.document_attributes.contains_key("hide-uri-scheme"),
             })))
@@ -1717,48 +1760,25 @@ peg::parser! {
         = &"mailto:"
         target:url()
         "["
-        content_start:position!()
-        content:(
-            title:link_title() attributes:("," att:attribute() { att })* {
-                (Some(title), attributes.into_iter().flatten().collect::<Vec<_>>())
-            } /
-            comma()? attributes:(att:attribute() comma()? { att })* {
-                (None, attributes.into_iter().flatten().collect::<Vec<_>>())
-            }
-        )
-        "]"
+        content_start:position!() content:link_macro_content() "]"
         {?
             tracing::debug!(?target, "Found mailto macro");
             let bm = BlockParsingMetadata {
                 substitutions: state.inline_ctx.substitutions,
                 ..BlockParsingMetadata::default()
             };
-            let (text, mut attributes) = content;
-            let (text, opens_new_window) = strip_link_window_shorthand(text);
-            if opens_new_window && !attributes.iter().any(|(name, _, _)| name == "window") {
-                attributes.push((Cow::Borrowed("window"), "_blank".into(), None));
-            }
-            let mut metadata = BlockMetadata::default();
-            for (k, v, _pos) in attributes {
-                if let AttributeValue::String(v) = v {
-                    metadata.attributes.insert(k, AttributeValue::String(v));
-                }
-            }
-            let text = if let Some((start, text)) = text {
-                process_link_text(state, &bm, start, span_end, text)
-                    .map_err(|e| {
-                        tracing::error!(?e, url_text = text, "could not process mailto macro text");
-                        "could not process mailto macro text"
-                    })?
-            } else {
-                vec![]
-            };
+            let raw = content.raw;
+            let (text, attributes) = process_link_content(state, &bm, content_start, span_end, &content, true)
+                .map_err(|error| {
+                    tracing::error!(?error, link_text = raw, "could not process link text");
+                    "could not process link text"
+                })?;
             let interned_target = state.intern_cow(target);
             let target_source = Source::from_str_borrowed(interned_target).map_err(|_| "failed to parse mailto target")?;
             Ok(InlineNode::Macro(InlineMacro::Mailto(Mailto {
                 text,
                 target: target_source,
-                attributes: metadata.attributes.clone(),
+                attributes,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
             })))
         }
@@ -2058,68 +2078,16 @@ peg::parser! {
         rule inline_image_match()
         = "image:" media_source() "[" (!"]" [_])* "]"
 
-        /// Parse link macros with custom attribute handling.
-        ///
-        /// Link macros have the format: `link:target[text,attr1=value1,attr2=value2]`
-        ///
-        /// ## Why Custom Parsing is Required
-        ///
-        /// Link attributes cannot use the generic `attributes()` rule because:
-        ///
-        /// 1. **Different Character Rules**: Link text can contain single quotes (`'`) and other
-        ///    characters that are treated as delimiters in block attributes. For example:
-        ///    - `link:file.adoc[see the 'quoted' text]` - single quotes are valid in link text
-        ///
-        /// 2. **Text vs Attributes**: The first element in link brackets is display text,
-        ///    not an attribute. Block attributes expect all content to be attribute
-        ///    definitions or block style.
-        ///
-        /// 3. **Delimiter Precedence**: In links, commas separate text from attributes, while in
-        ///    block attributes, the first positional value is treated as a style/role.
-        ///
-        /// ## Parsing Strategy
-        ///
-        /// 1. **Try text + attributes**: `link_or_url_title()` followed by comma-separated
-        ///    attributes
-        /// 2. **Fallback to attributes only**: If no valid title is found, parse as pure attributes
-        ///
-        /// The `link_or_url_title()` rule handles both quoted (`"text"`) and unquoted text,
-        /// stopping at:
-        /// - Commas (indicating start of attributes)
-        /// - Closing brackets (end of link)
-        /// - Attribute patterns (`name=value`)
-        ///
-        /// This approach isolates link parsing from block attribute parsing, preventing
-        /// regressions in other parts of the parser while correctly handling edge cases
-        /// like quotes, special characters, and mixed content.
+        /// Parse a link target and its optional label or named attributes.
         rule link_macro() -> InlineNode<'input>
         = "link:" target:source() fragment:path_fragment()? "["
-        content_start:position!()
-        content:(
-            title:link_or_url_title() attributes:("," att:attribute() { att })* {
-                (Some(title), attributes.into_iter().flatten().collect::<Vec<_>>())
-            } /
-            comma()? attributes:(att:attribute() comma()? { att })* {
-                (None, attributes.into_iter().flatten().collect::<Vec<_>>())
-            }
-        ) "]"
+        content_start:position!() content:link_macro_content() "]"
         {?
             tracing::debug!(?target, ?content, "Found link macro inline");
             let bm = BlockParsingMetadata {
                 substitutions: state.inline_ctx.substitutions,
                 ..BlockParsingMetadata::default()
             };
-            let (text, mut attributes) = content;
-            let (text, opens_new_window) = strip_link_window_shorthand(text);
-            if opens_new_window && !attributes.iter().any(|(name, _, _)| name == "window") {
-                attributes.push((Cow::Borrowed("window"), "_blank".into(), None));
-            }
-            let mut metadata = BlockMetadata::default();
-            for (k, v, _pos) in attributes {
-                if let AttributeValue::String(v) = v {
-                    metadata.attributes.insert(k, AttributeValue::String(v));
-                }
-            }
             let target = match fragment {
                 Some(f) => {
                     let combined = state.intern_fmt(format_args!("{target}{f}"));
@@ -2127,19 +2095,16 @@ peg::parser! {
                 }
                 None => target,
             };
-            let text = if let Some((start, text)) = text {
-                process_link_text(state, &bm, start, span_end, text)
-                    .map_err(|e| {
-                        tracing::error!(?e, link_text = text, "could not process link macro text");
-                        "could not process link macro text"
-                    })?
-            } else {
-                vec![]
-            };
+            let raw = content.raw;
+            let (text, attributes) = process_link_content(state, &bm, content_start, span_end, &content, false)
+                .map_err(|error| {
+                    tracing::error!(?error, link_text = raw, "could not process link text");
+                    "could not process link text"
+                })?;
             Ok(InlineNode::Macro(InlineMacro::Link(Link {
                 text,
                 target,
-                attributes: metadata.attributes.clone(),
+                attributes,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
                 hide_uri_scheme: state.document_attributes.contains_key("hide-uri-scheme"),
             })))
@@ -3095,7 +3060,7 @@ peg::parser! {
                     check_post_replacements() eol()*<2,>
                     / check_hardbreaks() line_break_eol()
                     / ![_]
-                    / &['\\'] (check_macros() "\\" anchor_macro_pattern() / escaped_link_bracket_match() / escaped_syntax_match())
+                    / &['\\'] (check_macros() "\\" anchor_macro_pattern() / escaped_link_character_match() / escaped_syntax_match())
                     / check_post_replacements() &[' '] (hard_wrap_match() / inline_line_break_match())
                     // Macro guard: [ ( < for delimiters, then first letters of each macro:
                     // a=anchor/asciimath, b=btn, f=footnote/ftp, h=http(s), i=image/icon/indexterm/irc,

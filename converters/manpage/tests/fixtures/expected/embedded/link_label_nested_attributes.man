@@ -1,0 +1,30 @@
+.sp
+Target.
+.sp
+\c
+.URL "https://example.org" "Label  tail" ""
+
+.sp
+\c
+.URL "https://example.org" "Label Display tail" ""
+
+.sp
+\c
+.URL "https://example.org" "[Label]" ""
+
+.sp
+\c
+.URL "https://example.org" "Label [1] tail" ""
+
+.sp
+Reuse [1]\&.
+.SH "INDEX"
+.SS "T"
+.RS 4
+term
+.br
+.RS 4
+sub
+.br
+.RE
+.RE

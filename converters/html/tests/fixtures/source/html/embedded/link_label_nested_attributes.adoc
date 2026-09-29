@@ -1,0 +1,17 @@
+= Nested link attributes
+
+[[target]]
+Target.
+
+link:https://example.org[Label (((term,sub))) tail,role=green]
+
+link:https://example.org[Label <<target,Display>> tail,role=green]
+
+link:https://example.org[image:inline-image-dimensions.svg[Label,width=20],role=green]
+
+link:https://example.org["Label footnote:note[Note, quoted \"text\".] tail",role=green]
+
+Reuse footnote:note[].
+
+[index]
+== Index

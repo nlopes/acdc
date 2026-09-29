@@ -1,0 +1,51 @@
+= Quoted label substitutions
+:label: Expanded
+:escaped: \"quote\"
+:source-highlighter: syntect
+
+link:https://example.org["One {escaped} two",role=green]
+
+pass:a,m[link:https://example.org["{label} \"quote\"",role=green\]]
+
+pass:m,a[link:https://example.org["{label} \"quote\"",role=green\]]
+
+pass:q,m[link:https://example.org["*Bold \"quote\" label*",role=green\]]
+
+[source,text,subs=+macros]
+----
+link:https://example.org["One \"quote\" two",role=green]
+https://example.net["One \"quote\" two",role=green]
+mailto:test@example.org["One \"quote\" two",role=green]
+----
+
+[subs=macros]
+link:https://example.org["One \"quote\" \] two",role=green]
+
+[subs=-macros]
+link:https://example.org["One \"quote\" two",role=green]
+
+----
+link:https://example.org["One \"quote\" two",role=green]
+----
+
+pass:m,a,q[link:https://example.org["Label ((One \"quote\")) footnote:late[Note \"quote\".\] tail",role=green\]]
+
+Reuse footnote:late[].
+
+:whole: "One"
+:equals: =
+
+pass:a,m[link:https://example.org["One {escaped}",role=green\]]
+
+pass:m,a[link:https://example.org["One {escaped}",role=green\]]
+
+pass:a,m[link:https://example.org[{whole},role=green\]]
+
+pass:m,a[link:https://example.org[{whole},role=green\]]
+
+pass:a,m[link:https://example.org["a{equals}b"\]]
+
+pass:m,a[link:https://example.org["a{equals}b"\]]
+
+[index]
+== Index

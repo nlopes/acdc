@@ -17,6 +17,11 @@ use acdc_parser::{AttributeValue, Options as ParserOptions, SafeMode, parse, par
 type Error = Box<dyn StdError>;
 
 #[test]
+fn link_label_quotes_keep_footnote_links_separate() -> Result<(), Error> {
+    check_link_label_footnote_targets("link_label_quotes")
+}
+
+#[test]
 fn link_label_brackets_keep_footnote_links_separate() -> Result<(), Error> {
     check_link_label_footnote_targets("link_label_brackets")
 }

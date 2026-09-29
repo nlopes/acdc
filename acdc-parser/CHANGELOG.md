@@ -57,6 +57,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Preserve literal quotes and commas in link labels unless attribute-list
+  syntax applies. Accept escaped quotes in quoted link, URL, and mailto labels,
+  including repeated backslashes, passthroughs, and enabled code. Link and URL
+  labels use `=` to trigger attribute parsing; mailto labels use a comma,
+  matching Asciidoctor. Index entries and footnote definitions retain their own
+  quote escapes when displayed inside a quoted link label.
+
+- Recognize escaped quotes after any backslash run in attribute lists,
+  including block attributes and cross-reference labels, matching Asciidoctor.
+
 - Keep escaped closing brackets inside link, URL, and mailto labels. Remove
   one bracket escape while retaining any preceding backslashes, including in
   enabled code and passthroughs. Quoted labels now point to their original text

@@ -1,0 +1,153 @@
+.sp
+Before \c
+.URL "https://example.org" "\(dqLiteral label\(dq" ""
+and \c
+.URL "https://example.net" "\&'Literal label'" ""
+\&.
+.sp
+\c
+.URL "https://example.org" "One \(dqquote\(dq ] two" ""
+
+.sp
+\c
+.URL "https://example.org" "One \(dqquote\(dq two" ""
+
+.sp
+\c
+.URL "guide.html" "One \&'quote\&' two" ""
+
+.sp
+\c
+.URL "https://example.org" "One \e'quote\e' two" ""
+
+.sp
+\c
+.URL "https://example.org" "One \e\(dqquote\e\(dq two" ""
+
+.sp
+\c
+.URL "https://example.org" "One \e\e\(dqquote\e\e\(dq two" ""
+
+.sp
+\c
+.URL "https://example.org" "One \e\e\e\(dqquote\e\e\e\(dq two" ""
+
+.sp
+\c
+.URL "https://example.org" "\(dqOne, two\(dq" ""
+
+.sp
+\c
+.URL "https://example.org" "One, two" ""
+
+.sp
+\c
+.URL "https://example.org" "One" ""
+
+.sp
+\c
+.URL "https://example.org" "one=two" ""
+and \c
+.URL "https://example.org" "" ""
+
+.sp
+\c
+.URL "https://example.org" "" ""
+and \c
+.URL "https://example.org" "" ""
+
+.sp
+\c
+.URL "https://example.org" "Spaced \(dqquote\(dq label" ""
+
+.sp
+α \c
+.URL "https://example.org" "é \(dqcafé\(dq fin" ""
+ω.
+.sp
+\c
+.URL "https://example.org" "Line \(dqone\(dq two" ""
+
+.sp
+\c
+.URL "https://example.org" "\fBBold \(dqquote\(dq label\fP and \fIitalic\fP" ""
+
+.sp
+\c
+.URL "https://example.org" "Expanded \(dqquote\(dq" ""
+
+.sp
+\c
+.URL "https://example.org" "Window \(dqlabel\(dq" ""
+
+.sp
+\c
+.URL "https://example.org" "\(dqWindow label\(dq" ""
+and \c
+.URL "https://example.org" "\(dqWindow label^\(dq" ""
+
+.sp
+\c
+.MTO "test\(atexample.org" "\(dqLiteral \e\(dqquote\e\(dq label\(dq" ""
+
+.sp
+\c
+.MTO "test\(atexample.org" "Parsed \(dqquote\(dq label" ""
+
+.sp
+\c
+.MTO "test\(atexample.org" "One, two" ""
+and \c
+.MTO "test\(atexample.org" "\(dqone=two\(dq" ""
+
+.sp
+\c
+.URL "https://example.org" "\(dqUnfinished" ""
+and \c
+.URL "https://example.org" "Label" ""
+
+.sp
+\c
+.URL "https://example.org" "One \(dqquote\(dq [1] two" ""
+
+.sp
+Reuse [1]\&.
+.sp
+\c
+.URL "https://example.org" "One \(dqquote\(dq term two" ""
+
+.sp
+\c
+.URL "https://example.org" "One \(dqquote\(dq  two" ""
+
+.sp
+See Target\&.
+.sp
+\fBOne \e"quote\e" two\fP
+.br
+Block title control.
+.sp
+Target.
+.sp
+One \e"quote\e" two
+.sp
+\c
+.URL "https://example.org" "Label One \(dqquote\(dq [2] tail" ""
+
+.sp
+Reuse [2]\&.
+.sp
+\c
+.URL "https://example.org" "[Linked image]" ""
+
+.SH "INDEX"
+.SS "O"
+.RS 4
+One \e"quote\e"
+.br
+.RE
+.SS "T"
+.RS 4
+term
+.br
+.RE
