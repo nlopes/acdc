@@ -1,7 +1,7 @@
 #set document(
-  title: "Nested callout contexts",
+  title: "callouts(1)",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Nested callout contexts]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[callouts(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -73,44 +73,134 @@
 #set page(numbering: "1")
 #counter(page).update(1)
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("Nested callout contexts")]
+#text(size: 22pt, weight: "bold")[#text("callouts(1)")]
 ]
 #v(1em)
 
-#raw(block: true, "outer (1) (2)")
+#heading(level: 1)[#text("NAME")] <id-5f6e616d65>
+
+#text("callouts - test standalone callouts")
+
+#heading(level: 1)[#text("DESCRIPTION")] <id-5f6465736372697074696f6e>
+
+#heading(level: 2)[#text("Paragraph adjacent")] <id-5f7061726167726170685f61646a6163656e74>
+
+#text("Prose. <1> Alpha. <2> Beta.")
+
+#heading(level: 2)[#text("Paragraph blank")] <id-5f7061726167726170685f626c616e6b>
+
+#text("Prose.")
 
 #grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
-[#text("(1)")], [#text("Outer first.")
-
-#raw(block: true, "inner (1)")
-
-#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
-[#text("(1)")], [#text("Inner first.")
-
-  - #text("Inner bullet.")
-
-],
+[#text("(1)")], [#text("Alpha.")],
+[#text("(2)")], [#text("Beta.")],
 )
 
-],
-[#text("(2)")], [#text("Outer second.")],
-)
+#heading(level: 2)[#text("Empty item")] <id-5f656d7074795f6974656d>
 
-#heading(level: 1)[#text("Enclosed literal control")] <id-5f656e636c6f7365645f6c69746572616c5f636f6e74726f6c>
+#text("<1> <2> Beta.")
 
-#raw(block: true, "outer (1) (2)")
+#heading(level: 2)[#text("Empty rest")] <id-5f656d7074795f72657374>
 
 #grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
-[#text("(1)")], [#text("Before compound block.")
-
-  - #block(width: 100%)[#text("Ordinary enclosed bullet.")
-
-#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
-[#text("(1)")], [#text("Literal enclosed continuation.")],
+[#text("(1)")], [#text("Alpha. <2>")],
+[#text("(2)")], [#text("Gamma.")],
 )
 
-  ]
+#heading(level: 2)[#text("No space")] <id-5f6e6f5f7370616365>
 
-],
-[#text("(2)")], [#text("After compound block.")],
+#text("<1>Alpha. <.>Beta. <1>")
+
+#heading(level: 2)[#text("Not markers")] <id-5f6e6f745f6d61726b657273>
+
+#text("←1> Negative. <+1> Plus. <1.> Dot. <..> Dots.")
+
+#heading(level: 2)[#text("Escaped")] <id-5f65736361706564>
+
+#text("\\<1> Alpha. \\<.> Beta.")
+
+#heading(level: 2)[#text("Inline")] <id-5f696e6c696e65>
+
+#text("Inline <1> Alpha and <.> Beta.")
+
+#heading(level: 2)[#text("Indented")] <id-5f696e64656e746564>
+
+#raw(block: true, "<1> Alpha.\n<2> Beta.")
+
+#heading(level: 2)[#text("Indented after listing")] <id-5f696e64656e7465645f61667465725f6c697374696e67>
+
+#raw(block: true, "code (1) (2)")
+
+#raw(block: true, "<1> Alpha.\n<2> Beta.")
+
+#heading(level: 2)[#text("Tab indent")] <id-5f7461625f696e64656e74>
+
+#text(" <1> Alpha. <2> Beta.")
+
+#heading(level: 2)[#text("Tab separator")] <id-5f7461625f736570617261746f72>
+
+#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
+[#text("(1)")], [#text("Alpha.")],
+[#text("(2)")], [#text("Beta.")],
+)
+
+#heading(level: 2)[#text("Listing text")] <id-5f6c697374696e675f74657874>
+
+#raw(block: true, "<1> Alpha.\n<2> Beta.")
+
+#heading(level: 2)[#text("Literal style")] <id-5f6c69746572616c5f7374796c65>
+
+#raw(block: true, "<1> Alpha.\n<2> Beta.")
+
+#heading(level: 2)[#text("Source style")] <id-5f736f757263655f7374796c65>
+
+#raw(block: true, "<1> Alpha.\n<2> Beta.")
+
+#heading(level: 2)[#text("Verse style")] <id-5f76657273655f7374796c65>
+
+#verse[#text("<1> Alpha.\n<2> Beta.")]
+
+#heading(level: 2)[#text("Compound literal")] <id-5f636f6d706f756e645f6c69746572616c>
+
+#text("Prose. <1> Alpha.")
+
+#heading(level: 2)[#text("Table asciidoc")] <id-5f7461626c655f6173636969646f63>
+
+#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
+[#text("(1)")], [#text("Alpha.")],
+[#text("(2)")], [#text("Beta.")],
+)
+
+])
+
+#heading(level: 2)[#text("Table normal")] <id-5f7461626c655f6e6f726d616c>
+
+#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("<1> Alpha. <2> Beta.")
+
+])
+
+#heading(level: 2)[#text("Blank-separated lists")] <id-5f626c616e6b5f7365706172617465645f6c69737473>
+
+  - #text("Parent bullet.")
+
+#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
+[#text("(1)")], [#text("Separate after bullet.")],
+)
+
+#[
+#set enum(numbering: (..numbers) => text(fill: rgb("#9ca3af"), numbering("1.", ..numbers.pos())))
+  + #text("Parent numbered item.")
+]
+
+#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
+[#text("(1)")], [#text("Separate after numbered item.")],
+)
+
+#block(width: 100%, above: 0pt, below: 0.5em)[
+#text(weight: "bold")[#text("Term")]
+#block(above: 0pt, below: 0pt, inset: (left: 1.5em))[#text("Parent description.")]
+]
+
+#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
+[#text("(1)")], [#text("Separate after description.")],
 )

@@ -1,0 +1,84 @@
+= callouts(1)
+:doctype: manpage
+:revdate: 2026-09-29
+:manmanual: Callout Tests
+:mansource: acdc
+
+== NAME
+
+callouts - test standalone callouts
+
+== DESCRIPTION
+
+=== Mixed
+
+<1> Alpha.
+<.> Beta.
+<3> Gamma.
+<.> Delta.
+
+=== Out of order
+
+<3> Alpha.
+<1> Beta.
+<0> Gamma.
+<01> Delta.
+
+=== Large number
+
+<999999999999999999999999999999999999> Alpha.
+<.> Beta.
+
+=== After listing
+
+----
+code <1> <2>
+----
+<1> Alpha.
+<2> Beta.
+
+=== Intervening paragraph
+
+----
+code <1> <2>
+----
+
+Prose.
+
+<1> Alpha.
+<2> Beta.
+
+=== Intervening blank code
+
+----
+code <1>
+----
+
+----
+no markers
+----
+<1> Alpha.
+
+=== Two listings
+
+----
+first <1>
+----
+
+----
+second <2>
+----
+<1> Alpha.
+<2> Beta.
+
+=== Nested catalog
+
+----
+outer <1> <2>
+----
+<1> Alpha.
++
+--
+<1> Inner.
+--
+<2> Beta.

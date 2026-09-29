@@ -225,16 +225,34 @@
 
 #heading(level: 1)[#text("Literal controls")] <id-5f6c69746572616c5f636f6e74726f6c73>
 
-  - #text("Ordinary bullet. <2> Literal continuation outside a callout.")
+  - #block(width: 100%)[#text("Ordinary bullet.")
+
+#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
+[#text("(1)")], [#text("Literal continuation outside a callout.")],
+)
+
+  ]
 
 #[
 #set enum(numbering: (..numbers) => text(fill: rgb("#9ca3af"), numbering("1.", ..numbers.pos())))
-  + #text("Ordinary ordered item. <2> Literal ordered continuation.")
+  + #block(width: 100%)[#text("Ordinary ordered item.")
+
+#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
+[#text("(1)")], [#text("Literal ordered continuation.")],
+)
+
+  ]
 ]
 
 #block(width: 100%, above: 0pt, below: 0.5em)[
 #text(weight: "bold")[#text("Term")]
-#block(above: 0pt, below: 0pt, inset: (left: 1.5em))[#text("Ordinary description. <2> Literal description continuation.")]
+#block(above: 0pt, below: 0pt, inset: (left: 1.5em))[#text("Ordinary description.")
+
+#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
+[#text("(1)")], [#text("Literal description continuation.")],
+)
+
+]
 ]
 
 #text("Escaped \\<2> marker.")

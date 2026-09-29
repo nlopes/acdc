@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Callout list labels follow item order even when the source numbering is invalid
+  or mixed. Code markers keep their source numbers; parser warnings identify
+  numbering errors, matching Asciidoctor.
+
 - Footnotes enabled with `subs=+macros` in listing, source, and literal blocks
   display numbered markers, including in highlighted code, and appear at the
   end of the document. Repeated named definitions keep the first body.
@@ -85,7 +89,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   hierarchy, content, and reference text in terminal output.
 - Example and abstract paragraphs, open blocks, quote and verse attributions,
   admonition icon modes, visible text roles, list marker styles, reversed lists,
-  description-list styles, bibliography labels, and explicit callout numbers now
+  description-list styles, bibliography labels, and code callout numbers now
   have distinct terminal presentations.
 - Source blocks now honor line numbers, starting values, highlighted ranges,
   substitutions, and language-appropriate callout guards with or without syntax

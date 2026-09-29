@@ -91,10 +91,8 @@ pub(crate) struct ParserState<'a> {
     /// Base offset of the input containing the active callout list.
     /// Reparsed delimited-block content must not terminate that list.
     pub(crate) callout_list_offset: Option<usize>,
-    pub(crate) last_block_was_verbatim: bool,
-    /// Callout references found in the last verbatim block (for validation with callout
-    /// lists)
-    pub(crate) last_verbatim_callouts: Vec<CalloutRef>,
+    /// Verbatim callout references collected since the previous callout list.
+    pub(crate) pending_callouts: Vec<CalloutRef>,
     /// The current file being parsed (`None` for inline/string parsing). Used as the
     /// fallback file for diagnostics (`create_error_source_location`) when an offset
     /// isn't covered by a recorded source range.
@@ -540,8 +538,7 @@ impl<'a> ParserState<'a> {
             toc_entries: Vec::new(),
             block_context: BlockContext::Document,
             callout_list_offset: None,
-            last_block_was_verbatim: false,
-            last_verbatim_callouts: Vec::new(),
+            pending_callouts: Vec::new(),
             current_file: None,
             leveloffset_ranges: Vec::new(),
             source_ranges: Vec::new(),
@@ -580,8 +577,7 @@ impl<'a> ParserState<'a> {
             toc_entries: Vec::new(),
             block_context: BlockContext::Document,
             callout_list_offset: None,
-            last_block_was_verbatim: false,
-            last_verbatim_callouts: Vec::new(),
+            pending_callouts: Vec::new(),
             current_file: None,
             leveloffset_ranges: Vec::new(),
             source_ranges: Vec::new(),
@@ -621,8 +617,7 @@ impl<'a> ParserState<'a> {
             toc_entries: Vec::new(),
             block_context: BlockContext::Document,
             callout_list_offset: None,
-            last_block_was_verbatim: false,
-            last_verbatim_callouts: Vec::new(),
+            pending_callouts: Vec::new(),
             // Inherit the file so inline sub-parse nodes are stamped with the correct
             // origin file by `create_location` (cheap `Arc` clone).
             current_file: parent.current_file.clone(),

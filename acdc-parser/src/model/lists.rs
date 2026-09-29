@@ -142,7 +142,7 @@ pub struct CalloutList<'a> {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct CalloutListItem<'a> {
-    /// The callout reference (explicit or auto-numbered).
+    /// The callout reference (explicit or auto-numbered), numbered by item position.
     pub callout: CalloutRef,
     /// Principal text - inline content that appears after the callout marker.
     pub principal: Vec<InlineNode<'a>>,

@@ -17,6 +17,11 @@ use acdc_parser::{AttributeValue, Options as ParserOptions, SafeMode, parse, par
 type Error = Box<dyn StdError>;
 
 #[test]
+fn standalone_callouts_keep_unique_link_targets() -> Result<(), Error> {
+    check_link_label_footnote_targets("standalone_callouts")
+}
+
+#[test]
 fn callout_nested_lists_keep_unique_link_targets() -> Result<(), Error> {
     check_link_label_footnote_targets("callout_nested_lists")
 }

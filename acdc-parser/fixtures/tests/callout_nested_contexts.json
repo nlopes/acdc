@@ -572,11 +572,77 @@
                             {
                               "name": "text",
                               "type": "string",
-                              "value": "Ordinary enclosed bullet.\n<2> Literal enclosed continuation.",
+                              "value": "Ordinary enclosed bullet.",
                               "location": [
                                 {
                                   "line": 25,
                                   "col": 3
+                                },
+                                {
+                                  "line": 25,
+                                  "col": 27
+                                }
+                              ]
+                            }
+                          ],
+                          "blocks": [
+                            {
+                              "name": "list",
+                              "type": "block",
+                              "variant": "callout",
+                              "items": [
+                                {
+                                  "name": "listItem",
+                                  "type": "block",
+                                  "callout": {
+                                    "name": "callout_reference",
+                                    "type": "inline",
+                                    "variant": "explicit",
+                                    "number": 1,
+                                    "location": [
+                                      {
+                                        "line": 26,
+                                        "col": 1
+                                      },
+                                      {
+                                        "line": 26,
+                                        "col": 34
+                                      }
+                                    ]
+                                  },
+                                  "principal": [
+                                    {
+                                      "name": "text",
+                                      "type": "string",
+                                      "value": "Literal enclosed continuation.",
+                                      "location": [
+                                        {
+                                          "line": 26,
+                                          "col": 5
+                                        },
+                                        {
+                                          "line": 26,
+                                          "col": 34
+                                        }
+                                      ]
+                                    }
+                                  ],
+                                  "location": [
+                                    {
+                                      "line": 26,
+                                      "col": 1
+                                    },
+                                    {
+                                      "line": 26,
+                                      "col": 34
+                                    }
+                                  ]
+                                }
+                              ],
+                              "location": [
+                                {
+                                  "line": 26,
+                                  "col": 1
                                 },
                                 {
                                   "line": 26,

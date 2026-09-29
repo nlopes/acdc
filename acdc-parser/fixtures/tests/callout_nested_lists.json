@@ -3353,11 +3353,77 @@
                 {
                   "name": "text",
                   "type": "string",
-                  "value": "Ordinary bullet.\n<2> Literal continuation outside a callout.",
+                  "value": "Ordinary bullet.",
                   "location": [
                     {
                       "line": 116,
                       "col": 3
+                    },
+                    {
+                      "line": 116,
+                      "col": 18
+                    }
+                  ]
+                }
+              ],
+              "blocks": [
+                {
+                  "name": "list",
+                  "type": "block",
+                  "variant": "callout",
+                  "items": [
+                    {
+                      "name": "listItem",
+                      "type": "block",
+                      "callout": {
+                        "name": "callout_reference",
+                        "type": "inline",
+                        "variant": "explicit",
+                        "number": 1,
+                        "location": [
+                          {
+                            "line": 117,
+                            "col": 1
+                          },
+                          {
+                            "line": 117,
+                            "col": 43
+                          }
+                        ]
+                      },
+                      "principal": [
+                        {
+                          "name": "text",
+                          "type": "string",
+                          "value": "Literal continuation outside a callout.",
+                          "location": [
+                            {
+                              "line": 117,
+                              "col": 5
+                            },
+                            {
+                              "line": 117,
+                              "col": 43
+                            }
+                          ]
+                        }
+                      ],
+                      "location": [
+                        {
+                          "line": 117,
+                          "col": 1
+                        },
+                        {
+                          "line": 117,
+                          "col": 43
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 117,
+                      "col": 1
                     },
                     {
                       "line": 117,
@@ -3418,11 +3484,77 @@
                 {
                   "name": "text",
                   "type": "string",
-                  "value": "Ordinary ordered item.\n<2> Literal ordered continuation.",
+                  "value": "Ordinary ordered item.",
                   "location": [
                     {
                       "line": 121,
                       "col": 3
+                    },
+                    {
+                      "line": 121,
+                      "col": 24
+                    }
+                  ]
+                }
+              ],
+              "blocks": [
+                {
+                  "name": "list",
+                  "type": "block",
+                  "variant": "callout",
+                  "items": [
+                    {
+                      "name": "listItem",
+                      "type": "block",
+                      "callout": {
+                        "name": "callout_reference",
+                        "type": "inline",
+                        "variant": "explicit",
+                        "number": 1,
+                        "location": [
+                          {
+                            "line": 122,
+                            "col": 1
+                          },
+                          {
+                            "line": 122,
+                            "col": 33
+                          }
+                        ]
+                      },
+                      "principal": [
+                        {
+                          "name": "text",
+                          "type": "string",
+                          "value": "Literal ordered continuation.",
+                          "location": [
+                            {
+                              "line": 122,
+                              "col": 5
+                            },
+                            {
+                              "line": 122,
+                              "col": 33
+                            }
+                          ]
+                        }
+                      ],
+                      "location": [
+                        {
+                          "line": 122,
+                          "col": 1
+                        },
+                        {
+                          "line": 122,
+                          "col": 33
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 122,
+                      "col": 1
                     },
                     {
                       "line": 122,
@@ -3496,11 +3628,77 @@
                 {
                   "name": "text",
                   "type": "string",
-                  "value": "Ordinary description.\n<2> Literal description continuation.",
+                  "value": "Ordinary description.",
                   "location": [
                     {
                       "line": 126,
                       "col": 8
+                    },
+                    {
+                      "line": 126,
+                      "col": 28
+                    }
+                  ]
+                }
+              ],
+              "description": [
+                {
+                  "name": "list",
+                  "type": "block",
+                  "variant": "callout",
+                  "items": [
+                    {
+                      "name": "listItem",
+                      "type": "block",
+                      "callout": {
+                        "name": "callout_reference",
+                        "type": "inline",
+                        "variant": "explicit",
+                        "number": 1,
+                        "location": [
+                          {
+                            "line": 127,
+                            "col": 1
+                          },
+                          {
+                            "line": 127,
+                            "col": 37
+                          }
+                        ]
+                      },
+                      "principal": [
+                        {
+                          "name": "text",
+                          "type": "string",
+                          "value": "Literal description continuation.",
+                          "location": [
+                            {
+                              "line": 127,
+                              "col": 5
+                            },
+                            {
+                              "line": 127,
+                              "col": 37
+                            }
+                          ]
+                        }
+                      ],
+                      "location": [
+                        {
+                          "line": 127,
+                          "col": 1
+                        },
+                        {
+                          "line": 127,
+                          "col": 37
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 127,
+                      "col": 1
                     },
                     {
                       "line": 127,
@@ -3509,7 +3707,6 @@
                   ]
                 }
               ],
-              "description": [],
               "location": [
                 {
                   "line": 126,
@@ -3517,7 +3714,7 @@
                 },
                 {
                   "line": 127,
-                  "col": 38
+                  "col": 37
                 }
               ]
             }
@@ -3529,7 +3726,7 @@
             },
             {
               "line": 127,
-              "col": 38
+              "col": 37
             }
           ]
         },

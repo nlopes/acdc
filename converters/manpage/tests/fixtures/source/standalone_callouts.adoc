@@ -1,0 +1,90 @@
+= callouts(1)
+:doctype: manpage
+:revdate: 2026-09-29
+:manmanual: Callout Tests
+:mansource: acdc
+
+== NAME
+
+callouts - test standalone callouts
+
+== DESCRIPTION
+
+=== Explicit
+
+<1> Alpha.
+<2> Beta.
+
+=== Auto
+
+<.> Alpha.
+<.> Beta.
+
+=== Nested bullet
+
+<1> Alpha.
+* Child.
+<2> Beta.
+
+=== Nested description
+
+<1> Alpha.
+Term:: Child.
+<2> Beta.
+
+=== Attached paragraph
+
+<1> Alpha.
++
+Attached.
+<2> Beta.
+
+=== Metadata
+
+[[target,Target]]
+.Notes
+[.marked]
+<1> Alpha.
+<2> Beta.
+
+//-
+
+See <<target>>.
+
+=== Open block
+
+--
+<1> Alpha.
+<2> Beta.
+--
+
+=== List separated
+
+<1> Alpha.
+
+//-
+
+<1> Beta.
+
+=== Nested metadata
+
+* Parent.
+[[nested-target]]
+<1> Alpha.
+<2> Beta.
+
+//-
+
+See <<nested-target>>.
+
+=== Nested macro order
+
+* Parent footnote:[Parent note.].
+<1> Alpha footnote:[First note.].
+<2> Beta footnote:[Last note.].
+
+=== Footnotes
+
+<1> Alpha footnote:[First.].
+* Child footnote:[Second.].
+<2> Beta footnote:[Third.].

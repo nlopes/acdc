@@ -1,7 +1,7 @@
 #set document(
-  title: "Nested callout contexts",
+  title: "callouts(1)",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Nested callout contexts]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[callouts(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -73,44 +73,93 @@
 #set page(numbering: "1")
 #counter(page).update(1)
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("Nested callout contexts")]
+#text(size: 22pt, weight: "bold")[#text("callouts(1)")]
 ]
 #v(1em)
 
+#heading(level: 1)[#text("NAME")] <id-5f6e616d65>
+
+#text("callouts - test standalone callouts")
+
+#heading(level: 1)[#text("DESCRIPTION")] <id-5f6465736372697074696f6e>
+
+#heading(level: 2)[#text("Mixed")] <id-5f6d69786564>
+
+#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
+[#text("(1)")], [#text("Alpha.")],
+[#text("(2)")], [#text("Beta.")],
+[#text("(3)")], [#text("Gamma.")],
+[#text("(4)")], [#text("Delta.")],
+)
+
+#heading(level: 2)[#text("Out of order")] <id-5f6f75745f6f665f6f72646572>
+
+#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
+[#text("(1)")], [#text("Alpha.")],
+[#text("(2)")], [#text("Beta.")],
+[#text("(3)")], [#text("Gamma.")],
+[#text("(4)")], [#text("Delta.")],
+)
+
+#heading(level: 2)[#text("Large number")] <id-5f6c617267655f6e756d626572>
+
+#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
+[#text("(1)")], [#text("Alpha.")],
+[#text("(2)")], [#text("Beta.")],
+)
+
+#heading(level: 2)[#text("After listing")] <id-5f61667465725f6c697374696e67>
+
+#raw(block: true, "code (1) (2)")
+
+#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
+[#text("(1)")], [#text("Alpha.")],
+[#text("(2)")], [#text("Beta.")],
+)
+
+#heading(level: 2)[#text("Intervening paragraph")] <id-5f696e74657276656e696e675f706172616772617068>
+
+#raw(block: true, "code (1) (2)")
+
+#text("Prose.")
+
+#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
+[#text("(1)")], [#text("Alpha.")],
+[#text("(2)")], [#text("Beta.")],
+)
+
+#heading(level: 2)[#text("Intervening blank code")] <id-5f696e74657276656e696e675f626c616e6b5f636f6465>
+
+#raw(block: true, "code (1)")
+
+#raw(block: true, "no markers")
+
+#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
+[#text("(1)")], [#text("Alpha.")],
+)
+
+#heading(level: 2)[#text("Two listings")] <id-5f74776f5f6c697374696e6773>
+
+#raw(block: true, "first (1)")
+
+#raw(block: true, "second (2)")
+
+#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
+[#text("(1)")], [#text("Alpha.")],
+[#text("(2)")], [#text("Beta.")],
+)
+
+#heading(level: 2)[#text("Nested catalog")] <id-5f6e65737465645f636174616c6f67>
+
 #raw(block: true, "outer (1) (2)")
 
 #grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
-[#text("(1)")], [#text("Outer first.")
-
-#raw(block: true, "inner (1)")
+[#text("(1)")], [#text("Alpha.")
 
 #grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
-[#text("(1)")], [#text("Inner first.")
-
-  - #text("Inner bullet.")
-
-],
+[#text("(1)")], [#text("Inner.")],
 )
 
 ],
-[#text("(2)")], [#text("Outer second.")],
-)
-
-#heading(level: 1)[#text("Enclosed literal control")] <id-5f656e636c6f7365645f6c69746572616c5f636f6e74726f6c>
-
-#raw(block: true, "outer (1) (2)")
-
-#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
-[#text("(1)")], [#text("Before compound block.")
-
-  - #block(width: 100%)[#text("Ordinary enclosed bullet.")
-
-#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
-[#text("(1)")], [#text("Literal enclosed continuation.")],
-)
-
-  ]
-
-],
-[#text("(2)")], [#text("After compound block.")],
+[#text("(2)")], [#text("Beta.")],
 )

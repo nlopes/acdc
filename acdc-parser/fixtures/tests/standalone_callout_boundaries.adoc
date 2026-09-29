@@ -1,0 +1,145 @@
+= callouts(1)
+:doctype: manpage
+:revdate: 2026-09-29
+:manmanual: Callout Tests
+:mansource: acdc
+
+== NAME
+
+callouts - test standalone callouts
+
+== DESCRIPTION
+
+=== Paragraph adjacent
+
+Prose.
+<1> Alpha.
+<2> Beta.
+
+=== Paragraph blank
+
+Prose.
+
+<1> Alpha.
+<2> Beta.
+
+=== Empty item
+
+<1>
+<2> Beta.
+
+=== Empty rest
+
+<1> Alpha.
+<2>
+<3> Gamma.
+
+=== No space
+
+<1>Alpha.
+<.>Beta.
+<1>
+
+=== Not markers
+
+<-1> Negative.
+<+1> Plus.
+<1.> Dot.
+<..> Dots.
+
+=== Escaped
+
+\<1> Alpha.
+\<.> Beta.
+
+=== Inline
+
+Inline <1> Alpha and <.> Beta.
+
+=== Indented
+
+ <1> Alpha.
+ <2> Beta.
+
+=== Indented after listing
+
+----
+code <1> <2>
+----
+ <1> Alpha.
+ <2> Beta.
+
+=== Tab indent
+
+	<1> Alpha.
+	<2> Beta.
+
+=== Tab separator
+
+<1>	Alpha.
+<2>	Beta.
+
+=== Listing text
+
+----
+<1> Alpha.
+<2> Beta.
+----
+
+=== Literal style
+
+[literal]
+<1> Alpha.
+<2> Beta.
+
+=== Source style
+
+[source]
+<1> Alpha.
+<2> Beta.
+
+=== Verse style
+
+[verse]
+<1> Alpha.
+<2> Beta.
+
+=== Compound literal
+
+--
+Prose.
+<1> Alpha.
+--
+
+=== Table asciidoc
+
+[cols="a"]
+|===
+|<1> Alpha.
+<2> Beta.
+|===
+
+=== Table normal
+
+|===
+|<1> Alpha.
+<2> Beta.
+|===
+
+=== Blank-separated lists
+
+* Parent bullet.
+
+<1> Separate after bullet.
+
+//-
+
+. Parent numbered item.
+
+<1> Separate after numbered item.
+
+//-
+
+Term:: Parent description.
+
+<1> Separate after description.

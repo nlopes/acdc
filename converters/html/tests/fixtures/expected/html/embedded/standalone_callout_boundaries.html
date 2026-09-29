@@ -1,0 +1,237 @@
+<div class="sect1">
+<h2 id="_name">NAME</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>callouts - test standalone callouts</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_description">DESCRIPTION</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="_paragraph_adjacent">Paragraph adjacent</h3>
+<div class="paragraph">
+<p>Prose.
+&lt;1&gt; Alpha.
+&lt;2&gt; Beta.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_paragraph_blank">Paragraph blank</h3>
+<div class="paragraph">
+<p>Prose.</p>
+</div>
+<div class="colist arabic">
+<ol>
+<li><p>Alpha.</p></li>
+<li><p>Beta.</p></li>
+</ol>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_empty_item">Empty item</h3>
+<div class="paragraph">
+<p>&lt;1&gt;
+&lt;2&gt; Beta.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_empty_rest">Empty rest</h3>
+<div class="colist arabic">
+<ol>
+<li><p>Alpha.
+&lt;2&gt;</p></li>
+<li><p>Gamma.</p></li>
+</ol>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_no_space">No space</h3>
+<div class="paragraph">
+<p>&lt;1&gt;Alpha.
+&lt;.&gt;Beta.
+&lt;1&gt;</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_not_markers">Not markers</h3>
+<div class="paragraph">
+<p>&#8592;1&gt; Negative.
+&lt;+1&gt; Plus.
+&lt;1.&gt; Dot.
+&lt;..&gt; Dots.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_escaped">Escaped</h3>
+<div class="paragraph">
+<p>\&lt;1&gt; Alpha.
+\&lt;.&gt; Beta.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_inline">Inline</h3>
+<div class="paragraph">
+<p>Inline &lt;1&gt; Alpha and &lt;.&gt; Beta.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_indented">Indented</h3>
+<div class="literalblock">
+<div class="content">
+<pre>&lt;1&gt; Alpha.
+&lt;2&gt; Beta.</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_indented_after_listing">Indented after listing</h3>
+<div class="listingblock">
+<div class="content">
+<pre>code <b class="conum">(1)</b> <b class="conum">(2)</b></pre>
+</div>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>&lt;1&gt; Alpha.
+&lt;2&gt; Beta.</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_tab_indent">Tab indent</h3>
+<div class="paragraph">
+<p>	&lt;1&gt; Alpha.
+	&lt;2&gt; Beta.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_tab_separator">Tab separator</h3>
+<div class="colist arabic">
+<ol>
+<li><p>Alpha.</p></li>
+<li><p>Beta.</p></li>
+</ol>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_listing_text">Listing text</h3>
+<div class="listingblock">
+<div class="content">
+<pre>&lt;1&gt; Alpha.
+&lt;2&gt; Beta.</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_literal_style">Literal style</h3>
+<div class="literalblock">
+<div class="content">
+<pre>&lt;1&gt; Alpha.
+&lt;2&gt; Beta.</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_source_style">Source style</h3>
+<div class="listingblock">
+<div class="content">
+<pre>&lt;1&gt; Alpha.
+&lt;2&gt; Beta.</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_verse_style">Verse style</h3>
+<div class="verseblock">
+<pre class="content">&lt;1&gt; Alpha.
+&lt;2&gt; Beta.</pre>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_compound_literal">Compound literal</h3>
+<div class="openblock">
+<div class="content">
+<div class="paragraph">
+<p>Prose.
+&lt;1&gt; Alpha.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_table_asciidoc">Table asciidoc</h3>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><div class="colist arabic">
+<ol>
+<li><p>Alpha.</p></li>
+<li><p>Beta.</p></li>
+</ol>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect2">
+<h3 id="_table_normal">Table normal</h3>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">&lt;1&gt; Alpha.
+&lt;2&gt; Beta.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect2">
+<h3 id="_blank_separated_lists">Blank-separated lists</h3>
+<div class="ulist">
+<ul>
+<li>
+<p>Parent bullet.</p>
+</li>
+</ul>
+</div>
+<div class="colist arabic">
+<ol>
+<li><p>Separate after bullet.</p></li>
+</ol>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Parent numbered item.</p>
+</li>
+</ol>
+</div>
+<div class="colist arabic">
+<ol>
+<li><p>Separate after numbered item.</p></li>
+</ol>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">Term</dt>
+<dd>
+<p>Parent description.</p>
+</dd>
+</dl>
+</div>
+<div class="colist arabic">
+<ol>
+<li><p>Separate after description.</p></li>
+</ol>
+</div>
+</div>
+</div>
+</div>

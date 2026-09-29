@@ -1,0 +1,123 @@
+'\" t
+.\"     Title: callouts
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-09-29
+.\"    Manual: Callout Tests
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "CALLOUTS" "1" "2026-09-29" "acdc" "Callout Tests"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+callouts \- test standalone callouts
+.SH "DESCRIPTION"
+.SS "Mixed"
+.RS 0
+.IP \fB(1)\fP 4
+Alpha.
+.IP \fB(2)\fP 4
+Beta.
+.IP \fB(3)\fP 4
+Gamma.
+.IP \fB(4)\fP 4
+Delta.
+.RE
+.SS "Out of order"
+.RS 0
+.IP \fB(1)\fP 4
+Alpha.
+.IP \fB(2)\fP 4
+Beta.
+.IP \fB(3)\fP 4
+Gamma.
+.IP \fB(4)\fP 4
+Delta.
+.RE
+.SS "Large number"
+.RS 0
+.IP \fB(1)\fP 4
+Alpha.
+.IP \fB(2)\fP 4
+Beta.
+.RE
+.SS "After listing"
+.EX
+code \fB(1)\fP \fB(2)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+Alpha.
+.IP \fB(2)\fP 4
+Beta.
+.RE
+.SS "Intervening paragraph"
+.EX
+code \fB(1)\fP \fB(2)\fP
+.EE
+.sp
+Prose.
+.RS 0
+.IP \fB(1)\fP 4
+Alpha.
+.IP \fB(2)\fP 4
+Beta.
+.RE
+.SS "Intervening blank code"
+.EX
+code \fB(1)\fP
+.EE
+.EX
+no markers
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+Alpha.
+.RE
+.SS "Two listings"
+.EX
+first \fB(1)\fP
+.EE
+.EX
+second \fB(2)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+Alpha.
+.IP \fB(2)\fP 4
+Beta.
+.RE
+.SS "Nested catalog"
+.EX
+outer \fB(1)\fP \fB(2)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+Alpha.
+.RS 0
+.RS 4
+.IP \fB(1)\fP 4
+Inner.
+.RE
+.RE
+.IP \fB(2)\fP 4
+Beta.
+.RE

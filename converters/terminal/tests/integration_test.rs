@@ -623,7 +623,7 @@ fn blocks_roles_and_admonition_modes_have_terminal_distinctions() -> Result<(), 
 }
 
 #[test]
-fn list_styles_bibliography_and_callout_numbers_are_preserved() -> Result<(), Error> {
+fn list_styles_bibliography_and_callout_ordinals_are_preserved() -> Result<(), Error> {
     let input = "[%reversed,start=5]\n. Five\n. Four\n. Three\n\n[%reversed]\n. Default three\n. Default two\n. Default one\n\n[disc]\n* Disc\n\n[circle]\n* Circle\n\n[square]\n* Square\n\n[ordered]\nFirst:: One.\nSecond:: Two.\n\n[unordered]\nAlpha:: A.\nBeta:: B.\n\n[source,rust]\n----\nlet value = 1; // <3>\n----\n<3> Explicit three\n\n[bibliography]\n== References\n\n* [[[ref,Reference Label]]] Entry.\n";
     let (output, warnings) = render_terminal(input, 80, TEXT_TERMINAL)?;
     let plain = strip_terminal_sequences(&output);
@@ -643,7 +643,7 @@ fn list_styles_bibliography_and_callout_numbers_are_preserved() -> Result<(), Er
         "2. Second",
         "• Alpha",
         "• Beta",
-        "<3> Explicit three",
+        "<1> Explicit three",
         "[Reference Label] Entry.",
     ] {
         assert!(
@@ -685,7 +685,7 @@ fn source_options_and_mixed_php_fallback_are_visible_and_deduplicated() -> Resul
         "<tag/> <8>",
         "multiple(); <9> <10>",
         "auto(); <1>",
-        "<1> Automatic marker",
+        "<9> Automatic marker",
     ] {
         assert!(
             strip_terminal_sequences(&output).contains(expected),

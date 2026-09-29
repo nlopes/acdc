@@ -49,7 +49,7 @@ pub(crate) fn parse_table_cell<'a>(
     let blocks = if spec.style == Some(ColumnStyle::AsciiDoc) {
         // An AsciiDoc-style cell is a nested document. It inherits the outer
         // attributes, but its local attributes, section catalog, hard-break
-        // state, and callout adjacency do not escape into sibling cells or the
+        // state, and pending callout references do not escape into sibling cells or the
         // outer document.
         let outer_attributes = Rc::clone(&state.document_attributes);
         let outer_parent_attributes = state
@@ -58,8 +58,7 @@ pub(crate) fn parse_table_cell<'a>(
         let outer_hardbreaks = state.hardbreaks;
         let outer_context = std::mem::replace(&mut state.block_context, BlockContext::Document);
         let outer_toc_len = state.toc_entries.len();
-        let outer_last_block_was_verbatim = state.last_block_was_verbatim;
-        let outer_last_verbatim_callouts = std::mem::take(&mut state.last_verbatim_callouts);
+        let outer_pending_callouts = std::mem::take(&mut state.pending_callouts);
 
         initial_attributes = crate::document_attribute::initialize_nested_attributes(Rc::make_mut(
             &mut state.document_attributes,
@@ -77,8 +76,7 @@ pub(crate) fn parse_table_cell<'a>(
         state.hardbreaks = outer_hardbreaks;
         state.block_context = outer_context;
         state.toc_entries.truncate(outer_toc_len);
-        state.last_block_was_verbatim = outer_last_block_was_verbatim;
-        state.last_verbatim_callouts = outer_last_verbatim_callouts;
+        state.pending_callouts = outer_pending_callouts;
         result
     } else {
         document_parser::blocks_for_table_cell(

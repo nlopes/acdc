@@ -1,0 +1,195 @@
+<section class="doc-section level-1">
+<h2 id="_name">NAME</h2>
+<p>callouts - test standalone callouts</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_description">DESCRIPTION</h2>
+<section class="doc-section level-2">
+<h3 id="_paragraph_adjacent">Paragraph adjacent</h3>
+<p>Prose.
+&lt;1&gt; Alpha.
+&lt;2&gt; Beta.</p>
+</section>
+<section class="doc-section level-2">
+<h3 id="_paragraph_blank">Paragraph blank</h3>
+<p>Prose.</p>
+<ol class="callout-list arabic">
+<li>Alpha.</li>
+<li>Beta.</li>
+</ol>
+</section>
+<section class="doc-section level-2">
+<h3 id="_empty_item">Empty item</h3>
+<p>&lt;1&gt;
+&lt;2&gt; Beta.</p>
+</section>
+<section class="doc-section level-2">
+<h3 id="_empty_rest">Empty rest</h3>
+<ol class="callout-list arabic">
+<li>Alpha.
+&lt;2&gt;</li>
+<li>Gamma.</li>
+</ol>
+</section>
+<section class="doc-section level-2">
+<h3 id="_no_space">No space</h3>
+<p>&lt;1&gt;Alpha.
+&lt;.&gt;Beta.
+&lt;1&gt;</p>
+</section>
+<section class="doc-section level-2">
+<h3 id="_not_markers">Not markers</h3>
+<p>&#8592;1&gt; Negative.
+&lt;+1&gt; Plus.
+&lt;1.&gt; Dot.
+&lt;..&gt; Dots.</p>
+</section>
+<section class="doc-section level-2">
+<h3 id="_escaped">Escaped</h3>
+<p>\&lt;1&gt; Alpha.
+\&lt;.&gt; Beta.</p>
+</section>
+<section class="doc-section level-2">
+<h3 id="_inline">Inline</h3>
+<p>Inline &lt;1&gt; Alpha and &lt;.&gt; Beta.</p>
+</section>
+<section class="doc-section level-2">
+<h3 id="_indented">Indented</h3>
+<div class="literalblock">
+<div class="content">
+<pre>&lt;1&gt; Alpha.
+&lt;2&gt; Beta.</pre>
+</div>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_indented_after_listing">Indented after listing</h3>
+<div class="listing-block">
+<pre>code <b class="conum">(1)</b> <b class="conum">(2)</b></pre>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>&lt;1&gt; Alpha.
+&lt;2&gt; Beta.</pre>
+</div>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_tab_indent">Tab indent</h3>
+<p>	&lt;1&gt; Alpha.
+	&lt;2&gt; Beta.</p>
+</section>
+<section class="doc-section level-2">
+<h3 id="_tab_separator">Tab separator</h3>
+<ol class="callout-list arabic">
+<li>Alpha.</li>
+<li>Beta.</li>
+</ol>
+</section>
+<section class="doc-section level-2">
+<h3 id="_listing_text">Listing text</h3>
+<div class="listing-block">
+<pre>&lt;1&gt; Alpha.
+&lt;2&gt; Beta.</pre>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_literal_style">Literal style</h3>
+<div class="literalblock">
+<div class="content">
+<pre>&lt;1&gt; Alpha.
+&lt;2&gt; Beta.</pre>
+</div>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_source_style">Source style</h3>
+<div class="listing-block">
+<pre>&lt;1&gt; Alpha.
+&lt;2&gt; Beta.</pre>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_verse_style">Verse style</h3>
+<div class="verseblock">
+<pre class="content">&lt;1&gt; Alpha.
+&lt;2&gt; Beta.</pre>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_compound_literal">Compound literal</h3>
+<div class="open-block">
+<div class="content">
+<p>Prose.
+&lt;1&gt; Alpha.</p>
+</div>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_table_asciidoc">Table asciidoc</h3>
+<div class="table-block">
+<table class="frame-all grid-all stretch">
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="halign-left valign-top"><ol class="callout-list arabic">
+<li>Alpha.</li>
+<li>Beta.</li>
+</ol>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_table_normal">Table normal</h3>
+<div class="table-block">
+<table class="frame-all grid-all stretch">
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="halign-left valign-top">&lt;1&gt; Alpha.
+&lt;2&gt; Beta.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_blank_separated_lists">Blank-separated lists</h3>
+<div class="ulist">
+<ul>
+<li>
+Parent bullet.</li>
+</ul>
+</div>
+<ol class="callout-list arabic">
+<li>Separate after bullet.</li>
+</ol>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+Parent numbered item.</li>
+</ol>
+</div>
+<ol class="callout-list arabic">
+<li>Separate after numbered item.</li>
+</ol>
+<div class="dlist">
+<dl>
+<dt>
+Term</dt>
+<dd>
+Parent description.</dd>
+</dl>
+</div>
+<ol class="callout-list arabic">
+<li>Separate after description.</li>
+</ol>
+</section>
+</section>

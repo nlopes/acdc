@@ -1,0 +1,165 @@
+'\" t
+.\"     Title: callouts
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-09-29
+.\"    Manual: Callout Tests
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "CALLOUTS" "1" "2026-09-29" "acdc" "Callout Tests"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+callouts \- test standalone callouts
+.SH "DESCRIPTION"
+.SS "Explicit"
+.RS 0
+.IP \fB(1)\fP 4
+Alpha.
+.IP \fB(2)\fP 4
+Beta.
+.RE
+.SS "Auto"
+.RS 0
+.IP \fB(1)\fP 4
+Alpha.
+.IP \fB(2)\fP 4
+Beta.
+.RE
+.SS "Nested bullet"
+.RS 0
+.IP \fB(1)\fP 4
+Alpha.
+.RS 0
+.RS 4
+.IP \(bu 2
+Child.
+.RE
+.RE
+.IP \fB(2)\fP 4
+Beta.
+.RE
+.SS "Nested description"
+.RS 0
+.IP \fB(1)\fP 4
+Alpha.
+.RS 0
+.RS 4
+.TP
+\fBTerm\fP
+Child.
+.RE
+.RE
+.IP \fB(2)\fP 4
+Beta.
+.RE
+.SS "Attached paragraph"
+.RS 0
+.IP \fB(1)\fP 4
+Alpha.
+.RS 0
+.sp
+Attached.
+.RE
+.IP \fB(2)\fP 4
+Beta.
+.RE
+.SS "Metadata"
+.sp
+\fBNotes\fP
+.RS 0
+.IP \fB(1)\fP 4
+Alpha.
+.IP \fB(2)\fP 4
+Beta.
+.RE
+.sp
+See Target\&.
+.SS "Open block"
+.RS 0
+.IP \fB(1)\fP 4
+Alpha.
+.IP \fB(2)\fP 4
+Beta.
+.RE
+.SS "List separated"
+.RS 0
+.IP \fB(1)\fP 4
+Alpha.
+.RE
+.RS 0
+.IP \fB(1)\fP 4
+Beta.
+.RE
+.SS "Nested metadata"
+.RS 0
+.IP \(bu 2
+Parent.
+.RS 2
+.RS 4
+.IP \fB(1)\fP 4
+Alpha.
+.IP \fB(2)\fP 4
+Beta.
+.RE
+.RE
+.RE
+.sp
+See [nested\-target]\&.
+.SS "Nested macro order"
+.RS 0
+.IP \(bu 2
+Parent [1]\&.
+.RS 2
+.RS 4
+.IP \fB(1)\fP 4
+Alpha [2]\&.
+.IP \fB(2)\fP 4
+Beta [3]\&.
+.RE
+.RE
+.RE
+.SS "Footnotes"
+.RS 0
+.IP \fB(1)\fP 4
+Alpha [4]\&.
+.RS 0
+.RS 4
+.IP \(bu 2
+Child [5]\&.
+.RE
+.RE
+.IP \fB(2)\fP 4
+Beta [6]\&.
+.RE
+.SH "NOTES"
+.IP [1] 4
+Parent note.
+.IP [2] 4
+First note.
+.IP [3] 4
+Last note.
+.IP [4] 4
+First.
+.IP [5] 4
+Second.
+.IP [6] 4
+Third.

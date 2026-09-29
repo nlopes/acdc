@@ -234,7 +234,7 @@
             "name": "callout_reference",
             "type": "inline",
             "variant": "explicit",
-            "number": 5,
+            "number": 2,
             "location": [
               {
                 "line": 10,
@@ -281,7 +281,7 @@
             "name": "callout_reference",
             "type": "inline",
             "variant": "auto",
-            "number": 2,
+            "number": 3,
             "location": [
               {
                 "line": 11,
@@ -328,7 +328,7 @@
             "name": "callout_reference",
             "type": "inline",
             "variant": "explicit",
-            "number": 10,
+            "number": 4,
             "location": [
               {
                 "line": 12,

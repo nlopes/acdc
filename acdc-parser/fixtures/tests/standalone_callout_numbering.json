@@ -1,0 +1,1991 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "callouts(1)",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 13
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 5,
+        "col": 16
+      }
+    ]
+  },
+  "attributes": {
+    "doctype": "manpage",
+    "manmanual": "Callout Tests",
+    "manname": "callouts",
+    "manname-title": "NAME",
+    "manpurpose": "test standalone callouts",
+    "mansource": "acdc",
+    "mantitle": "callouts",
+    "manvolnum": "1",
+    "revdate": "2026-09-29"
+  },
+  "blocks": [
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "NAME",
+          "location": [
+            {
+              "line": 7,
+              "col": 4
+            },
+            {
+              "line": 7,
+              "col": 7
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "callouts - test standalone callouts",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 1
+                },
+                {
+                  "line": 9,
+                  "col": 35
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 9,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 35
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 35
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "DESCRIPTION",
+          "location": [
+            {
+              "line": 11,
+              "col": 4
+            },
+            {
+              "line": 11,
+              "col": 14
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "section",
+          "type": "block",
+          "title": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Mixed",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 5
+                },
+                {
+                  "line": 13,
+                  "col": 9
+                }
+              ]
+            }
+          ],
+          "level": 2,
+          "blocks": [
+            {
+              "name": "list",
+              "type": "block",
+              "variant": "callout",
+              "items": [
+                {
+                  "name": "listItem",
+                  "type": "block",
+                  "callout": {
+                    "name": "callout_reference",
+                    "type": "inline",
+                    "variant": "explicit",
+                    "number": 1,
+                    "location": [
+                      {
+                        "line": 15,
+                        "col": 1
+                      },
+                      {
+                        "line": 15,
+                        "col": 10
+                      }
+                    ]
+                  },
+                  "principal": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Alpha.",
+                      "location": [
+                        {
+                          "line": 15,
+                          "col": 5
+                        },
+                        {
+                          "line": 15,
+                          "col": 10
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 15,
+                      "col": 1
+                    },
+                    {
+                      "line": 15,
+                      "col": 10
+                    }
+                  ]
+                },
+                {
+                  "name": "listItem",
+                  "type": "block",
+                  "callout": {
+                    "name": "callout_reference",
+                    "type": "inline",
+                    "variant": "auto",
+                    "number": 2,
+                    "location": [
+                      {
+                        "line": 16,
+                        "col": 1
+                      },
+                      {
+                        "line": 16,
+                        "col": 9
+                      }
+                    ]
+                  },
+                  "principal": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Beta.",
+                      "location": [
+                        {
+                          "line": 16,
+                          "col": 5
+                        },
+                        {
+                          "line": 16,
+                          "col": 9
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 16,
+                      "col": 1
+                    },
+                    {
+                      "line": 16,
+                      "col": 9
+                    }
+                  ]
+                },
+                {
+                  "name": "listItem",
+                  "type": "block",
+                  "callout": {
+                    "name": "callout_reference",
+                    "type": "inline",
+                    "variant": "explicit",
+                    "number": 3,
+                    "location": [
+                      {
+                        "line": 17,
+                        "col": 1
+                      },
+                      {
+                        "line": 17,
+                        "col": 10
+                      }
+                    ]
+                  },
+                  "principal": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Gamma.",
+                      "location": [
+                        {
+                          "line": 17,
+                          "col": 5
+                        },
+                        {
+                          "line": 17,
+                          "col": 10
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 17,
+                      "col": 1
+                    },
+                    {
+                      "line": 17,
+                      "col": 10
+                    }
+                  ]
+                },
+                {
+                  "name": "listItem",
+                  "type": "block",
+                  "callout": {
+                    "name": "callout_reference",
+                    "type": "inline",
+                    "variant": "auto",
+                    "number": 4,
+                    "location": [
+                      {
+                        "line": 18,
+                        "col": 1
+                      },
+                      {
+                        "line": 18,
+                        "col": 10
+                      }
+                    ]
+                  },
+                  "principal": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Delta.",
+                      "location": [
+                        {
+                          "line": 18,
+                          "col": 5
+                        },
+                        {
+                          "line": 18,
+                          "col": 10
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 18,
+                      "col": 1
+                    },
+                    {
+                      "line": 18,
+                      "col": 10
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 15,
+                  "col": 1
+                },
+                {
+                  "line": 18,
+                  "col": 10
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 13,
+              "col": 1
+            },
+            {
+              "line": 18,
+              "col": 10
+            }
+          ]
+        },
+        {
+          "name": "section",
+          "type": "block",
+          "title": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Out of order",
+              "location": [
+                {
+                  "line": 20,
+                  "col": 5
+                },
+                {
+                  "line": 20,
+                  "col": 16
+                }
+              ]
+            }
+          ],
+          "level": 2,
+          "blocks": [
+            {
+              "name": "list",
+              "type": "block",
+              "variant": "callout",
+              "items": [
+                {
+                  "name": "listItem",
+                  "type": "block",
+                  "callout": {
+                    "name": "callout_reference",
+                    "type": "inline",
+                    "variant": "explicit",
+                    "number": 1,
+                    "location": [
+                      {
+                        "line": 22,
+                        "col": 1
+                      },
+                      {
+                        "line": 22,
+                        "col": 10
+                      }
+                    ]
+                  },
+                  "principal": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Alpha.",
+                      "location": [
+                        {
+                          "line": 22,
+                          "col": 5
+                        },
+                        {
+                          "line": 22,
+                          "col": 10
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 22,
+                      "col": 1
+                    },
+                    {
+                      "line": 22,
+                      "col": 10
+                    }
+                  ]
+                },
+                {
+                  "name": "listItem",
+                  "type": "block",
+                  "callout": {
+                    "name": "callout_reference",
+                    "type": "inline",
+                    "variant": "explicit",
+                    "number": 2,
+                    "location": [
+                      {
+                        "line": 23,
+                        "col": 1
+                      },
+                      {
+                        "line": 23,
+                        "col": 9
+                      }
+                    ]
+                  },
+                  "principal": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Beta.",
+                      "location": [
+                        {
+                          "line": 23,
+                          "col": 5
+                        },
+                        {
+                          "line": 23,
+                          "col": 9
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 23,
+                      "col": 1
+                    },
+                    {
+                      "line": 23,
+                      "col": 9
+                    }
+                  ]
+                },
+                {
+                  "name": "listItem",
+                  "type": "block",
+                  "callout": {
+                    "name": "callout_reference",
+                    "type": "inline",
+                    "variant": "explicit",
+                    "number": 3,
+                    "location": [
+                      {
+                        "line": 24,
+                        "col": 1
+                      },
+                      {
+                        "line": 24,
+                        "col": 10
+                      }
+                    ]
+                  },
+                  "principal": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Gamma.",
+                      "location": [
+                        {
+                          "line": 24,
+                          "col": 5
+                        },
+                        {
+                          "line": 24,
+                          "col": 10
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 24,
+                      "col": 1
+                    },
+                    {
+                      "line": 24,
+                      "col": 10
+                    }
+                  ]
+                },
+                {
+                  "name": "listItem",
+                  "type": "block",
+                  "callout": {
+                    "name": "callout_reference",
+                    "type": "inline",
+                    "variant": "explicit",
+                    "number": 4,
+                    "location": [
+                      {
+                        "line": 25,
+                        "col": 1
+                      },
+                      {
+                        "line": 25,
+                        "col": 11
+                      }
+                    ]
+                  },
+                  "principal": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Delta.",
+                      "location": [
+                        {
+                          "line": 25,
+                          "col": 6
+                        },
+                        {
+                          "line": 25,
+                          "col": 11
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 25,
+                      "col": 1
+                    },
+                    {
+                      "line": 25,
+                      "col": 11
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 22,
+                  "col": 1
+                },
+                {
+                  "line": 25,
+                  "col": 11
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 20,
+              "col": 1
+            },
+            {
+              "line": 25,
+              "col": 11
+            }
+          ]
+        },
+        {
+          "name": "section",
+          "type": "block",
+          "title": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Large number",
+              "location": [
+                {
+                  "line": 27,
+                  "col": 5
+                },
+                {
+                  "line": 27,
+                  "col": 16
+                }
+              ]
+            }
+          ],
+          "level": 2,
+          "blocks": [
+            {
+              "name": "list",
+              "type": "block",
+              "variant": "callout",
+              "items": [
+                {
+                  "name": "listItem",
+                  "type": "block",
+                  "callout": {
+                    "name": "callout_reference",
+                    "type": "inline",
+                    "variant": "explicit",
+                    "number": 1,
+                    "location": [
+                      {
+                        "line": 29,
+                        "col": 1
+                      },
+                      {
+                        "line": 29,
+                        "col": 45
+                      }
+                    ]
+                  },
+                  "principal": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Alpha.",
+                      "location": [
+                        {
+                          "line": 29,
+                          "col": 40
+                        },
+                        {
+                          "line": 29,
+                          "col": 45
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 29,
+                      "col": 1
+                    },
+                    {
+                      "line": 29,
+                      "col": 45
+                    }
+                  ]
+                },
+                {
+                  "name": "listItem",
+                  "type": "block",
+                  "callout": {
+                    "name": "callout_reference",
+                    "type": "inline",
+                    "variant": "auto",
+                    "number": 2,
+                    "location": [
+                      {
+                        "line": 30,
+                        "col": 1
+                      },
+                      {
+                        "line": 30,
+                        "col": 9
+                      }
+                    ]
+                  },
+                  "principal": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Beta.",
+                      "location": [
+                        {
+                          "line": 30,
+                          "col": 5
+                        },
+                        {
+                          "line": 30,
+                          "col": 9
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 30,
+                      "col": 1
+                    },
+                    {
+                      "line": 30,
+                      "col": 9
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 29,
+                  "col": 1
+                },
+                {
+                  "line": 30,
+                  "col": 9
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 27,
+              "col": 1
+            },
+            {
+              "line": 30,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "section",
+          "type": "block",
+          "title": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "After listing",
+              "location": [
+                {
+                  "line": 32,
+                  "col": 5
+                },
+                {
+                  "line": 32,
+                  "col": 17
+                }
+              ]
+            }
+          ],
+          "level": 2,
+          "blocks": [
+            {
+              "name": "listing",
+              "type": "block",
+              "form": "delimited",
+              "delimiter": "----",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "code ",
+                  "location": [
+                    {
+                      "line": 35,
+                      "col": 1
+                    },
+                    {
+                      "line": 35,
+                      "col": 5
+                    }
+                  ]
+                },
+                {
+                  "name": "callout_reference",
+                  "type": "inline",
+                  "variant": "explicit",
+                  "number": 1,
+                  "location": [
+                    {
+                      "line": 35,
+                      "col": 6
+                    },
+                    {
+                      "line": 35,
+                      "col": 8
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": " ",
+                  "location": [
+                    {
+                      "line": 35,
+                      "col": 9
+                    },
+                    {
+                      "line": 35,
+                      "col": 9
+                    }
+                  ]
+                },
+                {
+                  "name": "callout_reference",
+                  "type": "inline",
+                  "variant": "explicit",
+                  "number": 2,
+                  "location": [
+                    {
+                      "line": 35,
+                      "col": 10
+                    },
+                    {
+                      "line": 35,
+                      "col": 12
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 34,
+                  "col": 1
+                },
+                {
+                  "line": 36,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "list",
+              "type": "block",
+              "variant": "callout",
+              "items": [
+                {
+                  "name": "listItem",
+                  "type": "block",
+                  "callout": {
+                    "name": "callout_reference",
+                    "type": "inline",
+                    "variant": "explicit",
+                    "number": 1,
+                    "location": [
+                      {
+                        "line": 37,
+                        "col": 1
+                      },
+                      {
+                        "line": 37,
+                        "col": 10
+                      }
+                    ]
+                  },
+                  "principal": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Alpha.",
+                      "location": [
+                        {
+                          "line": 37,
+                          "col": 5
+                        },
+                        {
+                          "line": 37,
+                          "col": 10
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 37,
+                      "col": 1
+                    },
+                    {
+                      "line": 37,
+                      "col": 10
+                    }
+                  ]
+                },
+                {
+                  "name": "listItem",
+                  "type": "block",
+                  "callout": {
+                    "name": "callout_reference",
+                    "type": "inline",
+                    "variant": "explicit",
+                    "number": 2,
+                    "location": [
+                      {
+                        "line": 38,
+                        "col": 1
+                      },
+                      {
+                        "line": 38,
+                        "col": 9
+                      }
+                    ]
+                  },
+                  "principal": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Beta.",
+                      "location": [
+                        {
+                          "line": 38,
+                          "col": 5
+                        },
+                        {
+                          "line": 38,
+                          "col": 9
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 38,
+                      "col": 1
+                    },
+                    {
+                      "line": 38,
+                      "col": 9
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 37,
+                  "col": 1
+                },
+                {
+                  "line": 38,
+                  "col": 9
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 32,
+              "col": 1
+            },
+            {
+              "line": 38,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "section",
+          "type": "block",
+          "title": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Intervening paragraph",
+              "location": [
+                {
+                  "line": 40,
+                  "col": 5
+                },
+                {
+                  "line": 40,
+                  "col": 25
+                }
+              ]
+            }
+          ],
+          "level": 2,
+          "blocks": [
+            {
+              "name": "listing",
+              "type": "block",
+              "form": "delimited",
+              "delimiter": "----",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "code ",
+                  "location": [
+                    {
+                      "line": 43,
+                      "col": 1
+                    },
+                    {
+                      "line": 43,
+                      "col": 5
+                    }
+                  ]
+                },
+                {
+                  "name": "callout_reference",
+                  "type": "inline",
+                  "variant": "explicit",
+                  "number": 1,
+                  "location": [
+                    {
+                      "line": 43,
+                      "col": 6
+                    },
+                    {
+                      "line": 43,
+                      "col": 8
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": " ",
+                  "location": [
+                    {
+                      "line": 43,
+                      "col": 9
+                    },
+                    {
+                      "line": 43,
+                      "col": 9
+                    }
+                  ]
+                },
+                {
+                  "name": "callout_reference",
+                  "type": "inline",
+                  "variant": "explicit",
+                  "number": 2,
+                  "location": [
+                    {
+                      "line": 43,
+                      "col": 10
+                    },
+                    {
+                      "line": 43,
+                      "col": 12
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 42,
+                  "col": 1
+                },
+                {
+                  "line": 44,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "paragraph",
+              "type": "block",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Prose.",
+                  "location": [
+                    {
+                      "line": 46,
+                      "col": 1
+                    },
+                    {
+                      "line": 46,
+                      "col": 6
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 46,
+                  "col": 1
+                },
+                {
+                  "line": 46,
+                  "col": 6
+                }
+              ]
+            },
+            {
+              "name": "list",
+              "type": "block",
+              "variant": "callout",
+              "items": [
+                {
+                  "name": "listItem",
+                  "type": "block",
+                  "callout": {
+                    "name": "callout_reference",
+                    "type": "inline",
+                    "variant": "explicit",
+                    "number": 1,
+                    "location": [
+                      {
+                        "line": 48,
+                        "col": 1
+                      },
+                      {
+                        "line": 48,
+                        "col": 10
+                      }
+                    ]
+                  },
+                  "principal": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Alpha.",
+                      "location": [
+                        {
+                          "line": 48,
+                          "col": 5
+                        },
+                        {
+                          "line": 48,
+                          "col": 10
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 48,
+                      "col": 1
+                    },
+                    {
+                      "line": 48,
+                      "col": 10
+                    }
+                  ]
+                },
+                {
+                  "name": "listItem",
+                  "type": "block",
+                  "callout": {
+                    "name": "callout_reference",
+                    "type": "inline",
+                    "variant": "explicit",
+                    "number": 2,
+                    "location": [
+                      {
+                        "line": 49,
+                        "col": 1
+                      },
+                      {
+                        "line": 49,
+                        "col": 9
+                      }
+                    ]
+                  },
+                  "principal": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Beta.",
+                      "location": [
+                        {
+                          "line": 49,
+                          "col": 5
+                        },
+                        {
+                          "line": 49,
+                          "col": 9
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 49,
+                      "col": 1
+                    },
+                    {
+                      "line": 49,
+                      "col": 9
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 48,
+                  "col": 1
+                },
+                {
+                  "line": 49,
+                  "col": 9
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 40,
+              "col": 1
+            },
+            {
+              "line": 49,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "section",
+          "type": "block",
+          "title": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Intervening blank code",
+              "location": [
+                {
+                  "line": 51,
+                  "col": 5
+                },
+                {
+                  "line": 51,
+                  "col": 26
+                }
+              ]
+            }
+          ],
+          "level": 2,
+          "blocks": [
+            {
+              "name": "listing",
+              "type": "block",
+              "form": "delimited",
+              "delimiter": "----",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "code ",
+                  "location": [
+                    {
+                      "line": 54,
+                      "col": 1
+                    },
+                    {
+                      "line": 54,
+                      "col": 5
+                    }
+                  ]
+                },
+                {
+                  "name": "callout_reference",
+                  "type": "inline",
+                  "variant": "explicit",
+                  "number": 1,
+                  "location": [
+                    {
+                      "line": 54,
+                      "col": 6
+                    },
+                    {
+                      "line": 54,
+                      "col": 8
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 53,
+                  "col": 1
+                },
+                {
+                  "line": 55,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "listing",
+              "type": "block",
+              "form": "delimited",
+              "delimiter": "----",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "no markers",
+                  "location": [
+                    {
+                      "line": 58,
+                      "col": 1
+                    },
+                    {
+                      "line": 58,
+                      "col": 10
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 57,
+                  "col": 1
+                },
+                {
+                  "line": 59,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "list",
+              "type": "block",
+              "variant": "callout",
+              "items": [
+                {
+                  "name": "listItem",
+                  "type": "block",
+                  "callout": {
+                    "name": "callout_reference",
+                    "type": "inline",
+                    "variant": "explicit",
+                    "number": 1,
+                    "location": [
+                      {
+                        "line": 60,
+                        "col": 1
+                      },
+                      {
+                        "line": 60,
+                        "col": 10
+                      }
+                    ]
+                  },
+                  "principal": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Alpha.",
+                      "location": [
+                        {
+                          "line": 60,
+                          "col": 5
+                        },
+                        {
+                          "line": 60,
+                          "col": 10
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 60,
+                      "col": 1
+                    },
+                    {
+                      "line": 60,
+                      "col": 10
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 60,
+                  "col": 1
+                },
+                {
+                  "line": 60,
+                  "col": 10
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 51,
+              "col": 1
+            },
+            {
+              "line": 60,
+              "col": 10
+            }
+          ]
+        },
+        {
+          "name": "section",
+          "type": "block",
+          "title": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Two listings",
+              "location": [
+                {
+                  "line": 62,
+                  "col": 5
+                },
+                {
+                  "line": 62,
+                  "col": 16
+                }
+              ]
+            }
+          ],
+          "level": 2,
+          "blocks": [
+            {
+              "name": "listing",
+              "type": "block",
+              "form": "delimited",
+              "delimiter": "----",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "first ",
+                  "location": [
+                    {
+                      "line": 65,
+                      "col": 1
+                    },
+                    {
+                      "line": 65,
+                      "col": 6
+                    }
+                  ]
+                },
+                {
+                  "name": "callout_reference",
+                  "type": "inline",
+                  "variant": "explicit",
+                  "number": 1,
+                  "location": [
+                    {
+                      "line": 65,
+                      "col": 7
+                    },
+                    {
+                      "line": 65,
+                      "col": 9
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 64,
+                  "col": 1
+                },
+                {
+                  "line": 66,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "listing",
+              "type": "block",
+              "form": "delimited",
+              "delimiter": "----",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "second ",
+                  "location": [
+                    {
+                      "line": 69,
+                      "col": 1
+                    },
+                    {
+                      "line": 69,
+                      "col": 7
+                    }
+                  ]
+                },
+                {
+                  "name": "callout_reference",
+                  "type": "inline",
+                  "variant": "explicit",
+                  "number": 2,
+                  "location": [
+                    {
+                      "line": 69,
+                      "col": 8
+                    },
+                    {
+                      "line": 69,
+                      "col": 10
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 68,
+                  "col": 1
+                },
+                {
+                  "line": 70,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "list",
+              "type": "block",
+              "variant": "callout",
+              "items": [
+                {
+                  "name": "listItem",
+                  "type": "block",
+                  "callout": {
+                    "name": "callout_reference",
+                    "type": "inline",
+                    "variant": "explicit",
+                    "number": 1,
+                    "location": [
+                      {
+                        "line": 71,
+                        "col": 1
+                      },
+                      {
+                        "line": 71,
+                        "col": 10
+                      }
+                    ]
+                  },
+                  "principal": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Alpha.",
+                      "location": [
+                        {
+                          "line": 71,
+                          "col": 5
+                        },
+                        {
+                          "line": 71,
+                          "col": 10
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 71,
+                      "col": 1
+                    },
+                    {
+                      "line": 71,
+                      "col": 10
+                    }
+                  ]
+                },
+                {
+                  "name": "listItem",
+                  "type": "block",
+                  "callout": {
+                    "name": "callout_reference",
+                    "type": "inline",
+                    "variant": "explicit",
+                    "number": 2,
+                    "location": [
+                      {
+                        "line": 72,
+                        "col": 1
+                      },
+                      {
+                        "line": 72,
+                        "col": 9
+                      }
+                    ]
+                  },
+                  "principal": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Beta.",
+                      "location": [
+                        {
+                          "line": 72,
+                          "col": 5
+                        },
+                        {
+                          "line": 72,
+                          "col": 9
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 72,
+                      "col": 1
+                    },
+                    {
+                      "line": 72,
+                      "col": 9
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 71,
+                  "col": 1
+                },
+                {
+                  "line": 72,
+                  "col": 9
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 62,
+              "col": 1
+            },
+            {
+              "line": 72,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "section",
+          "type": "block",
+          "title": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Nested catalog",
+              "location": [
+                {
+                  "line": 74,
+                  "col": 5
+                },
+                {
+                  "line": 74,
+                  "col": 18
+                }
+              ]
+            }
+          ],
+          "level": 2,
+          "blocks": [
+            {
+              "name": "listing",
+              "type": "block",
+              "form": "delimited",
+              "delimiter": "----",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "outer ",
+                  "location": [
+                    {
+                      "line": 77,
+                      "col": 1
+                    },
+                    {
+                      "line": 77,
+                      "col": 6
+                    }
+                  ]
+                },
+                {
+                  "name": "callout_reference",
+                  "type": "inline",
+                  "variant": "explicit",
+                  "number": 1,
+                  "location": [
+                    {
+                      "line": 77,
+                      "col": 7
+                    },
+                    {
+                      "line": 77,
+                      "col": 9
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": " ",
+                  "location": [
+                    {
+                      "line": 77,
+                      "col": 10
+                    },
+                    {
+                      "line": 77,
+                      "col": 10
+                    }
+                  ]
+                },
+                {
+                  "name": "callout_reference",
+                  "type": "inline",
+                  "variant": "explicit",
+                  "number": 2,
+                  "location": [
+                    {
+                      "line": 77,
+                      "col": 11
+                    },
+                    {
+                      "line": 77,
+                      "col": 13
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 76,
+                  "col": 1
+                },
+                {
+                  "line": 78,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "list",
+              "type": "block",
+              "variant": "callout",
+              "items": [
+                {
+                  "name": "listItem",
+                  "type": "block",
+                  "callout": {
+                    "name": "callout_reference",
+                    "type": "inline",
+                    "variant": "explicit",
+                    "number": 1,
+                    "location": [
+                      {
+                        "line": 79,
+                        "col": 1
+                      },
+                      {
+                        "line": 79,
+                        "col": 10
+                      }
+                    ]
+                  },
+                  "principal": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Alpha.",
+                      "location": [
+                        {
+                          "line": 79,
+                          "col": 5
+                        },
+                        {
+                          "line": 79,
+                          "col": 10
+                        }
+                      ]
+                    }
+                  ],
+                  "blocks": [
+                    {
+                      "name": "open",
+                      "type": "block",
+                      "form": "delimited",
+                      "delimiter": "--",
+                      "blocks": [
+                        {
+                          "name": "list",
+                          "type": "block",
+                          "variant": "callout",
+                          "items": [
+                            {
+                              "name": "listItem",
+                              "type": "block",
+                              "callout": {
+                                "name": "callout_reference",
+                                "type": "inline",
+                                "variant": "explicit",
+                                "number": 1,
+                                "location": [
+                                  {
+                                    "line": 82,
+                                    "col": 1
+                                  },
+                                  {
+                                    "line": 82,
+                                    "col": 10
+                                  }
+                                ]
+                              },
+                              "principal": [
+                                {
+                                  "name": "text",
+                                  "type": "string",
+                                  "value": "Inner.",
+                                  "location": [
+                                    {
+                                      "line": 82,
+                                      "col": 5
+                                    },
+                                    {
+                                      "line": 82,
+                                      "col": 10
+                                    }
+                                  ]
+                                }
+                              ],
+                              "location": [
+                                {
+                                  "line": 82,
+                                  "col": 1
+                                },
+                                {
+                                  "line": 82,
+                                  "col": 10
+                                }
+                              ]
+                            }
+                          ],
+                          "location": [
+                            {
+                              "line": 82,
+                              "col": 1
+                            },
+                            {
+                              "line": 82,
+                              "col": 10
+                            }
+                          ]
+                        }
+                      ],
+                      "location": [
+                        {
+                          "line": 81,
+                          "col": 1
+                        },
+                        {
+                          "line": 83,
+                          "col": 2
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 79,
+                      "col": 1
+                    },
+                    {
+                      "line": 83,
+                      "col": 2
+                    }
+                  ]
+                },
+                {
+                  "name": "listItem",
+                  "type": "block",
+                  "callout": {
+                    "name": "callout_reference",
+                    "type": "inline",
+                    "variant": "explicit",
+                    "number": 2,
+                    "location": [
+                      {
+                        "line": 84,
+                        "col": 1
+                      },
+                      {
+                        "line": 84,
+                        "col": 9
+                      }
+                    ]
+                  },
+                  "principal": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Beta.",
+                      "location": [
+                        {
+                          "line": 84,
+                          "col": 5
+                        },
+                        {
+                          "line": 84,
+                          "col": 9
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 84,
+                      "col": 1
+                    },
+                    {
+                      "line": 84,
+                      "col": 9
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 79,
+                  "col": 1
+                },
+                {
+                  "line": 84,
+                  "col": 9
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 74,
+              "col": 1
+            },
+            {
+              "line": 84,
+              "col": 9
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 11,
+          "col": 1
+        },
+        {
+          "line": 84,
+          "col": 9
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 84,
+      "col": 9
+    }
+  ]
+}

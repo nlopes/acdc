@@ -43,7 +43,24 @@ fn callout_nested_contexts_preserve_parent_validation() -> Result<(), Error> {
     // Warning state is not part of the JSON fixtures.
     let source = include_str!("../fixtures/tests/callout_nested_contexts.adoc");
     let parsed = parse(source, &Options::default())?;
-    assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
+    let warnings = parsed.warnings();
+    assert_eq!(warnings.len(), 2, "{warnings:?}");
+    // The enclosed standalone list warns; neither outer list loses its references.
+    for (warning, expected) in warnings.iter().zip([
+        "callout list item index: expected 1, got 2",
+        "no callout found for <1>",
+    ]) {
+        assert_eq!(warning.kind.to_string(), expected);
+        let location = &warning
+            .location
+            .as_ref()
+            .ok_or("missing warning location")?
+            .location;
+        assert_eq!(
+            source.get(location.absolute_start..=location.absolute_end),
+            Some("<2> Literal enclosed continuation.")
+        );
+    }
     Ok(())
 }
 

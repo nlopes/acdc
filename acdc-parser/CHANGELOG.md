@@ -57,14 +57,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Recognize standalone callout lists without a preceding code block, including
+  lists nested inside bullet, numbered, and description items. Paragraph text,
+  escaped markers, indentation, and verbatim styles keep their literal meaning.
+  Warn about missing references and invalid numbering while displaying list
+  items in order, matching Asciidoctor HTML, PDF, and manpage output.
+  Parent footnotes precede nested callout footnotes, and references from multiple
+  code blocks remain available until the next callout list. Unlike Asciidoctor,
+  nested lists retain outer callout validation, and nested callouts in manpage
+  output remain readable instead of exposing table markup.
+
 - Keep nested bullet, numbered, and description lists inside callout items,
   including their IDs and roles. Following callout items no longer become
   literal child-list text. Nested callouts retain the outer code block's
   validation, and callout footnotes precede child footnotes without duplicates.
   Blocks attached to callout items with `+` report their parse errors instead of
   silently disappearing.
-  As before, acdc requires a preceding verbatim block to start a callout list;
-  Asciidoctor also recognizes standalone callout lists.
 
 - Parse footnotes inside `xref:target[...]` labels without ending the reference
   at the footnote's closing bracket. Named notes, trailing label text, and code
