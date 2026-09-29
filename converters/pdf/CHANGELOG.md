@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Render nested links, anchors, and footnotes inside `pass:m[...]` when their
+  closing brackets are escaped. Reusing a named footnote in a later paragraph
+  retains its definition.
+
 - Resolve cross-references to inline anchors in code with `subs=+macros`,
   including highlighted, numbered, and wrapped listings, without inserting
   spaces into the code. Code containing only an anchor also creates a target.

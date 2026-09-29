@@ -2,7 +2,7 @@ use std::{borrow::Cow, mem::take};
 
 use crate::{
     AttributeValue, Error, Form, IndexTermKind, IndexTermRelationship, InlineMacro, InlineNode,
-    Location, PassthroughKind, Plain, ProcessedContent, Source, Warning, WarningKind,
+    Location, PassthroughKind, Plain, ProcessedContent, Source,
 };
 
 use super::{
@@ -531,19 +531,7 @@ fn map_inline_macro<'a>(
             footnote.location = ctx.map_location(&footnote.location, form)?;
             footnote.content =
                 map_inline_locations(state, processed, take(&mut footnote.content), location)?;
-            // Nested labels still use local coordinates; finalize at the document boundary.
-            if state.scope == super::state::ParserScope::Document
-                && let Some(first) = state.footnote_tracker.borrow_mut().finalize(footnote)
-                && let Some(id) = footnote.id
-            {
-                state.add_warning(Warning::new(
-                    WarningKind::ConflictingFootnote {
-                        id: id.to_owned(),
-                        first: Box::new(state.create_error_source_location(first)),
-                    },
-                    Some(state.create_error_source_location(footnote.location.clone())),
-                ));
-            }
+            state.finalize_footnote(footnote);
         }
         InlineMacro::Url(url) => {
             url.location = ctx.map_location(&url.location, form)?;
@@ -646,14 +634,21 @@ fn map_plain_text_inline_locations<'a>(
     plain.location = ctx.map_location(&plain.location, form)?;
     if contains_passthrough_placeholders(plain.content, ctx.processed) {
         // Passthrough locations use the mapped document coordinates as their base.
-        return Ok(Some(
-            super::passthrough_processing::process_passthrough_placeholders(
-                plain.content,
-                ctx.processed,
-                ctx.state,
-                &plain.location,
-            ),
-        ));
+        let mut nodes = super::passthrough_processing::process_passthrough_placeholders(
+            plain.content,
+            ctx.processed,
+            ctx.state,
+            &plain.location,
+        );
+        // Expanded nodes already have mapped locations and bypass map_inline_macro.
+        for node in &mut nodes {
+            super::location_walk::walk_inline_nodes_mut(node, &mut |node| {
+                if let InlineNode::Macro(InlineMacro::Footnote(note)) = node {
+                    ctx.state.finalize_footnote(note);
+                }
+            });
+        }
+        return Ok(Some(nodes));
     }
     if plain.content.chars().count() == 1 {
         plain.location.end.column = plain.location.start.column;

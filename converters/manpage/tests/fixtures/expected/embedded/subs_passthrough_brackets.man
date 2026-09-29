@@ -1,0 +1,25 @@
+.sp
+pass:m[link:https://example.org[Label]]
+.sp
+pass:a,m[link:https://example.org[Expanded]]
+.sp
+pass:m[link:https://example.org[Label]]
+.sp
+\c
+.URL "https://example.org" "Expanded" ""
+
+.sp
+See Code target\&.
+.EX
+Before Code link after.
+Destination.
+.EE
+.EX
+let value = 1;
+[1]
+.EE
+.sp
+Reuse [1]\&.
+.EX
+pass:m[link:https://example.org[Literal\e]]
+.EE

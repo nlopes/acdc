@@ -779,7 +779,7 @@ parser!(
             }
 
         rule escaped_passthrough() -> String
-            = "\\" source:$("pass:" substitutions() "[" [^']']* "]") {
+            = "\\" source:$(pass_macro_pattern()) {
                 let start = state.get_offset();
                 let expanded = if state.macros_enabled {
                     state.extract_single_passthroughs(source, start + 1, document_attributes)
@@ -944,7 +944,7 @@ parser!(
             }
 
         rule pass_macro() -> String
-        = start:position() full:$("pass:" substitutions() "[" [^']']* "]") {
+        = start:position() full:$(pass_macro_pattern()) {
             if !state.macros_enabled {
                 return state.expand_disabled_pass_macro(full, document_attributes);
             }
@@ -983,6 +983,11 @@ parser!(
                 }
             }
 
+        // An escaped closing bracket belongs to the content, even after another
+        // backslash. Share this boundary with extraction and its lookaheads.
+        rule pass_macro_pattern()
+            = "pass:" substitutions() "[" ("\\]" / [^']'])* "]"
+
         rule substitution_value() -> &'input str
             = $(['a'..='z' | 'A'..='Z' | '0'..='9']+)
 
@@ -1018,7 +1023,7 @@ parser!(
         "+++" (!("+++") [_])+ "+++" /
         "++" (!("++") [_])+ "++" /
         "+" ![' '|'\t'|'\n'|'\r'] (!("+" &([' '|'\t'|'\n'|'\r'|','|';'|'"'|'.'|'?'|'!'|':'|')'|'['|']'|'}'|'/'|'-'|'<'|'>'] / ![_])) [_])* "+" /
-        "pass:" substitutions()? "[" [^']']* "]"
+        pass_macro_pattern()
 
         rule escaped_passthrough_pattern() = "\\" passthrough_pattern()
 

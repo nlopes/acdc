@@ -12,6 +12,24 @@ use acdc_converters_pdf::{PdfOptions, Processor};
 type Error = Box<dyn std::error::Error>;
 
 #[test]
+fn passthrough_brackets_keep_pdf_link_destinations() -> Result<(), Error> {
+    let source = "= Passthrough destinations\n\nSee <<target,Target>>.\n\n<<<\n\npass:m[anchor:target[Target\\]Destination.]\n\npass:m[link:https://example.org[External\\]]\n";
+    let pdf = render_input(source)?;
+    assert_eq!(internal_link_pages(&pdf, 1)?, [2]);
+    let pages = pdf.get_pages();
+    let page = pages.get(&2).ok_or("missing target page")?;
+    let annotations = pdf.get_page_annotations(*page)?;
+    let [link] = annotations.as_slice() else {
+        return Err("expected one external link".into());
+    };
+    assert_eq!(
+        link.get(b"A")?.as_dict()?.get(b"URI")?.as_str()?,
+        b"https://example.org"
+    );
+    Ok(())
+}
+
+#[test]
 fn anchor_macros_keep_their_pdf_destinations() -> Result<(), Error> {
     let source = "= Anchors\n\nSee <<target>>, <<empty>>.\n\n<<<\n\nanchor:target[Target]Destination.\n\n* anchor:empty[]Item.\n";
     let pdf = render_input(source)?;

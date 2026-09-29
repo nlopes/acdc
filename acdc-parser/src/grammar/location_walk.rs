@@ -34,6 +34,14 @@ pub(crate) fn walk_inline_locations_mut<F: FnMut(&mut Location)>(
     AstWalker::new(visit, |_| {}).inline(node);
 }
 
+/// Visit an inline node, then recurse into its children.
+pub(crate) fn walk_inline_nodes_mut<'a, F: FnMut(&mut InlineNode<'a>)>(
+    node: &mut InlineNode<'a>,
+    visit: &mut F,
+) {
+    AstWalker::new(|_| {}, visit).inline(node);
+}
+
 struct AstWalker<'a, FL, FI> {
     visit_location: FL,
     visit_inline: FI,

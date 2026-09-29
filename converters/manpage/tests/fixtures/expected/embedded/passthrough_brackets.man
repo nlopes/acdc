@@ -1,0 +1,64 @@
+.sp
+Before \c
+.URL "https://example.org" "Label" ""
+after.
+.sp
+α \c
+.URL "https://example.org" "é" ""
+/ \c
+.URL "https://example.net" "東京" ""
+ω.
+.sp
+Destination.
+.sp
+See Destination and Reference\&.
+.sp
+Note [1]\&.
+.sp
+Reuse [1]\&.
+.sp
+Before one]two after three]four\&.
+.sp
+Before \fBone]two\fP after.
+.sp
+\c
+.URL "https://example.org" "Expanded" ""
+
+.sp
+\c
+.URL "https://example.org" "Expanded" ""
+
+.sp
+\c
+.URL "https://example.org" "Label" ""
+
+.sp
+link:\c
+.URL "https://example.org" "" ""
+[Label]
+.sp
+one]two Expanded term
+.sp
+\c
+.URL "https://example.org" "One" ""
+\c
+.URL "https://example.net" "Two" ""
+
+.sp
+ ] \c
+.URL "https://example.org" "" ""
+
+.sp
+Unescaped inner closing bracket: link:\c
+.URL "https://example.org" "" ""
+[Label].
+.sp
+Unfinished passthrough: pass:m[\c
+.URL "https://example.org" "Label\e" ""
+after.
+.sp
+Escaped passthrough: pass:m[link:https://example.org[Label]].
+.sp
+Macros disabled inside: link:https://example.org[Label]\&.
+.sp
+Backslashes: one]two one\e]two one\e\e]two one\e\e\e]two\&.

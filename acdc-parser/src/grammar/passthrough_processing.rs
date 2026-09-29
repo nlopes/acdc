@@ -30,7 +30,32 @@ fn process_passthrough<'a>(
         subs: Vec::new(),
     };
     let substitutions = resolve_passthrough_substitutions(&passthrough.substitutions);
-    process_raw_substitutions(raw, &substitutions, state)
+    if passthrough.kind != PassthroughKind::Macro || !content.contains(r"\]") {
+        return process_raw_substitutions(raw, &substitutions, state);
+    }
+
+    // Remove bracket escapes before substitutions. Keep source fragments so
+    // subsequent parsing can map nodes across each removed backslash.
+    let mut fragments = Vec::new();
+    let mut cursor = 0;
+    for (start, _) in content.match_indices(r"\]") {
+        push_raw_segment(&mut fragments, &raw, cursor, start, Vec::new(), state);
+        fragments.push(InlineNode::RawText(Raw {
+            content: &content[start + 1..start + 2],
+            location: raw_segment_location(&raw, start, start + 2, state),
+            subs: Vec::new(),
+        }));
+        cursor = start + 2;
+    }
+    push_raw_segment(
+        &mut fragments,
+        &raw,
+        cursor,
+        content.len(),
+        Vec::new(),
+        state,
+    );
+    process_inline_nodes(fragments, &substitutions, state)
 }
 
 fn passthrough_content_location(
@@ -109,23 +134,21 @@ fn process_inline_nodes<'a>(
     substitutions: &[Substitution],
     state: &ParserState<'a>,
 ) -> Vec<InlineNode<'a>> {
-    if substitutions.is_empty() {
+    let Some((substitution, remaining)) = substitutions.split_first() else {
         return nodes;
-    }
+    };
 
-    if let Some((Substitution::PostReplacements, remaining)) = substitutions.split_first() {
+    if matches!(substitution, Substitution::PostReplacements) {
         let nodes = process_post_replacements(nodes, state);
         return process_inline_nodes(nodes, remaining, state);
     }
 
-    if let Some((stage @ (Substitution::Quotes | Substitution::Macros), remaining)) =
-        substitutions.split_first()
-    {
+    if matches!(substitution, Substitution::Quotes | Substitution::Macros) {
         let (stages, remaining) =
             if let [Substitution::Quotes, Substitution::Macros, remaining @ ..] = substitutions {
                 (QUOTES_THEN_MACROS, remaining)
             } else {
-                (std::slice::from_ref(stage), remaining)
+                (std::slice::from_ref(substitution), remaining)
             };
         let plan = SubstitutionPlan::from_substitutions(stages);
         let mut result = Vec::with_capacity(nodes.len());
@@ -143,16 +166,21 @@ fn process_inline_nodes<'a>(
         return process_inline_nodes(result, remaining, state);
     }
 
+    // Finish this stage across all fragments before later macros join them.
     let mut result = Vec::with_capacity(nodes.len());
     for mut node in nodes {
         if let InlineNode::RawText(raw) = node {
-            result.extend(process_raw_substitutions(raw, substitutions, state));
+            result.extend(process_raw_substitutions(
+                raw,
+                std::slice::from_ref(substitution),
+                state,
+            ));
             continue;
         }
-        process_inline_children(&mut node, substitutions, state);
+        process_inline_children(&mut node, std::slice::from_ref(substitution), state);
         result.push(node);
     }
-    result
+    process_inline_nodes(result, remaining, state)
 }
 
 fn process_post_replacements<'a>(

@@ -57,6 +57,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Keep escaped closing brackets inside `pass:...[]` until the outer delimiter,
+  then remove one bracket escape before applying substitutions. Nested links,
+  anchors, and footnotes now parse without losing later text or source locations.
+  Footnote definitions inside passthroughs retain their bodies and source spans
+  when later paragraphs reuse them.
+
 - Recognize `anchor:id[Reference text]` as an inline target, including Unicode
   IDs, escaped closing brackets, and code with `subs=+macros`. Escaped or invalid
   macros stay literal, and duplicate IDs warn while retaining the first label.

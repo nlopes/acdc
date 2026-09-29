@@ -1,0 +1,45 @@
+= Passthrough brackets
+:label: Expanded
+:close: ]
+:term: Expanded term
+
+Before pass:m[link:https://example.org[Label\]] after.
+
+α pass:m[https://example.org[é\] / link:https://example.net[東京\]] ω.
+
+pass:m[anchor:target[Target\]Destination.]
+
+See <<target,Destination>> and pass:m[xref:target[Reference\]].
+
+Note pass:m[footnote:note[Note body.\]].
+
+Reuse footnote:note[].
+
+Before pass:[one\]two] after pass:[three\]four].
+
+Before pass:q[*one\]two*] after.
+
+pass:a,m[link:https://example.org[{label}\]]
+
+pass:m,a[link:https://example.org[{label}\]]
+
+pass:a,m[link:https://example.org[Label{close}]
+
+pass:m,a[link:https://example.org[Label{close}]
+
+pass:a,m[one\]two (({term}))]
+
+pass:m[link:https://example.org[One\]
+link:https://example.net[Two\]]
+
+pass:[] pass:m[] pass:[\]] pass:m[link:https://example.org[\]]
+
+Unescaped inner closing bracket: pass:m[link:https://example.org[Label]].
+
+Unfinished passthrough: pass:m[link:https://example.org[Label\] after.
+
+Escaped passthrough: \pass:m[link:https://example.org[Label\]].
+
+Macros disabled inside: pass:q[link:https://example.org[Label\]].
+
+Backslashes: pass:[one\]two] pass:[one\\]two] pass:[one\\\]two] pass:[one\\\\]two].

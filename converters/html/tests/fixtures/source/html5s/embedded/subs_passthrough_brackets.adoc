@@ -1,0 +1,35 @@
+= Passthrough bracket substitutions
+:label: Expanded
+:source-highlighter: syntect
+
+[subs=-macros]
+pass:m[link:https://example.org[Label\]]
+
+[subs="attributes"]
+pass:a,m[link:https://example.org[{label}\]]
+
+[subs="none"]
+pass:m[link:https://example.org[Label\]]
+
+[subs="macros"]
+pass:a,m[link:https://example.org[{label}\]]
+
+See <<code-target,Code target>>.
+
+[source,text,subs=+macros]
+----
+Before pass:m[link:https://example.org[Code link\]] after.
+pass:m[anchor:code-target[Code target\]Destination.]
+----
+
+[source,rust,subs=+macros]
+----
+let value = pass:m[link:https://example.org[1\]];
+pass:m[footnote:code-note[Code note.\]]
+----
+
+Reuse footnote:code-note[].
+
+----
+pass:m[link:https://example.org[Literal\]]
+----

@@ -1424,7 +1424,7 @@ peg::parser! {
         = "pass:"
         substitutions:($([^('[' | ']' | ',')]+) ** comma())
         "["
-        content:$([^']']*)
+        content:$(("\\]" / [^']'])*)
         "]"
         {
             tracing::debug!(?content, "Found pass inline");
@@ -1439,7 +1439,7 @@ peg::parser! {
 
         /// Match inline pass without consuming - for use in negative lookaheads.
         rule inline_pass_match()
-        = "pass:" ([^('[' | ']' | ',')]+ ("," [^('[' | ']' | ',')]+)*)? "[" [^']']* "]"
+        = "pass:" ([^('[' | ']' | ',')]+ ("," [^('[' | ']' | ',')]+)*)? "[" ("\\]" / [^']'])* "]"
 
         rule index_term_concealed() -> InlineNode<'input>
         = content:index_term_concealed_content() {?

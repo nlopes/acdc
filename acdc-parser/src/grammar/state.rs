@@ -285,6 +285,22 @@ impl<'a> FootnoteTracker<'a> {
 }
 
 impl<'a> ParserState<'a> {
+    /// Finalize a footnote only after its locations are document-absolute.
+    pub(crate) fn finalize_footnote(&self, footnote: &mut Footnote<'a>) {
+        if self.scope == ParserScope::Document
+            && let Some(first) = self.footnote_tracker.borrow_mut().finalize(footnote)
+            && let Some(id) = footnote.id
+        {
+            self.add_warning(Warning::new(
+                WarningKind::ConflictingFootnote {
+                    id: id.to_owned(),
+                    first: Box::new(self.create_error_source_location(first)),
+                },
+                Some(self.create_error_source_location(footnote.location.clone())),
+            ));
+        }
+    }
+
     /// Allocate `s` into the arena, returning a `&'a str` that lives for the
     /// parse. Used by grammar rules that build a transient owned `String`
     /// (attribute substitution, escape unwrapping, …) and need to hand the

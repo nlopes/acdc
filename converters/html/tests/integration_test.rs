@@ -17,6 +17,14 @@ use acdc_parser::{AttributeValue, Options as ParserOptions, SafeMode, parse, par
 type Error = Box<dyn StdError>;
 
 #[test]
+fn passthrough_brackets_keep_unique_link_targets() -> Result<(), Error> {
+    check_link_label_footnote_targets("passthrough_brackets")?;
+    #[cfg(feature = "pre-spec-subs")]
+    check_link_label_footnote_targets("subs_passthrough_brackets")?;
+    Ok(())
+}
+
+#[test]
 fn anchor_macros_keep_unique_targets_without_nested_links() -> Result<(), Error> {
     check_link_label_footnote_targets("anchor_macro")?;
     #[cfg(all(feature = "pre-spec-subs", feature = "highlighting"))]
