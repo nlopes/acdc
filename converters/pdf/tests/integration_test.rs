@@ -12,6 +12,40 @@ use acdc_converters_pdf::{PdfOptions, Processor};
 type Error = Box<dyn std::error::Error>;
 
 #[test]
+fn link_label_brackets_keep_pdf_uri_annotations() -> Result<(), Error> {
+    let source = "= Link labels\n\nlink:https://example.org[One \\] two]\n\nhttps://example.net[One \\] two]\n\nmailto:test@example.org[One \\] two]\n";
+    let pdf = render_input(source)?;
+    let pages = pdf.get_pages();
+    let page = pages.get(&1).ok_or("missing page")?;
+    let mut targets = Vec::new();
+    for annotation in pdf.get_page_annotations(*page)? {
+        targets.push(
+            annotation
+                .get(b"A")?
+                .as_dict()?
+                .get(b"URI")?
+                .as_str()?
+                .to_vec(),
+        );
+    }
+    targets.sort();
+    assert_eq!(
+        targets,
+        [
+            b"https://example.net".to_vec(),
+            b"https://example.org".to_vec(),
+            b"mailto:test@example.org".to_vec()
+        ]
+    );
+    let text = pdf
+        .extract_text(&[1])?
+        .split_whitespace()
+        .collect::<String>();
+    assert_eq!(text.matches("One]two").count(), 3, "{text}");
+    Ok(())
+}
+
+#[test]
 fn passthrough_brackets_keep_pdf_link_destinations() -> Result<(), Error> {
     let source = "= Passthrough destinations\n\nSee <<target,Target>>.\n\n<<<\n\npass:m[anchor:target[Target\\]Destination.]\n\npass:m[link:https://example.org[External\\]]\n";
     let pdf = render_input(source)?;

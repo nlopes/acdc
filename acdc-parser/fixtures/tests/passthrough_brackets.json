@@ -1461,7 +1461,7 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Unfinished passthrough: pass:m[",
+          "value": "Unfinished passthrough: pass:m[link:",
           "location": [
             {
               "line": 39,
@@ -1469,46 +1469,58 @@
             },
             {
               "line": 39,
-              "col": 31
+              "col": 36
             }
           ]
         },
         {
           "name": "ref",
           "type": "inline",
-          "variant": "link",
+          "variant": "autolink",
           "target": {
             "type": "url",
             "value": "https://example.org"
           },
-          "inlines": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "Label\\",
-              "location": [
-                {
-                  "line": 39,
-                  "col": 57
-                },
-                {
-                  "line": 39,
-                  "col": 62
-                }
-              ]
-            }
-          ],
           "location": [
             {
               "line": 39,
-              "col": 32
+              "col": 37
             },
             {
               "line": 39,
-              "col": 63
+              "col": 55
             }
-          ],
-          "attributes": {}
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "[Label",
+          "location": [
+            {
+              "line": 39,
+              "col": 56
+            },
+            {
+              "line": 39,
+              "col": 61
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "]",
+          "location": [
+            {
+              "line": 39,
+              "col": 62
+            },
+            {
+              "line": 39,
+              "col": 62
+            }
+          ]
         },
         {
           "name": "text",

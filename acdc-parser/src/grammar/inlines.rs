@@ -4,7 +4,7 @@ use crate::{
     Anchor, AttributeValue, Autolink, BlockMetadata, Bold, Button, CurvedApostrophe,
     CurvedQuotation, Footnote, Form, Highlight, ICON_SIZES, Icon, Image, IndexTerm, IndexTermKind,
     IndexTermRelationship, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, Mailto,
-    Menu, Monospace, Pass, PassthroughKind, Plain, Source, StandaloneCurvedApostrophe, Stem,
+    Menu, Monospace, Pass, PassthroughKind, Plain, Raw, Source, StandaloneCurvedApostrophe, Stem,
     StemNotation, Subscript, Substitution, Superscript, Title, Url,
     grammar::{
         ParserState, inline_preprocessing,
@@ -939,8 +939,24 @@ macro_rules! process_inlines_or_err {
     };
 }
 
-fn strip_link_window_shorthand(text: Option<&str>) -> (Option<&str>, bool) {
-    match text.and_then(|text| text.strip_suffix('^')) {
+fn process_link_text<'a>(
+    state: &mut ParserState<'a>,
+    metadata: &BlockParsingMetadata<'_>,
+    start: usize,
+    end: usize,
+    text: &'a str,
+) -> Result<Vec<InlineNode<'a>>, crate::Error> {
+    // The child parser inherits this rule; restore the enclosing grammar on errors too.
+    let rules = state.inline_ctx.rules;
+    state.inline_ctx.rules.insert(InlineRules::LINK_LABEL);
+    let result =
+        process_inlines_no_autolinks(state, metadata, start, end, state.inline_ctx.offset, text);
+    state.inline_ctx.rules = rules;
+    result
+}
+
+fn strip_link_window_shorthand(text: Option<(usize, &str)>) -> (Option<(usize, &str)>, bool) {
+    match text.and_then(|(start, text)| text.strip_suffix('^').map(|text| (start, text))) {
         Some(text) => (Some(text), true),
         None => (text, false),
     }
@@ -1128,6 +1144,7 @@ peg::parser! {
             / &['\\'] check_index_terms() prefix:escaped_index_prefix() { prefix }
             // Escaped syntax must come next - backslash prevents any following syntax from being parsed
             / check_macros() &['\\'] anchor:escaped_anchor_macro() { anchor }
+            / &['\\'] bracket:escaped_link_bracket() { bracket }
             / &['\\'] escaped_syntax:escaped_syntax() { escaped_syntax }
             // Index terms: concealed (triple parens) must come before flow (double parens)
             / check_index_terms() &['('] index_term:index_term_concealed() { index_term }
@@ -1198,6 +1215,23 @@ peg::parser! {
         rule escaped_super_sub_pattern() -> &'input str
         = "^" inner:$([^'^' | ' ' | '\t' | '\n']+) "^" { state.intern_fmt(format_args!("^{inner}^")) }
         / "~" inner:$([^'~' | ' ' | '\t' | '\n']+) "~" { state.intern_fmt(format_args!("~{inner}~")) }
+
+        // Link labels remove one backslash, regardless of the preceding run. Raw text
+        // prevents quote and replacement stages from consuming a remaining backslash.
+        rule escaped_link_bracket() -> InlineNode<'input>
+        = content:$(escaped_link_bracket_match()) {
+            InlineNode::RawText(Raw {
+                content: &content[1..],
+                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
+                subs: Vec::new(),
+            })
+        }
+
+        rule escaped_link_bracket_match()
+        = check_link_label() "\\"+ "]"
+
+        rule check_link_label()
+        = {? state.inline_ctx.rules.contains(InlineRules::LINK_LABEL).then_some(()).ok_or("link label") }
 
         /// Generic escaped syntax rule - matches backslash followed by content.
         ///
@@ -1385,40 +1419,28 @@ peg::parser! {
         / s:$([^(']' | '\\')]+) { s }
         / "\\" { "\\" }
 
-        /// Parse link, URL, or mailto display text that may contain balanced brackets.
-        ///
-        /// This is similar to balanced_bracket_content but stops at comma and attribute
-        /// patterns
-        ///
-        /// Supports two formats:
-        /// 1. **Quoted text**: `"any text including 'quotes' and ,commas"`
-        /// 2. **Unquoted text**: `any text until , or ]`
-        ///
-        /// Unlike block attributes, macro display text can contain:
-        /// - Single quotes: `link:file[see the 'source' code]`
-        /// - Periods: `link:file[version 1.2.3 notes]`
-        /// - Hash symbols: `link:file[C# programming guide]`
-        /// - Other special characters that would terminate block attribute parsing
-        ///
-        /// The unquoted parsing stops at:
-        /// - `,` (start of attributes)
-        /// - `]` (end of link)
-        rule link_title() -> &'input str
-        = "\"" title:$((!"\"" [_])*) "\"" { title }
-        / "'" title:$((!("'" whitespace()* ("," / "]")) [_])*) "'" { title }
-        / parts:$(balanced_link_title_part()+) { parts }
+        /// Capture link, URL, or mailto text with its original starting offset.
+        /// Quoted labels exclude their enclosing quotes. Unquoted labels keep
+        /// commas unless they introduce attributes or a trailing empty value.
+        rule link_title() -> (usize, &'input str)
+        = "\"" start:position!() title:$((!"\"" [_])*) "\"" { (start, title) }
+        / "'" start:position!() title:$((!("'" whitespace()* ("," / "]")) [_])*) "'" { (start, title) }
+        / start:position!() parts:$(balanced_link_title_part()+) { (start, parts) }
 
         /// Parse link and URL title content while allowing an attribute-only list.
         ///
         /// `mailto:` deliberately uses `link_title()` directly because asciidoctor treats
         /// `mailto:user@example.com[role=include]` as display text rather than attributes.
-        rule link_or_url_title() -> &'input str
+        rule link_or_url_title() -> (usize, &'input str)
         = !(whitespace()* attribute_name() "=") title:link_title() { title }
 
-        /// Parse parts of link title content
-        rule balanced_link_title_part() -> Cow<'input, str>
-        = nested_brackets:("[" inner:balanced_bracket_content() "]" { Cow::Owned(format!("[{inner}]")) })
-        / regular_text:$((!("," whitespace()* (attribute_name() "=" / "]")) [^'[' | ']'])+) { Cow::Borrowed(regular_text) }
+        // Keep nested bracketed content for existing inline macros. An unmatched
+        // opening bracket is label text; an escaped closing bracket cannot end it.
+        rule balanced_link_title_part()
+        = "\\]"
+        / "[" balanced_bracket_content() "]"
+        / (!("\\]" / ("," whitespace()* (attribute_name() "=" / "]"))) [^'[' | ']'])+
+        / "["
 
         rule inline_pass() -> InlineNode<'input>
         = "pass:"
@@ -1660,8 +1682,8 @@ peg::parser! {
                     metadata.attributes.insert(k, AttributeValue::String(v));
                 }
             }
-            let text = if let Some(text) = text {
-                process_inlines_no_autolinks(state, &bm, content_start, span_end, state.inline_ctx.offset, text)
+            let text = if let Some((start, text)) = text {
+                process_link_text(state, &bm, start, span_end, text)
                     .map_err(|e| {
                         tracing::error!(?e, url_text = text, "could not process URL macro text");
                         "could not process URL macro text"
@@ -1683,7 +1705,7 @@ peg::parser! {
         /// Match URL macro without consuming - for use in negative lookaheads.
         /// Inlines the url_path character class to avoid action-block processing.
         rule url_macro_match()
-        = ("https" / "http" / "ftp" / "irc") "://" ['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '.' | '_' | '~' | ':' | '/' | '?' | '#' | '@' | '!' | '$' | '&' | '\'' | '(' | ')' | '*' | '+' | ',' | ';' | '=' | '%' | '\\']+ "[" (!"]" [_])* "]"
+        = ("https" / "http" / "ftp" / "irc") "://" ['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '.' | '_' | '~' | ':' | '/' | '?' | '#' | '@' | '!' | '$' | '&' | '\'' | '(' | ')' | '*' | '+' | ',' | ';' | '=' | '%' | '\\']+ "[" ("\\]" / !"]" [_])* "]"
 
         /// Parse `mailto:` macros with attribute handling.
         ///
@@ -1722,8 +1744,8 @@ peg::parser! {
                     metadata.attributes.insert(k, AttributeValue::String(v));
                 }
             }
-            let text = if let Some(text) = text {
-                process_inlines_no_autolinks(state, &bm, content_start, span_end, state.inline_ctx.offset, text)
+            let text = if let Some((start, text)) = text {
+                process_link_text(state, &bm, start, span_end, text)
                     .map_err(|e| {
                         tracing::error!(?e, url_text = text, "could not process mailto macro text");
                         "could not process mailto macro text"
@@ -1744,7 +1766,7 @@ peg::parser! {
         /// Match mailto macro without consuming - for use in negative lookaheads.
         /// Inlines the url/email_address patterns to avoid action-block processing.
         rule mailto_macro_match()
-        = "mailto:" email_address() "[" (!"]" [_])* "]"
+        = "mailto:" email_address() "[" ("\\]" / !"]" [_])* "]"
 
         rule check_autolinks() -> ()
         = {? if state.inline_ctx.rules.contains(InlineRules::AUTOLINKS) { Ok(()) } else { Err("autolinks suppressed") } }
@@ -2105,8 +2127,8 @@ peg::parser! {
                 }
                 None => target,
             };
-            let text = if let Some(text) = text {
-                process_inlines_no_autolinks(state, &bm, content_start, span_end, state.inline_ctx.offset, text)
+            let text = if let Some((start, text)) = text {
+                process_link_text(state, &bm, start, span_end, text)
                     .map_err(|e| {
                         tracing::error!(?e, link_text = text, "could not process link macro text");
                         "could not process link macro text"
@@ -2125,7 +2147,7 @@ peg::parser! {
 
         /// Match link macro without consuming - for use in negative lookaheads.
         rule link_macro_match()
-        = "link:" source() path_fragment()? "[" (!"]" [_])* "]"
+        = "link:" source() path_fragment()? "[" ("\\]" / !"]" [_])* "]"
 
         /// Parse cross-reference shorthand syntax: <<id>> or <<id,custom text>>
         rule cross_reference_shorthand() -> InlineNode<'input>
@@ -3073,7 +3095,7 @@ peg::parser! {
                     check_post_replacements() eol()*<2,>
                     / check_hardbreaks() line_break_eol()
                     / ![_]
-                    / &['\\'] (check_macros() "\\" anchor_macro_pattern() / escaped_syntax_match())
+                    / &['\\'] (check_macros() "\\" anchor_macro_pattern() / escaped_link_bracket_match() / escaped_syntax_match())
                     / check_post_replacements() &[' '] (hard_wrap_match() / inline_line_break_match())
                     // Macro guard: [ ( < for delimiters, then first letters of each macro:
                     // a=anchor/asciimath, b=btn, f=footnote/ftp, h=http(s), i=image/icon/indexterm/irc,

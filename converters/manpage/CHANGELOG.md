@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Keep the complete text of link, URL, and mailto labels containing escaped
+  closing brackets, including enabled code and passthroughs. Repeated backslashes
+  retain the literal backslashes before the bracket, matching Asciidoctor.
+
 - Render nested links, anchors, and footnotes inside `pass:m[...]` when their
   closing brackets are escaped. Reusing a named footnote in a later paragraph
   retains its definition.

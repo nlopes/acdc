@@ -175,6 +175,8 @@ bitflags! {
         const EOI_HARD_BREAK = 1 << 3;
         /// Restrict label parsing to substitutions that precede index registration.
         const INDEX_CATALOG = 1 << 4;
+        /// Remove one closing-bracket escape inside a link label.
+        const LINK_LABEL = 1 << 5;
     }
 }
 

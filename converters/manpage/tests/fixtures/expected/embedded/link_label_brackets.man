@@ -1,0 +1,96 @@
+.sp
+Before \c
+.URL "https://example.org" "One ] two" ""
+after.
+.sp
+Before \c
+.URL "https://example.org" "One ] two" ""
+and \c
+.MTO "test\(atexample.org" "Mail ] label" "\&."
+
+.sp
+\c
+.URL "guide.html" "Relative ] label" ""
+
+.sp
+\c
+.URL "https://example.org" "\fBBold ] label\fP and \fIitalic\fP" ""
+
+.sp
+\c
+.URL "https://example.org" "Label ] tail" ""
+
+.sp
+\c
+.URL "https://example.org" "Quoted ] label" ""
+
+.sp
+\c
+.URL "https://example.org" "Quoted ] label" ""
+
+.sp
+\c
+.URL "https://example.org" "Window ] label" ""
+
+.sp
+α \c
+.URL "https://example.org" "é ] café" ""
+ω.
+.sp
+\c
+.URL "https://example.org" "Line ] two" ""
+
+.sp
+\c
+.URL "https://example.org" "Expanded ] tail" ""
+
+.sp
+\c
+.URL "https://example.org" "Comma, ] label" ""
+
+.sp
+\c
+.URL "https://example.org" "]first" ""
+and \c
+.URL "https://example.org" "]" ""
+\&.
+.sp
+\c
+.URL "https://example.org" "One ]] two" ""
+
+.sp
+\c
+.URL "https://example.org" "One [two] three" ""
+
+.sp
+\c
+.URL "https://example.org" "One ] two" ""
+\c
+.URL "https://example.org" "One \e] two" ""
+\c
+.URL "https://example.org" "One \e\e] two" ""
+\c
+.URL "https://example.org" "One \e\e\e] two" ""
+
+.sp
+Unfinished: link:\c
+.URL "https://example.org" "" ""
+[Label ] tail.
+.sp
+Escaped: link:https://example.org[One ] two].
+.sp
+Control: \c
+.URL "https://example.org" "Plain" ""
+and \c
+.URL "https://example.org" "One [two] three" ""
+\&.
+.sp
+\c
+.URL "https://example.org" "One ] term two" ""
+
+.sp
+\c
+.URL "https://example.org" "One ] [1] two" ""
+
+.sp
+Reuse [1]\&.

@@ -1,0 +1,27 @@
+= Link bracket substitutions
+:name: Expanded
+:source-highlighter: syntect
+
+pass:m[link:https://example.org[One \\] two\]]
+
+pass:q,m[link:https://example.org[*One \\] two*\]]
+
+pass:a,m[link:https://example.org[{name} \\] tail\]]
+
+pass:m,a[link:https://example.org[{name} \\] tail\]]
+
+[subs=macros]
+link:https://example.org[One \] two]
+
+[subs=-macros]
+link:https://example.org[Literal \] text]
+
+[source,rust,subs=+macros]
+----
+let label = link:https://example.org[One \] two];
+let mail = mailto:test@example.org[Mail \] label];
+----
+
+----
+link:https://example.org[Literal \] text]
+----

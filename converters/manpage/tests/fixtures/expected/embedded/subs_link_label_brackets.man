@@ -1,0 +1,29 @@
+.sp
+\c
+.URL "https://example.org" "One ] two" ""
+
+.sp
+\c
+.URL "https://example.org" "\fBOne ] two\fP" ""
+
+.sp
+\c
+.URL "https://example.org" "Expanded ] tail" ""
+
+.sp
+\c
+.URL "https://example.org" "Expanded ] tail" ""
+
+.sp
+\c
+.URL "https://example.org" "One ] two" ""
+
+.sp
+link:https://example.org[Literal ] text]
+.EX
+let label = One ] two;
+let mail = Mail ] label;
+.EE
+.EX
+link:https://example.org[Literal \e] text]
+.EE

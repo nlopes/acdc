@@ -57,6 +57,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Keep escaped closing brackets inside link, URL, and mailto labels. Remove
+  one bracket escape while retaining any preceding backslashes, including in
+  enabled code and passthroughs. Quoted labels now point to their original text
+  without including the opening quote.
+
 - Keep escaped closing brackets inside `pass:...[]` until the outer delimiter,
   then remove one bracket escape before applying substitutions. Nested links,
   anchors, and footnotes now parse without losing later text or source locations.

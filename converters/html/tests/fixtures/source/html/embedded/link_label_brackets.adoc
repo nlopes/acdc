@@ -1,0 +1,47 @@
+= Link label brackets
+:name: Expanded
+
+Before link:https://example.org[One \] two] after.
+
+Before https://example.org[One \] two] and mailto:test@example.org[Mail \] label].
+
+link:guide.html[Relative \] label]
+
+link:https://example.org[*Bold \] label* and _italic_]
+
+link:https://example.org[Label \] tail,role=green,window=_blank]
+
+link:https://example.org["Quoted \] label",role=green]
+
+link:https://example.org['Quoted \] label',role=green]
+
+link:https://example.org[Window \] label^]
+
+α link:https://example.org[é \] café] ω.
+
+link:https://example.org[Line \]
+two]
+
+link:https://example.org[{name} \] tail]
+
+link:https://example.org[Comma, \] label]
+
+link:https://example.org[\]first] and link:https://example.org[\]].
+
+link:https://example.org[One \]\] two]
+
+link:https://example.org[One [two\] three]
+
+link:https://example.org[One \] two] link:https://example.org[One \\] two] link:https://example.org[One \\\] two] link:https://example.org[One \\\\] two]
+
+Unfinished: link:https://example.org[Label \] tail.
+
+Escaped: \link:https://example.org[One \] two].
+
+Control: link:https://example.org[Plain] and link:https://example.org[One [two] three].
+
+link:https://example.org[One \] ((term)) two]
+
+link:https://example.org[One \] footnote:note[Note body.] two]
+
+Reuse footnote:note[].

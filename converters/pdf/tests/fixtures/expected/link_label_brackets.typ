@@ -1,7 +1,7 @@
 #set document(
-  title: "Passthrough brackets",
+  title: "Link label brackets",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Passthrough brackets]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Link label brackets]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -73,46 +73,50 @@
 #set page(numbering: "1")
 #counter(page).update(1)
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("Passthrough brackets")]
+#text(size: 22pt, weight: "bold")[#text("Link label brackets")]
 ]
 #v(1em)
 
-#text("Before ")#link("https://example.org")[#text("Label")]#text(" after.")
+#text("Before ")#link("https://example.org")[#text("One ")#text("]")#text(" two")]#text(" after.")
 
-#text("α ")#link("https://example.org")[#text("é")]#text(" / ")#link("https://example.net")[#text("東京")]#text(" ω.")
+#text("Before ")#link("https://example.org")[#text("One ")#text("]")#text(" two")]#text(" and ")#link("mailto:test@example.org")[#text("Mail ")#text("]")#text(" label")]#text(".")
 
-#metadata(none) <id-746172676574>#text("Destination.")
+#link("guide.html")[#text("Relative ")#text("]")#text(" label")]
 
-#text("See ")#context link(query(<id-746172676574>).first().location())[#text("Destination")]#text(" and ")#context link(query(<id-746172676574>).first().location())[#text("Reference")]#text(".")
+#link("https://example.org")[#strong[#text("Bold ")#text("]")#text(" label")]#text(" and ")#emph[#text("italic")]]
 
-#text("Note ")#counter(footnote).update(0)#footnote[#text("Note body.")]<id-666f6f746e6f74653a6e6f7465>#text(".")
+#text(fill: rgb("#006000"))[#link("https://example.org")[#text("Label ")#text("]")#text(" tail")]]
+
+#text(fill: rgb("#006000"))[#link("https://example.org")[#text("Quoted ")#text("]")#text(" label")]]
+
+#text(fill: rgb("#006000"))[#link("https://example.org")[#text("Quoted ")#text("]")#text(" label")]]
+
+#link("https://example.org")[#text("Window ")#text("]")#text(" label")]
+
+#text("α ")#link("https://example.org")[#text("é ")#text("]")#text(" café")]#text(" ω.")
+
+#link("https://example.org")[#text("Line ")#text("]")#text(" two")]
+
+#link("https://example.org")[#text("Expanded ")#text("]")#text(" tail")]
+
+#link("https://example.org")[#text("Comma, ")#text("]")#text(" label")]
+
+#link("https://example.org")[#text("]")#text("first")]#text(" and ")#link("https://example.org")[#text("]")]#text(".")
+
+#link("https://example.org")[#text("One ")#text("]")#text("]")#text(" two")]
+
+#link("https://example.org")[#text("One [two")#text("]")#text(" three")]
+
+#link("https://example.org")[#text("One ")#text("]")#text(" two")]#text(" ")#link("https://example.org")[#text("One ")#text("\\]")#text(" two")]#text(" ")#link("https://example.org")[#text("One ")#text("\\\\]")#text(" two")]#text(" ")#link("https://example.org")[#text("One ")#text("\\\\\\]")#text(" two")]
+
+#text("Unfinished: link:")#link("https://example.org")[#text("https://example.org")]#text("[Label ")#text("]")#text(" tail.")
+
+#text("Escaped: ")#text("link:https://example.org[One ]")#text(" two].")
+
+#text("Control: ")#link("https://example.org")[#text("Plain")]#text(" and ")#link("https://example.org")[#text("One [two] three")]#text(".")
+
+#link("https://example.org")[#text("One ")#text("]")#text(" ")#metadata(none) <__indexterm-1>#text("term")#text(" two")]
+
+#link("https://example.org")[#text("One ")#text("]")#text(" ")#counter(footnote).update(0)#footnote[#text("Note body.")]<id-666f6f746e6f74653a6e6f7465>#text(" two")]
 
 #text("Reuse ")#footnote(<id-666f6f746e6f74653a6e6f7465>)#text(".")
-
-#text("Before ")#text("one")#text("]")#text("two")#text(" after ")#text("three")#text("]")#text("four")#text(".")
-
-#text("Before ")#strong[#text("one")#text("]")#text("two")]#text(" after.")
-
-#link("https://example.org")[#text("Expanded")]
-
-#link("https://example.org")[#text("Expanded")]
-
-#link("https://example.org")[#text("Label")]
-
-#text("link:")#link("https://example.org")[#text("https://example.org")]#text("[Label")#text("]")
-
-#text("one")#text("]")#text("two ")#metadata(none) <__indexterm-1>#text("Expanded term")
-
-#link("https://example.org")[#text("One")]#text(" ")#link("https://example.net")[#text("Two")]
-
-#text("")#text(" ")#text("]")#text(" ")#link("https://example.org")[#text("https://example.org")]
-
-#text("Unescaped inner closing bracket: ")#text("link:")#link("https://example.org")[#text("https://example.org")]#text("[Label")#text("].")
-
-#text("Unfinished passthrough: pass:m[link:")#link("https://example.org")[#text("https://example.org")]#text("[Label")#text("]")#text(" after.")
-
-#text("Escaped passthrough: ")#text("pass:m[link:https://example.org[Label]")#text("].")
-
-#text("Macros disabled inside: ")#text("link:https://example.org[Label")#text("]")#text(".")
-
-#text("Backslashes: ")#text("one")#text("]")#text("two")#text(" ")#text("one\\")#text("]")#text("two")#text(" ")#text("one\\\\")#text("]")#text("two")#text(" ")#text("one\\\\\\")#text("]")#text("two")#text(".")
