@@ -12,6 +12,65 @@ use acdc_converters_pdf::{PdfOptions, Processor};
 type Error = Box<dyn std::error::Error>;
 
 #[test]
+fn anchor_macros_keep_their_pdf_destinations() -> Result<(), Error> {
+    let source = "= Anchors\n\nSee <<target>>, <<empty>>.\n\n<<<\n\nanchor:target[Target]Destination.\n\n* anchor:empty[]Item.\n";
+    let pdf = render_input(source)?;
+    assert_eq!(internal_link_pages(&pdf, 1)?, [2, 2]);
+    Ok(())
+}
+
+#[cfg(feature = "pre-spec-subs")]
+#[test]
+fn anchor_macros_in_code_keep_pdf_destinations() -> Result<(), Error> {
+    for highlighting in ["", ":source-highlighter: rouge\n"] {
+        let source = format!(
+            "= Code anchors\n{highlighting}\nSee <<start>>, <<middle>>, <<end>>, <<only>>, <<short>>, <<last>>.\n\n<<<\n\n[source,rust,linenums,subs=+macros]\n----\nanchor:start[Start]a=anchor:middle[Middle]1;anchor:end[End]\nanchor:only[Only]\n[[short,Short]]b=2;\nanchor:last[Last]\n----\n"
+        );
+        let pdf = render_input(&source)?;
+        assert_eq!(internal_link_pages(&pdf, 1)?, [2, 2, 2, 2, 2, 2]);
+        // PDF text objects can split at a zero-width target or syntax style.
+        let text = pdf
+            .extract_text(&[2])?
+            .split_whitespace()
+            .collect::<String>();
+        assert!(text.contains("a=1;"), "{text}");
+        assert!(text.contains("b=2;"), "{text}");
+        assert!(!text.contains("anchor:"), "{text}");
+    }
+    Ok(())
+}
+
+#[cfg(feature = "pre-spec-subs")]
+#[test]
+fn anchor_macros_in_code_target_the_occurrence_page() -> Result<(), Error> {
+    for target_line in [1, 50, 70] {
+        let mut source = String::from(
+            "= Code anchor pages\n:source-highlighter: rouge\n\nSee <<target>>.\n\n[source,text,linenums,subs=+macros]\n----\n",
+        );
+        for line in 1..=70 {
+            source.push_str(if line == target_line {
+                "anchor:target[Target]TargetLine\n"
+            } else {
+                "PaddingLine\n"
+            });
+        }
+        source.push_str("----\n");
+        let pdf = render_input(&source)?;
+        let mut occurrence = None;
+        for page in pdf.get_pages().keys() {
+            if pdf.extract_text(&[*page])?.contains("TargetLine") {
+                occurrence = Some(*page);
+            }
+        }
+        assert_eq!(
+            internal_link_pages(&pdf, 1)?,
+            [occurrence.ok_or("missing code target")?]
+        );
+    }
+    Ok(())
+}
+
+#[test]
 fn standalone_callouts_keep_their_pdf_destinations() -> Result<(), Error> {
     let input = "= Standalone callout destinations\n\nSee <<notes,Notes>> and <<last,Last>>.\n\n<<<\n\n[[notes]]\n<1> First.\n<2> [[last]]Second.\n";
     let pdf = render_input(input)?;

@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Keep inline anchor targets in highlighted code with `subs=+macros`, including
+  numbered code, enabled inline formatting, and lines containing only an anchor. Anchors inside link labels
+  remain outside the surrounding link, preserving clickable text on both sides
+  instead of producing Asciidoctor's nested anchor markup.
+
 - Keep footnote markers outside their surrounding links in both HTML variants,
   including formatted labels and code with `subs=+macros`. Text on either side
   remains clickable, and cross-references to headings reuse footnotes without

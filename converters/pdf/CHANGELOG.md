@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Resolve cross-references to inline anchors in code with `subs=+macros`,
+  including highlighted, numbered, and wrapped listings, without inserting
+  spaces into the code. Code containing only an anchor also creates a target.
+  Unlike Asciidoctor PDF, formatted anchors and final anchor-only lines retain
+  usable targets.
+
 - Named footnote markers no longer add an unwanted space before the following text or code.
 
 - Render footnotes enabled by `subs=+macros` in code and literal blocks, including highlighting, wrapping, line numbers, note-only lines, and link labels. Markers and backlinks remain clickable, including cases where Asciidoctor PDF with Rouge loses links.

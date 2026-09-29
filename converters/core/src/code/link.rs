@@ -187,7 +187,7 @@ pub fn code_inline_children<'n, 'a>(node: &'n InlineNode<'a>) -> Option<&'n [Inl
     }
 }
 
-/// Resolve code text and report whether it needs inline links or footnote markers.
+/// Resolve code text and report whether it needs links, anchors, or footnote markers.
 #[must_use]
 #[expect(
     clippy::implicit_hasher,
@@ -201,7 +201,9 @@ pub fn code_inline_text(
     let mut text = String::new();
     let mut linked = false;
     for node in nodes {
-        if let InlineNode::Macro(InlineMacro::Footnote(note)) = node {
+        if matches!(node, InlineNode::InlineAnchor(_)) {
+            linked = true;
+        } else if let InlineNode::Macro(InlineMacro::Footnote(note)) = node {
             let _ = write!(text, "[{}]", note.number);
             linked = true;
         } else if let Some(link) = resolve_code_link(node, references, output_extension) {

@@ -1,0 +1,48 @@
+= Anchor macros
+:target: expanded
+:label: Expanded label
+:close: ]
+
+[subs="attributes,macros"]
+anchor:{target}[{label}]Early attributes.
+
+[subs="macros,attributes"]
+anchor:{target}[{label}]Late ID. anchor:late-label[{label}]Late label.
+
+[subs="macros,attributes"]
+anchor:late-bracket[Before{close}after]Late delimiter.
+
+[subs="macros,quotes"]
+anchor:late-quotes[*Bold* label]Late quotes.
+
+[subs="-macros"]
+anchor:disabled[Disabled]Literal. \anchor:escaped-disabled[Escaped]Literal.
+
+[subs="none"]
+anchor:none[None]Literal.
+
+[source,rust,subs=+macros]
+----
+let x = 1; anchor:code[Code label]let y = 2;
+[[short,Short label]]let z = 3;
+anchor:code-only[Code only]
+\anchor:escaped-code[Escaped]literal
+----
+
+[subs=+macros]
+....
+  anchor:literal[Literal label]indented text
+....
+
+[source,subs=+macros]
+anchor:styled[Styled label]styled text.
+
+[literal,subs=+macros]
+anchor:styled-literal[Styled literal]literal text.
+
+[source,subs=+macros]
+----
+anchor:empty-code[Empty code]
+----
+
+See <<empty-code>>, <<late-bracket>>, <<expanded>>, <<late-label>>, <<late-quotes>>, <<code>>, <<short>>, <<code-only>>, <<literal>>, <<styled>>, and <<styled-literal>>.

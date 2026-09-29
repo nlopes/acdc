@@ -90,12 +90,10 @@ Nonbreaking hard break before
 .sp
 Anchor hard break before
 .br
-.\" anchor: after-break
 next \(co.
 .sp
 Hidden index hard break before
 .br
-.\" anchor: after-hidden
 next \(co.
 .sp
 Visible index hard break before

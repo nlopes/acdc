@@ -1,0 +1,46 @@
+.sp
+Unicode. More Unicode.
+.sp
+Combining mark. Connector punctuation.
+.sp
+Targets.
+.sp
+beforeafter.
+.sp
+Beforeafter.
+.sp
+Labels are text.
+.sp
+Bracket labels.
+.sp
+See Cafe, Tokyo, Decomposed, Connector, Colon, Underscore, Punctuation, Joined, Plain, label, "Quoted", reftext=Literal,role=red, Close ] label, Open [ bracket\&.
+.sp
+anchor:escaped[Escaped] \eanchor:twice[Twice] \eanchor:1bad[Invalid].
+.sp
+anchor:[] anchor:1bad[Digit] anchor:bad/id[Slash] anchor:bad id[Space] anchor:bad@id[At] anchor:bad%id[Percent] anchor:bad,id[Comma] anchor:bad#id[Hash]
+.sp
+anchor:unfinished[Unclosed
+.sp
+anchor:wrapped[Two
+lines]End.
+.sp
+anchor:single[Single] anchor:double[Double] anchor:raw[Raw]
+.EX
+anchor:code[Code]Literal.
+.EE
+.sp
+.if n .RS 4
+.nf
+.fam C
+anchor:indented[Indented]Literal.
+.fam
+.fi
+.if n .RE
+.sp
+Symbol in an ID. Punctuation in an ID.
+.sp
+Join control in an ID.
+.sp
+See Rocket, Middle dot, and Joiner\&.
+.sp
+anchor:🚀bad[Symbol start] anchor:bad\ id[Nonbreaking space]Remain literal.

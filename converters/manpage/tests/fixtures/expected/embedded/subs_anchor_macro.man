@@ -1,0 +1,41 @@
+.sp
+Early attributes.
+.sp
+anchor:expanded[Expanded label]Late ID. Late label.
+.sp
+Late delimiter.
+.sp
+Late quotes.
+.sp
+anchor:disabled[Disabled]Literal. \eanchor:escaped\-disabled[Escaped]Literal.
+.sp
+anchor:none[None]Literal.
+.EX
+let x = 1; let y = 2;
+let z = 3;
+
+anchor:escaped\-code[Escaped]literal
+.EE
+.nf
+  indented text
+.fi
+.sp
+.if n .RS 4
+.nf
+.fam C
+styled text.
+.fam
+.fi
+.if n .RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+literal text.
+.fam
+.fi
+.if n .RE
+.EX
+.EE
+.sp
+See Empty code, Before]after, Expanded label, Expanded label, \fBBold\fP label, Code label, Short label, Code only, Literal label, Styled label, and Styled literal\&.

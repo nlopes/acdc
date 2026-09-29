@@ -372,7 +372,7 @@ impl InlineLink {
 
 fn link_label_needs_split(node: &InlineNode<'_>, in_reference: bool) -> bool {
     let children = match node {
-        InlineNode::Macro(InlineMacro::Footnote(_)) => return true,
+        InlineNode::Macro(InlineMacro::Footnote(_)) | InlineNode::InlineAnchor(_) => return true,
         // An automatic reference can supply a footnote from its target's title.
         InlineNode::Macro(InlineMacro::CrossReference(n)) if n.text.is_empty() && !in_reference => {
             return true;
@@ -395,7 +395,6 @@ fn link_label_needs_split(node: &InlineNode<'_>, in_reference: bool) -> bool {
         | InlineNode::VerbatimText(_)
         | InlineNode::StandaloneCurvedApostrophe(_)
         | InlineNode::LineBreak(_)
-        | InlineNode::InlineAnchor(_)
         | InlineNode::Macro(_)
         | InlineNode::CalloutRef(_)
         | _ => return false,

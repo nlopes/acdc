@@ -57,6 +57,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Recognize `anchor:id[Reference text]` as an inline target, including Unicode
+  IDs, escaped closing brackets, and code with `subs=+macros`. Escaped or invalid
+  macros stay literal, and duplicate IDs warn while retaining the first label.
+  Attribute and macro substitution order controls when a target is recognized.
+  As with existing anchors, acdc keeps reference labels in lists, table cells,
+  headings, and code where Asciidoctor may fall back to `[id]`.
+  After a letter, underscore, or colon, IDs also accept non-ASCII symbols such
+  as `topic🚀`, which Asciidoctor leaves literal. Whitespace and control
+  characters remain invalid.
+
 - Recognize standalone callout lists without a preceding code block, including
   lists nested inside bullet, numbered, and description items. Paragraph text,
   escaped markers, indentation, and verbatim styles keep their literal meaning.

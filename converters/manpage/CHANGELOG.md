@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Inline anchor macros create cross-reference labels without printing their syntax,
+  including listings with `subs=+macros`. Inline anchors no longer insert stray
+  periods or break adjacent words in rendered manpages.
+
 - Preserve spaces after inline formatting when the following text contains
   symbols or characters that need roff escaping, including in footnote bodies.
   Remove indentation after wrapped lines and explicit line breaks while keeping

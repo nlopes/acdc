@@ -802,7 +802,7 @@ fn structural_token_allowed(
         || !(start..start + len).any(|position| byte_came_from_attribute(state, position))
 }
 
-fn index_token_allowed(state: &ParserState<'_>, start: usize, len: usize) -> bool {
+fn macro_token_allowed(state: &ParserState<'_>, start: usize, len: usize) -> bool {
     structural_token_allowed(state, &Substitution::Macros, start, len)
         && (!state
             .inline_ctx
@@ -968,7 +968,14 @@ peg::parser! {
         = nodes:(non_plain_text() / plain_text())+ {? expand_escaped_index_terms(nodes, state) }
 
         pub(crate) rule verbatim_inlines() -> Vec<InlineNode<'input>>
-        = nodes:(verbatim_index_term() / verbatim_footnote() / verbatim_link() / quotes_non_plain_text() / verbatim_plain_text())+ {? expand_escaped_index_terms(nodes, state) }
+        = nodes:(verbatim_index_term() / verbatim_footnote() / verbatim_anchor() / verbatim_link() / quotes_non_plain_text() / verbatim_plain_text())+ {? expand_escaped_index_terms(nodes, state) }
+
+        rule verbatim_anchor() -> InlineNode<'input>
+        = check_macros() node:(
+            node:escaped_anchor_macro() { node }
+            / &("\\"+ "[[") node:escaped_syntax() { node }
+            / node:inline_anchor() { node }
+        ) { node }
 
         rule verbatim_footnote() -> InlineNode<'input>
         = check_macros() node:(
@@ -1019,6 +1026,10 @@ peg::parser! {
         = content:$((
             !(check_index_terms() ("\\"+ index_term_match() / index_term_match()))
             !(check_macros() ("\\"? footnote_match()))
+            !(check_macros() (
+                "\\"? anchor_macro_pattern() / inline_anchor_match()
+                / &("\\"+ "[[") escaped_syntax_match()
+            ))
             !(check_macros() (
                 verbatim_link_match()
                 / &("\\"+ verbatim_link_match()) escaped_syntax_match()
@@ -1116,6 +1127,7 @@ peg::parser! {
             &['\\'] escaped_super_sub:escaped_superscript_subscript() { escaped_super_sub }
             / &['\\'] check_index_terms() prefix:escaped_index_prefix() { prefix }
             // Escaped syntax must come next - backslash prevents any following syntax from being parsed
+            / check_macros() &['\\'] anchor:escaped_anchor_macro() { anchor }
             / &['\\'] escaped_syntax:escaped_syntax() { escaped_syntax }
             // Index terms: concealed (triple parens) must come before flow (double parens)
             / check_index_terms() &['('] index_term:index_term_concealed() { index_term }
@@ -1123,7 +1135,7 @@ peg::parser! {
             / check_index_terms() &['i'] indexterm:indexterm_macro() { indexterm }
             / check_index_terms() &['i'] indexterm2:indexterm2_macro() { indexterm2 }
             / check_macros() &['['] invalid_bibliography_anchor:invalid_bibliography_anchor() { invalid_bibliography_anchor }
-            / check_macros() &['['] inline_anchor:inline_anchor() { inline_anchor }
+            / check_macros() &['[' | 'a'] inline_anchor:inline_anchor() { inline_anchor }
             / check_macros() &['<'] cross_reference_shorthand:cross_reference_shorthand() { cross_reference_shorthand }
             / check_macros() &['x'] cross_reference_macro:cross_reference_macro() { cross_reference_macro }
             / check_hardbreaks() &['\n' | '\r'] automatic_line_break:automatic_line_break() { automatic_line_break }
@@ -1227,7 +1239,7 @@ peg::parser! {
         // Double square brackets (anchors): [[...]]
         / "[[" inner:$((!"]]" [_])*) "]]" { state.intern_fmt(format_args!("[[{inner}]]")) }
         // Paired square brackets with prefix (macros): something[...]
-        / !literal_pass_macro() prefix:$([^('[' | ' ' | '\t' | '\n' | '\\')]+) "[" inner:$([^']']*) "]" { state.intern_fmt(format_args!("{prefix}[{inner}]")) }
+        / !("anchor:" / literal_pass_macro()) prefix:$([^('[' | ' ' | '\t' | '\n' | '\\')]+) "[" inner:$([^']']*) "]" { state.intern_fmt(format_args!("{prefix}[{inner}]")) }
         // Curly braces (attributes): {...}
         / "{" inner:$([^'}']*) "}" { state.intern_fmt(format_args!("{{{inner}}}")) }
         // Double parens (index terms): ((...))
@@ -1269,7 +1281,7 @@ peg::parser! {
         rule escapable_pattern_match() -> ()
         = "<<" (!">>" [_])* ">>"
         / "[[" (!"]]" [_])* "]]"
-        / !literal_pass_macro() [^('[' | ' ' | '\t' | '\n' | '\\')]+ "[" [^']']* "]"
+        / !("anchor:" / literal_pass_macro()) [^('[' | ' ' | '\t' | '\n' | '\\')]+ "[" [^']']* "]"
         / "{" [^'}']* "}"
         / "((" (!"))" [_])* "))"
         // Unconstrained formatting: match entire span
@@ -1508,7 +1520,7 @@ peg::parser! {
 
         // Shorthand ends at a delimiter even inside quotes or nested parentheses.
         rule check_index_token(start: usize, len: usize)
-        = {? index_token_allowed(state, start, len).then_some(()).ok_or("index syntax introduced after macros") }
+        = {? macro_token_allowed(state, start, len).then_some(()).ok_or("index syntax introduced after macros") }
 
         rule index_term_shorthand_close() = start:position!() "))" check_index_token(start, 2) !")"
         rule index_term_concealed_close() = start:position!() ")" index_term_shorthand_close() check_index_token(start, 3)
@@ -2260,7 +2272,7 @@ peg::parser! {
         rule protected_cross_reference_text_macro()
         = &['p'] inline_pass_match()
         / check_macros() (
-            &['['] inline_anchor_match()
+            &['[' | 'a'] inline_anchor_match()
             / &['a' | 's'] inline_stem_match()
             / &['b'] inline_button_match()
             / &['f'] footnote_match() {}
@@ -2906,8 +2918,61 @@ peg::parser! {
             }
         )
 
+        // Consume only one escape and only for complete syntax. Invalid or disabled
+        // anchor macros must retain their backslash instead of using the generic escape.
+        rule escaped_anchor_macro() -> InlineNode<'input>
+        = "\\" content:$(anchor_macro_pattern()) {
+            InlineNode::PlainText(Plain {
+                content,
+                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
+                escaped: false,
+            })
+        }
+
+        rule anchor_macro() -> InlineNode<'input>
+        = parts:anchor_macro_pattern() {
+            let (id, text) = parts;
+            let reftext = (!text.is_empty()).then(|| {
+                if text.contains("\\]") {
+                    state.intern_str(&text.replace("\\]", "]"))
+                } else {
+                    text
+                }
+            });
+            InlineNode::InlineAnchor(
+                Anchor::new(id, state.create_block_location(span_start, span_end, state.inline_ctx.offset))
+                    .with_xreflabel(reftext),
+            )
+        }
+
+        // Share recognition with lookaheads so plain text and xref labels stop at
+        // exactly the syntax that creates an anchor. Labels are text, not attributes.
+        rule anchor_macro_pattern() -> (&'input str, &'input str)
+        = start:position!() "anchor:" id:anchor_macro_id() "["
+          open_end:position!() check_anchor_macro_token(start, open_end - start)
+          text:$(("\\]" / !anchor_macro_close() !eol() [_])*) anchor_macro_close()
+        { (id, text) }
+
+        // Keep combining marks and other non-ASCII ID characters without category
+        // tables. This is broader than Asciidoctor's word class; ASCII syntax,
+        // whitespace, controls, and the first character remain constrained.
+        rule anchor_macro_id() -> &'input str
+        = id:$((['_' | ':'] / c:[_] {? c.is_alphabetic().then_some(()).ok_or("anchor ID start") })
+          (['a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-' | ':' | '.']
+          / c:['\u{80}'..='\u{10FFFF}'] {?
+              (!c.is_whitespace() && !c.is_control())
+                  .then_some(()).ok_or("anchor ID character")
+          })*) { id }
+
+        rule check_anchor_macro_token(start: usize, len: usize)
+        = {? macro_token_allowed(state, start, len).then_some(()).ok_or("anchor syntax introduced after macros") }
+
+        rule anchor_macro_close()
+        = start:position!() "]" check_anchor_macro_token(start, 1)
+
         rule inline_anchor() -> InlineNode<'input>
-        = start:position!() double_open_square_bracket()
+        = anchor_macro()
+        / start:position!() double_open_square_bracket()
         // Whitespace is excluded - IDs must not contain spaces
         warn_anchor_id_with_whitespace()?
         id:$([^'\'' | ',' | ']' | '[' | ' ' | '\t' | '\n' | '\r']+)
@@ -2933,7 +2998,8 @@ peg::parser! {
         }
 
         rule inline_anchor_match() -> ()
-        = start:position!() double_open_square_bracket() [^'\'' | ',' | ']' | '[' | ' ' | '\t' | '\n' | '\r']+ (comma() anchor_reftext(start))? double_close_square_bracket()
+        = anchor_macro_pattern() {}
+        / start:position!() double_open_square_bracket() [^'\'' | ',' | ']' | '[' | ' ' | '\t' | '\n' | '\r']+ (comma() anchor_reftext(start))? double_close_square_bracket()
 
         rule bibliography_anchor_start(start: usize)
         = {?
@@ -3007,10 +3073,10 @@ peg::parser! {
                     check_post_replacements() eol()*<2,>
                     / check_hardbreaks() line_break_eol()
                     / ![_]
-                    / &['\\'] escaped_syntax_match()
+                    / &['\\'] (check_macros() "\\" anchor_macro_pattern() / escaped_syntax_match())
                     / check_post_replacements() &[' '] (hard_wrap_match() / inline_line_break_match())
                     // Macro guard: [ ( < for delimiters, then first letters of each macro:
-                    // a=asciimath, b=btn, f=footnote/ftp, h=http(s), i=image/icon/indexterm/irc,
+                    // a=anchor/asciimath, b=btn, f=footnote/ftp, h=http(s), i=image/icon/indexterm/irc,
                     // k=kbd, l=link/latexmath, m=menu/mailto, p=pass, s=stem, x=xref
                     / (check_macros() &['[' | '(' | '<' | 'a' | 'b' | 'f' | 'h' | 'i' | 'k' | 'l' | 'm' | 'p' | 's' | 'x'] (inline_anchor_match() / (check_index_terms() index_term_match()) / cross_reference_shorthand_match() / cross_reference_macro_match() / footnote_match() / inline_image_match() / inline_icon_match() / inline_stem_match() / inline_keyboard_match() / inline_button_match() / inline_menu_match() / mailto_macro_match() / url_macro_match() / inline_pass_match() / link_macro_match()))
                     / (check_macros() check_autolinks() inline_autolink_match())

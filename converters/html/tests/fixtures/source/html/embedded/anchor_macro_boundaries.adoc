@@ -1,0 +1,44 @@
+= Anchor macros
+:target: expanded
+:label: Expanded label
+
+anchor:café[Cafe]Unicode. anchor:東京[Tokyo]More Unicode.
+
+anchor:café[Decomposed]Combining mark. anchor:a‿b[Connector]Connector punctuation.
+
+anchor::colon[Colon]anchor:_under[Underscore]anchor:a-b.c:d[Punctuation]Targets.
+
+beforeanchor:joined[Joined]after.
+
+Before[[shorthand,Shorthand label]]after.
+
+anchor:comma[Plain, label]anchor:quoted["Quoted"]anchor:equals[reftext=Literal,role=red]Labels are text.
+
+anchor:bracket[Close \] label]anchor:open[Open [ bracket]Bracket labels.
+
+See <<café>>, <<東京>>, <<café>>, <<a‿b>>, <<:colon>>, <<_under>>, <<a-b.c:d>>, <<joined>>, <<comma>>, <<quoted>>, <<equals>>, <<bracket>>, <<open>>.
+
+\anchor:escaped[Escaped] \\anchor:twice[Twice] \anchor:1bad[Invalid].
+
+anchor:[] anchor:1bad[Digit] anchor:bad/id[Slash] anchor:bad id[Space] anchor:bad@id[At] anchor:bad%id[Percent] anchor:bad,id[Comma] anchor:bad#id[Hash]
+
+anchor:unfinished[Unclosed
+
+anchor:wrapped[Two
+lines]End.
+
++anchor:single[Single]+ ++anchor:double[Double]++ pass:[anchor:raw[Raw]]
+
+----
+anchor:code[Code]Literal.
+----
+
+ anchor:indented[Indented]Literal.
+
+anchor:topic🚀[Rocket]Symbol in an ID. anchor:a·b[Middle dot]Punctuation in an ID.
+
+anchor:a‍b[Joiner]Join control in an ID.
+
+See <<topic🚀>>, <<a·b>>, and <<a‍b>>.
+
+anchor:🚀bad[Symbol start] anchor:bad id[Nonbreaking space]Remain literal.

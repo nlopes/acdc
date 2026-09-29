@@ -1,0 +1,31 @@
+= Anchor macros
+:target: expanded
+:label: Expanded label
+
+See <<target>>, <<empty>>, <<expanded>>, <<bullet>>, <<term>>, <<cell>>, and <<note>>.
+
+anchor:target[Target *label*]Destination text.
+
+anchor:empty[]Empty label.
+
+anchor:{target}[{label}]Expanded target.
+
+* anchor:bullet[Bullet label]List item.
+
+anchor:term[Term label]Term:: Description.
+
+|===
+|anchor:cell[Cell label]Cell text.
+|===
+
+Text footnote:[anchor:note[Note label]Footnote body.].
+
+xref:target[Before anchor:xref-label[Inner label]after].
+
+https://example.org[Before anchor:url-label[URL label]after].
+
+See <<xref-label>> and <<url-label>>.
+
+anchor:first[First]anchor:second[Second]Adjacent anchors.
+
+See <<first>>, <<second>>, and <<Target *label*>>.

@@ -112,6 +112,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Preserve inline anchor targets nested inside formatted code when macros and
+  quotes are enabled, including highlighted HTML.
+
 - Keep footnote markers in the text used to highlight code with enabled macros, so HTML can retain their links.
 
 - Resolve link labels and destinations consistently for highlighted HTML and PDF code, including automatic cross-reference labels and interdocument links.

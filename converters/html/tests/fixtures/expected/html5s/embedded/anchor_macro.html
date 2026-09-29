@@ -1,0 +1,43 @@
+<p>See <a href="#target">Target <strong>label</strong></a>, <a href="#empty">[empty]</a>, <a href="#expanded">Expanded label</a>, <a href="#bullet">Bullet label</a>, <a href="#term">Term label</a>, <a href="#cell">Cell label</a>, and <a href="#note">Note label</a>.</p>
+<p><a id="target"></a>Destination text.</p>
+<p><a id="empty"></a>Empty label.</p>
+<p><a id="expanded"></a>Expanded target.</p>
+<div class="ulist">
+<ul>
+<li>
+<a id="bullet"></a>List item.</li>
+</ul>
+</div>
+<div class="dlist">
+<dl>
+<dt>
+<a id="term"></a>Term</dt>
+<dd>
+Description.</dd>
+</dl>
+</div>
+<div class="table-block">
+<table class="frame-all grid-all stretch">
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="halign-left valign-top"><a id="cell"></a>Cell text.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Text <sup class="footnote-ref" id="_footnoteref_1">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup>.</p>
+<p><a href="#target">Before </a><a id="xref-label"></a><a href="#target">after</a>.</p>
+<p><a href="https://example.org">Before </a><a id="url-label"></a><a href="https://example.org">after</a>.</p>
+<p>See <a href="#xref-label">Inner label</a> and <a href="#url-label">URL label</a>.</p>
+<p><a id="first"></a><a id="second"></a>Adjacent anchors.</p>
+<p>See <a href="#first">First</a>, <a href="#second">Second</a>, and <a href="#target">Target <strong>label</strong></a>.</p>
+<section class="footnotes" aria-label="Footnotes" role="doc-endnotes">
+<hr>
+<ol class="footnotes">
+<li class="footnote" id="_footnote_1" role="doc-endnote">
+<a id="note"></a>Footnote body. <a class="footnote-backref" href="#_footnoteref_1" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+</ol>
+</section>

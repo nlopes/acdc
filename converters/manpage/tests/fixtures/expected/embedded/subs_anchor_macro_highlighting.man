@@ -1,0 +1,14 @@
+.sp
+See Start, Middle, End, Only, Short, Last, Formatted\&.
+.bp
+.EX
+let alpha = 1;
+let beta = 2;
+
+let gamma = 3;
+.EE
+.EX
+before text after
+.EE
+.sp
+A note [1] after the listing.

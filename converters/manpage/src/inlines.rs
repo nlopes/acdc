@@ -315,12 +315,9 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
                 writeln!(w, ".br")?;
             }
 
-            InlineNode::InlineAnchor(anchor) => {
-                // Anchors have no visible representation in man pages
-                // But we can add a comment for reference
-                let w = self.writer_mut();
-                writeln!(w, r#".\" anchor: {}"#, anchor.id)?;
-            }
+            // A roff comment here can start mid-line and print its leading dot.
+            // References use the parser's catalog; the target needs no output.
+            InlineNode::InlineAnchor(_) => {}
 
             InlineNode::Macro(inline_macro) => {
                 self.render_inline_macro(traversal, inline_macro)?;

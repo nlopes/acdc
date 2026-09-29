@@ -1,0 +1,22 @@
+= Highlighted anchor macros
+:source-highlighter: syntect
+
+See <<start>>, <<middle>>, <<end>>, <<only>>, <<short>>, <<last>>, <<formatted>>.
+
+<<<
+
+[source,rust,linenums,start=7,subs=+macros]
+----
+anchor:start[Start]let alpha = 1;
+let beta = anchor:middle[Middle]2;anchor:end[End]
+anchor:only[Only]
+[[short,Short]]let gamma = 3;
+anchor:last[Last]
+----
+
+[source,rust,subs="+macros,+quotes"]
+----
+before *anchor:formatted[Formatted]text* after
+----
+
+A note footnote:[Body.] after the listing.

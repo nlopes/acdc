@@ -71,7 +71,7 @@ impl CodeText {
                     range: start..span.range.start,
                     target: target.clone(),
                     anchor: anchor.take(),
-                    footnote: None,
+                    replacement: None,
                 });
             }
             start = span.range.end;
@@ -82,7 +82,7 @@ impl CodeText {
                 range: start..self.source.len(),
                 target,
                 anchor,
-                footnote: None,
+                replacement: None,
             });
         }
         self.links = spans;
@@ -108,7 +108,7 @@ struct CodeSpan {
     range: Range<usize>,
     target: Option<CodeLinkTarget>,
     anchor: Option<String>,
-    footnote: Option<String>,
+    replacement: Option<String>,
 }
 
 #[derive(Default)]
@@ -1758,6 +1758,21 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             indexes: mut positions,
             mut links,
         } = self.collect_code_text(traversal, nodes, &extension, false)?;
+        // Keep a final anchor-only line through raw code's trailing-line trimming.
+        // Its placeholder is replaced with empty content, so it adds no glyph or space.
+        let end = text.len();
+        if (text.is_empty() || text.ends_with('\n'))
+            && links
+                .iter()
+                .any(|link| link.range == (end..end) && link.replacement.as_deref() == Some(""))
+        {
+            text.push('\u{fffc}');
+            for link in &mut links {
+                if link.range == (end..end) && link.replacement.as_deref() == Some("") {
+                    link.range.end = text.len();
+                }
+            }
+        }
         for link in &mut links {
             link.anchor = link.anchor.as_deref().and_then(|id| self.anchors.claim(id));
         }
@@ -1812,7 +1827,14 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     code.indexes.push((code.source.len(), anchor));
                 }
             }
-            if let InlineNode::Macro(inline_macro @ InlineMacro::Footnote(_)) = node {
+            if let InlineNode::InlineAnchor(anchor) = node {
+                code.links.push(CodeSpan {
+                    range: code.source.len()..code.source.len(),
+                    target: None,
+                    anchor: Some(anchor.id.to_owned()),
+                    replacement: Some(String::new()),
+                });
+            } else if let InlineNode::Macro(inline_macro @ InlineMacro::Footnote(_)) = node {
                 let output = replace(&mut self.writer, Writer::new());
                 let result = self.write_inline_macro(traversal, inline_macro);
                 let markup = replace(&mut self.writer, output).into_string();
@@ -1824,7 +1846,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     range: start..code.source.len(),
                     target: None,
                     anchor: None,
-                    footnote: Some(markup),
+                    replacement: Some(markup),
                 });
             } else if let Some(children) = code_inline_children(node) {
                 let child = self.collect_code_text(
@@ -1930,7 +1952,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                         let start = link.range.start.max(offset);
                         let stop = link.range.end.min(end);
                         let empty_anchor = link.range.is_empty()
-                            && (link.anchor.is_some() || link.footnote.is_some())
+                            && (link.anchor.is_some() || link.replacement.is_some())
                             && link.range.start >= offset
                             && (link.range.start < end
                                 || (link.range.start == end
@@ -1939,7 +1961,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                         (start < stop || empty_anchor).then(|| CodeSpan {
                             range: start - offset..stop - offset,
                             target: link.target.clone(),
-                            footnote: link.footnote.clone(),
+                            replacement: link.replacement.clone(),
                             anchor: (start == link.range.start)
                                 .then(|| link.anchor.clone())
                                 .flatten(),
@@ -1972,7 +1994,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 if let Some(anchor) = &span.anchor {
                     let _ = write!(self.writer, "[#metadata(none)<{anchor}>] + ");
                 }
-                if let Some(replacement) = &span.footnote {
+                if let Some(replacement) = &span.replacement {
                     self.writer.raw("[");
                     self.writer.raw(replacement);
                     self.writer.raw("]");

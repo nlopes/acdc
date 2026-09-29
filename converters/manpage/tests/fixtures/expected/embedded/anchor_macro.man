@@ -1,0 +1,36 @@
+.sp
+See Target \fBlabel\fP, [empty], Expanded label, Bullet label, Term label, Cell label, and Note label\&.
+.sp
+Destination text.
+.sp
+Empty label.
+.sp
+Expanded target.
+.RS 0
+.IP \(bu 2
+List item.
+.RE
+.RS 0
+.TP
+\fBTerm\fP
+Description.
+.RE
+.TS
+allbox tab(:);
+ltx.
+Cell text.
+.TE
+.sp
+Text [1]\&.
+.sp
+Before after\&.
+.sp
+\c
+.URL "https://example.org" "Before after" ""
+\&.
+.sp
+See Inner label and URL label\&.
+.sp
+Adjacent anchors.
+.sp
+See First, Second, and Target \fBlabel\fP\&.

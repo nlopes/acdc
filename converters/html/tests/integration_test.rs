@@ -17,6 +17,14 @@ use acdc_parser::{AttributeValue, Options as ParserOptions, SafeMode, parse, par
 type Error = Box<dyn StdError>;
 
 #[test]
+fn anchor_macros_keep_unique_targets_without_nested_links() -> Result<(), Error> {
+    check_link_label_footnote_targets("anchor_macro")?;
+    #[cfg(all(feature = "pre-spec-subs", feature = "highlighting"))]
+    check_link_label_footnote_targets("subs_anchor_macro_highlighting")?;
+    Ok(())
+}
+
+#[test]
 fn standalone_callouts_keep_unique_link_targets() -> Result<(), Error> {
     check_link_label_footnote_targets("standalone_callouts")
 }
