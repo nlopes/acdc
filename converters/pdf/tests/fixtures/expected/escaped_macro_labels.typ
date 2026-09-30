@@ -83,27 +83,27 @@
 
 #heading(level: 1)[#text("Description")] <id-5f6465736372697074696f6e>
 
-#text("E01 ")#text("indexterm2:[One \\]")#text(" term]")
+#text("E01 ")#text("indexterm2:[One \\] term]")
 
-#text("E02 ")#text("indexterm:[Hidden \\\\]")#text(" term]")
+#text("E02 ")#text("indexterm:[Hidden \\\\] term]")
 
 #text("E03 ")#text("((Short \\] term))")
 
-#text("E04 ")#text("https://example.org[URL \\]")#text(" text]")
+#text("E04 ")#text("https://example.org[URL \\] text]")
 
-#text("E05 ")#text("mailto:user@example.org[Mail \\]")#text(" text]")
+#text("E05 ")#text("mailto:user@example.org[Mail \\] text]")
 
-#text("E06 ")#text("xref:target[Cross \\]")#text(" text]")
+#text("E06 ")#text("xref:target[Cross \\] text]")
 
-#text("E07 ")#text("footnote:[Note \\]")#text(" text]")
+#text("E07 ")#text("footnote:[Note \\] text]")
 
 #text("E08 ")#text("anchor:target[Anchor \\] text]")
 
 #text("E09 ")#text("indexterm2:[Open \\[ text]")
 
-#text("E10 ")#text("indexterm2:[")#strong[#text("Bold")]#text(" — Attribute \\]")#text(" text]")
+#text("E10 ")#text("indexterm2:[")#strong[#text("Bold")]#text(" — Attribute \\] text]")
 
-#text("E11 ")#text("indexterm2:[Repeated \\\\\\]")#text(" term]")
+#text("E11 ")#text("indexterm2:[Repeated \\\\\\] term]")
 
 #text("E12 Ordinary \\] and \\[ and \\\\] text.")
 

@@ -1,0 +1,48 @@
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>macro-escapes - outer macro escapes</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_synopsis">Synopsis</h2>
+<p><strong>macro-escapes</strong></p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_description">Description</h2>
+<p>E01 indexterm2:[One] and \indexterm2:[Two] and \\indexterm2:[Three].</p>
+<p>E02 xref:target[One] and \xref:target[Two] and \\xref:target[Three].</p>
+<p>E03 footnote:[One] and \footnote:[Two] and \\footnote:[Three].</p>
+<p>E04 anchor:unused[One] and \anchor:unused[Two] and \\anchor:unused[Three].</p>
+<p>E05 \indexterm2:[Incomplete</p>
+<p>E06 \xref:target[Incomplete</p>
+<p>E07 \footnote:[Incomplete</p>
+<p>E08 \anchor:unused[Incomplete</p>
+<p>E09 \<a href="https://example.org">One</a> and \\<a href="https://example.org">Two</a> and \\\<a href="https://example.org">Three</a>.</p>
+<p>E10 https://example.org[One] and \\https://example.org[Two] and \\\https://example.org[Three].</p>
+<p>E11 <a href="https://example.org">Label</a> and link:manual.html[File] and link:mailto:user@example.org[Mail].</p>
+<p>E12 mailto:user@example.org[One] and \mailto:user@example.org[Two].</p>
+<p>E13 &lt;&lt;target&gt;&gt; and \&lt;&lt;target&gt;&gt; and ((Visible)) and \((Visible)).</p>
+<p>E14 image:missing.png[Alt] and \image:missing.png[Alt] and \image:missing.png[Incomplete</p>
+<p>E15 Ordinary \\ and \[brackets\] and *literal*.</p>
+<p>E16 \indexterm2:[Incomplete \] label</p>
+<p>E17 \xref:target[Incomplete \] label</p>
+<p>E18 \footnote:[Incomplete \] label</p>
+<p>E19 \unknown:[Text] and \word[Text] and \((Incomplete.</p>
+<p>E20 indexterm2:[<strong>Bold</strong>] and \indexterm2:[<strong>Bold</strong>].</p>
+<p>E21 Active and <a href="#target">Active</a> and <sup class="footnote-ref" id="_footnoteref_1">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup>.</p>
+<p>E22 footnote:[].</p>
+<p>E23 link:[].</p>
+<p>E24 link:[Label].</p>
+<p>E25 \indexterm2:[].</p>
+<p>E26 \xref:[].</p>
+<p>E27 \anchor:[].</p>
+<p>E28 \image:[].</p>
+<p>E29 \kbd:[Ctrl+C] and \btn:[Save] and \menu:File[Open] and \[[ ]] and \[[]].</p>
+<p id="target">Target paragraph.</p>
+</section>
+<section class="footnotes" aria-label="Footnotes" role="doc-endnotes">
+<hr>
+<ol class="footnotes">
+<li class="footnote" id="_footnote_1" role="doc-endnote">
+Active note. <a class="footnote-backref" href="#_footnoteref_1" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+</ol>
+</section>

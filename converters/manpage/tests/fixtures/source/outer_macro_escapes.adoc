@@ -1,0 +1,76 @@
+= macro-escapes(1)
+:doctype: manpage
+:revdate: 2026-09-30
+:manmanual: Escape tests
+:mansource: acdc
+:value: Attribute
+
+== Name
+macro-escapes - outer macro escapes
+
+== Synopsis
+
+*macro-escapes*
+
+== Description
+
+E01 \indexterm2:[One] and \\indexterm2:[Two] and \\\indexterm2:[Three].
+
+E02 \xref:target[One] and \\xref:target[Two] and \\\xref:target[Three].
+
+E03 \footnote:[One] and \\footnote:[Two] and \\\footnote:[Three].
+
+E04 \anchor:unused[One] and \\anchor:unused[Two] and \\\anchor:unused[Three].
+
+E05 \indexterm2:[Incomplete
+
+E06 \xref:target[Incomplete
+
+E07 \footnote:[Incomplete
+
+E08 \anchor:unused[Incomplete
+
+E09 \link:https://example.org[One] and \\link:https://example.org[Two] and \\\link:https://example.org[Three].
+
+E10 \https://example.org[One] and \\https://example.org[Two] and \\\https://example.org[Three].
+
+E11 link:\https://example.org[Label] and \link:manual.html[File] and \link:mailto:user@example.org[Mail].
+
+E12 \mailto:user@example.org[One] and \\mailto:user@example.org[Two].
+
+E13 \<<target>> and \\<<target>> and \((Visible)) and \\((Visible)).
+
+E14 \image:missing.png[Alt] and \\image:missing.png[Alt] and \image:missing.png[Incomplete
+
+E15 Ordinary \\ and \[brackets\] and \*literal*.
+
+E16 \indexterm2:[Incomplete \] label
+
+E17 \xref:target[Incomplete \] label
+
+E18 \footnote:[Incomplete \] label
+
+E19 \unknown:[Text] and \word[Text] and \((Incomplete.
+
+E20 \indexterm2:[*Bold*] and \\indexterm2:[*Bold*].
+
+E21 indexterm2:[Active] and xref:target[Active] and footnote:[Active note.].
+
+E22 \footnote:[].
+
+E23 \link:[].
+
+E24 \link:[Label].
+
+E25 \indexterm2:[].
+
+E26 \xref:[].
+
+E27 \anchor:[].
+
+E28 \image:[].
+
+E29 \kbd:[Ctrl+C] and \btn:[Save] and \menu:File[Open] and \[[ ]] and \[[]].
+
+[[target,Target]]
+Target paragraph.

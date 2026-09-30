@@ -57,7 +57,7 @@ Unfinished passthrough: pass:m[link:\c
 .URL "https://example.org" "" ""
 [Label\e] after.
 .sp
-Escaped passthrough: pass:m[link:https://example.org[Label\e]].
+Escaped passthrough: pass:m[link:https://example.org[Label\e]]\&.
 .sp
 Macros disabled inside: link:https://example.org[Label]\&.
 .sp

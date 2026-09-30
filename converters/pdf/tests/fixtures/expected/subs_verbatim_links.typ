@@ -106,8 +106,7 @@
     ((14, 31, body => link("https://example.org/unicode", body)), ),
     ((0, 25, body => link("https://example.org/empty", body)), (26, 36, body => link("mailto:dev@example.org", body)), ),
     ((0, 24, body => link("https://example.org/bare", body)), (25, 34, body => link("https://example.org/named", body)), ),
-    (),
-    (),
+    ((1, 8, body => link("https://example.org/escaped", body)), ),
     (),
     (),
   )
@@ -122,7 +121,7 @@
     body + code-slice(line.body, start, line.text.len()).first()
   }
   show raw.line: line => code-links(line)
-  raw(block: true, "let web = Web & label;\nlet named = Named label;\nlet automatic = Destination;\nlet unicode = Été & 日本語;\nhttps://example.org/empty Write mail\nhttps://example.org/bare URL label\nlink:https://example.org/escaped[Escaped] xref:destination[Escaped reference] \n<<destination>>\nhttps://example.org/escaped-url <https://example.org/bracketed> dev@example.org\nlink:broken[unfinished")
+  raw(block: true, "let web = Web & label;\nlet named = Named label;\nlet automatic = Destination;\nlet unicode = Été & 日本語;\nhttps://example.org/empty Write mail\nhttps://example.org/bare URL label\n\\Escaped xref:destination[Escaped reference] <<destination>>\nhttps://example.org/escaped-url <https://example.org/bracketed> dev@example.org\nlink:broken[unfinished")
 }
 #{
   // Slice highlighted text without discarding its syntax styles.

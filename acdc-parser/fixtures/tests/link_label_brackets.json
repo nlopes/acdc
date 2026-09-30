@@ -1994,7 +1994,7 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Escaped: ",
+          "value": "Escaped: \\",
           "location": [
             {
               "line": 39,
@@ -2002,33 +2002,85 @@
             },
             {
               "line": 39,
-              "col": 9
+              "col": 10
             }
           ]
         },
         {
-          "name": "text",
-          "type": "string",
-          "value": "link:https://example.org[One \\]",
+          "name": "ref",
+          "type": "inline",
+          "variant": "link",
+          "target": {
+            "type": "url",
+            "value": "https://example.org"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "One ",
+              "location": [
+                {
+                  "line": 39,
+                  "col": 36
+                },
+                {
+                  "line": 39,
+                  "col": 39
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "]",
+              "location": [
+                {
+                  "line": 39,
+                  "col": 40
+                },
+                {
+                  "line": 39,
+                  "col": 41
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " two",
+              "location": [
+                {
+                  "line": 39,
+                  "col": 42
+                },
+                {
+                  "line": 39,
+                  "col": 45
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 39,
-              "col": 10
+              "col": 11
             },
             {
               "line": 39,
-              "col": 42
+              "col": 46
             }
-          ]
+          ],
+          "attributes": {}
         },
         {
           "name": "text",
           "type": "string",
-          "value": " two].",
+          "value": ".",
           "location": [
             {
               "line": 39,
-              "col": 42
+              "col": 47
             },
             {
               "line": 39,

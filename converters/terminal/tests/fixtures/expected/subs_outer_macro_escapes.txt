@@ -1,0 +1,33 @@
+[1m[4mmacro-escapes(1)[0m
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mName[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+macro-escapes - outer macro escapes
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mSynopsis[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[1mmacro-escapes[22m
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mDescription[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+S01 \indexterm2:[Disabled] and \xref:target[Disabled] and \footnote:[Disabled] and \anchor:unused[Disabled].
+S02 \link:https://example.org[Disabled] and \https://example.org[Disabled] and \mailto:user@example.org[Disabled].
+S03 \indexterm2:[None] and \\xref:target[None] and \footnote:[None] and \https://example.org[None].
+S04 indexterm2:[Attribute] and xref:target[Attribute].
+S05 indexterm2:[Attribute] and xref:target[Attribute].
+[38;5;8m────────────────────────────────────[ text ]────────────────────────────────────[39m
+[38;2;131;148;150mS06 indexterm2:[One] \indexterm2:[Two] xref:target[One] \xref:target[Two]
+[39m[38;2;131;148;150mS07 \Explicit https://example.org[Bare]
+[39m[38;2;131;148;150mS08 \footnote:[Incomplete[39m
+[38;5;8m────────────────────────────────────────────────────────────────────────────────[39m
+[38;5;8m────────────────────────────────────[ text ]────────────────────────────────────[39m
+[38;2;131;148;150mS09 \indexterm2:[Disabled] \xref:target[Disabled] \https://example.org[Disabled][39m
+[38;5;8m────────────────────────────────────────────────────────────────────────────────[39m
+S10 \\Late index and \\[38;5;12m[4mLate reference[24m[39m.
+S11 \indexterm2:[Early index] and \xref:target[Early reference].
+S12 \\https://example.org[Late URL].
+S13 \\https://example.org[Early URL].
+Target paragraph.

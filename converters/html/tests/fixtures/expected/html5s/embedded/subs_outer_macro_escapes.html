@@ -1,0 +1,29 @@
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>macro-escapes - outer macro escapes</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_synopsis">Synopsis</h2>
+<p><strong>macro-escapes</strong></p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_description">Description</h2>
+<p>S01 \indexterm2:[Disabled] and \xref:target[Disabled] and \footnote:[Disabled] and \anchor:unused[Disabled].</p>
+<p>S02 \link:https://example.org[Disabled] and \https://example.org[Disabled] and \mailto:user@example.org[Disabled].</p>
+<p>S03 \indexterm2:[None] and \\xref:target[None] and \footnote:[None] and \https://example.org[None].</p>
+<p>S04 indexterm2:[Attribute] and xref:target[Attribute].</p>
+<p>S05 indexterm2:[Attribute] and xref:target[Attribute].</p>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text">S06 indexterm2:[One] \indexterm2:[Two] xref:target[One] \xref:target[Two]
+S07 \<a href="https://example.org">Explicit</a> https://example.org[Bare]
+S08 \footnote:[Incomplete</code></pre>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text">S09 \indexterm2:[Disabled] \xref:target[Disabled] \https://example.org[Disabled]</code></pre>
+</div>
+<p>S10 \\Late index and \\<a href="#target">Late reference</a>.</p>
+<p>S11 \indexterm2:[Early index] and \xref:target[Early reference].</p>
+<p>S12 \\https://example.org[Late URL].</p>
+<p>S13 \\https://example.org[Early URL].</p>
+<p id="target">Target paragraph.</p>
+</section>

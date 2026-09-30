@@ -39,7 +39,7 @@ Escaped [[id]] anchor
   Alias \] label (see Target \] label)
 
 [38;5;14m[1mE[0m
-  Escaped [[id]] anchor
+  Escaped \[[id]] anchor
 
 [38;5;14m[1mH[0m
   Hidden \] primary

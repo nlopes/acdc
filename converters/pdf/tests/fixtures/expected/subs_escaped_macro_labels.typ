@@ -83,13 +83,13 @@
 
 #heading(level: 1)[#text("Description")] <id-5f6465736372697074696f6e>
 
-#text("S01 Normal ")#text("indexterm2:[Label \\]")#text(" text].")
+#text("S01 Normal ")#text("indexterm2:[Label \\] text]")#text(".")
 
 #text("S02 indexterm2:[Disabled \\] text] and ((Disabled short \\] text)).")
 
-#text("S03 ")#text("indexterm2:[Attribute \\]")#text(" text].")
+#text("S03 ")#text("indexterm2:[Attribute \\] text]")#text(".")
 
-#text("S04 ")#text("indexterm2:[Attribute \\]")#text(" text].")
+#text("S04 ")#text("indexterm2:[Attribute \\] text]")#text(".")
 
 #{
   // Slice highlighted text without discarding its syntax styles.
@@ -133,7 +133,7 @@
 }
 #text("S08 indexterm2:[No substitutions \\] text].")
 
-#text("S09 ")#text("indexterm2:[")#strong[#text("Late")]#text(" — \\]")#text(" text].")
+#text("S09 ")#text("indexterm2:[")#strong[#text("Late")]#text(" — \\] text]")#text(".")
 
 #text("S10 ")#counter(footnote).update(1)#footnote[#text("Frozen {label} ")#text("]")#text(" note")]#text(".")
 

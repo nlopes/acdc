@@ -32,6 +32,22 @@ fn label_text(nodes: &[InlineNode<'_>]) -> Result<String, Error> {
         .collect()
 }
 
+#[test]
+fn outer_macro_escapes_preserve_registration_time_anchor_text() -> Result<(), Error> {
+    let parsed = parse(r"((Escaped \[[id]] anchor))", &Options::default())?;
+    let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+        return Err("expected paragraph".into());
+    };
+    let term = index_term(&paragraph.content)?;
+    assert_eq!(label_text(term.term())?, "Escaped [[id]] anchor");
+    assert_eq!(
+        label_text(term.catalog_entry().term())?,
+        r"Escaped \[[id]] anchor"
+    );
+    assert!(parsed.document().references.is_empty());
+    Ok(())
+}
+
 // JSON fixtures omit the registration-time catalog label. Check it separately
 // from the display label, including inclusive source spans after unescaping.
 #[test]

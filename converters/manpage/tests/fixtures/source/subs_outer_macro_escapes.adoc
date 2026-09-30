@@ -1,0 +1,58 @@
+= macro-escapes(1)
+:doctype: manpage
+:revdate: 2026-09-30
+:manmanual: Escape tests
+:mansource: acdc
+:value: Attribute
+:escape: \\
+
+== Name
+macro-escapes - outer macro escapes
+
+== Synopsis
+
+*macro-escapes*
+
+== Description
+
+[subs=-macros]
+S01 \indexterm2:[Disabled] and \xref:target[Disabled] and \footnote:[Disabled] and \anchor:unused[Disabled].
+
+[subs=-macros]
+S02 \link:https://example.org[Disabled] and \https://example.org[Disabled] and \mailto:user@example.org[Disabled].
+
+[subs=none]
+S03 \indexterm2:[None] and \\xref:target[None] and \footnote:[None] and \https://example.org[None].
+
+[subs="macros,attributes"]
+S04 \indexterm2:[{value}] and \xref:target[{value}].
+
+[subs="attributes,macros"]
+S05 \indexterm2:[{value}] and \xref:target[{value}].
+
+[source,text,subs=+macros]
+----
+S06 \indexterm2:[One] \\indexterm2:[Two] \xref:target[One] \\xref:target[Two]
+S07 \link:https://example.org[Explicit] \https://example.org[Bare]
+S08 \footnote:[Incomplete
+----
+
+[source,text]
+----
+S09 \indexterm2:[Disabled] \xref:target[Disabled] \https://example.org[Disabled]
+----
+
+[subs="macros,attributes"]
+S10 {escape}indexterm2:[Late index] and {escape}xref:target[Late reference].
+
+[subs="attributes,macros"]
+S11 {escape}indexterm2:[Early index] and {escape}xref:target[Early reference].
+
+[subs="macros,attributes"]
+S12 {escape}https://example.org[Late URL].
+
+[subs="attributes,macros"]
+S13 {escape}https://example.org[Early URL].
+
+[[target,Target]]
+Target paragraph.

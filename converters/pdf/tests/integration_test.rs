@@ -12,6 +12,32 @@ use acdc_converters_pdf::{PdfOptions, Processor};
 type Error = Box<dyn std::error::Error>;
 
 #[test]
+fn outer_macro_escapes_preserve_only_active_pdf_uri_annotations() -> Result<(), Error> {
+    let code = include_str!("fixtures/source/subs_outer_macro_escapes.adoc");
+    let highlighted = code.replace(":manmanual:", ":source-highlighter: syntect\n:manmanual:");
+    for (source, count) in [
+        (include_str!("fixtures/source/outer_macro_escapes.adoc"), 4),
+        (code, 1),
+        (highlighted.as_str(), 1),
+    ] {
+        let pdf = render_input(source)?;
+        let mut targets = Vec::new();
+        for page in pdf.get_pages().values() {
+            for annotation in pdf.get_page_annotations(*page)? {
+                if let Ok(action) = annotation.get(b"A") {
+                    let (_, action) = pdf.dereference(action)?;
+                    if let Ok(uri) = action.as_dict()?.get(b"URI") {
+                        targets.push(String::from_utf8(uri.as_str()?.to_vec())?);
+                    }
+                }
+            }
+        }
+        assert_eq!(targets, vec!["https://example.org"; count]);
+    }
+    Ok(())
+}
+
+#[test]
 fn mailto_query_values_reach_pdf_annotations() -> Result<(), Error> {
     let pdf = render_input(include_str!("fixtures/source/mailto_query.adoc"))?;
     let mut targets = Vec::new();

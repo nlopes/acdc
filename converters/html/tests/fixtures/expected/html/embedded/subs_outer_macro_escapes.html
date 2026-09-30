@@ -1,0 +1,63 @@
+<div class="sect1">
+<h2 id="_name">Name</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>macro-escapes - outer macro escapes</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_synopsis">Synopsis</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><strong>macro-escapes</strong></p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_description">Description</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>S01 \indexterm2:[Disabled] and \xref:target[Disabled] and \footnote:[Disabled] and \anchor:unused[Disabled].</p>
+</div>
+<div class="paragraph">
+<p>S02 \link:https://example.org[Disabled] and \https://example.org[Disabled] and \mailto:user@example.org[Disabled].</p>
+</div>
+<div class="paragraph">
+<p>S03 \indexterm2:[None] and \\xref:target[None] and \footnote:[None] and \https://example.org[None].</p>
+</div>
+<div class="paragraph">
+<p>S04 indexterm2:[Attribute] and xref:target[Attribute].</p>
+</div>
+<div class="paragraph">
+<p>S05 indexterm2:[Attribute] and xref:target[Attribute].</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text">S06 indexterm2:[One] \indexterm2:[Two] xref:target[One] \xref:target[Two]
+S07 \<a href="https://example.org">Explicit</a> https://example.org[Bare]
+S08 \footnote:[Incomplete</code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text">S09 \indexterm2:[Disabled] \xref:target[Disabled] \https://example.org[Disabled]</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>S10 \\Late index and \\<a href="#target">Late reference</a>.</p>
+</div>
+<div class="paragraph">
+<p>S11 \indexterm2:[Early index] and \xref:target[Early reference].</p>
+</div>
+<div class="paragraph">
+<p>S12 \\https://example.org[Late URL].</p>
+</div>
+<div class="paragraph">
+<p>S13 \\https://example.org[Early URL].</p>
+</div>
+<div id="target" class="paragraph">
+<p>Target paragraph.</p>
+</div>
+</div>
+</div>

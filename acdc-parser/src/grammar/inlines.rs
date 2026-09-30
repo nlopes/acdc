@@ -1182,7 +1182,9 @@ peg::parser! {
 
         rule verbatim_plain_text() -> InlineNode<'input>
         = content:$((
-            !(check_index_terms() ("\\"+ index_term_match() / index_term_match()))
+            !(check_index_terms() (
+                &("\\"+ index_term_match()) escaped_syntax_match() / index_term_match()
+            ))
             !(check_macros() ("\\"? footnote_match()))
             !(check_macros() (
                 "\\"? anchor_macro_pattern() / inline_anchor_match()
@@ -1416,35 +1418,59 @@ peg::parser! {
 
         /// Remove the escape before recognized inline syntax, keeping its text literal.
         rule escaped_syntax() -> InlineNode<'input>
-        = check_catalog_escape() "\\" content:escaped_content() {
+        = check_catalog_escape() escapes:$("\\"+) check_macros() content:$(url_macro_match()) {
+            // Asciidoctor recognizes a bare URI escape only with one backslash.
+            // A longer run leaves the entire URL macro literal, including the run.
+            // Late attribute text also stays literal: the original reference's
+            // closing brace prevents URI recognition before attributes expand.
+            InlineNode::PlainText(Plain {
+                content: if escapes.len() == 1 && macro_token_allowed(state, span_start, 1) {
+                    content
+                } else {
+                    &state.input[span_start..span_end]
+                },
+                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
+                escaped: false,
+            })
+        }
+        / check_catalog_escape() "\\" content:escaped_content() {
             InlineNode::PlainText(Plain {
                 content,
-                location: state.create_location(span_start + state.inline_ctx.offset, span_end + state.inline_ctx.offset),
+                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
                 escaped: false,
             })
         }
 
         // Typography escapes stay intact for the converter's replacement stage.
         rule escaped_content() -> &'input str
-        =
+        = escapable_macro_pattern()
         // Double backslash followed by escapable pattern: \\<thing> -> <thing>
-        "\\" inner:escapable_pattern() { inner }
+        / "\\" inner:escapable_pattern() { inner }
         // Single backslash case: \<thing> -> <thing>
         / escapable_pattern()
 
-        /// Patterns that can be escaped with a backslash.
+        // Recognition must use the enabled macro's complete syntax. Otherwise
+        // disabled macros, unknown names, and escaped closing brackets lose text.
+        rule escapable_macro_pattern() -> &'input str
+        = check_macro_escape() content:$(
+            check_index_terms() index_term_match()
+            / check_macros()
+            // The URI pass consumes link: before named macro escapes are handled.
+            !("link:" url_macro_match())
+            (cross_reference_shorthand_match() / cross_reference_macro_match()
+            / footnote_match() / link_macro_match() / mailto_macro_match()
+            // These empty forms still recognize an escape in Asciidoctor.
+            / "footnote:[]" / "link:[" ("\\]" / !"]" [_])* "]"
+            / inline_image_match() / inline_icon_match() / inline_stem_match()
+            / inline_keyboard_match() / inline_button_match() / inline_menu_match()
+            / inline_pass_match() / inline_anchor_match())
+        ) { content }
+
+        /// Non-macro patterns that can be escaped with a backslash.
         rule escapable_pattern() -> &'input str
         =
-        // Paired angle brackets (cross-refs): <<...>>
-        "<<" inner:$((!">>" [_])*) ">>" { state.intern_fmt(format_args!("<<{inner}>>")) }
-        // Double square brackets (anchors): [[...]]
-        / "[[" inner:$((!"]]" [_])*) "]]" { state.intern_fmt(format_args!("[[{inner}]]")) }
-        // Paired square brackets with prefix (macros): something[...]
-        / !("anchor:" / literal_pass_macro()) prefix:$([^('[' | ' ' | '\t' | '\n' | '\\')]+) "[" inner:$([^']']*) "]" { state.intern_fmt(format_args!("{prefix}[{inner}]")) }
         // Curly braces (attributes): {...}
-        / "{" inner:$([^'}']*) "}" { state.intern_fmt(format_args!("{{{inner}}}")) }
-        // Double parens (index terms): ((...))
-        / "((" inner:$((!"))" [_])*) "))" { state.intern_fmt(format_args!("(({inner}))")) }
+        "{" inner:$([^'}']*) "}" { state.intern_fmt(format_args!("{{{inner}}}")) }
         // Unconstrained formatting: match entire span including content and closing marker
         // \**not bold** -> **not bold**
         / "**" inner:$((!"**" [_])*) "**" { state.intern_fmt(format_args!("**{inner}**")) }
@@ -1462,30 +1488,18 @@ peg::parser! {
         // Bracket escapes belong to active macro labels, not ordinary text.
         // Constrained formatting markers and other single escapable chars
         // Note: ^ and ~ are NOT included here - they require complete patterns above
-        // Note: ( is separated with a negative lookahead to avoid consuming \(C), \(R), \(TM)
-        // which are character replacement escapes handled by the converter
         / c:$(['*' | '_' | '#' | '`' | '&']) { c }
-        / "(" !(("C" / "R" / "TM") ")") { "(" }
 
         /// Match escaped syntax without consuming - for use in negative lookaheads.
-        ///
-        /// Double backslash + escapable pattern or a single escapable pattern
         rule escaped_syntax_match() -> ()
-        = check_catalog_escape() "\\" "\\"? escapable_pattern_match()
-
-        rule literal_pass_macro()
-        = "pass:" {?
-            (!state.inline_ctx.substitutions.enabled(&Substitution::Macros))
-                .then_some(()).ok_or("macro substitutions enabled")
-        }
+        = check_catalog_escape() (
+            "\\"+ check_macros() url_macro_match()
+            / "\\" (escapable_macro_pattern() / "\\"? escapable_pattern_match())
+        )
 
         /// Match escapable patterns without consuming
         rule escapable_pattern_match() -> ()
-        = "<<" (!">>" [_])* ">>"
-        / "[[" (!"]]" [_])* "]]"
-        / !("anchor:" / literal_pass_macro()) [^('[' | ' ' | '\t' | '\n' | '\\')]+ "[" [^']']* "]"
-        / "{" [^'}']* "}"
-        / "((" (!"))" [_])* "))"
+        = "{" [^'}']* "}"
         // Unconstrained formatting: match entire span
         / "**" (!"**" [_])* "**"
         / "__" (!("__" !['_']) [_])* "__"
@@ -1497,7 +1511,6 @@ peg::parser! {
         / "~" [^'~' | ' ' | '\t' | '\n']+ "~"
         // Single escapable chars (excluding ^ and ~ which need complete patterns)
         / ['*' | '_' | '#' | '`' | '&'] {}
-        / "(" !(("C" / "R" / "TM") ")")
 
         rule footnote() -> InlineNode<'input>
         = footnote_match:footnote_match()
@@ -1951,6 +1964,14 @@ peg::parser! {
         rule check_catalog_escape()
         = position:position!() {? catalog_escape_allowed(state, position).then_some(()).ok_or("escape belongs to a later substitution") }
 
+        // This position follows the backslash. An attribute expanded after
+        // macros cannot introduce an escape for that earlier substitution.
+        rule check_macro_escape()
+        = position:position!() {?
+            macro_token_allowed(state, position.saturating_sub(1), 1)
+                .then_some(()).ok_or("escape introduced after macros")
+        }
+
         rule check_quote_markers(open: (usize, usize), close: (usize, usize)) -> ()
         = {?
             if structural_token_allowed(state, &Substitution::Quotes, open.0, open.1)
@@ -2195,7 +2216,7 @@ peg::parser! {
 
         /// Parse a link target and its optional label or named attributes.
         rule link_macro() -> InlineNode<'input>
-        = "link:" target:source() fragment:path_fragment()? "["
+        = "link:" target:link_macro_source() fragment:path_fragment()? "["
         content_start:position!() content:link_macro_content() "]"
         {?
             tracing::debug!(?target, ?content, "Found link macro inline");
@@ -2227,7 +2248,11 @@ peg::parser! {
 
         /// Match link macro without consuming - for use in negative lookaheads.
         rule link_macro_match()
-        = "link:" source() path_fragment()? "[" ("\\]" / !"]" [_])* "]"
+        = "link:" link_macro_source() path_fragment()? "[" ("\\]" / !"]" [_])* "]"
+
+        // Asciidoctor's URI pass removes this escape before the named link pass.
+        rule link_macro_source() -> Source<'input>
+        = ("\\" &("http://" / "https://" / "ftp://" / "irc://"))? target:source() { target }
 
         /// Parse cross-reference shorthand syntax: <<id>> or <<id,custom text>>
         rule cross_reference_shorthand() -> InlineNode<'input>

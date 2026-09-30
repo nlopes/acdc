@@ -146,7 +146,7 @@
             {
               "name": "text",
               "type": "string",
-              "value": "indexterm2:[Label \\]",
+              "value": "indexterm2:[Label \\] text]",
               "location": [
                 {
                   "line": 12,
@@ -154,18 +154,18 @@
                 },
                 {
                   "line": 12,
-                  "col": 33
+                  "col": 38
                 }
               ]
             },
             {
               "name": "text",
               "type": "string",
-              "value": " text].",
+              "value": ".",
               "location": [
                 {
                   "line": 12,
-                  "col": 33
+                  "col": 39
                 },
                 {
                   "line": 12,
@@ -243,7 +243,7 @@
             {
               "name": "text",
               "type": "string",
-              "value": "indexterm2:[Attribute \\]",
+              "value": "indexterm2:[Attribute \\] text]",
               "location": [
                 {
                   "line": 18,
@@ -251,18 +251,18 @@
                 },
                 {
                   "line": 18,
-                  "col": 24
+                  "col": 25
                 }
               ]
             },
             {
               "name": "text",
               "type": "string",
-              "value": " text].",
+              "value": ".",
               "location": [
                 {
                   "line": 18,
-                  "col": 18
+                  "col": 26
                 },
                 {
                   "line": 18,
@@ -310,7 +310,7 @@
             {
               "name": "text",
               "type": "string",
-              "value": "indexterm2:[Attribute \\]",
+              "value": "indexterm2:[Attribute \\] text]",
               "location": [
                 {
                   "line": 21,
@@ -318,18 +318,18 @@
                 },
                 {
                   "line": 21,
-                  "col": 24
+                  "col": 25
                 }
               ]
             },
             {
               "name": "text",
               "type": "string",
-              "value": " text].",
+              "value": ".",
               "location": [
                 {
                   "line": 21,
-                  "col": 18
+                  "col": 26
                 },
                 {
                   "line": 21,
@@ -388,7 +388,7 @@
             {
               "name": "text",
               "type": "string",
-              "value": "indexterm2:[Code \\]",
+              "value": "indexterm2:[Code \\] text]",
               "location": [
                 {
                   "line": 25,
@@ -396,18 +396,18 @@
                 },
                 {
                   "line": 25,
-                  "col": 25
+                  "col": 30
                 }
               ]
             },
             {
               "name": "text",
               "type": "string",
-              "value": " text]\nS06 ",
+              "value": "\nS06 ",
               "location": [
                 {
                   "line": 25,
-                  "col": 25
+                  "col": 31
                 },
                 {
                   "line": 26,
@@ -418,7 +418,7 @@
             {
               "name": "text",
               "type": "string",
-              "value": "xref:target[Code \\]",
+              "value": "xref:target[Code \\] text]",
               "location": [
                 {
                   "line": 26,
@@ -426,18 +426,18 @@
                 },
                 {
                   "line": 26,
-                  "col": 25
+                  "col": 30
                 }
               ]
             },
             {
               "name": "text",
               "type": "string",
-              "value": " text]\nS07 ",
+              "value": "\nS07 ",
               "location": [
                 {
                   "line": 26,
-                  "col": 25
+                  "col": 31
                 },
                 {
                   "line": 27,
@@ -623,7 +623,7 @@
             {
               "name": "text",
               "type": "string",
-              "value": " -- \\]",
+              "value": " -- \\] text]",
               "location": [
                 {
                   "line": 34,
@@ -631,18 +631,18 @@
                 },
                 {
                   "line": 34,
-                  "col": 29
+                  "col": 35
                 }
               ]
             },
             {
               "name": "text",
               "type": "string",
-              "value": " text].",
+              "value": ".",
               "location": [
                 {
                   "line": 34,
-                  "col": 30
+                  "col": 36
                 },
                 {
                   "line": 34,

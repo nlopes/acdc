@@ -56,6 +56,8 @@ terminal_fixture_catalog!([
         true,
         requires: all(feature = "images", feature = "highlighting")
     ),
+    (outer_macro_escapes, true),
+    (subs_outer_macro_escapes, false),
     (xref_colon_ids, true),
     (subs_xref_colon_ids, false),
     (escaped_macro_labels, false),

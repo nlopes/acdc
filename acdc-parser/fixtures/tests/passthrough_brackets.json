@@ -1541,7 +1541,7 @@
         {
           "name": "text",
           "type": "string",
-          "value": "pass:m[link:https://example.org[Label\\]",
+          "value": "pass:m[link:https://example.org[Label\\]]",
           "location": [
             {
               "line": 41,
@@ -1556,11 +1556,11 @@
         {
           "name": "text",
           "type": "string",
-          "value": "].",
+          "value": ".",
           "location": [
             {
               "line": 41,
-              "col": 62
+              "col": 63
             },
             {
               "line": 41,

@@ -1954,7 +1954,7 @@
                     },
                     {
                       "line": 46,
-                      "col": 18
+                      "col": 17
                     }
                   ]
                 },
@@ -1974,6 +1974,37 @@
                   ]
                 }
               ],
+              "catalog": {
+                "kind": {
+                  "Flow": [
+                    {
+                      "name": "raw",
+                      "type": "string",
+                      "value": "Escaped \\[[id]] anchor",
+                      "location": [
+                        {
+                          "line": 46,
+                          "col": 3
+                        },
+                        {
+                          "line": 46,
+                          "col": 24
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "location": [
+                  {
+                    "line": 46,
+                    "col": 1
+                  },
+                  {
+                    "line": 46,
+                    "col": 26
+                  }
+                ]
+              },
               "visible": true,
               "location": [
                 {

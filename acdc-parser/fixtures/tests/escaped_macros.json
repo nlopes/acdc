@@ -32,7 +32,7 @@
             },
             {
               "line": 1,
-              "col": 51
+              "col": 50
             }
           ]
         }
@@ -55,7 +55,7 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Escaped link macro: ",
+          "value": "Escaped link macro: \\",
           "location": [
             {
               "line": 3,
@@ -63,24 +63,46 @@
             },
             {
               "line": 3,
-              "col": 20
+              "col": 21
             }
           ]
         },
         {
-          "name": "text",
-          "type": "string",
-          "value": "link:http://example.com[click here]",
+          "name": "ref",
+          "type": "inline",
+          "variant": "link",
+          "target": {
+            "type": "url",
+            "value": "http://example.com"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "click here",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 46
+                },
+                {
+                  "line": 3,
+                  "col": 55
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 3,
-              "col": 21
+              "col": 22
             },
             {
               "line": 3,
-              "col": 57
+              "col": 56
             }
-          ]
+          ],
+          "attributes": {}
         }
       ],
       "location": [
@@ -124,7 +146,7 @@
             },
             {
               "line": 5,
-              "col": 48
+              "col": 47
             }
           ]
         }

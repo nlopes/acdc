@@ -408,32 +408,54 @@
         {
           "name": "text",
           "type": "string",
-          "value": "\n",
+          "value": "\n\\",
           "location": [
             {
               "line": 13,
               "col": 62
             },
             {
-              "line": 13,
-              "col": 62
+              "line": 14,
+              "col": 1
             }
           ]
         },
         {
-          "name": "text",
-          "type": "string",
-          "value": "link:https://example.org/escaped[Escaped]",
+          "name": "ref",
+          "type": "inline",
+          "variant": "link",
+          "target": {
+            "type": "url",
+            "value": "https://example.org/escaped"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Escaped",
+              "location": [
+                {
+                  "line": 14,
+                  "col": 35
+                },
+                {
+                  "line": 14,
+                  "col": 41
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 14,
-              "col": 1
+              "col": 2
             },
             {
               "line": 14,
-              "col": 43
+              "col": 42
             }
-          ]
+          ],
+          "attributes": {}
         },
         {
           "name": "text",
@@ -461,7 +483,7 @@
             },
             {
               "line": 14,
-              "col": 80
+              "col": 79
             }
           ]
         },
@@ -491,7 +513,7 @@
             },
             {
               "line": 14,
-              "col": 97
+              "col": 96
             }
           ]
         },

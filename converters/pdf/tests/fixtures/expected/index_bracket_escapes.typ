@@ -166,7 +166,7 @@
 #v(0.75em)
 #text(weight: "bold")[#text("E")]
 #v(0.25em)
-#par(hanging-indent: 1em)[#text("Escaped ")#text("[[id]]")#text(" anchor")#_acdc_index_pages((<__indexterm-17>,), "term")]
+#par(hanging-indent: 1em)[#text("Escaped \\[[id]] anchor")#_acdc_index_pages((<__indexterm-17>,), "term")]
 #v(0.75em)
 #text(weight: "bold")[#text("H")]
 #v(0.25em)

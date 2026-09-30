@@ -56,7 +56,7 @@ Index terms.
 
 ### E
 
-- Escaped \[\[id\]\] anchor — [Description](#_indexterm_16)
+- Escaped \\\[\[id\]\] anchor — [Description](#_indexterm_16)
 
 ### H
 

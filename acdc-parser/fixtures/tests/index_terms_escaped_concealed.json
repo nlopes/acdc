@@ -126,7 +126,7 @@
             },
             {
               "line": 5,
-              "col": 30
+              "col": 29
             }
           ]
         },
@@ -227,7 +227,7 @@
         {
           "name": "text",
           "type": "string",
-          "value": ".\nTwo backslashes: ",
+          "value": ".\nTwo backslashes: \\",
           "location": [
             {
               "line": 7,
@@ -235,22 +235,22 @@
             },
             {
               "line": 8,
-              "col": 17
+              "col": 18
             }
           ]
         },
         {
           "name": "text",
           "type": "string",
-          "value": "\\(",
+          "value": "(",
           "location": [
             {
               "line": 8,
-              "col": 18
+              "col": 19
             },
             {
               "line": 8,
-              "col": 20
+              "col": 19
             }
           ]
         },

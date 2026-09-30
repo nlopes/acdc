@@ -1,0 +1,106 @@
+'\" t
+.\"     Title: macro-escapes
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-09-30
+.\"    Manual: Escape tests
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "MACRO\-ESCAPES" "1" "2026-09-30" "acdc" "Escape tests"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+macro\-escapes \- outer macro escapes
+.SH "SYNOPSIS"
+.sp
+\fBmacro\-escapes\fP
+.SH "DESCRIPTION"
+.sp
+E01 indexterm2:[One] and \eindexterm2:[Two] and \e\eindexterm2:[Three]\&.
+.sp
+E02 xref:target[One] and \exref:target[Two] and \e\exref:target[Three]\&.
+.sp
+E03 footnote:[One] and \efootnote:[Two] and \e\efootnote:[Three]\&.
+.sp
+E04 anchor:unused[One] and \eanchor:unused[Two] and \e\eanchor:unused[Three]\&.
+.sp
+E05 \eindexterm2:[Incomplete
+.sp
+E06 \exref:target[Incomplete
+.sp
+E07 \efootnote:[Incomplete
+.sp
+E08 \eanchor:unused[Incomplete
+.sp
+E09 \e\c
+.URL "https://example.org" "One" ""
+and \e\e\c
+.URL "https://example.org" "Two" ""
+and \e\e\e\c
+.URL "https://example.org" "Three" ""
+\&.
+.sp
+E10 https://example.org[One] and \e\ehttps://example.org[Two] and \e\e\ehttps://example.org[Three]\&.
+.sp
+E11 \c
+.URL "https://example.org" "Label" ""
+and link:manual.html[File] and link:mailto:user@example.org[Mail]\&.
+.sp
+E12 mailto:user@example.org[One] and \emailto:user@example.org[Two]\&.
+.sp
+E13 <<target>> and \e<<target>> and ((Visible)) and \e((Visible))\&.
+.sp
+E14 image:missing.png[Alt] and \eimage:missing.png[Alt] and \eimage:missing.png[Incomplete
+.sp
+E15 Ordinary \e\e and \e[brackets\e] and *literal*.
+.sp
+E16 \eindexterm2:[Incomplete \e] label
+.sp
+E17 \exref:target[Incomplete \e] label
+.sp
+E18 \efootnote:[Incomplete \e] label
+.sp
+E19 \eunknown:[Text] and \eword[Text] and \e((Incomplete.
+.sp
+E20 indexterm2:[\fBBold\fP] and \eindexterm2:[\fBBold\fP]\&.
+.sp
+E21 Active and Active and [1]\&.
+.sp
+E22 footnote:[]\&.
+.sp
+E23 link:[]\&.
+.sp
+E24 link:[Label]\&.
+.sp
+E25 \eindexterm2:[].
+.sp
+E26 \exref:[].
+.sp
+E27 \eanchor:[].
+.sp
+E28 \eimage:[].
+.sp
+E29 \ekbd:[Ctrl+C] and \ebtn:[Save] and \emenu:File[Open] and \e[[ ]] and \e[[]].
+.sp
+Target paragraph.
+.SH "NOTES"
+.IP [1] 4
+Active note.

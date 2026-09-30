@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Macro escapes retain extra backslashes and only consume an escape when the
+  macro is complete and enabled. Backslashes introduced by later attribute
+  substitution remain literal. As in Asciidoctor, `\link:https://example.org[Site]`
+  keeps its leading backslash and creates a link, while `\https://example.org[Site]`
+  stays literal. Multiple backslashes before a bare URL macro all remain visible.
+
 - Cross-references to IDs containing colons now resolve locally in both shorthand
   and `xref:` macros, including explicit labels. As in
   Asciidoctor, use `xref:#a-b.c:d[]` for a local ID containing a dot;

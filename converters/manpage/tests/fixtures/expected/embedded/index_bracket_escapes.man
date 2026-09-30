@@ -52,7 +52,7 @@ Alias \e] label (see Target \e] label)
 .RE
 .SS "E"
 .RS 4
-Escaped [[id]] anchor
+Escaped \e[[id]] anchor
 .br
 .RE
 .SS "H"
