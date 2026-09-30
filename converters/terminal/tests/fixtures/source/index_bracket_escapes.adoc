@@ -1,0 +1,49 @@
+= index-escapes(1)
+:manmanual: Index tests
+:mansource: acdc
+:acdc-index:
+
+== Name
+index-escapes - escaped brackets
+
+== Synopsis
+Index terms.
+
+== Description
+
+((Standalone \] term))
+
+((Repeated \\] term))
+
+((Opening \[ term))
+
+(((Hidden \] primary,Hidden \] secondary)))
+
+indexterm2:[Named \] visible]
+
+indexterm:[Named \] hidden]
+
+link:https://example.org[((Linked \] term))]
+
+link:https://example.org["((Quoted \] term))",role=green]
+
+((Plain ] control))
+
+indexterm2:[Named repeated \\] visible]
+
+indexterm2:[Named opening \[ visible]
+
+link:https://example.org[indexterm2:[Nested named \\] visible]]
+
+(((Root \] label,Branch \[ label,Leaf \\] label)))
+
+((Alias \] label >> Target \] label))
+
+indexterm:[Named alias \] label,see=Named target \] label]
+
+link:https://example.org[indexterm2:[Nested opening \[ visible]]
+
+((Escaped \[[id]] anchor))
+
+[index]
+== Index

@@ -1682,7 +1682,7 @@
               ]
             },
             {
-              "name": "text",
+              "name": "raw",
               "type": "string",
               "value": "]",
               "location": [
@@ -1692,7 +1692,7 @@
                 },
                 {
                   "line": 49,
-                  "col": 20
+                  "col": 21
                 }
               ]
             }
@@ -1760,7 +1760,7 @@
               ]
             },
             {
-              "name": "text",
+              "name": "raw",
               "type": "string",
               "value": "]",
               "location": [
@@ -1770,7 +1770,7 @@
                 },
                 {
                   "line": 51,
-                  "col": 27
+                  "col": 28
                 }
               ]
             }

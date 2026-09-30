@@ -1,0 +1,123 @@
+.SH "SYNOPSIS"
+.sp
+Index terms.
+.SH "DESCRIPTION"
+.sp
+Standalone \e] term
+.sp
+Repeated \e\e] term
+.sp
+Opening \e[ term
+.sp
+
+.sp
+Named ] visible
+.sp
+
+.sp
+\c
+.URL "https://example.org" "Linked ] term" ""
+
+.sp
+\c
+.URL "https://example.org" "Quoted ] term" ""
+
+.sp
+Plain ] control
+.sp
+Named repeated \e] visible
+.sp
+Named opening \e[ visible
+.sp
+\c
+.URL "https://example.org" "Nested named ] visible" ""
+
+.sp
+
+.sp
+Alias \e] label
+.sp
+
+.sp
+\c
+.URL "https://example.org" "Nested opening \e[ visible" ""
+
+.sp
+Escaped [[id]] anchor
+.SH "INDEX"
+.SS "A"
+.RS 4
+Alias \e] label (see Target \e] label)
+.br
+.RE
+.SS "E"
+.RS 4
+Escaped [[id]] anchor
+.br
+.RE
+.SS "H"
+.RS 4
+Hidden \e] primary
+.br
+.RS 4
+Hidden \e] secondary
+.br
+.RE
+.RE
+.SS "L"
+.RS 4
+Linked \e] term
+.br
+.RE
+.SS "N"
+.RS 4
+Named ] hidden
+.br
+Named ] visible
+.br
+Named alias ] label (see Named target ] label)
+.br
+Named opening \e[ visible
+.br
+Named repeated \e] visible
+.br
+Nested named \e] visible
+.br
+Nested opening \e[ visible
+.br
+.RE
+.SS "O"
+.RS 4
+Opening \e[ term
+.br
+.RE
+.SS "P"
+.RS 4
+Plain ] control
+.br
+.RE
+.SS "Q"
+.RS 4
+Quoted \e] term
+.br
+.RE
+.SS "R"
+.RS 4
+Repeated \e\e] term
+.br
+Root \e] label
+.br
+.RS 4
+Branch \e[ label
+.br
+.RS 4
+Leaf \e\e] label
+.br
+.RE
+.RE
+.RE
+.SS "S"
+.RS 4
+Standalone \e] term
+.br
+.RE

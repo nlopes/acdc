@@ -1,0 +1,47 @@
+= index-escapes(1)
+:manmanual: Index tests
+:mansource: acdc
+:acdc-index:
+
+== Name
+index-escapes - escaped brackets
+
+== Synopsis
+Index terms.
+
+== Description
+
+:source-highlighter: syntect
+:term: Expanded \] term
+
+(({term}))
+
+[subs="macros,attributes"]
+(({term}))
+
+[subs=-macros]
+((Disabled \] term))
+
+[source,text,subs=+macros]
+----
+((Code \] term))
+link:https://example.org[((Code link \] term))]
+----
+
+pass:m[((Pass \] term))]
+
+[subs="macros,quotes,replacements"]
+((*Late \] bold*))
+
+pass:m[((Pass repeated \\] term))]
+
+indexterm2:[{term}]
+
+[subs="macros,attributes"]
+indexterm2:[{term}]
+
+[subs="macros,attributes"]
+link:https://example.org[((Linked {term}))]
+
+[index]
+== Index

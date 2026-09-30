@@ -251,6 +251,7 @@ fn split_index_term_relationship(
 fn parse_index_term_inlines<'a>(
     state: &mut ParserState<'a>,
     segment: IndexTermSegment<'a>,
+    form: Option<IndexTermForm>,
 ) -> Result<Vec<InlineNode<'a>>, &'static str> {
     if segment.text.is_empty() {
         return Ok(Vec::new());
@@ -266,6 +267,16 @@ fn parse_index_term_inlines<'a>(
     let mut rules = state.inline_ctx.rules;
     rules.insert(InlineRules::AUTOLINKS);
     rules.remove(InlineRules::INDEX_TERMS | InlineRules::EOI_HARD_BREAK);
+    if let Some(form) = form {
+        rules.insert(InlineRules::INDEX_LABEL);
+        rules.set(
+            InlineRules::NAMED_INDEX_LABEL,
+            matches!(
+                form,
+                IndexTermForm::NamedFlow | IndexTermForm::NamedConcealed
+            ),
+        );
+    }
     let inline_ctx = InlineContext {
         offset: 0,
         substitutions: state.inline_ctx.substitutions,
@@ -361,6 +372,7 @@ fn expand_escaped_index_terms<'a>(
                 text: plain.content,
                 start: plain.location.absolute_start + escapes,
             },
+            None,
         )?;
         if matches!(parsed.as_slice(), [InlineNode::PlainText(text)] if text.content == plain.content)
         {
@@ -387,6 +399,7 @@ fn parse_index_term<'a>(
         || plan.precedes(&Substitution::Macros, &Substitution::Quotes)
         || plan.precedes(&Substitution::Macros, &Substitution::Replacements)
         || state.inline_ctx.rules.intersects(InlineRules::QUOTED_LINK)
+        || (state.inline_ctx.rules.contains(InlineRules::LINK_LABEL) && source.contains("\\]"))
         || source
             .chars()
             .any(|character| matches!(character, ':' | '<' | '[' | '@'))
@@ -395,8 +408,10 @@ fn parse_index_term<'a>(
         inline_ctx.offset = 0;
         inline_ctx.substitutions = plan.through(&Substitution::Macros);
         inline_ctx.rules.insert(InlineRules::INDEX_CATALOG);
-        // Index labels register before the enclosing link unescapes its quotes.
-        inline_ctx.rules.remove(InlineRules::QUOTED_LINK);
+        // Registration precedes the enclosing link's bracket and quote unescaping.
+        inline_ctx
+            .rules
+            .remove(InlineRules::LINK_LABEL | InlineRules::QUOTED_LINK);
         let mut child = ParserState::for_inline_parsing(source, state, inline_ctx);
         if restored_ranges.is_empty() {
             child.attribute_value_ranges = state
@@ -649,6 +664,7 @@ fn parse_index_parts<'a>(
         terms
             .next()
             .unwrap_or(IndexTermSegment { text: "", start: 0 }),
+        Some(form),
     )?;
     let kind = if form.visible() {
         IndexTermKind::Flow(term)
@@ -657,17 +673,17 @@ fn parse_index_parts<'a>(
             term,
             secondary: terms
                 .next()
-                .map(|segment| parse_index_term_inlines(state, segment))
+                .map(|segment| parse_index_term_inlines(state, segment, Some(form)))
                 .transpose()?,
             tertiary: terms
                 .next()
-                .map(|segment| parse_index_term_inlines(state, segment))
+                .map(|segment| parse_index_term_inlines(state, segment, Some(form)))
                 .transpose()?,
         }
     };
     Ok(IndexTerm {
         kind,
-        relationship: parse_index_term_relationship(state, parts.relationship)?,
+        relationship: parse_index_term_relationship(state, parts.relationship, form)?,
         catalog: None,
         catalog_substitutions: None,
         location,
@@ -691,17 +707,18 @@ fn restored_label_offset(offset: usize, ranges: &[RestoredRange], end: bool) -> 
 fn parse_index_term_relationship<'a>(
     state: &mut ParserState<'a>,
     relationship: Option<IndexTermRelationshipSegments<'a>>,
+    form: IndexTermForm,
 ) -> Result<Option<IndexTermRelationship<'a>>, &'static str> {
     match relationship {
         None => Ok(None),
         Some(IndexTermRelationshipSegments::See(target)) => Ok(Some(IndexTermRelationship::See {
-            target: parse_index_term_inlines(state, target)?,
+            target: parse_index_term_inlines(state, target, Some(form))?,
         })),
         Some(IndexTermRelationshipSegments::SeeAlso(targets)) => {
             let targets = targets
                 .into_iter()
                 .filter(|target| !target.text.is_empty())
-                .map(|target| parse_index_term_inlines(state, target))
+                .map(|target| parse_index_term_inlines(state, target, Some(form)))
                 .collect::<Result<_, _>>()?;
             Ok(Some(IndexTermRelationship::SeeAlso { targets }))
         }
@@ -1269,6 +1286,7 @@ peg::parser! {
             / &['\\'] check_index_terms() prefix:escaped_index_prefix() { prefix }
             // Escaped syntax must come next - backslash prevents any following syntax from being parsed
             / check_macros() &['\\'] anchor:escaped_anchor_macro() { anchor }
+            / &['\\'] bracket:index_label_bracket() { bracket }
             / &['\\'] bracket:escaped_link_character() { bracket }
             / &['\\'] escaped_syntax:escaped_syntax() { escaped_syntax }
             // Index terms: concealed (triple parens) must come before flow (double parens)
@@ -1358,6 +1376,33 @@ peg::parser! {
             / check_link_quote(InlineRules::DOUBLE_QUOTED_LINK) "\""
             / check_link_quote(InlineRules::SINGLE_QUOTED_LINK) "'"
         )
+
+        // A shorthand index has no square-bracket delimiter. Named macros and
+        // enclosing links each consume one closing-bracket escape, in that order.
+        // Raw text protects remaining backslashes from converter replacements.
+        rule index_label_bracket() -> InlineNode<'input>
+        = content:$(index_label_bracket_match()) {
+            let rules = state.inline_ctx.rules;
+            // A later attribute value did not exist when either macro consumed escapes.
+            let escapes = if content.ends_with(']')
+                && structural_token_allowed(state, &Substitution::Macros, span_start, content.len())
+            {
+                usize::from(rules.contains(InlineRules::NAMED_INDEX_LABEL))
+                    + usize::from(rules.contains(InlineRules::LINK_LABEL))
+            } else {
+                0
+            };
+            InlineNode::RawText(Raw {
+                content: &content[escapes.min(content.len() - 1)..],
+                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
+                subs: Vec::new(),
+            })
+        }
+
+        // Complete escaped anchors still belong to the ordinary macro escape rule.
+        rule index_label_bracket_match()
+        = "\\"+ !("[[" (!"]]" [_])* "]]") ['[' | ']']
+          {? state.inline_ctx.rules.contains(InlineRules::INDEX_LABEL).then_some(()).ok_or("index label") }
 
         rule check_link_quote(mode: InlineRules)
         = {? state.inline_ctx.rules.contains(mode).then_some(()).ok_or("quoted link label") }
@@ -1569,9 +1614,11 @@ peg::parser! {
         rule link_macro_content_part() -> Option<Range<usize>>
         = "\\]" { None }
         / "[" balanced_bracket_content() "]" { Some(span_start..span_end) }
-        / &['('] check_index_terms() index_term_match() { Some(span_start..span_end) }
+        // '(' starts shorthand; 'i' starts indexterm:/indexterm2:. Both forms
+        // own their brackets, which must not terminate the enclosing link.
+        / &['(' | 'i'] check_index_terms() index_term_match() { Some(span_start..span_end) }
         / &['<'] cross_reference_shorthand_match() { Some(span_start..span_end) }
-        / (!("\\]") [^'[' | ']' | '(' | '<'])+ { None }
+        / (!("\\]" / (&['i'] check_index_terms() index_term_match())) [^'[' | ']' | '(' | '<'])+ { None }
         / ['[' | '(' | '<'] { None }
 
         rule inline_pass() -> InlineNode<'input>
@@ -3126,7 +3173,7 @@ peg::parser! {
                     check_post_replacements() eol()*<2,>
                     / check_hardbreaks() line_break_eol()
                     / ![_]
-                    / &['\\'] (check_macros() "\\" anchor_macro_pattern() / escaped_link_character_match() / escaped_syntax_match())
+                    / &['\\'] (check_macros() "\\" anchor_macro_pattern() / index_label_bracket_match() / escaped_link_character_match() / escaped_syntax_match())
                     / check_post_replacements() &[' '] (hard_wrap_match() / inline_line_break_match())
                     // Macro guard: [ ( < for delimiters, then first letters of each macro:
                     // a=anchor/asciimath, b=btn, f=footnote/ftp, h=http(s), i=image/icon/indexterm/irc,

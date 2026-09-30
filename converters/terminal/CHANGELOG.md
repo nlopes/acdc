@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Index labels preserve literal square-bracket backslashes in shorthand terms
+  such as `((One \] term))`. Named index macros remove one closing-bracket escape;
+  enclosing links remove one more from display text after catalog registration,
+  matching Asciidoctor.
+
 - `mailto:address[label,subject,body]` now carries percent-encoded subject and
   body values, including Unicode, quoted commas, and empty arguments. Unlike
   Asciidoctor 2.0.26, acdc preserves literal `&` and passthrough text instead of

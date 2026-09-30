@@ -164,7 +164,7 @@ pub(crate) struct InlineContext {
 bitflags! {
     /// Independent grammar capabilities for one inline parse.
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    pub(crate) struct InlineRules: u8 {
+    pub(crate) struct InlineRules: u16 {
         /// Match bare URLs and email addresses.
         const AUTOLINKS = 1 << 0;
         /// Match index-term macros.
@@ -183,6 +183,10 @@ bitflags! {
         const SINGLE_QUOTED_LINK = 1 << 7;
         /// Quote unescaping that applies to display text after macro registration.
         const QUOTED_LINK = Self::DOUBLE_QUOTED_LINK.bits() | Self::SINGLE_QUOTED_LINK.bits();
+        /// Preserve square-bracket escapes that do not delimit this index label.
+        const INDEX_LABEL = 1 << 8;
+        /// Consume one closing-bracket escape for a named index macro's delimiter.
+        const NAMED_INDEX_LABEL = 1 << 9;
     }
 }
 

@@ -1,0 +1,62 @@
+.SH "SYNOPSIS"
+.sp
+Index terms.
+.SH "DESCRIPTION"
+.sp
+Expanded \e] term
+.sp
+Expanded \e] term
+.sp
+((Disabled ] term))
+.EX
+Code \e] term
+Code link ] term
+.EE
+.sp
+Pass ] term
+.sp
+\fBLate \e] bold\fP
+.sp
+Pass repeated \e] term
+.sp
+Expanded ] term
+.sp
+Expanded \e] term
+.sp
+\c
+.URL "https://example.org" "Linked Expanded \e] term" ""
+
+.SH "INDEX"
+.SS "@"
+.RS 4
+*Late \e] bold*
+.br
+{term}
+.br
+.RE
+.SS "C"
+.RS 4
+Code \e] term
+.br
+Code link \e] term
+.br
+.RE
+.SS "E"
+.RS 4
+Expanded \e] term
+.br
+Expanded ] term
+.br
+.RE
+.SS "L"
+.RS 4
+Linked {term}
+.br
+.RE
+.SS "P"
+.RS 4
+Pass ] term
+.br
+Pass repeated \e] term
+.br
+.RE

@@ -57,6 +57,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Index labels preserve literal square-bracket backslashes in shorthand terms
+  such as `((One \] term))`. Named index macros remove one closing-bracket escape;
+  enclosing links remove one more from display text after catalog registration,
+  matching Asciidoctor.
+
 - Retain positional subject and body values in `mailto:address[label,subject,body]`,
   and recognize addresses with existing query parameters. URI arguments retain
   their values at macro substitution time while visible labels still receive
