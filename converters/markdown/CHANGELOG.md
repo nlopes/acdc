@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Cross-references to IDs containing colons now resolve locally in both shorthand
+  and `xref:` macros, including explicit labels. As in
+  Asciidoctor, use `xref:#a-b.c:d[]` for a local ID containing a dot;
+  `xref:a-b.c:d[]` addresses an external resource. Existing passthrough targets
+  remain supported, unlike Asciidoctor, which leaves those macros literal.
+
 - Escaped macros and ordinary text preserve literal bracket backslashes.
   Active macro labels consume only their own delimiter escape, matching
   Asciidoctor. Escaped closing brackets no longer end footnotes early.

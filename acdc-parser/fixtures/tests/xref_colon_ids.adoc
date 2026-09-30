@@ -1,0 +1,52 @@
+= colon-xrefs(1)
+:manmanual: Cross-reference tests
+:mansource: acdc
+
+== Name
+colon-xrefs - colon-containing local targets
+
+== Synopsis
+
+*colon-xrefs*
+
+== Description
+
+C01 <<:colon>> and <<:colon,Leading label>> and xref::colon[Leading macro] and xref:#:colon[Leading fragment].
+
+C02 <<a-b.c:d>> and <<a-b.c:d,Mixed shorthand>> and xref:a-b.c:d[] and xref:a-b.c:d[Mixed macro] and xref:#a-b.c:d[Mixed fragment].
+
+C03 <<topic:one>> and xref:topic:one[] and xref:#topic:one[Topic fragment].
+
+C04 <<http:local>> and xref:http:local[Scheme-like ID].
+
+C05 <<missing:one>> and xref:missing:one[Missing macro] and xref:#missing:one[Missing fragment].
+
+C06 xref:guide.adoc#topic:one[Other document] and xref:https://example.org/guide#topic:one[External URL].
+
+C07 <<Chapter: Details>> and xref:ordinary[Ordinary].
+
+anchor::colon[Leading colon]Leading target.
+
+[[a-b.c:d,Mixed ID]]
+Mixed target.
+
+[[topic:one,Topic One]]
+Topic target.
+
+[[http:local,Scheme-like local]]
+Scheme-like target.
+
+[[ordinary,Ordinary target]]
+Ordinary target.
+
+== Chapter: Details
+
+C08 <<topic:one>> and xref:topic:one[Backward macro].
+
+:colon-id: topic:one
+
+C09 xref:{colon-id}[Attribute] and xref:pass:[topic:one][Passthrough] and <<pass:[a-b.c:d],Passed shorthand>>.
+
+C10 \xref:topic:one[Escaped] and \<<topic:one>> and xref:topic:one[unfinished.
+
+C11 xref:dir.name/topic:one[Directory dot] and <<missing.id,Missing dotted shorthand>> and xref:missing.id[External file].

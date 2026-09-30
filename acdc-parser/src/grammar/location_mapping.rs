@@ -572,7 +572,7 @@ fn map_inline_macro<'a>(
                 let restored = replace_passthrough_placeholders(xref.target, processed);
                 if restored != xref.target {
                     xref.target = state.intern_str(&restored);
-                    xref.target_is_local = crate::CrossReference::is_local_target(xref.target);
+                    xref.target_is_local = xref.source_syntax.target_is_local(xref.target);
                     xref.resolve_natural_target = false;
                 }
             }

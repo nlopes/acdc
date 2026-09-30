@@ -1,0 +1,796 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "colon-subs(1)",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 15
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 4,
+        "col": 20
+      }
+    ]
+  },
+  "attributes": {
+    "colon-id": "topic:one",
+    "manmanual": "Cross-reference tests",
+    "mansource": "acdc"
+  },
+  "blocks": [
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Name",
+          "location": [
+            {
+              "line": 6,
+              "col": 4
+            },
+            {
+              "line": 6,
+              "col": 7
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "colon-subs - colon target substitutions",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 1
+                },
+                {
+                  "line": 7,
+                  "col": 39
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 7,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 39
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 6,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 39
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Synopsis",
+          "location": [
+            {
+              "line": 9,
+              "col": 4
+            },
+            {
+              "line": 9,
+              "col": 11
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "colon-subs",
+                  "location": [
+                    {
+                      "line": 11,
+                      "col": 2
+                    },
+                    {
+                      "line": 11,
+                      "col": 11
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 11,
+                  "col": 1
+                },
+                {
+                  "line": 11,
+                  "col": 12
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 11,
+              "col": 1
+            },
+            {
+              "line": 11,
+              "col": 12
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 9,
+          "col": 1
+        },
+        {
+          "line": 11,
+          "col": 12
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Description",
+          "location": [
+            {
+              "line": 13,
+              "col": 4
+            },
+            {
+              "line": 13,
+              "col": 14
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "S01 ",
+              "location": [
+                {
+                  "line": 16,
+                  "col": 1
+                },
+                {
+                  "line": 16,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "xref",
+              "type": "inline",
+              "target": "topic:one",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Late attribute",
+                  "location": [
+                    {
+                      "line": 16,
+                      "col": 21
+                    },
+                    {
+                      "line": 16,
+                      "col": 34
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 16,
+                  "col": 5
+                },
+                {
+                  "line": 16,
+                  "col": 35
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " and ",
+              "location": [
+                {
+                  "line": 16,
+                  "col": 36
+                },
+                {
+                  "line": 16,
+                  "col": 40
+                }
+              ]
+            },
+            {
+              "name": "xref",
+              "type": "inline",
+              "target": "topic:one",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Written",
+                  "location": [
+                    {
+                      "line": 16,
+                      "col": 56
+                    },
+                    {
+                      "line": 16,
+                      "col": 62
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 16,
+                  "col": 41
+                },
+                {
+                  "line": 16,
+                  "col": 63
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 16,
+                  "col": 64
+                },
+                {
+                  "line": 16,
+                  "col": 64
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "macros",
+              "attributes"
+            ]
+          },
+          "location": [
+            {
+              "line": 15,
+              "col": 1
+            },
+            {
+              "line": 16,
+              "col": 64
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "S02 ",
+              "location": [
+                {
+                  "line": 19,
+                  "col": 1
+                },
+                {
+                  "line": 19,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "xref",
+              "type": "inline",
+              "target": "topic:one",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Early attribute",
+                  "location": [
+                    {
+                      "line": 19,
+                      "col": 21
+                    },
+                    {
+                      "line": 19,
+                      "col": 35
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 19,
+                  "col": 5
+                },
+                {
+                  "line": 19,
+                  "col": 36
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 19,
+                  "col": 37
+                },
+                {
+                  "line": 19,
+                  "col": 37
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "attributes",
+              "macros"
+            ]
+          },
+          "location": [
+            {
+              "line": 18,
+              "col": 1
+            },
+            {
+              "line": 19,
+              "col": 37
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "S03 xref:topic:one[Disabled] and <<topic:one>>.",
+              "location": [
+                {
+                  "line": 22,
+                  "col": 1
+                },
+                {
+                  "line": 22,
+                  "col": 47
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "-macros"
+            ]
+          },
+          "location": [
+            {
+              "line": 21,
+              "col": 1
+            },
+            {
+              "line": 22,
+              "col": 47
+            }
+          ]
+        },
+        {
+          "name": "listing",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "----",
+          "metadata": {
+            "attributes": {
+              "language": "rust"
+            },
+            "style": "source",
+            "substitutions": [
+              "+macros"
+            ]
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "S04 ",
+              "location": [
+                {
+                  "line": 26,
+                  "col": 1
+                },
+                {
+                  "line": 26,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "xref",
+              "type": "inline",
+              "target": "topic:one",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Code",
+                  "location": [
+                    {
+                      "line": 26,
+                      "col": 20
+                    },
+                    {
+                      "line": 26,
+                      "col": 23
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 26,
+                  "col": 5
+                },
+                {
+                  "line": 26,
+                  "col": 24
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " ",
+              "location": [
+                {
+                  "line": 26,
+                  "col": 25
+                },
+                {
+                  "line": 26,
+                  "col": 25
+                }
+              ]
+            },
+            {
+              "name": "xref",
+              "type": "inline",
+              "target": "topic:one",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Short code",
+                  "location": [
+                    {
+                      "line": 26,
+                      "col": 38
+                    },
+                    {
+                      "line": 26,
+                      "col": 47
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 26,
+                  "col": 26
+                },
+                {
+                  "line": 26,
+                  "col": 49
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " ",
+              "location": [
+                {
+                  "line": 26,
+                  "col": 50
+                },
+                {
+                  "line": 26,
+                  "col": 50
+                }
+              ]
+            },
+            {
+              "name": "xref",
+              "type": "inline",
+              "target": "a-b.c:d",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Dot code",
+                  "location": [
+                    {
+                      "line": 26,
+                      "col": 65
+                    },
+                    {
+                      "line": 26,
+                      "col": 72
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 26,
+                  "col": 51
+                },
+                {
+                  "line": 26,
+                  "col": 73
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "\nS05 ",
+              "location": [
+                {
+                  "line": 26,
+                  "col": 74
+                },
+                {
+                  "line": 27,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "xref",
+              "type": "inline",
+              "target": "topic:one",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Passed code",
+                  "location": [
+                    {
+                      "line": 27,
+                      "col": 27
+                    },
+                    {
+                      "line": 27,
+                      "col": 37
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 27,
+                  "col": 5
+                },
+                {
+                  "line": 27,
+                  "col": 38
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 24,
+              "col": 1
+            },
+            {
+              "line": 28,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Topic target.",
+              "location": [
+                {
+                  "line": 31,
+                  "col": 1
+                },
+                {
+                  "line": 31,
+                  "col": 13
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "anchors": [
+              {
+                "id": "topic:one",
+                "xreflabel": "Topic One",
+                "location": [
+                  {
+                    "line": 30,
+                    "col": 1
+                  },
+                  {
+                    "line": 30,
+                    "col": 24
+                  }
+                ]
+              }
+            ]
+          },
+          "location": [
+            {
+              "line": 30,
+              "col": 1
+            },
+            {
+              "line": 31,
+              "col": 13
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Mixed target.",
+              "location": [
+                {
+                  "line": 34,
+                  "col": 1
+                },
+                {
+                  "line": 34,
+                  "col": 13
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "anchors": [
+              {
+                "id": "a-b.c:d",
+                "xreflabel": "Mixed ID",
+                "location": [
+                  {
+                    "line": 33,
+                    "col": 1
+                  },
+                  {
+                    "line": 33,
+                    "col": 21
+                  }
+                ]
+              }
+            ]
+          },
+          "location": [
+            {
+              "line": 33,
+              "col": 1
+            },
+            {
+              "line": 34,
+              "col": 13
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 13,
+          "col": 1
+        },
+        {
+          "line": 34,
+          "col": 13
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 34,
+      "col": 13
+    }
+  ]
+}

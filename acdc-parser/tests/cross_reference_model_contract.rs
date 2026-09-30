@@ -5,6 +5,103 @@ use acdc_parser::{
 
 type Error = Box<dyn std::error::Error>;
 
+// Fixture JSON omits whether a cross-reference targets this document.
+#[test]
+fn cross_reference_syntax_classifies_punctuation_before_catalog_lookup() -> Result<(), Error> {
+    for (source, target, local) in [
+        ("<<:colon,Label>>", ":colon", true),
+        ("xref::colon[Label]", ":colon", true),
+        ("<<a-b.c:d>>", "a-b.c:d", true),
+        ("xref:a-b.c:d[]", "a-b.c:d", false),
+        ("xref:#a-b.c:d[]", "#a-b.c:d", true),
+        ("xref:http:local[]", "http:local", true),
+        ("xref:dir.name/topic:one[]", "dir.name/topic:one", true),
+        ("xref:guide.adoc#topic:one[]", "guide.adoc#topic:one", false),
+    ] {
+        let parsed = parse_inline(source, &Options::default())?;
+        let [InlineNode::Macro(InlineMacro::CrossReference(xref))] = parsed.inlines() else {
+            return Err(format!(
+                "expected cross-reference for {source}: {:?}",
+                parsed.inlines()
+            )
+            .into());
+        };
+        assert_eq!(
+            (xref.target, xref.target_is_local),
+            (target, local),
+            "{source}"
+        );
+        assert_eq!(xref.location.absolute_start, 0, "{source}");
+        assert_eq!(xref.location.absolute_end, source.len() - 1, "{source}");
+        assert_eq!(
+            xref.location.end.column,
+            u32::try_from(source.chars().count())?,
+            "{source}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn passthrough_cross_reference_targets_keep_source_classification() -> Result<(), Error> {
+    for (source, target, local) in [
+        ("xref:pass:[topic:one][]", "topic:one", true),
+        ("xref:pass:[a-b.c:d][]", "a-b.c:d", false),
+        ("xref:pass:[#a-b.c:d][]", "a-b.c:d", true),
+    ] {
+        let parsed = parse(source, &Options::default())?;
+        let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+            return Err("expected paragraph".into());
+        };
+        let [InlineNode::Macro(InlineMacro::CrossReference(xref))] = paragraph.content.as_slice()
+        else {
+            return Err(format!("expected cross-reference for {source}").into());
+        };
+        assert_eq!((xref.target, xref.target_is_local), (target, local));
+        assert_eq!(xref.location.absolute_start, 0);
+        assert_eq!(xref.location.absolute_end, source.len() - 1);
+        assert_eq!(
+            xref.location.end.column,
+            u32::try_from(source.chars().count())?
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn compatibility_mode_keeps_the_entire_cross_reference_target_local() -> Result<(), Error> {
+    let parsed = parse(
+        ":compat-mode:\n\n<<topic:one>> xref:topic:one[] xref:a-b.c:d[] xref:#topic:one[] xref:guide.adoc[]\n",
+        &Options::default(),
+    )?;
+    let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.first() else {
+        return Err("missing paragraph".into());
+    };
+    let targets = paragraph
+        .content
+        .iter()
+        .filter_map(|inline| {
+            if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline {
+                assert!(xref.target_is_local);
+                Some(xref.target)
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        targets,
+        [
+            "topic:one",
+            "topic:one",
+            "a-b.c:d",
+            "#topic:one",
+            "guide.adoc"
+        ]
+    );
+    Ok(())
+}
+
 #[test]
 fn unused_block_metadata_does_not_register_references_or_footnotes() -> Result<(), Error> {
     // Fixture JSON omits the document's reference and footnote catalogs.

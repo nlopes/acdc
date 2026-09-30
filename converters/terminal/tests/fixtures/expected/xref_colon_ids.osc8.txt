@@ -1,0 +1,35 @@
+[1m[4mcolon-xrefs(1)[0m
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mName[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+colon-xrefs - colon-containing local targets
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mSynopsis[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[1mcolon-xrefs[22m
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mDescription[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+C01 [38;5;12m[4mLeading colon[24m[39m and [38;5;12m[4mLeading label[24m[39m and [38;5;12m[4mLeading macro[24m[39m and [38;5;12m[4mLeading fragment[24m[39m.
+C02 [38;5;12m[4mMixed ID[24m[39m and [38;5;12m[4mMixed shorthand[24m[39m and [38;5;12m[4m[a-b.c:d][24m[39m and [38;5;12m[4mMixed macro[24m[39m and [38;5;12m[4mMixed fragment[24m[39m.
+C03 [38;5;12m[4mTopic One[24m[39m and [38;5;12m[4mTopic One[24m[39m and [38;5;12m[4mTopic fragment[24m[39m.
+C04 [38;5;12m[4mScheme-like local[24m[39m and [38;5;12m[4mScheme-like ID[24m[39m.
+C05 [38;5;12m[4m[missing:one][24m[39m and [38;5;12m[4mMissing macro[24m[39m and [38;5;12m[4mMissing fragment[24m[39m.
+C06 [38;5;12m[4mOther document[24m[39m and [38;5;12m[4mExternal URL[24m[39m.
+C07 [38;5;12m[4mChapter: Details[24m[39m and [38;5;12m[4mOrdinary[24m[39m.
+Leading target.
+Mixed target.
+Topic target.
+Scheme-like target.
+Ordinary target.
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mChapter: Details[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+C08 [38;5;12m[4mTopic One[24m[39m and [38;5;12m[4mBackward macro[24m[39m.
+C09 [38;5;12m[4mAttribute[24m[39m and [38;5;12m[4mPassthrough[24m[39m and <<a-b.c:d,Passed shorthand>>.
+C10 xref:topic:one[Escaped] and <<topic:one>> and xref:topic:one[unfinished.
+C11 [38;5;12m[4mDirectory dot[24m[39m and [38;5;12m[4mMissing dotted shorthand[24m[39m and [38;5;12m[4mExternal file[24m[39m.

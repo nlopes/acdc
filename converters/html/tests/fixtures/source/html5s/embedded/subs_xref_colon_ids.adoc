@@ -1,0 +1,34 @@
+= colon-subs(1)
+:manmanual: Cross-reference tests
+:mansource: acdc
+:colon-id: topic:one
+
+== Name
+colon-subs - colon target substitutions
+
+== Synopsis
+
+*colon-subs*
+
+== Description
+
+[subs="macros,attributes"]
+S01 xref:{colon-id}[Late attribute] and xref:topic:one[Written].
+
+[subs="attributes,macros"]
+S02 xref:{colon-id}[Early attribute].
+
+[subs=-macros]
+S03 xref:topic:one[Disabled] and <<topic:one>>.
+
+[source,rust,subs=+macros]
+----
+S04 xref:topic:one[Code] <<topic:one,Short code>> xref:#a-b.c:d[Dot code]
+S05 xref:pass:[topic:one][Passed code]
+----
+
+[[topic:one,Topic One]]
+Topic target.
+
+[[a-b.c:d,Mixed ID]]
+Mixed target.

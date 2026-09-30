@@ -654,7 +654,11 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         let references = Rc::clone(&self.processor.references);
         let guard = self.processor.xref_guard.clone();
         let target = xref.target;
-        match resolve_xref(references.get(target), xref, &guard) {
+        // Manpages print reference text without a link. Asciidoctor uses a
+        // matching local label even when the syntax selects another document.
+        let mut display_xref = xref.clone();
+        display_xref.target_is_local = true;
+        match resolve_xref(references.get(target), &display_xref, &guard) {
             // A reference to a level-1 section reads as that section's `.SH`
             // heading, which manpages upper-case. An explicit label reads as
             // written.

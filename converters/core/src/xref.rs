@@ -110,7 +110,7 @@ pub fn reference_text<'r, 'a>(reference: &'r Reference<'a>) -> Option<&'r [Inlin
 /// local and untitled targets fall back to `[id]`,
 /// matching Asciidoctor, and so does a reference that `guard` reports as nested
 /// inside another one's text. Inter-document targets are returned separately
-/// for backend-specific links.
+/// for backend-specific links, even if the local catalog contains the same ID.
 #[must_use]
 pub fn resolve_xref<'r, 'a>(
     reference: Option<&'r Reference<'a>>,
@@ -118,13 +118,12 @@ pub fn resolve_xref<'r, 'a>(
     guard: &'r XrefGuard,
 ) -> XrefDisplay<'r, 'a> {
     let target = xref.target;
+    if !xref.target_is_local {
+        return XrefDisplay::External(target.to_string());
+    }
     let fallback = if target.is_empty() { "^top" } else { target };
     let Some(reference) = reference else {
-        return if xref.target_is_local {
-            XrefDisplay::Unresolved(format!("[{fallback}]"))
-        } else {
-            XrefDisplay::External(target.to_string())
-        };
+        return XrefDisplay::Unresolved(format!("[{fallback}]"));
     };
     if guard.is_resolving() {
         return XrefDisplay::Nested(format!("[{fallback}]"));
@@ -768,6 +767,19 @@ mod tests {
             resolve_xref(None, &xref("no-such-id", XrefStyle::Basic), &guard),
             XrefDisplay::Unresolved(text) if text == "[no-such-id]"
         ));
+    }
+
+    #[test]
+    fn external_reference_ignores_a_matching_local_catalog_entry() -> Result<(), Error> {
+        let parsed = catalog()?;
+        let mut external = xref("titled", XrefStyle::Basic);
+        external.target_is_local = false;
+        let guard = XrefGuard::default();
+        assert!(matches!(
+            resolve_xref(parsed.document().references.get("titled"), &external, &guard),
+            XrefDisplay::External(target) if target == "titled"
+        ));
+        Ok(())
     }
 
     #[test]

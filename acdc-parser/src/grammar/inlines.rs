@@ -2271,6 +2271,7 @@ peg::parser! {
             if xref.resolve_natural_target {
                 xref.source_syntax = crate::model::XrefSourceSyntax::Shorthand;
             }
+            xref.target_is_local = xref.source_syntax.target_is_local(xref.target);
             xref.xrefstyle = crate::XrefStyle::from_attribute(
                 state
                     .document_attributes
@@ -2301,12 +2302,8 @@ peg::parser! {
 
         /// Parse cross-reference macro syntax: xref:id[text] or xref:file.adoc#anchor[text]
         rule cross_reference_macro() -> InlineNode<'input>
-        = "xref:" target:source() fragment:xref_fragment()? "[" content_start:position!() raw_text:cross_reference_macro_text() "]"
+        = "xref:" target_str:xref_target() "[" content_start:position!() raw_text:cross_reference_macro_text() "]"
         {?
-            let target_str: &'input str = match fragment {
-                Some(f) => state.intern_fmt(format_args!("{target}{f}")),
-                None => state.intern_fmt(format_args!("{target}")),
-            };
             let bm = BlockParsingMetadata {
                 substitutions: state.inline_ctx.substitutions,
                 ..BlockParsingMetadata::default()
@@ -2347,6 +2344,7 @@ peg::parser! {
             if !state.document_attributes.contains_key("compat-mode") {
                 xref.source_syntax = crate::model::XrefSourceSyntax::Macro;
             }
+            xref.target_is_local = xref.source_syntax.target_is_local(xref.target);
             // A per-reference `xrefstyle=` wins over the document's, including
             // an unrecognised one, which Asciidoctor treats as `basic`.
             xref.xrefstyle = crate::XrefStyle::from_attribute(
@@ -2400,7 +2398,7 @@ peg::parser! {
 
         /// Match cross-reference macro syntax without consuming: xref:id[text] or xref:file.adoc#anchor[text]
         rule cross_reference_macro_match()
-        = "xref:" source() xref_fragment()? "[" cross_reference_macro_text() "]"
+        = "xref:" xref_target() "[" cross_reference_macro_text() "]"
 
         rule bold_text_unconstrained() -> InlineNode<'input>
             = attrs:inline_attributes()? start:position!() "**" content_start:position!() content:$((!(eol() / ![_] / "**") [_])+) close:position!() "**" check_quote_markers((start, 2), (close, 2)) end:position!()
@@ -3565,10 +3563,11 @@ peg::parser! {
         /// (e.g., `http://example.com.)` keeps both `.` and `)` outside).
         rule bare_url_char() = bare_url_safe_char() / bare_url_trailing_char() / "("
 
-        /// Cross-reference fragments may be empty (document top) or contain ID punctuation.
-        rule xref_fragment() -> Cow<'input, str>
-            = fragment:$("#" (!['[' | ' ' | '\t' | '\r' | '\n'] [_])*)
-        { Cow::Borrowed(fragment) }
+        // Xref targets are IDs or source paths, not media URLs. Keep their
+        // punctuation intact until source syntax selects a local or external link.
+        rule xref_target() -> &'input str
+            = target:$((passthrough_placeholder() / path_char() / [':' | '#']) (!['[' | ' ' | '\t' | '\r' | '\n'] [_])*)
+        { target }
 
         /// Fragment identifier for a `link:` macro.
         rule path_fragment() -> Cow<'input, str>

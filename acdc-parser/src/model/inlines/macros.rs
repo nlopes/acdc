@@ -322,6 +322,24 @@ pub(crate) enum XrefSourceSyntax {
     Macro,
 }
 
+impl XrefSourceSyntax {
+    pub(crate) fn target_is_local(self, target: &str) -> bool {
+        // Compatibility mode treats the entire target as an ID. Otherwise a
+        // colon is ID punctuation; only a path before # or a macro filename
+        // selects another document. Shorthand permits dots in local IDs.
+        if matches!(self, Self::Literal) {
+            return true;
+        }
+        match target.split_once('#') {
+            Some((path, _)) => path.is_empty(),
+            None => {
+                matches!(self, Self::Shorthand)
+                    || !target.rsplit('/').next().unwrap_or(target).contains('.')
+            }
+        }
+    }
+}
+
 /// The word that introduces a section number in an automatic cross-reference.
 ///
 /// Asciidoctor reads it from `<name>-refsig` where the reference is written,

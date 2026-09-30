@@ -1,0 +1,68 @@
+'\" t
+.\"     Title: colon-xrefs
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-09-30
+.\"    Manual: Cross-reference tests
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "COLON\-XREFS" "1" "2026-09-30" "acdc" "Cross-reference tests"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+colon\-xrefs \- colon\-containing local targets
+.SH "SYNOPSIS"
+.sp
+\fBcolon\-xrefs\fP
+.SH "DESCRIPTION"
+.sp
+C01 Leading colon and Leading label and Leading macro and Leading fragment\&.
+.sp
+C02 Mixed ID and Mixed shorthand and Mixed ID and Mixed macro and Mixed fragment\&.
+.sp
+C03 Topic One and Topic One and Topic fragment\&.
+.sp
+C04 Scheme\-like local and Scheme\-like ID\&.
+.sp
+C05 [missing:one] and Missing macro and Missing fragment\&.
+.sp
+C06 Other document and External URL\&.
+.sp
+C07 CHAPTER: DETAILS and Ordinary\&.
+.sp
+Leading target.
+.sp
+Mixed target.
+.sp
+Topic target.
+.sp
+Scheme\-like target.
+.sp
+Ordinary target.
+.SH "CHAPTER: DETAILS"
+.sp
+C08 Topic One and Backward macro\&.
+.sp
+C09 Attribute and Passthrough and <<a\-b.c:d,Passed shorthand>>.
+.sp
+C10 xref:topic:one[Escaped] and <<topic:one>> and xref:topic:one[unfinished.
+.sp
+C11 Directory dot and Missing dotted shorthand and External file\&.

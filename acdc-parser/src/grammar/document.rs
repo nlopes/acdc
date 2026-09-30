@@ -2146,14 +2146,6 @@ fn collect_inline_references<'a>(
     }
 }
 
-/// Whether a cross-reference target is an internal id (a bare anchor name) as opposed to
-/// an inter-document / external reference. Targets containing a fragment (`#`), path
-/// separator (`/`), file extension (`.`), or scheme (`:`) address another resource and
-/// are not validated against this document's catalog.
-fn is_internal_reference(target: &str) -> bool {
-    !target.is_empty() && !target.contains(['#', '.', '/', ':'])
-}
-
 fn get_literal_paragraph<'input>(
     state: &mut ParserState<'input>,
     content: &'input str,
@@ -3178,14 +3170,15 @@ peg::parser! {
                     &reference_ids,
                     &references.natural_targets,
                 ));
-                if xref.automatic
+                let target_is_local = source_target.is_some()
+                    || xref.source_syntax.target_is_local(target);
+                if target_is_local && xref.automatic
                     && let Some(reference) = document.references.get_mut(target)
                     && reference.is_bibliography()
                 {
                     reference.automatic_citation = true;
                 }
-                if (source_target.is_some() || is_internal_reference(target))
-                    && !reference_ids.contains(target)
+                if target_is_local && !reference_ids.contains(target)
                 {
                     let source_location = state.create_error_source_location(xref.location);
                     state.add_warning(Warning::new(

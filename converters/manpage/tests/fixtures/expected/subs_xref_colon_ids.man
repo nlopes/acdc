@@ -1,0 +1,49 @@
+'\" t
+.\"     Title: colon-subs
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-09-30
+.\"    Manual: Cross-reference tests
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "COLON\-SUBS" "1" "2026-09-30" "acdc" "Cross-reference tests"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+colon\-subs \- colon target substitutions
+.SH "SYNOPSIS"
+.sp
+\fBcolon\-subs\fP
+.SH "DESCRIPTION"
+.sp
+S01 Late attribute and Written\&.
+.sp
+S02 Early attribute\&.
+.sp
+S03 xref:topic:one[Disabled] and <<topic:one>>.
+.EX
+S04 Code Short code Dot code
+S05 Passed code
+.EE
+.sp
+Topic target.
+.sp
+Mixed target.

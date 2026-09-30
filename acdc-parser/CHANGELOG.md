@@ -57,6 +57,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Cross-references to IDs containing colons now resolve locally in both shorthand
+  and `xref:` macros, including explicit labels and enabled code. As in
+  Asciidoctor, use `xref:#a-b.c:d[]` for a local ID containing a dot;
+  `xref:a-b.c:d[]` addresses an external resource. Existing passthrough targets
+  remain supported, unlike Asciidoctor, which leaves those macros literal.
+  Missing local IDs containing punctuation now report unresolved-reference warnings.
+
 - Escaped characters inside formatted macro labels report their original source
   positions, including labels inside staged passthroughs.
 

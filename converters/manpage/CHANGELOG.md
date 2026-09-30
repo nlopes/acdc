@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Cross-references to IDs containing colons now display their reference labels
+  in `xref:` macros and enabled code. Manpages also retain local reference labels
+  for filename-like targets, matching Asciidoctor's text-only rendering.
+  Existing passthrough targets remain supported, unlike Asciidoctor, which
+  leaves those macros literal.
+
 - Literal bracket backslashes now survive in escaped macros and ordinary text,
   matching Asciidoctor. Active links, cross-references, footnotes, and named
   index terms consume only their closing-delimiter escape. Footnotes with `\]`

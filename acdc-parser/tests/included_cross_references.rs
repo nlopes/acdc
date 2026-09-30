@@ -25,6 +25,41 @@ fn cross_references<'d, 'a>(blocks: &'d [Block<'a>]) -> Vec<&'d CrossReference<'
 }
 
 #[test]
+fn colon_references_warn_only_for_missing_local_targets() -> Result<(), Error> {
+    let parsed = parse(
+        include_str!("../fixtures/tests/xref_colon_ids.adoc"),
+        &Options::default(),
+    )?;
+    let missing = parsed
+        .warnings()
+        .iter()
+        .filter_map(|warning| {
+            if let WarningKind::UnresolvedReference { target } = &warning.kind {
+                Some(target.as_str())
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        missing,
+        [
+            "missing:one",
+            "missing:one",
+            "missing:one",
+            "dir.name/topic:one",
+            "missing.id"
+        ]
+    );
+    for xref in cross_references(&parsed.document().blocks) {
+        if [":colon", "topic:one", "http:local"].contains(&xref.target) {
+            assert!(xref.target_is_local, "{xref:?}");
+        }
+    }
+    Ok(())
+}
+
+#[test]
 fn included_references_report_only_missing_local_fragments() -> Result<(), Error> {
     let parsed = parse_file(
         "fixtures/tests/xref_included_sources.adoc",

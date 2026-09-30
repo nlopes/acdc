@@ -1,0 +1,30 @@
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>colon-xrefs - colon-containing local targets</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_synopsis">Synopsis</h2>
+<p><strong>colon-xrefs</strong></p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_description">Description</h2>
+<p>C01 <a href="#:colon">Leading colon</a> and <a href="#:colon">Leading label</a> and <a href="#:colon">Leading macro</a> and <a href="#:colon">Leading fragment</a>.</p>
+<p>C02 <a href="#a-b.c:d">Mixed ID</a> and <a href="#a-b.c:d">Mixed shorthand</a> and <a href="a-b.c:d">a-b.c:d</a> and <a href="a-b.c:d">Mixed macro</a> and <a href="#a-b.c:d">Mixed fragment</a>.</p>
+<p>C03 <a href="#topic:one">Topic One</a> and <a href="#topic:one">Topic One</a> and <a href="#topic:one">Topic fragment</a>.</p>
+<p>C04 <a href="#http:local">Scheme-like local</a> and <a href="#http:local">Scheme-like ID</a>.</p>
+<p>C05 <a href="#missing:one">[missing:one]</a> and <a href="#missing:one">Missing macro</a> and <a href="#missing:one">Missing fragment</a>.</p>
+<p>C06 <a href="guide.html#topic:one">Other document</a> and <a href="https://example.org/guide.html#topic:one">External URL</a>.</p>
+<p>C07 <a href="#_chapter_details">Chapter: Details</a> and <a href="#ordinary">Ordinary</a>.</p>
+<p><a id=":colon"></a>Leading target.</p>
+<p id="a-b.c:d">Mixed target.</p>
+<p id="topic:one">Topic target.</p>
+<p id="http:local">Scheme-like target.</p>
+<p id="ordinary">Ordinary target.</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_chapter_details">Chapter: Details</h2>
+<p>C08 <a href="#topic:one">Topic One</a> and <a href="#topic:one">Backward macro</a>.</p>
+<p>C09 <a href="#topic:one">Attribute</a> and <a href="#topic:one">Passthrough</a> and &lt;&lt;a-b.c:d,Passed shorthand&gt;&gt;.</p>
+<p>C10 xref:topic:one[Escaped] and &lt;&lt;topic:one&gt;&gt; and xref:topic:one[unfinished.</p>
+<p>C11 <a href="#dir.name/topic:one">Directory dot</a> and <a href="#missing.id">Missing dotted shorthand</a> and <a href="missing.id">External file</a>.</p>
+</section>

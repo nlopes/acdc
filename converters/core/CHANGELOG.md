@@ -112,6 +112,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- External cross-references retain their external destination and fallback text
+  even when a local anchor has the same name.
+
 - Literal bracket backslashes now survive in escaped macros and ordinary text,
   matching Asciidoctor. Active links, cross-references, footnotes, and named
   index terms consume only their closing-delimiter escape. Footnotes with `\]`

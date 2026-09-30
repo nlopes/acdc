@@ -714,6 +714,26 @@ fn text_origin(pdf: &PdfDocument, page: u32, needle: &str) -> Result<(f32, f32),
 }
 
 #[test]
+fn colon_cross_references_use_local_pdf_destinations() -> Result<(), Error> {
+    let pdf = render_input(
+        "= Colon links\n\n<<:colon,Short>> xref::colon[Macro] xref:#a-b.c:d[Fragment] <<a-b.c:d,Mixed>>\n\n<<<\n\nanchor::colon[Colon]Target.\n\n[[a-b.c:d,Mixed]]\nOther target.\n\nxref:a-b.c:d[External]\n",
+    )?;
+    assert_eq!(internal_link_pages(&pdf, 1)?, [2, 2, 2, 2]);
+    let page = *pdf.get_pages().get(&2).ok_or("missing second page")?;
+    let mut uris = Vec::new();
+    for annotation in pdf.get_page_annotations(page)? {
+        if let Ok(action) = annotation.get(b"A") {
+            let (_, action) = pdf.dereference(action)?;
+            if let Ok(uri) = action.as_dict()?.get(b"URI") {
+                uris.push(String::from_utf8(uri.as_str()?.to_vec())?);
+            }
+        }
+    }
+    assert_eq!(uris, ["a-b.c:d"]);
+    Ok(())
+}
+
+#[test]
 fn included_source_references_create_internal_pdf_destinations() -> Result<(), Error> {
     let parsed = parse_file(
         "tests/fixtures/source/xref_included_sources.adoc",
