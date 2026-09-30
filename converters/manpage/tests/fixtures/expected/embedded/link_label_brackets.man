@@ -75,9 +75,9 @@ and \c
 .sp
 Unfinished: link:\c
 .URL "https://example.org" "" ""
-[Label ] tail.
+[Label \e] tail.
 .sp
-Escaped: link:https://example.org[One ] two].
+Escaped: link:https://example.org[One \e] two].
 .sp
 Control: \c
 .URL "https://example.org" "Plain" ""

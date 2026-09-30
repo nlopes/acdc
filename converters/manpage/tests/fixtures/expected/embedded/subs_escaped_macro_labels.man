@@ -1,0 +1,23 @@
+.SH "DESCRIPTION"
+.sp
+S01 Normal indexterm2:[Label \e] text].
+.sp
+S02 indexterm2:[Disabled \e] text] and ((Disabled short \e] text)).
+.sp
+S03 indexterm2:[Attribute \e] text].
+.sp
+S04 indexterm2:[Attribute \e] text].
+.EX
+S05 indexterm2:[Code \e] text]
+S06 xref:target[Code \e] text]
+S07 [1]
+.EE
+.sp
+S08 indexterm2:[No substitutions \e] text].
+.sp
+S09 indexterm2:[\fBLate\fP \(em \e] text].
+.sp
+S10 [2]\&.
+.sp
+S11 [3]\&.
+.SH "INDEX"

@@ -9,10 +9,13 @@ fn unexpected(message: &str, actual: impl std::fmt::Debug) -> Error {
 fn plain_text(inlines: &[InlineNode<'_>]) -> Result<String, Error> {
     let mut text = String::new();
     for inline in inlines {
-        let InlineNode::PlainText(plain) = inline else {
-            return Err(unexpected("expected plain text", inlines));
-        };
-        text.push_str(plain.content);
+        if let InlineNode::PlainText(plain) = inline {
+            text.push_str(plain.content);
+        } else if let InlineNode::RawText(raw) = inline {
+            text.push_str(raw.content);
+        } else {
+            return Err(unexpected("expected unformatted text", inlines));
+        }
     }
     Ok(text)
 }

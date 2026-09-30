@@ -57,6 +57,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Escaped characters inside formatted macro labels report their original source
+  positions, including labels inside staged passthroughs.
+
+- Literal bracket backslashes now survive in escaped macros and ordinary text,
+  matching Asciidoctor. Active links, cross-references, footnotes, and named
+  index terms consume only their closing-delimiter escape. Footnotes with `\]`
+  keep the complete body instead of ending at the escaped bracket.
+
 - Index labels preserve literal square-bracket backslashes in shorthand terms
   such as `((One \] term))`. Named index macros remove one closing-bracket escape;
   enclosing links remove one more from display text after catalog registration,

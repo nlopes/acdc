@@ -77,11 +77,11 @@
 ]
 #v(1em)
 
-#text("pass:m[link:https://example.org[Label")#text("]")#text("]")
+#text("pass:m[link:https://example.org[Label\\]]")
 
-#text("pass:a,m[link:https://example.org[Expanded")#text("]")#text("]")
+#text("pass:a,m[link:https://example.org[Expanded\\]]")
 
-#text("pass:m[link:https://example.org[Label")#text("]")#text("]")
+#text("pass:m[link:https://example.org[Label\\]]")
 
 #link("https://example.org")[#text("Expanded")]
 

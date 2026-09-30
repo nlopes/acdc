@@ -1908,7 +1908,7 @@
                   ]
                 },
                 {
-                  "name": "text",
+                  "name": "raw",
                   "type": "string",
                   "value": "]",
                   "location": [
@@ -1918,7 +1918,7 @@
                     },
                     {
                       "line": 46,
-                      "col": 28
+                      "col": 29
                     }
                   ]
                 },

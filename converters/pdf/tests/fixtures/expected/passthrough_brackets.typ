@@ -109,9 +109,9 @@
 
 #text("Unescaped inner closing bracket: ")#text("link:")#link("https://example.org")[#text("https://example.org")]#text("[Label")#text("].")
 
-#text("Unfinished passthrough: pass:m[link:")#link("https://example.org")[#text("https://example.org")]#text("[Label")#text("]")#text(" after.")
+#text("Unfinished passthrough: pass:m[link:")#link("https://example.org")[#text("https://example.org")]#text("[Label\\] after.")
 
-#text("Escaped passthrough: ")#text("pass:m[link:https://example.org[Label]")#text("].")
+#text("Escaped passthrough: ")#text("pass:m[link:https://example.org[Label\\]")#text("].")
 
 #text("Macros disabled inside: ")#text("link:https://example.org[Label")#text("]")#text(".")
 

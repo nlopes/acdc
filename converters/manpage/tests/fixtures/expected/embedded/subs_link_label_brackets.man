@@ -19,7 +19,7 @@
 .URL "https://example.org" "One ] two" ""
 
 .sp
-link:https://example.org[Literal ] text]
+link:https://example.org[Literal \e] text]
 .EX
 let label = One ] two;
 let mail = Mail ] label;

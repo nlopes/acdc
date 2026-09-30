@@ -1688,12 +1688,12 @@
                   "value": "\"",
                   "location": [
                     {
-                      "line": 1,
-                      "col": 7
+                      "line": 37,
+                      "col": 33
                     },
                     {
-                      "line": 1,
-                      "col": 8
+                      "line": 37,
+                      "col": 34
                     }
                   ]
                 },
@@ -1718,12 +1718,12 @@
                   "value": "\"",
                   "location": [
                     {
-                      "line": 1,
-                      "col": 14
+                      "line": 37,
+                      "col": 40
                     },
                     {
-                      "line": 1,
-                      "col": 15
+                      "line": 37,
+                      "col": 41
                     }
                   ]
                 },

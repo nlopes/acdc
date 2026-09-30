@@ -175,8 +175,8 @@ bitflags! {
         const EOI_HARD_BREAK = 1 << 3;
         /// Restrict label parsing to substitutions that precede index registration.
         const INDEX_CATALOG = 1 << 4;
-        /// Remove one closing-bracket escape inside a link label.
-        const LINK_LABEL = 1 << 5;
+        /// Remove one closing-bracket escape inside a link, xref, or footnote label.
+        const BRACKET_LABEL = 1 << 5;
         /// Remove escaped double quotes from a double-quoted link label.
         const DOUBLE_QUOTED_LINK = 1 << 6;
         /// Remove escaped single quotes from a single-quoted link label.

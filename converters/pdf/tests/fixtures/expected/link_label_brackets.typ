@@ -109,9 +109,9 @@
 
 #link("https://example.org")[#text("One ")#text("]")#text(" two")]#text(" ")#link("https://example.org")[#text("One ")#text("\\]")#text(" two")]#text(" ")#link("https://example.org")[#text("One ")#text("\\\\]")#text(" two")]#text(" ")#link("https://example.org")[#text("One ")#text("\\\\\\]")#text(" two")]
 
-#text("Unfinished: link:")#link("https://example.org")[#text("https://example.org")]#text("[Label ")#text("]")#text(" tail.")
+#text("Unfinished: link:")#link("https://example.org")[#text("https://example.org")]#text("[Label \\] tail.")
 
-#text("Escaped: ")#text("link:https://example.org[One ]")#text(" two].")
+#text("Escaped: ")#text("link:https://example.org[One \\]")#text(" two].")
 
 #text("Control: ")#link("https://example.org")[#text("Plain")]#text(" and ")#link("https://example.org")[#text("One [two] three")]#text(".")
 

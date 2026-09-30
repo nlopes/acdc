@@ -91,7 +91,7 @@
 
 #metadata(none) <__indexterm-2>#text("Expanded ")#text("\\]")#text(" term")
 
-#text("((Disabled ")#text("]")#text(" term))")
+#text("((Disabled \\] term))")
 
 #{
   let index-anchors = (
@@ -140,7 +140,7 @@
 
 #metadata(none) <__indexterm-6>#strong[#text("Late ")#text("\\]")#text(" bold")]
 
-#metadata(none) <__indexterm-7>#text("Pass repeated ")#text("\\")#text("]")#text(" term")
+#metadata(none) <__indexterm-7>#text("Pass repeated ")#text("\\]")#text(" term")
 
 #metadata(none) <__indexterm-8>#text("Expanded ")#text("]")#text(" term")
 
@@ -209,5 +209,5 @@
 #text(weight: "bold")[#text("P")]
 #v(0.25em)
 #par(hanging-indent: 1em)[#text("Pass ")#text("]")#text(" term")#_acdc_index_pages((<__indexterm-5>,), "term")]
-#par(hanging-indent: 1em)[#text("Pass repeated ")#text("\\")#text("]")#text(" term")#_acdc_index_pages((<__indexterm-7>,), "term")]
+#par(hanging-indent: 1em)[#text("Pass repeated ")#text("\\]")#text(" term")#_acdc_index_pages((<__indexterm-7>,), "term")]
 ]

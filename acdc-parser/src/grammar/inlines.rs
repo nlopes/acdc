@@ -399,7 +399,7 @@ fn parse_index_term<'a>(
         || plan.precedes(&Substitution::Macros, &Substitution::Quotes)
         || plan.precedes(&Substitution::Macros, &Substitution::Replacements)
         || state.inline_ctx.rules.intersects(InlineRules::QUOTED_LINK)
-        || (state.inline_ctx.rules.contains(InlineRules::LINK_LABEL) && source.contains("\\]"))
+        || (state.inline_ctx.rules.contains(InlineRules::BRACKET_LABEL) && source.contains("\\]"))
         || source
             .chars()
             .any(|character| matches!(character, ':' | '<' | '[' | '@'))
@@ -408,10 +408,10 @@ fn parse_index_term<'a>(
         inline_ctx.offset = 0;
         inline_ctx.substitutions = plan.through(&Substitution::Macros);
         inline_ctx.rules.insert(InlineRules::INDEX_CATALOG);
-        // Registration precedes the enclosing link's bracket and quote unescaping.
+        // Index registration precedes enclosing-label bracket and quote unescaping.
         inline_ctx
             .rules
-            .remove(InlineRules::LINK_LABEL | InlineRules::QUOTED_LINK);
+            .remove(InlineRules::BRACKET_LABEL | InlineRules::QUOTED_LINK);
         let mut child = ParserState::for_inline_parsing(source, state, inline_ctx);
         if restored_ranges.is_empty() {
             child.attribute_value_ranges = state
@@ -1082,7 +1082,7 @@ fn process_link_content<'a>(
     // Keep source slices intact until the label parser consumes each escape.
     // Reset the quote mode for nested links, then restore the enclosing mode on errors too.
     let rules = state.inline_ctx.rules;
-    state.inline_ctx.rules.insert(InlineRules::LINK_LABEL);
+    state.inline_ctx.rules.insert(InlineRules::BRACKET_LABEL);
     state
         .inline_ctx
         .rules
@@ -1287,7 +1287,7 @@ peg::parser! {
             // Escaped syntax must come next - backslash prevents any following syntax from being parsed
             / check_macros() &['\\'] anchor:escaped_anchor_macro() { anchor }
             / &['\\'] bracket:index_label_bracket() { bracket }
-            / &['\\'] bracket:escaped_link_character() { bracket }
+            / &['\\'] bracket:escaped_label_character() { bracket }
             / &['\\'] escaped_syntax:escaped_syntax() { escaped_syntax }
             // Index terms: concealed (triple parens) must come before flow (double parens)
             / check_index_terms() &['('] index_term:index_term_concealed() { index_term }
@@ -1359,26 +1359,30 @@ peg::parser! {
         = "^" inner:$([^'^' | ' ' | '\t' | '\n']+) "^" { state.intern_fmt(format_args!("^{inner}^")) }
         / "~" inner:$([^'~' | ' ' | '\t' | '\n']+) "~" { state.intern_fmt(format_args!("~{inner}~")) }
 
-        // Link labels remove one bracket or enclosing-quote escape per run. Raw text
-        // prevents later substitutions from consuming a remaining backslash.
-        rule escaped_link_character() -> InlineNode<'input>
-        = content:$(escaped_link_character_match()) {
+        // Active bracket-delimited labels consume one closing-bracket escape.
+        // Quote escapes apply only inside quoted link labels; the remaining text
+        // still needs backend escaping, but no further AsciiDoc replacements.
+        rule escaped_label_character() -> InlineNode<'input>
+        = content:$(escaped_label_character_match()) {
+            let escapes = usize::from(structural_token_allowed(
+                state, &Substitution::Macros, span_start, content.len(),
+            ));
             InlineNode::RawText(Raw {
-                content: &content[1..],
+                content: &content[escapes..],
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
-                subs: Vec::new(),
+                subs: vec![Substitution::SpecialChars],
             })
         }
 
-        rule escaped_link_character_match()
-        = check_link_label() "\\"+ (
+        rule escaped_label_character_match()
+        = check_bracket_label() "\\"+ (
             "]"
             / check_link_quote(InlineRules::DOUBLE_QUOTED_LINK) "\""
             / check_link_quote(InlineRules::SINGLE_QUOTED_LINK) "'"
         )
 
         // A shorthand index has no square-bracket delimiter. Named macros and
-        // enclosing links each consume one closing-bracket escape, in that order.
+        // enclosing labels each consume one closing-bracket escape, in that order.
         // Raw text protects remaining backslashes from converter replacements.
         rule index_label_bracket() -> InlineNode<'input>
         = content:$(index_label_bracket_match()) {
@@ -1388,14 +1392,14 @@ peg::parser! {
                 && structural_token_allowed(state, &Substitution::Macros, span_start, content.len())
             {
                 usize::from(rules.contains(InlineRules::NAMED_INDEX_LABEL))
-                    + usize::from(rules.contains(InlineRules::LINK_LABEL))
+                    + usize::from(rules.contains(InlineRules::BRACKET_LABEL))
             } else {
                 0
             };
             InlineNode::RawText(Raw {
                 content: &content[escapes.min(content.len() - 1)..],
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
-                subs: Vec::new(),
+                subs: vec![Substitution::SpecialChars],
             })
         }
 
@@ -1407,13 +1411,10 @@ peg::parser! {
         rule check_link_quote(mode: InlineRules)
         = {? state.inline_ctx.rules.contains(mode).then_some(()).ok_or("quoted link label") }
 
-        rule check_link_label()
-        = {? state.inline_ctx.rules.contains(InlineRules::LINK_LABEL).then_some(()).ok_or("link label") }
+        rule check_bracket_label()
+        = {? state.inline_ctx.rules.contains(InlineRules::BRACKET_LABEL).then_some(()).ok_or("bracket-delimited label") }
 
-        /// Generic escaped syntax rule - matches backslash followed by content.
-        ///
-        /// Handles paired delimiters (`<<...>>`, `[...]`) as complete units,
-        /// and simple content until stop characters (space, punctuation).
+        /// Remove the escape before recognized inline syntax, keeping its text literal.
         rule escaped_syntax() -> InlineNode<'input>
         = check_catalog_escape() "\\" content:escaped_content() {
             InlineNode::PlainText(Plain {
@@ -1423,18 +1424,7 @@ peg::parser! {
             })
         }
 
-        /// Content after backslash - matches only escapable patterns.
-        ///
-        /// Matches in order:
-        /// 1. Double backslash + escapable pattern (for `\\**`, `\\<<id>>`, etc.)
-        /// 2. Paired delimiters: `<<...>>`, `[[...]]`, `prefix[...]`, `{...}`, `((...))`
-        /// 3. Typography patterns: `...`, `->`, `<-`, `=>`, `<=`, `--`
-        /// 4. Unconstrained formatting markers: `**`, `__`, `##`, ` `` `
-        /// 5. Single escapable characters: `*`, `_`, `#`, `` ` ``, `^`, `~`, `[`, `]`, `(`, `&`
-        ///
-        /// NOTE: Unlike before, this does NOT match arbitrary text. If the backslash is not
-        /// followed by something escapable, the rule fails and the backslash flows through
-        /// as literal text. This ensures `\\hello` produces `\\hello` (matching asciidoctor).
+        // Typography escapes stay intact for the converter's replacement stage.
         rule escaped_content() -> &'input str
         =
         // Double backslash followed by escapable pattern: \\<thing> -> <thing>
@@ -1469,11 +1459,12 @@ peg::parser! {
         / "^" inner:$([^'^' | ' ' | '\t' | '\n']+) "^" { state.intern_fmt(format_args!("^{inner}^")) }
         // Subscript: ~content~ where content has no whitespace (must check complete pattern)
         / "~" inner:$([^'~' | ' ' | '\t' | '\n']+) "~" { state.intern_fmt(format_args!("~{inner}~")) }
+        // Bracket escapes belong to active macro labels, not ordinary text.
         // Constrained formatting markers and other single escapable chars
         // Note: ^ and ~ are NOT included here - they require complete patterns above
         // Note: ( is separated with a negative lookahead to avoid consuming \(C), \(R), \(TM)
         // which are character replacement escapes handled by the converter
-        / c:$(['*' | '_' | '#' | '`' | '[' | ']' | '&']) { c }
+        / c:$(['*' | '_' | '#' | '`' | '&']) { c }
         / "(" !(("C" / "R" / "TM") ")") { "(" }
 
         /// Match escaped syntax without consuming - for use in negative lookaheads.
@@ -1505,7 +1496,7 @@ peg::parser! {
         / "^" [^'^' | ' ' | '\t' | '\n']+ "^"
         / "~" [^'~' | ' ' | '\t' | '\n']+ "~"
         // Single escapable chars (excluding ^ and ~ which need complete patterns)
-        / ['*' | '_' | '#' | '`' | '[' | ']' | '&'] {}
+        / ['*' | '_' | '#' | '`' | '&'] {}
         / "(" !(("C" / "R" / "TM") ")")
 
         rule footnote() -> InlineNode<'input>
@@ -1530,6 +1521,7 @@ peg::parser! {
                 // The note body belongs to the footnote, not the link's quoted attribute.
                 let rules = state.inline_ctx.rules;
                 state.inline_ctx.rules.remove(InlineRules::QUOTED_LINK);
+                state.inline_ctx.rules.insert(InlineRules::BRACKET_LABEL);
                 let content = parse_footnote_content(state, IndexTermSegment { text: content_str, start: content_start });
                 state.inline_ctx.rules = rules;
                 content?
@@ -1563,15 +1555,25 @@ peg::parser! {
 
         rule footnote_match() -> (usize, Option<&'input str>, usize, &'input str, usize)
         = "footnote:"
-        id:id()? "[" content_start:position!() content:balanced_bracket_content() "]"
+        id:id()? "[" content_start:position!() content:footnote_content() "]"
         {?
             (id.is_some() || !content.is_empty())
                 .then_some((span_start, id, content_start, content, span_end))
                 .ok_or("footnote body or reference id")
         }
 
+        // A closing-bracket escape belongs to the body. Preserve its source bytes
+        // until label parsing removes it, including for registration-time text.
+        rule footnote_content() -> &'input str
+        = content:$(footnote_content_part()*) { content }
+
+        rule footnote_content_part()
+        = "\\" ['[' | ']']
+        / "[" footnote_content() "]"
+        / !("\\" ['[' | ']'] / "[" / "]") [_]
+
         /// Parse content that may contain balanced square brackets (general case)
-        /// This is used for footnotes, link titles and button labels
+        /// This is used for nested link brackets and button labels
         rule balanced_bracket_content() -> &'input str
         = content:$(balanced_bracket_content_part()*) { content }
 
@@ -2316,6 +2318,9 @@ peg::parser! {
             let text = if macro_text.text.is_empty() {
                 vec![]
             } else {
+                let rules = state.inline_ctx.rules;
+                state.inline_ctx.rules.insert(InlineRules::BRACKET_LABEL);
+                state.inline_ctx.rules.remove(InlineRules::QUOTED_LINK);
                 let parsed = match macro_text.text {
                     Cow::Borrowed(text) => {
                         // Brackets read as written keep the span they always had.
@@ -2329,6 +2334,7 @@ peg::parser! {
                         process_unescaped_xref_label(state, &bm, text, start, &macro_text.source_map)
                     }
                 };
+                state.inline_ctx.rules = rules;
                 parsed
                     .map_err(|e| {
                         tracing::error!(?e, xref_text = raw_text, "could not process xref text");
@@ -3173,7 +3179,7 @@ peg::parser! {
                     check_post_replacements() eol()*<2,>
                     / check_hardbreaks() line_break_eol()
                     / ![_]
-                    / &['\\'] (check_macros() "\\" anchor_macro_pattern() / index_label_bracket_match() / escaped_link_character_match() / escaped_syntax_match())
+                    / &['\\'] (check_macros() "\\" anchor_macro_pattern() / index_label_bracket_match() / escaped_label_character_match() / escaped_syntax_match())
                     / check_post_replacements() &[' '] (hard_wrap_match() / inline_line_break_match())
                     // Macro guard: [ ( < for delimiters, then first letters of each macro:
                     // a=anchor/asciimath, b=btn, f=footnote/ftp, h=http(s), i=image/icon/indexterm/irc,

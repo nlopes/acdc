@@ -418,41 +418,11 @@
             {
               "name": "text",
               "type": "string",
-              "value": "((Disabled ",
+              "value": "((Disabled \\] term))",
               "location": [
                 {
                   "line": 23,
                   "col": 1
-                },
-                {
-                  "line": 23,
-                  "col": 11
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": "]",
-              "location": [
-                {
-                  "line": 23,
-                  "col": 12
-                },
-                {
-                  "line": 23,
-                  "col": 12
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": " term))",
-              "location": [
-                {
-                  "line": 23,
-                  "col": 14
                 },
                 {
                   "line": 23,
@@ -839,11 +809,11 @@
                       "value": "\\]",
                       "location": [
                         {
-                          "line": 1,
+                          "line": 34,
                           "col": 9
                         },
                         {
-                          "line": 1,
+                          "line": 34,
                           "col": 10
                         }
                       ]
@@ -994,26 +964,11 @@
                 {
                   "name": "raw",
                   "type": "string",
-                  "value": "\\",
+                  "value": "\\]",
                   "location": [
                     {
                       "line": 36,
                       "col": 24
-                    },
-                    {
-                      "line": 36,
-                      "col": 24
-                    }
-                  ]
-                },
-                {
-                  "name": "raw",
-                  "type": "string",
-                  "value": "]",
-                  "location": [
-                    {
-                      "line": 36,
-                      "col": 25
                     },
                     {
                       "line": 36,

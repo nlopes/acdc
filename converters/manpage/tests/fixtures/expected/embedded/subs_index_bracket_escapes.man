@@ -7,7 +7,7 @@ Expanded \e] term
 .sp
 Expanded \e] term
 .sp
-((Disabled ] term))
+((Disabled \e] term))
 .EX
 Code \e] term
 Code link ] term

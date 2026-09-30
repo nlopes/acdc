@@ -42,41 +42,11 @@
         {
           "name": "text",
           "type": "string",
-          "value": "pass:m[link:https://example.org[Label",
+          "value": "pass:m[link:https://example.org[Label\\]]",
           "location": [
             {
               "line": 6,
               "col": 1
-            },
-            {
-              "line": 6,
-              "col": 37
-            }
-          ]
-        },
-        {
-          "name": "text",
-          "type": "string",
-          "value": "]",
-          "location": [
-            {
-              "line": 6,
-              "col": 38
-            },
-            {
-              "line": 6,
-              "col": 38
-            }
-          ]
-        },
-        {
-          "name": "text",
-          "type": "string",
-          "value": "]",
-          "location": [
-            {
-              "line": 6,
-              "col": 40
             },
             {
               "line": 6,
@@ -108,7 +78,7 @@
         {
           "name": "text",
           "type": "string",
-          "value": "pass:a,m[link:https://example.org[Expanded",
+          "value": "pass:a,m[link:https://example.org[Expanded\\]]",
           "location": [
             {
               "line": 9,
@@ -117,36 +87,6 @@
             {
               "line": 9,
               "col": 44
-            }
-          ]
-        },
-        {
-          "name": "text",
-          "type": "string",
-          "value": "]",
-          "location": [
-            {
-              "line": 9,
-              "col": 1
-            },
-            {
-              "line": 9,
-              "col": 1
-            }
-          ]
-        },
-        {
-          "name": "text",
-          "type": "string",
-          "value": "]",
-          "location": [
-            {
-              "line": 9,
-              "col": 1
-            },
-            {
-              "line": 9,
-              "col": 1
             }
           ]
         }
@@ -174,41 +114,11 @@
         {
           "name": "text",
           "type": "string",
-          "value": "pass:m[link:https://example.org[Label",
+          "value": "pass:m[link:https://example.org[Label\\]]",
           "location": [
             {
               "line": 12,
               "col": 1
-            },
-            {
-              "line": 12,
-              "col": 37
-            }
-          ]
-        },
-        {
-          "name": "text",
-          "type": "string",
-          "value": "]",
-          "location": [
-            {
-              "line": 12,
-              "col": 38
-            },
-            {
-              "line": 12,
-              "col": 38
-            }
-          ]
-        },
-        {
-          "name": "text",
-          "type": "string",
-          "value": "]",
-          "location": [
-            {
-              "line": 12,
-              "col": 40
             },
             {
               "line": 12,

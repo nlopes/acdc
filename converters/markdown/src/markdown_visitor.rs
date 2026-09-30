@@ -110,27 +110,6 @@ fn escape_link_title(title: &str) -> String {
     title.replace('\\', "\\\\").replace('"', "\\\"")
 }
 
-fn passthrough_content(text: &str, substitutions: &[Substitution]) -> String {
-    let mut output = text.to_owned();
-    for substitution in substitutions {
-        match substitution {
-            Substitution::SpecialChars => output = escape_html_text(&output),
-            Substitution::Replacements => {
-                output = Replacements::unicode().transform(&output, TextBoundaries::BOTH);
-            }
-            Substitution::Attributes
-            | Substitution::Macros
-            | Substitution::PostReplacements
-            | Substitution::Normal
-            | Substitution::Verbatim
-            | Substitution::Quotes
-            | Substitution::Callouts
-            | _ => {}
-        }
-    }
-    output
-}
-
 fn max_backtick_run(text: &str) -> usize {
     text.split(|character| character != '`')
         .map(str::len)
@@ -595,7 +574,10 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
                     self.write_blockquote_text(text.content, true)?;
                 }
                 InlineNode::RawText(text) => {
-                    self.write_blockquote_text(text.content, false)?;
+                    self.write_blockquote_text(
+                        &Self::passthrough_content(text.content, &text.subs),
+                        false,
+                    )?;
                 }
                 InlineNode::VerbatimText(text) => {
                     self.write_blockquote_text(text.content, false)?;
@@ -789,12 +771,43 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         Ok(())
     }
 
+    fn passthrough_content(text: &str, substitutions: &[Substitution]) -> String {
+        let mut output = text.to_owned();
+        for substitution in substitutions {
+            match substitution {
+                Substitution::SpecialChars => output = escape_html_text(&output),
+                Substitution::Replacements => {
+                    output = Replacements::unicode().transform(&output, TextBoundaries::BOTH);
+                }
+                Substitution::Attributes
+                | Substitution::Macros
+                | Substitution::PostReplacements
+                | Substitution::Normal
+                | Substitution::Verbatim
+                | Substitution::Quotes
+                | Substitution::Callouts
+                | _ => {}
+            }
+        }
+        if substitutions.contains(&Substitution::SpecialChars) {
+            // Escape for Markdown after AsciiDoc substitutions to preserve literal
+            // backslashes, brackets, and emphasis markers in rendered text.
+            Self::escape_markdown(&output)
+        } else {
+            output
+        }
+    }
+
     fn write_passthrough(
         &mut self,
         text: &str,
         substitutions: &[Substitution],
     ) -> Result<(), Error> {
-        write!(self.writer, "{}", passthrough_content(text, substitutions))?;
+        write!(
+            self.writer,
+            "{}",
+            Self::passthrough_content(text, substitutions)
+        )?;
         Ok(())
     }
 

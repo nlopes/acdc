@@ -1,0 +1,56 @@
+[1m[4mescaped-macros(1)[0m
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mName[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+escaped-macros - literal macro labels
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mDescription[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+E01 indexterm2:[One \] term]
+E02 indexterm:[Hidden \\] term]
+E03 ((Short \] term))
+E04 https://example.org[URL \] text]
+E05 mailto:user@example.org[Mail \] text]
+E06 xref:target[Cross \] text]
+E07 footnote:[Note \] text]
+E08 anchor:target[Anchor \] text]
+E09 indexterm2:[Open \[ text]
+E10 indexterm2:[[1mBold[22m — Attribute \] text]
+E11 indexterm2:[Repeated \\\] term]
+E12 Ordinary \] and \[ and \\] text.
+E13 ((Nested [1mbold[22m \] term))
+E14 Active ] term
+E15 [38;5;12mActive ] label[39m[2m (https://example.org)[0m
+E16 [38;5;14m[1m[1][0m [38;5;14m[1m[2][0m
+E17 Short active \] term
+E18 [38;5;12mRepeated \] label[39m[2m (https://example.org)[0m
+E19 [38;5;12mNested active ] term[39m[2m (https://example.org)[0m
+E20 [[escaped-target]] and <<escaped-target>>.
+E21 *literal* \] text and <em>raw HTML</em>.
+[38;5;10m│ [39m[3mE22 Quoted \] term and *literal* \] text.[0m
+[38;5;10m│[39m
+E23 [38;5;12m[4mCross ] label[24m[39m and [38;5;12m[4mRepeated \] label[24m[39m.
+E24 [38;5;14m[1m[3][0m and [38;5;12m[4mOpening \[ label[24m[39m.
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mIndex[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+
+[38;5;14m[1mA[0m
+  Active ] term
+
+[38;5;14m[1mN[0m
+  Nested active \] term
+
+[38;5;14m[1mQ[0m
+  Quoted \] term
+
+[38;5;14m[1mS[0m
+  Short active \] term
+
+─────
+[38;5;14m[1m[1][0m Active ] note
+[38;5;14m[1m[2][0m Repeated \] note
+[38;5;14m[1m[3][0m Opening \[ note

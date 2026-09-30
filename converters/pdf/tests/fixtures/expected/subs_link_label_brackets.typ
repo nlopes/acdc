@@ -87,7 +87,7 @@
 
 #link("https://example.org")[#text("One ")#text("]")#text(" two")]
 
-#text("link:https://example.org[Literal ")#text("]")#text(" text]")
+#text("link:https://example.org[Literal \\] text]")
 
 #{
   // Slice highlighted text without discarding its syntax styles.

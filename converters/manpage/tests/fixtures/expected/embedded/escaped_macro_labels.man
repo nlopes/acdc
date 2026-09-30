@@ -1,0 +1,78 @@
+.SH "DESCRIPTION"
+.sp
+E01 indexterm2:[One \e] term]
+.sp
+E02 indexterm:[Hidden \e\e] term]
+.sp
+E03 ((Short \e] term))
+.sp
+E04 https://example.org[URL \e] text]
+.sp
+E05 mailto:user@example.org[Mail \e] text]
+.sp
+E06 xref:target[Cross \e] text]
+.sp
+E07 footnote:[Note \e] text]
+.sp
+E08 anchor:target[Anchor \e] text]
+.sp
+E09 indexterm2:[Open \e[ text]
+.sp
+E10 indexterm2:[\fBBold\fP \(em Attribute \e] text]
+.sp
+E11 indexterm2:[Repeated \e\e\e] term]
+.sp
+E12 Ordinary \e] and \e[ and \e\e] text.
+.sp
+E13 ((Nested \fBbold\fP \e] term))
+.sp
+E14 Active ] term
+.sp
+E15 \c
+.URL "https://example.org" "Active ] label" ""
+
+.sp
+E16 [1] [2]
+.sp
+E17 Short active \e] term
+.sp
+E18 \c
+.URL "https://example.org" "Repeated \e] label" ""
+
+.sp
+E19 \c
+.URL "https://example.org" "Nested active ] term" ""
+
+.sp
+E20 [[escaped\-target]] and <<escaped\-target>>\&.
+.sp
+E21 *literal* \e] text and <em>raw HTML</em>\&.
+.RS 4
+.sp
+E22 Quoted \e] term and *literal* \e] text\&.
+.RE
+.sp
+E23 Cross ] label and Repeated \e] label\&.
+.sp
+E24 [3] and Opening \e[ label\&.
+.SH "INDEX"
+.SS "A"
+.RS 4
+Active ] term
+.br
+.RE
+.SS "N"
+.RS 4
+Nested active \e] term
+.br
+.RE
+.SS "Q"
+.RS 4
+Quoted \e] term
+.br
+.RE
+.SS "S"
+.RS 4
+Short active \e] term
+.br
+.RE

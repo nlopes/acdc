@@ -465,12 +465,12 @@
                   "value": "]",
                   "location": [
                     {
-                      "line": 1,
-                      "col": 7
+                      "line": 10,
+                      "col": 32
                     },
                     {
-                      "line": 1,
-                      "col": 8
+                      "line": 10,
+                      "col": 33
                     }
                   ]
                 },
@@ -1963,41 +1963,11 @@
         {
           "name": "text",
           "type": "string",
-          "value": "[Label ",
+          "value": "[Label \\] tail.",
           "location": [
             {
               "line": 37,
               "col": 37
-            },
-            {
-              "line": 37,
-              "col": 43
-            }
-          ]
-        },
-        {
-          "name": "text",
-          "type": "string",
-          "value": "]",
-          "location": [
-            {
-              "line": 37,
-              "col": 44
-            },
-            {
-              "line": 37,
-              "col": 44
-            }
-          ]
-        },
-        {
-          "name": "text",
-          "type": "string",
-          "value": " tail.",
-          "location": [
-            {
-              "line": 37,
-              "col": 46
             },
             {
               "line": 37,

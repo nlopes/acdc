@@ -1,0 +1,69 @@
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>escaped-macros - literal macro labels</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_description">Description</h2>
+<p>E01 indexterm2:[One \] term]</p>
+<p>E02 indexterm:[Hidden \\] term]</p>
+<p>E03 ((Short \] term))</p>
+<p>E04 https://example.org[URL \] text]</p>
+<p>E05 mailto:user@example.org[Mail \] text]</p>
+<p>E06 xref:target[Cross \] text]</p>
+<p>E07 footnote:[Note \] text]</p>
+<p>E08 anchor:target[Anchor \] text]</p>
+<p>E09 indexterm2:[Open \[ text]</p>
+<p>E10 indexterm2:[<strong>Bold</strong>&thinsp;&mdash;&thinsp;Attribute \] text]</p>
+<p>E11 indexterm2:[Repeated \\\] term]</p>
+<p>E12 Ordinary \] and \[ and \\] text.</p>
+<p>E13 ((Nested <strong>bold</strong> \] term))</p>
+<p>E14 <a id="_indexterm_0"></a>Active ] term</p>
+<p>E15 <a href="https://example.org">Active ] label</a></p>
+<p>E16 <sup class="footnote-ref" id="_footnoteref_1">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup> <sup class="footnote-ref" id="_footnoteref_2">[<a href="#_footnote_2" title="View footnote 2" role="doc-noteref">2</a>]</sup></p>
+<p>E17 <a id="_indexterm_1"></a>Short active \] term</p>
+<p>E18 <a href="https://example.org">Repeated \] label</a></p>
+<p>E19 <a id="_indexterm_2"></a><a href="https://example.org">Nested active ] term</a></p>
+<p>E20 [[escaped-target]] and &lt;&lt;escaped-target&gt;&gt;.</p>
+<p>E21 *literal* \] text and <em>raw HTML</em>.</p>
+<div class="quote-block">
+<blockquote>
+<p>E22 <a id="_indexterm_3"></a>Quoted \] term and *literal* \] text.</p>
+</blockquote>
+</div>
+<p id="target">E23 <a href="#target">Cross ] label</a> and <a href="#target">Repeated \] label</a>.</p>
+<p>E24 <sup class="footnote-ref" id="_footnoteref_3">[<a href="#_footnote_3" title="View footnote 3" role="doc-noteref">3</a>]</sup> and <a href="#target">Opening \[ label</a>.</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_index">Index</h2>
+<h3 class="indexletter">A</h3>
+<dl class="indexterms">
+<dt>Active ] term
+ <a href="#_indexterm_0">Description</a></dt>
+</dl>
+<h3 class="indexletter">N</h3>
+<dl class="indexterms">
+<dt>Nested active \] term
+ <a href="#_indexterm_2">Description</a></dt>
+</dl>
+<h3 class="indexletter">Q</h3>
+<dl class="indexterms">
+<dt>Quoted \] term
+ <a href="#_indexterm_3">Description</a></dt>
+</dl>
+<h3 class="indexletter">S</h3>
+<dl class="indexterms">
+<dt>Short active \] term
+ <a href="#_indexterm_1">Description</a></dt>
+</dl>
+</section>
+<section class="footnotes" aria-label="Footnotes" role="doc-endnotes">
+<hr>
+<ol class="footnotes">
+<li class="footnote" id="_footnote_1" role="doc-endnote">
+Active ] note <a class="footnote-backref" href="#_footnoteref_1" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+<li class="footnote" id="_footnote_2" role="doc-endnote">
+Repeated \] note <a class="footnote-backref" href="#_footnoteref_2" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+<li class="footnote" id="_footnote_3" role="doc-endnote">
+Opening \[ note <a class="footnote-backref" href="#_footnoteref_3" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+</ol>
+</section>

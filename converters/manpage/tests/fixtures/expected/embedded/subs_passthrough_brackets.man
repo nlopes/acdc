@@ -1,9 +1,9 @@
 .sp
-pass:m[link:https://example.org[Label]]
+pass:m[link:https://example.org[Label\e]]
 .sp
-pass:a,m[link:https://example.org[Expanded]]
+pass:a,m[link:https://example.org[Expanded\e]]
 .sp
-pass:m[link:https://example.org[Label]]
+pass:m[link:https://example.org[Label\e]]
 .sp
 \c
 .URL "https://example.org" "Expanded" ""

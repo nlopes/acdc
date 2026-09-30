@@ -15,6 +15,54 @@ use pulldown_cmark::{
 
 type Error = Box<dyn std::error::Error>;
 
+// Source snapshots cannot prove that a Markdown renderer preserves literal escapes.
+#[test]
+fn escaped_macro_labels_remain_literal_after_markdown_parsing() -> Result<(), Error> {
+    let input = include_str!("fixtures/source/escaped_macro_labels.adoc");
+    for variant in [MarkdownVariant::GitHubFlavored, MarkdownVariant::CommonMark] {
+        let (output, _) = convert_str_with_variant(input, variant)?;
+        let mut text = String::new();
+        let mut links = Vec::new();
+        let mut raw_html = false;
+        for event in MarkdownParser::new_ext(&output, markdown_parser_options(variant)) {
+            if let Event::Text(value) = event {
+                text.push_str(&value);
+            } else if let Event::Start(Tag::Link { dest_url, .. }) = event {
+                links.push(dest_url.to_string());
+            } else if let Event::InlineHtml(value) = event {
+                raw_html |= value.as_ref() == "<em>";
+            } else if matches!(event, Event::SoftBreak | Event::HardBreak | Event::End(_)) {
+                text.push(' ');
+            }
+        }
+        for expected in [
+            r"E01 indexterm2:[One \] term]",
+            r"E02 indexterm:[Hidden \\] term]",
+            r"E11 indexterm2:[Repeated \\\] term]",
+            r"E12 Ordinary \] and \[ and \\] text.",
+            "E14 Active ] term",
+            r"E17 Short active \] term",
+            r"E18 Repeated \] label",
+            "E19 Nested active ] term",
+            r"E21 *literal* \] text",
+            r"E22 Quoted \] term",
+            r"and *literal* \] text",
+        ] {
+            assert!(text.contains(expected), "missing {expected:?}: {text}");
+        }
+        assert_eq!(
+            links
+                .iter()
+                .filter(|url| *url == "https://example.org")
+                .count(),
+            3
+        );
+        assert!(!links.iter().any(|url| url.starts_with("mailto:")));
+        assert!(raw_html, "explicit raw passthrough must remain raw HTML");
+    }
+    Ok(())
+}
+
 #[test]
 fn index_relationships_target_their_own_catalog() -> Result<(), Error> {
     let input = include_str!("fixtures/source/index_multiple_catalogs.adoc");

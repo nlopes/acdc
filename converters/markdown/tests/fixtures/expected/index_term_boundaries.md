@@ -46,9 +46,9 @@ Unclosed ((term and indexterm:\[target stay literal.
 
 Empty (()) and indexterm:\[\] stay literal.
 
-array\[x]
+array\[x\]
 
-Before array\[x] after.
+Before array\[x\] after.
 
 "quoted tail"))
 

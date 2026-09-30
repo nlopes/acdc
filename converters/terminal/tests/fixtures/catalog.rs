@@ -56,6 +56,8 @@ terminal_fixture_catalog!([
         true,
         requires: all(feature = "images", feature = "highlighting")
     ),
+    (escaped_macro_labels, false),
+    (subs_escaped_macro_labels, false),
     (index_bracket_escapes, false),
     (subs_index_bracket_escapes, false, requires: feature = "highlighting"),
     (subs_index_section, true),

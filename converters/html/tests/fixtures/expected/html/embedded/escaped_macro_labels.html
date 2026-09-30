@@ -1,0 +1,123 @@
+<div class="sect1">
+<h2 id="_name">Name</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>escaped-macros - literal macro labels</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_description">Description</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>E01 indexterm2:[One \] term]</p>
+</div>
+<div class="paragraph">
+<p>E02 indexterm:[Hidden \\] term]</p>
+</div>
+<div class="paragraph">
+<p>E03 ((Short \] term))</p>
+</div>
+<div class="paragraph">
+<p>E04 https://example.org[URL \] text]</p>
+</div>
+<div class="paragraph">
+<p>E05 mailto:user@example.org[Mail \] text]</p>
+</div>
+<div class="paragraph">
+<p>E06 xref:target[Cross \] text]</p>
+</div>
+<div class="paragraph">
+<p>E07 footnote:[Note \] text]</p>
+</div>
+<div class="paragraph">
+<p>E08 anchor:target[Anchor \] text]</p>
+</div>
+<div class="paragraph">
+<p>E09 indexterm2:[Open \[ text]</p>
+</div>
+<div class="paragraph">
+<p>E10 indexterm2:[<strong>Bold</strong>&thinsp;&mdash;&thinsp;Attribute \] text]</p>
+</div>
+<div class="paragraph">
+<p>E11 indexterm2:[Repeated \\\] term]</p>
+</div>
+<div class="paragraph">
+<p>E12 Ordinary \] and \[ and \\] text.</p>
+</div>
+<div class="paragraph">
+<p>E13 ((Nested <strong>bold</strong> \] term))</p>
+</div>
+<div class="paragraph">
+<p>E14 <a id="_indexterm_0"></a>Active ] term</p>
+</div>
+<div class="paragraph">
+<p>E15 <a href="https://example.org">Active ] label</a></p>
+</div>
+<div class="paragraph">
+<p>E16 <sup class="footnote">[<a id="_footnoteref_1" class="footnote" href="#_footnotedef_1" title="View footnote.">1</a>]</sup> <sup class="footnote">[<a id="_footnoteref_2" class="footnote" href="#_footnotedef_2" title="View footnote.">2</a>]</sup></p>
+</div>
+<div class="paragraph">
+<p>E17 <a id="_indexterm_1"></a>Short active \] term</p>
+</div>
+<div class="paragraph">
+<p>E18 <a href="https://example.org">Repeated \] label</a></p>
+</div>
+<div class="paragraph">
+<p>E19 <a id="_indexterm_2"></a><a href="https://example.org">Nested active ] term</a></p>
+</div>
+<div class="paragraph">
+<p>E20 [[escaped-target]] and &lt;&lt;escaped-target&gt;&gt;.</p>
+</div>
+<div class="paragraph">
+<p>E21 *literal* \] text and <em>raw HTML</em>.</p>
+</div>
+<div class="quoteblock">
+<blockquote>
+<div class="paragraph">
+<p>E22 <a id="_indexterm_3"></a>Quoted \] term and *literal* \] text.</p>
+</div>
+</blockquote>
+</div>
+<div id="target" class="paragraph">
+<p>E23 <a href="#target">Cross ] label</a> and <a href="#target">Repeated \] label</a>.</p>
+</div>
+<div class="paragraph">
+<p>E24 <sup class="footnote">[<a id="_footnoteref_3" class="footnote" href="#_footnotedef_3" title="View footnote.">3</a>]</sup> and <a href="#target">Opening \[ label</a>.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_index">Index</h2>
+<div class="sectionbody">
+<h3 class="indexletter">A</h3>
+<dl class="indexterms">
+<dt>Active ] term
+ <a href="#_indexterm_0">Description</a></dt>
+</dl>
+<h3 class="indexletter">N</h3>
+<dl class="indexterms">
+<dt>Nested active \] term
+ <a href="#_indexterm_2">Description</a></dt>
+</dl>
+<h3 class="indexletter">Q</h3>
+<dl class="indexterms">
+<dt>Quoted \] term
+ <a href="#_indexterm_3">Description</a></dt>
+</dl>
+<h3 class="indexletter">S</h3>
+<dl class="indexterms">
+<dt>Short active \] term
+ <a href="#_indexterm_1">Description</a></dt>
+</dl>
+</div>
+</div>
+<div id="footnotes">
+<hr>
+<div class="footnote" id="_footnotedef_1">
+<a href="#_footnoteref_1">1</a>. Active ] note</div>
+<div class="footnote" id="_footnotedef_2">
+<a href="#_footnoteref_2">2</a>. Repeated \] note</div>
+<div class="footnote" id="_footnotedef_3">
+<a href="#_footnoteref_3">3</a>. Opening \[ note</div>
+</div>

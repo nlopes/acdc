@@ -26,7 +26,7 @@ Footnote body is retained.<sup>[[1]](#_footnote_named)</sup> The same note is re
 <a id="_delimiters"></a>
 ## Delimiters
 
-Delimiter text: ``tick ` inside``, `nested formatting`, **bold *nested emphasis***, \*literal stars\*, \[literal brackets\], and [label \[part\]](https://example.com/a_\(b\)).
+Delimiter text: ``tick ` inside``, `nested formatting`, **bold *nested emphasis***, \*literal stars\*, \\\[literal brackets\\\], and [label \[part\]](https://example.com/a_\(b\)).
 
 <strong>Footnotes</strong>
 

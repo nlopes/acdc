@@ -1,0 +1,42 @@
+= escaped-macros(1)
+:manmanual: Escape tests
+:mansource: acdc
+:acdc-index:
+:label: Attribute \] text
+
+== Name
+escaped-macros - literal macro labels
+
+== Description
+
+S01 Normal \indexterm2:[Label \] text].
+
+[subs="-macros"]
+S02 indexterm2:[Disabled \] text] and ((Disabled short \] text)).
+
+[subs="macros,attributes"]
+S03 \indexterm2:[{label}].
+
+[subs="attributes,macros"]
+S04 \indexterm2:[{label}].
+
+[source,text,subs="+macros"]
+----
+S05 \indexterm2:[Code \] text]
+S06 \xref:target[Code \] text]
+S07 footnote:[Code \] note]
+----
+
+[subs="none"]
+S08 indexterm2:[No substitutions \] text].
+
+[subs="macros,quotes,replacements"]
+S09 \indexterm2:[*Late* -- \] text].
+
+[subs="macros,attributes"]
+S10 footnote:[Frozen {label} \] note].
+
+S11 footnote:[Early {label} \] note].
+
+[index]
+== Index

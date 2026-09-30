@@ -1495,41 +1495,11 @@
         {
           "name": "text",
           "type": "string",
-          "value": "[Label",
+          "value": "[Label\\] after.",
           "location": [
             {
               "line": 39,
               "col": 56
-            },
-            {
-              "line": 39,
-              "col": 61
-            }
-          ]
-        },
-        {
-          "name": "text",
-          "type": "string",
-          "value": "]",
-          "location": [
-            {
-              "line": 39,
-              "col": 62
-            },
-            {
-              "line": 39,
-              "col": 62
-            }
-          ]
-        },
-        {
-          "name": "text",
-          "type": "string",
-          "value": " after.",
-          "location": [
-            {
-              "line": 39,
-              "col": 64
             },
             {
               "line": 39,

@@ -1,0 +1,65 @@
+= escaped-macros(1)
+:manmanual: Escape tests
+:mansource: acdc
+:acdc-index:
+:label: Attribute \] text
+
+== Name
+escaped-macros - literal macro labels
+
+== Description
+
+E01 \indexterm2:[One \] term]
+
+E02 \indexterm:[Hidden \\] term]
+
+E03 \((Short \] term))
+
+E04 \https://example.org[URL \] text]
+
+E05 \mailto:user@example.org[Mail \] text]
+
+E06 \xref:target[Cross \] text]
+
+E07 \footnote:[Note \] text]
+
+E08 \anchor:target[Anchor \] text]
+
+E09 \indexterm2:[Open \[ text]
+
+E10 \indexterm2:[*Bold* -- {label}]
+
+E11 \indexterm2:[Repeated \\\] term]
+
+E12 Ordinary \] and \[ and \\] text.
+
+E13 \((Nested *bold* \] term))
+
+E14 indexterm2:[Active \] term]
+
+E15 link:https://example.org[Active \] label]
+
+E16 footnote:[Active \] note] footnote:[Repeated \\] note]
+
+E17 ((Short active \] term))
+
+E18 link:https://example.org[Repeated \\] label]
+
+E19 link:https://example.org[indexterm2:[Nested active \\] term]]
+
+E20 \[[escaped-target]] and \<<escaped-target>>.
+
+E21 +*literal* \] text+ and pass:[<em>raw HTML</em>].
+
+[quote]
+____
+E22 ((Quoted \] term)) and +*literal* \] text+.
+____
+
+[[target]]
+E23 xref:target[Cross \] label] and xref:target[Repeated \\] label].
+
+E24 footnote:[Opening \[ note] and xref:target[Opening \[ label].
+
+[index]
+== Index

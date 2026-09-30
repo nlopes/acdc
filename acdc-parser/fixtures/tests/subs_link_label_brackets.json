@@ -159,11 +159,11 @@
                   "location": [
                     {
                       "line": 7,
-                      "col": 15
+                      "col": 40
                     },
                     {
                       "line": 7,
-                      "col": 15
+                      "col": 42
                     }
                   ]
                 },
@@ -510,41 +510,11 @@
         {
           "name": "text",
           "type": "string",
-          "value": "link:https://example.org[Literal ",
+          "value": "link:https://example.org[Literal \\] text]",
           "location": [
             {
               "line": 17,
               "col": 1
-            },
-            {
-              "line": 17,
-              "col": 33
-            }
-          ]
-        },
-        {
-          "name": "text",
-          "type": "string",
-          "value": "]",
-          "location": [
-            {
-              "line": 17,
-              "col": 34
-            },
-            {
-              "line": 17,
-              "col": 34
-            }
-          ]
-        },
-        {
-          "name": "text",
-          "type": "string",
-          "value": " text]",
-          "location": [
-            {
-              "line": 17,
-              "col": 36
             },
             {
               "line": 17,

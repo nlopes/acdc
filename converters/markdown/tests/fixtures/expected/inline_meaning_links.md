@@ -26,6 +26,6 @@ Footnote body is retained.[^named] The same note is referenced again.[^named]
 <a id="_delimiters"></a>
 ## Delimiters
 
-Delimiter text: ``tick ` inside``, `nested formatting`, **bold *nested emphasis***, \*literal stars\*, \[literal brackets\], and [label \[part\]](https://example.com/a_\(b\)).
+Delimiter text: ``tick ` inside``, `nested formatting`, **bold *nested emphasis***, \*literal stars\*, \\\[literal brackets\\\], and [label \[part\]](https://example.com/a_\(b\)).
 
 [^named]: Body with **bold** and `code`.

@@ -242,7 +242,7 @@ const ESCAPED_REGISTERED: &str = "\u{E000}REGISTERED\u{E000}";
 
 /// Remove backslash escapes from `AsciiDoc` formatting characters and patterns.
 ///
-/// Converts escape sequences like `\*` → `*`, `\[` → `[`, etc.
+/// Converts formatting escapes such as `\*` → `*`.
 /// Also handles multi-character pattern escapes like `\...`, `\->`, `\--`.
 /// This should only be applied to non-verbatim content - verbatim contexts
 /// (monospace, source blocks, literal blocks) should preserve backslashes.
@@ -254,10 +254,9 @@ const ESCAPED_REGISTERED: &str = "\u{E000}REGISTERED\u{E000}";
 /// - `\_` → `_` (italic marker)
 /// - `` \` `` → `` ` `` (monospace marker)
 /// - `\#` → `#` (highlight marker)
-/// - `\[` → `[` (attribute/macro opener)
-/// - `\]` → `]` (attribute/macro closer)
 ///
 /// ## Single characters (handled by parser, NOT here)
+/// - Bracket escapes are consumed only by active macro delimiters; otherwise literal.
 /// - `\^` → context-aware (only stripped when it prevents superscript)
 /// - `\~` → context-aware (only stripped when it prevents subscript)
 ///
@@ -284,7 +283,7 @@ const ESCAPED_REGISTERED: &str = "\u{E000}REGISTERED\u{E000}";
 /// use acdc_converters_core::substitutions::strip_backslash_escapes;
 ///
 /// assert_eq!(strip_backslash_escapes(r"\*bold\*"), "*bold*");
-/// assert_eq!(strip_backslash_escapes(r"\[attr\]"), "[attr]");
+/// assert_eq!(strip_backslash_escapes(r"\[attr\]"), r"\[attr\]");
 /// // Note: ^ and ~ escapes are handled by the parser (context-aware), not here
 /// assert_eq!(strip_backslash_escapes(r"E=mc\^2"), r"E=mc\^2");
 /// assert_eq!(strip_backslash_escapes(r"H\~2~O"), r"H\~2~O");
@@ -334,7 +333,7 @@ pub fn strip_backslash_escapes(text: &str) -> String {
         if c == '\\'
             && chars
                 .peek()
-                .is_some_and(|&next| matches!(next, '*' | '_' | '`' | '#' | '[' | ']'))
+                .is_some_and(|&next| matches!(next, '*' | '_' | '`' | '#'))
         {
             // \x -> x (skip backslash, output the character)
             if let Some(escaped) = chars.next() {
@@ -703,7 +702,7 @@ mod tests {
         // Note: \\ is now preserved per asciidoctor behavior (double backslash
         // escaping is handled by the parser, not the converter)
         assert_eq!(strip_backslash_escapes(r"\\"), r"\\");
-        assert_eq!(strip_backslash_escapes(r"\[attr\]"), "[attr]");
+        assert_eq!(strip_backslash_escapes(r"\[attr\]"), r"\[attr\]");
     }
 
     #[test]
