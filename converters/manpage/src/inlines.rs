@@ -15,6 +15,7 @@ use acdc_converters_core::{
 };
 use acdc_parser::{
     Autolink, CrossReference, ElementAttributes, InlineMacro, InlineNode, Link, Mailto,
+    Substitution,
 };
 
 use crate::{
@@ -386,8 +387,11 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             InlineNode::PlainText(text) => self.render_plain_text(text.content)?,
 
             InlineNode::RawText(text) => {
-                // Raw text - decode numeric char refs for non-HTML output, then escape
-                let decoded = decode_numeric_char_refs(text.content);
+                let decoded = if text.subs.last() == Some(&Substitution::SpecialChars) {
+                    Cow::Borrowed(text.content)
+                } else {
+                    decode_numeric_char_refs(text.content)
+                };
                 let content = if self.strip_next_leading_space {
                     self.strip_next_leading_space = false;
                     decoded.trim_start_matches(|character: char| character.is_ascii_whitespace())

@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Text-only substitution lists in document attribute values now apply in their
+  requested order. Escaped characters and literal references render correctly
+  in prose and code, matching Asciidoctor PDF's definition-time substitutions.
 - Plain `pass:[...]` document attribute values expand without their wrapper in
   prose and code with attributes enabled, matching Asciidoctor PDF. Literal
   references stay literal; numeric character references in raw code values

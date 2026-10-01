@@ -40,7 +40,7 @@ pub struct DocumentAttributeValue<'a>(ValueKind<'a>);
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum ValueKind<'a> {
     Text(Cow<'a, str>),
-    // These fragments skipped definition-time escaping, possibly through aliases.
+    // These fragments are already prepared for insertion, including through aliases.
     Passthrough {
         text: Cow<'a, str>,
         ranges: Box<[Range<usize>]>,
@@ -877,6 +877,11 @@ impl<'a> DocumentAttributes<'a> {
 
     pub(crate) fn text(&self, name: &str) -> Option<&str> {
         self.get(name).and_then(DocumentAttributeValue::text)
+    }
+
+    pub(crate) fn is_document_value(&self, name: &str) -> bool {
+        self.entry(name)
+            .is_some_and(|entry| entry.state.origin == AttributeOrigin::Document)
     }
 
     pub(crate) fn stored_text(&self, name: &str) -> Option<&Cow<'a, str>> {

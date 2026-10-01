@@ -1,0 +1,5 @@
+= Include target
+:directory: includes
+:source: pass:attributes[{directory}/document_attribute_pass.txt]
+
+include::{source}[]

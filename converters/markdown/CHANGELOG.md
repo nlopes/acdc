@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Text-only substitution lists in document attribute values retain their
+  requested escaping and literal references, matching Asciidoctor's
+  definition-time behavior.
 - Plain `pass:[...]` document attribute values retain literal references and
   expand without their wrapper, matching Asciidoctor's definition-time behavior.
 - Empty bold, italic, and code spans use HTML elements so Markdown renderers

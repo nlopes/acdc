@@ -1264,25 +1264,29 @@ pub fn substitute_attributes<'text, 'value>(
     substitute_attributes_with_ranges(text, lookup, |_, _| {})
 }
 
-/// Resolve definition-time references, retaining raw fragments inherited from values.
+/// Resolve attribute-entry substitutions while retaining prepared fragments.
 pub(crate) fn resolve_attribute_entry_text<'text>(
     text: &'text str,
     attributes: &DocumentAttributes<'_>,
 ) -> super::DocumentAttributeValue<'text> {
-    if let Some(inner) = text
-        .trim()
-        .strip_prefix("pass:[")
-        .and_then(|s| s.strip_suffix(']'))
-    {
+    if let Some((inner, substitutions)) = attribute_text_substitutions(text) {
+        let mut inner = Cow::Borrowed(inner);
+        for substitution in substitutions {
+            inner = match substitution {
+                AttributeTextSubstitution::Attributes => {
+                    expand_attribute_entry_references(&inner, attributes).into()
+                }
+                AttributeTextSubstitution::SpecialChars => {
+                    escape_attribute_characters(&inner).into()
+                }
+            };
+        }
         let ranges = if inner.is_empty() {
             Vec::new()
         } else {
             std::iter::once(0..inner.len()).collect()
         };
-        return super::DocumentAttributeValue::with_passthrough_ranges(
-            Cow::Borrowed(inner),
-            ranges,
-        );
+        return super::DocumentAttributeValue::with_passthrough_ranges(inner, ranges);
     }
     let mut ranges = Vec::new();
     let text = substitute_attributes_with_ranges(
@@ -1298,6 +1302,89 @@ pub(crate) fn resolve_attribute_entry_text<'text>(
         },
     );
     super::DocumentAttributeValue::with_passthrough_ranges(text, ranges)
+}
+
+#[derive(PartialEq, Eq)]
+pub(crate) enum AttributeTextSubstitution {
+    Attributes,
+    SpecialChars,
+}
+
+fn attribute_text_substitutions(text: &str) -> Option<(&str, Vec<AttributeTextSubstitution>)> {
+    let (names, inner) = text.trim().strip_prefix("pass:")?.split_once('[')?;
+    let inner = inner.strip_suffix(']')?;
+    Some((inner, attribute_text_substitution_names(names)?))
+}
+
+pub(crate) fn attribute_text_substitution_names(
+    names: &str,
+) -> Option<Vec<AttributeTextSubstitution>> {
+    let mut substitutions = Vec::new();
+    if !names.is_empty() {
+        for name in names.split(',') {
+            let substitution = match name {
+                "none" => continue,
+                "a" | "attributes" => AttributeTextSubstitution::Attributes,
+                "c" | "specialchars" | "specialcharacters" | "v" | "verbatim" => {
+                    AttributeTextSubstitution::SpecialChars
+                }
+                _ => return None,
+            };
+            if !substitutions.contains(&substitution) {
+                substitutions.push(substitution);
+            }
+        }
+    }
+    Some(substitutions)
+}
+
+pub(crate) fn escape_attribute_characters(text: &str) -> String {
+    text.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+}
+
+fn expand_attribute_entry_references(text: &str, attributes: &DocumentAttributes<'_>) -> String {
+    let mut output = String::with_capacity(text.len());
+    let mut remaining = text;
+    while let Some((prefix, candidate)) = remaining.split_once('{') {
+        let Some((name, rest)) = candidate.split_once('}') else {
+            break;
+        };
+        if prefix.ends_with('\\') || name.ends_with('\\') {
+            output.push_str(prefix.strip_suffix('\\').unwrap_or(prefix));
+            output.push('{');
+            output.push_str(name.strip_suffix('\\').unwrap_or(name));
+            output.push('}');
+        } else if let Some(value) = attributes.get(name) {
+            output.push_str(prefix);
+            let mut value_text = String::new();
+            let _ = value.write_text(&mut value_text);
+            if attributes.is_document_value(name) {
+                // Ordinary entries already underwent header escaping. Raw ranges
+                // contain prepared text and must not be escaped a second time.
+                let mut cursor = 0;
+                for range in value.passthrough_ranges() {
+                    output.push_str(&escape_attribute_characters(
+                        &value_text[cursor..range.start],
+                    ));
+                    output.push_str(&value_text[range.clone()]);
+                    cursor = range.end;
+                }
+                output.push_str(&escape_attribute_characters(&value_text[cursor..]));
+            } else {
+                output.push_str(&value_text);
+            }
+        } else {
+            output.push_str(prefix);
+            output.push('{');
+            output.push_str(name);
+            output.push('}');
+        }
+        remaining = rest;
+    }
+    output.push_str(remaining);
+    output
 }
 
 fn substitute_attributes_with_ranges<'text, 'value>(

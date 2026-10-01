@@ -11,7 +11,7 @@ use std::{
     fmt::{self, Write},
 };
 
-use acdc_parser::{InlineMacro, InlineNode, Reference};
+use acdc_parser::{InlineMacro, InlineNode, Reference, Substitution};
 
 use crate::{decode_numeric_char_refs, xref::reference_text};
 
@@ -49,6 +49,7 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
     /// Decode numeric character references (`&#39;`) in raw text.
     ///
     /// Non-HTML backends want the character; HTML keeps the reference.
+    /// Explicitly escaped references remain literal.
     #[must_use]
     pub fn decode_char_refs(mut self, decode: bool) -> Self {
         self.decode_char_refs = decode;
@@ -93,7 +94,10 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
         )]
         match node {
             InlineNode::PlainText(text) => w.write_str(text.content),
-            InlineNode::RawText(text) if self.decode_char_refs => {
+            InlineNode::RawText(text)
+                if self.decode_char_refs
+                    && text.subs.last() != Some(&Substitution::SpecialChars) =>
+            {
                 w.write_str(&decode_numeric_char_refs(text.content))
             }
             InlineNode::RawText(text) => w.write_str(text.content),

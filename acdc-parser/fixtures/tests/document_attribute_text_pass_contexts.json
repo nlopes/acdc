@@ -1,0 +1,1813 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "attribute-text-contexts(1)",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 28
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 9,
+        "col": 16
+      }
+    ]
+  },
+  "attributes": {
+    "doctype": "manpage",
+    "empty": "",
+    "frozen": "Early",
+    "manmanual": "Attribute tests",
+    "manname": "attribute-text-contexts",
+    "manname-title": "Name",
+    "manpurpose": "text-only attribute contexts",
+    "mansource": "acdc",
+    "mantitle": "attribute-text-contexts",
+    "manvolnum": "1",
+    "name": "Early",
+    "revdate": "2026-10-01",
+    "value": "&lt;tag&gt; &amp; {name}"
+  },
+  "blocks": [
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Name",
+          "location": [
+            {
+              "line": 11,
+              "col": 4
+            },
+            {
+              "line": 11,
+              "col": 7
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "attribute-text-contexts - text-only attribute contexts",
+              "location": [
+                {
+                  "line": 12,
+                  "col": 1
+                },
+                {
+                  "line": 12,
+                  "col": 54
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 12,
+              "col": 1
+            },
+            {
+              "line": 12,
+              "col": 54
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 11,
+          "col": 1
+        },
+        {
+          "line": 12,
+          "col": 54
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Description",
+          "location": [
+            {
+              "line": 14,
+              "col": 4
+            },
+            {
+              "line": 14,
+              "col": 14
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "name",
+          "type": "attribute",
+          "value": "Late",
+          "location": [
+            {
+              "line": 15,
+              "col": 1
+            },
+            {
+              "line": 15,
+              "col": 12
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "T01 ",
+              "location": [
+                {
+                  "line": 17,
+                  "col": 1
+                },
+                {
+                  "line": 17,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "<",
+              "location": [
+                {
+                  "line": 17,
+                  "col": 5
+                },
+                {
+                  "line": 17,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "tag",
+              "location": [
+                {
+                  "line": 17,
+                  "col": 5
+                },
+                {
+                  "line": 17,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": ">",
+              "location": [
+                {
+                  "line": 17,
+                  "col": 5
+                },
+                {
+                  "line": 17,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " ",
+              "location": [
+                {
+                  "line": 17,
+                  "col": 5
+                },
+                {
+                  "line": 17,
+                  "col": 5
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "&",
+              "location": [
+                {
+                  "line": 17,
+                  "col": 5
+                },
+                {
+                  "line": 17,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " {name} | Early",
+              "location": [
+                {
+                  "line": 17,
+                  "col": 5
+                },
+                {
+                  "line": 17,
+                  "col": 22
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 17,
+              "col": 1
+            },
+            {
+              "line": 17,
+              "col": 22
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "T02 ",
+              "location": [
+                {
+                  "line": 19,
+                  "col": 1
+                },
+                {
+                  "line": 19,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "<",
+                  "location": [
+                    {
+                      "line": 19,
+                      "col": 6
+                    },
+                    {
+                      "line": 19,
+                      "col": 12
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "tag",
+                  "location": [
+                    {
+                      "line": 19,
+                      "col": 6
+                    },
+                    {
+                      "line": 19,
+                      "col": 12
+                    }
+                  ]
+                },
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": ">",
+                  "location": [
+                    {
+                      "line": 19,
+                      "col": 6
+                    },
+                    {
+                      "line": 19,
+                      "col": 12
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": " ",
+                  "location": [
+                    {
+                      "line": 19,
+                      "col": 6
+                    },
+                    {
+                      "line": 19,
+                      "col": 6
+                    }
+                  ]
+                },
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "&",
+                  "location": [
+                    {
+                      "line": 19,
+                      "col": 6
+                    },
+                    {
+                      "line": 19,
+                      "col": 12
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": " {name}",
+                  "location": [
+                    {
+                      "line": 19,
+                      "col": 6
+                    },
+                    {
+                      "line": 19,
+                      "col": 12
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 19,
+                  "col": 5
+                },
+                {
+                  "line": 19,
+                  "col": 13
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " | ",
+              "location": [
+                {
+                  "line": 19,
+                  "col": 14
+                },
+                {
+                  "line": 19,
+                  "col": 16
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "emphasis",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "<",
+                  "location": [
+                    {
+                      "line": 19,
+                      "col": 18
+                    },
+                    {
+                      "line": 19,
+                      "col": 24
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "tag",
+                  "location": [
+                    {
+                      "line": 19,
+                      "col": 18
+                    },
+                    {
+                      "line": 19,
+                      "col": 24
+                    }
+                  ]
+                },
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": ">",
+                  "location": [
+                    {
+                      "line": 19,
+                      "col": 18
+                    },
+                    {
+                      "line": 19,
+                      "col": 24
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": " ",
+                  "location": [
+                    {
+                      "line": 19,
+                      "col": 18
+                    },
+                    {
+                      "line": 19,
+                      "col": 18
+                    }
+                  ]
+                },
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "&",
+                  "location": [
+                    {
+                      "line": 19,
+                      "col": 18
+                    },
+                    {
+                      "line": 19,
+                      "col": 24
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": " {name}",
+                  "location": [
+                    {
+                      "line": 19,
+                      "col": 18
+                    },
+                    {
+                      "line": 19,
+                      "col": 24
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 19,
+                  "col": 17
+                },
+                {
+                  "line": 19,
+                  "col": 25
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " | ",
+              "location": [
+                {
+                  "line": 19,
+                  "col": 26
+                },
+                {
+                  "line": 19,
+                  "col": 28
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "<",
+                  "location": [
+                    {
+                      "line": 19,
+                      "col": 30
+                    },
+                    {
+                      "line": 19,
+                      "col": 36
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "tag",
+                  "location": [
+                    {
+                      "line": 19,
+                      "col": 30
+                    },
+                    {
+                      "line": 19,
+                      "col": 36
+                    }
+                  ]
+                },
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": ">",
+                  "location": [
+                    {
+                      "line": 19,
+                      "col": 30
+                    },
+                    {
+                      "line": 19,
+                      "col": 36
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": " ",
+                  "location": [
+                    {
+                      "line": 19,
+                      "col": 30
+                    },
+                    {
+                      "line": 19,
+                      "col": 30
+                    }
+                  ]
+                },
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "&",
+                  "location": [
+                    {
+                      "line": 19,
+                      "col": 30
+                    },
+                    {
+                      "line": 19,
+                      "col": 36
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": " {name}",
+                  "location": [
+                    {
+                      "line": 19,
+                      "col": 30
+                    },
+                    {
+                      "line": 19,
+                      "col": 36
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 19,
+                  "col": 29
+                },
+                {
+                  "line": 19,
+                  "col": 37
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 19,
+              "col": 1
+            },
+            {
+              "line": 19,
+              "col": 37
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "T03 ",
+              "location": [
+                {
+                  "line": 21,
+                  "col": 1
+                },
+                {
+                  "line": 21,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "ref",
+              "type": "inline",
+              "variant": "link",
+              "target": {
+                "type": "url",
+                "value": "https://example.org"
+              },
+              "inlines": [
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "<",
+                  "location": [
+                    {
+                      "line": 21,
+                      "col": 30
+                    },
+                    {
+                      "line": 21,
+                      "col": 36
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "tag",
+                  "location": [
+                    {
+                      "line": 21,
+                      "col": 30
+                    },
+                    {
+                      "line": 21,
+                      "col": 36
+                    }
+                  ]
+                },
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": ">",
+                  "location": [
+                    {
+                      "line": 21,
+                      "col": 30
+                    },
+                    {
+                      "line": 21,
+                      "col": 36
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": " ",
+                  "location": [
+                    {
+                      "line": 21,
+                      "col": 30
+                    },
+                    {
+                      "line": 21,
+                      "col": 30
+                    }
+                  ]
+                },
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "&",
+                  "location": [
+                    {
+                      "line": 21,
+                      "col": 30
+                    },
+                    {
+                      "line": 21,
+                      "col": 36
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": " {name}",
+                  "location": [
+                    {
+                      "line": 21,
+                      "col": 30
+                    },
+                    {
+                      "line": 21,
+                      "col": 36
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 21,
+                  "col": 5
+                },
+                {
+                  "line": 21,
+                  "col": 37
+                }
+              ],
+              "attributes": {}
+            }
+          ],
+          "location": [
+            {
+              "line": 21,
+              "col": 1
+            },
+            {
+              "line": 21,
+              "col": 37
+            }
+          ]
+        },
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "unordered",
+          "marker": "*",
+          "title": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "T04 ",
+              "location": [
+                {
+                  "line": 23,
+                  "col": 2
+                },
+                {
+                  "line": 23,
+                  "col": 5
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "<",
+              "location": [
+                {
+                  "line": 23,
+                  "col": 6
+                },
+                {
+                  "line": 23,
+                  "col": 12
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "tag",
+              "location": [
+                {
+                  "line": 23,
+                  "col": 6
+                },
+                {
+                  "line": 23,
+                  "col": 12
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": ">",
+              "location": [
+                {
+                  "line": 23,
+                  "col": 6
+                },
+                {
+                  "line": 23,
+                  "col": 12
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " ",
+              "location": [
+                {
+                  "line": 23,
+                  "col": 6
+                },
+                {
+                  "line": 23,
+                  "col": 6
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "&",
+              "location": [
+                {
+                  "line": 23,
+                  "col": 6
+                },
+                {
+                  "line": 23,
+                  "col": 12
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " {name}",
+              "location": [
+                {
+                  "line": 23,
+                  "col": 6
+                },
+                {
+                  "line": 23,
+                  "col": 12
+                }
+              ]
+            }
+          ],
+          "items": [
+            {
+              "name": "listItem",
+              "type": "block",
+              "marker": "*",
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "T05 ",
+                  "location": [
+                    {
+                      "line": 24,
+                      "col": 3
+                    },
+                    {
+                      "line": 24,
+                      "col": 6
+                    }
+                  ]
+                },
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "<",
+                  "location": [
+                    {
+                      "line": 24,
+                      "col": 7
+                    },
+                    {
+                      "line": 24,
+                      "col": 13
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "tag",
+                  "location": [
+                    {
+                      "line": 24,
+                      "col": 7
+                    },
+                    {
+                      "line": 24,
+                      "col": 13
+                    }
+                  ]
+                },
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": ">",
+                  "location": [
+                    {
+                      "line": 24,
+                      "col": 7
+                    },
+                    {
+                      "line": 24,
+                      "col": 13
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": " ",
+                  "location": [
+                    {
+                      "line": 24,
+                      "col": 7
+                    },
+                    {
+                      "line": 24,
+                      "col": 7
+                    }
+                  ]
+                },
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "&",
+                  "location": [
+                    {
+                      "line": 24,
+                      "col": 7
+                    },
+                    {
+                      "line": 24,
+                      "col": 13
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": " {name}",
+                  "location": [
+                    {
+                      "line": 24,
+                      "col": 7
+                    },
+                    {
+                      "line": 24,
+                      "col": 13
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 24,
+                  "col": 1
+                },
+                {
+                  "line": 24,
+                  "col": 13
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 23,
+              "col": 1
+            },
+            {
+              "line": 24,
+              "col": 13
+            }
+          ]
+        },
+        {
+          "name": "table",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "|===",
+          "metadata": {
+            "attributes": {
+              "cols": "a,a"
+            }
+          },
+          "content": {
+            "header": null,
+            "footer": null,
+            "rows": [
+              {
+                "columns": [
+                  {
+                    "content": [
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "T06 ",
+                            "location": [
+                              {
+                                "line": 28,
+                                "col": 2
+                              },
+                              {
+                                "line": 28,
+                                "col": 5
+                              }
+                            ]
+                          },
+                          {
+                            "name": "raw",
+                            "type": "string",
+                            "value": "<",
+                            "location": [
+                              {
+                                "line": 28,
+                                "col": 6
+                              },
+                              {
+                                "line": 28,
+                                "col": 12
+                              }
+                            ]
+                          },
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "tag",
+                            "location": [
+                              {
+                                "line": 28,
+                                "col": 6
+                              },
+                              {
+                                "line": 28,
+                                "col": 12
+                              }
+                            ]
+                          },
+                          {
+                            "name": "raw",
+                            "type": "string",
+                            "value": ">",
+                            "location": [
+                              {
+                                "line": 28,
+                                "col": 6
+                              },
+                              {
+                                "line": 28,
+                                "col": 12
+                              }
+                            ]
+                          },
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": " ",
+                            "location": [
+                              {
+                                "line": 28,
+                                "col": 6
+                              },
+                              {
+                                "line": 28,
+                                "col": 6
+                              }
+                            ]
+                          },
+                          {
+                            "name": "raw",
+                            "type": "string",
+                            "value": "&",
+                            "location": [
+                              {
+                                "line": 28,
+                                "col": 6
+                              },
+                              {
+                                "line": 28,
+                                "col": 12
+                              }
+                            ]
+                          },
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": " {name}",
+                            "location": [
+                              {
+                                "line": 28,
+                                "col": 6
+                              },
+                              {
+                                "line": 28,
+                                "col": 12
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 28,
+                            "col": 2
+                          },
+                          {
+                            "line": 28,
+                            "col": 12
+                          }
+                        ]
+                      },
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "T07 ",
+                            "location": [
+                              {
+                                "line": 32,
+                                "col": 1
+                              },
+                              {
+                                "line": 32,
+                                "col": 4
+                              }
+                            ]
+                          },
+                          {
+                            "name": "raw",
+                            "type": "string",
+                            "value": "<",
+                            "location": [
+                              {
+                                "line": 32,
+                                "col": 5
+                              },
+                              {
+                                "line": 32,
+                                "col": 11
+                              }
+                            ]
+                          },
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "tag",
+                            "location": [
+                              {
+                                "line": 32,
+                                "col": 5
+                              },
+                              {
+                                "line": 32,
+                                "col": 11
+                              }
+                            ]
+                          },
+                          {
+                            "name": "raw",
+                            "type": "string",
+                            "value": ">",
+                            "location": [
+                              {
+                                "line": 32,
+                                "col": 5
+                              },
+                              {
+                                "line": 32,
+                                "col": 11
+                              }
+                            ]
+                          },
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": " ",
+                            "location": [
+                              {
+                                "line": 32,
+                                "col": 5
+                              },
+                              {
+                                "line": 32,
+                                "col": 5
+                              }
+                            ]
+                          },
+                          {
+                            "name": "raw",
+                            "type": "string",
+                            "value": "&",
+                            "location": [
+                              {
+                                "line": 32,
+                                "col": 5
+                              },
+                              {
+                                "line": 32,
+                                "col": 11
+                              }
+                            ]
+                          },
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": " {name}",
+                            "location": [
+                              {
+                                "line": 32,
+                                "col": 5
+                              },
+                              {
+                                "line": 32,
+                                "col": 11
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 32,
+                            "col": 1
+                          },
+                          {
+                            "line": 32,
+                            "col": 11
+                          }
+                        ]
+                      }
+                    ],
+                    "style": "asciidoc"
+                  },
+                  {
+                    "content": [
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "T08 ",
+                            "location": [
+                              {
+                                "line": 33,
+                                "col": 2
+                              },
+                              {
+                                "line": 33,
+                                "col": 5
+                              }
+                            ]
+                          },
+                          {
+                            "name": "raw",
+                            "type": "string",
+                            "value": "<",
+                            "location": [
+                              {
+                                "line": 33,
+                                "col": 6
+                              },
+                              {
+                                "line": 33,
+                                "col": 12
+                              }
+                            ]
+                          },
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "tag",
+                            "location": [
+                              {
+                                "line": 33,
+                                "col": 6
+                              },
+                              {
+                                "line": 33,
+                                "col": 12
+                              }
+                            ]
+                          },
+                          {
+                            "name": "raw",
+                            "type": "string",
+                            "value": ">",
+                            "location": [
+                              {
+                                "line": 33,
+                                "col": 6
+                              },
+                              {
+                                "line": 33,
+                                "col": 12
+                              }
+                            ]
+                          },
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": " ",
+                            "location": [
+                              {
+                                "line": 33,
+                                "col": 6
+                              },
+                              {
+                                "line": 33,
+                                "col": 6
+                              }
+                            ]
+                          },
+                          {
+                            "name": "raw",
+                            "type": "string",
+                            "value": "&",
+                            "location": [
+                              {
+                                "line": 33,
+                                "col": 6
+                              },
+                              {
+                                "line": 33,
+                                "col": 12
+                              }
+                            ]
+                          },
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": " {name}",
+                            "location": [
+                              {
+                                "line": 33,
+                                "col": 6
+                              },
+                              {
+                                "line": 33,
+                                "col": 12
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 33,
+                            "col": 2
+                          },
+                          {
+                            "line": 33,
+                            "col": 12
+                          }
+                        ]
+                      }
+                    ],
+                    "style": "asciidoc"
+                  }
+                ]
+              }
+            ],
+            "columns": [
+              {
+                "style": "asciidoc"
+              },
+              {
+                "style": "asciidoc"
+              }
+            ],
+            "location": [
+              {
+                "line": 27,
+                "col": 1
+              },
+              {
+                "line": 34,
+                "col": 4
+              }
+            ]
+          },
+          "location": [
+            {
+              "line": 26,
+              "col": 1
+            },
+            {
+              "line": 34,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "T09 ",
+              "location": [
+                {
+                  "line": 36,
+                  "col": 1
+                },
+                {
+                  "line": 36,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "<",
+              "location": [
+                {
+                  "line": 36,
+                  "col": 5
+                },
+                {
+                  "line": 36,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "tag",
+              "location": [
+                {
+                  "line": 36,
+                  "col": 5
+                },
+                {
+                  "line": 36,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": ">",
+              "location": [
+                {
+                  "line": 36,
+                  "col": 5
+                },
+                {
+                  "line": 36,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " ",
+              "location": [
+                {
+                  "line": 36,
+                  "col": 5
+                },
+                {
+                  "line": 36,
+                  "col": 5
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "&",
+              "location": [
+                {
+                  "line": 36,
+                  "col": 5
+                },
+                {
+                  "line": 36,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " {name}",
+              "location": [
+                {
+                  "line": 36,
+                  "col": 5
+                },
+                {
+                  "line": 36,
+                  "col": 11
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 36,
+              "col": 1
+            },
+            {
+              "line": 36,
+              "col": 11
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "type": "attribute",
+          "value": "Body Late",
+          "location": [
+            {
+              "line": 38,
+              "col": 1
+            },
+            {
+              "line": 38,
+              "col": 28
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "T10 Body Late",
+              "location": [
+                {
+                  "line": 40,
+                  "col": 1
+                },
+                {
+                  "line": 40,
+                  "col": 11
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 40,
+              "col": 1
+            },
+            {
+              "line": 40,
+              "col": 11
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "type": "attribute",
+          "value": "",
+          "location": [
+            {
+              "line": 42,
+              "col": 1
+            },
+            {
+              "line": 42,
+              "col": 17
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "T11 Before  after.",
+              "location": [
+                {
+                  "line": 44,
+                  "col": 1
+                },
+                {
+                  "line": 44,
+                  "col": 25
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 44,
+              "col": 1
+            },
+            {
+              "line": 44,
+              "col": 25
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "type": "attribute",
+          "value": false,
+          "location": [
+            {
+              "line": 46,
+              "col": 1
+            },
+            {
+              "line": 46,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "T12 {value}",
+              "location": [
+                {
+                  "line": 48,
+                  "col": 1
+                },
+                {
+                  "line": 48,
+                  "col": 11
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 48,
+              "col": 1
+            },
+            {
+              "line": 48,
+              "col": 11
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "T13 Definition-time condition.",
+              "location": [
+                {
+                  "line": 51,
+                  "col": 1
+                },
+                {
+                  "line": 51,
+                  "col": 30
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 51,
+              "col": 1
+            },
+            {
+              "line": 51,
+              "col": 30
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "T14 Empty is set.",
+              "location": [
+                {
+                  "line": 55,
+                  "col": 1
+                },
+                {
+                  "line": 55,
+                  "col": 17
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 55,
+              "col": 1
+            },
+            {
+              "line": 55,
+              "col": 17
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 14,
+          "col": 1
+        },
+        {
+          "line": 55,
+          "col": 17
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 55,
+      "col": 17
+    }
+  ]
+}

@@ -58,6 +58,8 @@ terminal_fixture_catalog!([
     ),
     (attribute_continuation, false),
     (subs_document_attribute_pass, false),
+    (subs_document_attribute_text_pass, false),
+    (document_attribute_text_pass_contexts, false),
     (document_attribute_pass_contexts, false),
     (subs_attribute_continuation, false),
     (empty_quoted_attributes, false),

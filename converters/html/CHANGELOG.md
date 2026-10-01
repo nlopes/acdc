@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Text-only substitution lists in document attribute values now retain their
+  requested escaping and literal references, matching Asciidoctor. Listing and
+  literal blocks also preserve explicit passthrough escaping when the block
+  disables character substitution.
 - Plain `pass:[...]` document attribute values retain their raw characters and
   literal references in prose and code with attributes enabled,
   matching Asciidoctor. Surrounding ordinary text remains escaped.

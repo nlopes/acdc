@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Text-only substitution lists in document attribute values now apply at
+  definition time, matching Asciidoctor's attribute behavior. Escaped numeric
+  references stay literal instead of being decoded a second time.
 - Plain `pass:[...]` document attribute values expand without their wrapper in
   prose and code with attributes enabled. Literal references stay literal,
   matching Asciidoctor's attribute behavior.

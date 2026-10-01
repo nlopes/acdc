@@ -1,0 +1,146 @@
+= attribute-text-pass(1)
+:doctype: manpage
+:manmanual: Attribute tests
+:mansource: acdc
+:revdate: 2026-10-01
+:name: Early
+:ordinary: <ordinary> &
+:raw: pass:[<raw> &]
+:a: pass:a[{name} *Bold*]
+:c: pass:c[<x> & {name} *Bold*]
+:ac: pass:a,c[{raw}]
+:ca: pass:c,a[{raw}]
+:long: pass:specialcharacters,attributes[{name} <x> &]
+:none: pass:none[{name} &]
+:escaped: pass:a[\{name} {name\} \{name\} \\{name}]
+:nested: pass:a[pass:[{name}]]
+:empty: pass:a[]
+:missing: pass:a[{not-set}]
+:brackets: pass:a[{name} a\]b]
+:alias: prefix {c} / {a}
+:normal-a: pass:a[{ordinary}]
+:normal-ac: pass:a,c[{ordinary}]
+:normal-ca: pass:c,a[{ordinary}]
+:duplicate: pass:c,a,c[{raw}]
+:verbatim: pass:v[<x> & {name}]
+:long-verbatim: pass:verbatim[<x> & {name}]
+:entities: pass:c[&#169; &amp;]
+:unicode: pass:c[café <α> &]
+:character: pass:a[{lt}{gt}{amp}]
+:none-c: pass:none,c[<&>]
+:nested-c: pass:a[pass:c[{name}]]
+
+== Name
+attribute-text-pass - text-only attribute substitutions
+
+== Description
+:name: Late
+
+P01 {a}
+
+P02 {c}
+
+P03 {ac}
+
+P04 {ca}
+
+P05 {long}
+
+P06 {none}
+
+P07 {escaped}
+
+P08 {nested}
+
+P09 Before {empty} after.
+
+P10 Before {missing} after.
+
+P11 {brackets}
+
+P12 {alias}
+
+P13 {normal-a}
+
+P14 {normal-ac}
+
+P15 {normal-ca}
+
+P16 {duplicate}
+
+P17 {verbatim} | {long-verbatim}
+
+P18 {entities}
+
+P19 {unicode}
+
+P20 {character}
+
+P21 {none-c}
+
+P22 {nested-c}
+
+[subs="specialcharacters,attributes"]
+----
+C01 {a}
+C02 {c}
+C03 {ac}
+C05 {long}
+C07 {escaped}
+C08 {nested}
+C09 Before {empty} after.
+C10 Before {missing} after.
+C11 {brackets}
+C12 {alias}
+C13 {normal-a}
+C14 {normal-ac}
+C15 {normal-ca}
+C17 {verbatim} | {long-verbatim}
+C18 {entities}
+C19 {unicode}
+C22 {nested-c}
+----
+
+[subs="specialcharacters,attributes"]
+----
+C06 {none}
+----
+
+[subs="attributes"]
+----
+N01 {c}
+N02 {normal-ac}
+N03 {entities}
+----
+
+[subs="attributes,specialcharacters"]
+----
+R01 {c}
+R02 {normal-ac}
+R03 {entities}
+----
+
+[subs="attributes,replacements,specialcharacters"]
+----
+O01 {c}
+O02 {normal-ac}
+O03 {entities}
+----
+
+[subs="attributes,specialcharacters,replacements"]
+----
+O04 {c}
+O05 {normal-ac}
+O06 {entities}
+----
+
+[subs="specialcharacters"]
+----
+D01 {a} | {c}
+----
+
+I01 pass:c[&#169;]
+
+I02 pass:c,r[&#169;]
+
+I03 pass:r,c[&#169;]

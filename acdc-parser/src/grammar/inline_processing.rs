@@ -137,6 +137,7 @@ pub(crate) fn preprocess_inline_content<'a>(
                 text: Cow::Borrowed(content),
                 passthroughs: Vec::new(),
                 source_map: SourceMap::default(),
+                attribute_substitutions: crate::model::substitution::SubstitutionPlan::default(),
             },
         ));
     }
@@ -492,7 +493,7 @@ fn process_inline_content<'a>(
         true,
         verbatim,
     )?;
-    apply_attribute_escaping(&mut processed, block_metadata);
+    processed.attribute_substitutions = block_metadata.substitutions;
     let inlines =
         super::location_mapping::map_inline_locations(state, &processed, content, &location)?;
     let source = if processed.passthroughs.is_empty() {
@@ -503,24 +504,6 @@ fn process_inline_content<'a>(
         state.intern_str(&restored)
     };
     Ok((inlines, source))
-}
-
-fn apply_attribute_escaping(
-    processed: &mut ProcessedContent<'_>,
-    metadata: &BlockParsingMetadata<'_>,
-) {
-    // Raw values bypass an earlier special-character stage. If escaping
-    // follows attributes, the consuming block must still escape the inserted text.
-    if !metadata
-        .substitutions
-        .precedes(&Substitution::SpecialChars, &Substitution::Attributes)
-    {
-        for replacement in &mut processed.source_map.replacements {
-            if matches!(replacement.kind, ProcessedKind::RawAttribute(_)) {
-                replacement.kind = ProcessedKind::Attribute;
-            }
-        }
-    }
 }
 
 /// Process inlines with autolinks suppressed.
@@ -573,6 +556,6 @@ pub(crate) fn process_inlines_no_autolinks<'a>(
         false,
         false,
     )?;
-    apply_attribute_escaping(&mut processed, block_metadata);
+    processed.attribute_substitutions = block_metadata.substitutions;
     super::location_mapping::map_inline_locations(state, &processed, content, &location)
 }

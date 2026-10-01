@@ -1,0 +1,56 @@
+= attribute-text-contexts(1)
+:doctype: manpage
+:manmanual: Attribute tests
+:mansource: acdc
+:revdate: 2026-10-01
+:name: Early
+:value: pass:c[<tag> & {name}]
+:frozen: pass:a[{name}]
+:empty: pass:c[]
+
+== Name
+attribute-text-contexts - text-only attribute contexts
+
+== Description
+:name: Late
+
+T01 {value} | {frozen}
+
+T02 *{value}* | _{value}_ | `{value}`
+
+T03 link:https://example.org[{value}]
+
+.T04 {value}
+* T05 {value}
+
+[cols="a,a"]
+|===
+|T06 {value}
+
+:value: pass:a[Local {name}]
+
+T07 {value}
+|T08 {value}
+|===
+
+T09 {value}
+
+:value: pass:a[Body {name}]
+
+T10 {value}
+
+:value: pass:c[]
+
+T11 Before {value} after.
+
+:value!:
+
+T12 {value}
+
+ifeval::["{frozen}" == "Early"]
+T13 Definition-time condition.
+endif::[]
+
+ifdef::empty[]
+T14 Empty is set.
+endif::[]

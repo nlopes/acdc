@@ -1,0 +1,21 @@
+= Highlighted attribute text
+:source-highlighter: syntect
+:name: Early
+:a: pass:a[{name} *literal*]
+:c: pass:c[<strong>text</strong> & {name}]
+:raw: pass:[<x>]
+:double: pass:a,c[{c}]
+:alias: {c}
+
+[source,html,subs=+attributes]
+----
+H01 {a}
+H02 {c}
+H03 {double}
+H04 {alias}
+----
+
+[source,html,subs="attributes"]
+----
+H05 {c}
+----

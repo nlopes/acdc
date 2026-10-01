@@ -477,6 +477,7 @@ pub(crate) struct ProcessedContent<'a> {
     pub text: Cow<'a, str>,
     pub passthroughs: Vec<Pass<'a>>,
     pub(crate) source_map: SourceMap,
+    pub(crate) attribute_substitutions: crate::model::substitution::SubstitutionPlan,
 }
 
 #[derive(Debug, Clone)]
@@ -713,6 +714,7 @@ parser!(
                     text: Cow::Owned(content.join("")),
                     passthroughs: take(&mut *state.passthroughs.borrow_mut()),
                     source_map,
+                    attribute_substitutions: crate::model::substitution::SubstitutionPlan::default(),
                 }
             }
 

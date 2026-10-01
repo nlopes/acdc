@@ -1,0 +1,95 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Include target",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 16
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 3,
+        "col": 65
+      }
+    ]
+  },
+  "attributes": {
+    "directory": "includes",
+    "source": "includes/document_attribute_pass.txt"
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Included.",
+          "location": [
+            {
+              "line": 1,
+              "col": 1,
+              "file": [
+                "includes/document_attribute_pass.txt"
+              ]
+            },
+            {
+              "line": 1,
+              "col": 9,
+              "file": [
+                "includes/document_attribute_pass.txt"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1,
+          "file": [
+            "includes/document_attribute_pass.txt"
+          ]
+        },
+        {
+          "line": 1,
+          "col": 9,
+          "file": [
+            "includes/document_attribute_pass.txt"
+          ]
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 1,
+      "col": 9,
+      "file": [
+        "includes/document_attribute_pass.txt"
+      ]
+    }
+  ]
+}

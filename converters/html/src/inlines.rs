@@ -479,7 +479,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     ) -> Result<(), Error> {
         match node {
             InlineNode::PlainText(p) => self.render_plain(traversal, p, options, subs),
-            InlineNode::RawText(r) => self.render_raw(r, options, subs),
+            InlineNode::RawText(r) => self.render_raw(r),
             InlineNode::VerbatimText(v) => self.render_verbatim(traversal, v, options, subs),
             InlineNode::CalloutRef(c) => self.render_callout_ref(c),
             InlineNode::BoldText(b) => self.render_bold(traversal, b, options, subs),
@@ -655,19 +655,12 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         Ok(())
     }
 
-    fn render_raw(
-        &mut self,
-        r: &Raw<'_>,
-        options: &RenderOptions,
-        subs: &[Substitution],
-    ) -> Result<(), Error> {
+    fn render_raw(&mut self, r: &Raw<'_>) -> Result<(), Error> {
         // RawText comes from passthroughs — attribute expansion was already handled (or
         // explicitly skipped) by the preprocessor. Do NOT apply block subs.
         let content = &r.content;
         let text = if r.subs.is_empty() {
             content.to_string()
-        } else if options.inlines_verbatim {
-            substitution_text(content, subs, options, self.text_boundaries())
         } else {
             passthrough_substitution_text(content, &r.subs, self.text_boundaries())
         };

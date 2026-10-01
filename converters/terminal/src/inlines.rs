@@ -15,7 +15,7 @@ use acdc_converters_core::{
 };
 use acdc_parser::{
     Button, CrossReference, Image, IndexTerm, IndexTermRelationship, InlineMacro, InlineNode,
-    Keyboard,
+    Keyboard, Substitution,
 };
 use crossterm::{
     QueueableCommand,
@@ -226,7 +226,12 @@ fn render_inline_node_to_writer<'a, W: Write + ?Sized>(
             write!(w, "{text}")?;
         }
         InlineNode::RawText(r) => {
-            write!(w, "{}", decode_numeric_char_refs(r.content))?;
+            let text = if r.subs.last() == Some(&Substitution::SpecialChars) {
+                Cow::Borrowed(r.content)
+            } else {
+                decode_numeric_char_refs(r.content)
+            };
+            write!(w, "{text}")?;
         }
         InlineNode::VerbatimText(v) => {
             // Verbatim text preserves backslashes
@@ -357,7 +362,12 @@ impl<'a, W: Write> crate::TerminalVisitor<'a, '_, W> {
             }
             InlineNode::RawText(r) => {
                 let w = self.writer_mut();
-                write!(w, "{}", decode_numeric_char_refs(r.content))?;
+                let text = if r.subs.last() == Some(&Substitution::SpecialChars) {
+                    Cow::Borrowed(r.content)
+                } else {
+                    decode_numeric_char_refs(r.content)
+                };
+                write!(w, "{text}")?;
             }
             InlineNode::VerbatimText(v) => {
                 let w = self.writer_mut();

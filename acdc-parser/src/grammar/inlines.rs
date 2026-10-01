@@ -1659,12 +1659,13 @@ peg::parser! {
         rule inline_pass_match()
         = check_pass_token() "pass:" ([^('[' | ']' | ',')]+ ("," [^('[' | ']' | ',')]+)*)? "[" ("\\]" / [^']'])* "]"
 
-        // Plain pass wrappers are resolved at definition time. Substitution must
+        // Text-only pass wrappers are resolved at definition time. Substitution must
         // not activate a wrapper that remains inside the stored attribute value.
         rule check_pass_token()
         = start:position!() {?
-            if state.input[start..].starts_with("pass:[")
-                && (start..start + 6).any(|pos| byte_came_from_attribute(state, pos))
+            if let Some((names, _)) = state.input[start..].strip_prefix("pass:").and_then(|tail| tail.split_once('['))
+                && crate::model::substitution::attribute_text_substitution_names(names).is_some()
+                && (start..start + 6 + names.len()).any(|pos| byte_came_from_attribute(state, pos))
             {
                 Err("passthrough introduced by attribute")
             } else {

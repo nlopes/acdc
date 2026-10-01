@@ -918,11 +918,101 @@
         {
           "name": "text",
           "type": "string",
-          "value": "R09 <em>café</em> & {name}",
+          "value": "R09 ",
           "location": [
             {
               "line": 30,
               "col": 1
+            },
+            {
+              "line": 30,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "<em>",
+          "location": [
+            {
+              "line": 30,
+              "col": 5
+            },
+            {
+              "line": 30,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "café",
+          "location": [
+            {
+              "line": 30,
+              "col": 5
+            },
+            {
+              "line": 30,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "</em>",
+          "location": [
+            {
+              "line": 30,
+              "col": 5
+            },
+            {
+              "line": 30,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " ",
+          "location": [
+            {
+              "line": 30,
+              "col": 5
+            },
+            {
+              "line": 30,
+              "col": 5
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "&",
+          "location": [
+            {
+              "line": 30,
+              "col": 5
+            },
+            {
+              "line": 30,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " {name}",
+          "location": [
+            {
+              "line": 30,
+              "col": 5
             },
             {
               "line": 30,
@@ -1120,11 +1210,101 @@
         {
           "name": "text",
           "type": "string",
-          "value": "R12 <em>café</em> & {name}",
+          "value": "R12 ",
           "location": [
             {
               "line": 45,
               "col": 1
+            },
+            {
+              "line": 45,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "<em>",
+          "location": [
+            {
+              "line": 45,
+              "col": 5
+            },
+            {
+              "line": 45,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "café",
+          "location": [
+            {
+              "line": 45,
+              "col": 5
+            },
+            {
+              "line": 45,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "</em>",
+          "location": [
+            {
+              "line": 45,
+              "col": 5
+            },
+            {
+              "line": 45,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " ",
+          "location": [
+            {
+              "line": 45,
+              "col": 5
+            },
+            {
+              "line": 45,
+              "col": 5
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "&",
+          "location": [
+            {
+              "line": 45,
+              "col": 5
+            },
+            {
+              "line": 45,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " {name}",
+          "location": [
+            {
+              "line": 45,
+              "col": 5
             },
             {
               "line": 45,

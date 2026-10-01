@@ -112,6 +112,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Escaped numeric character references remain literal in plain-text labels
+  instead of being decoded a second time.
 - External cross-references retain their external destination and fallback text
   even when a local anchor has the same name.
 

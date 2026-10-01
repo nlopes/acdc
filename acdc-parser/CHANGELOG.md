@@ -57,6 +57,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Text-only `pass:a[...]`, `pass:c[...]`, `pass:v[...]`, and `pass:none[...]`
+  attribute values now resolve at definition time, including long names and
+  ordered combinations. Escaped references, aliases, caller overrides, and later
+  escaping match Asciidoctor. Formatting and macro substitution lists remain
+  unsupported at definition time.
 - Whole-value `pass:[...]` in document attributes is now resolved at definition
   time, matching Asciidoctor. Literal references, empty values, aliases, and raw
   characters survive later use, including code with macros disabled. Caller

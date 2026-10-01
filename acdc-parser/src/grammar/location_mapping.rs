@@ -2,7 +2,8 @@ use std::{borrow::Cow, mem::take};
 
 use crate::{
     AttributeValue, Error, Form, IndexTermKind, IndexTermRelationship, InlineMacro, InlineNode,
-    Location, PassthroughKind, Plain, ProcessedContent, Source,
+    Location, PassthroughKind, Plain, ProcessedContent, Source, Substitution,
+    model::substitution::{SubstitutionPlan, escape_attribute_characters},
 };
 
 use super::{
@@ -659,6 +660,99 @@ fn raw_tag_end(text: &str) -> Option<usize> {
     None
 }
 
+fn attribute_character_reference_end(text: &str) -> Option<usize> {
+    let tail = text.strip_prefix('&')?;
+    let first = tail.find(';')?;
+    if tail[..first].is_empty()
+        || !tail[..first]
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'#')
+    {
+        return None;
+    }
+    let mut unescaped = tail;
+    while let Some(rest) = unescaped.strip_prefix("amp;") {
+        unescaped = rest;
+    }
+    let end = unescaped.find(';').filter(|end| {
+        !unescaped[..*end].is_empty()
+            && unescaped[..*end]
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || byte == b'#')
+    });
+    Some(
+        end.map_or((text.len() - unescaped.len()).max(first + 2), |end| {
+            text.len() - unescaped.len() + end + 1
+        }),
+    )
+}
+
+fn restore_attribute_character_reference(text: &str) -> Cow<'_, str> {
+    let Some((body, _)) = text
+        .strip_prefix("&amp;")
+        .and_then(|body| body.split_once(';'))
+    else {
+        return text.into();
+    };
+    // Match Asciidoctor's replacements-stage entity restoration, including
+    // its name and digit limits; this is not general character-reference parsing.
+    let valid = if let Some(digits) = body.strip_prefix("#x") {
+        (2..=5).contains(&digits.len()) && digits.bytes().all(|byte| byte.is_ascii_hexdigit())
+    } else if let Some(digits) = body.strip_prefix('#') {
+        (2..=6).contains(&digits.len()) && digits.bytes().all(|byte| byte.is_ascii_digit())
+    } else {
+        let letters = body.bytes().take_while(u8::is_ascii_alphabetic).count();
+        letters >= 2
+            && body.len() - letters <= 2
+            && body[letters..].bytes().all(|byte| byte.is_ascii_digit())
+    };
+    if valid {
+        format!("&{}", &text[5..]).into()
+    } else {
+        text.into()
+    }
+}
+
+fn attribute_fragment_content(
+    text: &str,
+    plan: SubstitutionPlan,
+) -> (Cow<'_, str>, Vec<Substitution>) {
+    let escape = plan.precedes(&Substitution::Attributes, &Substitution::SpecialChars);
+    let restore = text.starts_with('&')
+        && plan.precedes(&Substitution::Attributes, &Substitution::Replacements);
+    let restore_first = restore
+        && (!escape || plan.precedes(&Substitution::Replacements, &Substitution::SpecialChars));
+    let mut content = Cow::Borrowed(text);
+    if restore_first && let Cow::Owned(restored) = restore_attribute_character_reference(&content) {
+        content = Cow::Owned(restored);
+    }
+    if escape {
+        content = escape_attribute_characters(&content).into();
+    }
+    if restore
+        && !restore_first
+        && let Cow::Owned(restored) = restore_attribute_character_reference(&content)
+    {
+        content = Cow::Owned(restored);
+    }
+    // Prepared attribute text can contain escaped characters. Keep one
+    // escaping stage on the character so every backend gets its meaning.
+    if (text.starts_with('&') || escape)
+        && (content.contains("&amp;") || content.contains("&lt;") || content.contains("&gt;"))
+    {
+        (
+            content
+                .replace("&lt;", "<")
+                .replace("&gt;", ">")
+                .replace("&amp;", "&")
+                .into(),
+            vec![Substitution::SpecialChars],
+        )
+    } else {
+        (content, Vec::new())
+    }
+}
+
 fn raw_attribute_fragments<'a>(
     plain: &Plain<'a>,
     ctx: &LocationMappingContext<'_, 'a>,
@@ -689,15 +783,8 @@ fn raw_attribute_fragments<'a>(
         let raw_end = if character == '<' {
             raw_tag_end(&plain.content[offset..]).map(|length| offset + length)
         } else if character == '&' {
-            (|| {
-                let tail = &plain.content[offset + 1..];
-                let length = tail.find(';')?;
-                (!tail[..length].is_empty()
-                    && tail[..length]
-                        .bytes()
-                        .all(|byte| byte.is_ascii_alphanumeric() || byte == b'#'))
-                .then_some(offset + length + 2)
-            })()
+            attribute_character_reference_end(&plain.content[offset..])
+                .map(|length| offset + length)
         } else {
             None
         }
@@ -725,10 +812,14 @@ fn raw_attribute_fragments<'a>(
                 .source_map
                 .map_end_position(position + end - offset - 1)?,
         );
+        let (content, subs) = attribute_fragment_content(
+            &plain.content[offset..end],
+            ctx.processed.attribute_substitutions,
+        );
         fragments.push(InlineNode::RawText(crate::Raw {
-            content: &plain.content[offset..end],
+            content: ctx.state.intern_str(&content),
             location,
-            subs: Vec::new(),
+            subs,
         }));
         cursor = end;
     }
