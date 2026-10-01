@@ -13,7 +13,7 @@ use acdc_parser::{BlockMetadata, Paragraph};
 
 use crate::{
     Error, ManpageVisitor,
-    delimited::source_content,
+    delimited::{formatted_verbatim_text, source_content},
     document::extract_verbatim_text,
     escape::{EscapeMode, manify},
 };
@@ -229,7 +229,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         let content = if matches!(para.metadata.style, Some("source" | "listing")) {
             source_content(&para.content, &para.metadata)
         } else {
-            manify(&extract_verbatim_text(&para.content), EscapeMode::Preserve).into_owned()
+            formatted_verbatim_text(&para.content)
         };
         for line in content.lines() {
             writeln!(w, "{line}")?;

@@ -417,7 +417,7 @@ pub(crate) fn process_inlines<'a>(
 }
 
 #[cfg(feature = "pre-spec-subs")]
-pub(crate) fn process_verbatim_macros<'a>(
+pub(crate) fn process_verbatim_inlines<'a>(
     state: &mut ParserState<'a>,
     block_metadata: &BlockParsingMetadata,
     content_start: usize,

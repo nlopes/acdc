@@ -1,0 +1,43 @@
+<div class="sect1">
+<h2 id="_name">Name</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>verbatim-nested - nested formatting in code</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_description">Description</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>See <a href="#formatted">Formatted</a>, <a href="#empty">Empty</a>, and <a href="#last">Last</a>.</p>
+</div>
+<div style="page-break-after: always;"></div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-rust" data-lang="rust">C01 <strong id="formatted">Bold <em>Italic</em> <a href="https://example.org">Nested <em>link</em></a> <sup class="footnote" id="_footnote_n">[<a id="_footnoteref_1" class="footnote" href="#_footnotedef_1" title="View footnote.">1</a>]</sup> Visible  end</strong>.
+C02 <a href="https://example.org/outer"><strong>Outer</strong> <em>tail</em></a> <sup class="footnoteref">[<a class="footnote" href="#_footnotedef_1" title="View footnote.">1</a>]</sup>
+C03 <strong>Multiline first
+  second</strong> after.
+C04 <strong>A long bold span that crosses the normal code wrap boundary and contains <em>nested emphasis</em> before it ends with a final marker.</strong> <b class="conum">(1)</b>
+C05 Before <strong id="empty"></strong> after.
+<strong id="last"></strong></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<ol>
+<li><p>Attached callout.</p></li>
+</ol>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_index">Index</h2>
+<div class="sectionbody">
+</div>
+</div>
+<div id="footnotes">
+<hr>
+<div class="footnote" id="_footnotedef_1">
+<a href="#_footnoteref_1">1</a>. Code note.</div>
+</div>

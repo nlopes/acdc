@@ -38,7 +38,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             }
             DelimitedBlockType::DelimitedLiteral(inlines) => {
                 self.collect_index_terms_from_inlines(traversal, inlines)?;
-                let content = extract_verbatim_text(inlines);
+                let content = formatted_verbatim_text(inlines);
                 self.render_literal_block(&content)
             }
             DelimitedBlockType::DelimitedExample(blocks)
@@ -165,8 +165,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     fn render_literal_block(&mut self, content: &str) -> Result<(), Error> {
         let w = self.writer_mut();
         writeln!(w, ".nf")?;
-        let escaped = manify(content, EscapeMode::Preserve);
-        for line in escaped.lines() {
+        for line in content.lines() {
             writeln!(w, "{line}")?;
         }
         writeln!(w, ".fi")?;
@@ -205,11 +204,43 @@ pub(crate) fn source_content(nodes: &[InlineNode<'_>], metadata: &BlockMetadata<
         } else if let InlineNode::CalloutRef(callout) = node {
             let _ = write!(output, "\\fB({})\\fP", callout.number);
         } else {
-            let content = extract_verbatim_text(std::slice::from_ref(node));
-            output.push_str(&manify(&content, EscapeMode::Preserve));
+            output.push_str(&formatted_verbatim_text(std::slice::from_ref(node)));
         }
     }
 
+    output
+}
+
+pub(crate) fn formatted_verbatim_text(nodes: &[InlineNode<'_>]) -> String {
+    let mut output = String::new();
+    for node in nodes {
+        let (prefix, content, suffix) = match node {
+            InlineNode::BoldText(text) => ("\\fB", text.content.as_slice(), "\\fP"),
+            InlineNode::ItalicText(text) => ("\\fI", text.content.as_slice(), "\\fP"),
+            InlineNode::MonospaceText(text) => ("\\f(CR", text.content.as_slice(), "\\fP"),
+            InlineNode::HighlightText(text) => ("", text.content.as_slice(), ""),
+            InlineNode::SuperscriptText(text) => ("", text.content.as_slice(), ""),
+            InlineNode::SubscriptText(text) => ("", text.content.as_slice(), ""),
+            InlineNode::CurvedQuotationText(text) => ("\\(lq", text.content.as_slice(), "\\(rq"),
+            InlineNode::CurvedApostropheText(text) => ("\\(oq", text.content.as_slice(), "\\(cq"),
+            InlineNode::PlainText(_)
+            | InlineNode::RawText(_)
+            | InlineNode::VerbatimText(_)
+            | InlineNode::StandaloneCurvedApostrophe(_)
+            | InlineNode::LineBreak(_)
+            | InlineNode::InlineAnchor(_)
+            | InlineNode::Macro(_)
+            | InlineNode::CalloutRef(_)
+            | _ => {
+                let text = extract_verbatim_text(std::slice::from_ref(node));
+                output.push_str(&manify(&text, EscapeMode::Preserve));
+                continue;
+            }
+        };
+        output.push_str(prefix);
+        output.push_str(&formatted_verbatim_text(content));
+        output.push_str(suffix);
+    }
     output
 }
 

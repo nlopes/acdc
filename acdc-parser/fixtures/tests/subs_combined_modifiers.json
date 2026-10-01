@@ -17,13 +17,46 @@
       },
       "inlines": [
         {
-          "name": "text",
-          "type": "string",
-          "value": "*bold* without callout ",
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "bold",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 2
+                },
+                {
+                  "line": 3,
+                  "col": 5
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 3,
               "col": 1
+            },
+            {
+              "line": 3,
+              "col": 6
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " without callout ",
+          "location": [
+            {
+              "line": 3,
+              "col": 7
             },
             {
               "line": 3,

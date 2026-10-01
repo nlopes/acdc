@@ -1,0 +1,82 @@
+<div class="sect1">
+<h2 id="_name">Name</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>verbatim-order - quote and attribute substitutions without macros</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_description">Description</h2>
+<div class="sectionbody">
+<div class="listingblock">
+<div class="content">
+<pre>A01 Before <strong></strong> and <strong>expanded</strong> after. *introduced*
+  link:https://example.org[Literal] &amp; &lt;tag&gt;</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>A02 Before <strong>* after. *introduced</strong></pre>
+</div>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>A03 Before <em></em> and <em>expanded</em> after.
+  second  line</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>A04 Before <strong></strong> and <strong>expanded</strong> after.</pre>
+</div>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>A05 Before <strong></strong> and <strong>expanded</strong> after.</pre>
+</div>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>A06 Before <strong></strong> and <strong>expanded</strong> after.
+  second  line</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text">A07 Before <strong></strong> and <strong>expanded</strong> after.</code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>A08 Keep <strong>{word}</strong> and link:https://example.org[Literal].</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>A09 Keep *expanded* and *introduced*.</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>A10 Keep *{word}* and {markup}.</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>A11 Default *{word}* and {markup}.</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>A12 Keep <strong>{word}</strong> and <strong>bold</strong>.</pre>
+</div>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>A13 <strong>First
+  second</strong> after.</pre>
+</div>
+</div>
+</div>
+</div>

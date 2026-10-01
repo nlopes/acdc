@@ -14,13 +14,94 @@
       },
       "inlines": [
         {
-          "name": "text",
-          "type": "string",
-          "value": "*bold* and _italic_ first",
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "bold",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 2
+                },
+                {
+                  "line": 3,
+                  "col": 5
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 3,
               "col": 1
+            },
+            {
+              "line": 3,
+              "col": 6
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " and ",
+          "location": [
+            {
+              "line": 3,
+              "col": 7
+            },
+            {
+              "line": 3,
+              "col": 11
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "emphasis",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "italic",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 13
+                },
+                {
+                  "line": 3,
+                  "col": 18
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 3,
+              "col": 12
+            },
+            {
+              "line": 3,
+              "col": 19
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " first",
+          "location": [
+            {
+              "line": 3,
+              "col": 20
             },
             {
               "line": 3,

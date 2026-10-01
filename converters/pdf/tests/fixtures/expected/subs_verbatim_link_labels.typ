@@ -110,8 +110,8 @@
   }
   let links = (
     ((0, 19, body => context link(query(<id-6f75746572>).first().location(), body)), ),
-    ((8, 12, body => link("https://example.org/a", body)), ),
-    ((0, 6, body => link("https://example.org/nested", body)), ),
+    ((8, 12, body => [#strong[#link("https://example.org/a", body)]]), ),
+    ((0, 6, body => [#strong[#link("https://example.org/nested", body)]]), ),
     ((0, 10, body => link("https://example.org/index", body)), ),
     ((0, 3, body => link((page: 1, x: 0pt, y: 0pt), body)), (4, 15, body => link("other.xhtml#target", body)), ),
     ((0, 8, body => [#metadata(none)<id-636f64652d6c696e6b>] + link("https://example.org/id", body)), ),
@@ -173,8 +173,47 @@
   show raw.line: line => index-anchors.at(line.number - 1, default: []) + code-links(line)
   raw(block: true, lang: "rust", "after")
 }
-#metadata(none)<__indexterm-3>#metadata(none)<id-656d7074792d626c6f636b>#raw(block: true, lang: "rust", "")
-
+#{
+  let index-anchors = (
+    [#metadata(none)<__indexterm-3>],
+  )
+  // Slice highlighted text without discarding its syntax styles.
+  let code-slice(body, start, end) = {
+    if body.has("text") {
+      let size = body.text.len()
+      (text(body.text.slice(calc.min(start, size), calc.min(end, size))), size)
+    } else if body.has("children") {
+      let offset = 0
+      let parts = []
+      for child in body.children {
+        let (part, size) = code-slice(child, calc.max(0, start - offset), calc.max(0, end - offset))
+        parts += part
+        offset += size
+      }
+      (parts, offset)
+    } else if body.has("child") {
+      let (child, size) = code-slice(body.child, start, end)
+      (body.func()(child, body.styles), size)
+    } else {
+      ([], 0)
+    }
+  }
+  let links = (
+    ((0, 3, body => [#metadata(none)<id-656d7074792d626c6f636b>] + []), ),
+  )
+  let code-links(line) = {
+    let start = 0
+    let body = []
+    for (from, to, make-link) in links.at(line.number - 1, default: ()) {
+      body += code-slice(line.body, start, from).first()
+      body += make-link(code-slice(line.body, from, to).first())
+      start = to
+    }
+    body + code-slice(line.body, start, line.text.len()).first()
+  }
+  show raw.line: line => index-anchors.at(line.number - 1, default: []) + code-links(line)
+  raw(block: true, lang: "rust", "￼")
+}
 #context link(query(<id-656d7074792d636f6465>).first().location())[#text("[empty-code]")]#text(" and ")#context link(query(<id-656d7074792d626c6f636b>).first().location())[#text("[empty-block]")]#text(".")
 
 #heading(level: 1)[#text("Outer ")#context link(query(<id-64657374696e6174696f6e>).first().location())[#text("Destination")]] <id-6f75746572>

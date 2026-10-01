@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Bundled italic and bold-italic monospace fonts preserve emphasis in code
+  blocks when quote substitutions are enabled.
 - Themes can control the page-header alignment, title size and weight, logo
   height, page-one visibility, footer size, and page-number position. Existing
   themes retain the previous header and footer appearance.

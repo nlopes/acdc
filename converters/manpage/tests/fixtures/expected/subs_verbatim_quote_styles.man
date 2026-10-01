@@ -1,0 +1,53 @@
+'\" t
+.\"     Title: verbatim-styles
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-01
+.\"    Manual: Substitution tests
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "VERBATIM\-STYLES" "1" "2026-10-01" "acdc" "Substitution tests"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+verbatim\-styles \- formatting in verbatim blocks
+.SH "DESCRIPTION"
+.EX
+B01 \fBBold\fP \fIItalic\fP \f(CRMono\fP Mark Super Sub
+B02 \fB\fINested\fP\fP Under Strike
+B03 \fBtwo  spaces\fP and \fBfirst
+  second\fP after.
+B04 \fBexpanded\fP \fB\fP link:https://example.org[Literal]
+.EE
+.EX
+B05 \fBBold\fP \fIItalic\fP \fBexpanded\fP \fB\fP Live
+.EE
+.nf
+B06 \fBBold\fP \fIItalic\fP \(lqCurved\(rq \(oqSingle\(cq
+B07 *literal* \fBdouble\fP \fIdouble\fP é*literal*é
+.fi
+.EX
+B08 \fBBold\fP expanded \fB(1)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+Callout stays attached.
+.RE

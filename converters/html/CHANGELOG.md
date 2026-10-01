@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Listing and literal blocks honour the requested order of quote and attribute
+  substitutions when macros are disabled, matching Asciidoctor. Highlighted
+  source blocks also retain explicitly enabled formatting and its text.
 - Attribute values consisting of a single backslash remain literal and no longer
   consume the following line. Tabs and extra spaces after the attribute name
   are accepted as separators. Real continuations include colon-prefixed lines

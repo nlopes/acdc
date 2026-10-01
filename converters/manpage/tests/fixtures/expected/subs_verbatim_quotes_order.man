@@ -1,0 +1,95 @@
+'\" t
+.\"     Title: verbatim-order
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-01
+.\"    Manual: Substitution tests
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "VERBATIM\-ORDER" "1" "2026-10-01" "acdc" "Substitution tests"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+verbatim\-order \- quote and attribute substitutions without macros
+.SH "DESCRIPTION"
+.EX
+A01 Before \fB\fP and \fBexpanded\fP after. *introduced*
+  link:https://example.org[Literal] & <tag>
+.EE
+.EX
+A02 Before \fB* after. *introduced\fP
+.EE
+.nf
+A03 Before \fI\fP and \fIexpanded\fP after.
+  second  line
+.fi
+.sp
+.if n .RS 4
+.nf
+.fam C
+A04 Before \fB\fP and \fBexpanded\fP after.
+.fam
+.fi
+.if n .RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+A05 Before \fB\fP and \fBexpanded\fP after.
+.fam
+.fi
+.if n .RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+A06 Before \fB\fP and \fBexpanded\fP after.
+  second  line
+.fam
+.fi
+.if n .RE
+.EX
+A07 Before \fB\fP and \fBexpanded\fP after.
+.EE
+.EX
+A08 Keep \fB{word}\fP and link:https://example.org[Literal].
+.EE
+.EX
+A09 Keep *expanded* and *introduced*.
+.EE
+.EX
+A10 Keep *{word}* and {markup}.
+.EE
+.EX
+A11 Default *{word}* and {markup}.
+.EE
+.EX
+A12 Keep \fB{word}\fP and \fBbold\fP\&.
+.EE
+.sp
+.if n .RS 4
+.nf
+.fam C
+A13 \fBFirst
+  second\fP after.
+.fam
+.fi
+.if n .RE

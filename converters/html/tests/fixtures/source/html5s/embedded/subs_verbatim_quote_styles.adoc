@@ -1,0 +1,39 @@
+= verbatim-styles(1)
+:doctype: manpage
+:manmanual: Substitution tests
+:mansource: acdc
+:revdate: 2026-10-01
+:blank:
+:word: expanded
+
+== Name
+verbatim-styles - formatting in verbatim blocks
+
+== Description
+
+[source,rust,subs="specialcharacters,quotes,attributes"]
+----
+B01 *Bold* _Italic_ `Mono` #Mark# ^Super^ ~Sub~
+B02 *_Nested_* [.underline]#Under# [.line-through]#Strike#
+B03 *two  spaces* and *first
+  second* after.
+B04 *{word}* *{blank}* link:https://example.org[Literal]
+----
+
+[source,rust,subs="specialcharacters,quotes,attributes,macros"]
+----
+B05 *Bold* _Italic_ *{word}* *{blank}* link:https://example.org[Live]
+----
+
+[subs="specialcharacters,quotes,attributes"]
+....
+B06 *Bold* _Italic_ "`Curved`" '`Single`'
+B07 \*literal* **double** __double__ é*literal*é
+....
+
+[subs="specialcharacters,quotes,attributes,callouts"]
+----
+B08 *Bold* {word} <1>
+----
+
+<1> Callout stays attached.

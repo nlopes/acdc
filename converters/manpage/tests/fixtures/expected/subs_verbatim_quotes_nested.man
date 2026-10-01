@@ -1,0 +1,62 @@
+'\" t
+.\"     Title: verbatim-nested
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-01
+.\"    Manual: Substitution tests
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "VERBATIM\-NESTED" "1" "2026-10-01" "acdc" "Substitution tests"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+verbatim\-nested \- nested formatting in code
+.SH "DESCRIPTION"
+.sp
+See Formatted, Empty, and Last\&.
+.bp
+.EX
+C01 \fBBold \fIItalic\fP Nested link [1] Visible  end\fP\&.
+C02 Outer tail [1]
+C03 \fBMultiline first
+  second\fP after.
+C04 \fBA long bold span that crosses the normal code wrap boundary and contains \fInested emphasis\fP before it ends with a final marker.\fP \fB(1)\fP
+C05 Before \fB\fP after.
+\fB\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+Attached callout.
+.RE
+.SH "INDEX"
+.SS "H"
+.RS 4
+Hidden
+.br
+.RE
+.SS "V"
+.RS 4
+Visible
+.br
+.RE
+.SH "NOTES"
+.IP [1] 4
+Code note.

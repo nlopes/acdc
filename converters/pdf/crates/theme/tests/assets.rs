@@ -12,7 +12,9 @@ const EXPECTED_FACES: &[(&str, u16, bool)] = &[
     ("IBM Plex Serif", 700, false),
     ("IBM Plex Serif", 400, true),
     ("IBM Plex Mono", 400, false),
+    ("IBM Plex Mono", 400, true),
     ("IBM Plex Mono", 700, false),
+    ("IBM Plex Mono", 700, true),
     ("Noto Color Emoji", 400, false),
 ];
 

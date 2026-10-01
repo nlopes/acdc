@@ -4,7 +4,7 @@ use std::io::{BufWriter, IntoInnerError, Write};
 
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::{
-    Replacements, SubsFlags, TextBoundaries, apply_replacements, effective_subs_flags,
+    Replacements, TextBoundaries, apply_replacements, effective_subs_flags,
 };
 use acdc_converters_core::{
     InlineTextTransform, TraversalContext,
@@ -504,10 +504,12 @@ pub(crate) fn render_preformatted_content(
     processor: &Processor<'_>,
 ) -> Result<String, Error> {
     let language = detect_language(metadata);
-    let (source, callouts) = source_with_callout_placeholders(inlines, language);
+    let (source, callouts, formatted) = source_with_callout_placeholders(inlines, language);
     let source = apply_source_substitutions(source, processor);
     let mut output = Vec::new();
-    if let Some(language) = language {
+    // Explicit quote formatting takes precedence over syntax colours. Sending
+    // its terminal escapes through the highlighter would display or corrupt them.
+    if let Some(language) = language.filter(|_| !formatted) {
         crate::syntax::highlight_text(&mut output, &source, language, processor)?;
     } else {
         output.extend_from_slice(source.as_bytes());
@@ -530,15 +532,6 @@ pub(crate) fn render_preformatted_content(
 #[cfg(feature = "pre-spec-subs")]
 fn apply_source_substitutions(mut source: String, processor: &Processor<'_>) -> String {
     let substitutions = processor.current_subs.get();
-    if substitutions.contains(SubsFlags::ATTRIBUTES)
-        && let Cow::Owned(expanded) = acdc_parser::substitute(
-            &source,
-            &[acdc_parser::Substitution::Attributes],
-            processor.parser_options.document_attributes(),
-        )
-    {
-        source = expanded;
-    }
     if let Cow::Owned(replaced) = apply_replacements(
         &source,
         substitutions,
@@ -558,9 +551,10 @@ fn apply_source_substitutions(source: String, _processor: &Processor<'_>) -> Str
 fn source_with_callout_placeholders(
     nodes: &[InlineNode<'_>],
     language: Option<&str>,
-) -> (String, Vec<(String, usize)>) {
+) -> (String, Vec<(String, usize)>, bool) {
     let mut source = String::new();
     let mut callouts = Vec::new();
+    let mut formatted = false;
     let transform = InlineTextTransform::default().line_break("\n");
     let comment_prefix = default_line_comment(language);
 
@@ -594,11 +588,81 @@ fn source_with_callout_placeholders(
                 .to_string();
             source.push_str(&placeholder);
             callouts.push((placeholder, callout.number));
+        } else if let Some(text) = formatted_code_text(node) {
+            source.push_str(&text);
+            formatted = true;
         } else {
             let _ = transform.write(&mut source, std::slice::from_ref(node));
         }
     }
-    (source, callouts)
+    (source, callouts, formatted)
+}
+
+fn formatted_code_text(node: &InlineNode<'_>) -> Option<String> {
+    let children = acdc_converters_core::code::code_inline_children(node)?;
+    let transform = InlineTextTransform::default().line_break("\n");
+    let text = children
+        .iter()
+        .map(|child| {
+            formatted_code_text(child)
+                .unwrap_or_else(|| transform.to_string(std::slice::from_ref(child)))
+        })
+        .collect::<String>();
+    Some(match node {
+        InlineNode::BoldText(_) => wrap_code_style(
+            &text,
+            SetAttribute(Attribute::Bold),
+            SetAttribute(Attribute::NormalIntensity),
+        ),
+        InlineNode::ItalicText(_) => wrap_code_style(
+            &text,
+            SetAttribute(Attribute::Italic),
+            SetAttribute(Attribute::NoItalic),
+        ),
+        InlineNode::HighlightText(highlight) => match highlight.role {
+            Some("underline") => wrap_code_style(
+                &text,
+                SetAttribute(Attribute::Underlined),
+                SetAttribute(Attribute::NoUnderline),
+            ),
+            Some("line-through") => wrap_code_style(
+                &text,
+                SetAttribute(Attribute::CrossedOut),
+                SetAttribute(Attribute::NotCrossedOut),
+            ),
+            _ => wrap_code_style(
+                &text,
+                SetBackgroundColor(Color::Yellow),
+                SetBackgroundColor(Color::Reset),
+            ),
+        },
+        InlineNode::MonospaceText(_)
+        | InlineNode::SuperscriptText(_)
+        | InlineNode::SubscriptText(_) => text,
+        InlineNode::CurvedQuotationText(_) => format!("“{text}”"),
+        InlineNode::CurvedApostropheText(_) => format!("‘{text}’"),
+        InlineNode::PlainText(_)
+        | InlineNode::RawText(_)
+        | InlineNode::VerbatimText(_)
+        | InlineNode::StandaloneCurvedApostrophe(_)
+        | InlineNode::LineBreak(_)
+        | InlineNode::InlineAnchor(_)
+        | InlineNode::Macro(_)
+        | InlineNode::CalloutRef(_)
+        | _ => return None,
+    })
+}
+
+fn wrap_code_style(
+    text: &str,
+    start: impl std::fmt::Display,
+    end: impl std::fmt::Display,
+) -> String {
+    // Line-number decoration resets intensity, so reopen formatting on each line.
+    text.split('\n')
+        .map(|line| format!("{start}{line}{end}"))
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 fn is_xml_callout(nodes: &[InlineNode<'_>], index: usize) -> bool {

@@ -138,7 +138,7 @@
     }
   }
   let links = (
-    ((5, 8, body => [#counter(footnote).update(2)#footnote[#text("Late {name} *literal* (C).")]]), ),
+    ((5, 8, body => [#counter(footnote).update(2)#footnote[#text("Late {name} *literal* (C).")]]), (38, 42, body => [#strong[#body]]), ),
   )
   let code-links(line) = {
     let start = 0

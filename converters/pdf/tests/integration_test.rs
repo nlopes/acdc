@@ -11,6 +11,72 @@ use acdc_converters_pdf::{PdfOptions, Processor};
 
 type Error = Box<dyn std::error::Error>;
 
+#[cfg(feature = "pre-spec-subs")]
+#[test]
+fn verbatim_quotes_use_bold_and_italic_pdf_fonts() -> Result<(), Error> {
+    let pdf =
+        render_input("[source,text,subs=+quotes]\n----\nRegular *Bold* _Italic_ *_Both_*\n----\n")?;
+    let page = *pdf.get_pages().get(&1).ok_or("missing page")?;
+    let fonts = pdf
+        .get_page_fonts(page)?
+        .into_values()
+        .map(|font| {
+            Ok(String::from_utf8(
+                font.get(b"BaseFont")?.as_name()?.to_vec(),
+            )?)
+        })
+        .collect::<Result<Vec<_>, Error>>()?;
+    for face in [
+        "IBMPlexMono-Bold",
+        "IBMPlexMono-Italic",
+        "IBMPlexMono-BoldItalic",
+    ] {
+        assert!(
+            fonts.iter().any(|font| font.ends_with(face)),
+            "{face}: {fonts:?}"
+        );
+    }
+    Ok(())
+}
+
+#[cfg(feature = "pre-spec-subs")]
+#[test]
+fn verbatim_quotes_preserve_pdf_destinations_and_notes() -> Result<(), Error> {
+    let source = include_str!("fixtures/source/subs_verbatim_quotes_nested.adoc");
+    for source in [
+        source.to_owned(),
+        source.replace(":blank:", ":source-highlighter: rouge\n:blank:"),
+    ] {
+        let pdf = render_input(&source)?;
+        assert_eq!(internal_link_pages(&pdf, 1)?, [2, 2, 2]);
+        let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+        let text = pdf.extract_text(&pages)?;
+        assert_eq!(text.matches("Code note.").count(), 1, "{text}");
+        assert!(!text.contains('*'), "{text}");
+        let mut targets = Vec::new();
+        for page in pdf.get_pages().values() {
+            for annotation in pdf.get_page_annotations(*page)? {
+                if let Ok(action) = annotation.get(b"A") {
+                    let (_, action) = pdf.dereference(action)?;
+                    if let Ok(uri) = action.as_dict()?.get(b"URI") {
+                        targets.push(String::from_utf8(uri.as_str()?.to_vec())?);
+                    }
+                }
+            }
+        }
+        assert!(targets.iter().any(|target| target == "https://example.org"));
+        assert!(
+            targets
+                .iter()
+                .any(|target| target == "https://example.org/outer")
+        );
+        assert!(targets.iter().all(|target| {
+            ["https://example.org", "https://example.org/outer"].contains(&target.as_str())
+        }));
+    }
+    Ok(())
+}
+
 #[test]
 fn index_inline_spacing_preserves_catalog_destinations() -> Result<(), Error> {
     let pdf = render_input(include_str!("fixtures/source/index_inline_spacing.adoc"))?;

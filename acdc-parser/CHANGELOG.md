@@ -57,6 +57,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Listing and literal blocks now apply requested quote and attribute substitutions
+  even when macros are disabled. Substitution order matches Asciidoctor: with
+  `subs="quotes,attributes"`, markup introduced by an attribute stays literal.
 - Formatting around empty attribute references now stays formatted when quotes
   precede attributes, including default substitutions. For example, `*{blank}*`
   retains empty bold text instead of displaying `**`, matching Asciidoctor.

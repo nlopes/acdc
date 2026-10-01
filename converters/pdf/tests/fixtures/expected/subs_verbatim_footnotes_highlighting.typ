@@ -402,7 +402,7 @@
     }
   }
   let links = (
-    ((5, 8, body => [#counter(footnote).update(10)#footnote[#text("Bold note.")]]), ),
+    ((0, 5, body => [#strong[#body]]), (5, 8, body => [#strong[#[#counter(footnote).update(10)#footnote[#text("Bold note.")]]]]), ),
     ((0, 6, body => link("https://example.org", body)), (6, 9, body => [#counter(footnote).update(11)#footnote[#text("Link label note.")]]), (9, 13, body => link("https://example.org", body)), ),
     ((8, 11, body => [#counter(footnote).update(12)#footnote[#text("Index label note.")]]), ),
   )

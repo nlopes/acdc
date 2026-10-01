@@ -45,7 +45,7 @@ S06 Before \fBintroduced\fP after.
 .sp
 S07 Before *introduced* after.
 .EX
-S08 Before  and  after.
+S08 Before \fB\fP and \fI\fP after.
 .EE
 .EX
 S09 Before ** and __ after.

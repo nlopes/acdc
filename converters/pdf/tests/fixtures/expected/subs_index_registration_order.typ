@@ -95,7 +95,43 @@
     [#metadata(none)<__indexterm-13>#metadata(none)<__indexterm-14>],
     [],
   )
-  show raw.line: line => index-anchors.at(line.number - 1, default: []) + line
+  // Slice highlighted text without discarding its syntax styles.
+  let code-slice(body, start, end) = {
+    if body.has("text") {
+      let size = body.text.len()
+      (text(body.text.slice(calc.min(start, size), calc.min(end, size))), size)
+    } else if body.has("children") {
+      let offset = 0
+      let parts = []
+      for child in body.children {
+        let (part, size) = code-slice(child, calc.max(0, start - offset), calc.max(0, end - offset))
+        parts += part
+        offset += size
+      }
+      (parts, offset)
+    } else if body.has("child") {
+      let (child, size) = code-slice(body.child, start, end)
+      (body.func()(child, body.styles), size)
+    } else {
+      ([], 0)
+    }
+  }
+  let links = (
+    (),
+    ((14, 18, body => [#strong[#body]]), ),
+    (),
+  )
+  let code-links(line) = {
+    let start = 0
+    let body = []
+    for (from, to, make-link) in links.at(line.number - 1, default: ()) {
+      body += code-slice(line.body, start, from).first()
+      body += make-link(code-slice(line.body, from, to).first())
+      start = to
+    }
+    body + code-slice(line.body, start, line.text.len()).first()
+  }
+  show raw.line: line => index-anchors.at(line.number - 1, default: []) + code-links(line)
   raw(block: true, "Before\nCode Expanded bold and Gone\nAfter")
 }
 #metadata(none)<__indexterm-15>#text("Footnote ")#counter(footnote).update(0)#footnote[#text("Only once")]#text(" and ")#counter(footnote).update(1)#footnote[#text("Second note")]#text(".")

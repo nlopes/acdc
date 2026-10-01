@@ -1,0 +1,30 @@
+= verbatim-nested(1)
+:doctype: manpage
+:manmanual: Substitution tests
+:mansource: acdc
+:revdate: 2026-10-01
+:blank:
+:word: expanded
+
+== Name
+verbatim-nested - nested formatting in code
+
+== Description
+See <<formatted,Formatted>>, <<empty,Empty>>, and <<last,Last>>.
+
+<<<
+
+[source,rust,linenums,subs="specialcharacters,quotes,attributes,macros,callouts"]
+----
+C01 [#formatted]*Bold _Italic_ link:https://example.org[Nested _link_] footnote:n[Code note.] ((Visible)) indexterm:[Hidden] end*.
+C02 link:https://example.org/outer[*Outer* _tail_] footnote:n[]
+C03 *Multiline first
+  second* after.
+C04 *A long bold span that crosses the normal code wrap boundary and contains _nested emphasis_ before it ends with a final marker.* <1>
+C05 Before [#empty]*{blank}* after.
+[#last]*{blank}*
+----
+<1> Attached callout.
+
+[index]
+== Index

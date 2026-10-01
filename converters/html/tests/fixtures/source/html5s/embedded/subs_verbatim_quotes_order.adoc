@@ -1,0 +1,73 @@
+= verbatim-order(1)
+:doctype: manpage
+:manmanual: Substitution tests
+:mansource: acdc
+:revdate: 2026-10-01
+:blank:
+:word: expanded
+:markup: *introduced*
+
+== Name
+verbatim-order - quote and attribute substitutions without macros
+
+== Description
+
+[subs="specialcharacters,quotes,attributes"]
+----
+A01 Before *{blank}* and *{word}* after. {markup}
+  link:https://example.org[Literal] & <tag>
+----
+
+[subs="specialcharacters,attributes,quotes"]
+----
+A02 Before *{blank}* after. {markup}
+----
+
+[subs="specialcharacters,quotes,attributes"]
+....
+A03 Before _{blank}_ and _{word}_ after.
+  second  line
+....
+
+[listing,subs="specialcharacters,quotes,attributes"]
+A04 Before *{blank}* and *{word}* after.
+
+[literal,subs="specialcharacters,quotes,attributes"]
+A05 Before *{blank}* and *{word}* after.
+
+[subs="specialcharacters,quotes,attributes"]
+ A06 Before *{blank}* and *{word}* after.
+   second  line
+
+[subs="specialcharacters,quotes,attributes"]
+```text
+A07 Before *{blank}* and *{word}* after.
+```
+
+[subs="specialcharacters,quotes"]
+----
+A08 Keep *{word}* and link:https://example.org[Literal].
+----
+
+[subs="specialcharacters,attributes"]
+----
+A09 Keep *{word}* and {markup}.
+----
+
+[subs=none]
+----
+A10 Keep *{word}* and {markup}.
+----
+
+----
+A11 Default *{word}* and {markup}.
+----
+
+[subs=+quotes]
+----
+A12 Keep *{word}* and *bold*.
+----
+
+[subs="specialcharacters,quotes,attributes"]
+ A13 *First
+   second* after.

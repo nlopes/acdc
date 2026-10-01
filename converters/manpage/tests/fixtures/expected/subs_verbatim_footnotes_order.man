@@ -34,7 +34,7 @@ footnote\-stages \- apply substitutions around footnotes
 Early [1] [2]
 .EE
 .EX
-Late [3] footnote:attribute[Attribute body Early.]
+Late [3] footnote:attribute[Attribute \fBbody\fP Early.]
 .EE
 .EX
 Changed early [1]

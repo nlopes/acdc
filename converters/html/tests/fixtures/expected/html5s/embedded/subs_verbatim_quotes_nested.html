@@ -1,0 +1,31 @@
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>verbatim-nested - nested formatting in code</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_description">Description</h2>
+<p>See <a href="#formatted">Formatted</a>, <a href="#empty">Empty</a>, and <a href="#last">Last</a>.</p>
+<div style="page-break-after: always;"></div>
+<div class="listing-block">
+<pre class="highlight"><code class="language-rust" data-lang="rust">C01 <strong id="formatted">Bold <em>Italic</em> <a href="https://example.org">Nested <em>link</em></a> <sup class="footnote-ref" id="_footnoteref_1">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup> Visible  end</strong>.
+C02 <a href="https://example.org/outer"><strong>Outer</strong> <em>tail</em></a> <sup class="footnote-ref">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup>
+C03 <strong>Multiline first
+  second</strong> after.
+C04 <strong>A long bold span that crosses the normal code wrap boundary and contains <em>nested emphasis</em> before it ends with a final marker.</strong> <b class="conum">(1)</b>
+C05 Before <strong id="empty"></strong> after.
+<strong id="last"></strong></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Attached callout.</li>
+</ol>
+</section>
+<section class="doc-section level-1">
+<h2 id="_index">Index</h2>
+</section>
+<section class="footnotes" aria-label="Footnotes" role="doc-endnotes">
+<hr>
+<ol class="footnotes">
+<li class="footnote" id="_footnote_1" role="doc-endnote">
+Code note. <a class="footnote-backref" href="#_footnoteref_1" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+</ol>
+</section>

@@ -53,7 +53,6 @@ use acdc_converters_core::{
     media::resolve_target,
     substitutions::{
         Replacements, TextBoundaries, restore_escaped_patterns, strip_backslash_escapes,
-        substitute_attributes,
     },
     visitor::{Visitor, WritableVisitor},
     xref::{XrefDisplay, interdocument_xref, resolve_xref},
@@ -684,33 +683,20 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
     fn render_verbatim(
         &mut self,
-        traversal: &mut TraversalContext<'a>,
+        _traversal: &mut TraversalContext<'a>,
         v: &Verbatim<'_>,
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
-        // VerbatimText is now just text (callouts are separate CalloutRef nodes).
-        // Apply attribute substitution first, then escaping.
-        let content = if subs.contains(&Substitution::Attributes) {
-            substitute_attributes(v.content, traversal)
-        } else {
-            std::borrow::Cow::Borrowed(v.content)
-        };
+        // The parser has already applied quotes and attributes in the requested order.
+        // Re-parsing this text would activate markup introduced by late attributes.
         let verbatim_options = RenderOptions {
             inlines_verbatim: true,
             ..options.clone()
         };
 
-        if subs.contains(&Substitution::Quotes) {
-            // Keep Quotes in subs so BoldText/ItalicText render as HTML.
-            let parsed = parse_text_for_quotes(&content);
-            for node in parsed.inlines() {
-                self.render_inline_node(traversal, node, &verbatim_options, subs)?;
-            }
-        } else {
-            let text = substitution_text(&content, subs, &verbatim_options, self.text_boundaries());
-            write!(self.writer_mut(), "{text}")?;
-        }
+        let text = substitution_text(v.content, subs, &verbatim_options, self.text_boundaries());
+        write!(self.writer_mut(), "{text}")?;
         Ok(())
     }
 

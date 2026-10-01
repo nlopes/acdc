@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Listing and literal blocks honour enabled quote and attribute substitutions,
+  including bold and italic text, without requiring macros. Markup introduced
+  after quote substitution stays literal, matching Asciidoctor.
 - Empty superscript and subscript text no longer displays `^()` or `_()` after
   attribute substitution, matching Asciidoctor.
 

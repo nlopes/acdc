@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Listing and literal blocks honour enabled quote and attribute substitutions,
+  including bold, italic, nested formatting, and empty formatted anchor targets.
+  Quote markup introduced after quote substitution stays literal, matching
+  Asciidoctor PDF. Formatting survives code wrapping and syntax highlighting.
 - Visible and concealed index terms no longer insert extra spaces in text,
   formatting, links, footnotes, or table cells. `x((Term))y` renders as `xTermy`,
   matching Asciidoctor PDF. Authored spaces remain intact, including before

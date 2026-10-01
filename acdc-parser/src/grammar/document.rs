@@ -45,7 +45,8 @@ use crate::{
 
 #[cfg(feature = "pre-spec-subs")]
 use crate::{
-    grammar::inline_processing::process_verbatim_macros, model::substitution::parse_subs_attribute,
+    grammar::{inline_processing::process_verbatim_inlines, location_walk::walk_inline_nodes_mut},
+    model::substitution::parse_subs_attribute,
 };
 
 use super::{
@@ -564,7 +565,7 @@ fn comment_inner<'input>(
 }
 
 /// Verbatim block (`----` listing or `....` literal, including the Markdown fence):
-/// preserves whitespace while resolving enabled index macros and callouts.
+/// preserves whitespace while resolving enabled inline substitutions and callouts.
 fn verbatim_inner<'input>(
     state: &mut ParserState<'input>,
     block_metadata: &BlockParsingMetadata<'input>,
@@ -593,7 +594,7 @@ fn verbatim_inner<'input>(
             .enabled(&Substitution::Callouts),
     );
     state.pending_callouts.extend(callouts);
-    let inlines = resolve_verbatim_macros(state, block_metadata, inlines)?;
+    let inlines = resolve_verbatim_inlines(state, block_metadata, inlines)?;
     Ok(if p.kind == DelimitedKind::Literal {
         DelimitedBlockType::DelimitedLiteral(inlines)
     } else {
@@ -611,13 +612,24 @@ fn verbatim_substitutions(metadata: &BlockParsingMetadata<'_>) -> SubstitutionPl
 }
 
 #[cfg(feature = "pre-spec-subs")]
-fn resolve_verbatim_macros<'a>(
+fn needs_verbatim_inlines(substitutions: SubstitutionPlan) -> bool {
+    [
+        Substitution::Quotes,
+        Substitution::Attributes,
+        Substitution::Macros,
+    ]
+    .iter()
+    .any(|substitution| substitutions.enabled(substitution))
+}
+
+#[cfg(feature = "pre-spec-subs")]
+fn resolve_verbatim_inlines<'a>(
     state: &mut ParserState<'a>,
     metadata: &BlockParsingMetadata<'_>,
     inlines: Vec<InlineNode<'a>>,
 ) -> Result<Vec<InlineNode<'a>>, Error> {
     let substitutions = verbatim_substitutions(metadata);
-    if !substitutions.enabled(&Substitution::Macros) {
+    if !needs_verbatim_inlines(substitutions) {
         return Ok(inlines);
     }
     let metadata = BlockParsingMetadata {
@@ -627,7 +639,7 @@ fn resolve_verbatim_macros<'a>(
     let mut resolved = Vec::new();
     for node in inlines {
         if let InlineNode::VerbatimText(text) = node {
-            resolved.extend(process_verbatim_macros(
+            resolved.extend(process_verbatim_inlines(
                 state,
                 &metadata,
                 text.location.absolute_start,
@@ -641,7 +653,7 @@ fn resolve_verbatim_macros<'a>(
 }
 
 #[cfg(not(feature = "pre-spec-subs"))]
-fn resolve_verbatim_macros<'a>(
+fn resolve_verbatim_inlines<'a>(
     _state: &mut ParserState<'a>,
     _metadata: &BlockParsingMetadata<'_>,
     inlines: Vec<InlineNode<'a>>,
@@ -2192,12 +2204,8 @@ fn get_literal_paragraph<'input>(
         escaped: false,
     })];
     #[cfg(feature = "pre-spec-subs")]
-    let inlines = if metadata
-        .substitutions
-        .as_ref()
-        .is_some_and(|spec| spec.resolve(VERBATIM).contains(&Substitution::Macros))
-    {
-        let mut parsed = resolve_verbatim_macros(
+    let inlines = if needs_verbatim_inlines(verbatim_substitutions(block_metadata)) {
+        let mut parsed = resolve_verbatim_inlines(
             state,
             block_metadata,
             vec![InlineNode::VerbatimText(Verbatim {
@@ -2207,11 +2215,20 @@ fn get_literal_paragraph<'input>(
         )?;
         if all_lines_have_leading_space {
             for node in &mut parsed {
-                if let InlineNode::VerbatimText(text) = node {
+                // Dedent nested formatted text too, while keeping original source locations.
+                walk_inline_nodes_mut(node, &mut |node| {
+                    let starts_line = node.location().start.column == 1;
+                    let content = if let InlineNode::VerbatimText(text) = node {
+                        &mut text.content
+                    } else if let InlineNode::PlainText(text) = node {
+                        &mut text.content
+                    } else {
+                        return;
+                    };
                     let mut first = true;
-                    text.content = state.intern_join(
-                        text.content.split_inclusive('\n').map(|line| {
-                            let strip = !first || text.location.start.column == 1;
+                    *content = state.intern_join(
+                        content.split_inclusive('\n').map(|line| {
+                            let strip = !first || starts_line;
                             first = false;
                             if strip {
                                 line.strip_prefix(' ').unwrap_or(line)
@@ -2221,7 +2238,7 @@ fn get_literal_paragraph<'input>(
                         }),
                         "",
                     );
-                }
+                });
             }
         }
         parsed
@@ -6412,7 +6429,7 @@ peg::parser! {
                     )?
                     .0
                 } else {
-                    resolve_verbatim_macros(state, block_metadata, verbatim_content)?
+                    resolve_verbatim_inlines(state, block_metadata, verbatim_content)?
                 };
                             state.pending_callouts.extend(callouts);
                 content

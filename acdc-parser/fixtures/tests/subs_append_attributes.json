@@ -19,7 +19,7 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Content with {attribute}",
+          "value": "Content with a *bold* attribute",
           "location": [
             {
               "line": 5,

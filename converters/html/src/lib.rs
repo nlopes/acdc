@@ -12,9 +12,6 @@ use acdc_converters_core::{
     visitor::Visitor, xref::XrefGuard,
 };
 
-#[cfg(feature = "highlighting")]
-use acdc_converters_core::substitutions::substitute_attributes;
-
 use acdc_parser::{
     AttributeValue, BlockMetadata, Caption, CaptionKind, Document, DocumentAttributes, InlineNode,
     Options as ParserOptions, Reference, Substitution, TocEntry,
@@ -838,40 +835,7 @@ pub(crate) fn build_class(base: &str, roles: &[&str]) -> String {
     }
 }
 
-/// Apply attribute substitution to inline nodes if `Attributes` is in the active subs.
-///
-/// Returns `Some(new_inlines)` when substitution was performed, `None` otherwise
-/// (allowing the caller to use the original slice without cloning).
-#[cfg(feature = "highlighting")]
-fn apply_attribute_subs<'a>(
-    inlines: &'a [InlineNode<'a>],
-    subs: &[Substitution],
-    attributes: &TraversalContext,
-) -> Option<Vec<InlineNode<'a>>> {
-    if !subs.contains(&Substitution::Attributes) {
-        return None;
-    }
-    Some(
-        inlines
-            .iter()
-            .map(|node| {
-                if let InlineNode::VerbatimText(v) = node {
-                    let content = match substitute_attributes(v.content, attributes) {
-                        std::borrow::Cow::Borrowed(s) => s,
-                        std::borrow::Cow::Owned(s) => Box::leak(s.into_boxed_str()),
-                    };
-                    InlineNode::VerbatimText(acdc_parser::Verbatim {
-                        content,
-                        location: v.location.clone(),
-                    })
-                } else {
-                    node.clone()
-                }
-            })
-            .collect(),
-    )
-}
-
+/// Preserve parsed formatting and macros while the surrounding code is highlighted.
 #[cfg(feature = "highlighting")]
 fn capture_code_inlines<'a, W: std::io::Write>(
     traversal: &mut TraversalContext<'a>,
@@ -887,7 +851,19 @@ fn capture_code_inlines<'a, W: std::io::Write>(
                 &visitor.processor.references,
                 "html",
             );
-            linked.then_some(text)
+            let formatted = matches!(
+                node,
+                InlineNode::BoldText(_)
+                    | InlineNode::ItalicText(_)
+                    | InlineNode::MonospaceText(_)
+                    | InlineNode::HighlightText(_)
+                    | InlineNode::SubscriptText(_)
+                    | InlineNode::SuperscriptText(_)
+                    | InlineNode::CurvedQuotationText(_)
+                    | InlineNode::CurvedApostropheText(_)
+                    | InlineNode::StandaloneCurvedApostrophe(_)
+            );
+            (linked || formatted).then_some(text)
         })
         .collect::<Vec<_>>();
     let mut links = Vec::new();
@@ -896,6 +872,7 @@ fn capture_code_inlines<'a, W: std::io::Write>(
         if let Some(label) = label {
             let mut options = visitor.render_options.clone();
             options.embedded = true;
+            options.inlines_verbatim = true;
             let mut capture = HtmlVisitor::new(
                 Vec::new(),
                 visitor.processor.clone(),
@@ -1045,8 +1022,7 @@ pub(crate) fn render_pre_code<'a, W: std::io::Write>(
         }
         let processor = visitor.processor.clone();
         let (theme_name, mode) = resolve_highlight_settings(processor.document_attributes());
-        let effective_inlines = apply_attribute_subs(inlines, subs, traversal);
-        let highlight_inlines = effective_inlines.as_deref().unwrap_or(inlines);
+        let highlight_inlines = inlines;
         render_highlighted_code(
             traversal,
             highlight_inlines,

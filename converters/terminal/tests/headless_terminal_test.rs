@@ -283,6 +283,27 @@ fn paragraph_roles_survive_terminal_emulation() -> Result<(), Error> {
     Ok(())
 }
 
+#[cfg(feature = "pre-spec-subs")]
+#[test]
+fn verbatim_quotes_survive_line_numbers_and_terminal_emulation() -> Result<(), Error> {
+    // ANSI snapshots alone cannot show whether numbering reset an active style.
+    let grid = render_to_grid(
+        "[source,rust,linenums,subs=+quotes]\n----\n*First\n  second _Nested_* plain.\n----\n",
+        80,
+        10,
+    )?;
+    for text in ["First", "second", "Nested"] {
+        assert_span_style(&grid, text, |cell| cell.has_decoration(Decoration::Bold));
+    }
+    assert_span_style(&grid, "Nested", |cell| {
+        cell.has_decoration(Decoration::Italic)
+    });
+    assert_span_style(&grid, "plain", |cell| {
+        !cell.has_decoration(Decoration::Bold) && !cell.has_decoration(Decoration::Italic)
+    });
+    Ok(())
+}
+
 #[test]
 fn section_header_is_bold_and_rendered_with_rules() -> Result<(), Error> {
     let grid = render_to_grid("= Document title\n\n== First section\n", 40, 8)?;

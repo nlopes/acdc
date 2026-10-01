@@ -161,7 +161,7 @@
     }
   }
   let links = (
-    ((7, 7, body => [#metadata(none)<id-666f726d6174746564>] + []), ),
+    ((7, 7, body => [#metadata(none)<id-666f726d6174746564>] + [#strong[#[]]]), (7, 11, body => [#strong[#body]]), ),
   )
   let code-links(line) = {
     let start = 0

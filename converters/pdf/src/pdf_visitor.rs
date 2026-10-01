@@ -4,9 +4,7 @@ use std::{
 };
 
 #[cfg(feature = "pre-spec-subs")]
-use acdc_converters_core::substitutions::{
-    SubsFlags, apply_replacements, effective_subs_flags, substitute_attributes,
-};
+use acdc_converters_core::substitutions::{apply_replacements, effective_subs_flags};
 use acdc_converters_core::{
     Diagnostics, Doctype, InlineTextTransform, TraversalContext,
     code::{
@@ -58,31 +56,34 @@ struct CodeText {
 }
 
 impl CodeText {
-    fn wrap_link(&mut self, target: Option<CodeLinkTarget>, anchor: Option<String>) {
-        if target.is_none() && anchor.is_none() {
+    fn wrap_span(&mut self, mut outer: CodeSpan) {
+        if outer.target.is_none() && outer.anchor.is_none() && outer.prefix.is_empty() {
             return;
         }
         let mut spans = Vec::new();
         let mut start = 0;
-        let mut anchor = anchor;
-        for span in self.links.drain(..) {
-            if start < span.range.start || anchor.is_some() {
+        // Flatten nested formatting into disjoint ranges for line wrapping.
+        // Links keep their own targets, and footnotes keep their own actions.
+        for mut span in self.links.drain(..) {
+            if start < span.range.start || outer.anchor.is_some() {
                 spans.push(CodeSpan {
                     range: start..span.range.start,
-                    target: target.clone(),
-                    anchor: anchor.take(),
-                    replacement: None,
+                    anchor: outer.anchor.take(),
+                    ..outer.clone()
                 });
             }
             start = span.range.end;
+            if span.replacement.is_none() && span.target.is_none() {
+                span.target.clone_from(&outer.target);
+            }
+            span.prefix.insert_str(0, &outer.prefix);
+            span.suffix.push_str(&outer.suffix);
             spans.push(span);
         }
-        if start < self.source.len() || anchor.is_some() {
+        if start < self.source.len() || outer.anchor.is_some() {
             spans.push(CodeSpan {
                 range: start..self.source.len(),
-                target,
-                anchor,
-                replacement: None,
+                ..outer
             });
         }
         self.links = spans;
@@ -104,11 +105,14 @@ impl CodeText {
     }
 }
 
+#[derive(Clone, Default)]
 struct CodeSpan {
     range: Range<usize>,
     target: Option<CodeLinkTarget>,
     anchor: Option<String>,
     replacement: Option<String>,
+    prefix: String,
+    suffix: String,
 }
 
 #[derive(Default)]
@@ -1762,14 +1766,18 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         // Its placeholder is replaced with empty content, so it adds no glyph or space.
         let end = text.len();
         if (text.is_empty() || text.ends_with('\n'))
-            && links
-                .iter()
-                .any(|link| link.range == (end..end) && link.replacement.as_deref() == Some(""))
+            && links.iter().any(|link| {
+                link.range == (end..end)
+                    && (link.anchor.is_some() || link.replacement.as_deref() == Some(""))
+            })
         {
             text.push('\u{fffc}');
             for link in &mut links {
-                if link.range == (end..end) && link.replacement.as_deref() == Some("") {
+                if link.range == (end..end)
+                    && (link.anchor.is_some() || link.replacement.as_deref() == Some(""))
+                {
                     link.range.end = text.len();
+                    link.replacement.get_or_insert_with(String::new);
                 }
             }
         }
@@ -1785,11 +1793,6 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         #[cfg(feature = "pre-spec-subs")]
         {
             let subs = self.processor.current_subs.get();
-            if subs.contains(SubsFlags::ATTRIBUTES) {
-                transform_code_substitutions(&mut text, &mut positions, index_count, |text| {
-                    substitute_attributes(text, traversal)
-                });
-            }
             transform_code_substitutions(&mut text, &mut positions, index_count, |text| {
                 apply_replacements(text, subs, &Replacements::unicode(), TextBoundaries::BOTH)
             });
@@ -1833,6 +1836,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     target: None,
                     anchor: Some(anchor.id.to_owned()),
                     replacement: Some(String::new()),
+                    ..CodeSpan::default()
                 });
             } else if let InlineNode::Macro(inline_macro @ InlineMacro::Footnote(_)) = node {
                 let output = replace(&mut self.writer, Writer::new());
@@ -1847,6 +1851,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     target: None,
                     anchor: None,
                     replacement: Some(markup),
+                    ..CodeSpan::default()
                 });
             } else if let Some(children) = code_inline_children(node) {
                 let child = self.collect_code_text(
@@ -1856,7 +1861,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     suppress_indexes
                         || matches!(node, InlineNode::Macro(InlineMacro::IndexTerm(_))),
                 )?;
-                code.append(child);
+                code.append(self.format_code_text(node, child));
             } else if let Some(link) =
                 resolve_code_link(node, &self.processor.references, extension)
             {
@@ -1879,7 +1884,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                         ..CodeText::default()
                     }
                 };
-                child.wrap_link(link.target, link.anchor);
+                child.wrap_span(CodeSpan {
+                    target: link.target,
+                    anchor: link.anchor,
+                    ..CodeSpan::default()
+                });
                 code.append(child);
             } else if let InlineNode::VerbatimText(verbatim) = node {
                 let mut content = verbatim.content;
@@ -1910,6 +1919,73 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         }
 
         Ok(code)
+    }
+
+    fn format_code_text(&mut self, node: &InlineNode<'_>, mut text: CodeText) -> CodeText {
+        let quotes = if matches!(node, InlineNode::CurvedQuotationText(_)) {
+            Some(("“", "”"))
+        } else if matches!(node, InlineNode::CurvedApostropheText(_)) {
+            Some(("‘", "’"))
+        } else {
+            None
+        };
+        if let Some((open, close)) = quotes {
+            let mut wrapped = CodeText {
+                source: open.to_owned(),
+                ..CodeText::default()
+            };
+            wrapped.append(text);
+            wrapped.source.push_str(close);
+            text = wrapped;
+        }
+        if let Some(span) = self.code_formatting(node) {
+            text.wrap_span(span);
+        }
+        text
+    }
+
+    fn code_formatting(&mut self, node: &InlineNode<'_>) -> Option<CodeSpan> {
+        let (id, role, prefix, suffix) = match node {
+            InlineNode::BoldText(text) => (text.id, text.role, "#strong[", "]"),
+            InlineNode::ItalicText(text) => (text.id, text.role, "#emph[", "]"),
+            InlineNode::MonospaceText(text) => (text.id, text.role, "", ""),
+            InlineNode::HighlightText(text) => {
+                let (prefix, suffix) = if text.id.is_none() && text.role.is_none() {
+                    ("#highlight[", "]")
+                } else {
+                    ("", "")
+                };
+                (text.id, text.role, prefix, suffix)
+            }
+            InlineNode::SuperscriptText(text) => (text.id, text.role, "#super[", "]"),
+            InlineNode::SubscriptText(text) => (text.id, text.role, "#sub[", "]"),
+            InlineNode::CurvedQuotationText(text) => (text.id, text.role, "", ""),
+            InlineNode::CurvedApostropheText(text) => (text.id, text.role, "", ""),
+            InlineNode::PlainText(_)
+            | InlineNode::RawText(_)
+            | InlineNode::VerbatimText(_)
+            | InlineNode::StandaloneCurvedApostrophe(_)
+            | InlineNode::LineBreak(_)
+            | InlineNode::InlineAnchor(_)
+            | InlineNode::Macro(_)
+            | InlineNode::CalloutRef(_)
+            | _ => return None,
+        };
+        // Reuse prose role handling, but attach the ID once when the code span
+        // is split across lines or around nested links and footnotes.
+        let output = replace(&mut self.writer, Writer::new());
+        let state = self.write_inline_span_start(None, role);
+        self.writer.raw(prefix);
+        let prefix = replace(&mut self.writer, Writer::new()).into_string();
+        self.writer.raw(suffix);
+        self.write_inline_span_end(state);
+        let suffix = replace(&mut self.writer, output).into_string();
+        Some(CodeSpan {
+            anchor: id.map(str::to_owned),
+            prefix,
+            suffix,
+            ..CodeSpan::default()
+        })
     }
 
     fn code_link_lines(
@@ -1965,6 +2041,8 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                             anchor: (start == link.range.start)
                                 .then(|| link.anchor.clone())
                                 .flatten(),
+                            prefix: link.prefix.clone(),
+                            suffix: link.suffix.clone(),
                         })
                     })
                     .collect();
@@ -1994,6 +2072,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 if let Some(anchor) = &span.anchor {
                     let _ = write!(self.writer, "[#metadata(none)<{anchor}>] + ");
                 }
+                if !span.prefix.is_empty() {
+                    self.writer.raw("[");
+                    self.writer.raw(&span.prefix);
+                    self.writer.raw("#");
+                }
                 if let Some(replacement) = &span.replacement {
                     self.writer.raw("[");
                     self.writer.raw(replacement);
@@ -2017,6 +2100,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                         }
                         None => self.writer.raw("body"),
                     }
+                }
+                if !span.prefix.is_empty() {
+                    self.writer.raw(&span.suffix);
+                    self.writer.raw("]");
                 }
                 self.writer.raw("), ");
             }

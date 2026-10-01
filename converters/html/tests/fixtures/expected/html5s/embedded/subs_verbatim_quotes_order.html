@@ -1,0 +1,56 @@
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>verbatim-order - quote and attribute substitutions without macros</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_description">Description</h2>
+<div class="listing-block">
+<pre>A01 Before <strong></strong> and <strong>expanded</strong> after. *introduced*
+  link:https://example.org[Literal] &amp; &lt;tag&gt;</pre>
+</div>
+<div class="listing-block">
+<pre>A02 Before <strong>* after. *introduced</strong></pre>
+</div>
+<div class="literal-block">
+<pre>A03 Before <em></em> and <em>expanded</em> after.
+  second  line</pre>
+</div>
+<div class="listing-block">
+<pre>A04 Before <strong></strong> and <strong>expanded</strong> after.</pre>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>A05 Before <strong></strong> and <strong>expanded</strong> after.</pre>
+</div>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>A06 Before <strong></strong> and <strong>expanded</strong> after.
+  second  line</pre>
+</div>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text">A07 Before <strong></strong> and <strong>expanded</strong> after.</code></pre>
+</div>
+<div class="listing-block">
+<pre>A08 Keep <strong>{word}</strong> and link:https://example.org[Literal].</pre>
+</div>
+<div class="listing-block">
+<pre>A09 Keep *expanded* and *introduced*.</pre>
+</div>
+<div class="listing-block">
+<pre>A10 Keep *{word}* and {markup}.</pre>
+</div>
+<div class="listing-block">
+<pre>A11 Default *{word}* and {markup}.</pre>
+</div>
+<div class="listing-block">
+<pre>A12 Keep <strong>{word}</strong> and <strong>bold</strong>.</pre>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>A13 <strong>First
+  second</strong> after.</pre>
+</div>
+</div>
+</section>
