@@ -77,25 +77,25 @@
 ]
 #v(1em)
 
-#text(size: 1.25em)[#text("Expanded ")#metadata(none) <__indexterm-1>#text("Inside ")#text("Expanded")#text(".")]
+#text(size: 1.25em)[#text("Expanded ")#metadata(none)<__indexterm-1>#text("Inside ")#text("Expanded")#text(".")]
 
-#text("Literal ")#metadata(none) <__indexterm-2>#text("Inside {name}")#text(".")
+#text("Literal ")#metadata(none)<__indexterm-2>#text("Inside {name}")#text(".")
 
-#text("Late ")#metadata(none) <__indexterm-3>#text("Late ")#text("Expanded")#text(".")
+#text("Late ")#metadata(none)<__indexterm-3>#text("Late ")#text("Expanded")#text(".")
 
-#text("Unicode ")#metadata(none) <__indexterm-4>#text("Éclair ")#text("café")#text(" tail")#text(".")
+#text("Unicode ")#metadata(none)<__indexterm-4>#text("Éclair ")#text("café")#text(" tail")#text(".")
 
-#text("Empty ")#metadata(none) <__indexterm-5>#text("Before")#text("After")#text(".")
+#text("Empty ")#metadata(none)<__indexterm-5>#text("Before")#text("After")#text(".")
 
-#text("Created ")#metadata(none) <__indexterm-6>#text("Created")#text(".")
+#text("Created ")#metadata(none)<__indexterm-6>#text("Created")#text(".")
 
-#text("Formatted ")#metadata(none) <__indexterm-7>#text("Styled ")#strong[#text("bold")]#text(".")
+#text("Formatted ")#metadata(none)<__indexterm-7>#text("Styled ")#strong[#text("bold")]#text(".")
 
-#text("Late quotes ")#metadata(none) <__indexterm-8>#text("Late ")#strong[#text("bold")]#text(".")
+#text("Late quotes ")#metadata(none)<__indexterm-8>#text("Late ")#strong[#text("bold")]#text(".")
 
 #text("Escaped ")#text("((Literal ")#text("Expanded")#text("))")#text(".")
 
-#text("Footnote ")#text("footnote:[")#metadata(none) <__indexterm-9>#text("Footnote ")#text("Expanded")#text("].")
+#text("Footnote ")#text("footnote:[")#metadata(none)<__indexterm-9>#text("Footnote ")#text("Expanded")#text("].")
 
 #heading(level: 1)[#text("Index")] <id-5f696e646578>
 

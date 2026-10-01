@@ -77,7 +77,7 @@
 ]
 #v(1em)
 
-#text(size: 1.25em)[#text("Before ")#metadata(none) <__indexterm-1>#text("BeforeTerm")#text(".")]
+#text(size: 1.25em)[#text("Before ")#metadata(none)<__indexterm-1>#text("BeforeTerm")#text(".")]
 
 #heading(level: 1)[#text("Index")] <id-5f696e646578>
 
@@ -124,4 +124,4 @@
 ]
 #heading(level: 1)[#text("After")] <id-5f6166746572>
 
-#text("After ")#metadata(none) <__indexterm-2>#text("AfterTerm")#text(".")
+#text("After ")#metadata(none)<__indexterm-2>#text("AfterTerm")#text(".")

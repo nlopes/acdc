@@ -139,7 +139,7 @@
 }
 #raw(block: true, "S09 \\indexterm2:[Disabled] \\xref:target[Disabled] \\https://example.org[Disabled]")
 
-#text("S10 \\\\")#metadata(none) <__indexterm-1>#text("Late index")#text(" and \\\\")#context link(query(<id-746172676574>).first().location())[#text("Late reference")]#text(".")
+#text("S10 \\\\")#metadata(none)<__indexterm-1>#text("Late index")#text(" and \\\\")#context link(query(<id-746172676574>).first().location())[#text("Late reference")]#text(".")
 
 #text("S11 \\")#text("indexterm2:[Early index]")#text(" and \\")#text("xref:target[Early reference]")#text(".")
 

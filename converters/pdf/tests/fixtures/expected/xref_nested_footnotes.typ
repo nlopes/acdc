@@ -109,7 +109,7 @@
 
 #context link(query(<id-746172676574>).first().location())[#text("Before ")#counter(footnote).update(11)#footnote[#text("First line second line.")]#text(" after")]
 
-#context link(query(<id-746172676574>).first().location())[#text("Before ")#counter(footnote).update(12)#footnote[#text("A ")#link("https://example.org")[#text("site")]#text(" and ")#metadata(none) <__indexterm-1>#text("IndexEntry")#text(".")]#text(" after")]
+#context link(query(<id-746172676574>).first().location())[#text("Before ")#counter(footnote).update(12)#footnote[#text("A ")#link("https://example.org")[#text("site")]#text(" and ")#metadata(none)<__indexterm-1>#text("IndexEntry")#text(".")]#text(" after")]
 
 #link("other.pdf#there")[#text("Before ")#footnote(<id-666f6f746e6f74653a736861726564>)#text(" after")]
 

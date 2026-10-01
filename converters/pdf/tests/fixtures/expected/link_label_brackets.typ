@@ -115,7 +115,7 @@
 
 #text("Control: ")#link("https://example.org")[#text("Plain")]#text(" and ")#link("https://example.org")[#text("One [two] three")]#text(".")
 
-#link("https://example.org")[#text("One ")#text("]")#text(" ")#metadata(none) <__indexterm-1>#text("term")#text(" two")]
+#link("https://example.org")[#text("One ")#text("]")#text(" ")#metadata(none)<__indexterm-1>#text("term")#text(" two")]
 
 #link("https://example.org")[#text("One ")#text("]")#text(" ")#counter(footnote).update(0)#footnote[#text("Note body.")]<id-666f6f746e6f74653a6e6f7465>#text(" two")]
 

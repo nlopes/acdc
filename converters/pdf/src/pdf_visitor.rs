@@ -3666,7 +3666,8 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         if !self.index_catalog.is_suspended() {
             let entry = self.render_index_entry(traversal, term)?;
             if let Some(anchor) = self.index_catalog.add(entry) {
-                let _ = write!(self.writer, "#metadata(none) <__indexterm-{anchor}>");
+                // Whitespace before the label is visible in inline content.
+                let _ = write!(self.writer, "#metadata(none)<__indexterm-{anchor}>");
             }
         }
         if term.is_visible() {

@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Visible and concealed index terms no longer insert extra spaces in text,
+  formatting, links, footnotes, or table cells. `x((Term))y` renders as `xTermy`,
+  matching Asciidoctor PDF. Authored spaces remain intact, including before
+  concealed terms where Asciidoctor PDF sometimes removes them.
+
 - Attribute values consisting of a single backslash remain literal and no longer
   consume the following line. Tabs and extra spaces after the attribute name
   are accepted as separators. Real continuations include colon-prefixed lines

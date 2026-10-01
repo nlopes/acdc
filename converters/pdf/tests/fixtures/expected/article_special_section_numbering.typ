@@ -129,7 +129,7 @@
 
 #heading(level: 1)[#text("2. ")#text("Second Section")] <id-5f7365636f6e645f73656374696f6e>
 
-#text("Second body with a concealed index term ")#metadata(none) <__indexterm-1>#text(".")
+#text("Second body with a concealed index term ")#metadata(none)<__indexterm-1>#text(".")
 
 #heading(level: 1)[#text("Bibliography")] <id-5f6269626c696f677261706879>
 

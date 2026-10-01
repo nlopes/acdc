@@ -77,18 +77,18 @@
 ]
 #v(1em)
 
-#text(size: 1.25em)[#text("Before ")#metadata(none) <__indexterm-1>#text("BeforeTerm")#text(".")]
+#text(size: 1.25em)[#text("Before ")#metadata(none)<__indexterm-1>#text("BeforeTerm")#text(".")]
 
 #text("== Open heading")
 
-#metadata(none) <__indexterm-2>#text("OpenTerm")#text(".")
+#metadata(none)<__indexterm-2>#text("OpenTerm")#text(".")
 
 #text("== Open index")
 
 #examplebox[
 #text("== Example heading")
 
-#metadata(none) <__indexterm-3>#text("ExampleTerm")#text(".")
+#metadata(none)<__indexterm-3>#text("ExampleTerm")#text(".")
 
 #text("== Example index")
 
@@ -97,7 +97,7 @@
 #sidebarbox[
 #text("== Sidebar heading")
 
-#metadata(none) <__indexterm-4>#text("SidebarTerm")#text(".")
+#metadata(none)<__indexterm-4>#text("SidebarTerm")#text(".")
 
 #text("== Sidebar index")
 
@@ -106,7 +106,7 @@
 #blockquote[
 #text("== Quote heading")
 
-#metadata(none) <__indexterm-5>#text("QuoteTerm")#text(".")
+#metadata(none)<__indexterm-5>#text("QuoteTerm")#text(".")
 
 #text("== Quote index")
 
@@ -114,7 +114,7 @@
 
 #heading(level: 1)[#text("After")] <id-5f6166746572>
 
-#text("After ")#metadata(none) <__indexterm-6>#text("AfterTerm")#text(".")
+#text("After ")#metadata(none)<__indexterm-6>#text("AfterTerm")#text(".")
 
 #heading(level: 1)[#text("Final Index")] <id-5f66696e616c5f696e646578>
 

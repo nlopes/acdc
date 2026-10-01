@@ -78,20 +78,20 @@
 
 #raw("if rs2_val;")
 
-#metadata(none) <__indexterm-1>#text("visible")
+#metadata(none)<__indexterm-1>#text("visible")
 
-#metadata(none) <__indexterm-2>#text("visible")
+#metadata(none)<__indexterm-2>#text("visible")
 
-#metadata(none) <__indexterm-3>
+#metadata(none)<__indexterm-3>
 
-#metadata(none) <__indexterm-4>
+#metadata(none)<__indexterm-4>
 
-#metadata(none) <__indexterm-5>#text("visible")#text(")")
+#metadata(none)<__indexterm-5>#text("visible")#text(")")
 
-#metadata(none) <__indexterm-6>#text("visible")#text(")")
+#metadata(none)<__indexterm-6>#text("visible")#text(")")
 
-#metadata(none) <__indexterm-7>
+#metadata(none)<__indexterm-7>
 
-#metadata(none) <__indexterm-8>
+#metadata(none)<__indexterm-8>
 
 #text("Text after the index terms.")

@@ -179,9 +179,9 @@
 #raw(block: true, "code (1) (2)")
 
 #grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
-[#text("(1)")], [#text("Parent ")#counter(footnote).update(0)#footnote[#text("Parent note.")]#text(" and ")#metadata(none) <__indexterm-1>#text("Parent term")#text(".")
+[#text("(1)")], [#text("Parent ")#counter(footnote).update(0)#footnote[#text("Parent note.")]#text(" and ")#metadata(none)<__indexterm-1>#text("Parent term")#text(".")
 
-  - #text("Child ")#counter(footnote).update(1)#footnote[#text("Child note.")]#text(" and ")#metadata(none) <__indexterm-2>#text("Child term")#text(".")
+  - #text("Child ")#counter(footnote).update(1)#footnote[#text("Child note.")]#text(" and ")#metadata(none)<__indexterm-2>#text("Child term")#text(".")
 
 ],
 [#text("(2)")], [#text("Last ")#counter(footnote).update(2)#footnote[#text("Last note.")]#text(".")],

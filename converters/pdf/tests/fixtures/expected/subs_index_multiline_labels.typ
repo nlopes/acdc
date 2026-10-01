@@ -77,11 +77,11 @@
 ]
 #v(1em)
 
-#text(size: 1.25em)[#text("Flow ")#metadata(none) <__indexterm-1>#text("First Second")#text(" and ")#metadata(none) <__indexterm-2>#text("Macro Label")#text(".")]
+#text(size: 1.25em)[#text("Flow ")#metadata(none)<__indexterm-1>#text("First Second")#text(" and ")#metadata(none)<__indexterm-2>#text("Macro Label")#text(".")]
 
-#text("Concealed ")#metadata(none) <__indexterm-3>#text(" and ")#metadata(none) <__indexterm-4>#text(".")
+#text("Concealed ")#metadata(none)<__indexterm-3>#text(" and ")#metadata(none)<__indexterm-4>#text(".")
 
-#metadata(none) <__indexterm-5>#text("bold ")#strong[#text("First Second")]#text(" and ")#metadata(none) <__indexterm-6>#text("two spaces stay")#text(".")
+#metadata(none)<__indexterm-5>#text("bold ")#strong[#text("First Second")]#text(" and ")#metadata(none)<__indexterm-6>#text("two spaces stay")#text(".")
 
 #{
   let index-anchors = (

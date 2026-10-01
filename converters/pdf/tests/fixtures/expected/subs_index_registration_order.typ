@@ -77,17 +77,17 @@
 ]
 #v(1em)
 
-#text(size: 1.25em)[#text("Default ")#metadata(none) <__indexterm-1>#text("Early Expanded")#text(" and ")#metadata(none) <__indexterm-2>#text("Early ")#strong[#text("bold")]#text(".")]
+#text(size: 1.25em)[#text("Default ")#metadata(none)<__indexterm-1>#text("Early Expanded")#text(" and ")#metadata(none)<__indexterm-2>#text("Early ")#strong[#text("bold")]#text(".")]
 
-#text("Late ")#metadata(none) <__indexterm-3>#text("Late Expanded ")#strong[#text("bold")]#text(" and ")#metadata(none) <__indexterm-4>#text("Macro Expanded ")#strong[#text("bold")]#text(".")
+#text("Late ")#metadata(none)<__indexterm-3>#text("Late Expanded ")#strong[#text("bold")]#text(" and ")#metadata(none)<__indexterm-4>#text("Macro Expanded ")#strong[#text("bold")]#text(".")
 
-#text("Hidden ")#metadata(none) <__indexterm-5>#text(" and ")#metadata(none) <__indexterm-6>#text(".")
+#text("Hidden ")#metadata(none)<__indexterm-5>#text(" and ")#metadata(none)<__indexterm-6>#text(".")
 
-#metadata(none) <__indexterm-7>#text(" ")#metadata(none) <__indexterm-8>
+#metadata(none)<__indexterm-7>#text(" ")#metadata(none)<__indexterm-8>
 
-#strong[#text("Outer ")#metadata(none) <__indexterm-9>#text("Nested Expanded")#text(" word")]#text(" and ")#metadata(none) <__indexterm-10>#text("Early ")#strong[#text("bold")]#text(" Expanded")#text(".")
+#strong[#text("Outer ")#metadata(none)<__indexterm-9>#text("Nested Expanded")#text(" word")]#text(" and ")#metadata(none)<__indexterm-10>#text("Early ")#strong[#text("bold")]#text(" Expanded")#text(".")
 
-#metadata(none) <__indexterm-11>#text("Expanded ")#strong[#text("Styled")]#text(" and ")#metadata(none) <__indexterm-12>#text(".")
+#metadata(none)<__indexterm-11>#text("Expanded ")#strong[#text("Styled")]#text(" and ")#metadata(none)<__indexterm-12>#text(".")
 
 #{
   let index-anchors = (
@@ -98,9 +98,9 @@
   show raw.line: line => index-anchors.at(line.number - 1, default: []) + line
   raw(block: true, "Before\nCode Expanded bold and Gone\nAfter")
 }
-#metadata(none) <__indexterm-15>#text("Footnote ")#counter(footnote).update(0)#footnote[#text("Only once")]#text(" and ")#counter(footnote).update(1)#footnote[#text("Second note")]#text(".")
+#metadata(none)<__indexterm-15>#text("Footnote ")#counter(footnote).update(0)#footnote[#text("Only once")]#text(" and ")#counter(footnote).update(1)#footnote[#text("Second note")]#text(".")
 
-#metadata(none) <__indexterm-16>#text("Character ")#text("&")#text(" ")#text("*")#text(" and ")#metadata(none) <__indexterm-17>#text("Protected ")#text("{name}")#text(" ")#text("*plain*")#text(".")
+#metadata(none)<__indexterm-16>#text("Character ")#text("&")#text(" ")#text("*")#text(" and ")#metadata(none)<__indexterm-17>#text("Protected ")#text("{name}")#text(" ")#text("*plain*")#text(".")
 
 #heading(level: 1)[#text("Index")] <id-5f696e646578>
 

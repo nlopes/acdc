@@ -87,39 +87,39 @@
 
 #heading(level: 1)[#text("Description")] <id-5f6465736372697074696f6e>
 
-#metadata(none) <__indexterm-1>#text("Standalone ")#text("\\]")#text(" term")
+#metadata(none)<__indexterm-1>#text("Standalone ")#text("\\]")#text(" term")
 
-#metadata(none) <__indexterm-2>#text("Repeated ")#text("\\\\]")#text(" term")
+#metadata(none)<__indexterm-2>#text("Repeated ")#text("\\\\]")#text(" term")
 
-#metadata(none) <__indexterm-3>#text("Opening ")#text("\\[")#text(" term")
+#metadata(none)<__indexterm-3>#text("Opening ")#text("\\[")#text(" term")
 
-#metadata(none) <__indexterm-4>
+#metadata(none)<__indexterm-4>
 
-#metadata(none) <__indexterm-5>#text("Named ")#text("]")#text(" visible")
+#metadata(none)<__indexterm-5>#text("Named ")#text("]")#text(" visible")
 
-#metadata(none) <__indexterm-6>
+#metadata(none)<__indexterm-6>
 
-#link("https://example.org")[#metadata(none) <__indexterm-7>#text("Linked ")#text("]")#text(" term")]
+#link("https://example.org")[#metadata(none)<__indexterm-7>#text("Linked ")#text("]")#text(" term")]
 
-#text(fill: rgb("#006000"))[#link("https://example.org")[#metadata(none) <__indexterm-8>#text("Quoted ")#text("]")#text(" term")]]
+#text(fill: rgb("#006000"))[#link("https://example.org")[#metadata(none)<__indexterm-8>#text("Quoted ")#text("]")#text(" term")]]
 
-#metadata(none) <__indexterm-9>#text("Plain ] control")
+#metadata(none)<__indexterm-9>#text("Plain ] control")
 
-#metadata(none) <__indexterm-10>#text("Named repeated ")#text("\\]")#text(" visible")
+#metadata(none)<__indexterm-10>#text("Named repeated ")#text("\\]")#text(" visible")
 
-#metadata(none) <__indexterm-11>#text("Named opening ")#text("\\[")#text(" visible")
+#metadata(none)<__indexterm-11>#text("Named opening ")#text("\\[")#text(" visible")
 
-#link("https://example.org")[#metadata(none) <__indexterm-12>#text("Nested named ")#text("]")#text(" visible")]
+#link("https://example.org")[#metadata(none)<__indexterm-12>#text("Nested named ")#text("]")#text(" visible")]
 
-#metadata(none) <__indexterm-13>
+#metadata(none)<__indexterm-13>
 
-#metadata(none) <__indexterm-14>#text("Alias ")#text("\\]")#text(" label")
+#metadata(none)<__indexterm-14>#text("Alias ")#text("\\]")#text(" label")
 
-#metadata(none) <__indexterm-15>
+#metadata(none)<__indexterm-15>
 
-#link("https://example.org")[#metadata(none) <__indexterm-16>#text("Nested opening ")#text("\\[")#text(" visible")]
+#link("https://example.org")[#metadata(none)<__indexterm-16>#text("Nested opening ")#text("\\[")#text(" visible")]
 
-#metadata(none) <__indexterm-17>#text("Escaped ")#text("[[id]]")#text(" anchor")
+#metadata(none)<__indexterm-17>#text("Escaped ")#text("[[id]]")#text(" anchor")
 
 #heading(level: 1)[#text("Index")] <id-5f696e646578>
 

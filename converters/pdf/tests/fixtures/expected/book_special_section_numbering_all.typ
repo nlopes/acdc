@@ -152,7 +152,7 @@
 
 #heading(level: 1)[#text("Chapter 7. ")#text("A Chapter")] <id-5f615f63686170746572>
 
-#text("A concealed index term ")#metadata(none) <__indexterm-1>#text(".")
+#text("A concealed index term ")#metadata(none)<__indexterm-1>#text(".")
 
 #pagebreak(weak: true)
 

@@ -150,7 +150,7 @@
 
 #link("https://outer.example")[#text("Before ")#box(link("https://image.example")[#image("/images/de454d7e4e1cfda7.svg", alt: "Picture")])#text(" after")]#text(".")
 
-#link("https://outer.example")[#text("Before ")#strong[#text("bold ")#metadata(none) <__indexterm-1>#text("Index ")#link("mailto:index@example.org")[#text("Inner")]]#text(" ")#metadata(none) <__indexterm-2>#text(" after")]#text(".")
+#link("https://outer.example")[#text("Before ")#strong[#text("bold ")#metadata(none)<__indexterm-1>#text("Index ")#link("mailto:index@example.org")[#text("Inner")]]#text(" ")#metadata(none)<__indexterm-2>#text(" after")]#text(".")
 
 #text("Ordinary ")#link("https://control.example")[#text("Control")]#text(" and ")#link("mailto:control@example.org")[#text("Mail")]#text(".")
 

@@ -110,7 +110,7 @@
     }
   }
   let links = (
-    ((11, 14, body => [#counter(footnote).update(1)#footnote[#text("Code note with *bold* and ")#metadata(none) <__indexterm-1>#text("InsideNote")#text(".")]<id-666f6f746e6f74653a636f6465>]), ),
+    ((11, 14, body => [#counter(footnote).update(1)#footnote[#text("Code note with *bold* and ")#metadata(none)<__indexterm-1>#text("InsideNote")#text(".")]<id-666f6f746e6f74653a636f6465>]), ),
     ((6, 9, body => [#footnote(<id-666f6f746e6f74653a636f6465>)]), (14, 17, body => [#footnote(<id-666f6f746e6f74653a736861726564>)]), ),
     ((9, 12, body => [#footnote(<id-666f6f746e6f74653a636f6465>)]), ),
     ((9, 12, body => [#counter(footnote).update(2)#footnote[#text("Adjacent one.")]]), (12, 15, body => [#counter(footnote).update(3)#footnote[#text("Adjacent two.")]]), ),

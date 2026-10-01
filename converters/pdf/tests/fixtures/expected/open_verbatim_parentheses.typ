@@ -89,4 +89,4 @@
 
 #raw(block: true, "if ((value >> shift) & 1) then f((value));")
 
-#text("An ordinary open block keeps ")#metadata(none) <__indexterm-1>#text("visible")#text(" and ")#metadata(none) <__indexterm-2>#text(" index terms.")
+#text("An ordinary open block keeps ")#metadata(none)<__indexterm-1>#text("visible")#text(" and ")#metadata(none)<__indexterm-2>#text(" index terms.")

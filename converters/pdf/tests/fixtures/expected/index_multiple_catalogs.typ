@@ -79,7 +79,7 @@
 
 #heading(level: 1)[#text("Before")] <id-5f6265666f7265>
 
-#metadata(none) <__indexterm-1>#text("Cat")#text(". ")#metadata(none) <__indexterm-2>#text(" ")#metadata(none) <__indexterm-3>
+#metadata(none)<__indexterm-1>#text("Cat")#text(". ")#metadata(none)<__indexterm-2>#text(" ")#metadata(none)<__indexterm-3>
 
 #heading(level: 1)[#text("First Index")] <id-5f66697273745f696e646578>
 
@@ -136,7 +136,7 @@
 ]
 #heading(level: 1)[#text("Between")] <id-5f6265747765656e>
 
-#metadata(none) <__indexterm-4>#text("Dog")#text(". ")#metadata(none) <__indexterm-5>
+#metadata(none)<__indexterm-4>#text("Dog")#text(". ")#metadata(none)<__indexterm-5>
 
 #heading(level: 1)[#text("Second Index")] <id-5f7365636f6e645f696e646578>
 

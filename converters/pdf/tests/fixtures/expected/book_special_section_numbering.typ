@@ -158,7 +158,7 @@
 
 #heading(level: 2)[#text("3.1. ")#text("Second Topic")] <id-5f7365636f6e645f746f706963>
 
-#text("A concealed index term ")#metadata(none) <__indexterm-1>#text(".")
+#text("A concealed index term ")#metadata(none)<__indexterm-1>#text(".")
 
 #pagebreak(weak: true)
 

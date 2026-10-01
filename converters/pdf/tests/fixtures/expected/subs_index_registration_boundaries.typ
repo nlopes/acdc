@@ -77,13 +77,13 @@
 ]
 #v(1em)
 
-#text(size: 1.25em)[#text("Before ")#metadata(none) <__indexterm-1>#text("Start )) End")#text(" and ")#metadata(none) <__indexterm-2>#text("Named ] End")#text(" after.")]
+#text(size: 1.25em)[#text("Before ")#metadata(none)<__indexterm-1>#text("Start )) End")#text(" and ")#metadata(none)<__indexterm-2>#text("Named ] End")#text(" after.")]
 
-#text("Before ((Joined)) and ")#metadata(none) <__indexterm-3>#text(" and ")#metadata(none) <__indexterm-4>#text(" after.")
+#text("Before ((Joined)) and ")#metadata(none)<__indexterm-3>#text(" and ")#metadata(none)<__indexterm-4>#text(" after.")
 
-#text("Before ")#metadata(none) <__indexterm-5>#text("Start >> Target End")#text(" and ")#metadata(none) <__indexterm-6>#text(" after.")
+#text("Before ")#metadata(none)<__indexterm-5>#text("Start >> Target End")#text(" and ")#metadata(none)<__indexterm-6>#text(" after.")
 
-#text("Before ")#metadata(none) <__indexterm-7>#text("Outer ((Inner)")#text(") and ")#metadata(none) <__indexterm-8>#text("function(x")#text(") and ")#metadata(none) <__indexterm-9>#text("Term")#text(") after.")
+#text("Before ")#metadata(none)<__indexterm-7>#text("Outer ((Inner)")#text(") and ")#metadata(none)<__indexterm-8>#text("function(x")#text(") and ")#metadata(none)<__indexterm-9>#text("Term")#text(") after.")
 
 #{
   let index-anchors = (

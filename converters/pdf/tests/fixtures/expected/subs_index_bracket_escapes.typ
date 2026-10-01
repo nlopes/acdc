@@ -87,9 +87,9 @@
 
 #heading(level: 1)[#text("Description")] <id-5f6465736372697074696f6e>
 
-#metadata(none) <__indexterm-1>#text("Expanded ")#text("\\]")#text(" term")
+#metadata(none)<__indexterm-1>#text("Expanded ")#text("\\]")#text(" term")
 
-#metadata(none) <__indexterm-2>#text("Expanded ")#text("\\]")#text(" term")
+#metadata(none)<__indexterm-2>#text("Expanded ")#text("\\]")#text(" term")
 
 #text("((Disabled \\] term))")
 
@@ -136,17 +136,17 @@
   show raw.line: line => index-anchors.at(line.number - 1, default: []) + code-links(line)
   raw(block: true, "Code \\] term\nCode link ] term")
 }
-#metadata(none) <__indexterm-5>#text("Pass ")#text("]")#text(" term")
+#metadata(none)<__indexterm-5>#text("Pass ")#text("]")#text(" term")
 
-#metadata(none) <__indexterm-6>#strong[#text("Late ")#text("\\]")#text(" bold")]
+#metadata(none)<__indexterm-6>#strong[#text("Late ")#text("\\]")#text(" bold")]
 
-#metadata(none) <__indexterm-7>#text("Pass repeated ")#text("\\]")#text(" term")
+#metadata(none)<__indexterm-7>#text("Pass repeated ")#text("\\]")#text(" term")
 
-#metadata(none) <__indexterm-8>#text("Expanded ")#text("]")#text(" term")
+#metadata(none)<__indexterm-8>#text("Expanded ")#text("]")#text(" term")
 
-#metadata(none) <__indexterm-9>#text("Expanded ")#text("\\]")#text(" term")
+#metadata(none)<__indexterm-9>#text("Expanded ")#text("\\]")#text(" term")
 
-#link("https://example.org")[#metadata(none) <__indexterm-10>#text("Linked Expanded ")#text("\\]")#text(" term")]
+#link("https://example.org")[#metadata(none)<__indexterm-10>#text("Linked Expanded ")#text("\\]")#text(" term")]
 
 #heading(level: 1)[#text("Index")] <id-5f696e646578>
 

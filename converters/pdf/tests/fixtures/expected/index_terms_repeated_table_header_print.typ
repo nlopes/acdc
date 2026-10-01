@@ -77,18 +77,18 @@
 ]
 #v(1em)
 
-#text(size: 1.25em)[#text("A control term before the table ")#metadata(none) <__indexterm-1>#text(".")]
+#text(size: 1.25em)[#text("A control term before the table ")#metadata(none)<__indexterm-1>#text(".")]
 
 #block(sticky: true, above: 0pt, below: 0pt)[
-#blocktitle[#text("Table 1. ")#metadata(none) <__indexterm-2>#text("Cataloged table")]
+#blocktitle[#text("Table 1. ")#metadata(none)<__indexterm-2>#text("Cataloged table")]
 ]
-#table(columns: (1fr, 3fr), align: (left + top, left + top), stroke: none, table.header(repeat: true, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 1.25pt + rgb("#dddddd"), ))[#tableheader[#text("Key ")#metadata(none) <__indexterm-3>#text(" ")#metadata(none) <__indexterm-4>
+#table(columns: (1fr, 3fr), align: (left + top, left + top), stroke: none, table.header(repeat: true, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 1.25pt + rgb("#dddddd"), ))[#tableheader[#text("Key ")#metadata(none)<__indexterm-3>#text(" ")#metadata(none)<__indexterm-4>
 
-]], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 1.25pt + rgb("#dddddd"), ))[#tableheader[#metadata(none) <__indexterm-5>#text("Description with ")#metadata(none) <__indexterm-6>#text("visible ")#strong[#text("header")]#text(", ")#metadata(none) <__indexterm-7>#text("shared term")#text(", and related material")
+]], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 1.25pt + rgb("#dddddd"), ))[#tableheader[#metadata(none)<__indexterm-5>#text("Description with ")#metadata(none)<__indexterm-6>#text("visible ")#strong[#text("header")]#text(", ")#metadata(none)<__indexterm-7>#text("shared term")#text(", and related material")
 
 ]]), table.cell(x: 0, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 1.25pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("1")
 
-], table.cell(x: 1, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 1.25pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("The first body row contains ")#metadata(none) <__indexterm-8>#text(" and enough text to exercise normal table-cell wrapping.")
+], table.cell(x: 1, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 1.25pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("The first body row contains ")#metadata(none)<__indexterm-8>#text(" and enough text to exercise normal table-cell wrapping.")
 
 ], table.cell(x: 0, y: 2, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("2")
 
@@ -166,13 +166,13 @@
 
 ], table.cell(x: 1, y: 20, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("A deliberately long body row that helps the table continue onto another page while keeping the fixture deterministic.")
 
-], table.footer(repeat: false, table.cell(x: 0, y: 21, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ), fill: rgb("#f0f0f0"))[#text("Footer ")#metadata(none) <__indexterm-9>
+], table.footer(repeat: false, table.cell(x: 0, y: 21, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ), fill: rgb("#f0f0f0"))[#text("Footer ")#metadata(none)<__indexterm-9>
 
 ], table.cell(x: 1, y: 21, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ), fill: rgb("#f0f0f0"))[#text("The non-repeating footer contains a concealed term.")
 
 ]))
 
-#text("An occurrence after the table ")#metadata(none) <__indexterm-10>#text(".")
+#text("An occurrence after the table ")#metadata(none)<__indexterm-10>#text(".")
 
 #heading(level: 1)[#text("Index")] <id-5f696e646578>
 

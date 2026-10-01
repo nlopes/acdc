@@ -77,15 +77,15 @@
 ]
 #v(1em)
 
-#text(size: 1.25em)[#text("First ")#metadata(none) <__indexterm-1>#text("term")#text(".")]
+#text(size: 1.25em)[#text("First ")#metadata(none)<__indexterm-1>#text("term")#text(".")]
 
 #pagebreak(weak: true)
 
-#text("Second ")#metadata(none) <__indexterm-2>#text("term")#text(".")
+#text("Second ")#metadata(none)<__indexterm-2>#text("term")#text(".")
 
 #pagebreak(weak: true)
 
-#text("Third ")#metadata(none) <__indexterm-3>#text("term")#text(".")
+#text("Third ")#metadata(none)<__indexterm-3>#text("term")#text(".")
 
 #heading(level: 1)[#text("Index")] <id-5f696e646578>
 

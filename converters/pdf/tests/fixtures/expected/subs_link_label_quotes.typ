@@ -131,7 +131,7 @@
 
 #raw(block: true, "link:https://example.org[\"One \\\"quote\\\" two\",role=green]")
 
-#text(fill: rgb("#006000"))[#link("https://example.org")[#text("Label ")#metadata(none) <__indexterm-1>#text("One ")#text("\"")#text("quote")#text("\"")#text(" ")#counter(footnote).update(0)#footnote[#text("Note \\\"quote\\\".")]<id-666f6f746e6f74653a6c617465>#text(" tail")]]
+#text(fill: rgb("#006000"))[#link("https://example.org")[#text("Label ")#metadata(none)<__indexterm-1>#text("One ")#text("\"")#text("quote")#text("\"")#text(" ")#counter(footnote).update(0)#footnote[#text("Note \\\"quote\\\".")]<id-666f6f746e6f74653a6c617465>#text(" tail")]]
 
 #text("Reuse ")#footnote(<id-666f6f746e6f74653a6c617465>)#text(".")
 

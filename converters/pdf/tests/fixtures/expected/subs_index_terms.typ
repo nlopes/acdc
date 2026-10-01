@@ -79,41 +79,41 @@
 
 #heading(level: 1)[#text("First occurrences")] <id-5f66697273745f6f6363757272656e636573>
 
-#text("Visible ")#metadata(none) <__indexterm-1>#text("Zebra")#text(" and ")#metadata(none) <__indexterm-2>#text("apple")#text(".")
+#text("Visible ")#metadata(none)<__indexterm-1>#text("Zebra")#text(" and ")#metadata(none)<__indexterm-2>#text("apple")#text(".")
 
-#text("Concealed ")#metadata(none) <__indexterm-3>#metadata(none) <__indexterm-4>#text(" and ")#metadata(none) <__indexterm-5>#text(".")
+#text("Concealed ")#metadata(none)<__indexterm-3>#metadata(none)<__indexterm-4>#text(" and ")#metadata(none)<__indexterm-5>#text(".")
 
 #pagebreak(weak: true)
 
 #heading(level: 1)[#text("Repeated occurrences")] <id-5f72657065617465645f6f6363757272656e636573>
 
-#text("Repeated ")#metadata(none) <__indexterm-6>#text("Zebra")#text(", lower-case ")#metadata(none) <__indexterm-7>#text("animal")#text(", upper-case ")#metadata(none) <__indexterm-8>#text("Animal")#text(", and ")#metadata(none) <__indexterm-9>#text(".")
+#text("Repeated ")#metadata(none)<__indexterm-6>#text("Zebra")#text(", lower-case ")#metadata(none)<__indexterm-7>#text("animal")#text(", upper-case ")#metadata(none)<__indexterm-8>#text("Animal")#text(", and ")#metadata(none)<__indexterm-9>#text(".")
 
 #pagebreak(weak: true)
 
 #heading(level: 1)[#text("Same-page occurrences")] <id-5f73616d655f706167655f6f6363757272656e636573>
 
-#text("Same-page repeats: ")#metadata(none) <__indexterm-10>#text("Zebra")#text(" and ")#metadata(none) <__indexterm-11>#text("Zebra")#text(".")
+#text("Same-page repeats: ")#metadata(none)<__indexterm-10>#text("Zebra")#text(" and ")#metadata(none)<__indexterm-11>#text("Zebra")#text(".")
 
 #heading(level: 1)[#text("Formatted and substituted terms")] <id-5f666f726d61747465645f616e645f73756273746974757465645f7465726d73>
 
-#text("Direct formatting: ")#metadata(none) <__indexterm-12>#text("bold ")#strong[#text("primary")]#text(", ")#metadata(none) <__indexterm-13>#text("italic ")#emph[#text("primary")]#text(", and ")#metadata(none) <__indexterm-14>#text("mono ")#raw("primary")#text(".")
+#text("Direct formatting: ")#metadata(none)<__indexterm-12>#text("bold ")#strong[#text("primary")]#text(", ")#metadata(none)<__indexterm-13>#text("italic ")#emph[#text("primary")]#text(", and ")#metadata(none)<__indexterm-14>#text("mono ")#raw("primary")#text(".")
 
-#text("Attributes: ")#metadata(none) <__indexterm-15>#text("plain Ada")#text(", ")#metadata(none) <__indexterm-16>#text("literal *attribute bold*")#text(", and ")#metadata(none) <__indexterm-17>#text("linked ")#link("https://example.com")[#text("Ada")]#text(".")
+#text("Attributes: ")#metadata(none)<__indexterm-15>#text("plain Ada")#text(", ")#metadata(none)<__indexterm-16>#text("literal *attribute bold*")#text(", and ")#metadata(none)<__indexterm-17>#text("linked ")#link("https://example.com")[#text("Ada")]#text(".")
 
-#text("Direct link: ")#metadata(none) <__indexterm-18>#text("direct ")#link("https://example.com")[#text("Ada")]#text(".")
+#text("Direct link: ")#metadata(none)<__indexterm-18>#text("direct ")#link("https://example.com")[#text("Ada")]#text(".")
 
-#text("Replacements: ")#metadata(none) <__indexterm-19>#text("copyright © — arrow →")#text(".")
+#text("Replacements: ")#metadata(none)<__indexterm-19>#text("copyright © — arrow →")#text(".")
 
-#text("Formatted hierarchy: ")#metadata(none) <__indexterm-20>#text(".")
+#text("Formatted hierarchy: ")#metadata(none)<__indexterm-20>#text(".")
 
-#text("Formatting is identity: ")#metadata(none) <__indexterm-21>#text("identity")#text(", ")#metadata(none) <__indexterm-22>#strong[#text("identity")]#text(", and ")#metadata(none) <__indexterm-23>#emph[#text("identity")]#text(".")
+#text("Formatting is identity: ")#metadata(none)<__indexterm-21>#text("identity")#text(", ")#metadata(none)<__indexterm-22>#strong[#text("identity")]#text(", and ")#metadata(none)<__indexterm-23>#emph[#text("identity")]#text(".")
 
-#text("Ordered substitutions: ")#metadata(none) <__indexterm-24>#text("ordered ")#strong[#text("attribute bold")]#text(".")
+#text("Ordered substitutions: ")#metadata(none)<__indexterm-24>#text("ordered ")#strong[#text("attribute bold")]#text(".")
 
-#text("Late substitutions: ")#metadata(none) <__indexterm-25>#text("late Ada and ")#strong[#text("attribute bold")]#text(".")
+#text("Late substitutions: ")#metadata(none)<__indexterm-25>#text("late Ada and ")#strong[#text("attribute bold")]#text(".")
 
-#text("Disabled quotes: ")#metadata(none) <__indexterm-26>#text("literal *markers*")#text(".")
+#text("Disabled quotes: ")#metadata(none)<__indexterm-26>#text("literal *markers*")#text(".")
 
 #heading(level: 1)[#text("Generated index")] <id-5f67656e6572617465645f696e646578>
 
@@ -215,4 +215,4 @@
 ]
 #heading(level: 1)[#text("Later terms are not in the earlier index")] <id-5f6c617465725f7465726d735f6172655f6e6f745f696e5f7468655f6561726c6965725f696e646578>
 
-#text("Later ")#metadata(none) <__indexterm-27>#text("After")#text(".")
+#text("Later ")#metadata(none)<__indexterm-27>#text("After")#text(".")

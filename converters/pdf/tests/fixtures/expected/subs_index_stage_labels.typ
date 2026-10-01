@@ -77,9 +77,9 @@
 ]
 #v(1em)
 
-#text(size: 1.25em)[#text("Late ")#metadata(none) <__indexterm-1>#text("Copyright © A — B …")#text(".")]
+#text(size: 1.25em)[#text("Late ")#metadata(none)<__indexterm-1>#text("Copyright © A — B …")#text(".")]
 
-#text("Early ")#metadata(none) <__indexterm-2>#text("Copyright © A — B …")#text(".")
+#text("Early ")#metadata(none)<__indexterm-2>#text("Copyright © A — B …")#text(".")
 
 #{
   let index-anchors = (
@@ -88,25 +88,25 @@
   show raw.line: line => index-anchors.at(line.number - 1, default: []) + line
   raw(block: true, "Code Copyright © A — B ….")
 }
-#text("Escaped ")#metadata(none) <__indexterm-4>#text("*")#text("Literal*")#text(" and ")#metadata(none) <__indexterm-5>#text("Start ")#text("{name}")#text(" ")#strong[#text("bold")]#text(".")
+#text("Escaped ")#metadata(none)<__indexterm-4>#text("*")#text("Literal*")#text(" and ")#metadata(none)<__indexterm-5>#text("Start ")#text("{name}")#text(" ")#strong[#text("bold")]#text(".")
 
 #text("Literal ")#text("((Start Expanded ")#strong[#text("bold")]#text("))")#text(" and ")#text("indexterm2:[Named ")#strong[#text("bold")]#text("]")#text(".")
 
 #text("Early literal ")#text("((Start Expanded ")#strong[#text("bold")]#text("))")#text(".")
 
-#text("Link ")#metadata(none) <__indexterm-6>#text("Link ")#link("https://example.org")[#text("Caption")]#text(" and ")#metadata(none) <__indexterm-7>#text("Cross ")#context link(query(<id-746172676574>).first().location())[#text("Target")]#text(".")
+#text("Link ")#metadata(none)<__indexterm-6>#text("Link ")#link("https://example.org")[#text("Caption")]#text(" and ")#metadata(none)<__indexterm-7>#text("Cross ")#context link(query(<id-746172676574>).first().location())[#text("Target")]#text(".")
 
-#text("Nested ")#metadata(none) <__indexterm-8>#text("Note ")#counter(footnote).update(0)#footnote[#text("One")]#text(" after ")#counter(footnote).update(1)#footnote[#text("Two")]#text(".")
+#text("Nested ")#metadata(none)<__indexterm-8>#text("Note ")#counter(footnote).update(0)#footnote[#text("One")]#text(" after ")#counter(footnote).update(1)#footnote[#text("Two")]#text(".")
 
-#text("Body ")#counter(footnote).update(2)#footnote[#metadata(none) <__indexterm-9>#text("Note {name}")#text(" and *literal* (C)")]#text(".")
+#text("Body ")#counter(footnote).update(2)#footnote[#metadata(none)<__indexterm-9>#text("Note {name}")#text(" and *literal* (C)")]#text(".")
 
-#text("Protected ")#metadata(none) <__indexterm-10>#text("Start ")#text("Expanded")#text(" ")#strong[#text("bold")]#text(".")
+#text("Protected ")#metadata(none)<__indexterm-10>#text("Start ")#text("Expanded")#text(" ")#strong[#text("bold")]#text(".")
 
-#text("Early body ")#counter(footnote).update(3)#footnote[#strong[#text("bold")]#text(" ")#metadata(none) <__indexterm-11>#text("Early {name}")]#text(".")
+#text("Early body ")#counter(footnote).update(3)#footnote[#strong[#text("bold")]#text(" ")#metadata(none)<__indexterm-11>#text("Early {name}")]#text(".")
 
 #heading(level: 1)[#text("Target")] <id-746172676574>
 
-#text("Normal ")#metadata(none) <__indexterm-12>#text("Ordinary ")#strong[#text("bold")]#text(" term")#text(" and ")#metadata(none) <__indexterm-13>#text("Normal ")#link("https://example.org")[#text("Caption")]#text(".")
+#text("Normal ")#metadata(none)<__indexterm-12>#text("Ordinary ")#strong[#text("bold")]#text(" term")#text(" and ")#metadata(none)<__indexterm-13>#text("Normal ")#link("https://example.org")[#text("Caption")]#text(".")
 
 #heading(level: 1)[#text("Index")] <id-5f696e646578>
 

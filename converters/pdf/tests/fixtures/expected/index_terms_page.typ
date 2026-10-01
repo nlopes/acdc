@@ -77,7 +77,7 @@
 ]
 #v(1em)
 
-#text(size: 1.25em)[#text("Same-page ")#metadata(none) <__indexterm-1>#text("term")#text(" and ")#metadata(none) <__indexterm-2>#text("term")#text(".")]
+#text(size: 1.25em)[#text("Same-page ")#metadata(none)<__indexterm-1>#text("term")#text(" and ")#metadata(none)<__indexterm-2>#text("term")#text(".")]
 
 #heading(level: 1)[#text("Index")] <id-5f696e646578>
 

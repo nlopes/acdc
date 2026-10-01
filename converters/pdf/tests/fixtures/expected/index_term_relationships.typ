@@ -79,25 +79,25 @@
 
 #heading(level: 1)[#text("Terms")] <id-5f7465726d73>
 
-#text("Visible shorthand redirect: ")#metadata(none) <__indexterm-1>#text("Flash")#text(".")
+#text("Visible shorthand redirect: ")#metadata(none)<__indexterm-1>#text("Flash")#text(".")
 
-#text("Named visible redirect: ")#metadata(none) <__indexterm-2>#text("Shockwave")#text(".")
+#text("Named visible redirect: ")#metadata(none)<__indexterm-2>#text("Shockwave")#text(".")
 
-#text("The ")#metadata(none) <__indexterm-3>#text("HTML 5")#text(" term is the redirect target.")
+#text("The ")#metadata(none)<__indexterm-3>#text("HTML 5")#text(" term is the redirect target.")
 
-#text("Primary related terms: ")#metadata(none) <__indexterm-4>#text("Desserts")#text(".")
+#text("Primary related terms: ")#metadata(none)<__indexterm-4>#text("Desserts")#text(".")
 
-#metadata(none) <__indexterm-5>#text("The Cakes entry is nested.")
+#metadata(none)<__indexterm-5>#text("The Cakes entry is nested.")
 
-#metadata(none) <__indexterm-6>#text("Cookies")#text(" and ")#metadata(none) <__indexterm-7>#text("Candies")#text(" are related primary entries.")
+#metadata(none)<__indexterm-6>#text("Cookies")#text(" and ")#metadata(none)<__indexterm-7>#text("Candies")#text(" are related primary entries.")
 
-#metadata(none) <__indexterm-8>#text("The Cougars entry has a relationship.")
+#metadata(none)<__indexterm-8>#text("The Cougars entry has a relationship.")
 
-#metadata(none) <__indexterm-9>#text("Puma")#text(" is another primary entry.")
+#metadata(none)<__indexterm-9>#text("Puma")#text(" is another primary entry.")
 
-#text("Named concealed relationship: ")#metadata(none) <__indexterm-10>#text(".")
+#text("Named concealed relationship: ")#metadata(none)<__indexterm-10>#text(".")
 
-#text("Missing delimiter spacing stays literal: ")#metadata(none) <__indexterm-11>#text("A>>B")#text(" and ")#metadata(none) <__indexterm-12>#text("C &>D")#text(".")
+#text("Missing delimiter spacing stays literal: ")#metadata(none)<__indexterm-11>#text("A>>B")#text(" and ")#metadata(none)<__indexterm-12>#text("C &>D")#text(".")
 
 #heading(level: 1)[#text("Index")] <id-5f696e646578>
 

@@ -1,7 +1,7 @@
 #set document(
-  title: "Link label quotes",
+  title: "index-spacing(1)",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Link label quotes]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[index-spacing(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -73,83 +73,57 @@
 #set page(numbering: "1")
 #counter(page).update(1)
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("Link label quotes")]
+#text(size: 22pt, weight: "bold")[#text("index-spacing(1)")]
 ]
 #v(1em)
 
-#text(size: 1.25em)[#text("Before ")#link("https://example.org")[#text("\"Literal label\"")]#text(" and ")#link("https://example.net")[#text("'Literal label'")]#text(".")]
+#heading(level: 1)[#text("Name")] <id-5f6e616d65>
 
-#text(fill: rgb("#006000"))[#link("https://example.org")[#text("One ")#text("\"")#text("quote")#text("\"")#text(" ")#text("]")#text(" two")]]
+#text("index-spacing - index terms preserve surrounding text")
 
-#text(fill: rgb("#006000"))[#link("https://example.org")[#text("One ")#text("\"")#text("quote")#text("\"")#text(" two")]]
+#heading(level: 1)[#text("Synopsis")] <id-5f73796e6f70736973>
 
-#text(fill: rgb("#006000"))[#link("guide.html")[#text("One ")#text("'")#text("quote")#text("'")#text(" two")]]
+#strong[#text("index-spacing")]
 
-#text(fill: rgb("#006000"))[#link("https://example.org")[#text("One \\'quote\\' two")]]
+#heading(level: 1)[#text("Description")] <id-5f6465736372697074696f6e>
 
-#text(fill: rgb("#006000"))[#link("https://example.org")[#text("One ")#text("\\\"")#text("quote")#text("\\\"")#text(" two")]]
+#text("P01 x")#metadata(none)<__indexterm-1>#text("Term")#text("y.")
 
-#text(fill: rgb("#006000"))[#link("https://example.org")[#text("One ")#text("\\\\\"")#text("quote")#text("\\\\\"")#text(" two")]]
+#text("P02 x")#metadata(none)<__indexterm-2>#text("y.")
 
-#text(fill: rgb("#006000"))[#link("https://example.org")[#text("One ")#text("\\\\\\\"")#text("quote")#text("\\\\\\\"")#text(" two")]]
+#text("P03 (")#metadata(none)<__indexterm-3>#text("Named")#text(")tail.")
 
-#link("https://example.org")[#text("\"One, two\"")]
+#text("P04 x|")#metadata(none)<__indexterm-4>#text("|y.")
 
-#text(fill: rgb("#006000"))[#link("https://example.org")[#text("One, two")]]
+#text("P05 ")#metadata(none)<__indexterm-5>#text("One")#metadata(none)<__indexterm-6>#text("Two")#metadata(none)<__indexterm-7>#metadata(none)<__indexterm-8>#text("Three")#text(".")
 
-#text(fill: rgb("#006000"))[#link("https://example.org")[#text("One")]]
+#text("P06 x ")#metadata(none)<__indexterm-9>#text("Spaced")#text(" y.")
 
-#link("https://example.org")[#text("one=two")]#text(" and ")#link("https://example.org")[#text("https://example.org")]
+#text("P07 ")#strong[#text("x")#metadata(none)<__indexterm-10>#text("Bold")#text("y")]#text(" and ")#emph[#text("x")#metadata(none)<__indexterm-11>#text("y")]#text(".")
 
-#text(fill: rgb("#006000"))[#link("https://example.org")[#text("https://example.org")]]#text(" and ")#text(fill: rgb("#006000"))[#link("https://example.org")[#text("https://example.org")]]
+#text("P08 ")#metadata(none)<__indexterm-12>#text("Punctuation")#text(", ")#metadata(none)<__indexterm-13>#text("!")
 
-#text(fill: rgb("#006000"))[#link("https://example.org")[#text("Spaced ")#text("\"")#text("quote")#text("\"")#text(" label")]]
+#text("P09 ")#link("https://example.org")[#text("x")#metadata(none)<__indexterm-14>#text("Linked")#text("y")]#text(".")
 
-#text("α ")#text(fill: rgb("#006000"))[#link("https://example.org")[#text("é ")#text("\"")#text("café")#text("\"")#text(" fin")]]#text(" ω.")
+#text("P10 Note")#counter(footnote).update(0)#footnote[#text("x")#metadata(none)<__indexterm-15>#text("Footnote")#text("y.")]#text(".")
 
-#text(fill: rgb("#006000"))[#link("https://example.org")[#text("Line ")#text("\"")#text("one")#text("\"")#text(" two")]]
+#text("P11 café")#metadata(none)<__indexterm-16>#text("Élan")#text("fin.")
 
-#text(fill: rgb("#006000"))[#link("https://example.org")[#strong[#text("Bold ")#text("\"")#text("quote")#text("\"")#text(" label")]#text(" and ")#emph[#text("italic")]]]
+#table(columns: (1fr, 1fr), align: (left + top, left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("P12 x")#metadata(none)<__indexterm-17>#text("Cell")#text("y.")
 
-#text(fill: rgb("#006000"))[#link("https://example.org")[#text("Expanded ")#text("\"")#text("quote")#text("\"")]]
+], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("P13 x")#metadata(none)<__indexterm-18>#text("y.")
 
-#text(fill: rgb("#006000"))[#link("https://example.org")[#text("Window ")#text("\"")#text("label")#text("\"")]]
+])
 
-#link("https://example.org")[#text("\"Window label\"")]#text(" and ")#link("https://example.org")[#text("\"Window label^\"")]
+#pagebreak(weak: true)
 
-#link("mailto:test@example.org")[#text("\"Literal \\\"quote\\\" label\"")]
+#text("P14 ")#metadata(none)<__indexterm-19>#text("SecondPage")#text(" at the next page.")
 
-#text(fill: rgb("#006000"))[#link("mailto:test@example.org")[#text("Parsed ")#text("\"")#text("quote")#text("\"")#text(" label")]]
+#text("P15 ")#metadata(none)<__indexterm-20>#text("EndMarker.")
 
-#link("mailto:test@example.org")[#text("One, two")]#text(" and ")#link("mailto:test@example.org")[#text("\"one=two\"")]
+#pagebreak(weak: true)
 
-#text(fill: rgb("#006000"))[#link("https://example.org")[#text("\"Unfinished")]]#text(" and ")#text(fill: rgb("#006000"))[#link("https://example.org")[#text("Label")]]
-
-#text(fill: rgb("#006000"))[#link("https://example.org")[#text("One ")#text("\"")#text("quote")#text("\"")#text(" ")#counter(footnote).update(0)#footnote[#text("Note body.")]<id-666f6f746e6f74653a6e6f7465>#text(" two")]]
-
-#text("Reuse ")#footnote(<id-666f6f746e6f74653a6e6f7465>)#text(".")
-
-#text(fill: rgb("#006000"))[#link("https://example.org")[#text("One ")#text("\"")#text("quote")#text("\"")#text(" ")#metadata(none)<__indexterm-1>#text("term")#text(" two")]]
-
-#text(fill: rgb("#006000"))[#link("https://example.org")[#text("One ")#text("\"")#text("quote")#text("\"")#text(" ")#metadata(none) <id-746172676574>#text(" two")]]
-
-#text("See ")#context link(query(<id-746172676574>).first().location())[#text("Target")]#text(".")
-
-#blocktitle[#text("One \\\"quote\\\" two")]
-#text("Block title control.")
-
-#metadata(none) <id-787265662d746172676574>
-#text("Target.")
-
-#context link(query(<id-787265662d746172676574>).first().location())[#text("One \\\"quote\\\" two")]
-
-#text(fill: rgb("#006000"))[#link("https://example.org")[#text("Label ")#metadata(none)<__indexterm-2>#text("One ")#text("\"")#text("quote")#text("\"")#text(" ")#counter(footnote).update(1)#footnote[#text("Note \\\"quote\\\".")]<id-666f6f746e6f74653a71756f746564>#text(" tail")]]
-
-#text("Reuse ")#footnote(<id-666f6f746e6f74653a71756f746564>)#text(".")
-
-#text(fill: rgb("#006000"))[#link("https://example.org")[#box(image("/images/de454d7e4e1cfda7.svg", alt: "Linked image", width: 15pt))]]
-
-#heading(level: 1)[#text("Index")] <id-5f696e646578>
+#heading(level: 1)[#text("Catalog")] <id-5f636174616c6f67>
 
 #let _acdc_index_pages(targets, sequence) = context {
   let occurrences = targets
@@ -188,11 +162,62 @@
   }
 }
 #columns(2, gutter: 12pt)[
+#text(weight: "bold")[#text("B")]
+#v(0.25em)
+#par(hanging-indent: 1em)[#text("Bold")#_acdc_index_pages((<__indexterm-10>,), "term")]
+#v(0.75em)
+#text(weight: "bold")[#text("C")]
+#v(0.25em)
+#par(hanging-indent: 1em)[#text("Cell")#_acdc_index_pages((<__indexterm-17>,), "term")]
+#par(hanging-indent: 1em)[#text("CellHidden")#_acdc_index_pages((<__indexterm-18>,), "term")]
+#par(hanging-indent: 1em)[#text("Concealed")#_acdc_index_pages((<__indexterm-4>,), "term")]
+#v(0.75em)
+#text(weight: "bold")[#text("F")]
+#v(0.25em)
+#par(hanging-indent: 1em)[#text("Footnote")#_acdc_index_pages((<__indexterm-15>,), "term")]
+#v(0.75em)
+#text(weight: "bold")[#text("H")]
+#v(0.25em)
+#par(hanging-indent: 1em)[#text("Hidden")#_acdc_index_pages((<__indexterm-2>,), "term")]
+#v(0.75em)
+#text(weight: "bold")[#text("I")]
+#v(0.25em)
+#par(hanging-indent: 1em)[#text("ItalicHidden")#_acdc_index_pages((<__indexterm-11>,), "term")]
+#v(0.75em)
+#text(weight: "bold")[#text("L")]
+#v(0.25em)
+#par(hanging-indent: 1em)[#text("Linked")#_acdc_index_pages((<__indexterm-14>,), "term")]
+#v(0.75em)
+#text(weight: "bold")[#text("M")]
+#v(0.25em)
+#par(hanging-indent: 1em)[#text("Middle")#_acdc_index_pages((<__indexterm-7>,), "term")]
+#v(0.75em)
+#text(weight: "bold")[#text("N")]
+#v(0.25em)
+#par(hanging-indent: 1em)[#text("Named")#_acdc_index_pages((<__indexterm-3>,), "term")]
+#v(0.75em)
 #text(weight: "bold")[#text("O")]
 #v(0.25em)
-#par(hanging-indent: 1em)[#text("One \\\"quote\\\"")#_acdc_index_pages((<__indexterm-2>,), "term")]
+#par(hanging-indent: 1em)[#text("One")#_acdc_index_pages((<__indexterm-5>,), "term")]
+#v(0.75em)
+#text(weight: "bold")[#text("P")]
+#v(0.25em)
+#par(hanging-indent: 1em)[#text("PageEnd")#_acdc_index_pages((<__indexterm-20>,), "term")]
+#par(hanging-indent: 1em)[#text("Punctuation")#_acdc_index_pages((<__indexterm-12>,), "term")]
+#par(hanging-indent: 1em)[#text("PunctuationHidden")#_acdc_index_pages((<__indexterm-13>,), "term")]
+#v(0.75em)
+#text(weight: "bold")[#text("S")]
+#v(0.25em)
+#par(hanging-indent: 1em)[#text("SecondPage")#_acdc_index_pages((<__indexterm-19>,), "term")]
+#par(hanging-indent: 1em)[#text("Spaced")#_acdc_index_pages((<__indexterm-9>,), "term")]
 #v(0.75em)
 #text(weight: "bold")[#text("T")]
 #v(0.25em)
-#par(hanging-indent: 1em)[#text("term")#_acdc_index_pages((<__indexterm-1>,), "term")]
+#par(hanging-indent: 1em)[#text("Term")#_acdc_index_pages((<__indexterm-1>,), "term")]
+#par(hanging-indent: 1em)[#text("Three")#_acdc_index_pages((<__indexterm-8>,), "term")]
+#par(hanging-indent: 1em)[#text("Two")#_acdc_index_pages((<__indexterm-6>,), "term")]
+#v(0.75em)
+#text(weight: "bold")[#text("É")]
+#v(0.25em)
+#par(hanging-indent: 1em)[#text("Élan")#_acdc_index_pages((<__indexterm-16>,), "term")]
 ]

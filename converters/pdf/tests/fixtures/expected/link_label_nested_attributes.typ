@@ -80,7 +80,7 @@
 #metadata(none) <id-746172676574>
 #text(size: 1.25em)[#text("Target.")]
 
-#text(fill: rgb("#006000"))[#link("https://example.org")[#text("Label ")#metadata(none) <__indexterm-1>#text(" tail")]]
+#text(fill: rgb("#006000"))[#link("https://example.org")[#text("Label ")#metadata(none)<__indexterm-1>#text(" tail")]]
 
 #text(fill: rgb("#006000"))[#link("https://example.org")[#text("Label ")#context link(query(<id-746172676574>).first().location())[#text("Display")]#text(" tail")]]
 

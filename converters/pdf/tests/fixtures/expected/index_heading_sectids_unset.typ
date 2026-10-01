@@ -77,11 +77,11 @@
 ]
 #v(1em)
 
-#heading(level: 1)[#text("Later ")#metadata(none) <__indexterm-1>#text("DisabledHeading")] <id-5f6c617465725f64697361626c656468656164696e67>
+#heading(level: 1)[#text("Later ")#metadata(none)<__indexterm-1>#text("DisabledHeading")] <id-5f6c617465725f64697361626c656468656164696e67>
 
-#text("Body ")#metadata(none) <__indexterm-2>#text("BodyTerm")#text(".")
+#text("Body ")#metadata(none)<__indexterm-2>#text("BodyTerm")#text(".")
 
-#heading(level: 2, outlined: false)[#text("Discrete ")#metadata(none) <__indexterm-3>#text("DisabledDiscrete")]
+#heading(level: 2, outlined: false)[#text("Discrete ")#metadata(none)<__indexterm-3>#text("DisabledDiscrete")]
 
 #text("Text after the discrete heading.")
 

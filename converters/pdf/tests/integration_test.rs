@@ -12,6 +12,39 @@ use acdc_converters_pdf::{PdfOptions, Processor};
 type Error = Box<dyn std::error::Error>;
 
 #[test]
+fn index_inline_spacing_preserves_catalog_destinations() -> Result<(), Error> {
+    let pdf = render_input(include_str!("fixtures/source/index_inline_spacing.adoc"))?;
+    let pages = internal_link_pages(&pdf, 3)?;
+    assert_eq!(pages.len(), 20);
+    assert_eq!(pages.iter().filter(|page| **page == 1).count(), 18);
+    assert_eq!(pages.iter().filter(|page| **page == 2).count(), 2);
+    Ok(())
+}
+
+#[test]
+fn index_inline_spacing_markers_keep_glyph_positions() -> Result<(), Error> {
+    // Digits avoid kerning across the marker; bold End forms a separate text run.
+    for (marked, plain) in [
+        ("1((234))**End**.", "1234**End**."),
+        ("1(((Hidden)))**End**.", "1**End**."),
+        ("((12))((34))**End**.", "1234**End**."),
+        ("(indexterm2:[1234])**End**.", "(1234)**End**."),
+        ("1 ((234)) **End**.", "1 234 **End**."),
+    ] {
+        let marked_pdf = render_input(&format!("= Spacing\n\n{marked}\n"))?;
+        let plain_pdf = render_input(&format!("= Spacing\n\n{plain}\n"))?;
+        let marked_position = text_origin(&marked_pdf, 1, "End")?;
+        let plain_position = text_origin(&plain_pdf, 1, "End")?;
+        assert!(
+            (marked_position.0 - plain_position.0).abs() < 0.01
+                && (marked_position.1 - plain_position.1).abs() < 0.01,
+            "{marked}: {marked_position:?} != {plain_position:?}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
 fn outer_macro_escapes_preserve_only_active_pdf_uri_annotations() -> Result<(), Error> {
     let code = include_str!("fixtures/source/subs_outer_macro_escapes.adoc");
     let highlighted = code.replace(":manmanual:", ":source-highlighter: syntect\n:manmanual:");

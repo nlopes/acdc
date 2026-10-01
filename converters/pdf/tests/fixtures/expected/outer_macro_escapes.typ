@@ -127,7 +127,7 @@
 
 #text("E20 ")#text("indexterm2:[")#strong[#text("Bold")]#text("]")#text(" and \\")#text("indexterm2:[")#strong[#text("Bold")]#text("]")#text(".")
 
-#text("E21 ")#metadata(none) <__indexterm-1>#text("Active")#text(" and ")#context link(query(<id-746172676574>).first().location())[#text("Active")]#text(" and ")#counter(footnote).update(0)#footnote[#text("Active note.")]#text(".")
+#text("E21 ")#metadata(none)<__indexterm-1>#text("Active")#text(" and ")#context link(query(<id-746172676574>).first().location())[#text("Active")]#text(" and ")#counter(footnote).update(0)#footnote[#text("Active note.")]#text(".")
 
 #text("E22 ")#text("footnote:[]")#text(".")
 

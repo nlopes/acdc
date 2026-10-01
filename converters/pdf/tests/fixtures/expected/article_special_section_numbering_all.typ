@@ -135,7 +135,7 @@
 #block(above: 0pt, below: 0pt, inset: (left: 1.5em))[#text("Definition.")]
 ]
 
-#text("A concealed index term ")#metadata(none) <__indexterm-1>#text(".")
+#text("A concealed index term ")#metadata(none)<__indexterm-1>#text(".")
 
 #heading(level: 1)[#text("5. ")#text("Index")] <id-5f696e646578>
 

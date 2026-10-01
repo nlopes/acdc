@@ -101,7 +101,7 @@
 
 #text("link:")#link("https://example.org")[#text("https://example.org")]#text("[Label")#text("]")
 
-#text("one")#text("]")#text("two ")#metadata(none) <__indexterm-1>#text("Expanded term")
+#text("one")#text("]")#text("two ")#metadata(none)<__indexterm-1>#text("Expanded term")
 
 #link("https://example.org")[#text("One")]#text(" ")#link("https://example.net")[#text("Two")]
 

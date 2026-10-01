@@ -1,0 +1,51 @@
+= index-spacing(1)
+:manmanual: Index tests
+:mansource: acdc
+:revdate: 2026-10-01
+
+== Name
+index-spacing - index terms preserve surrounding text
+
+== Synopsis
+
+*index-spacing*
+
+== Description
+
+P01 x((Term))y.
+
+P02 x(((Hidden)))y.
+
+P03 (indexterm2:[Named])tail.
+
+P04 x|indexterm:[Concealed]|y.
+
+P05 ((One))((Two))(((Middle)))((Three)).
+
+P06 x ((Spaced)) y.
+
+P07 *x((Bold))y* and _x(((ItalicHidden)))y_.
+
+P08 ((Punctuation)), (((PunctuationHidden)))!
+
+P09 link:https://example.org[x((Linked))y].
+
+P10 Notefootnote:[x((Footnote))y.].
+
+P11 café((Élan))fin.
+
+[cols="1,1"]
+|===
+|P12 x((Cell))y. |P13 x(((CellHidden)))y.
+|===
+
+<<<
+
+P14 ((SecondPage)) at the next page.
+
+P15 (((PageEnd)))EndMarker.
+
+<<<
+
+[index]
+== Catalog

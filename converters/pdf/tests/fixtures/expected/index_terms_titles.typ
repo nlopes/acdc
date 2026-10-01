@@ -97,13 +97,13 @@
 #_acdc_toc_entry(<id-5f696e6465785f696e6465785f7469746c655f7465726d>, 0, [#text("Index ")#text("Index title term")])
 #pagebreak()
 
-#heading(level: 1)[#text("Source ")#metadata(none) <__indexterm-1>#text("Source term")] <id-736f75726365>
+#heading(level: 1)[#text("Source ")#metadata(none)<__indexterm-1>#text("Source term")] <id-736f75726365>
 
 #text("An automatic reference does not add an occurrence: ")#context link(query(<id-736f75726365>).first().location())[#text("Source ")#text("Source term")]#text(".")
 
-#text("An explicit reference does: ")#context link(query(<id-736f75726365>).first().location())[#text("Explicit ")#metadata(none) <__indexterm-2>#text("Explicit term")]#text(".")
+#text("An explicit reference does: ")#context link(query(<id-736f75726365>).first().location())[#text("Explicit ")#metadata(none)<__indexterm-2>#text("Explicit term")]#text(".")
 
-#heading(level: 1)[#text("Index ")#metadata(none) <__indexterm-3>#text("Index title term")] <id-5f696e6465785f696e6465785f7469746c655f7465726d>
+#heading(level: 1)[#text("Index ")#metadata(none)<__indexterm-3>#text("Index title term")] <id-5f696e6465785f696e6465785f7469746c655f7465726d>
 
 #let _acdc_index_pages(targets, sequence) = context {
   let occurrences = targets

@@ -109,24 +109,24 @@
 
 #text("E13 ")#text("((Nested ")#strong[#text("bold")]#text(" \\] term))")
 
-#text("E14 ")#metadata(none) <__indexterm-1>#text("Active ")#text("]")#text(" term")
+#text("E14 ")#metadata(none)<__indexterm-1>#text("Active ")#text("]")#text(" term")
 
 #text("E15 ")#link("https://example.org")[#text("Active ")#text("]")#text(" label")]
 
 #text("E16 ")#counter(footnote).update(0)#footnote[#text("Active ")#text("]")#text(" note")]#text(" ")#counter(footnote).update(1)#footnote[#text("Repeated ")#text("\\]")#text(" note")]
 
-#text("E17 ")#metadata(none) <__indexterm-2>#text("Short active ")#text("\\]")#text(" term")
+#text("E17 ")#metadata(none)<__indexterm-2>#text("Short active ")#text("\\]")#text(" term")
 
 #text("E18 ")#link("https://example.org")[#text("Repeated ")#text("\\]")#text(" label")]
 
-#text("E19 ")#link("https://example.org")[#metadata(none) <__indexterm-3>#text("Nested active ")#text("]")#text(" term")]
+#text("E19 ")#link("https://example.org")[#metadata(none)<__indexterm-3>#text("Nested active ")#text("]")#text(" term")]
 
 #text("E20 ")#text("[[escaped-target]]")#text(" and ")#text("<<escaped-target>>")#text(".")
 
 #text("E21 ")#text("*literal* \\] text")#text(" and ")#text("<em>raw HTML</em>")#text(".")
 
 #blockquote[
-#text("E22 ")#metadata(none) <__indexterm-4>#text("Quoted ")#text("\\]")#text(" term")#text(" and ")#text("*literal* \\] text")#text(".")
+#text("E22 ")#metadata(none)<__indexterm-4>#text("Quoted ")#text("\\]")#text(" term")#text(" and ")#text("*literal* \\] text")#text(".")
 
 ]
 

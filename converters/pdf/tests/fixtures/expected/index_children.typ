@@ -79,7 +79,7 @@
 
 #heading(level: 1)[#text("Body")] <id-5f626f6479>
 
-#metadata(none) <__indexterm-1>#text("Alpha")#text(".")
+#metadata(none)<__indexterm-1>#text("Alpha")#text(".")
 
 #heading(level: 1)[#text("Index")] <id-5f696e646578>
 

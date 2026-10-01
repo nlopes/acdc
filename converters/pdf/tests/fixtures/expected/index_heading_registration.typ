@@ -124,11 +124,11 @@
 #v(0.25em)
 #par(hanging-indent: 1em)[#text("DiscreteTerm")]
 ]
-#heading(level: 1)[#text("Later ")#strong[#metadata(none) <__indexterm-1>#text("AutoHeading")]] <id-5f6c617465725f6175746f68656164696e67>
+#heading(level: 1)[#text("Later ")#strong[#metadata(none)<__indexterm-1>#text("AutoHeading")]] <id-5f6c617465725f6175746f68656164696e67>
 
-#text("Body ")#metadata(none) <__indexterm-2>#text("BodyTerm")#text(".")
+#text("Body ")#metadata(none)<__indexterm-2>#text("BodyTerm")#text(".")
 
-#heading(level: 2, outlined: false)[#text("Discrete ")#metadata(none) <__indexterm-3>#text("DiscreteTerm")]
+#heading(level: 2, outlined: false)[#text("Discrete ")#metadata(none)<__indexterm-3>#text("DiscreteTerm")]
 
 #text("Text after the discrete heading.")
 

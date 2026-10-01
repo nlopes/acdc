@@ -1,0 +1,34 @@
+= index-spacing(1)
+:manmanual: Index tests
+:mansource: acdc
+:revdate: 2026-10-01
+:term: ((AttributeTerm))
+:suffix: y
+
+== Name
+index-spacing - index spacing under custom substitutions
+
+== Synopsis
+
+*index-spacing*
+
+== Description
+
+[subs="attributes,macros"]
+S01 x{term}y.
+
+[subs="macros,attributes"]
+S02 x((Late)){suffix}.
+
+[subs=none]
+S03 x((Disabled))y.
+
+[source,text,subs=+macros]
+----
+S04 x((Code))y.
+S05 x(((CodeHidden)))y.
+S06 x ((CodeSpaced)) y.
+----
+
+[index]
+== Catalog

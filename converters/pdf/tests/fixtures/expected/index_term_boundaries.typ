@@ -72,70 +72,70 @@
 #set page(numbering: "i")
 #set page(numbering: "1")
 #counter(page).update(1)
-#metadata(none) <__indexterm-1>#text("function(argument)")
+#metadata(none)<__indexterm-1>#text("function(argument)")
 
-#text("Before ")#metadata(none) <__indexterm-2>#text("function(argument)")#text(" after.")
+#text("Before ")#metadata(none)<__indexterm-2>#text("function(argument)")#text(" after.")
 
-#metadata(none) <__indexterm-3>
+#metadata(none)<__indexterm-3>
 
-#text("Before ")#metadata(none) <__indexterm-4>#text(" after.")
+#text("Before ")#metadata(none)<__indexterm-4>#text(" after.")
 
-#metadata(none) <__indexterm-5>
+#metadata(none)<__indexterm-5>
 
-#text("Before ")#metadata(none) <__indexterm-6>#text(" after.")
+#text("Before ")#metadata(none)<__indexterm-6>#text(" after.")
 
-#metadata(none) <__indexterm-7>
+#metadata(none)<__indexterm-7>
 
-#text("Before ")#metadata(none) <__indexterm-8>#text(" after.")
+#text("Before ")#metadata(none)<__indexterm-8>#text(" after.")
 
-#text("(")#metadata(none) <__indexterm-9>#text("term")#text(" tail)))")
+#text("(")#metadata(none)<__indexterm-9>#text("term")#text(" tail)))")
 
-#text("Before (")#metadata(none) <__indexterm-10>#text("term")#text(" tail))) after.")
+#text("Before (")#metadata(none)<__indexterm-10>#text("term")#text(" tail))) after.")
 
-#text("(")#metadata(none) <__indexterm-11>#text("term")#text(" tail)))")
+#text("(")#metadata(none)<__indexterm-11>#text("term")#text(" tail)))")
 
-#text("Before (")#metadata(none) <__indexterm-12>#text("term")#text(" tail))) after.")
+#text("Before (")#metadata(none)<__indexterm-12>#text("term")#text(" tail))) after.")
 
-#metadata(none) <__indexterm-13>#text("term")
+#metadata(none)<__indexterm-13>#text("term")
 
-#metadata(none) <__indexterm-14>
+#metadata(none)<__indexterm-14>
 
-#metadata(none) <__indexterm-15>#text("term >> literal")
+#metadata(none)<__indexterm-15>#text("term >> literal")
 
-#metadata(none) <__indexterm-16>
+#metadata(none)<__indexterm-16>
 
-#metadata(none) <__indexterm-17>#text("function(argument")#text(") and ")#metadata(none) <__indexterm-18>#text("function(argument)")#text(")")
+#metadata(none)<__indexterm-17>#text("function(argument")#text(") and ")#metadata(none)<__indexterm-18>#text("function(argument)")#text(")")
 
-#metadata(none) <__indexterm-19>
+#metadata(none)<__indexterm-19>
 
-#metadata(none) <__indexterm-20>
+#metadata(none)<__indexterm-20>
 
-#metadata(none) <__indexterm-21>
+#metadata(none)<__indexterm-21>
 
-#metadata(none) <__indexterm-22>
+#metadata(none)<__indexterm-22>
 
-#metadata(none) <__indexterm-23>
+#metadata(none)<__indexterm-23>
 
 #text("Unclosed ((term and indexterm:[target stay literal.")
 
 #text("Empty (()) and indexterm:[] stay literal.")
 
-#metadata(none) <__indexterm-24>#text("array[x")#text("]")
+#metadata(none)<__indexterm-24>#text("array[x")#text("]")
 
-#text("Before ")#metadata(none) <__indexterm-25>#text("array[x")#text("]")#text(" after.")
+#text("Before ")#metadata(none)<__indexterm-25>#text("array[x")#text("]")#text(" after.")
 
-#metadata(none) <__indexterm-26>#text("\"quoted")#text(" tail\"))")
+#metadata(none)<__indexterm-26>#text("\"quoted")#text(" tail\"))")
 
-#text("Before ")#metadata(none) <__indexterm-27>#text("\"quoted")#text(" tail\")) after.")
+#text("Before ")#metadata(none)<__indexterm-27>#text("\"quoted")#text(" tail\")) after.")
 
-#metadata(none) <__indexterm-28>#text(" tail\")))")
+#metadata(none)<__indexterm-28>#text(" tail\")))")
 
-#text("Before ")#metadata(none) <__indexterm-29>#text(" tail\"))) after.")
+#text("Before ")#metadata(none)<__indexterm-29>#text(" tail\"))) after.")
 
-#metadata(none) <__indexterm-30>#text(" tail\"]")
+#metadata(none)<__indexterm-30>#text(" tail\"]")
 
-#text("Before ")#metadata(none) <__indexterm-31>#text(" tail\"] after.")
+#text("Before ")#metadata(none)<__indexterm-31>#text(" tail\"] after.")
 
-#metadata(none) <__indexterm-32>#text("term >>")#text(" and ")#metadata(none) <__indexterm-33>
+#metadata(none)<__indexterm-32>#text("term >>")#text(" and ")#metadata(none)<__indexterm-33>
 
 #text("Text after the index terms.")
