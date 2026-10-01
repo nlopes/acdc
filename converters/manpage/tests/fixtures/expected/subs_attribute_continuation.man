@@ -48,6 +48,6 @@ S05 \eLate code and \eLate code\&.
 .sp
 S06 FirstSecond and [].
 .sp
-S07 Before ** after.
+S07 Before \fB\fP after.
 .sp
 Target paragraph.

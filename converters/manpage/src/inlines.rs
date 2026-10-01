@@ -153,6 +153,31 @@ pub(crate) struct LinkLabel {
     split: bool,
 }
 
+fn is_empty_formatting(node: &InlineNode<'_>) -> bool {
+    let content = match node {
+        InlineNode::BoldText(n) => &n.content,
+        InlineNode::ItalicText(n) => &n.content,
+        InlineNode::MonospaceText(n) => &n.content,
+        InlineNode::HighlightText(n) => &n.content,
+        InlineNode::SubscriptText(n) => &n.content,
+        InlineNode::SuperscriptText(n) => &n.content,
+        // Curved quotes and other inline nodes can contribute visible text
+        // or converter effects even when they have no child content.
+        InlineNode::PlainText(_)
+        | InlineNode::RawText(_)
+        | InlineNode::VerbatimText(_)
+        | InlineNode::CurvedQuotationText(_)
+        | InlineNode::CurvedApostropheText(_)
+        | InlineNode::StandaloneCurvedApostrophe(_)
+        | InlineNode::LineBreak(_)
+        | InlineNode::InlineAnchor(_)
+        | InlineNode::Macro(_)
+        | InlineNode::CalloutRef(_)
+        | _ => return false,
+    };
+    content.iter().all(is_empty_formatting)
+}
+
 pub(crate) fn contains_link(node: &InlineNode<'_>) -> bool {
     let children = match node {
         InlineNode::Macro(
@@ -409,11 +434,15 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             }
 
             InlineNode::SubscriptText(sub) => {
-                self.render_formatted_inlines(traversal, &sub.content, "_(", ")")?;
+                if !sub.content.iter().all(is_empty_formatting) {
+                    self.render_formatted_inlines(traversal, &sub.content, "_(", ")")?;
+                }
             }
 
             InlineNode::SuperscriptText(sup) => {
-                self.render_formatted_inlines(traversal, &sup.content, "^(", ")")?;
+                if !sup.content.iter().all(is_empty_formatting) {
+                    self.render_formatted_inlines(traversal, &sup.content, "^(", ")")?;
+                }
             }
 
             InlineNode::CurvedQuotationText(quoted) => {

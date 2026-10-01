@@ -1,7 +1,7 @@
 #set document(
-  title: "attribute-values(1)",
+  title: "empty-quote-subs(1)",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[attribute-values(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[empty-quote-subs(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -73,72 +73,32 @@
 #set page(numbering: "1")
 #counter(page).update(1)
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("attribute-values(1)")]
+#text(size: 22pt, weight: "bold")[#text("empty-quote-subs(1)")]
 ]
 #v(1em)
 
-#heading(level: 1)[#text("Name")] <id-5f6e616d65>
+#heading(level: 1)[#text("NAME")] <id-5f6e616d65>
 
-#text("attribute-values - attribute substitution order")
+#text("empty-quote-subs - quote and attribute substitution order")
 
-#heading(level: 1)[#text("Synopsis")] <id-5f73796e6f70736973>
+#heading(level: 1)[#text("DESCRIPTION")] <id-5f6465736372697074696f6e>
 
-#strong[#text("attribute-values")]
+#text("S01 Before ")#strong[]#text(" and ")#strong[]#text(" after.")
 
-#heading(level: 1)[#text("Description")] <id-5f6465736372697074696f6e>
+#text("S02 Before ")#strong[#text(" and ")]#text("** after.")
 
-#text("S01 ")#text("indexterm2:[Early]")#text(" and ")#text("xref:target[Early]")#text(".")
+#text("S03 Before ")#strong[#text("{blank}")]#text(" after.")
 
-#text("S02 \\")#metadata(none)<__indexterm-1>#text("Late")#text(" and \\")#context link(query(<id-746172676574>).first().location())[#text("Late")]#text(".")
+#text("S04 Before ** after.")
 
-#text("S03 {slash}indexterm2:[Disabled] and {blank} text.")
+#text("S05 Before ")#strong[#emph[]]#text(" and ")#strong[]#text(" after.")
 
-#raw(block: true, "S04 indexterm2:[Early code] and xref:target[Early code].")
+#text("S06 Before ")#strong[#text("introduced")]#text(" after.")
 
-#{
-  let index-anchors = (
-    [#metadata(none)<__indexterm-2>],
-  )
-  // Slice highlighted text without discarding its syntax styles.
-  let code-slice(body, start, end) = {
-    if body.has("text") {
-      let size = body.text.len()
-      (text(body.text.slice(calc.min(start, size), calc.min(end, size))), size)
-    } else if body.has("children") {
-      let offset = 0
-      let parts = []
-      for child in body.children {
-        let (part, size) = code-slice(child, calc.max(0, start - offset), calc.max(0, end - offset))
-        parts += part
-        offset += size
-      }
-      (parts, offset)
-    } else if body.has("child") {
-      let (child, size) = code-slice(body.child, start, end)
-      (body.func()(child, body.styles), size)
-    } else {
-      ([], 0)
-    }
-  }
-  let links = (
-    ((20, 29, body => context link(query(<id-746172676574>).first().location(), body)), ),
-  )
-  let code-links(line) = {
-    let start = 0
-    let body = []
-    for (from, to, make-link) in links.at(line.number - 1, default: ()) {
-      body += code-slice(line.body, start, from).first()
-      body += make-link(code-slice(line.body, from, to).first())
-      start = to
-    }
-    body + code-slice(line.body, start, line.text.len()).first()
-  }
-  show raw.line: line => index-anchors.at(line.number - 1, default: []) + code-links(line)
-  raw(block: true, "S05 \\Late code and \\Late code.")
-}
-#text("S06 ")#metadata(none)<__indexterm-3>#text("First")#context link(query(<id-746172676574>).first().location())[#text("Second")]#text(" and [].")
+#text("S07 Before *introduced* after.")
 
-#text("S07 Before ")#strong[]#text(" after.")
+#raw(block: true, "S08 Before  and  after.")
 
-#metadata(none) <id-746172676574>
-#text("Target paragraph.")
+#raw(block: true, "S09 Before ** and __ after.")
+
+#text("S10 Before ")#text("“")#text("”")#text(" and ")#text("‘")#text("’")#text(" after.")

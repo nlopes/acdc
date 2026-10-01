@@ -1,0 +1,90 @@
+'\" t
+.\"     Title: empty-quotes
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-01
+.\"    Manual: Empty formatting
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "EMPTY\-QUOTES" "1" "2026-10-01" "acdc" "Empty formatting"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+empty\-quotes \- formatting around empty attribute references
+.SH "DESCRIPTION"
+.sp
+Q01 Before \fB\fP after.
+.sp
+Q02 Before \fI\fP after.
+.sp
+Q03 Before \f(CR\fP after.
+.sp
+Q04 Before \fB\fP after.
+.sp
+Q05 Before  after.
+.sp
+Q06 Before  after.
+.sp
+Q07 Before \fB\fP after.
+.sp
+Q08 Before \fI\fP after.
+.sp
+Q09 Before \f(CR\fP after.
+.sp
+Q10 Before \fB\fP after.
+.sp
+Q11 Before \fB\fI\fP\fP after.
+.sp
+Q12 Before \fI**\fP after.
+.sp
+Q13 Before \fB\fP after.
+.sp
+Q14 Before \fB\fP after.
+.sp
+Q15 Before \(lq\(rq and \(oq\(cq after.
+.sp
+Q16 Before \fB\fP and \fI\fP after.
+.sp
+Q17 Before \fBtext\fP and \fBtext\fP after.
+.sp
+Q18 Before **, __, ##, ^^ and ~~ after.
+.sp
+Q19 Before ** and \fB{missing}\fP after.
+.sp
+Q20 Before *introduced* after.
+.sp
+Q21 Before \c
+.URL "https://example.com" "\fB\fP" ""
+after.
+.sp
+Q22 Before x\fB\fPy and x**y after.
+.sp
+Q23 Before é** and **é after.
+.sp
+Q24 Before \fB\fI\fP\fP after.
+.sp
+Q25 Before \fB\fP and \fBtext\fP after.
+.sp
+Q26 Before \fB**\fP after.
+.sp
+Q27 See Empty target\&.
+.sp
+Q28 Before  and  after.

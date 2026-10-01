@@ -15,6 +15,25 @@ use pulldown_cmark::{
 
 type Error = Box<dyn std::error::Error>;
 
+// Markdown source snapshots cannot prove that empty delimiters stay invisible.
+#[test]
+fn empty_quoted_attributes_remain_empty_after_markdown_parsing() -> Result<(), Error> {
+    let input = include_str!("fixtures/source/empty_quoted_attributes.adoc");
+    for variant in [MarkdownVariant::GitHubFlavored, MarkdownVariant::CommonMark] {
+        let (output, _) = convert_str_with_variant(input, variant)?;
+        let events = parse_markdown(&output, variant);
+        let text = parsed_text(&events);
+        for number in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 21, 24] {
+            let expected = format!("Q{number:02} Before after.");
+            assert!(text.contains(&expected), "missing {expected:?}: {text}");
+        }
+        assert!(text.contains("Q20 Before *introduced* after."), "{text}");
+        assert!(has_parsed_anchor(&events, "empty-id"));
+        assert!(has_parsed_link(&events, "https://example.com"));
+    }
+    Ok(())
+}
+
 // Source snapshots cannot prove that a Markdown renderer preserves literal escapes.
 #[test]
 fn escaped_macro_labels_remain_literal_after_markdown_parsing() -> Result<(), Error> {

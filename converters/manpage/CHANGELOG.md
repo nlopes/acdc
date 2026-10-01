@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Empty superscript and subscript text no longer displays `^()` or `_()` after
+  attribute substitution, matching Asciidoctor.
+
 - Attribute values consisting of a single backslash remain literal and no longer
   consume the following line. Tabs and extra spaces after the attribute name
   are accepted as separators. Real continuations include colon-prefixed lines

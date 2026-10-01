@@ -57,6 +57,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Formatting around empty attribute references now stays formatted when quotes
+  precede attributes, including default substitutions. For example, `*{blank}*`
+  retains empty bold text instead of displaying `**`, matching Asciidoctor.
+  Nested formatting, roles, IDs, and original source spans are preserved.
+
 - Attribute values consisting of a single backslash remain literal and no longer
   consume the following line. Tabs and extra spaces after the attribute name
   are accepted as separators. Real continuations include colon-prefixed lines

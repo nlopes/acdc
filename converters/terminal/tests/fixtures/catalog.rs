@@ -58,6 +58,8 @@ terminal_fixture_catalog!([
     ),
     (attribute_continuation, false),
     (subs_attribute_continuation, false),
+    (empty_quoted_attributes, false),
+    (subs_empty_quoted_attributes, false),
     (outer_macro_escapes, true),
     (subs_outer_macro_escapes, false),
     (xref_colon_ids, true),

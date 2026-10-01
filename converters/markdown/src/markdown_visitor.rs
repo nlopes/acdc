@@ -739,8 +739,28 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         result
     }
 
+    fn write_emphasis(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        content: &[InlineNode<'_>],
+        marker: &str,
+        html_tag: &str,
+    ) -> Result<(), Error> {
+        // Empty Markdown delimiters are literal text, so retain the empty
+        // formatting with an HTML element.
+        if content.is_empty() {
+            write!(self.writer, "<{html_tag}></{html_tag}>")?;
+        } else {
+            write!(self.writer, "{marker}")?;
+            self.visit_inline_nodes(traversal, content)?;
+            write!(self.writer, "{marker}")?;
+        }
+        Ok(())
+    }
+
     fn write_code_span(&mut self, content: &str) -> Result<(), Error> {
-        if content.contains('\n')
+        if content.is_empty()
+            || content.contains('\n')
             || content.starts_with(char::is_whitespace)
             || content.ends_with(char::is_whitespace)
         {
@@ -2034,17 +2054,13 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
             InlineNode::BoldText(text) => {
                 self.write_inline_anchor(text.id)?;
                 let role = self.write_role_start(text.role)?;
-                write!(self.writer, "**")?;
-                self.visit_inline_nodes(traversal, &text.content)?;
-                write!(self.writer, "**")?;
+                self.write_emphasis(traversal, &text.content, "**", "strong")?;
                 self.write_role_end(role)?;
             }
             InlineNode::ItalicText(text) => {
                 self.write_inline_anchor(text.id)?;
                 let role = self.write_role_start(text.role)?;
-                write!(self.writer, "*")?;
-                self.visit_inline_nodes(traversal, &text.content)?;
-                write!(self.writer, "*")?;
+                self.write_emphasis(traversal, &text.content, "*", "em")?;
                 self.write_role_end(role)?;
             }
             InlineNode::MonospaceText(text) => {

@@ -1,0 +1,54 @@
+'\" t
+.\"     Title: empty-quote-subs
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-01
+.\"    Manual: Empty formatting
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "EMPTY\-QUOTE\-SUBS" "1" "2026-10-01" "acdc" "Empty formatting"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+empty\-quote\-subs \- quote and attribute substitution order
+.SH "DESCRIPTION"
+.sp
+S01 Before \fB\fP and \fB\fP after.
+.sp
+S02 Before \fB and \fP** after.
+.sp
+S03 Before \fB{blank}\fP after.
+.sp
+S04 Before ** after.
+.sp
+S05 Before \fB\fI\fP\fP and \fB\fP after.
+.sp
+S06 Before \fBintroduced\fP after.
+.sp
+S07 Before *introduced* after.
+.EX
+S08 Before  and  after.
+.EE
+.EX
+S09 Before ** and __ after.
+.EE
+.sp
+S10 Before \(lq\(rq and \(oq\(cq after.

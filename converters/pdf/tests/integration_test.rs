@@ -239,6 +239,20 @@ fn passthrough_brackets_keep_pdf_link_destinations() -> Result<(), Error> {
 }
 
 #[test]
+fn empty_quoted_attributes_keep_pdf_anchor_destinations() -> Result<(), Error> {
+    let source = "= Empty formatting\n:blank:\n\nSee <<empty,Empty target>>.\n\n<<<\n\nBefore [#empty]*{blank}* after.\n";
+    let pdf = render_input(source)?;
+    assert_eq!(internal_link_pages(&pdf, 1)?, [2]);
+    let text = pdf
+        .extract_text(&[2])?
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(text.contains("Before after."), "{text}");
+    Ok(())
+}
+
+#[test]
 fn anchor_macros_keep_their_pdf_destinations() -> Result<(), Error> {
     let source = "= Anchors\n\nSee <<target>>, <<empty>>.\n\n<<<\n\nanchor:target[Target]Destination.\n\n* anchor:empty[]Item.\n";
     let pdf = render_input(source)?;

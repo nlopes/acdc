@@ -24,5 +24,5 @@ S03 {slash}indexterm2:[Disabled] and {blank} text.
 [38;2;131;148;150mS05 \Late code and \Late code.[39m
 [38;5;8m────────────────────────────────────────────────────────────────────────────────[39m
 S06 First[38;5;12m[4mSecond[24m[39m and [].
-S07 Before ** after.
+S07 Before [1m[22m after.
 Target paragraph.

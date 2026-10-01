@@ -1,0 +1,69 @@
+= empty-quotes(1)
+:doctype: manpage
+:manmanual: Empty formatting
+:mansource: acdc
+:revdate: 2026-10-01
+:blank:
+:markup: *introduced*
+
+== NAME
+
+empty-quotes - formatting around empty attribute references
+
+== DESCRIPTION
+
+Q01 Before *{blank}* after.
+
+Q02 Before _{blank}_ after.
+
+Q03 Before `{blank}` after.
+
+Q04 Before #{blank}# after.
+
+Q05 Before ^{blank}^ after.
+
+Q06 Before ~{blank}~ after.
+
+Q07 Before **{blank}** after.
+
+Q08 Before __{blank}__ after.
+
+Q09 Before ``{blank}`` after.
+
+Q10 Before ##{blank}## after.
+
+Q11 Before *_{blank}_* after.
+
+Q12 Before _*{blank}*_ after.
+
+Q13 Before [.role]*{blank}* after.
+
+Q14 Before [#empty-id]*{blank}* after.
+
+Q15 Before "`{blank}`" and '`{blank}`' after.
+
+Q16 Before *{blank}{blank}* and _{blank}_ after.
+
+Q17 Before *{blank}text* and *text{blank}* after.
+
+Q18 Before **, __, ##, ^^ and ~~ after.
+
+Q19 Before \*{blank}* and *{missing}* after.
+
+Q20 Before {markup} after.
+
+Q21 Before link:https://example.com[*{blank}*] after.
+
+Q22 Before x**{blank}**y and x*{blank}*y after.
+
+Q23 Before é*{blank}* and *{blank}*é after.
+
+Q24 Before **_{blank}_** after.
+
+Q25 Before *{blank}* and *text* after.
+
+Q26 Before **** after.
+
+Q27 See <<empty-id,Empty target>>.
+
+Q28 Before ^*{blank}*^ and ~_{blank}_~ after.

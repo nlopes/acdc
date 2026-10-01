@@ -820,19 +820,15 @@ fn structural_token_allowed(
         .inline_ctx
         .substitutions
         .precedes(substitution, &Substitution::Attributes)
-        || !(start..start + len).any(|position| byte_came_from_attribute(state, position))
+        || (!(start..start + len).any(|position| byte_came_from_attribute(state, position))
+            // Removing an attribute can join separate characters into a marker
+            // that did not exist when the earlier substitution ran.
+            && !state.empty_attribute_offsets.iter()
+                .any(|offset| start < *offset && *offset < start + len))
 }
 
 fn macro_token_allowed(state: &ParserState<'_>, start: usize, len: usize) -> bool {
     structural_token_allowed(state, &Substitution::Macros, start, len)
-        && (!state
-            .inline_ctx
-            .substitutions
-            .precedes(&Substitution::Macros, &Substitution::Attributes)
-            || !state
-                .empty_attribute_offsets
-                .iter()
-                .any(|offset| start < *offset && *offset < start + len))
 }
 
 fn index_content_present(state: &ParserState<'_>, start: usize, text: &str) -> bool {
@@ -1961,6 +1957,15 @@ peg::parser! {
         rule check_quotes() -> ()
         = {? if state.inline_ctx.substitutions.enabled(&Substitution::Quotes) { Ok(()) } else { Err("quotes disabled") } }
 
+        // A later empty expansion leaves a valid quote body, unlike literal
+        // adjacent delimiters. Callers also check for their closing delimiter.
+        rule empty_quote_content()
+        = position:position!() {?
+            (state.inline_ctx.substitutions.precedes(&Substitution::Quotes, &Substitution::Attributes)
+                && state.empty_attribute_offsets.binary_search(&position).is_ok())
+                .then_some(()).ok_or("quote content was already empty")
+        }
+
         rule check_catalog_escape()
         = position:position!() {? catalog_escape_allowed(state, position).then_some(()).ok_or("escape belongs to a later substitution") }
 
@@ -2426,7 +2431,7 @@ peg::parser! {
         = "xref:" xref_target() "[" cross_reference_macro_text() "]"
 
         rule bold_text_unconstrained() -> InlineNode<'input>
-            = attrs:inline_attributes()? start:position!() "**" content_start:position!() content:$((!(eol() / ![_] / "**") [_])+) close:position!() "**" check_quote_markers((start, 2), (close, 2)) end:position!()
+            = attrs:inline_attributes()? start:position!() "**" content_start:position!() content:$(empty_quote_content() &"**" / (!(eol() / ![_] / "**") [_])+) close:position!() "**" check_quote_markers((start, 2), (close, 2)) end:position!()
         {?
             let role = attrs.as_ref().and_then(|(roles, _id)| {
                 if roles.is_empty() {
@@ -2457,7 +2462,7 @@ peg::parser! {
 
         /// Match unconstrained bold without consuming - for use in negative lookaheads.
         rule bold_text_unconstrained_match()
-        = inline_attributes()? open:position!() "**" (!(eol() / ![_] / "**") [_])+ close:position!() "**" check_quote_markers((open, 2), (close, 2))
+        = inline_attributes()? open:position!() "**" (empty_quote_content() &"**" / (!(eol() / ![_] / "**") [_])+) close:position!() "**" check_quote_markers((open, 2), (close, 2))
 
         /// A valid right boundary after a constrained closing marker: an ASCII
         /// whitespace/punctuation boundary, a non-word non-ASCII character (e.g.
@@ -2486,7 +2491,10 @@ peg::parser! {
         start:position!()
         content_start:position()
         "*"
-        content:$([^(' ' | '\t' | '\n')] [^'*']* ("*" !constrained_boundary_follow() [^'*']*)*)
+        content:$(
+            empty_quote_content() &"*"
+            / [^(' ' | '\t' | '\n')] [^'*']* ("*" !constrained_boundary_follow() [^'*']*)*
+        )
         close:position!() "*" check_quote_markers((start, 1), (close, 1))
         end:position!() &constrained_boundary_follow()
         {?
@@ -2542,9 +2550,10 @@ peg::parser! {
         = boundary_pos:position!()
         inline_attributes()?
         open:position!() "*"
-        [^(' ' | '\t' | '\n')]
-        [^'*']*
-        ("*" !constrained_boundary_follow() [^'*']*)*
+        (
+            empty_quote_content() &"*"
+            / [^(' ' | '\t' | '\n')] [^'*']* ("*" !constrained_boundary_follow() [^'*']*)*
+        )
         close:position!() "*" check_quote_markers((open, 1), (close, 1))
         closing_pos:position!()
         constrained_boundary_follow()
@@ -2560,7 +2569,10 @@ peg::parser! {
         start:position!()
         content_start:position()
         "_"
-        content:$([^(' ' | '\t' | '\n')] [^'_']* ("_" !constrained_boundary_follow() [^'_']*)*)
+        content:$(
+            empty_quote_content() &"_"
+            / [^(' ' | '\t' | '\n')] [^'_']* ("_" !constrained_boundary_follow() [^'_']*)*
+        )
         close:position!() "_" check_quote_markers((start, 1), (close, 1))
         end:position!() &constrained_boundary_follow()
         {?
@@ -2614,9 +2626,10 @@ peg::parser! {
         = boundary_pos:position!()
         inline_attributes()?
         open:position!() "_"
-        [^(' ' | '\t' | '\n')]
-        [^'_']*
-        ("_" !constrained_boundary_follow() [^'_']*)*
+        (
+            empty_quote_content() &"_"
+            / [^(' ' | '\t' | '\n')] [^'_']* ("_" !constrained_boundary_follow() [^'_']*)*
+        )
         close:position!() "_" check_quote_markers((open, 1), (close, 1))
         closing_pos:position!()
         constrained_boundary_follow()
@@ -2628,7 +2641,7 @@ peg::parser! {
         }
 
         rule italic_text_unconstrained() -> InlineNode<'input>
-            = attrs:inline_attributes()? start:position!() "__" content_start:position!() content:$((!(eol() / ![_] / "__") [_])+) close:position!() "__" check_quote_markers((start, 2), (close, 2)) end:position!()
+            = attrs:inline_attributes()? start:position!() "__" content_start:position!() content:$(empty_quote_content() &"__" / (!(eol() / ![_] / "__") [_])+) close:position!() "__" check_quote_markers((start, 2), (close, 2)) end:position!()
         {?
             let role = attrs.as_ref().and_then(|(roles, _id)| {
                 if roles.is_empty() {
@@ -2659,10 +2672,10 @@ peg::parser! {
 
         /// Match unconstrained italic without consuming - for use in negative lookaheads.
         rule italic_text_unconstrained_match()
-        = inline_attributes()? open:position!() "__" (!(eol() / ![_] / "__") [_])+ close:position!() "__" check_quote_markers((open, 2), (close, 2))
+        = inline_attributes()? open:position!() "__" (empty_quote_content() &"__" / (!(eol() / ![_] / "__") [_])+) close:position!() "__" check_quote_markers((open, 2), (close, 2))
 
         rule monospace_text_unconstrained() -> InlineNode<'input>
-            = attrs:inline_attributes()? start:position!() "``" content_start:position!() content:$((!(eol() / ![_] / "``") [_])+) close:position!() "``" check_quote_markers((start, 2), (close, 2)) end:position!()
+            = attrs:inline_attributes()? start:position!() "``" content_start:position!() content:$(empty_quote_content() &"``" / (!(eol() / ![_] / "``") [_])+) close:position!() "``" check_quote_markers((start, 2), (close, 2)) end:position!()
         {?
             let role = attrs.as_ref().and_then(|(roles, _id)| {
                 if roles.is_empty() {
@@ -2693,14 +2706,17 @@ peg::parser! {
 
         /// Match unconstrained monospace without consuming - for use in negative lookaheads.
         rule monospace_text_unconstrained_match()
-        = inline_attributes()? open:position!() "``" (!(eol() / ![_] / "``") [_])+ close:position!() "``" check_quote_markers((open, 2), (close, 2))
+        = inline_attributes()? open:position!() "``" (empty_quote_content() &"``" / (!(eol() / ![_] / "``") [_])+) close:position!() "``" check_quote_markers((open, 2), (close, 2))
 
         rule monospace_text_constrained() -> InlineNode<'input>
         = attrs:inline_attributes()?
         start:position!()
         content_start:position()
         "`"
-        content:$([^(' ' | '\t' | '\n')] [^'`']* ("`" !constrained_boundary_follow() [^'`']*)*)
+        content:$(
+            empty_quote_content() &"`"
+            / [^(' ' | '\t' | '\n')] [^'`']* ("`" !constrained_boundary_follow() [^'`']*)*
+        )
         close:position!() "`" check_quote_markers((start, 1), (close, 1))
         end:position!()
         &constrained_boundary_follow()
@@ -2755,9 +2771,10 @@ peg::parser! {
         = boundary_pos:position!()
         inline_attributes()?
         open:position!() "`"
-        [^(' ' | '\t' | '\n')]
-        [^'`']*
-        ("`" !constrained_boundary_follow() [^'`']*)*
+        (
+            empty_quote_content() &"`"
+            / [^(' ' | '\t' | '\n')] [^'`']* ("`" !constrained_boundary_follow() [^'`']*)*
+        )
         close:position!() "`" check_quote_markers((open, 1), (close, 1))
         closing_pos:position!()
         constrained_boundary_follow()
@@ -2769,7 +2786,7 @@ peg::parser! {
         }
 
         rule highlight_text_unconstrained() -> InlineNode<'input>
-            = attrs:inline_attributes()? start:position!() "##" content_start:position!() content:$((!(eol() / ![_] / "##") [_])+) close:position!() "##" check_quote_markers((start, 2), (close, 2)) end:position!()
+            = attrs:inline_attributes()? start:position!() "##" content_start:position!() content:$(empty_quote_content() &"##" / (!(eol() / ![_] / "##") [_])+) close:position!() "##" check_quote_markers((start, 2), (close, 2)) end:position!()
         {?
             let role = attrs.as_ref().and_then(|(roles, _id)| {
                 if roles.is_empty() {
@@ -2800,14 +2817,17 @@ peg::parser! {
 
         /// Match unconstrained highlight without consuming - for use in negative lookaheads.
         rule highlight_text_unconstrained_match()
-        = inline_attributes()? open:position!() "##" (!(eol() / ![_] / "##") [_])+ close:position!() "##" check_quote_markers((open, 2), (close, 2))
+        = inline_attributes()? open:position!() "##" (empty_quote_content() &"##" / (!(eol() / ![_] / "##") [_])+) close:position!() "##" check_quote_markers((open, 2), (close, 2))
 
         rule highlight_text_constrained() -> InlineNode<'input>
         = attrs:inline_attributes()?
         start:position!()
         content_start:position()
         "#"
-        content:$([^(' ' | '\t' | '\n')] [^'#']* ("#" !constrained_boundary_follow() [^'#']*)*)
+        content:$(
+            empty_quote_content() &"#"
+            / [^(' ' | '\t' | '\n')] [^'#']* ("#" !constrained_boundary_follow() [^'#']*)*
+        )
         close:position!() "#" check_quote_markers((start, 1), (close, 1))
         end:position!()
         &constrained_boundary_follow()
@@ -2863,9 +2883,10 @@ peg::parser! {
         = boundary_pos:position!()
         inline_attributes()?
         open:position!() "#"
-        [^(' ' | '\t' | '\n')]
-        [^'#']*
-        ("#" !constrained_boundary_follow() [^'#']*)*
+        (
+            empty_quote_content() &"#"
+            / [^(' ' | '\t' | '\n')] [^'#']* ("#" !constrained_boundary_follow() [^'#']*)*
+        )
         close:position!() "#" check_quote_markers((open, 1), (close, 1))
         closing_pos:position!()
         constrained_boundary_follow()
@@ -2878,7 +2899,7 @@ peg::parser! {
 
         /// Parse superscript text (^text^)
         rule superscript_text() -> InlineNode<'input>
-            = attrs:inline_attributes()? start:position!() "^" content_start:position!() content:$([^('^' | ' ' | '\t' | '\n')]+) close:position!() "^" check_quote_markers((start, 1), (close, 1)) end:position!()
+            = attrs:inline_attributes()? start:position!() "^" content_start:position!() content:$(empty_quote_content() &"^" / [^('^' | ' ' | '\t' | '\n')]+) close:position!() "^" check_quote_markers((start, 1), (close, 1)) end:position!()
         {?
             let role = attrs.as_ref().and_then(|(roles, _id)| {
                 if roles.is_empty() {
@@ -2909,11 +2930,11 @@ peg::parser! {
 
         /// Match superscript text without consuming - for use in negative lookaheads.
         rule superscript_text_match()
-        = inline_attributes()? open:position!() "^" [^('^' | ' ' | '\t' | '\n')]+ close:position!() "^" check_quote_markers((open, 1), (close, 1))
+        = inline_attributes()? open:position!() "^" (empty_quote_content() &"^" / [^('^' | ' ' | '\t' | '\n')]+) close:position!() "^" check_quote_markers((open, 1), (close, 1))
 
         /// Parse subscript text (~text~)
         rule subscript_text() -> InlineNode<'input>
-            = attrs:inline_attributes()? start:position!() "~" content_start:position!() content:$([^('~' | ' ' | '\t' | '\n')]+) close:position!() "~" check_quote_markers((start, 1), (close, 1)) end:position!()
+            = attrs:inline_attributes()? start:position!() "~" content_start:position!() content:$(empty_quote_content() &"~" / [^('~' | ' ' | '\t' | '\n')]+) close:position!() "~" check_quote_markers((start, 1), (close, 1)) end:position!()
         {?
             let role = attrs.as_ref().and_then(|(roles, _id)| {
                 if roles.is_empty() {
@@ -2944,11 +2965,11 @@ peg::parser! {
 
         /// Match subscript text without consuming - for use in negative lookaheads.
         rule subscript_text_match()
-        = inline_attributes()? open:position!() "~" [^('~' | ' ' | '\t' | '\n')]+ close:position!() "~" check_quote_markers((open, 1), (close, 1))
+        = inline_attributes()? open:position!() "~" (empty_quote_content() &"~" / [^('~' | ' ' | '\t' | '\n')]+) close:position!() "~" check_quote_markers((open, 1), (close, 1))
 
         /// Parse curved quotation text (`"text"`)
         rule curved_quotation_text() -> InlineNode<'input>
-            = attrs:inline_attributes()? start:position!() "\"`" content_start:position!() content:$((!("`\"") [_])+) close:position!() "`\"" check_quote_markers((start, 2), (close, 2)) end:position!()
+            = attrs:inline_attributes()? start:position!() "\"`" content_start:position!() content:$(empty_quote_content() &"`\"" / (!("`\"") [_])+) close:position!() "`\"" check_quote_markers((start, 2), (close, 2)) end:position!()
         {?
             let role = attrs.as_ref().and_then(|(roles, _id)| {
                 if roles.is_empty() {
@@ -2979,11 +3000,11 @@ peg::parser! {
 
         /// Match curved quotation text without consuming - for use in negative lookaheads.
         rule curved_quotation_text_match()
-        = inline_attributes()? open:position!() "\"`" (!("`\"") [_])+ close:position!() "`\"" check_quote_markers((open, 2), (close, 2))
+        = inline_attributes()? open:position!() "\"`" (empty_quote_content() &"`\"" / (!("`\"") [_])+) close:position!() "`\"" check_quote_markers((open, 2), (close, 2))
 
         /// Parse curved apostrophe text (`'text'`)
         rule curved_apostrophe_text() -> InlineNode<'input>
-            = attrs:inline_attributes()? start:position!() "'`" content_start:position!() content:$((!("`'") [_])+) close:position!() "`'" check_quote_markers((start, 2), (close, 2)) end:position!()
+            = attrs:inline_attributes()? start:position!() "'`" content_start:position!() content:$(empty_quote_content() &"`'" / (!("`'") [_])+) close:position!() "`'" check_quote_markers((start, 2), (close, 2)) end:position!()
         {?
             let role = attrs.as_ref().and_then(|(roles, _id)| {
                 if roles.is_empty() {
@@ -3014,7 +3035,7 @@ peg::parser! {
 
         /// Match curved apostrophe text without consuming - for use in negative lookaheads.
         rule curved_apostrophe_text_match()
-        = inline_attributes()? open:position!() "'`" (!("`'") [_])+ close:position!() "`'" check_quote_markers((open, 2), (close, 2))
+        = inline_attributes()? open:position!() "'`" (empty_quote_content() &"`'" / (!("`'") [_])+) close:position!() "`'" check_quote_markers((open, 2), (close, 2))
 
         /// Match standalone curved apostrophe without consuming - for use in negative lookaheads.
         rule standalone_curved_apostrophe_match()

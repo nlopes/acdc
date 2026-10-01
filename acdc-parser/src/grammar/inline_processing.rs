@@ -242,6 +242,19 @@ fn parse_processed_inlines<'a>(
     inline_peg_state.empty_attribute_offsets = processed
         .source_map
         .empty_attribute_offsets(location.absolute_start);
+    // Nested formatting reparses already-expanded text. Keep the removed
+    // references so an inner quote can still have content at its original stage.
+    inline_peg_state.empty_attribute_offsets.extend(
+        state
+            .empty_attribute_offsets
+            .iter()
+            .filter(|offset| {
+                location.absolute_start <= **offset && **offset <= location.absolute_end + 1
+            })
+            .map(|offset| offset - location.absolute_start),
+    );
+    inline_peg_state.empty_attribute_offsets.sort_unstable();
+    inline_peg_state.empty_attribute_offsets.dedup();
     inline_peg_state.attribute_value_ranges = attribute_value_ranges(processed, state, location);
     if inline_ctx
         .substitutions

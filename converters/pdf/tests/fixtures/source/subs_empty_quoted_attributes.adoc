@@ -1,0 +1,47 @@
+= empty-quote-subs(1)
+:doctype: manpage
+:manmanual: Empty formatting
+:mansource: acdc
+:revdate: 2026-10-01
+:blank:
+:markup: *introduced*
+
+== NAME
+
+empty-quote-subs - quote and attribute substitution order
+
+== DESCRIPTION
+
+[subs="quotes,attributes"]
+S01 Before *{blank}* and **{blank}** after.
+
+[subs="attributes,quotes"]
+S02 Before *{blank}* and **{blank}** after.
+
+[subs="quotes"]
+S03 Before *{blank}* after.
+
+[subs="attributes"]
+S04 Before *{blank}* after.
+
+[subs="quotes,attributes"]
+S05 Before *_{blank}_* and [.role]*{blank}* after.
+
+[subs="attributes,quotes"]
+S06 Before {markup} after.
+
+[subs="quotes,attributes"]
+S07 Before {markup} after.
+
+[listing,subs="quotes,attributes,macros"]
+----
+S08 Before *{blank}* and _{blank}_ after.
+----
+
+[listing,subs="attributes,quotes,macros"]
+----
+S09 Before *{blank}* and _{blank}_ after.
+----
+
+[subs="quotes,attributes"]
+S10 Before "`{blank}`" and '`{blank}`' after.

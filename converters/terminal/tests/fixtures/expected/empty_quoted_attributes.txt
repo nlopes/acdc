@@ -1,0 +1,39 @@
+[1m[4mempty-quotes(1)[0m[2m2026-10-01[0m
+
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mNAME[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+empty-quotes - formatting around empty attribute references
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mDESCRIPTION[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+Q01 Before [1m[22m after.
+Q02 Before [3m[23m after.
+Q03 Before [38;5;14m[39m after.
+Q04 Before [38;5;0m[48;5;11m[39m[49m after.
+Q05 Before  after.
+Q06 Before  after.
+Q07 Before [1m[22m after.
+Q08 Before [3m[23m after.
+Q09 Before [38;5;14m[39m after.
+Q10 Before [38;5;0m[48;5;11m[39m[49m after.
+Q11 Before [1m[3m[23m[22m after.
+Q12 Before [3m**[23m after.
+Q13 Before [1m[22m after.
+Q14 Before [1m[22m after.
+Q15 Before “” and ‘’ after.
+Q16 Before [1m[22m and [3m[23m after.
+Q17 Before [1mtext[22m and [1mtext[22m after.
+Q18 Before **, __, ##, ^^ and ~~ after.
+Q19 Before ** and [1m{missing}[22m after.
+Q20 Before *introduced* after.
+Q21 Before [38;5;12m[39m[2m (https://example.com)[0m after.
+Q22 Before x[1m[22my and x**y after.
+Q23 Before é** and **é after.
+Q24 Before [1m[3m[23m[22m after.
+Q25 Before [1m[22m and [1mtext[22m after.
+Q26 Before [1m**[22m after.
+Q27 See [38;5;12m[4mEmpty target[24m[39m.
+Q28 Before  and  after.
