@@ -1,0 +1,72 @@
+= attribute-pass(1)
+:doctype: manpage
+:manmanual: Attribute tests
+:mansource: acdc
+:revdate: 2026-10-01
+:name: Early
+:plain: pass:[Generated]
+:literal-ref: pass:[{name}]
+:escaped-ref: pass:[\{name}]
+:empty: pass:[]
+:partial: prefix pass:[Embedded]
+:escaped: \pass:[Escaped]
+:brackets: pass:[a[b\]c]d]
+:alias: {plain} / {literal-ref}
+:nested: pass:[pass:[Nested]]
+:line: pass:[first \
+second]
+:unicode: pass:[café α]
+:entity: pass:[&#169;]
+
+== Name
+attribute-pass - passthrough attribute values
+
+== Description
+:name: Late
+
+[subs="specialcharacters,attributes"]
+----
+A01 {plain}
+A02 {literal-ref}
+A03 {escaped-ref}
+A04 Before {empty} after.
+A05 {partial}
+A06 {escaped}
+A07 {brackets}
+A08 {alias}
+A09 {nested}
+A10 {line}
+A11 {unicode}
+A15 {entity}
+----
+
+P01 {plain} | {literal-ref} | {alias} | {nested}
+
+P02 *{literal-ref}* | _{nested}_ | `{literal-ref}`
+
+P03 {partial} | {escaped}
+
+P04 {line} | {unicode}
+
+P05 Before {empty} after.
+
+P07 {entity}
+
+P08 {escaped-ref} | *{escaped-ref}*
+
+:plain: pass:[Body]
+
+[subs="specialcharacters,attributes"]
+----
+A12 {plain}
+A13 {alias}
+----
+
+P06 {plain}
+
+:plain!:
+
+[subs="specialcharacters,attributes"]
+----
+A14 {plain}
+----

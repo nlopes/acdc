@@ -18,8 +18,8 @@ use crate::{
     document_attribute::{AttributeDeclaration, RawAttributeValue},
     grammar::LineMap,
     model::{
-        DocumentAttributeStatus, LeveloffsetRange, REFSIG_ATTRIBUTES, SourceRange, substitute,
-        substitution::{HEADER, SubstitutionPlan},
+        DocumentAttributeStatus, LeveloffsetRange, REFSIG_ATTRIBUTES, SourceRange,
+        substitution::SubstitutionPlan,
     },
 };
 
@@ -465,7 +465,7 @@ impl<'a> ParserState<'a> {
         let AttributeDeclaration { name, value } = declaration;
         let key = Cow::Borrowed(*name);
         let set = !matches!(value, RawAttributeValue::Unset);
-        let value = self.resolve_document_attribute_value(value, &self.document_attributes);
+        let value = value.resolve(&self.document_attributes);
         let force_locked = self
             .nested_parent_attributes
             .as_ref()
@@ -507,26 +507,6 @@ impl<'a> ParserState<'a> {
             self.hardbreaks = set;
         }
         Some(DocumentAttribute::accepted(key, applied, location))
-    }
-
-    /// Expand an attribute value's references against the given attributes.
-    pub(crate) fn resolve_document_attribute_value(
-        &self,
-        value: &RawAttributeValue<'a>,
-        attributes: &DocumentAttributes<'a>,
-    ) -> RawAttributeValue<'a> {
-        match value {
-            RawAttributeValue::Text(Cow::Borrowed(s)) => {
-                let substituted = substitute(s, HEADER, attributes);
-                RawAttributeValue::Text(Cow::Borrowed(self.intern_cow(substituted)))
-            }
-            RawAttributeValue::Text(Cow::Owned(s)) => {
-                let substituted = substitute(s, HEADER, attributes);
-                RawAttributeValue::Text(Cow::Borrowed(self.intern_str(&substituted)))
-            }
-            RawAttributeValue::Set => RawAttributeValue::Set,
-            RawAttributeValue::Unset => RawAttributeValue::Unset,
-        }
     }
 
     /// Initialize hard-break state from attributes supplied by the parser API.

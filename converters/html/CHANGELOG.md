@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Plain `pass:[...]` document attribute values retain their raw characters and
+  literal references in prose and code with attributes enabled,
+  matching Asciidoctor. Surrounding ordinary text remains escaped.
+  Complete raw tags and character references also survive syntax highlighting.
 - Listing and literal blocks honour the requested order of quote and attribute
   substitutions when macros are disabled, matching Asciidoctor. Highlighted
   source blocks also retain explicitly enabled formatting and its text.

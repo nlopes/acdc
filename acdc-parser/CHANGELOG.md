@@ -57,6 +57,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Whole-value `pass:[...]` in document attributes is now resolved at definition
+  time, matching Asciidoctor. Literal references, empty values, aliases, and raw
+  characters survive later use, including code with macros disabled. Caller
+  values stay as supplied. Explicit substitution lists such as `pass:q[...]`
+  retain their existing limitations.
+  Attribute-introduced passthroughs also stay literal inside footnotes, rather
+  than being evaluated a second time.
 - Listing and literal blocks now apply requested quote and attribute substitutions
   even when macros are disabled. Substitution order matches Asciidoctor: with
   `subs="quotes,attributes"`, markup introduced by an attribute stays literal.

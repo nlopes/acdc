@@ -161,7 +161,7 @@ pub(crate) fn extend_attribute_location_if_needed(
     {
         // Find the attribute replacement that contains this collapsed location
         if let Some(attr_replacement) = processed.source_map.replacements.iter().find(|rep| {
-            rep.kind == crate::grammar::inline_preprocessor::ProcessedKind::Attribute
+            rep.kind.is_attribute()
                 && location.absolute_start >= rep.absolute_start
                 && location.absolute_start < rep.absolute_end
         }) {
@@ -637,11 +637,122 @@ fn map_index_term_locations<'a>(
     Ok(())
 }
 
+fn raw_tag_end(text: &str) -> Option<usize> {
+    if let Some(comment) = text.strip_prefix("<!--") {
+        return comment.find("-->").map(|end| end + 7);
+    }
+    if let Some(cdata) = text.strip_prefix("<![CDATA[") {
+        return cdata.find("]]>").map(|end| end + 12);
+    }
+    let mut quote = None;
+    for (offset, byte) in text.bytes().enumerate().skip(1) {
+        if quote == Some(byte) {
+            quote = None;
+        } else if quote.is_none() {
+            if matches!(byte, b'\'' | b'"') {
+                quote = Some(byte);
+            } else if byte == b'>' {
+                return Some(offset + 1);
+            }
+        }
+    }
+    None
+}
+
+fn raw_attribute_fragments<'a>(
+    plain: &Plain<'a>,
+    ctx: &LocationMappingContext<'_, 'a>,
+    form: Option<&Form>,
+) -> Result<Option<Vec<InlineNode<'a>>>, Error> {
+    let raw_ranges = ctx
+        .processed
+        .source_map
+        .raw_attribute_ranges(ctx.base_location.absolute_start);
+    if raw_ranges.is_empty() {
+        return Ok(None);
+    }
+    let mut fragments = Vec::new();
+    let mut cursor = 0;
+    // Split only characters that would otherwise be escaped. Parsing has already
+    // recognized later macros and quotes, including syntax spanning the attribute.
+    for (offset, character) in plain.content.char_indices() {
+        if offset < cursor
+            || !matches!(character, '<' | '>' | '&')
+            || !raw_ranges
+                .iter()
+                .any(|range| range.contains(&(plain.location.absolute_start + offset)))
+        {
+            continue;
+        }
+        // Keep raw tags and character references intact. Highlighting can then
+        // preserve tags, and non-HTML converters can decode character references.
+        let raw_end = if character == '<' {
+            raw_tag_end(&plain.content[offset..]).map(|length| offset + length)
+        } else if character == '&' {
+            (|| {
+                let tail = &plain.content[offset + 1..];
+                let length = tail.find(';')?;
+                (!tail[..length].is_empty()
+                    && tail[..length]
+                        .bytes()
+                        .all(|byte| byte.is_ascii_alphanumeric() || byte == b'#'))
+                .then_some(offset + length + 2)
+            })()
+        } else {
+            None
+        }
+        .filter(|end| {
+            raw_ranges.iter().any(|range| {
+                range.contains(&(plain.location.absolute_start + offset))
+                    && plain.location.absolute_start + end <= range.end
+            })
+        });
+        let end = raw_end.unwrap_or(offset + 1);
+        if cursor < offset {
+            let mut fragment = plain.clone();
+            fragment.content = &plain.content[cursor..offset];
+            fragment.location.absolute_start += cursor;
+            fragment.location.absolute_end = plain.location.absolute_start + offset - 1;
+            let expanded = map_plain_text_inline_locations(&mut fragment, ctx, form)?;
+            fragments.extend(expanded.unwrap_or_else(|| vec![InlineNode::PlainText(fragment)]));
+        }
+        let position = ctx.base_location.absolute_start + plain.location.absolute_start + offset;
+        // Each generated character belongs to the complete source reference.
+        // Do not apply the single-character delimiter adjustment to it.
+        let location = ctx.state.create_location(
+            ctx.processed.source_map.map_position(position)?,
+            ctx.processed
+                .source_map
+                .map_end_position(position + end - offset - 1)?,
+        );
+        fragments.push(InlineNode::RawText(crate::Raw {
+            content: &plain.content[offset..end],
+            location,
+            subs: Vec::new(),
+        }));
+        cursor = end;
+    }
+    if !fragments.is_empty() {
+        if cursor < plain.content.len() {
+            let mut fragment = plain.clone();
+            fragment.content = &plain.content[cursor..];
+            fragment.location.absolute_start += cursor;
+            let expanded = map_plain_text_inline_locations(&mut fragment, ctx, form)?;
+            fragments.extend(expanded.unwrap_or_else(|| vec![InlineNode::PlainText(fragment)]));
+        }
+        return Ok(Some(fragments));
+    }
+    Ok(None)
+}
+
 fn map_plain_text_inline_locations<'a>(
     plain: &mut Plain<'a>,
     ctx: &LocationMappingContext<'_, 'a>,
     form: Option<&Form>,
 ) -> Result<Option<Vec<InlineNode<'a>>>, Error> {
+    if let Some(fragments) = raw_attribute_fragments(plain, ctx, form)? {
+        return Ok(Some(fragments));
+    }
     plain.location = ctx.map_location(&plain.location, form)?;
     if contains_passthrough_placeholders(plain.content, ctx.processed) {
         // Passthrough locations use the mapped document coordinates as their base.

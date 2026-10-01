@@ -1,0 +1,42 @@
+= attribute-contexts(1)
+:doctype: manpage
+:manmanual: Attribute tests
+:mansource: acdc
+:revdate: 2026-10-01
+:name: Early
+:value: pass:[{name}]
+:link: pass:[https://example.org[Site]]
+:quotes: pass:[*Strong*]
+:nested: pass:[pass:[Nested]]
+
+== Name
+attribute-contexts - passthrough attribute contexts
+
+== Description
+:name: Late
+
+C01 {value} | {quotes} | {link}
+
+C02 *{value}* | _{value}_ | `{value}` | *{nested}*
+
+C03 link:https://example.net[{value}]
+
+.C04 {value}
+* C05 {value}
+* C06 *{value}*
+
+[cols="a,a"]
+|===
+|C07 {value}
+
+:value: pass:[Local {name}]
+
+C08 {value}
+|C09 {value}
+|===
+
+C10 {value}
+
+:value: pass:[]
+
+C11 Before {value} after.

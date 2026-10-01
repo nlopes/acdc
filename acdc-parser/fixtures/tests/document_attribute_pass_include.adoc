@@ -1,0 +1,4 @@
+= Include target
+:part: pass:[includes/document_attribute_pass.txt]
+
+include::{part}[]

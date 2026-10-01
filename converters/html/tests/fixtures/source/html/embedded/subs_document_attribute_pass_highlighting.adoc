@@ -1,0 +1,21 @@
+= Highlighted raw attributes
+:source-highlighter: syntect
+:name: Early
+:value: pass:[Generated {name}]
+:raw: pass:[<em>raw</em> &]
+:entity: pass:[&#169;]
+:quoted: pass:[<em title="a > b">quoted</em>]
+:single-quoted: pass:[<em title='x > y'>single</em>]
+:commented: pass:[<!-- a > b -->shown]
+
+[source,html,subs=+attributes]
+----
+H01 {value}
+H02 {raw}
+H03 {entity}
+H04 <ordinary>
+H05 {lt}ordinary{gt}
+H06 {quoted}
+H07 {single-quoted}
+H08 {commented}
+----

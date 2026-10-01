@@ -1914,7 +1914,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             } else if let InlineNode::CalloutRef(callout) = node {
                 let _ = write!(code.source, "({})", callout.number);
             } else {
-                let _ = transform.write(&mut code.source, std::slice::from_ref(node));
+                let decode = matches!(node, InlineNode::RawText(raw) if raw.subs.is_empty());
+                let _ = transform
+                    .decode_char_refs(decode)
+                    .write(&mut code.source, std::slice::from_ref(node));
             }
         }
 

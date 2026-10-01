@@ -187,9 +187,9 @@
           "id": "attribute",
           "inlines": [
             {
-              "name": "raw",
+              "name": "text",
               "type": "string",
-              "value": "First text.",
+              "value": "+First text.+",
               "location": [
                 {
                   "line": 8,
@@ -312,9 +312,9 @@
           "id": "same",
           "inlines": [
             {
-              "name": "raw",
+              "name": "text",
               "type": "string",
-              "value": "Unchanged text.",
+              "value": "+Unchanged text.+",
               "location": [
                 {
                   "line": 14,

@@ -16,6 +16,38 @@ use acdc_parser::{AttributeValue, Options as ParserOptions, SafeMode, parse, par
 
 type Error = Box<dyn StdError>;
 
+#[cfg(all(feature = "highlighting", feature = "pre-spec-subs"))]
+#[test]
+fn document_attribute_pass_raw_tags_remain_nested_under_highlighting() -> Result<(), Error> {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/source/html/embedded/subs_document_attribute_pass_highlighting.adoc");
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        let output = render_fixture(&path, variant, true)?;
+        let mut open = Vec::new();
+        for fragment in output.split('<').skip(1) {
+            let Some((tag, _)) = fragment.split_once('>') else {
+                continue;
+            };
+            if tag.starts_with("span ") || tag == "span" {
+                open.push("span");
+            } else if tag == "em" || tag.starts_with("em ") {
+                open.push("em");
+            } else if let Some(close) = tag.strip_prefix('/')
+                && matches!(close, "em" | "span")
+            {
+                assert_eq!(open.pop(), Some(close), "{output}");
+            }
+        }
+        assert!(open.is_empty(), "{output}");
+        assert!(output.contains("<em>"), "{output}");
+        assert!(output.contains("Generated {name}"), "{output}");
+        assert!(output.contains("<em title=\"a > b\">"), "{output}");
+        assert!(output.contains("<em title='x > y'>"), "{output}");
+        assert!(output.contains("<!-- a > b -->"), "{output}");
+    }
+    Ok(())
+}
+
 #[test]
 fn nested_links_keep_separate_anchors_and_targets() -> Result<(), Error> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))

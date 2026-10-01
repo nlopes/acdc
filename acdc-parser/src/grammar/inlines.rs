@@ -1466,7 +1466,7 @@ peg::parser! {
         rule escapable_pattern() -> &'input str
         =
         // Curly braces (attributes): {...}
-        "{" inner:$([^'}']*) "}" { state.intern_fmt(format_args!("{{{inner}}}")) }
+        check_attribute_escape() "{" inner:$([^'}']*) "}" { state.intern_fmt(format_args!("{{{inner}}}")) }
         // Unconstrained formatting: match entire span including content and closing marker
         // \**not bold** -> **not bold**
         / "**" inner:$((!"**" [_])*) "**" { state.intern_fmt(format_args!("**{inner}**")) }
@@ -1495,7 +1495,7 @@ peg::parser! {
 
         /// Match escapable patterns without consuming
         rule escapable_pattern_match() -> ()
-        = "{" [^'}']* "}"
+        = check_attribute_escape() "{" [^'}']* "}"
         // Unconstrained formatting: match entire span
         / "**" (!"**" [_])* "**"
         / "__" (!("__" !['_']) [_])* "__"
@@ -1507,6 +1507,12 @@ peg::parser! {
         / "~" [^'~' | ' ' | '\t' | '\n']+ "~"
         // Single escapable chars (excluding ^ and ~ which need complete patterns)
         / ['*' | '_' | '#' | '`' | '&'] {}
+
+        // Attribute substitution does not revisit escapes introduced by a value.
+        rule check_attribute_escape()
+        = pos:position!() {?
+            (!byte_came_from_attribute(state, pos)).then_some(()).ok_or("attribute escape introduced by value")
+        }
 
         rule footnote() -> InlineNode<'input>
         = footnote_match:footnote_match()
@@ -1633,7 +1639,7 @@ peg::parser! {
         / ['[' | '(' | '<'] { None }
 
         rule inline_pass() -> InlineNode<'input>
-        = "pass:"
+        = check_pass_token() "pass:"
         substitutions:($([^('[' | ']' | ',')]+) ** comma())
         "["
         content:$(("\\]" / [^']'])*)
@@ -1651,7 +1657,20 @@ peg::parser! {
 
         /// Match inline pass without consuming - for use in negative lookaheads.
         rule inline_pass_match()
-        = "pass:" ([^('[' | ']' | ',')]+ ("," [^('[' | ']' | ',')]+)*)? "[" ("\\]" / [^']'])* "]"
+        = check_pass_token() "pass:" ([^('[' | ']' | ',')]+ ("," [^('[' | ']' | ',')]+)*)? "[" ("\\]" / [^']'])* "]"
+
+        // Plain pass wrappers are resolved at definition time. Substitution must
+        // not activate a wrapper that remains inside the stored attribute value.
+        rule check_pass_token()
+        = start:position!() {?
+            if state.input[start..].starts_with("pass:[")
+                && (start..start + 6).any(|pos| byte_came_from_attribute(state, pos))
+            {
+                Err("passthrough introduced by attribute")
+            } else {
+                Ok(())
+            }
+        }
 
         rule index_term_concealed() -> InlineNode<'input>
         = content:index_term_concealed_content() {?

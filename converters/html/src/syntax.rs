@@ -839,6 +839,7 @@ mod tests {
 pub(crate) struct HighlightedLink {
     pub(crate) range: std::ops::Range<usize>,
     pub(crate) html: String,
+    pub(crate) outside_spans: bool,
 }
 
 #[cfg(feature = "highlighting")]
@@ -850,11 +851,17 @@ fn insert_highlighted_links(html: &str, links: &[HighlightedLink]) -> String {
     let mut remaining = html;
     let mut offset = 0;
     let mut links = links.iter().peekable();
+    let mut spans = Vec::new();
     while !remaining.is_empty() {
         if remaining.starts_with('<')
             && let Some(end) = remaining.find('>')
         {
             let (tag, rest) = remaining.split_at(end + 1);
+            if tag.starts_with("<span ") || tag == "<span>" {
+                spans.push(tag);
+            } else if tag == "</span>" {
+                spans.pop();
+            }
             output.push_str(tag);
             remaining = rest;
             continue;
@@ -871,7 +878,19 @@ fn insert_highlighted_links(html: &str, links: &[HighlightedLink]) -> String {
         if let Some(link) = link
             && link.range.start == offset
         {
-            output.push_str(&link.html);
+            // A raw opening/closing tag can cross highlight runs. Insert it
+            // outside the generated spans so the resulting HTML stays nested.
+            if link.outside_spans {
+                for _ in &spans {
+                    output.push_str("</span>");
+                }
+                output.push_str(&link.html);
+                for span in &spans {
+                    output.push_str(span);
+                }
+            } else {
+                output.push_str(&link.html);
+            }
         }
         let Some(character) = remaining.chars().next() else {
             break;

@@ -1259,7 +1259,51 @@ mod tests {
 #[must_use]
 pub fn substitute_attributes<'text, 'value>(
     text: &'text str,
+    lookup: impl FnMut(&str) -> Option<&'value super::DocumentAttributeValue<'value>>,
+) -> Cow<'text, str> {
+    substitute_attributes_with_ranges(text, lookup, |_, _| {})
+}
+
+/// Resolve definition-time references, retaining raw fragments inherited from values.
+pub(crate) fn resolve_attribute_entry_text<'text>(
+    text: &'text str,
+    attributes: &DocumentAttributes<'_>,
+) -> super::DocumentAttributeValue<'text> {
+    if let Some(inner) = text
+        .trim()
+        .strip_prefix("pass:[")
+        .and_then(|s| s.strip_suffix(']'))
+    {
+        let ranges = if inner.is_empty() {
+            Vec::new()
+        } else {
+            std::iter::once(0..inner.len()).collect()
+        };
+        return super::DocumentAttributeValue::with_passthrough_ranges(
+            Cow::Borrowed(inner),
+            ranges,
+        );
+    }
+    let mut ranges = Vec::new();
+    let text = substitute_attributes_with_ranges(
+        text,
+        |name| attributes.get(name),
+        |value, offset| {
+            ranges.extend(
+                value
+                    .passthrough_ranges()
+                    .iter()
+                    .map(|range| range.start + offset..range.end + offset),
+            );
+        },
+    );
+    super::DocumentAttributeValue::with_passthrough_ranges(text, ranges)
+}
+
+fn substitute_attributes_with_ranges<'text, 'value>(
+    text: &'text str,
     mut lookup: impl FnMut(&str) -> Option<&'value super::DocumentAttributeValue<'value>>,
+    mut substituted: impl FnMut(&super::DocumentAttributeValue<'value>, usize),
 ) -> Cow<'text, str> {
     let mut remaining = text;
     let mut unwritten = text;
@@ -1289,6 +1333,7 @@ pub fn substitute_attributes<'text, 'value>(
         } else if let Some(value) = lookup(name) {
             let output = output.get_or_insert_with(|| String::with_capacity(text.len()));
             output.push_str(unwritten.split_at(prefix_len).0);
+            substituted(value, output.len());
             let _ = value.write_text(output);
             unwritten = rest;
         }

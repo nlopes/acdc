@@ -89,7 +89,7 @@ fn prepare_manpage_name_attributes<'input>(
     if let Some(section) = section {
         let mut attributes = DocumentAttributes::clone(&state.document_attributes);
         for AttributeDeclaration { name, value } in section.metadata_attributes {
-            let value = state.resolve_document_attribute_value(&value, &attributes);
+            let value = value.resolve(&attributes);
             let _ = attributes.assign_document_value(name.into(), value, false, false, None);
         }
 

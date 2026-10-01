@@ -51,6 +51,7 @@ pub(crate) struct InlinePreprocessorParserState<'a> {
     /// Whether attribute substitutions are enabled for this block.
     /// When `false`, `{attribute}` references are not expanded by the preprocessor.
     pub(crate) attributes_enabled: bool,
+    pub(crate) attribute_value_ranges: Vec<Range<usize>>,
 }
 
 impl<'a> InlinePreprocessorParserState<'a> {
@@ -84,6 +85,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
             warnings: RefCell::new(Vec::new()),
             macros_enabled,
             attributes_enabled,
+            attribute_value_ranges: Vec::new(),
         }
     }
 
@@ -431,7 +433,11 @@ impl<'a> InlinePreprocessorParserState<'a> {
             location.absolute_start,
             location.absolute_end,
             value.len(),
-            ProcessedKind::Attribute,
+            if resolved.passthrough_ranges().is_empty() {
+                ProcessedKind::Attribute
+            } else {
+                ProcessedKind::RawAttribute(resolved.passthrough_ranges().into())
+            },
         );
         value
     }
@@ -489,8 +495,15 @@ pub(crate) struct SourceMap {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ProcessedKind {
     Attribute,
+    RawAttribute(Box<[Range<usize>]>),
     Escape,
     Passthrough,
+}
+
+impl ProcessedKind {
+    pub(crate) const fn is_attribute(&self) -> bool {
+        matches!(self, Self::Attribute | Self::RawAttribute(_))
+    }
 }
 
 fn is_passthrough_word_character(character: char) -> bool {
@@ -579,7 +592,7 @@ impl SourceMap {
 
             // Unchanged source bytes have the same length in both texts.
             processed_cursor += replacement.absolute_start - original_cursor;
-            if replacement.kind == ProcessedKind::Attribute && replacement.byte_len == 0 {
+            if replacement.kind.is_attribute() && replacement.byte_len == 0 {
                 // A removed attribute occupies this zero-width processed position.
                 offsets.push(processed_cursor);
             }
@@ -603,13 +616,34 @@ impl SourceMap {
             }
 
             processed_cursor += replacement.absolute_start - original_cursor;
-            if replacement.kind == ProcessedKind::Attribute && replacement.byte_len != 0 {
+            if replacement.kind.is_attribute() && replacement.byte_len != 0 {
                 ranges.push(processed_cursor..processed_cursor + replacement.byte_len);
             }
             processed_cursor += replacement.byte_len;
             original_cursor = replacement.absolute_end;
         }
 
+        ranges
+    }
+
+    pub(crate) fn raw_attribute_ranges(&self, original_start: usize) -> Vec<Range<usize>> {
+        let mut original_cursor = original_start;
+        let mut processed_cursor = 0;
+        let mut ranges = Vec::new();
+        for replacement in &self.replacements {
+            if replacement.absolute_start < original_cursor {
+                continue;
+            }
+            processed_cursor += replacement.absolute_start - original_cursor;
+            if let ProcessedKind::RawAttribute(raw) = &replacement.kind {
+                ranges.extend(
+                    raw.iter()
+                        .map(|range| range.start + processed_cursor..range.end + processed_cursor),
+                );
+            }
+            processed_cursor += replacement.byte_len;
+            original_cursor = replacement.absolute_end;
+        }
         ranges
     }
 
@@ -638,7 +672,7 @@ impl SourceMap {
                     return Ok(rep.absolute_end.saturating_sub(1));
                 }
                 return match rep.kind {
-                    ProcessedKind::Attribute => {
+                    ProcessedKind::Attribute | ProcessedKind::RawAttribute(_) => {
                         // All inserted characters map to the left-most original position
                         Ok(rep.absolute_start)
                     }
@@ -683,6 +717,8 @@ parser!(
             }
 
         rule inlines() -> String = quiet!{
+            inherited_attribute()
+            /
             // We add kbd_macro here to avoid conflicts with passthroughs as kbd macros
             // also can have + signs on each side.
             // We add monospace before passthrough to skip content inside backticks
@@ -698,6 +734,24 @@ parser!(
             / attribute_reference()
             / unprocessed_text()
         } / expected!("inlines parser failed")
+
+        // Formatting and labels reparse expanded text. Copy inherited values
+        // without expanding their references or extracting their passthroughs again.
+        rule inherited_attribute() -> String
+        = text:#{|input, pos| {
+            let absolute = pos + state.substring_start_offset.get();
+            // Inherited ranges can extend past trimmed labels; never match zero bytes at EOF.
+            match state.attribute_value_ranges.iter().find(|range| pos < input.len() && range.contains(&absolute)) {
+                Some(range) => {
+                    let end = (range.end - state.substring_start_offset.get()).min(input.len());
+                    peg::RuleResult::Matched(end, &input[pos..end])
+                }
+                None => peg::RuleResult::Failed,
+            }
+        }} {
+            state.advance(text);
+            text.into()
+        }
 
         // Match and skip monospace content (content inside backticks)
         // This prevents the preprocessor from processing passthroughs inside monospace
@@ -1109,6 +1163,7 @@ mod tests {
             warnings: RefCell::new(Vec::new()),
             macros_enabled: true,
             attributes_enabled: true,
+            attribute_value_ranges: Vec::new(),
         }
     }
 
@@ -1845,6 +1900,7 @@ mod tests {
             warnings: RefCell::new(Vec::new()),
             macros_enabled: false,
             attributes_enabled: true,
+            attribute_value_ranges: Vec::new(),
         }
     }
 

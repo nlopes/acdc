@@ -1,7 +1,6 @@
 use crate::{
     Error, Options,
     document_attribute::{AttributeDeclaration, RawAttributeValue},
-    model::{HEADER, substitute},
 };
 
 peg::parser! {
@@ -30,18 +29,12 @@ peg::parser! {
 pub(crate) fn parse_line(options: &mut Options<'_>, line: &str) -> Result<(), Error> {
     match attribute_parser::document_attribute(line) {
         Ok(AttributeDeclaration { name, value }) => {
-            let value = match value {
-                RawAttributeValue::Text(value) => {
-                    let value =
-                        substitute(&value, HEADER, &options.document_attributes).into_owned();
-                    if value.is_empty() {
-                        RawAttributeValue::Set
-                    } else {
-                        RawAttributeValue::Text(value.into())
-                    }
-                }
-                RawAttributeValue::Set => RawAttributeValue::Set,
-                RawAttributeValue::Unset => RawAttributeValue::Unset,
+            let value = value.resolve(&options.document_attributes).into_static();
+            let value = if matches!(&value, RawAttributeValue::Resolved(value) if value.text() == Some(""))
+            {
+                RawAttributeValue::Set
+            } else {
+                value
             };
             options.document_attributes.assign_document_value(
                 name.to_owned().into(),

@@ -863,7 +863,12 @@ fn capture_code_inlines<'a, W: std::io::Write>(
                     | InlineNode::CurvedApostropheText(_)
                     | InlineNode::StandaloneCurvedApostrophe(_)
             );
-            (linked || formatted).then_some(text)
+            // A lone bracket can form a tag with other nodes. Keep the existing
+            // escaping for those fragments instead of inserting a broken tag.
+            let raw = matches!(node, InlineNode::RawText(raw)
+                if raw.subs.is_empty() && raw.content.contains(['<', '>', '&'])
+                    && !matches!(raw.content, "<" | ">"));
+            (linked || formatted || raw).then_some(text)
         })
         .collect::<Vec<_>>();
     let mut links = Vec::new();
@@ -887,6 +892,7 @@ fn capture_code_inlines<'a, W: std::io::Write>(
             links.push(syntax::HighlightedLink {
                 range: offset..offset + label.len(),
                 html: String::from_utf8_lossy(&capture.into_writer()).into_owned(),
+                outside_spans: matches!(node, InlineNode::RawText(raw) if raw.subs.is_empty()),
             });
             offset += label.len();
         } else {

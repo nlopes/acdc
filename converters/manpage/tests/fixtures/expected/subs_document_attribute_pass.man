@@ -1,0 +1,69 @@
+'\" t
+.\"     Title: attribute-pass
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-01
+.\"    Manual: Attribute tests
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "ATTRIBUTE\-PASS" "1" "2026-10-01" "acdc" "Attribute tests"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+attribute\-pass \- passthrough attribute values
+.SH "DESCRIPTION"
+.EX
+A01 Generated
+A02 {name}
+A03 \e{name}
+A04 Before  after.
+A05 prefix pass:[Embedded]
+A06 \epass:[Escaped]
+A07 a[b\e]c]d
+A08 Generated / {name}
+A09 pass:[Nested]
+A10 first second
+A11 café α
+A15 \(co
+.EE
+.sp
+P01 Generated | {name} | Generated / {name} | pass:[Nested]
+.sp
+P02 \fB{name}\fP | \fIpass:[Nested]\fP | \f(CR{name}\fP
+.sp
+P03 prefix pass:[Embedded] | \epass:[Escaped]
+.sp
+P04 first second | café α
+.sp
+P05 Before after.
+.sp
+P07 \(co
+.sp
+P08 \e{name} | \fB\e{name}\fP
+.EX
+A12 Body
+A13 Generated / {name}
+.EE
+.sp
+P06 Body
+.EX
+A14 {plain}
+.EE

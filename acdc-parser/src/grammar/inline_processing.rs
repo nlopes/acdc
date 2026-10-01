@@ -150,6 +150,9 @@ pub(crate) fn preprocess_inline_content<'a>(
         attributes_enabled,
     );
     inline_state.set_initial_position(&location, content_start + offset);
+    inline_state
+        .attribute_value_ranges
+        .clone_from(&state.attribute_value_ranges);
     tracing::debug!(
         ?inline_state,
         ?location,
@@ -315,7 +318,7 @@ fn late_attribute_sources<'a>(
                 && pass.location.absolute_start == replacement.absolute_start
                 && pass.location.absolute_end == replacement.absolute_end
         });
-        if replacement.kind == ProcessedKind::Attribute || attribute_passthrough {
+        if replacement.kind.is_attribute() || attribute_passthrough {
             sources.push((
                 expanded..expanded + replacement.byte_len,
                 &state.input[replacement.absolute_start..replacement.absolute_end],
@@ -463,7 +466,7 @@ fn process_inline_content<'a>(
     content: &'a str,
     verbatim: bool,
 ) -> Result<(Vec<InlineNode<'a>>, &'a str), Error> {
-    let (location, processed) = preprocess_inline_content(
+    let (location, mut processed) = preprocess_inline_content(
         state,
         content_start,
         end,
@@ -489,6 +492,7 @@ fn process_inline_content<'a>(
         true,
         verbatim,
     )?;
+    apply_attribute_escaping(&mut processed, block_metadata);
     let inlines =
         super::location_mapping::map_inline_locations(state, &processed, content, &location)?;
     let source = if processed.passthroughs.is_empty() {
@@ -499,6 +503,24 @@ fn process_inline_content<'a>(
         state.intern_str(&restored)
     };
     Ok((inlines, source))
+}
+
+fn apply_attribute_escaping(
+    processed: &mut ProcessedContent<'_>,
+    metadata: &BlockParsingMetadata<'_>,
+) {
+    // Raw values bypass an earlier special-character stage. If escaping
+    // follows attributes, the consuming block must still escape the inserted text.
+    if !metadata
+        .substitutions
+        .precedes(&Substitution::SpecialChars, &Substitution::Attributes)
+    {
+        for replacement in &mut processed.source_map.replacements {
+            if matches!(replacement.kind, ProcessedKind::RawAttribute(_)) {
+                replacement.kind = ProcessedKind::Attribute;
+            }
+        }
+    }
 }
 
 /// Process inlines with autolinks suppressed.
@@ -514,7 +536,7 @@ pub(crate) fn process_inlines_no_autolinks<'a>(
     offset: usize,
     content: &'a str,
 ) -> Result<Vec<InlineNode<'a>>, Error> {
-    let (location, processed) = preprocess_inline_content(
+    let (location, mut processed) = preprocess_inline_content(
         state,
         content_start,
         end,
@@ -551,5 +573,6 @@ pub(crate) fn process_inlines_no_autolinks<'a>(
         false,
         false,
     )?;
+    apply_attribute_escaping(&mut processed, block_metadata);
     super::location_mapping::map_inline_locations(state, &processed, content, &location)
 }

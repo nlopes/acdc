@@ -664,10 +664,10 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         // RawText comes from passthroughs — attribute expansion was already handled (or
         // explicitly skipped) by the preprocessor. Do NOT apply block subs.
         let content = &r.content;
-        let text = if options.inlines_verbatim {
-            substitution_text(content, subs, options, self.text_boundaries())
-        } else if r.subs.is_empty() {
+        let text = if r.subs.is_empty() {
             content.to_string()
+        } else if options.inlines_verbatim {
+            substitution_text(content, subs, options, self.text_boundaries())
         } else {
             passthrough_substitution_text(content, &r.subs, self.text_boundaries())
         };

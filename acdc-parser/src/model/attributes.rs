@@ -1,4 +1,4 @@
-use std::{borrow::Cow, fmt, sync::Arc};
+use std::{borrow::Cow, fmt, ops::Range, sync::Arc};
 
 use rustc_hash::{FxBuildHasher, FxHashMap};
 use serde::{
@@ -40,6 +40,11 @@ pub struct DocumentAttributeValue<'a>(ValueKind<'a>);
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum ValueKind<'a> {
     Text(Cow<'a, str>),
+    // These fragments skipped definition-time escaping, possibly through aliases.
+    Passthrough {
+        text: Cow<'a, str>,
+        ranges: Box<[Range<usize>]>,
+    },
     Presence,
     Integer {
         value: i128,
@@ -63,7 +68,7 @@ impl<'a> DocumentAttributeValue<'a> {
     #[must_use]
     pub fn as_str(&self) -> Option<&str> {
         match &self.0 {
-            ValueKind::Text(value) => Some(value),
+            ValueKind::Text(value) | ValueKind::Passthrough { text: value, .. } => Some(value),
             ValueKind::Presence | ValueKind::Integer { .. } => None,
         }
     }
@@ -73,7 +78,7 @@ impl<'a> DocumentAttributeValue<'a> {
     pub const fn as_integer(&self) -> Option<i128> {
         match self.0 {
             ValueKind::Integer { value, .. } => Some(value),
-            ValueKind::Text(_) | ValueKind::Presence => None,
+            ValueKind::Text(_) | ValueKind::Passthrough { .. } | ValueKind::Presence => None,
         }
     }
 
@@ -101,7 +106,9 @@ impl<'a> DocumentAttributeValue<'a> {
     /// Returns errors from the output buffer.
     pub fn write_text<W: fmt::Write>(&self, output: &mut W) -> fmt::Result {
         match &self.0 {
-            ValueKind::Text(value) => output.write_str(value),
+            ValueKind::Text(value) | ValueKind::Passthrough { text: value, .. } => {
+                output.write_str(value)
+            }
             ValueKind::Presence => Ok(()),
             ValueKind::Integer { value, source } => match source {
                 Some(text) => output.write_str(text),
@@ -112,7 +119,7 @@ impl<'a> DocumentAttributeValue<'a> {
 
     fn stored_text(&self) -> Option<&Cow<'a, str>> {
         match &self.0 {
-            ValueKind::Text(value) => Some(value),
+            ValueKind::Text(value) | ValueKind::Passthrough { text: value, .. } => Some(value),
             ValueKind::Integer { source, .. } => source.as_ref().filter(|text| !text.is_empty()),
             ValueKind::Presence => None,
         }
@@ -121,6 +128,10 @@ impl<'a> DocumentAttributeValue<'a> {
     pub(crate) fn as_borrowed(&self) -> DocumentAttributeValue<'_> {
         DocumentAttributeValue(match &self.0 {
             ValueKind::Text(value) => ValueKind::Text(Cow::Borrowed(value)),
+            ValueKind::Passthrough { text, ranges } => ValueKind::Passthrough {
+                text: Cow::Borrowed(text),
+                ranges: ranges.clone(),
+            },
             ValueKind::Presence => ValueKind::Presence,
             ValueKind::Integer { value, source } => ValueKind::Integer {
                 value: *value,
@@ -134,6 +145,10 @@ impl<'a> DocumentAttributeValue<'a> {
     pub fn into_static(self) -> DocumentAttributeValue<'static> {
         DocumentAttributeValue(match self.0 {
             ValueKind::Text(value) => ValueKind::Text(Cow::Owned(value.into_owned())),
+            ValueKind::Passthrough { text, ranges } => ValueKind::Passthrough {
+                text: Cow::Owned(text.into_owned()),
+                ranges,
+            },
             ValueKind::Presence => ValueKind::Presence,
             ValueKind::Integer { value, source } => ValueKind::Integer {
                 value,
@@ -144,7 +159,9 @@ impl<'a> DocumentAttributeValue<'a> {
 
     fn into_input(self) -> AttributeValue<'a> {
         match self.0 {
-            ValueKind::Text(text) => AttributeValue::String(text),
+            ValueKind::Text(text) | ValueKind::Passthrough { text, .. } => {
+                AttributeValue::String(text)
+            }
             ValueKind::Presence => AttributeValue::Bool(true),
             ValueKind::Integer { value, source } => match source {
                 Some(text) if text.is_empty() => AttributeValue::Bool(true),
@@ -156,7 +173,9 @@ impl<'a> DocumentAttributeValue<'a> {
 
     fn serialized_value(&self, presence_as_empty: bool) -> SerializedDocumentAttributeValue<'_> {
         match &self.0 {
-            ValueKind::Text(value) => SerializedDocumentAttributeValue::Text(value),
+            ValueKind::Text(value) | ValueKind::Passthrough { text: value, .. } => {
+                SerializedDocumentAttributeValue::Text(value)
+            }
             ValueKind::Presence if presence_as_empty => SerializedDocumentAttributeValue::Text(""),
             ValueKind::Presence => SerializedDocumentAttributeValue::Bool(true),
             ValueKind::Integer { value, source } => match source.as_deref() {
@@ -164,6 +183,24 @@ impl<'a> DocumentAttributeValue<'a> {
                 Some(text) => SerializedDocumentAttributeValue::Text(text),
                 None => SerializedDocumentAttributeValue::Integer(*value),
             },
+        }
+    }
+
+    pub(crate) fn passthrough_ranges(&self) -> &[Range<usize>] {
+        match &self.0 {
+            ValueKind::Passthrough { ranges, .. } => ranges,
+            ValueKind::Text(_) | ValueKind::Presence | ValueKind::Integer { .. } => &[],
+        }
+    }
+
+    pub(crate) fn with_passthrough_ranges(text: Cow<'a, str>, ranges: Vec<Range<usize>>) -> Self {
+        if ranges.is_empty() {
+            Self::from(text)
+        } else {
+            Self(ValueKind::Passthrough {
+                text,
+                ranges: ranges.into_boxed_slice(),
+            })
         }
     }
 }

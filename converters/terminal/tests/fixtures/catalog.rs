@@ -57,6 +57,8 @@ terminal_fixture_catalog!([
         requires: all(feature = "images", feature = "highlighting")
     ),
     (attribute_continuation, false),
+    (subs_document_attribute_pass, false),
+    (document_attribute_pass_contexts, false),
     (subs_attribute_continuation, false),
     (empty_quoted_attributes, false),
     (subs_empty_quoted_attributes, false),

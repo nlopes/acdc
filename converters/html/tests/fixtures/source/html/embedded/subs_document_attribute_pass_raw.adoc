@@ -1,0 +1,51 @@
+= Raw attribute values
+:name: Early
+:raw: pass:[<em>café</em> & {name}]
+:alias: {raw}
+:mixed: <safe> {raw} & end
+:link: pass:[https://example.org[Site]]
+:quotes: pass:[*Strong*]
+
+:name: Late
+
+R01 {raw}
+
+R02 {alias}
+
+R03 {mixed}
+
+R04 *{raw}*
+
+R05 link:https://example.net[{raw}]
+
+[subs="specialcharacters,attributes"]
+----
+R06 {raw}
+R07 {mixed}
+R08 {quotes} | {link}
+----
+
+[subs="attributes,specialcharacters"]
+----
+R09 {raw}
+----
+
+[subs="specialcharacters,attributes,quotes,macros"]
+----
+R10 {quotes} | {link}
+----
+
+[subs="specialcharacters"]
+----
+R11 {raw}
+----
+
+[subs="attributes"]
+----
+R12 {raw}
+----
+
+[cols="a"]
+|===
+|R13 {raw}
+|===

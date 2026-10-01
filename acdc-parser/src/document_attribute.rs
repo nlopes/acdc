@@ -427,8 +427,35 @@ pub(crate) struct AttributeDeclaration<'a> {
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum RawAttributeValue<'a> {
     Text(Cow<'a, str>),
+    Resolved(DocumentAttributeValue<'a>),
     Set,
     Unset,
+}
+
+impl RawAttributeValue<'_> {
+    pub(crate) fn into_static(self) -> RawAttributeValue<'static> {
+        match self {
+            Self::Text(text) => RawAttributeValue::Text(Cow::Owned(text.into_owned())),
+            Self::Resolved(value) => RawAttributeValue::Resolved(value.into_static()),
+            Self::Set => RawAttributeValue::Set,
+            Self::Unset => RawAttributeValue::Unset,
+        }
+    }
+
+    pub(crate) fn resolve(&self, attributes: &DocumentAttributes<'_>) -> Self {
+        use crate::model::substitution::resolve_attribute_entry_text;
+        match self {
+            Self::Text(Cow::Borrowed(text)) => {
+                Self::Resolved(resolve_attribute_entry_text(text, attributes))
+            }
+            Self::Text(Cow::Owned(text)) => {
+                Self::Resolved(resolve_attribute_entry_text(text, attributes).into_static())
+            }
+            Self::Resolved(value) => Self::Resolved(value.clone()),
+            Self::Set => Self::Set,
+            Self::Unset => Self::Unset,
+        }
+    }
 }
 
 impl<'a> From<AttributeValue<'a>> for RawAttributeValue<'a> {
@@ -771,6 +798,15 @@ pub(crate) fn validate_assignment_value<'a>(
     let mut original_source_text = None;
     let assignment = match raw {
         RawAttributeValue::Unset => DocumentAttributeAssignment::Unset,
+        RawAttributeValue::Resolved(value) if name != MAX_INCLUDE_DEPTH_ATTR => {
+            DocumentAttributeAssignment::Set(value)
+        }
+        RawAttributeValue::Resolved(value) => {
+            return validate_assignment_value(
+                name,
+                RawAttributeValue::Text(value.text().unwrap_or_default().to_owned().into()),
+            );
+        }
         RawAttributeValue::Text(value) if name != MAX_INCLUDE_DEPTH_ATTR => {
             DocumentAttributeAssignment::Set(DocumentAttributeValue::from(value))
         }

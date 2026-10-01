@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Plain `pass:[...]` document attribute values retain literal references and
+  expand without their wrapper, matching Asciidoctor's definition-time behavior.
 - Empty bold, italic, and code spans use HTML elements so Markdown renderers
   do not display their delimiters. This includes formatting left empty by
   attribute substitution; attached roles and anchor IDs remain available.

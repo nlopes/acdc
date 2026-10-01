@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Plain `pass:[...]` document attribute values expand without their wrapper in
+  prose and code with attributes enabled. Literal references stay literal,
+  matching Asciidoctor's attribute behavior.
 - Listing and literal blocks honour enabled quote and attribute substitutions,
   including bold and italic text, without requiring macros. Explicit quote
   formatting takes precedence over syntax colours; line numbers and callouts
