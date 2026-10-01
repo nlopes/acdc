@@ -1,0 +1,49 @@
+<div class="sect1">
+<h2 id="_name">Name</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>attribute-values - attribute substitution order</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_synopsis">Synopsis</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><strong>attribute-values</strong></p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_description">Description</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>S01 indexterm2:[Early] and xref:target[Early].</p>
+</div>
+<div class="paragraph">
+<p>S02 \Late and \<a href="#target">Late</a>.</p>
+</div>
+<div class="paragraph">
+<p>S03 {slash}indexterm2:[Disabled] and {blank} text.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text">S04 indexterm2:[Early code] and xref:target[Early code].</code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text">S05 \Late code and \<a href="#target">Late code</a>.</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>S06 First<a href="#target">Second</a> and [].</p>
+</div>
+<div class="paragraph">
+<p>S07 Before ** after.</p>
+</div>
+<div id="target" class="paragraph">
+<p>Target paragraph.</p>
+</div>
+</div>
+</div>

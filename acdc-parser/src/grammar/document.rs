@@ -6852,11 +6852,10 @@ peg::parser! {
         rule comment_line() = quiet!{ comment() (eol() / ![_]) }
         rule comment() = quiet!{ "//" [^'\n']+ (&eol() / ![_]) }
 
-        // Value parsing for document attributes
-        // Handles both single-line values and values with continuation markers (" \" or " + \")
-        // The preprocessor preserves these markers for the parser to handle
+        // Separator whitespace belongs to the declaration, not its value.
+        // Soft wraps arrive folded; preserved hard wraps are collected below.
         rule document_attribute_value() -> Cow<'input, str>
-        = " " value:(
+        = whitespace()+ value:(
             lines:backslash_continuation_lines() { Cow::Owned(lines.join("\n")) }
             / single_line:$([^'\n']+) { Cow::Borrowed(single_line) }
         ) { value }

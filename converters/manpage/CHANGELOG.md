@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Attribute values consisting of a single backslash remain literal and no longer
+  consume the following line. Tabs and extra spaces after the attribute name
+  are accepted as separators. Real continuations include colon-prefixed lines
+  as value text, matching Asciidoctor.
+
 - Macro escapes retain extra backslashes and only consume an escape when the
   macro is complete and enabled. Backslashes introduced by later attribute
   substitution remain literal. As in Asciidoctor, `\link:https://example.org[Site]`

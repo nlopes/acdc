@@ -1,0 +1,44 @@
+= attribute-values(1)
+:doctype: manpage
+:manmanual: Attribute tests
+:mansource: acdc
+:revdate: 2026-10-01
+:blank:
+:slash: \
+
+== Name
+attribute-values - attribute substitution order
+
+== Synopsis
+
+*attribute-values*
+
+== Description
+
+[subs="attributes,macros"]
+S01 {slash}indexterm2:[Early] and {slash}xref:target[Early].
+
+[subs="macros,attributes"]
+S02 {slash}indexterm2:[Late] and {slash}xref:target[Late].
+
+[subs=none]
+S03 {slash}indexterm2:[Disabled] and {blank} text.
+
+[source,text,subs="specialcharacters,attributes,macros"]
+----
+S04 {slash}indexterm2:[Early code] and {slash}xref:target[Early code].
+----
+
+[source,text,subs="specialcharacters,macros,attributes"]
+----
+S05 {slash}indexterm2:[Late code] and {slash}xref:target[Late code].
+----
+
+[subs="macros,attributes"]
+S06 indexterm2:[First]{blank}xref:target[Second] and [{blank}].
+
+[subs="quotes,attributes"]
+S07 Before *{blank}* after.
+
+[[target,Target]]
+Target paragraph.

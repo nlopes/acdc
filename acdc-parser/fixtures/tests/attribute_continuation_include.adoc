@@ -1,0 +1,5 @@
+= Included attributes
+
+include::attribute_continuation_source.inc[]
+
+After include.

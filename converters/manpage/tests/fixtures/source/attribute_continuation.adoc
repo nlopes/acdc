@@ -1,0 +1,55 @@
+= attribute-values(1)
+:doctype: manpage
+:manmanual: Attribute tests
+:mansource: acdc
+:revdate: 2026-10-01
+:spaced:    \
+:tabbed:	\
+:path: C:\tmp\
+:doubled: \\
+:soft: Alpha \
+  Beta
+:hard: Alpha + \
+  Beta
+:blank:
+:slash: \
+
+== Name
+attribute-values - literal backslashes and continuations
+
+== Synopsis
+
+*attribute-values*
+
+== Description
+
+A01 Single [{slash}].
+
+A02 Spaces [{spaced}] and tab [{tabbed}].
+
+A03 Path [{path}] and repeated [{doubled}].
+
+A04 Soft [{soft}].
+
+A05 Hard [{hard}].
+
+A06 Empty [{blank}] and ordinary control.
+
+:body: \
+A07 This paragraph must remain outside the declaration.
+
+A08 Body value [{body}].
+
+:soft-body: body \
+  continuation
+
+A09 Body continuation [{soft-body}].
+
+:body!:
+
+A10 After unset [{body}].
+
+:colon-continued: First \
+:literal: Still value text
+
+A11 Colon-prefixed continuation [{colon-continued}].

@@ -1,0 +1,53 @@
+'\" t
+.\"     Title: attribute-values
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-01
+.\"    Manual: Attribute tests
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "ATTRIBUTE\-VALUES" "1" "2026-10-01" "acdc" "Attribute tests"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+attribute\-values \- attribute substitution order
+.SH "SYNOPSIS"
+.sp
+\fBattribute\-values\fP
+.SH "DESCRIPTION"
+.sp
+S01 indexterm2:[Early] and xref:target[Early]\&.
+.sp
+S02 \eLate and \eLate\&.
+.sp
+S03 {slash}indexterm2:[Disabled] and {blank} text.
+.EX
+S04 indexterm2:[Early code] and xref:target[Early code]\&.
+.EE
+.EX
+S05 \eLate code and \eLate code\&.
+.EE
+.sp
+S06 FirstSecond and [].
+.sp
+S07 Before ** after.
+.sp
+Target paragraph.

@@ -141,6 +141,14 @@ impl DirectiveContext<'_> {
 /// directive is silently left as literal content.
 const DIRECTIVE_PREFIXES: [&str; 4] = ["include::", "ifdef::", "ifndef::", "ifeval::"];
 
+// The separator after :name: is outside the value. A lone backslash value
+// must not consume the following line as a continuation.
+fn has_attribute_continuation(line: &str) -> bool {
+    line.strip_prefix(':')
+        .and_then(|entry| entry.split_once(':'))
+        .is_some_and(|(_, value)| value.trim_start_matches([' ', '\t']).ends_with(" \\"))
+}
+
 /// Whether `line` has the complete outer shape of an Asciidoctor include
 /// directive.
 ///
@@ -769,7 +777,7 @@ impl Preprocessor {
                 return false;
             }
             // `process_inner` collapses multi-line attribute continuations.
-            if line.starts_with(':') && (line.ends_with(" + \\") || line.ends_with(" \\")) {
+            if has_attribute_continuation(line) {
                 return false;
             }
             // Directive lines: include::, ifdef::, ifndef::, ifeval::
@@ -913,9 +921,9 @@ impl Preprocessor {
     ) {
         while let Some(next_line) = lines.peek() {
             let next_line = next_line.trim();
-            // If the next line isn't the end of a continuation, or a
-            // continuation, we need to break out.
-            if next_line.starts_with(':') || next_line.is_empty() {
+            // An explicit continuation owns the next nonblank line, even if
+            // it looks like another attribute declaration.
+            if next_line.is_empty() {
                 break;
             }
             // If we get here, and we get a hard wrap, keep everything as is.
@@ -1385,7 +1393,7 @@ impl Preprocessor {
                 continue;
             }
 
-            if line.starts_with(':') && (line.ends_with(" + \\") || line.ends_with(" \\")) {
+            if has_attribute_continuation(line) {
                 let mut attribute_content = String::with_capacity(line.len() * 2);
                 if line.ends_with(" + \\") {
                     attribute_content.push_str(line);

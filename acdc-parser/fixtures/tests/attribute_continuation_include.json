@@ -1,0 +1,125 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Included attributes",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 21
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 12,
+        "file": [
+          "attribute_continuation_source.inc"
+        ]
+      }
+    ]
+  },
+  "attributes": {
+    "included": "\\"
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Included [\\] café.",
+          "location": [
+            {
+              "line": 2,
+              "col": 1,
+              "file": [
+                "attribute_continuation_source.inc"
+              ]
+            },
+            {
+              "line": 2,
+              "col": 27,
+              "file": [
+                "attribute_continuation_source.inc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 2,
+          "col": 1,
+          "file": [
+            "attribute_continuation_source.inc"
+          ]
+        },
+        {
+          "line": 2,
+          "col": 27,
+          "file": [
+            "attribute_continuation_source.inc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "After include.",
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 14
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 14
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 5,
+      "col": 14
+    }
+  ]
+}
