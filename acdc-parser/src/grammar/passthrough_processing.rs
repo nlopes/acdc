@@ -4,7 +4,10 @@ use std::mem::take;
 use crate::{
     InlineMacro, InlineNode, LineBreak, Location, ParseInlineResult, Pass, PassthroughKind, Plain,
     ProcessedContent, Raw, Substitution,
-    model::substitution::{SubstitutionPlan, resolve_passthrough_substitutions},
+    model::substitution::{
+        SubstitutionPlan, character_reference_end, escape_attribute_characters,
+        is_restorable_character_reference, resolve_passthrough_substitutions,
+    },
     parsed::OwnedInput,
 };
 
@@ -102,10 +105,19 @@ fn process_raw_substitutions<'a>(
 
     match substitution {
         Substitution::SpecialChars => {
-            raw.subs.push(substitution.clone());
+            if raw.subs.last() == Some(&Substitution::SpecialChars) {
+                // Keep one deferred escape stage. Earlier escapes are literal
+                // text, including when an attribute introduced the fragment.
+                raw.content = state.intern_str(&escape_attribute_characters(raw.content));
+            } else {
+                raw.subs.push(substitution.clone());
+            }
             process_raw_substitutions(raw, remaining, state)
         }
         Substitution::Replacements => {
+            if let Some(fragments) = restore_raw_character_references(&raw, state) {
+                return process_inline_nodes(fragments, remaining, state);
+            }
             if !raw.subs.contains(&Substitution::Replacements) {
                 raw.subs.push(substitution.clone());
             }
@@ -127,6 +139,82 @@ fn process_raw_substitutions<'a>(
             process_raw_substitutions(raw, remaining, state)
         }
     }
+}
+
+fn restore_raw_character_references<'a>(
+    raw: &Raw<'a>,
+    state: &ParserState<'a>,
+) -> Option<Vec<InlineNode<'a>>> {
+    if !raw.content.contains('&') {
+        return None;
+    }
+    let mut fragments = Vec::new();
+    let mut cursor = 0;
+    let mut subs = raw.subs.clone();
+    if !subs.contains(&Substitution::Replacements) {
+        subs.push(Substitution::Replacements);
+    }
+    for (amp, _) in raw.content.match_indices('&') {
+        if amp < cursor {
+            continue;
+        }
+        let Some(length) = character_reference_end(&raw.content[amp..]) else {
+            continue;
+        };
+        let end = amp + length;
+        let mut start = if amp > cursor && raw.content.as_bytes().get(amp - 1) == Some(&b'\\') {
+            amp - 1
+        } else {
+            amp
+        };
+        let mut prepared = raw.content[start..end].to_owned();
+        for substitution in &raw.subs {
+            if *substitution == Substitution::SpecialChars {
+                prepared = escape_attribute_characters(&prepared);
+            }
+        }
+        let escaped = prepared.starts_with('\\');
+        let reference = prepared.strip_prefix('\\').unwrap_or(&prepared);
+        if let Some((body, _)) = reference
+            .strip_prefix("&amp;")
+            .and_then(|rest| rest.split_once(';'))
+            && is_restorable_character_reference(body)
+        {
+            prepared = if escaped {
+                reference.to_owned()
+            } else {
+                format!("&{}", &reference[5..])
+            };
+        }
+
+        if prepared.starts_with('\\') {
+            start = amp;
+            prepared.remove(0);
+        }
+
+        // Retain an escaping stage for literal references, but remove it from
+        // restored ones so every converter sees the same active character.
+        let mut reference_subs = Vec::new();
+        for (encoded, decoded) in [("&amp;", "&"), ("&lt;", "<"), ("&gt;", ">")] {
+            if let Some(rest) = prepared.strip_prefix(encoded) {
+                prepared = format!("{decoded}{rest}");
+                reference_subs.push(Substitution::SpecialChars);
+                break;
+            }
+        }
+        push_raw_segment(&mut fragments, raw, cursor, start, subs.clone(), state);
+        fragments.push(InlineNode::RawText(Raw {
+            content: state.intern_str(&prepared),
+            location: raw_segment_location(raw, start, end, state),
+            subs: reference_subs,
+        }));
+        cursor = end;
+    }
+    if fragments.is_empty() {
+        return None;
+    }
+    push_raw_segment(&mut fragments, raw, cursor, raw.content.len(), subs, state);
+    Some(fragments)
 }
 
 fn process_inline_nodes<'a>(
@@ -416,9 +504,27 @@ fn expand_raw_attributes<'a>(raw: &Raw<'a>, state: &ParserState<'a>) -> Vec<Inli
         let reference_location = raw_segment_location(raw, start, end, state);
         let mut value = String::new();
         let _ = resolved.write_text(&mut value);
-        if !value.is_empty() {
+        let mut value_cursor = 0;
+        // Prepared ranges have already undergone definition-time substitutions.
+        // Only ordinary attribute text still needs its header escaping here.
+        for range in resolved.passthrough_ranges() {
+            if value_cursor < range.start {
+                result.push(InlineNode::RawText(Raw {
+                    content: state.intern_str(&value[value_cursor..range.start]),
+                    location: reference_location.clone(),
+                    subs: vec![Substitution::SpecialChars],
+                }));
+            }
             result.push(InlineNode::RawText(Raw {
-                content: state.intern_str(&value),
+                content: state.intern_str(&value[range.clone()]),
+                location: reference_location.clone(),
+                subs: Vec::new(),
+            }));
+            value_cursor = range.end;
+        }
+        if value_cursor < value.len() {
+            result.push(InlineNode::RawText(Raw {
+                content: state.intern_str(&value[value_cursor..]),
                 location: reference_location,
                 subs: vec![Substitution::SpecialChars],
             }));

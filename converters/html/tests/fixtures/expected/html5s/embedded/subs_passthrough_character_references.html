@@ -1,0 +1,45 @@
+<section class="doc-section level-1">
+<h2 id="_name">NAME</h2>
+<p>char-refs - passthrough character references</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_synopsis">SYNOPSIS</h2>
+<p>Character references follow substitution order.</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_description">DESCRIPTION</h2>
+<p>P01 &#169; &#xA9; &#000169; &#x000A9;</p>
+<p>P02 &amp;#169; &amp;#xA9; &amp;#000169; &amp;#x000A9;</p>
+<p>P03 &#169; &lt;tag&gt; &amp;</p>
+<p>P04 &amp;#169; &lt;tag&gt; &amp;</p>
+<p>P05 &amp;#169; \&amp;#169; \\&amp;#169;</p>
+<p>P06 &amp;#169; \&amp;#169;</p>
+<p>P07 &amp;#9; &amp;#x9; &amp;#0000169; &amp;#X00A9; &amp;#x0000A9; &amp;#bad; &amp;a; &amp;ab123; &amp;ab1c;</p>
+<p>P08 &amp;#169; &amp;lt;tag&amp;gt; &amp;amp;</p>
+<p>P09 &#169;</p>
+<p>P10 &amp;#169; &amp;lt;tag&amp;gt; &amp;amp;</p>
+<p>P11 &#169;</p>
+<p>P12 &#169;</p>
+<p>P13 &#169;</p>
+<p>P14 &#169;</p>
+<p>P15 &amp;#169;</p>
+<p>P16 &#169;</p>
+<p>P17 <strong>&#169;</strong></p>
+<p>P18 <strong>&#169;</strong></p>
+<p>P19 <a href="https://example.org" class="bare">https://example.org</a>[&#169;]</p>
+<p>P20 <a href="https://example.org" class="bare">https://example.org</a>[&#169;]</p>
+<p>P21 café &#169;Ω &#169;&#xA9;</p>
+<p>P22 &#169;&thinsp;&mdash;&thinsp;tail</p>
+<p>P23 head&thinsp;&mdash;&thinsp;&#169;</p>
+<p>P24 &amp;amp;#169; &amp;amp;</p>
+<p>P25 &amp;amp;#169;</p>
+<div class="listing-block">
+<pre>C01 &#169; &lt;tag&gt; &amp;
+C02 &amp;#169; &amp;lt;tag&amp;gt; &amp;amp;
+C03 &amp;#169; \&amp;#169;
+C04 &amp;#9; &amp;#x9; &amp;#0000169; &amp;#X00A9;</pre>
+</div>
+<div class="listing-block">
+<pre>D01 pass:c,r[&#169;]</pre>
+</div>
+</section>

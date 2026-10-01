@@ -3,7 +3,10 @@ use std::{borrow::Cow, mem::take};
 use crate::{
     AttributeValue, Error, Form, IndexTermKind, IndexTermRelationship, InlineMacro, InlineNode,
     Location, PassthroughKind, Plain, ProcessedContent, Source, Substitution,
-    model::substitution::{SubstitutionPlan, escape_attribute_characters},
+    model::substitution::{
+        SubstitutionPlan, character_reference_end, escape_attribute_characters,
+        is_restorable_character_reference,
+    },
 };
 
 use super::{
@@ -660,33 +663,6 @@ fn raw_tag_end(text: &str) -> Option<usize> {
     None
 }
 
-fn attribute_character_reference_end(text: &str) -> Option<usize> {
-    let tail = text.strip_prefix('&')?;
-    let first = tail.find(';')?;
-    if tail[..first].is_empty()
-        || !tail[..first]
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'#')
-    {
-        return None;
-    }
-    let mut unescaped = tail;
-    while let Some(rest) = unescaped.strip_prefix("amp;") {
-        unescaped = rest;
-    }
-    let end = unescaped.find(';').filter(|end| {
-        !unescaped[..*end].is_empty()
-            && unescaped[..*end]
-                .bytes()
-                .all(|byte| byte.is_ascii_alphanumeric() || byte == b'#')
-    });
-    Some(
-        end.map_or((text.len() - unescaped.len()).max(first + 2), |end| {
-            text.len() - unescaped.len() + end + 1
-        }),
-    )
-}
-
 fn restore_attribute_character_reference(text: &str) -> Cow<'_, str> {
     let Some((body, _)) = text
         .strip_prefix("&amp;")
@@ -694,19 +670,7 @@ fn restore_attribute_character_reference(text: &str) -> Cow<'_, str> {
     else {
         return text.into();
     };
-    // Match Asciidoctor's replacements-stage entity restoration, including
-    // its name and digit limits; this is not general character-reference parsing.
-    let valid = if let Some(digits) = body.strip_prefix("#x") {
-        (2..=5).contains(&digits.len()) && digits.bytes().all(|byte| byte.is_ascii_hexdigit())
-    } else if let Some(digits) = body.strip_prefix('#') {
-        (2..=6).contains(&digits.len()) && digits.bytes().all(|byte| byte.is_ascii_digit())
-    } else {
-        let letters = body.bytes().take_while(u8::is_ascii_alphabetic).count();
-        letters >= 2
-            && body.len() - letters <= 2
-            && body[letters..].bytes().all(|byte| byte.is_ascii_digit())
-    };
-    if valid {
+    if is_restorable_character_reference(body) {
         format!("&{}", &text[5..]).into()
     } else {
         text.into()
@@ -783,8 +747,7 @@ fn raw_attribute_fragments<'a>(
         let raw_end = if character == '<' {
             raw_tag_end(&plain.content[offset..]).map(|length| offset + length)
         } else if character == '&' {
-            attribute_character_reference_end(&plain.content[offset..])
-                .map(|length| offset + length)
+            character_reference_end(&plain.content[offset..]).map(|length| offset + length)
         } else {
             None
         }

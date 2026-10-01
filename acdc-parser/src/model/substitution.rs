@@ -1344,6 +1344,49 @@ pub(crate) fn escape_attribute_characters(text: &str) -> String {
         .replace('>', "&gt;")
 }
 
+/// Find a reference-shaped token, including its existing `amp;` escaping.
+pub(crate) fn character_reference_end(text: &str) -> Option<usize> {
+    let tail = text.strip_prefix('&')?;
+    let first = tail.find(';')?;
+    if tail[..first].is_empty()
+        || !tail[..first]
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'#')
+    {
+        return None;
+    }
+    let mut unescaped = tail;
+    while let Some(rest) = unescaped.strip_prefix("amp;") {
+        unescaped = rest;
+    }
+    let end = unescaped.find(';').filter(|end| {
+        !unescaped[..*end].is_empty()
+            && unescaped[..*end]
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || byte == b'#')
+    });
+    Some(
+        end.map_or((text.len() - unescaped.len()).max(first + 2), |end| {
+            text.len() - unescaped.len() + end + 1
+        }),
+    )
+}
+
+pub(crate) fn is_restorable_character_reference(body: &str) -> bool {
+    // Asciidoctor restores only this subset during replacements. In particular,
+    // a one-digit numeric reference and an uppercase hex prefix stay escaped.
+    if let Some(digits) = body.strip_prefix("#x") {
+        (2..=5).contains(&digits.len()) && digits.bytes().all(|byte| byte.is_ascii_hexdigit())
+    } else if let Some(digits) = body.strip_prefix('#') {
+        (2..=6).contains(&digits.len()) && digits.bytes().all(|byte| byte.is_ascii_digit())
+    } else {
+        let letters = body.bytes().take_while(u8::is_ascii_alphabetic).count();
+        letters >= 2
+            && body.len() - letters <= 2
+            && body[letters..].bytes().all(|byte| byte.is_ascii_digit())
+    }
+}
+
 fn expand_attribute_entry_references(text: &str, attributes: &DocumentAttributes<'_>) -> String {
     let mut output = String::with_capacity(text.len());
     let mut remaining = text;

@@ -1,7 +1,7 @@
 #set document(
-  title: "attribute-text-pass(1)",
+  title: "char-refs(1)",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[attribute-text-pass(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[char-refs(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -73,76 +73,70 @@
 #set page(numbering: "1")
 #counter(page).update(1)
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("attribute-text-pass(1)")]
+#text(size: 22pt, weight: "bold")[#text("char-refs(1)")]
 ]
 #v(1em)
 
-#heading(level: 1)[#text("Name")] <id-5f6e616d65>
+#heading(level: 1)[#text("NAME")] <id-5f6e616d65>
 
-#text("attribute-text-pass - text-only attribute substitutions")
+#text("char-refs - passthrough character references")
 
-#heading(level: 1)[#text("Description")] <id-5f6465736372697074696f6e>
+#heading(level: 1)[#text("SYNOPSIS")] <id-5f73796e6f70736973>
 
-#text("P01 Early *Bold*")
+#text("Character references follow substitution order.")
 
-#text("P02 ")#text("<")#text("x")#text(">")#text(" ")#text("&")#text(" {name} *Bold*")
+#heading(level: 1)[#text("DESCRIPTION")] <id-5f6465736372697074696f6e>
 
-#text("P03 ")#text("<")#text("raw")#text(">")#text(" ")#text("&")
+#text("P01 ")#text("©")#text(" ")#text("©")#text(" ")#text("©")#text(" ")#text("©")
 
-#text("P04 ")#text("<raw>")#text(" ")#text("&")
+#text("P02 ")#text("&#169;")#text(" ")#text("&#xA9;")#text(" ")#text("&#000169;")#text(" ")#text("&#x000A9;")
 
-#text("P05 Early ")#text("<")#text("x")#text(">")#text(" ")#text("&")
+#text("P03 ")#text("©")#text(" ")#text("<")#text("tag")#text(">")#text(" ")#text("&")
 
-#text("P06 {name} ")#text("&")
+#text("P04 ")#text("&#169;")#text(" ")#text("<")#text("tag")#text(">")#text(" ")#text("&")
 
-#text("P07 {name} {name} {name} \\{name}")
+#text("P05 ")#text("&#169;")#text(" \\")#text("&#169;")#text(" \\\\")#text("&#169;")
 
-#text("P08 pass:[Early]")
+#text("P06 ")#text("&#169;")#text(" \\")#text("&#169;")
 
-#text("P09 Before after.")
+#text("P07 ")#text("&#9;")#text(" ")#text("&#x9;")#text(" ")#text("&#0000169;")#text(" ")#text("&#X00A9;")#text(" ")#text("&#x0000A9;")#text(" ")#text("&#bad;")#text(" ")#text("&a;")#text(" ")#text("&ab123;")#text(" ")#text("&ab1c;")
 
-#text("P10 Before {not-set} after.")
+#text("P08 ")#text("&#169; &lt;tag&gt; &amp;")
 
-#text("P11 Early a\\]b")
+#text("P09 ")#text("©")
 
-#text("P12 prefix ")#text("<")#text("x")#text(">")#text(" ")#text("&")#text(" {name} *Bold* / Early *Bold*")
+#text("P10 ")#text("&#169;")#text(" ")#text("&lt;")#text("tag")#text("&gt;")#text(" ")#text("&amp;")
 
-#text("P13 ")#text("<")#text("ordinary")#text(">")#text(" ")#text("&")
+#text("P11 ")#text("©")
 
-#text("P14 ")#text("<")#text("ordinary")#text(">")#text(" ")#text("&")
+#text("P12 ")#text("©")
 
-#text("P15 ")#text("<")#text("ordinary")#text(">")#text(" ")#text("&")
+#text("P13 ")#text("©")
 
-#text("P16 ")#text("<raw>")#text(" ")#text("&")
+#text("P14 ")#text("©")
 
-#text("P17 ")#text("<")#text("x")#text(">")#text(" ")#text("&")#text(" {name} | ")#text("<")#text("x")#text(">")#text(" ")#text("&")#text(" {name}")
+#text("P15 ")#text("&#169;")
 
-#text("P18 ")#text("©")#text(" ")#text("&")
+#text("P16 ")#text("©")
 
-#text("P19 café ")#text("<")#text("α")#text(">")#text(" ")#text("&")
+#text("P17 ")#strong[#text("©")]
 
-#text("P20 ")#text("<>")#text("&")
+#text("P18 ")#strong[#text("©")]
 
-#text("P21 ")#text("<")#text("&")#text(">")
+#text("P19 ")#link("https://example.org")[#text("https://example.org")]#text("[")#text("©")#text("]")
 
-#text("P22 pass:c[Early]")
+#text("P20 ")#link("https://example.org")[#text("https://example.org")]#text("[")#text("©")#text("]")
 
-#raw(block: true, "C01 Early *Bold*\nC02 <x> & {name} *Bold*\nC03 <raw> &\nC05 Early <x> &\nC07 {name} {name} {name} \\{name}\nC08 pass:[Early]\nC09 Before  after.\nC10 Before {not-set} after.\nC11 Early a\\]b\nC12 prefix <x> & {name} *Bold* / Early *Bold*\nC13 <ordinary> &\nC14 &lt;ordinary&gt; &amp;\nC15 <ordinary> &\nC17 <x> & {name} | <x> & {name}\nC18 &#169; &amp;\nC19 café <α> &\nC22 pass:c[Early]")
+#text("P21 ")#text("café ")#text("©")#text("Ω ")#text("©")#text("©")
 
-#raw(block: true, "C06 {name} &")
+#text("P22 ")#text("©")#text(" — tail")
 
-#raw(block: true, "N01 <x> & {name} *Bold*\nN02 &lt;ordinary&gt; &amp;\nN03 &#169; &amp;")
+#text("P23 ")#text("head — ")#text("©")
 
-#raw(block: true, "R01 &lt;x&gt; &amp; {name} *Bold*\nR02 &amp;lt;ordinary&amp;gt; &amp;amp;\nR03 &amp;#169; &amp;amp;")
+#text("P24 ")#text("&amp;#169;")#text(" ")#text("&amp;")
 
-#raw(block: true, "O01 &lt;x&gt; &amp; {name} *Bold*\nO02 &lt;ordinary&gt; &amp;\nO03 &#169; &amp;")
+#text("P25 ")#text("&amp;#169;")
 
-#raw(block: true, "O04 <x> & {name} *Bold*\nO05 &lt;ordinary&gt; &amp;\nO06 &#169; &amp;")
+#raw(block: true, "C01 © <tag> &\nC02 &#169; &lt;tag&gt; &amp;\nC03 &#169; \\&#169;\nC04 &#9; &#x9; &#0000169; &#X00A9;")
 
-#raw(block: true, "D01 {a} | {c}")
-
-#text("I01 ")#text("&#169;")
-
-#text("I02 ")#text("©")
-
-#text("I03 ")#text("&#169;")
+#raw(block: true, "D01 pass:c,r[&#169;]")

@@ -1,0 +1,98 @@
+'\" t
+.\"     Title: char-refs
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-02
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "CHAR\-REFS" "1" "2026-10-02" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+char\-refs \- passthrough character references
+.SH "SYNOPSIS"
+.sp
+Character references follow substitution order.
+.SH "DESCRIPTION"
+.sp
+P01 \(co \(co \(co \(co
+.sp
+P02 &#169; &#xA9; &#000169; &#x000A9;
+.sp
+P03 \(co <tag> &
+.sp
+P04 &#169; <tag> &
+.sp
+P05 &#169; \e&#169; \e\e&#169;
+.sp
+P06 &#169; \e&#169;
+.sp
+P07 &#9; &#x9; &#0000169; &#X00A9; &#x0000A9; &#bad; &a; &ab123; &ab1c;
+.sp
+P08 &#169; &lt;tag&gt; &amp;
+.sp
+P09 \(co
+.sp
+P10 &#169; &lt;tag&gt; &amp;
+.sp
+P11 \(co
+.sp
+P12 \(co
+.sp
+P13 \(co
+.sp
+P14 \(co
+.sp
+P15 &#169;
+.sp
+P16 \(co
+.sp
+P17 \fB\(co\fP
+.sp
+P18 \fB\(co\fP
+.sp
+P19 \c
+.URL "https://example.org" "" ""
+[\(co]
+.sp
+P20 \c
+.URL "https://example.org" "" ""
+[\(co]
+.sp
+P21 café \(coΩ \(co\(co
+.sp
+P22 \(co \-\- tail
+.sp
+P23 head \-\- \(co
+.sp
+P24 &amp;#169; &amp;
+.sp
+P25 &amp;#169;
+.EX
+C01 \(co <tag> &
+C02 &#169; &lt;tag&gt; &amp;
+C03 &#169; \e&#169;
+C04 &#9; &#x9; &#0000169; &#X00A9;
+.EE
+.EX
+D01 pass:c,r[&#169;]
+.EE

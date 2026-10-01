@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Preserve literal and restored inline passthrough references according to substitution
+  order, including escaped references and digit-length limits.
 - Text-only substitution lists in document attribute values now apply at
   definition time, matching Asciidoctor's attribute behavior. Escaped numeric
   references stay literal instead of being decoded a second time.

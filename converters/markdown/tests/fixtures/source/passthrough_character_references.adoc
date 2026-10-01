@@ -1,0 +1,22 @@
+= char-refs(1)
+:doctype: manpage
+
+== NAME
+
+char-refs - inline character references
+
+== SYNOPSIS
+
+Inline substitutions work in all builds.
+
+== DESCRIPTION
+
+P01 pass:c,r[&#169;] / pass:r,c[&#169;] / pass:c[&#169;].
+
+P02 pass:r[&amp;#169;] / pass:c,r[&amp;#169;].
+
+P03 pass:c,r[\&#169; \\&#169; &#9; &#0000169;].
+
+P04 pass:c,r[&lt;tag&gt; &amp;] / pass:r,c[&lt;tag&gt; &amp;].
+
+P05 pass:normal[&#169;] / pass:specialcharacters,replacements[&#169;].

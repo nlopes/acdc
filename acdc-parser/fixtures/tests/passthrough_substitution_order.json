@@ -422,7 +422,7 @@
         {
           "name": "raw",
           "type": "string",
-          "value": "<mark>inserted</mark>",
+          "value": "&lt;mark&gt;inserted&lt;/mark&gt;",
           "location": [
             {
               "line": 24,
@@ -514,7 +514,7 @@
         {
           "name": "raw",
           "type": "string",
-          "value": "&#169;",
+          "value": "&amp;#169;",
           "location": [
             {
               "line": 28,

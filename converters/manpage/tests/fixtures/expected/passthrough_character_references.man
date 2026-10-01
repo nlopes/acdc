@@ -1,0 +1,45 @@
+'\" t
+.\"     Title: char-refs
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-02
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "CHAR\-REFS" "1" "2026-10-02" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+char\-refs \- inline character references
+.SH "SYNOPSIS"
+.sp
+Inline substitutions work in all builds.
+.SH "DESCRIPTION"
+.sp
+P01 \(co / &#169; / &#169;\&.
+.sp
+P02 \(co / &#169;\&.
+.sp
+P03 &#169; \e&#169; &#9; &#0000169;\&.
+.sp
+P04 <tag> & / &lt;tag&gt; &amp;\&.
+.sp
+P05 \(co / \(co\&.

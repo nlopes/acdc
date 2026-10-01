@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Preserve the meaning of restored and escaped character references in inline
+  passthroughs, including reversed substitution order and prepared attribute values.
 - Text-only substitution lists in document attribute values retain their
   requested escaping and literal references, matching Asciidoctor's
   definition-time behavior.

@@ -57,6 +57,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Restore character references during inline passthrough replacements in the requested
+  order. `pass:c,r[&#169;]` is active, while `pass:r,c[&#169;]` and escaped references
+  stay literal. Preserve source spans and prepared attribute values in these
+  substitutions.
 - Text-only `pass:a[...]`, `pass:c[...]`, `pass:v[...]`, and `pass:none[...]`
   attribute values now resolve at definition time, including long names and
   ordered combinations. Escaped references, aliases, caller overrides, and later

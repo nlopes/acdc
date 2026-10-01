@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Render restored references such as `pass:c,r[&#169;]` as characters, including enabled
+  and highlighted code. Reversed substitution order and escaped references remain
+  literal, matching Asciidoctor.
 - Text-only substitution lists in document attribute values now retain their
   requested escaping and literal references, matching Asciidoctor. Listing and
   literal blocks also preserve explicit passthrough escaping when the block

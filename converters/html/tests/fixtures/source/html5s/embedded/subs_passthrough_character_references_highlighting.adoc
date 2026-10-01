@@ -1,0 +1,10 @@
+= Highlighted character references
+:source-highlighter: syntect
+
+[source,text,subs="specialchars,macros"]
+----
+H01 pass:c,r[&#169; &lt;tag&gt; &amp;]
+H02 pass:r,c[&#169; &lt;tag&gt; &amp;]
+H03 pass:c,r[\&#169; \\&#169;]
+H04 pass:c,r[&#9; &#x9; &#0000169; &#X00A9;]
+----

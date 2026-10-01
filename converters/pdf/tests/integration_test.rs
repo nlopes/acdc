@@ -13,6 +13,34 @@ type Error = Box<dyn std::error::Error>;
 
 #[cfg(feature = "pre-spec-subs")]
 #[test]
+fn passthrough_character_references_preserve_visible_pdf_code() -> Result<(), Error> {
+    let source =
+        include_str!("fixtures/source/subs_passthrough_character_references_highlighting.adoc");
+    for source in [
+        source.to_owned(),
+        source.replace(":source-highlighter: syntect", ""),
+    ] {
+        let pdf = render_input(&source)?;
+        let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+        let text = pdf
+            .extract_text(&pages)?
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ");
+        for expected in [
+            "H01 © <tag> &",
+            "H02 &#169; &lt;tag&gt; &amp;",
+            r"H03 &#169; \&#169;",
+            "H04 &#9; &#x9; &#0000169; &#X00A9;",
+        ] {
+            assert!(text.contains(expected), "missing {expected:?}: {text}");
+        }
+    }
+    Ok(())
+}
+
+#[cfg(feature = "pre-spec-subs")]
+#[test]
 fn verbatim_quotes_use_bold_and_italic_pdf_fonts() -> Result<(), Error> {
     let pdf =
         render_input("[source,text,subs=+quotes]\n----\nRegular *Bold* _Italic_ *_Both_*\n----\n")?;

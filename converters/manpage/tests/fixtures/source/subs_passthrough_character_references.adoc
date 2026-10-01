@@ -1,0 +1,77 @@
+= char-refs(1)
+:doctype: manpage
+:decimal: &#169;
+:encoded: pass:[&amp;#169;]
+
+== NAME
+
+char-refs - passthrough character references
+
+== SYNOPSIS
+
+Character references follow substitution order.
+
+== DESCRIPTION
+
+P01 pass:c,r[&#169; &#xA9; &#000169; &#x000A9;]
+
+P02 pass:r,c[&#169; &#xA9; &#000169; &#x000A9;]
+
+P03 pass:r[&amp;#169; &amp;lt;tag&amp;gt; &amp;amp;]
+
+P04 pass:c,r[&amp;#169; &lt;tag&gt; &amp;]
+
+P05 pass:c,r[\&#169; \\&#169; \\\&#169;]
+
+P06 pass:r[\&amp;#169; \\&amp;#169;]
+
+P07 pass:c,r[&#9; &#x9; &#0000169; &#X00A9; &#x0000A9; &#bad; &a; &ab123; &ab1c;]
+
+P08 pass:c[&#169; &lt;tag&gt; &amp;]
+
+P09 pass:[&#169;]
+
+P10 pass:r,c[&amp;#169; &lt;tag&gt; &amp;]
+
+P11 pass:normal[&#169;]
+
+P12 pass:specialcharacters,replacements[&#169;]
+
+P13 pass:c,r,c[&#169;]
+
+P14 pass:c,a,r[{decimal}]
+
+P15 pass:a,c,r[{decimal}]
+
+P16 pass:a,r[{encoded}]
+
+P17 pass:c,r,q[*&#169;*]
+
+P18 pass:q,c,r[*&#169;*]
+
+P19 pass:c,r,m[https://example.org[&#169;]]
+
+P20 pass:m,c,r[https://example.org[&#169;]]
+
+P21 pass:c,r[café &#169;Ω &#169;&#xA9;]
+
+P22 pass:c,r[&#169; -- tail]
+
+P23 pass:c,r[head -- &#169;]
+
+P24 pass:c,r[&amp;amp;#169; &amp;amp;]
+
+P25 pass:r,c[\&amp;#169;]
+
+[subs="specialchars,macros"]
+----
+C01 pass:c,r[&#169; &lt;tag&gt; &amp;]
+C02 pass:r,c[&#169; &lt;tag&gt; &amp;]
+C03 pass:c,r[\&#169; \\&#169;]
+C04 pass:c,r[&#9; &#x9; &#0000169; &#X00A9;]
+----
+
+[subs="specialchars"]
+----
+D01 pass:c,r[&#169;]
+----

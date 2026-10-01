@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Render restored inline passthrough character references correctly in prose and code,
+  including highlighting. Preserve literal references when character escaping follows
+  replacements. Highlighted output keeps escaped references literal; Asciidoctor PDF
+  with Rouge decodes these again.
 - Text-only substitution lists in document attribute values now apply in their
   requested order. Escaped characters and literal references render correctly
   in prose and code, matching Asciidoctor PDF's definition-time substitutions.
