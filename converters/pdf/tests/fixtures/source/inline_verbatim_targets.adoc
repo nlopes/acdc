@@ -1,0 +1,71 @@
+= verbatim-targets(1)
+:manmanual: Inline targets
+:mansource: acdc
+:revdate: 2026-10-02
+:blank:
+:marker: anchor:attribute-target[]
+
+== Name
+verbatim-targets - targets inside inline monospace text
+
+== Description
+
+P01 `xanchor:middle[]y`.
+
+P02 `anchor:start[]Start`.
+
+P03 `Endanchor:end[]`.
+
+P04 `anchor:first[]anchor:second[]Adjacent`.
+
+P05 `x anchor:before-space[]y`.
+
+P06 `xanchor:after-space[] y`.
+
+P07 `x anchor:both-spaces[] y`.
+
+P08 `caféanchor:unicode[]fin`.
+
+P09 `x[[shorthand]]y`.
+
+P10 `anchor:empty[]`.
+
+P11 `Before [#nested-span]*Nested* after`.
+
+P12 `Before [#empty-span]*{blank}* after`.
+
+P13 `https://example.org[Label,id=link-id]`.
+
+P14 `https://example.org[Before anchor:label-target[]after]`.
+
+P15 `x{marker}y`.
+
+P16 `First anchor:wrapped[]
+  second`.
+
+* P17 `xanchor:list-target[]y`.
+
+[cols="1"]
+|===
+|P18 `xanchor:cell-target[]y`.
+|===
+
+P19 `\anchor:escaped[]` and `pass:[anchor:raw[]]`.
+
+P20 [#outer-span]`xanchor:inner-target[]y`.
+
+P21 `. # <tag> {text} \path (C)`.
+
+P22 ``[#italic]_Italic_ [#nested-mono]`Mono` [#mark]#Marked# [#super]^Sup^ [#sub]~Sub~ [#double]"`Double`" [#single]'`Single`'``.
+
+<<<
+
+See <<middle,Middle>>, <<start,Start>>, <<end,End>>,
+<<first,First>>, <<second,Second>>, <<before-space,Before>>,
+<<after-space,After>>, <<both-spaces,Both>>, <<unicode,Unicode>>,
+<<shorthand,Short>>, <<empty,Empty>>, <<nested-span,Nested>>,
+<<empty-span,Empty span>>, <<link-id,Link ID>>, <<label-target,Label>>,
+<<attribute-target,Attribute>>, <<wrapped,Wrapped>>, <<list-target,List>>,
+<<cell-target,Cell>>, <<outer-span,Outer>>, <<inner-target,Inner>>,
+<<italic,Italic>>, <<nested-mono,Mono>>, <<mark,Marked>>, <<super,Sup>>,
+<<sub,Sub>>, <<double,Double>>, and <<single,Single>>.

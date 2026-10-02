@@ -7,7 +7,6 @@ use acdc_converters_core::substitutions::effective_subs_flags;
 use acdc_converters_core::{
     Doctype, TraversalContext, document_attribute_text,
     icon::IconMode,
-    inlines_to_string,
     section::{
         appendix_number_prefix, effective_section_level, part_number_prefix, section_number_prefix,
     },
@@ -705,9 +704,7 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
                 }
                 InlineNode::MonospaceText(mono) => {
                     let state = self.write_inline_span_start(mono.id, mono.role);
-                    let text = inlines_to_string(&mono.content);
-                    let text = self.normalize_prose_whitespace(&text);
-                    self.write_inline_verbatim(&text);
+                    self.write_inline_verbatim_nodes(&mono.content);
                     self.write_inline_span_end(state);
                 }
                 InlineNode::HighlightText(highlight) => {

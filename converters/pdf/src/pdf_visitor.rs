@@ -829,6 +829,93 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         }
     }
 
+    pub(crate) fn write_inline_verbatim_nodes(&mut self, nodes: &[InlineNode<'_>]) {
+        let mut code = self.inline_verbatim_text(nodes);
+        let mut positions = code
+            .links
+            .iter()
+            .map(|span| (span.range.start, 0))
+            .collect::<Vec<_>>();
+        // Normalize the complete text so targets do not change whitespace at fragment boundaries.
+        transform_code_text(&mut code.source, &mut positions, |text| {
+            self.normalize_prose_whitespace(text)
+        });
+        let mut start = 0;
+        for ((position, _), span) in positions.into_iter().zip(code.links) {
+            if let Some(label) = span.anchor.as_deref().and_then(|id| self.anchors.claim(id)) {
+                if start < position {
+                    self.write_inline_verbatim(&code.source[start..position]);
+                }
+                let _ = write!(self.writer, "#metadata(none)<{label}>");
+                start = position;
+            }
+        }
+        self.write_inline_verbatim(&code.source[start..]);
+    }
+
+    fn inline_verbatim_text(&self, nodes: &[InlineNode<'_>]) -> CodeText {
+        let mut code = CodeText::default();
+        let transform = InlineTextTransform::default();
+        // Keep existing code text; collecting targets must not add footnotes or index entries.
+        for node in nodes {
+            let (id, children) = match node {
+                InlineNode::InlineAnchor(anchor) => (Some(anchor.id), None),
+                InlineNode::BoldText(text) => (text.id, Some(text.content.as_slice())),
+                InlineNode::ItalicText(text) => (text.id, Some(text.content.as_slice())),
+                InlineNode::MonospaceText(text) => (text.id, Some(text.content.as_slice())),
+                InlineNode::HighlightText(text) => (text.id, Some(text.content.as_slice())),
+                InlineNode::SubscriptText(text) => (text.id, Some(text.content.as_slice())),
+                InlineNode::SuperscriptText(text) => (text.id, Some(text.content.as_slice())),
+                InlineNode::CurvedQuotationText(text) => (text.id, Some(text.content.as_slice())),
+                InlineNode::CurvedApostropheText(text) => (text.id, Some(text.content.as_slice())),
+                InlineNode::Macro(InlineMacro::Link(link)) => (
+                    None,
+                    (!link.text.is_empty()).then_some(link.text.as_slice()),
+                ),
+                InlineNode::Macro(InlineMacro::Url(link)) => (
+                    None,
+                    (!link.text.is_empty()).then_some(link.text.as_slice()),
+                ),
+                InlineNode::Macro(InlineMacro::Mailto(link)) => (
+                    None,
+                    (!link.text.is_empty()).then_some(link.text.as_slice()),
+                ),
+                InlineNode::Macro(InlineMacro::CrossReference(link)) => (
+                    None,
+                    (!link.text.is_empty()).then_some(link.text.as_slice()),
+                ),
+                InlineNode::Macro(InlineMacro::IndexTerm(term)) if term.is_visible() => {
+                    (None, Some(term.term()))
+                }
+                InlineNode::PlainText(_)
+                | InlineNode::RawText(_)
+                | InlineNode::VerbatimText(_)
+                | InlineNode::StandaloneCurvedApostrophe(_)
+                | InlineNode::LineBreak(_)
+                | InlineNode::CalloutRef(_)
+                | InlineNode::Macro(_)
+                | _ => (None, None),
+            };
+            let anchor = id.map(str::to_owned).or_else(|| {
+                resolve_code_link(node, &self.processor.references, "pdf")
+                    .and_then(|link| link.anchor)
+            });
+            if let Some(anchor) = anchor {
+                code.links.push(CodeSpan {
+                    range: code.source.len()..code.source.len(),
+                    anchor: Some(anchor),
+                    ..CodeSpan::default()
+                });
+            }
+            if let Some(children) = children {
+                code.append(self.inline_verbatim_text(children));
+            } else {
+                let _ = transform.write(&mut code.source, std::slice::from_ref(node));
+            }
+        }
+        code
+    }
+
     fn write_table_literal(&mut self, text: &str) {
         let max_columns = self.table_cell_text_break_columns().unwrap_or(usize::MAX);
         self.write_table_text_expr(text, max_columns, TableTextKind::Literal);

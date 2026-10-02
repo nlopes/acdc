@@ -168,6 +168,139 @@ fn verbatim_quotes_preserve_pdf_destinations_and_notes() -> Result<(), Error> {
 }
 
 #[test]
+fn inline_verbatim_targets_preserve_pdf_destinations() -> Result<(), Error> {
+    let pdf = render_input(include_str!("fixtures/source/inline_verbatim_targets.adoc"))?;
+    let pages = pdf
+        .get_pages()
+        .keys()
+        .map(|page| Ok((*page, pdf.extract_text(&[*page])?)))
+        .collect::<Result<Vec<_>, Error>>()?;
+    let reference_page = pages.last().ok_or("missing reference page")?.0;
+    let expected = [
+        "P01", "P02", "P03", "P04", "P04", "P05", "P06", "P07", "P08", "P09", "P10", "P11", "P12",
+        "P13", "P14", "P15", "P16", "P17", "P18", "P20", "P20", "P22", "P22", "P22", "P22", "P22",
+        "P22", "P22",
+    ]
+    .map(|marker| {
+        pages
+            .iter()
+            .find(|(_, text)| text.contains(marker))
+            .map(|(page, _)| *page)
+            .ok_or_else(|| format!("missing target occurrence: {marker}").into())
+    })
+    .into_iter()
+    .collect::<Result<Vec<_>, Error>>()?;
+    assert_eq!(internal_link_pages(&pdf, reference_page)?, expected);
+    Ok(())
+}
+
+#[test]
+fn inline_verbatim_targets_keep_glyph_positions() -> Result<(), Error> {
+    let long_word = "word".repeat(8);
+    let table_marked = format!(
+        "[cols=\"1\",width=\"20%\"]\n|===\n|``{long_word}anchor:target[]{long_word}`` **End**.\n|===\n"
+    );
+    let table_plain =
+        format!("[cols=\"1\",width=\"20%\"]\n|===\n|``{long_word}{long_word}`` **End**.\n|===\n");
+    for (marked, plain) in [
+        ("`1anchor:target[]2`**End**.", "`12`**End**."),
+        ("`anchor:target[]12`**End**.", "`12`**End**."),
+        ("`12anchor:target[]`**End**.", "`12`**End**."),
+        ("``anchor:target[]``**End**.", "**End**."),
+        ("`1anchor:first[]anchor:second[]2`**End**.", "`12`**End**."),
+        ("``1 anchor:target[]2``**End**.", "``1 2``**End**."),
+        ("``1anchor:target[] 2``**End**.", "``1 2``**End**."),
+        ("``1 anchor:target[] 2``**End**.", "``1  2``**End**."),
+        (
+            "`first anchor:target[]\n second`. **End**.",
+            "`first second`. **End**.",
+        ),
+        ("`1[[target]]2`**End**.", "`12`**End**."),
+        ("``1 [#target]*2*``**End**.", "``1 *2*``**End**."),
+        (
+            "``eanchor:target[]\u{0301}``**End**.",
+            "``e\u{0301}``**End**.",
+        ),
+        (table_marked.as_str(), table_plain.as_str()),
+    ] {
+        let marked_pdf = render_input(&format!("= Spacing\n\n{marked}\n"))?;
+        let plain_pdf = render_input(&format!("= Spacing\n\n{plain}\n"))?;
+        let marked_position = text_origin(&marked_pdf, 1, "End")?;
+        let plain_position = text_origin(&plain_pdf, 1, "End")?;
+        assert!(
+            (marked_position.0 - plain_position.0).abs() < 0.01
+                && (marked_position.1 - plain_position.1).abs() < 0.01,
+            "{marked}: {marked_position:?} != {plain_position:?}"
+        );
+    }
+    Ok(())
+}
+
+#[cfg(feature = "pre-spec-subs")]
+#[test]
+fn inline_verbatim_targets_keep_duplicate_and_copied_title_ownership() -> Result<(), Error> {
+    let pdf = render_input(include_str!(
+        "fixtures/source/subs_inline_verbatim_targets.adoc"
+    ))?;
+    let pages = pdf
+        .get_pages()
+        .keys()
+        .map(|page| Ok((*page, pdf.extract_text(&[*page])?)))
+        .collect::<Result<Vec<_>, Error>>()?;
+    let reference_page = pages.last().ok_or("missing reference page")?.0;
+    let expected = ["P01", "P02", "P03", "P05", "P06", "P07", "P08"]
+        .map(|marker| {
+            pages
+                .iter()
+                .find(|(_, text)| text.contains(marker))
+                .map(|(page, _)| *page)
+                .ok_or_else(|| format!("missing target occurrence: {marker}").into())
+        })
+        .into_iter()
+        .collect::<Result<Vec<_>, Error>>()?;
+    assert_eq!(internal_link_pages(&pdf, reference_page)?, expected);
+    Ok(())
+}
+
+#[test]
+fn inline_verbatim_targets_reach_the_glyph_position() -> Result<(), Error> {
+    for content in ["Short".to_owned(), "wrapped words ".repeat(40)] {
+        let pdf = render_input(&format!(
+            "= Position\n\n``{content}anchor:target[]``**End**.\n\n<<<\n\nSee <<target,Target>>.\n"
+        ))?;
+        let reference_page = *pdf
+            .get_pages()
+            .keys()
+            .last()
+            .ok_or("missing reference page")?;
+        assert_eq!(internal_link_pages(&pdf, reference_page)?, [1]);
+        let page = *pdf
+            .get_pages()
+            .get(&reference_page)
+            .ok_or("missing reference page")?;
+        let annotations = pdf.get_page_annotations(page)?;
+        let [link] = annotations.as_slice() else {
+            return Err("expected one target link".into());
+        };
+        let destination = link
+            .get(b"Dest")
+            .or_else(|_| link.get(b"A")?.as_dict()?.get(b"D"))?;
+        let (_, destination) = pdf.dereference(destination)?;
+        let [_, kind, left, top, ..] = destination.as_array()?.as_slice() else {
+            return Err("incomplete target position".into());
+        };
+        assert_eq!(kind.as_name()?, b"XYZ");
+        let (left, top) = (left.as_float()?, top.as_float()?);
+        let (x, baseline) = text_origin(&pdf, 1, "End")?;
+        assert!(
+            (left - x).abs() < 0.01 && (0.0..20.0).contains(&(top - baseline)),
+            "{content}: target ({left}, {top}), glyph ({x}, {baseline})"
+        );
+    }
+    Ok(())
+}
+
+#[test]
 fn inline_anchor_spacing_preserves_pdf_destinations() -> Result<(), Error> {
     let pdf = render_input(include_str!("fixtures/source/inline_anchor_spacing.adoc"))?;
     let pages = pdf

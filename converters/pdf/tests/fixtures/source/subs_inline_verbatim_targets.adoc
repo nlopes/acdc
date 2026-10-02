@@ -1,0 +1,39 @@
+= verbatim-contexts(1)
+:manmanual: Inline targets
+:mansource: acdc
+:revdate: 2026-10-02
+:toc:
+
+== Name
+verbatim-contexts - inline targets with substitution controls
+
+== Description
+
+P01 *Before `xanchor:bold-target[]y` after*.
+
+P02 [.underline]#Before `xanchor:role-target[]y` after#.
+
+P03 pass:q,m[`xanchor:pass-target[\]y`].
+
+[subs=-macros]
+P04 `anchor:disabled[]Literal`.
+
+[subs=-quotes]
+P05 `anchor:quotes-off[]Text`.
+
+[.pre-wrap]
+P06 `first  anchor:prewrap-target[]  second`.
+
+=== Copied `anchor:heading-target[]Heading`
+
+P07 Heading body.
+
+P08 `Originalanchor:duplicate[]`.
+
+<<<
+
+P09 `Repeatedanchor:duplicate[]`.
+
+See <<bold-target,Bold>>, <<role-target,Role>>, <<pass-target,Pass>>,
+<<quotes-off,Quotes off>>, <<prewrap-target,Pre-wrap>>,
+<<heading-target,Heading>>, and <<duplicate,Original>>.

@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Backtick spans retain inline anchor targets, including IDs on nested formatting
+  and link labels. Cross-references compile and reach the right position, with
+  no added space. Ordinary anchors match Asciidoctor PDF; acdc also retains
+  link-label targets where Asciidoctor PDF emits literal markup and broken
+  references. Existing monospace text and duplicate-ID handling remain intact.
 - Inline anchors and IDs on formatted spans no longer add a visible space.
   Adjacent text and punctuation stay joined, and authored spaces remain intact,
   matching Asciidoctor PDF. Cross-reference destinations remain clickable.
