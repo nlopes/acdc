@@ -57,6 +57,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Constrained inline code works next to bold and highlighted text, including
+  empty attribute expansions, anchors, links, roles, and IDs. For example,
+  `` `Code`**End** `` renders code followed by bold text, matching Asciidoctor.
+  Adjacent formatting keeps separate source spans; word/underscore boundaries,
+  doubled backticks, quotation syntax, and whitespace beside the delimiters remain intact.
 - Escaped attribute references such as `{name\}` and `\{name\}` remain literal
   and lose their escape backslashes when attributes are enabled, including in
   code. Invalid references and contexts without attribute substitutions retain

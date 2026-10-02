@@ -1,0 +1,114 @@
+= mono-boundaries(1)
+:doctype: manpage
+:manmanual: Inline formatting boundaries
+:mansource: acdc
+:revdate: 2026-10-02
+:empty:
+
+== Name
+mono-boundaries - adjacent inline formatting
+
+== Description
+
+P01 `Code`**End**.
+
+P02 `Code`*End*.
+
+P03 `Code`_End_.
+
+P04 `Code`__End__.
+
+P05 `Code`#End#.
+
+P06 `Code`##End##.
+
+P07 `Code`~End~.
+
+P08 `Code`^End^.
+
+P09 *Start*`Code`.
+
+P10 **Start**`Code`.
+
+P11 _Start_`Code`.
+
+P12 #Start#`Code`.
+
+P13 `Code``Next`.
+
+P14 `Code`word.
+
+P15 word`Code`.
+
+P16 ` Code`**End**.
+
+P17 `Code `**End**.
+
+P18 `Code`'.
+
+P19 `Code`\*End*.
+
+P20 `Code`:End.
+
+P21 `Code`😀.
+
+P22 é`Code`.
+
+P23 `Code`é.
+
+P24 `Code`_suffix_.
+
+P25 `Code`_suffix.
+
+P26 `Code`*suffix.
+
+P27 *Start `Code`*.
+
+P28 _Start `Code`_.
+
+P29 #Start `Code`#.
+
+P30 `*Bold*`**End**.
+
+P31 `{empty}`**End**.
+
+P32 `anchor:empty-target[]`**End**.
+
+P33 `https://example.org[Site]`**End**.
+
+P34 [.red]`Code`**End**.
+
+P35 *Start*[.red]`Code`.
+
+P36 `Code` **End**.
+
+P37 ``Code``**End**.
+
+P38 \`Code`**End**.
+
+P39 pass:[`Code`**End**].
+
+P40 `Code`
+**End**.
+
+P41 `Code`#suffix.
+
+P42 `Code`_End_**Tail**.
+
+P43 `Code`*End*`Next`.
+
+P44 `Code`\End.
+
+P45 `Code`=End.
+
+P46 `Code`%End.
+
+P47 prefix;`Code`**End**.
+
+P48 prefix}`Code`**End**.
+
+P49 prefix:`Code`**End**.
+
+P50 pass:q[<del>&amp;*bold*&amp;</del>].
+
+P51 `Code`"End.

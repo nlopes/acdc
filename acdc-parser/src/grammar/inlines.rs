@@ -864,13 +864,11 @@ pub(crate) fn match_constrained_boundary(b: u8) -> bool {
             | b'{'
             | b'['
             | b')'
-            | b'}'
             | b']'
             | b'/'
             | b'-'
             | b'|'
             | b','
-            | b';'
             | b'.'
             | b'?'
             | b'!'
@@ -879,6 +877,9 @@ pub(crate) fn match_constrained_boundary(b: u8) -> bool {
             | b'^'
             | b'~'
             | b'+'
+            | b'*'
+            | b'#'
+            | b'`'
     )
 }
 
@@ -2508,15 +2509,14 @@ peg::parser! {
         rule bold_text_unconstrained_match()
         = inline_attributes()? open:position!() "**" (empty_quote_content() &"**" / (!(eol() / ![_] / "**") [_])+) close:position!() "**" check_quote_markers((open, 2), (close, 2))
 
-        /// A valid right boundary after a constrained closing marker: an ASCII
-        /// whitespace/punctuation boundary, a non-word non-ASCII character (e.g.
-        /// a curly quote `”` or guillemet `»`), or end of input. Matches
-        /// asciidoctor's `(?!\w)` closing rule, where Unicode punctuation is a
-        /// boundary but Unicode letters/digits are not. Consumes the boundary
-        /// character (or nothing at end of input), so it works in both `&` and
-        /// `!` lookaheads where the old inline character class was used.
-        rule constrained_boundary_follow()
-        = [' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~' | '+']
+        /// A different non-word character or end of input closes constrained formatting.
+        /// Formatting marks are punctuation too; an underscore remains a word
+        /// character. A repeated marker stays inside its delimiter run. Consuming
+        /// the boundary supports both `&` and `!` lookaheads.
+        rule constrained_boundary_follow(marker: char)
+        = !['a'..='z' | 'A'..='Z' | '0'..='9' | '_'] c:['\0'..='\x7f'] {?
+            if c == marker { Err("same formatting marker") } else { Ok(()) }
+        }
         / non_word_non_ascii_char()
         / ![_]
 
@@ -2537,10 +2537,10 @@ peg::parser! {
         "*"
         content:$(
             empty_quote_content() &"*"
-            / [^(' ' | '\t' | '\n')] [^'*']* ("*" !constrained_boundary_follow() [^'*']*)*
+            / [^(' ' | '\t' | '\n')] [^'*']* ("*" !constrained_boundary_follow('*') [^'*']*)*
         )
         close:position!() "*" check_quote_markers((start, 1), (close, 1))
-        end:position!() &constrained_boundary_follow()
+        end:position!() &constrained_boundary_follow('*')
         {?
             let role = attrs.as_ref().and_then(|(roles, _id)| {
                 if roles.is_empty() {
@@ -2596,11 +2596,11 @@ peg::parser! {
         open:position!() "*"
         (
             empty_quote_content() &"*"
-            / [^(' ' | '\t' | '\n')] [^'*']* ("*" !constrained_boundary_follow() [^'*']*)*
+            / [^(' ' | '\t' | '\n')] [^'*']* ("*" !constrained_boundary_follow('*') [^'*']*)*
         )
         close:position!() "*" check_quote_markers((open, 1), (close, 1))
         closing_pos:position!()
-        constrained_boundary_follow()
+        constrained_boundary_follow('*')
         {?
             let valid_opening = check_constrained_opening_boundary(boundary_pos, state.input.as_bytes(), state.outer_constrained_delimiter);
             let valid_closing = check_constrained_closing_at_end(closing_pos, state.input.len(), state.outer_constrained_delimiter);
@@ -2615,10 +2615,10 @@ peg::parser! {
         "_"
         content:$(
             empty_quote_content() &"_"
-            / [^(' ' | '\t' | '\n')] [^'_']* ("_" !constrained_boundary_follow() [^'_']*)*
+            / [^(' ' | '\t' | '\n')] [^'_']* ("_" !constrained_boundary_follow('_') [^'_']*)*
         )
         close:position!() "_" check_quote_markers((start, 1), (close, 1))
-        end:position!() &constrained_boundary_follow()
+        end:position!() &constrained_boundary_follow('_')
         {?
             let role = attrs.as_ref().and_then(|(roles, _id)| {
                 if roles.is_empty() {
@@ -2672,11 +2672,11 @@ peg::parser! {
         open:position!() "_"
         (
             empty_quote_content() &"_"
-            / [^(' ' | '\t' | '\n')] [^'_']* ("_" !constrained_boundary_follow() [^'_']*)*
+            / [^(' ' | '\t' | '\n')] [^'_']* ("_" !constrained_boundary_follow('_') [^'_']*)*
         )
         close:position!() "_" check_quote_markers((open, 1), (close, 1))
         closing_pos:position!()
-        constrained_boundary_follow()
+        constrained_boundary_follow('_')
         {?
             let valid_opening = check_constrained_opening_boundary(boundary_pos, state.input.as_bytes(), state.outer_constrained_delimiter);
             let valid_closing = check_constrained_closing_at_end(closing_pos, state.input.len(), state.outer_constrained_delimiter);
@@ -2752,18 +2752,34 @@ peg::parser! {
         rule monospace_text_unconstrained_match()
         = inline_attributes()? open:position!() "``" (empty_quote_content() &"``" / (!(eol() / ![_] / "``") [_])+) close:position!() "``" check_quote_markers((open, 2), (close, 2))
 
+        // Reserve backticks beside quotes for curved quotation syntax.
+        rule monospace_boundary_follow()
+        = !['"' | '\''] constrained_boundary_follow('`')
+
+        rule constrained_monospace_content() -> &'input str
+        = content:$(
+            empty_quote_content() &"`"
+            / [^(' ' | '\t' | '\n')] [^'`']* ("`" !monospace_boundary_follow() [^'`']*)*
+        )
+        {?
+            // Constrained code cannot end with whitespace. A later attribute
+            // expansion can leave valid content empty.
+            if content.as_bytes().last().is_some_and(u8::is_ascii_whitespace) {
+                Err("constrained monospace must not end with whitespace")
+            } else {
+                Ok(content)
+            }
+        }
+
         rule monospace_text_constrained() -> InlineNode<'input>
         = attrs:inline_attributes()?
         start:position!()
         content_start:position()
         "`"
-        content:$(
-            empty_quote_content() &"`"
-            / [^(' ' | '\t' | '\n')] [^'`']* ("`" !constrained_boundary_follow() [^'`']*)*
-        )
+        content:constrained_monospace_content()
         close:position!() "`" check_quote_markers((start, 1), (close, 1))
         end:position!()
-        &constrained_boundary_follow()
+        &monospace_boundary_follow()
         {?
             let role = attrs.as_ref().and_then(|(roles, _id)| {
                 if roles.is_empty() {
@@ -2815,13 +2831,10 @@ peg::parser! {
         = boundary_pos:position!()
         inline_attributes()?
         open:position!() "`"
-        (
-            empty_quote_content() &"`"
-            / [^(' ' | '\t' | '\n')] [^'`']* ("`" !constrained_boundary_follow() [^'`']*)*
-        )
+        constrained_monospace_content()
         close:position!() "`" check_quote_markers((open, 1), (close, 1))
         closing_pos:position!()
-        constrained_boundary_follow()
+        monospace_boundary_follow()
         {?
             let valid_opening = check_constrained_opening_boundary(boundary_pos, state.input.as_bytes(), state.outer_constrained_delimiter);
             let valid_closing = check_constrained_closing_at_end(closing_pos, state.input.len(), state.outer_constrained_delimiter);
@@ -2870,11 +2883,11 @@ peg::parser! {
         "#"
         content:$(
             empty_quote_content() &"#"
-            / [^(' ' | '\t' | '\n')] [^'#']* ("#" !constrained_boundary_follow() [^'#']*)*
+            / [^(' ' | '\t' | '\n')] [^'#']* ("#" !constrained_boundary_follow('#') [^'#']*)*
         )
         close:position!() "#" check_quote_markers((start, 1), (close, 1))
         end:position!()
-        &constrained_boundary_follow()
+        &constrained_boundary_follow('#')
         {?
             let role = attrs.as_ref().and_then(|(roles, _id)| {
                 if roles.is_empty() {
@@ -2929,11 +2942,11 @@ peg::parser! {
         open:position!() "#"
         (
             empty_quote_content() &"#"
-            / [^(' ' | '\t' | '\n')] [^'#']* ("#" !constrained_boundary_follow() [^'#']*)*
+            / [^(' ' | '\t' | '\n')] [^'#']* ("#" !constrained_boundary_follow('#') [^'#']*)*
         )
         close:position!() "#" check_quote_markers((open, 1), (close, 1))
         closing_pos:position!()
-        constrained_boundary_follow()
+        constrained_boundary_follow('#')
         {?
             let valid_opening = check_constrained_opening_boundary(boundary_pos, state.input.as_bytes(), state.outer_constrained_delimiter);
             let valid_closing = check_constrained_closing_at_end(closing_pos, state.input.len(), state.outer_constrained_delimiter);

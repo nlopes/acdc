@@ -1,0 +1,57 @@
+= mono-contexts(1)
+:doctype: manpage
+:manmanual: Inline formatting boundaries
+:mansource: acdc
+:revdate: 2026-10-02
+:empty:
+:styled: pass:q[`Value`**End**]
+
+== Name
+mono-contexts - adjacent code and substitution contexts
+
+== Description
+
+[subs=-quotes]
+P01 `Code`**End**.
+
+[subs=-macros]
+P02 `anchor:literal[]`**End**.
+
+[subs="attributes,quotes"]
+P03 `{empty}`**End**.
+
+[subs="quotes,attributes"]
+P04 `{empty}`**End**.
+
+P05 {styled}.
+
+P06 pass:q,m[`https://example.org/context[Site\]`**End**].
+
+P07 pass:q[[.red]`café`**Fin**].
+
+[source,subs=+quotes]
+----
+P08 `Code`**End**.
+----
+
+[literal,subs=+quotes]
+P09 `Code`*End*.
+
+[.pre-wrap]
+P10 `Code`  **End**.
+
+* P11 `Code`**End**.
+
+[cols="1"]
+|===
+|P12 `Code`**End**.
+|===
+
+P13 [.red#code-id]`Code`**End**.
+
+P14 *Before `Code` after*.
+
+P15 `Code`*End*`Next`**Tail**.
+
+[subs="attributes,quotes"]
+P16 `{empty}` **End**.

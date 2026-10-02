@@ -1,0 +1,80 @@
+'\" t
+.\"     Title: mono-contexts
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-02
+.\"    Manual: Inline formatting boundaries
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "MONO\-CONTEXTS" "1" "2026-10-02" "acdc" "Inline formatting boundaries"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+mono\-contexts \- adjacent code and substitution contexts
+.SH "DESCRIPTION"
+.sp
+P01 `Code`**End**.
+.sp
+P02 \f(CRanchor:literal[]\fP\fBEnd\fP\&.
+.sp
+P03 \f(CR\fP\fBEnd\fP\&.
+.sp
+P04 \f(CR\fP\fBEnd\fP\&.
+.sp
+P05 \f(CRValue\fP\fBEnd\fP\&.
+.sp
+P06 \f(CR\c
+.URL "https://example.org/context" "Site" "\c"
+\fP\fBEnd\fP\&.
+.sp
+P07 [.red\f(CRcafé\fP\fBFin\fP].
+.EX
+P08 \f(CRCode\fP\fBEnd\fP\&.
+.EE
+.sp
+.if n .RS 4
+.nf
+.fam C
+P09 \f(CRCode\fP\fBEnd\fP\&.
+.fam
+.fi
+.if n .RE
+.sp
+P10 \f(CRCode\fP \fBEnd\fP\&.
+.RS 0
+.IP \(bu 2
+P11 \f(CRCode\fP\fBEnd\fP\&.
+.RE
+.TS
+allbox tab(:);
+ltx.
+T{
+P12 \f(CRCode\fP\fBEnd\fP\&.
+T}
+.TE
+.sp
+P13 \f(CRCode\fP\fBEnd\fP\&.
+.sp
+P14 \fBBefore \f(CRCode\fP after\fP\&.
+.sp
+P15 \f(CRCode\fP\fBEnd\fP\f(CRNext\fP\fBTail\fP\&.
+.sp
+P16 \f(CR\fP \fBEnd\fP\&.

@@ -12,6 +12,37 @@ use acdc_converters_pdf::{PdfOptions, Processor};
 type Error = Box<dyn std::error::Error>;
 
 #[test]
+fn constrained_monospace_boundaries_preserve_pdf_positions_and_links() -> Result<(), Error> {
+    for content in [
+        "café",
+        "{blank}",
+        "anchor:target[]",
+        "xanchor:target[]y",
+        "https://example.org[Site]",
+    ] {
+        let marked = render_input(&format!("= Bounds\n:blank:\n\n`{content}`**End**.\n"))?;
+        let control = render_input(&format!("= Bounds\n:blank:\n\n``{content}``**End**.\n"))?;
+        let actual = text_origin(&marked, 1, "End")?;
+        let expected = text_origin(&control, 1, "End")?;
+        assert!(
+            (actual.0 - expected.0).abs() < 0.01 && (actual.1 - expected.1).abs() < 0.01,
+            "{content}: {actual:?}, expected {expected:?}"
+        );
+        if content.contains("anchor:") {
+            assert!(named_destinations(&marked)?.contains_key("target"));
+        }
+        if content.starts_with("https:") {
+            assert!(
+                external_link_rects(&marked, 1)?
+                    .iter()
+                    .any(|(uri, _)| uri == "https://example.org")
+            );
+        }
+    }
+    Ok(())
+}
+
+#[test]
 fn inline_verbatim_links_keep_pdf_uri_annotations_and_ids() -> Result<(), Error> {
     let pdf = render_input(include_str!("fixtures/source/inline_verbatim_links.adoc"))?;
     let mut uris = Vec::new();
@@ -767,7 +798,8 @@ fn inline_anchor_spacing_keeps_glyph_positions() -> Result<(), Error> {
         ("1 anchor:target[] **End**.", "1 pass:[] **End**."),
         ("anchor:target[]**End**.", "**End**."),
         ("1 [#target]**End**.", "1 **End**."),
-        ("1anchor:target[]`2`**End**.", "1`2`**End**."),
+        // Unconstrained spans keep both inputs as code after the preceding digit.
+        ("1anchor:target[]``2``**End**.", "1``2``**End**."),
         (
             "https://example.org[1]anchor:target[]**End**.",
             "https://example.org[1]**End**.",

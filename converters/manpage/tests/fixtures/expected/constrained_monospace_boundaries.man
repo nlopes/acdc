@@ -1,0 +1,137 @@
+'\" t
+.\"     Title: mono-boundaries
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-02
+.\"    Manual: Inline formatting boundaries
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "MONO\-BOUNDARIES" "1" "2026-10-02" "acdc" "Inline formatting boundaries"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+mono\-boundaries \- adjacent inline formatting
+.SH "DESCRIPTION"
+.sp
+P01 \f(CRCode\fP\fBEnd\fP\&.
+.sp
+P02 \f(CRCode\fP\fBEnd\fP\&.
+.sp
+P03 `Code`\fIEnd\fP\&.
+.sp
+P04 `Code`\fIEnd\fP\&.
+.sp
+P05 \f(CRCode\fP\fBEnd\fP\&.
+.sp
+P06 \f(CRCode\fP\fBEnd\fP\&.
+.sp
+P07 \f(CRCode\fP_(End)\&.
+.sp
+P08 \f(CRCode\fP^(End)\&.
+.sp
+P09 \fBStart\fP\f(CRCode\fP\&.
+.sp
+P10 \fBStart\fP\f(CRCode\fP\&.
+.sp
+P11 \fIStart\fP`Code`.
+.sp
+P12 \fBStart\fP\f(CRCode\fP\&.
+.sp
+P13 \f(CRCode``Next\fP\&.
+.sp
+P14 `Code`word.
+.sp
+P15 word`Code`.
+.sp
+P16 ` Code`\fBEnd\fP\&.
+.sp
+P17 `Code `\fBEnd\fP\&.
+.sp
+P18 `Code\(cq\&.
+.sp
+P19 \f(CRCode\fP*End*.
+.sp
+P20 \f(CRCode\fP:End.
+.sp
+P21 \f(CRCode\fP😀.
+.sp
+P22 é`Code`.
+.sp
+P23 `Code`é.
+.sp
+P24 `Code`\fIsuffix\fP\&.
+.sp
+P25 `Code`_suffix.
+.sp
+P26 \f(CRCode\fP*suffix.
+.sp
+P27 \fBStart \f(CRCode\fP\fP\&.
+.sp
+P28 \fIStart `Code`\fP\&.
+.sp
+P29 \fBStart \f(CRCode\fP\fP\&.
+.sp
+P30 \f(CR\fBBold\fP\fP\fBEnd\fP\&.
+.sp
+P31 \f(CR\fP\fBEnd\fP\&.
+.sp
+P32 \f(CR\fP\fBEnd\fP\&.
+.sp
+P33 \f(CR\c
+.URL "https://example.org" "Site" "\c"
+\fP\fBEnd\fP\&.
+.sp
+P34 \f(CRCode\fP\fBEnd\fP\&.
+.sp
+P35 \fBStart\fP\f(CRCode\fP\&.
+.sp
+P36 \f(CRCode\fP \fBEnd\fP\&.
+.sp
+P37 \f(CRCode\fP\fBEnd\fP\&.
+.sp
+P38 `Code`\fBEnd\fP\&.
+.sp
+P39 `Code`**End**\&.
+.sp
+P40 \f(CRCode\fP
+\fBEnd\fP\&.
+.sp
+P41 \f(CRCode\fP#suffix.
+.sp
+P42 `Code`\fIEnd\fP\fBTail\fP\&.
+.sp
+P43 \f(CRCode\fP\fBEnd\fP\f(CRNext\fP\&.
+.sp
+P44 \f(CRCode\fP\eEnd.
+.sp
+P45 \f(CRCode\fP=End.
+.sp
+P46 \f(CRCode\fP%End.
+.sp
+P47 prefix;`Code`\fBEnd\fP\&.
+.sp
+P48 prefix}`Code`\fBEnd\fP\&.
+.sp
+P49 prefix:`Code`\fBEnd\fP\&.
+.sp
+P50 <del>&amp;*bold*&amp;</del>\&.
+.sp
+P51 `Code`"End.
