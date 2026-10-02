@@ -4,83 +4,83 @@ Email links.
 .SH "DESCRIPTION"
 .sp
 \c
-.MTO "subject\(atexample.org?subject=Test%20subject" "Subject" ""
+.MTO "subject\(atexample.org?subject=Test%20subject" "Subject" "\c"
 
 .sp
 \c
-.MTO "both\(atexample.org?subject=Test%20subject&body=Message%20body" "Both" ""
+.MTO "both\(atexample.org?subject=Test%20subject&body=Message%20body" "Both" "\c"
 
 .sp
 \c
-.MTO "fallback\(atexample.org?subject=Test%20subject&body=Message%20body" "fallback@example.org" ""
+.MTO "fallback\(atexample.org?subject=Test%20subject&body=Message%20body" "fallback@example.org" "\c"
 
 .sp
 \c
-.MTO "body\(atexample.org?subject=&body=Message%20body" "Body" ""
+.MTO "body\(atexample.org?subject=&body=Message%20body" "Body" "\c"
 
 .sp
 \c
-.MTO "empty\(atexample.org?subject=&body=" "Empty" ""
+.MTO "empty\(atexample.org?subject=&body=" "Empty" "\c"
 
 .sp
 \c
-.MTO "quoted\(atexample.org?subject=Hello%2C%20world&body=Say%20%22hello%22%2C%20please" "Quoted" ""
+.MTO "quoted\(atexample.org?subject=Hello%2C%20world&body=Say%20%22hello%22%2C%20please" "Quoted" "\c"
 
 .sp
 \c
-.MTO "unicode\(atexample.org?subject=Caf%C3%A9%20%26%20tea%3F%20%2B%2050%25%20%231%20~&body=x%3Dy%20%2F%20caf%C3%A9" "Unicode" ""
+.MTO "unicode\(atexample.org?subject=Caf%C3%A9%20%26%20tea%3F%20%2B%2050%25%20%231%20~&body=x%3Dy%20%2F%20caf%C3%A9" "Unicode" "\c"
 
 .sp
 \c
-.MTO "named\(atexample.org" "Named" ""
+.MTO "named\(atexample.org" "Named" "\c"
 
 .sp
 \c
-.MTO "named\-only\(atexample.org" "Named only" ""
+.MTO "named\-only\(atexample.org" "Named only" "\c"
 
 .sp
 \c
-.MTO "query\(atexample.org?cc=copy\(atexample.org&subject=New%20subject&body=New%20body" "Query" ""
+.MTO "query\(atexample.org?cc=copy\(atexample.org&subject=New%20subject&body=New%20body" "Query" "\c"
 
 .sp
 \c
-.MTO "escape\(atexample.org?subject=Subject%5D&body=Body%5D" "Escape" ""
+.MTO "escape\(atexample.org?subject=Subject%5D&body=Body%5D" "Escape" "\c"
 
 .sp
 \c
-.MTO "control\(atexample.org" "Control" ""
+.MTO "control\(atexample.org" "Control" "\c"
 
 .sp
 \c
-.MTO "trailing\(atexample.org?subject=" "Trailing" ""
+.MTO "trailing\(atexample.org?subject=" "Trailing" "\c"
 
 .sp
 \c
-.MTO "unquoted\(atexample.org?subject=&body=Body" "Unquoted" ""
+.MTO "unquoted\(atexample.org?subject=&body=Body" "Unquoted" "\c"
 
 .sp
 \c
-.MTO "numeric\(atexample.org" "Numeric" ""
+.MTO "numeric\(atexample.org" "Numeric" "\c"
 
 .sp
 \c
-.MTO "attributes\(atexample.org?subject=Subject&body=Body" "Styled" ""
+.MTO "attributes\(atexample.org?subject=Subject&body=Body" "Styled" "\c"
 
 .sp
 \c
-.MTO "single\(atexample.org?subject=It%27s%20fine&body=Say%20%22hello%22" "Single" ""
+.MTO "single\(atexample.org?subject=It%27s%20fine&body=Say%20%22hello%22" "Single" "\c"
 
 .sp
 \c
-.MTO "passarg\(atexample.org?subject=one%2Ctwo&body=%2B" "Pass argument" ""
+.MTO "passarg\(atexample.org?subject=one%2Ctwo&body=%2B" "Pass argument" "\c"
 
 .sp
 \c
-.MTO "empty\-target\(atexample.org" "" ""
+.MTO "empty\-target\(atexample.org" "" "\c"
 
 .sp
 \c
-.MTO "plain\(atexample.org?subject=%2ABold%2A%20%3Ctag%3E%20%28C%29&body=a%20\-%3E%20b" "Plain text" ""
+.MTO "plain\(atexample.org?subject=%2ABold%2A%20%3Ctag%3E%20%28C%29&body=a%20\-%3E%20b" "Plain text" "\c"
 
 .sp
 mailto:literal@example.org[Literal,Subject,Body]

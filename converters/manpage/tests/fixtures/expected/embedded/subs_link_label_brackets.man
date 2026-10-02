@@ -1,22 +1,22 @@
 .sp
 \c
-.URL "https://example.org" "One ] two" ""
+.URL "https://example.org" "One ] two" "\c"
 
 .sp
 \c
-.URL "https://example.org" "\fBOne ] two\fP" ""
+.URL "https://example.org" "\fBOne ] two\fP" "\c"
 
 .sp
 \c
-.URL "https://example.org" "Expanded ] tail" ""
+.URL "https://example.org" "Expanded ] tail" "\c"
 
 .sp
 \c
-.URL "https://example.org" "Expanded ] tail" ""
+.URL "https://example.org" "Expanded ] tail" "\c"
 
 .sp
 \c
-.URL "https://example.org" "One ] two" ""
+.URL "https://example.org" "One ] two" "\c"
 
 .sp
 link:https://example.org[Literal \e] text]

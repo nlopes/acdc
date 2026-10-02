@@ -101,8 +101,8 @@ Visible index hard break before
 Visible and \(co.
 .sp
 Link \c
-.URL "https://example.org" "Example" ""
-and \(co.
+.URL "https://example.org" "Example" "\c"
+ and \(co.
 .sp
 Note [2]
 Reuse [2]\&.

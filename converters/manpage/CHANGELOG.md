@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Inline links keep adjacent punctuation and text attached, including raw
+  passthroughs, attribute references, footnotes, and index terms. Authored
+  spaces, wrapped lines, and hard breaks remain intact. Ordinary link spacing
+  follows Asciidoctor; nested links keep acdc's separate targets
+  instead of Asciidoctor's malformed roff.
 - Document attributes using `pass:q[...]`, `pass:m[...]`, or `pass:normal[...]`
   retain formatting, links, and footnotes. Unused values produce no notes or index
   entries; anonymous notes register at each use. Unlike Asciidoctor, attribute

@@ -1,0 +1,85 @@
+= link-punctuation(1)
+:doctype: manpage
+:manmanual: Link punctuation
+:mansource: acdc
+:revdate: 2026-10-02
+:period: .
+:blank: pass:[ ]
+
+== NAME
+
+link-punctuation - preserve inline link boundaries
+
+== DESCRIPTION
+
+P01 https://example.org[Label].
+
+P02 link:https://example.org[Label], next.
+
+P03 (https://example.org).
+
+P04 mailto:test@example.org[Mail]!
+
+P05 test@example.org.
+
+P06 https://example.org[Label],;:!?
+
+P07 https://example.org[Label]suffix.
+
+P08 https://example.org[Label] *bold*.
+
+P09 https://example.org[Label]*bold*.
+
+P10 https://example.org[Label]pass:[.]
+
+P11 https://example.org[Label]{period}
+
+P12 https://example.org[Label]footnote:note[Note text.].
+
+P13 https://example.org[Label]anchor:after-link[].
+
+P14 https://example.org[Label](((Hidden))).
+
+P15 https://example.org[Label]»
+
+P16 https://example.org[Label] next.
+
+P17 https://example.org[Label]
+next line.
+
+P18 https://example.org[Label] +
+  next line.
+
+P19 *https://example.org[Label].*
+
+P20 link:manual.txt[Manual].
+
+P21 https://example.org[].
+
+P22 https://example.org[A "quote" and \path]\tail.
+
+P23 https://example.org[Label]link:https://second.example[Second].
+
+P24 https://example.org[Label] link:https://second.example[Second].
+
+P25 mailto:test@example.org[Mail](C).
+
+P26 mailto:test@example.org[Mail]((Word)).
+
+P27 mailto:test@example.org[Mail] pass:[(C)].
+
+P28 https://example.org[Label]
+
+Next paragraph.
+
+P29 https://example.org[Label] _italic_ and `code`.
+
+P30 mailto:test@example.org[Mail]pass:[!] More.
+
+P31 mailto:test@example.org[Mail]footnote:note[].
+
+P32 link:https://example.org["Quoted label",role=underline].
+
+P33 (https://example.org[{blank}])after.
+
+P34 https://example.org[pass:[ Label ]].

@@ -2,6 +2,7 @@
 :doctype: manpage
 :manmanual: Cross-reference tests
 :mansource: acdc
+:revdate: 2026-09-30
 :colon-id: topic:one
 
 == Name

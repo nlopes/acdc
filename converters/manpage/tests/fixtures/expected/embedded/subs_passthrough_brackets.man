@@ -6,7 +6,7 @@ pass:a,m[link:https://example.org[Expanded\e]]
 pass:m[link:https://example.org[Label\e]]
 .sp
 \c
-.URL "https://example.org" "Expanded" ""
+.URL "https://example.org" "Expanded" "\c"
 
 .sp
 See Code target\&.

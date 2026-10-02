@@ -24,7 +24,7 @@ Expanded ] term
 Expanded \e] term
 .sp
 \c
-.URL "https://example.org" "Linked Expanded \e] term" ""
+.URL "https://example.org" "Linked Expanded \e] term" "\c"
 
 .SH "INDEX"
 .SS "@"

@@ -4,155 +4,157 @@ Nested link examples.
 .SH "DESCRIPTION"
 .sp
 \c
-.URL "https://outer.example" "Before" ""
+.URL "https://outer.example" "Before" " \c"
 \c
-.MTO "test\(atexample.org" "Inner" ""
-\c
-.URL "https://outer.example" "after" ""
+.MTO "test\(atexample.org" "Inner" "\c"
+ \c
+.URL "https://outer.example" "after" "\c"
 \&.
 .sp
 \c
-.URL "https://quoted.example" "Outer" ""
+.URL "https://quoted.example" "Outer" " \c"
 \c
-.MTO "test\(atexample.org" "\e\(dqQuoted\e\(dq" ""
-\c
-.URL "https://quoted.example" "tail" ""
+.MTO "test\(atexample.org" "\e\(dqQuoted\e\(dq" "\c"
+ \c
+.URL "https://quoted.example" "tail" "\c"
 
 .sp
 \c
-.URL "https://outer.example" "Before" ""
+.URL "https://outer.example" "Before" " \c"
 \fB\c
-.URL "https://outer.example" "bold" ""
+.URL "https://outer.example" "bold" " \c"
 \c
-.MTO "bold\(atexample.org" "\fIinner\fP" ""
-\c
-.URL "https://outer.example" "end" ""
-\fP\c
-.URL "https://outer.example" "after" ""
+.MTO "bold\(atexample.org" "\fIinner\fP" "\c"
+ \c
+.URL "https://outer.example" "end" "\c"
+\fP \c
+.URL "https://outer.example" "after" "\c"
 \&.
 .sp
 \c
-.URL "https://outer.example" "Before" ""
+.URL "https://outer.example" "Before" " \c"
 \c
-.URL "https://middle.example" "Middle" ""
+.URL "https://middle.example" "Middle" " \c"
 \c
-.MTO "deep\(atexample.org" "Deep" ""
-\c
-.URL "https://middle.example" "tail" ""
-\c
-.URL "https://outer.example" "after" ""
+.MTO "deep\(atexample.org" "Deep" "\c"
+ \c
+.URL "https://middle.example" "tail" "\c"
+ \c
+.URL "https://outer.example" "after" "\c"
 \&.
 .sp
 \c
-.MTO "outer\(atexample.org" "Before" ""
+.MTO "outer\(atexample.org" "Before" " \c"
 \c
-.URL "https://inner.example" "Inner" ""
-\c
-.MTO "outer\(atexample.org" "after" ""
+.URL "https://inner.example" "Inner" "\c"
+ \c
+.MTO "outer\(atexample.org" "after" "\c"
 \&.
 .sp
 \c
-.URL "https://outer.example" "Before https://bare.example after" ""
+.URL "https://outer.example" "Before https://bare.example after" "\c"
 \&.
 .sp
 \c
-.URL "https://outer.example" "Before" ""
+.URL "https://outer.example" "Before" " \c"
 \c
-.MTO "empty\(atexample.org" "" ""
-\c
-.URL "https://outer.example" "after" ""
+.MTO "empty\(atexample.org" "" "\c"
+ \c
+.URL "https://outer.example" "after" "\c"
 \&.
 .sp
 \c
-.MTO "first\(atexample.org" "First" ""
-\c
-.URL "https://outer.example" "after" ""
+.MTO "first\(atexample.org" "First" "\c"
+ \c
+.URL "https://outer.example" "after" "\c"
 
 .sp
 \c
-.MTO "only\(atexample.org" "Only" ""
+.MTO "only\(atexample.org" "Only" "\c"
 
 .sp
 \fB\c
-.MTO "styled\(atexample.org" "Styled only" ""
+.MTO "styled\(atexample.org" "Styled only" "\c"
 \fP
 .sp
 \fI\c
-.MTO "role\(atexample.org" "Role only" ""
+.MTO "role\(atexample.org" "Role only" "\c"
 \fP
 .sp
 \c
-.URL "https://outer.example" "Before" ""
+.URL "https://outer.example" "Before" " \c"
 \c
-.MTO "test\(atexample.org" "Inner" ",after"
+.MTO "test\(atexample.org" "Inner" "\c"
+\c
+.URL "https://outer.example" ",after" "\c"
 \&.
 .sp
 \c
-.URL "https://outer.example" "Before" ""
+.URL "https://outer.example" "Before" " \c"
 \c
-.MTO "test\(atexample.org" "Inner" ""
+.MTO "test\(atexample.org" "Inner" "\c"
 \fB\c
-.URL "https://adjacent.example" "Adjacent" ""
-\fP\c
-.URL "https://outer.example" "after" ""
+.URL "https://adjacent.example" "Adjacent" "\c"
+\fP \c
+.URL "https://outer.example" "after" "\c"
 \&.
 .sp
 \c
-.URL "https://outer.example" "Before Explicit and Target" ""
+.URL "https://outer.example" "Before Explicit and Target" " \c"
 \c
-.MTO "title\(atexample.org" "Title link" ""
-\c
-.URL "https://outer.example" "after" ""
+.MTO "title\(atexample.org" "Title link" "\c"
+ \c
+.URL "https://outer.example" "after" "\c"
 \&.
 .sp
 Before \c
-.MTO "ref\(atexample.org" "Inner" ""
-after
+.MTO "ref\(atexample.org" "Inner" "\c"
+ after
 .sp
 \c
-.URL "https://outer.example" "Before [1]" ""
+.URL "https://outer.example" "Before [1]" " \c"
 \c
-.MTO "test\(atexample.org" "Inner" ""
-\c
-.URL "https://outer.example" "after" ""
+.MTO "test\(atexample.org" "Inner" "\c"
+ \c
+.URL "https://outer.example" "after" "\c"
 \&.
 .sp
 \c
-.URL "https://outer.example" "Début" ""
+.URL "https://outer.example" "Début" " \c"
 \c
-.URL "https://unicode.example" "Été & soleil" ""
-\c
-.URL "https://outer.example" "fin" ""
+.URL "https://unicode.example" "Été & soleil" "\c"
+ \c
+.URL "https://outer.example" "fin" "\c"
 \&.
 .SS "Target Title link"
 .sp
 See Target \c
-.MTO "title\(atexample.org" "Title link" ""
+.MTO "title\(atexample.org" "Title link" "\c"
 , Outer, Only, and Anchor\&.
 .sp
 \c
-.URL "https://outer.example" "Before" ""
+.URL "https://outer.example" "Before" " \c"
 \c
 .URL "https://image.example" "[Picture]" "\c"
-\c
-.URL "https://outer.example" "after" ""
+ \c
+.URL "https://outer.example" "after" "\c"
 \&.
 .sp
 \c
-.URL "https://outer.example" "Before" ""
+.URL "https://outer.example" "Before" " \c"
 \fB\c
-.URL "https://outer.example" "bold Index" ""
+.URL "https://outer.example" "bold Index" " \c"
 \c
-.MTO "index\(atexample.org" "Inner" ""
-\fP\c
-.URL "https://outer.example" "after" ""
+.MTO "index\(atexample.org" "Inner" "\c"
+\fP  \c
+.URL "https://outer.example" "after" "\c"
 \&.
 .sp
 Ordinary \c
-.URL "https://control.example" "Control" ""
-and \c
-.MTO "control\(atexample.org" "Mail" "\&."
-
+.URL "https://control.example" "Control" "\c"
+ and \c
+.MTO "control\(atexample.org" "Mail" "\c"
+\&.
 .nf
 link:https://literal.example[Outer mailto:literal@example.org[Inner] tail]
 .fi

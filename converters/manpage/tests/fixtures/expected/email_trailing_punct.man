@@ -32,53 +32,53 @@ email\-test \- test email autolink trailing punctuation
 .SH "DESCRIPTION"
 .sp
 Contact \c
-.MTO "user\(atexample.com" "" "\&."
-
+.MTO "user\(atexample.com" "" "\c"
+\&.
 .sp
 In parentheses (\c
-.MTO "user\(atexample.com" "" ")"
-
+.MTO "user\(atexample.com" "" "\c"
+)
 .sp
 No trailing: \c
-.MTO "user\(atexample.com" "" ""
+.MTO "user\(atexample.com" "" "\c"
 
 .sp
 URL should not capture: \c
-.URL "https://example.com" "" ""
+.URL "https://example.com" "" "\c"
 \&.
 .sp
 Multiple trailing: \c
-.MTO "user\(atexample.com" "" "\&.,;"
-
+.MTO "user\(atexample.com" "" "\c"
+\&.,;
 .sp
 In braces {\c
-.MTO "user\(atexample.com" "" "}"
-
+.MTO "user\(atexample.com" "" "\c"
+}
 .sp
 In quotes "\c
-.MTO "user\(atexample.com" "" "\(dq"
-
+.MTO "user\(atexample.com" "" "\c"
+"
 .sp
 Exclamation: \c
-.MTO "user\(atexample.com" "" "!"
-
+.MTO "user\(atexample.com" "" "\c"
+!
 .sp
 Punct then bold: \c
-.MTO "user\(atexample.com" "" "\&.\fBbold\fP"
-text
+.MTO "user\(atexample.com" "" "\c"
+\&.\fBbold\fP text
 .sp
 Space then text: \c
-.MTO "user\(atexample.com" "" ""
-more text here
+.MTO "user\(atexample.com" "" "\c"
+ more text here
 .sp
 Explicit mailto: \c
-.MTO "user\(atexample.com" "User" "\&."
-
+.MTO "user\(atexample.com" "User" "\c"
+\&.
 .sp
 Explicit with trailing paren: (\c
-.MTO "user\(atexample.com" "User" ")"
-
+.MTO "user\(atexample.com" "User" "\c"
+)
 .sp
 Explicit no trailing: \c
-.MTO "user\(atexample.com" "User" ""
+.MTO "user\(atexample.com" "User" "\c"
 

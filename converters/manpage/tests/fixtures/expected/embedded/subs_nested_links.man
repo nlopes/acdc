@@ -9,11 +9,11 @@ Before Inner after
 link:https://disabled.example[Before mailto:disabled@example.org[Inner] after]
 .sp
 \c
-.URL "https://pass.example" "Before" ""
+.URL "https://pass.example" "Before" " \c"
 \c
-.MTO "pass\(atexample.org" "Inner" ""
-\c
-.URL "https://pass.example" "after" ""
+.MTO "pass\(atexample.org" "Inner" "\c"
+ \c
+.URL "https://pass.example" "after" "\c"
 
 .EX
 link:https://disabled.example[Before mailto:disabled@example.org[Inner] after]

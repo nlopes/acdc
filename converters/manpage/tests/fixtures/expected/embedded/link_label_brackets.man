@@ -1,98 +1,98 @@
 .sp
 Before \c
-.URL "https://example.org" "One ] two" ""
-after.
+.URL "https://example.org" "One ] two" "\c"
+ after.
 .sp
 Before \c
-.URL "https://example.org" "One ] two" ""
-and \c
-.MTO "test\(atexample.org" "Mail ] label" "\&."
+.URL "https://example.org" "One ] two" "\c"
+ and \c
+.MTO "test\(atexample.org" "Mail ] label" "\c"
+\&.
+.sp
+\c
+.URL "guide.html" "Relative ] label" "\c"
 
 .sp
 \c
-.URL "guide.html" "Relative ] label" ""
+.URL "https://example.org" "\fBBold ] label\fP and \fIitalic\fP" "\c"
 
 .sp
 \c
-.URL "https://example.org" "\fBBold ] label\fP and \fIitalic\fP" ""
+.URL "https://example.org" "Label ] tail" "\c"
 
 .sp
 \c
-.URL "https://example.org" "Label ] tail" ""
+.URL "https://example.org" "Quoted ] label" "\c"
 
 .sp
 \c
-.URL "https://example.org" "Quoted ] label" ""
+.URL "https://example.org" "Quoted ] label" "\c"
 
 .sp
 \c
-.URL "https://example.org" "Quoted ] label" ""
-
-.sp
-\c
-.URL "https://example.org" "Window ] label" ""
+.URL "https://example.org" "Window ] label" "\c"
 
 .sp
 α \c
-.URL "https://example.org" "é ] café" ""
-ω.
+.URL "https://example.org" "é ] café" "\c"
+ ω.
 .sp
 \c
-.URL "https://example.org" "Line ] two" ""
+.URL "https://example.org" "Line ] two" "\c"
 
 .sp
 \c
-.URL "https://example.org" "Expanded ] tail" ""
+.URL "https://example.org" "Expanded ] tail" "\c"
 
 .sp
 \c
-.URL "https://example.org" "Comma, ] label" ""
+.URL "https://example.org" "Comma, ] label" "\c"
 
 .sp
 \c
-.URL "https://example.org" "]first" ""
-and \c
-.URL "https://example.org" "]" ""
+.URL "https://example.org" "]first" "\c"
+ and \c
+.URL "https://example.org" "]" "\c"
 \&.
 .sp
 \c
-.URL "https://example.org" "One ]] two" ""
+.URL "https://example.org" "One ]] two" "\c"
 
 .sp
 \c
-.URL "https://example.org" "One [two] three" ""
+.URL "https://example.org" "One [two] three" "\c"
 
 .sp
 \c
-.URL "https://example.org" "One ] two" ""
-\c
-.URL "https://example.org" "One \e] two" ""
-\c
-.URL "https://example.org" "One \e\e] two" ""
-\c
-.URL "https://example.org" "One \e\e\e] two" ""
+.URL "https://example.org" "One ] two" "\c"
+ \c
+.URL "https://example.org" "One \e] two" "\c"
+ \c
+.URL "https://example.org" "One \e\e] two" "\c"
+ \c
+.URL "https://example.org" "One \e\e\e] two" "\c"
 
 .sp
 Unfinished: link:\c
-.URL "https://example.org" "" ""
+.URL "https://example.org" "" "\c"
 [Label \e] tail.
 .sp
 Escaped: \e\c
-.URL "https://example.org" "One ] two" ""
+.URL "https://example.org" "One ] two" "\c"
 \&.
 .sp
 Control: \c
-.URL "https://example.org" "Plain" ""
-and \c
-.URL "https://example.org" "One [two] three" ""
+.URL "https://example.org" "Plain" "\c"
+ and \c
+.URL "https://example.org" "One [two] three" "\c"
 \&.
 .sp
 \c
-.URL "https://example.org" "One ] term two" ""
+.URL "https://example.org" "One ] term two" "\c"
 
 .sp
 \c
-.URL "https://example.org" "One ] [1] two" ""
+.URL "https://example.org" "One ] [1] two" "\c"
 
 .sp
 Reuse [1]\&.

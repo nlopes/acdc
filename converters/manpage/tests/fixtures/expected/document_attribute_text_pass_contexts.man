@@ -36,7 +36,7 @@ T01 <tag> & {name} | Early
 T02 \fB<tag> & {name}\fP | \fI<tag> & {name}\fP | \f(CR<tag> & {name}\fP
 .sp
 T03 \c
-.URL "https://example.org" "<tag> & {name}" ""
+.URL "https://example.org" "<tag> & {name}" "\c"
 
 .sp
 \fBT04 <tag> & {name}\fP

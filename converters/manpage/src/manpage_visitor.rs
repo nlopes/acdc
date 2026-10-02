@@ -16,7 +16,7 @@ use acdc_parser::{
 use crate::{
     Error, Processor,
     escape::{EscapeMode, escape_roff_macro_argument, manify},
-    inlines::{LinkLabel, contains_link},
+    inlines::LinkLabel,
 };
 
 #[derive(Clone, Copy)]
@@ -42,7 +42,7 @@ pub struct ManpageVisitor<'a, 'd, W: Write> {
     pub(crate) list_depth: usize,
     /// Whether the current section supplies the manpage name metadata.
     pub(crate) in_name_section: bool,
-    /// Strip ASCII indentation from the next text node after a link macro or hard break.
+    /// Strip ASCII indentation from the next text node after a hard break.
     pub(crate) strip_next_leading_space: bool,
     /// Whether we are inside an inline formatting span (bold, italic, etc.).
     /// When true, em-dash boundary replacement at string start/end is suppressed.
@@ -170,76 +170,6 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
         writeln!(self.writer_mut(), "\\fP")?;
         writeln!(self.writer_mut(), ".br")?;
         Ok(())
-    }
-
-    /// Collect trailing content for a mailto autolink.
-    ///
-    /// Collects and renders all inline nodes following the mailto until whitespace
-    /// is encountered (in `PlainText`). Returns:
-    /// - The rendered trailing string
-    /// - The number of fully consumed nodes to skip
-    /// - The number of bytes consumed from a partially consumed `PlainText` (0 if none)
-    fn collect_trailing_for_mailto(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        nodes: &[InlineNode],
-    ) -> Result<(String, usize, usize), Error> {
-        let mut buf = Vec::new();
-        let processor = self.processor;
-        let mut trailing_visitor =
-            ManpageVisitor::new(&mut buf, processor, self.diagnostics.reborrow());
-        let mut skip_count = 0;
-        let mut partial_bytes = 0;
-
-        for next_node in nodes {
-            // Trailing punctuation is a macro argument; another link needs its own line.
-            if contains_link(next_node) {
-                break;
-            }
-            match next_node {
-                InlineNode::PlainText(text) => {
-                    // Stop if text starts with whitespace
-                    if text.content.starts_with(char::is_whitespace) {
-                        break;
-                    }
-                    // If text contains whitespace, render only up to it and stop
-                    if let Some(ws_pos) = text.content.find(char::is_whitespace) {
-                        let partial = &text.content[..ws_pos];
-                        let escaped = manify(partial, EscapeMode::Collapse);
-                        write!(trailing_visitor.writer, "{escaped}")?;
-                        // Record how many bytes we consumed from this node
-                        partial_bytes = ws_pos;
-                        break;
-                    }
-                    let escaped = manify(text.content, EscapeMode::Collapse);
-                    write!(trailing_visitor.writer, "{escaped}")?;
-                    skip_count += 1;
-                }
-                // Render formatted text nodes
-                InlineNode::BoldText(_)
-                | InlineNode::ItalicText(_)
-                | InlineNode::MonospaceText(_)
-                | InlineNode::HighlightText(_)
-                | InlineNode::SubscriptText(_)
-                | InlineNode::SuperscriptText(_)
-                | InlineNode::CurvedQuotationText(_)
-                | InlineNode::CurvedApostropheText(_) => {
-                    trailing_visitor.visit_inline_node(traversal, next_node)?;
-                    skip_count += 1;
-                }
-                // Stop on these node types
-                InlineNode::RawText(_)
-                | InlineNode::VerbatimText(_)
-                | InlineNode::StandaloneCurvedApostrophe(_)
-                | InlineNode::LineBreak(_)
-                | InlineNode::InlineAnchor(_)
-                | InlineNode::Macro(_)
-                | _ => break,
-            }
-        }
-
-        let trailing = String::from_utf8_lossy(&buf).to_string();
-        Ok((trailing, skip_count, partial_bytes))
     }
 }
 
@@ -506,9 +436,8 @@ impl<'a, W: Write> Visitor<'a> for ManpageVisitor<'a, '_, W> {
         let previous_boundaries = self.text_boundaries;
         let last = nodes.len().saturating_sub(1);
         let result = (|| {
-            let mut i = 0;
             let mut after_hard_break = false;
-            while i < nodes.len() {
+            for (i, node) in nodes.iter().enumerate() {
                 let follows_break =
                     i > 0 && matches!(nodes.get(i - 1), Some(InlineNode::LineBreak(_)));
                 let precedes_break = matches!(nodes.get(i + 1), Some(InlineNode::LineBreak(_)));
@@ -522,9 +451,6 @@ impl<'a, W: Write> Visitor<'a> for ManpageVisitor<'a, '_, W> {
                             && previous_boundaries.at_paragraph_end()
                             && i == last),
                 );
-                let Some(node) = nodes.get(i) else {
-                    break;
-                };
                 if after_hard_break
                     && matches!(node, InlineNode::PlainText(_) | InlineNode::RawText(_))
                 {
@@ -535,74 +461,7 @@ impl<'a, W: Write> Visitor<'a> for ManpageVisitor<'a, '_, W> {
                 after_hard_break =
                     matches!(node, InlineNode::LineBreak(_)) || (after_hard_break && invisible);
 
-                // Check if this is a mailto autolink - collect all trailing non-whitespace
-                if let InlineNode::Macro(InlineMacro::Autolink(al)) = node
-                    && al.url.to_string().starts_with("mailto:")
-                {
-                    let (trailing, skip_count, partial_bytes) = self.collect_trailing_for_mailto(
-                        traversal,
-                        nodes.get(i + 1..).unwrap_or_default(),
-                    )?;
-
-                    self.write_autolink_with_trailing(al, &trailing)?;
-                    i += 1 + skip_count;
-
-                    // If a PlainText node was partially consumed, render only the remainder
-                    if partial_bytes > 0
-                        && let Some(InlineNode::PlainText(text)) = nodes.get(i)
-                    {
-                        let remaining = &text.content[partial_bytes..];
-                        let content = if self.strip_next_leading_space {
-                            self.strip_next_leading_space = false;
-                            remaining.trim_start_matches(|character: char| {
-                                character.is_ascii_whitespace()
-                            })
-                        } else {
-                            remaining
-                        };
-                        if !content.is_empty() {
-                            let escaped = manify(content, EscapeMode::Normalize);
-                            write!(self.writer_mut(), "{escaped}")?;
-                        }
-                        i += 1;
-                    }
-                    continue;
-                }
-
-                // Check if this is an explicit mailto macro - collect trailing non-whitespace
-                if let InlineNode::Macro(InlineMacro::Mailto(mailto)) = node {
-                    let (trailing, skip_count, partial_bytes) = self.collect_trailing_for_mailto(
-                        traversal,
-                        nodes.get(i + 1..).unwrap_or_default(),
-                    )?;
-
-                    self.write_mailto_with_trailing(traversal, mailto, &trailing)?;
-                    i += 1 + skip_count;
-
-                    // If a PlainText node was partially consumed, render only the remainder
-                    if partial_bytes > 0
-                        && let Some(InlineNode::PlainText(text)) = nodes.get(i)
-                    {
-                        let remaining = &text.content[partial_bytes..];
-                        let content = if self.strip_next_leading_space {
-                            self.strip_next_leading_space = false;
-                            remaining.trim_start_matches(|character: char| {
-                                character.is_ascii_whitespace()
-                            })
-                        } else {
-                            remaining
-                        };
-                        if !content.is_empty() {
-                            let escaped = manify(content, EscapeMode::Normalize);
-                            write!(self.writer_mut(), "{escaped}")?;
-                        }
-                        i += 1;
-                    }
-                    continue;
-                }
-
                 self.visit_inline_node(traversal, node)?;
-                i += 1;
             }
             Ok(())
         })();

@@ -39,8 +39,8 @@ Frozen: \fBEarly\fP / \fBEarly\fP / \fBEarly\fP (C) / \fBLate\fP\&.
 Alias: \fBBold\fP / \fBEarly\fP / [1] / \fBBody\fP / [2] / [3]\&.
 .sp
 Macros: \c
-.URL "https://example.org" "Site" ""
-/ Term / [4] / [4]\&.
+.URL "https://example.org" "Site" "\c"
+ / Term / [4] / [4]\&.
 .sp
 Empty: ** / **\&. Escaped: \fB{name}\fP\&.
 .sp

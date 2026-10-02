@@ -174,7 +174,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         let target = escape_roff_macro_argument(target);
         let label = escape_rendered_roff_macro_argument(&label);
         if inline {
-            return self.write_link_command("URL", &target, &label, "\\c");
+            return self.write_link_command("URL", &target, &label);
         }
         writeln!(self.writer_mut(), ".URL \"{target}\" \"{label}\" \"\"")?;
         Ok(())

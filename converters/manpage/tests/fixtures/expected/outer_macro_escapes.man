@@ -51,18 +51,18 @@ E07 \efootnote:[Incomplete
 E08 \eanchor:unused[Incomplete
 .sp
 E09 \e\c
-.URL "https://example.org" "One" ""
-and \e\e\c
-.URL "https://example.org" "Two" ""
-and \e\e\e\c
-.URL "https://example.org" "Three" ""
+.URL "https://example.org" "One" "\c"
+ and \e\e\c
+.URL "https://example.org" "Two" "\c"
+ and \e\e\e\c
+.URL "https://example.org" "Three" "\c"
 \&.
 .sp
 E10 https://example.org[One] and \e\ehttps://example.org[Two] and \e\e\ehttps://example.org[Three]\&.
 .sp
 E11 \c
-.URL "https://example.org" "Label" ""
-and link:manual.html[File] and link:mailto:user@example.org[Mail]\&.
+.URL "https://example.org" "Label" "\c"
+ and link:manual.html[File] and link:mailto:user@example.org[Mail]\&.
 .sp
 E12 mailto:user@example.org[One] and \emailto:user@example.org[Two]\&.
 .sp

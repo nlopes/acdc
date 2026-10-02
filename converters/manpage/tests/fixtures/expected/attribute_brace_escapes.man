@@ -56,7 +56,7 @@ E11 \fB{value} and {value} and {value}\fP\&.
 E12 \f(CR{value}\fP / \f(CR{value}\fP / \f(CR{value}\fP\&.
 .sp
 E13 \c
-.URL "https://example.org" "{value} / {value} / {value}" ""
+.URL "https://example.org" "{value} / {value} / {value}" "\c"
 \&.
 .sp
 E14 [1]\&.

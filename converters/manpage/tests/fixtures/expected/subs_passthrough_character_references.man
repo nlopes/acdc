@@ -71,11 +71,11 @@ P17 \fB\(co\fP
 P18 \fB\(co\fP
 .sp
 P19 \c
-.URL "https://example.org" "" ""
+.URL "https://example.org" "" "\c"
 [\(co]
 .sp
 P20 \c
-.URL "https://example.org" "" ""
+.URL "https://example.org" "" "\c"
 [\(co]
 .sp
 P21 café \(coΩ \(co\(co

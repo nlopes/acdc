@@ -35,5 +35,5 @@ linkstyle\-test \- test custom link style
 .SH "DESCRIPTION"
 .sp
 Visit \c
-.URL "https://example.com" "" ""
-for details.
+.URL "https://example.com" "" "\c"
+ for details.

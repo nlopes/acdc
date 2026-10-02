@@ -1,0 +1,180 @@
+'\" t
+.\"     Title: link-punctuation
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-02
+.\"    Manual: Link punctuation
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "LINK\-PUNCTUATION" "1" "2026-10-02" "acdc" "Link punctuation"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+link\-punctuation \- preserve inline link boundaries
+.SH "DESCRIPTION"
+.sp
+P01 \c
+.URL "https://example.org" "Label" "\c"
+\&.
+.sp
+P02 \c
+.URL "https://example.org" "Label" "\c"
+, next.
+.sp
+P03 (\c
+.URL "https://example.org" "" "\c"
+).
+.sp
+P04 \c
+.MTO "test\(atexample.org" "Mail" "\c"
+!
+.sp
+P05 \c
+.MTO "test\(atexample.org" "" "\c"
+\&.
+.sp
+P06 \c
+.URL "https://example.org" "Label" "\c"
+,;:!?
+.sp
+P07 \c
+.URL "https://example.org" "Label" "\c"
+suffix.
+.sp
+P08 \c
+.URL "https://example.org" "Label" "\c"
+ \fBbold\fP\&.
+.sp
+P09 \c
+.URL "https://example.org" "Label" "\c"
+\fBbold\fP\&.
+.sp
+P10 \c
+.URL "https://example.org" "Label" "\c"
+\&.
+.sp
+P11 \c
+.URL "https://example.org" "Label" "\c"
+\&.
+.sp
+P12 \c
+.URL "https://example.org" "Label" "\c"
+[1]\&.
+.sp
+P13 \c
+.URL "https://example.org" "Label" "\c"
+\&.
+.sp
+P14 \c
+.URL "https://example.org" "Label" "\c"
+\&.
+.sp
+P15 \c
+.URL "https://example.org" "Label" "\c"
+»
+.sp
+P16 \c
+.URL "https://example.org" "Label" "\c"
+\ next.
+.sp
+P17 \c
+.URL "https://example.org" "Label" "\c"
+
+next line.
+.sp
+P18 \c
+.URL "https://example.org" "Label" "\c"
+
+.br
+next line.
+.sp
+P19 \fB\c
+.URL "https://example.org" "Label" "\c"
+\&.\fP
+.sp
+P20 \c
+.URL "manual.txt" "Manual" "\c"
+\&.
+.sp
+P21 \c
+.URL "https://example.org" "" "\c"
+\&.
+.sp
+P22 \c
+.URL "https://example.org" "A \(dqquote\(dq and \epath" "\c"
+\etail.
+.sp
+P23 \c
+.URL "https://example.org" "Label" "\c"
+\c
+.URL "https://second.example" "Second" "\c"
+\&.
+.sp
+P24 \c
+.URL "https://example.org" "Label" "\c"
+ \c
+.URL "https://second.example" "Second" "\c"
+\&.
+.sp
+P25 \c
+.MTO "test\(atexample.org" "Mail" "\c"
+\(co.
+.sp
+P26 \c
+.MTO "test\(atexample.org" "Mail" "\c"
+Word\&.
+.sp
+P27 \c
+.MTO "test\(atexample.org" "Mail" "\c"
+ (C)\&.
+.sp
+P28 \c
+.URL "https://example.org" "Label" "\c"
+
+.sp
+Next paragraph.
+.sp
+P29 \c
+.URL "https://example.org" "Label" "\c"
+ \fIitalic\fP and \f(CRcode\fP\&.
+.sp
+P30 \c
+.MTO "test\(atexample.org" "Mail" "\c"
+! More.
+.sp
+P31 \c
+.MTO "test\(atexample.org" "Mail" "\c"
+[1]\&.
+.sp
+P32 \c
+.URL "https://example.org" "\fIQuoted label\fP" "\c"
+\&.
+.sp
+P33 (\c
+.URL "https://example.org" "" "\c"
+)after.
+.sp
+P34 \c
+.URL "https://example.org" "Label" "\c"
+\&.
+.SH "NOTES"
+.IP [1] 4
+Note text.

@@ -26,7 +26,7 @@ Text [1]\&.
 Before after\&.
 .sp
 \c
-.URL "https://example.org" "Before after" ""
+.URL "https://example.org" "Before after" "\c"
 \&.
 .sp
 See Inner label and URL label\&.

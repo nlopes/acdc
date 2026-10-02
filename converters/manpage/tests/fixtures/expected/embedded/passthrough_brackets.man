@@ -1,13 +1,13 @@
 .sp
 Before \c
-.URL "https://example.org" "Label" ""
-after.
+.URL "https://example.org" "Label" "\c"
+ after.
 .sp
 α \c
-.URL "https://example.org" "é" ""
-/ \c
-.URL "https://example.net" "東京" ""
-ω.
+.URL "https://example.org" "é" "\c"
+ / \c
+.URL "https://example.net" "東京" "\c"
+ ω.
 .sp
 Destination.
 .sp
@@ -22,39 +22,40 @@ Before one]two after three]four\&.
 Before \fBone]two\fP after.
 .sp
 \c
-.URL "https://example.org" "Expanded" ""
+.URL "https://example.org" "Expanded" "\c"
 
 .sp
 \c
-.URL "https://example.org" "Expanded" ""
+.URL "https://example.org" "Expanded" "\c"
 
 .sp
 \c
-.URL "https://example.org" "Label" ""
+.URL "https://example.org" "Label" "\c"
 
 .sp
 link:\c
-.URL "https://example.org" "" ""
+.URL "https://example.org" "" "\c"
 [Label]
 .sp
 one]two Expanded term
 .sp
 \c
-.URL "https://example.org" "One" ""
+.URL "https://example.org" "One" "\c"
+
 \c
-.URL "https://example.net" "Two" ""
+.URL "https://example.net" "Two" "\c"
 
 .sp
  ] \c
-.URL "https://example.org" "" ""
+.URL "https://example.org" "" "\c"
 
 .sp
 Unescaped inner closing bracket: link:\c
-.URL "https://example.org" "" ""
+.URL "https://example.org" "" "\c"
 [Label].
 .sp
 Unfinished passthrough: pass:m[link:\c
-.URL "https://example.org" "" ""
+.URL "https://example.org" "" "\c"
 [Label\e] after.
 .sp
 Escaped passthrough: pass:m[link:https://example.org[Label\e]]\&.

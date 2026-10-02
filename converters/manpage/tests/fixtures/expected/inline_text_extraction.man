@@ -55,7 +55,7 @@ Untitled body.
 Before the recursive section: SEE [recursive] AGAIN\&.
 .sp
 \fBExample 3. Caption with Target \fBTitle\fP and \c
-.URL "https://example.com" "a link" ""
+.URL "https://example.com" "a link" "\c"
 \fP
 .br
 .RS 4

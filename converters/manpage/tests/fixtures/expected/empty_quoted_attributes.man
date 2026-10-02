@@ -72,8 +72,8 @@ Q19 Before ** and \fB{missing}\fP after.
 Q20 Before *introduced* after.
 .sp
 Q21 Before \c
-.URL "https://example.com" "\fB\fP" ""
-after.
+.URL "https://example.com" "\fB\fP" "\c"
+ after.
 .sp
 Q22 Before x\fB\fPy and x**y after.
 .sp

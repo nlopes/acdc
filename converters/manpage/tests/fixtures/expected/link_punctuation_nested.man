@@ -1,0 +1,146 @@
+'\" t
+.\"     Title: nested-link-punctuation
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-02
+.\"    Manual: Link punctuation
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "NESTED\-LINK\-PUNCTUATION" "1" "2026-10-02" "acdc" "Link punctuation"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+nested\-link\-punctuation \- preserve split label boundaries
+.SH "DESCRIPTION"
+.sp
+N01 \c
+.URL "https://outer.example" "Before" " \c"
+\c
+.MTO "test\(atexample.org" "Inner" "\c"
+ \c
+.URL "https://outer.example" "after" "\c"
+\&.
+.sp
+N02 \c
+.URL "https://outer.example" "Before" " \c"
+\c
+.MTO "test\(atexample.org" "Inner" "\c"
+\c
+.URL "https://outer.example" ",after" "\c"
+\&.
+.sp
+N03 \c
+.URL "https://outer.example" "Before" " \c"
+\fB\c
+.URL "https://outer.example" "bold" " \c"
+\c
+.MTO "test\(atexample.org" "Inner" "\c"
+ \c
+.URL "https://outer.example" "end" "\c"
+\fP \c
+.URL "https://outer.example" "after" "\c"
+\&.
+.sp
+N04 \c
+.MTO "test\(atexample.org" "Inner" "\c"
+ \c
+.URL "https://outer.example" "after" "\c"
+\&.
+.sp
+N05 \c
+.MTO "test\(atexample.org" "Inner" "\c"
+\&.
+.sp
+N06 \c
+.MTO "first\(atexample.org" "First" "\c"
+ \c
+.MTO "second\(atexample.org" "Second" "\c"
+\&.
+.sp
+N07 \c
+.MTO "first\(atexample.org" "First" "\c"
+\c
+.MTO "second\(atexample.org" "Second" "\c"
+\&.
+.sp
+N08 \fB\c
+.URL "https://outer.example" "Before" " \c"
+\c
+.MTO "test\(atexample.org" "Inner" "\c"
+ \c
+.URL "https://outer.example" "after" "\c"
+\&.\fP
+.sp
+N09 \c
+.URL "https://outer.example" "Before" " \c"
+\c
+.MTO "test\(atexample.org" "Inner" "\c"
+ \c
+.URL "https://outer.example" "after" "\c"
+\&.
+.sp
+N10 \c
+.URL "https://outer.example" "Before [1]" " \c"
+\c
+.MTO "test\(atexample.org" "Inner" "\c"
+ \c
+.URL "https://outer.example" "after" "\c"
+\&.
+.sp
+N11 \c
+.URL "https://outer.example" "Before" " \c"
+\fB\c
+.URL "https://outer.example" "bold Term" " \c"
+\c
+.MTO "test\(atexample.org" "Inner" "\c"
+\fP  \c
+.URL "https://outer.example" "after" "\c"
+\&.
+.sp
+N12 \c
+.URL "https://outer.example" "Before" " \c"
+\c
+.URL "https://image.example" "[Picture]" "\c"
+ \c
+.URL "https://outer.example" "after" "\c"
+\&.
+.sp
+N13 \c
+.URL "https://outer.example" "Début" " \c"
+\c
+.MTO "test\(atexample.org" "Été" "\c"
+ \c
+.URL "https://outer.example" "fin" "\c"
+\&.
+.sp
+N14 \c
+.URL "https://outer.example" "Before" " \c"
+\c
+.MTO "test\(atexample.org" "Inner" "\c"
+
+\c
+.URL "https://outer.example" "after" "\c"
+\&.
+.SH "NOTES"
+.IP [1] 4
+Note with \c
+.URL "https://note.example" "Note" "\c"
+\&.

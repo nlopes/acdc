@@ -42,16 +42,17 @@ and \fIunderlined\fP text. Also curved \f(CR`double quotes'' and `single apostro
 .SS "Links and Cross References"
 .sp
 Visit \c
-.URL "https://example.com" "" ""
-for more info.
+.URL "https://example.com" "" "\c"
+ for more info.
 Email \c
-.MTO "user\(atexample.com" "" ""
-for support.
+.MTO "user\(atexample.com" "" "\c"
+ for support.
 See \c
-.URL "https://example.com" "Example Site" ""
-for details.
+.URL "https://example.com" "Example Site" "\c"
+ for details.
 Also see \c
-.MTO "admin\(atexample.com" "the admin" "\&."
+.MTO "admin\(atexample.com" "the admin" "\c"
+\&.
 Cross\-reference to OTHER SECTION\&.
 Man page style reference: git(1).
 .SS "Footnotes"

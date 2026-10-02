@@ -239,9 +239,9 @@ Single\-quoted macros.
 .RS 5
 .ll -.10i
 \c
-.URL "https://example.org" "Linked Work" ""
+.URL "https://example.org" "Linked Work" "\c"
  \(em \c
-.URL "https://example.com" "Linked Author" ""
+.URL "https://example.com" "Linked Author" "\c"
 
 .RE
 .ll

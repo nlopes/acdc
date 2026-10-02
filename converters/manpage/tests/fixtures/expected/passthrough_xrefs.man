@@ -44,7 +44,7 @@ A label keeps its own formatting: A \f(CRcode\fP label\&.
 .sp
 A reference to a level\-1 section reads as its heading, link text included:
 SEE ALSO WITH \c
-.URL "https://example.com" "A LINK" ""
+.URL "https://example.com" "A LINK" "\c"
 \&.
 .sp
 A reference inside reference text falls back to its id: SEE [recursive] AGAIN\&.

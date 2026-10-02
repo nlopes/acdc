@@ -1,0 +1,40 @@
+= nested-link-punctuation(1)
+:doctype: manpage
+:manmanual: Link punctuation
+:mansource: acdc
+:revdate: 2026-10-02
+
+== NAME
+
+nested-link-punctuation - preserve split label boundaries
+
+== DESCRIPTION
+
+N01 link:https://outer.example[Before mailto:test@example.org[Inner] after].
+
+N02 link:https://outer.example[Before mailto:test@example.org[Inner],after].
+
+N03 link:https://outer.example[Before *bold mailto:test@example.org[Inner] end* after].
+
+N04 link:https://outer.example[mailto:test@example.org[Inner] after].
+
+N05 link:https://outer.example[mailto:test@example.org[Inner]].
+
+N06 link:https://outer.example[mailto:first@example.org[First] mailto:second@example.org[Second]].
+
+N07 link:https://outer.example[mailto:first@example.org[First]mailto:second@example.org[Second]].
+
+N08 *link:https://outer.example[Before mailto:test@example.org[Inner] after].*
+
+N09 link:https://outer.example[Before mailto:test@example.org[Inner]  after].
+
+N10 link:https://outer.example[Before footnote:n[Note with https://note.example[Note].] mailto:test@example.org[Inner] after].
+
+N11 link:https://outer.example[Before *bold ((Term mailto:test@example.org[Inner]))* (((Hidden))) after].
+
+N12 link:https://outer.example[Before image:picture.svg[Picture,link=https://image.example] after].
+
+N13 link:https://outer.example[Début mailto:test@example.org[Été] fin].
+
+N14 link:https://outer.example[Before mailto:test@example.org[Inner]
+after].

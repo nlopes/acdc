@@ -214,20 +214,27 @@ pub(crate) fn contains_link(node: &InlineNode<'_>) -> bool {
 }
 
 impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
-    fn flush_link_label(&mut self, trailing: &str, finish: bool) -> Result<(), Error> {
+    fn flush_link_label(&mut self, finish: bool) -> Result<(), Error> {
         if let Some(label) = self.link_label.as_mut() {
             let text = String::from_utf8_lossy(&label.content);
-            let text = escape_rendered_roff_macro_argument(text.trim());
-            let trailing = escape_rendered_roff_macro_argument(trailing);
+            let body = text.trim_start_matches(|character: char| character.is_ascii_whitespace());
+            let leading = &text[..text.len() - body.len()];
+            let trimmed = body.trim_end_matches(|character: char| character.is_ascii_whitespace());
             // A child command must never become part of its parent's quoted argument.
-            if !text.is_empty() || (finish && !label.split) {
+            if !trimmed.is_empty() || (finish && !label.split) {
+                // Boundary spaces separate split commands, outside their visible labels.
+                let leading = if label.split { leading } else { "" };
+                let trailing = if finish { "" } else { &body[trimmed.len()..] };
+                let text = escape_rendered_roff_macro_argument(trimmed);
+                let trailing = escape_rendered_roff_macro_argument(trailing);
+                // Continue after the command; only authored spaces separate inline nodes.
                 writeln!(
                     self.writer,
-                    "\\c\n.{} \"{}\" \"{text}\" \"{trailing}\"",
+                    "{leading}\\c\n.{} \"{}\" \"{text}\" \"{trailing}\\c\"",
                     label.command, label.target
                 )?;
-            } else if finish {
-                write!(self.writer, "{trailing}")?;
+            } else if label.split && !finish {
+                write!(self.writer, "{text}")?;
             }
             label.content.clear();
             label.split = true;
@@ -239,10 +246,9 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         &mut self,
         target: String,
         mailto: bool,
-        trailing: &str,
         render: impl FnOnce(&mut Self) -> Result<(), Error>,
     ) -> Result<(), Error> {
-        self.flush_link_label("", false)?;
+        self.flush_link_label(false)?;
         let previous = self.link_label.replace(LinkLabel {
             command: if mailto { "MTO" } else { "URL" },
             target,
@@ -254,11 +260,11 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         self.strip_next_leading_space = false;
         self.text_boundaries = TextBoundaries::BOTH;
         self.in_inline_span = false;
-        let result = render(self).and_then(|()| self.flush_link_label(trailing, true));
+        let result = render(self).and_then(|()| self.flush_link_label(true));
         self.link_label = previous;
         self.text_boundaries = boundaries;
         self.in_inline_span = in_span;
-        self.strip_next_leading_space = true;
+        self.strip_next_leading_space = false;
         result
     }
 
@@ -267,14 +273,13 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         command: &str,
         target: &str,
         label: &str,
-        trailing: &str,
     ) -> Result<(), Error> {
-        self.flush_link_label("", false)?;
+        self.flush_link_label(false)?;
         writeln!(
             self.writer,
-            "\\c\n.{command} \"{target}\" \"{label}\" \"{trailing}\""
+            "\\c\n.{command} \"{target}\" \"{label}\" \"\\c\""
         )?;
-        self.strip_next_leading_space = true;
+        self.strip_next_leading_space = false;
         Ok(())
     }
 
@@ -304,14 +309,14 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     ) -> Result<(), Error> {
         // Formatting around several links belongs outside their command arguments.
         if split {
-            self.flush_link_label("", false)?;
+            self.flush_link_label(false)?;
             write!(self.writer, "{prefix}")?;
         } else {
             write!(self.writer_mut(), "{prefix}")?;
         }
         content(self)?;
         if split {
-            self.flush_link_label("", false)?;
+            self.flush_link_label(false)?;
             write!(self.writer, "{suffix}")?;
         } else {
             write!(self.writer_mut(), "{suffix}")?;
@@ -495,7 +500,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     ) -> Result<(), Error> {
         let target = link.target.to_string();
         let role = role_from_attributes(&link.attributes);
-        self.with_link_label(escape_roff_macro_argument(&target), false, "", |visitor| {
+        self.with_link_label(escape_roff_macro_argument(&target), false, |visitor| {
             let styled = !role_affixes(role.as_deref(), RoleDefault::Plain)
                 .0
                 .is_empty();
@@ -516,25 +521,11 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         mailto: &Mailto,
     ) -> Result<(), Error> {
-        self.write_mailto_with_trailing(traversal, mailto, "")
-    }
-
-    /// Write a mailto macro with explicit trailing punctuation.
-    ///
-    /// This is called from the manpage visitor's `visit_inline_nodes` when it detects
-    /// an explicit mailto macro followed by non-whitespace punctuation. The trailing
-    /// punctuation is passed to the `.MTO` macro's third argument.
-    pub(crate) fn write_mailto_with_trailing(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        mailto: &Mailto,
-        trailing: &str,
-    ) -> Result<(), Error> {
         let target = mailto.target.to_string();
         let destination = mailto_target(mailto);
         let email = escape_roff_macro_argument(mailto_fallback(&destination)).replace('@', "\\(at");
         let role = role_from_attributes(&mailto.attributes);
-        self.with_link_label(email, true, trailing, |visitor| {
+        self.with_link_label(email, true, |visitor| {
             let styled = !role_affixes(role.as_deref(), RoleDefault::Plain)
                 .0
                 .is_empty();
@@ -551,24 +542,10 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     }
 
     fn render_autolink(&mut self, autolink: &Autolink) -> Result<(), Error> {
-        self.write_autolink_with_trailing(autolink, "")
-    }
-
-    /// Write an autolink with explicit trailing punctuation.
-    ///
-    /// This is called from the manpage visitor's `visit_inline_nodes` when it detects
-    /// a mailto autolink followed by single-character punctuation. The trailing
-    /// punctuation is passed to the `.MTO` macro's third argument.
-    pub(crate) fn write_autolink_with_trailing(
-        &mut self,
-        autolink: &Autolink,
-        trailing: &str,
-    ) -> Result<(), Error> {
         let target = autolink.url.to_string();
-        let trailing = escape_rendered_roff_macro_argument(trailing);
         if let Some(email) = target.strip_prefix("mailto:") {
             let email = escape_roff_macro_argument(email).replace('@', "\\(at");
-            self.write_link_command("MTO", &email, "", &trailing)
+            self.write_link_command("MTO", &email, "")
         } else {
             let label = if autolink.hides_uri_scheme() {
                 escape_roff_macro_argument(link_fallback(&target, true))
@@ -576,7 +553,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
                 String::new()
             };
             let target = escape_roff_macro_argument(&target);
-            self.write_link_command("URL", &target, &label, &trailing)
+            self.write_link_command("URL", &target, &label)
         }
     }
 
@@ -627,7 +604,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             InlineMacro::Url(url) => {
                 let target = url.target.to_string();
                 let role = role_from_attributes(&url.attributes);
-                self.with_link_label(escape_roff_macro_argument(&target), false, "", |visitor| {
+                self.with_link_label(escape_roff_macro_argument(&target), false, |visitor| {
                     let styled = !role_affixes(role.as_deref(), RoleDefault::Plain)
                         .0
                         .is_empty();

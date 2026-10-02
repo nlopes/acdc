@@ -2,19 +2,19 @@
 Target.
 .sp
 \c
-.URL "https://example.org" "Label  tail" ""
+.URL "https://example.org" "Label  tail" "\c"
 
 .sp
 \c
-.URL "https://example.org" "Label Display tail" ""
+.URL "https://example.org" "Label Display tail" "\c"
 
 .sp
 \c
-.URL "https://example.org" "[Label]" ""
+.URL "https://example.org" "[Label]" "\c"
 
 .sp
 \c
-.URL "https://example.org" "Label [1] tail" ""
+.URL "https://example.org" "Label [1] tail" "\c"
 
 .sp
 Reuse [1]\&.

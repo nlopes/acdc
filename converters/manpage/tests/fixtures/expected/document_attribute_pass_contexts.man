@@ -32,13 +32,13 @@ attribute\-contexts \- passthrough attribute contexts
 .SH "DESCRIPTION"
 .sp
 C01 {name} | *Strong* | \c
-.URL "https://example.org" "Site" ""
+.URL "https://example.org" "Site" "\c"
 
 .sp
 C02 \fB{name}\fP | \fI{name}\fP | \f(CR{name}\fP | \fBpass:[Nested]\fP
 .sp
 C03 \c
-.URL "https://example.net" "{name}" ""
+.URL "https://example.net" "{name}" "\c"
 
 .sp
 \fBC04 {name}\fP

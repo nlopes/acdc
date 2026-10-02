@@ -45,11 +45,11 @@ mono \f(CRprimary\fP\&.
 .sp
 Substituted visible terms: plain Ada, literal *attribute bold*, and
 linked \c
-.URL "https://example.com" "Ada" ""
+.URL "https://example.com" "Ada" "\c"
 \&.
 .sp
 Direct link: direct \c
-.URL "https://example.com" "Ada" ""
+.URL "https://example.com" "Ada" "\c"
 \&.
 .sp
 Late substitutions: late Ada and \fBattribute bold\fP\&.

@@ -36,8 +36,8 @@ before prefix \fBÉva\fP / \fIItalic\fP suffix after / *Literal* / \fBÉva\fP / 
  / \fB{missing}\fP / \fB{name}\fP / \fBEarly\fP\&.
 .sp
 \c
-.URL "https://example.org" "Site" ""
-/ [1] / [2] / [3] / [3] / [3]\&.
+.URL "https://example.org" "Site" "\c"
+ / [1] / [2] / [3] / [3] / [3]\&.
 .sp
 pass:q,c[*Escaped*] / pass:a,c[{bold}] / pass:typo[*Unknown*]\&.
 .SH "NOTES"

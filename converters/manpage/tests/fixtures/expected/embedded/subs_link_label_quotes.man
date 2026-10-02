@@ -1,18 +1,18 @@
 .sp
 \c
-.URL "https://example.org" "One \(dqquote\(dq two" ""
+.URL "https://example.org" "One \(dqquote\(dq two" "\c"
 
 .sp
 \c
-.URL "https://example.org" "Expanded \(dqquote\(dq" ""
+.URL "https://example.org" "Expanded \(dqquote\(dq" "\c"
 
 .sp
 \c
-.URL "https://example.org" "Expanded \(dqquote\(dq" ""
+.URL "https://example.org" "Expanded \(dqquote\(dq" "\c"
 
 .sp
 \c
-.URL "https://example.org" "\fBBold \(dqquote\(dq label\fP" ""
+.URL "https://example.org" "\fBBold \(dqquote\(dq label\fP" "\c"
 
 .EX
 One "quote" two
@@ -21,7 +21,7 @@ One "quote" two
 .EE
 .sp
 \c
-.URL "https://example.org" "One \(dqquote\(dq ] two" ""
+.URL "https://example.org" "One \(dqquote\(dq ] two" "\c"
 
 .sp
 link:https://example.org["One \e"quote\e" two",role=green]
@@ -30,33 +30,33 @@ link:https://example.org["One \e"quote\e" two",role=green]
 .EE
 .sp
 \c
-.URL "https://example.org" "Label One \(dqquote\(dq [1] tail" ""
+.URL "https://example.org" "Label One \(dqquote\(dq [1] tail" "\c"
 
 .sp
 Reuse [1]\&.
 .sp
 \c
-.URL "https://example.org" "One \(dqquote\(dq" ""
+.URL "https://example.org" "One \(dqquote\(dq" "\c"
 
 .sp
 \c
-.URL "https://example.org" "One \e\(dqquote\e\(dq" ""
+.URL "https://example.org" "One \e\(dqquote\e\(dq" "\c"
 
 .sp
 \c
-.URL "https://example.org" "One" ""
+.URL "https://example.org" "One" "\c"
 
 .sp
 \c
-.URL "https://example.org" "\(dqOne\(dq" ""
+.URL "https://example.org" "\(dqOne\(dq" "\c"
 
 .sp
 \c
-.URL "https://example.org" "a=b" ""
+.URL "https://example.org" "a=b" "\c"
 
 .sp
 \c
-.URL "https://example.org" "\(dqa=b\(dq" ""
+.URL "https://example.org" "\(dqa=b\(dq" "\c"
 
 .SH "INDEX"
 .SS "O"
