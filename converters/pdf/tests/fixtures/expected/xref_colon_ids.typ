@@ -101,7 +101,7 @@
 
 #text("C07 ")#context link(query(<id-5f636861707465725f64657461696c73>).first().location())[#text("Chapter: Details")]#text(" and ")#context link(query(<id-6f7264696e617279>).first().location())[#text("Ordinary")]#text(".")
 
-#metadata(none) <id-3a636f6c6f6e>#text("Leading target.")
+#metadata(none)<id-3a636f6c6f6e>#text("Leading target.")
 
 #metadata(none) <id-612d622e633a64>
 #text("Mixed target.")

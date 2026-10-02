@@ -888,7 +888,8 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
 
     pub(crate) fn write_inline_anchor(&mut self, id: &str) {
         if let Some(label) = self.anchors.claim(id) {
-            let _ = write!(self.writer, "#metadata(none) <{label}>");
+            // Whitespace before the label becomes visible in inline content.
+            let _ = write!(self.writer, "#metadata(none)<{label}>");
         }
     }
 

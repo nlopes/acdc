@@ -1,0 +1,62 @@
+= anchor-spacing(1)
+:manmanual: Anchor spacing
+:mansource: acdc
+:revdate: 2026-10-02
+:marker: anchor:a13[]
+
+== Name
+anchor-spacing - invisible targets preserve text spacing
+
+== Description
+
+P01 xanchor:a01[]y.
+
+P02 https://example.org[Label]anchor:a02[].
+
+P03 x anchor:a03[]y.
+
+P04 xanchor:a04[] y.
+
+P05 x anchor:a05[] y.
+
+P06 anchor:a06[]Start.
+
+P07 Endanchor:a07[].
+
+P08 anchor:a08[]anchor:a09[]Adjacent.
+
+P09 *xanchor:a10[]y*.
+
+P10 anchor:a11[]`xy`.
+
+P11 [.underline]#xanchor:a12[]y#.
+
+P12 x{marker}y.
+
+P13 Before [#span]*Bold* after.
+
+P14 \anchor:escaped[] and pass:[anchor:raw[]].
+
+P15 caféanchor:a14[]fin.
+
+P16 x[[short]]y.
+
+P17 xanchor:wrapped[]
+y.
+
+* P18 xanchor:bullet[]y.
+
+[cols="1"]
+|===
+|P19 xanchor:cell[]y.
+|===
+
+P20 Notefootnote:[F20 xanchor:note[]y.].
+
+<<<
+
+See <<a01,One>>, <<a02,Two>>, <<a03,Three>>, <<a04,Four>>,
+<<a05,Five>>, <<a06,Six>>, <<a07,Seven>>, <<a08,Eight>>,
+<<a09,Nine>>, <<a10,Ten>>, <<a11,Eleven>>, <<a12,Twelve>>,
+<<a13,Thirteen>>, <<a14,Fourteen>>, <<span,Span>>, <<short,Short>>,
+<<wrapped,Wrapped>>, <<bullet,Bullet>>, <<cell,Cell>>, and <<note,Note>>.

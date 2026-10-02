@@ -98,6 +98,6 @@
 
 #text(size: 1.25em)[#text("See ")#context link(query(<id-73656374696f6e>).first().location())[#text("A ")#text("title")]#text(" before its definition, and ")#context link(query(<id-696e73696465>).first().location())[#text("[inside]")]#text(".")]
 
-#heading(level: 1)[#text("A ")#metadata(none) <id-696e73696465>#text("title")] <id-73656374696f6e>
+#heading(level: 1)[#text("A ")#metadata(none)<id-696e73696465>#text("title")] <id-73656374696f6e>
 
 #text("See ")#context link(query(<id-73656374696f6e>).first().location())[#text("A ")#text("title")]#text(" again and ")#context link(query(<id-696e73696465>).first().location())[#text("[inside]")]#text(".")

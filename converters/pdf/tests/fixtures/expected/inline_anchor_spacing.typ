@@ -1,7 +1,7 @@
 #set document(
-  title: "empty-quotes(1)",
+  title: "anchor-spacing(1)",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[empty-quotes(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[anchor-spacing(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -73,68 +73,58 @@
 #set page(numbering: "1")
 #counter(page).update(1)
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("empty-quotes(1)")]
+#text(size: 22pt, weight: "bold")[#text("anchor-spacing(1)")]
 ]
 #v(1em)
 
-#heading(level: 1)[#text("NAME")] <id-5f6e616d65>
+#heading(level: 1)[#text("Name")] <id-5f6e616d65>
 
-#text("empty-quotes - formatting around empty attribute references")
+#text("anchor-spacing - invisible targets preserve text spacing")
 
-#heading(level: 1)[#text("DESCRIPTION")] <id-5f6465736372697074696f6e>
+#heading(level: 1)[#text("Description")] <id-5f6465736372697074696f6e>
 
-#text("Q01 Before ")#strong[]#text(" after.")
+#text("P01 x")#metadata(none)<id-613031>#text("y.")
 
-#text("Q02 Before ")#emph[]#text(" after.")
+#text("P02 ")#link("https://example.org")[#text("Label")]#metadata(none)<id-613032>#text(".")
 
-#text("Q03 Before ")#raw("")#text(" after.")
+#text("P03 x ")#metadata(none)<id-613033>#text("y.")
 
-#text("Q04 Before ")#highlight[]#text(" after.")
+#text("P04 x")#metadata(none)<id-613034>#text(" y.")
 
-#text("Q05 Before ")#super[]#text(" after.")
+#text("P05 x ")#metadata(none)<id-613035>#text(" y.")
 
-#text("Q06 Before ")#sub[]#text(" after.")
+#text("P06 ")#metadata(none)<id-613036>#text("Start.")
 
-#text("Q07 Before ")#strong[]#text(" after.")
+#text("P07 End")#metadata(none)<id-613037>#text(".")
 
-#text("Q08 Before ")#emph[]#text(" after.")
+#text("P08 ")#metadata(none)<id-613038>#metadata(none)<id-613039>#text("Adjacent.")
 
-#text("Q09 Before ")#raw("")#text(" after.")
+#text("P09 ")#strong[#text("x")#metadata(none)<id-613130>#text("y")]#text(".")
 
-#text("Q10 Before ")#highlight[]#text(" after.")
+#text("P10 ")#metadata(none)<id-613131>#raw("xy")#text(".")
 
-#text("Q11 Before ")#strong[#emph[]]#text(" after.")
+#text("P11 ")#underline[#text("x")#metadata(none)<id-613132>#text("y")]#text(".")
 
-#text("Q12 Before ")#emph[#text("**")]#text(" after.")
+#text("P12 x")#metadata(none)<id-613133>#text("y.")
 
-#text("Q13 Before ")#strong[]#text(" after.")
+#text("P13 Before ")#metadata(none)<id-7370616e>#strong[#text("Bold")]#text(" after.")
 
-#text("Q14 Before ")#metadata(none)<id-656d7074792d6964>#strong[]#text(" after.")
+#text("P14 ")#text("anchor:escaped[]")#text(" and ")#text("anchor:raw[")#text("].")
 
-#text("Q15 Before ")#text("“")#text("”")#text(" and ")#text("‘")#text("’")#text(" after.")
+#text("P15 café")#metadata(none)<id-613134>#text("fin.")
 
-#text("Q16 Before ")#strong[]#text(" and ")#emph[]#text(" after.")
+#text("P16 x")#metadata(none)<id-73686f7274>#text("y.")
 
-#text("Q17 Before ")#strong[#text("text")]#text(" and ")#strong[#text("text")]#text(" after.")
+#text("P17 x")#metadata(none)<id-77726170706564>#text(" y.")
 
-#text("Q18 Before **, __, ##, ^^ and ~~ after.")
+  - #text("P18 x")#metadata(none)<id-62756c6c6574>#text("y.")
 
-#text("Q19 Before ")#text("*")#text("* and ")#strong[#text("{missing}")]#text(" after.")
+#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("P19 x")#metadata(none)<id-63656c6c>#text("y.")
 
-#text("Q20 Before *introduced* after.")
+])
 
-#text("Q21 Before ")#link("https://example.com")[#strong[]]#text(" after.")
+#text("P20 Note")#counter(footnote).update(0)#footnote[#text("F20 x")#metadata(none)<id-6e6f7465>#text("y.")]#text(".")
 
-#text("Q22 Before x")#strong[]#text("y and x**y after.")
+#pagebreak(weak: true)
 
-#text("Q23 Before é** and **é after.")
-
-#text("Q24 Before ")#strong[#emph[]]#text(" after.")
-
-#text("Q25 Before ")#strong[]#text(" and ")#strong[#text("text")]#text(" after.")
-
-#text("Q26 Before ")#strong[#text("**")]#text(" after.")
-
-#text("Q27 See ")#context link(query(<id-656d7074792d6964>).first().location())[#text("Empty target")]#text(".")
-
-#text("Q28 Before ")#super[#strong[]]#text(" and ")#sub[#emph[]]#text(" after.")
+#text("See ")#context link(query(<id-613031>).first().location())[#text("One")]#text(", ")#context link(query(<id-613032>).first().location())[#text("Two")]#text(", ")#context link(query(<id-613033>).first().location())[#text("Three")]#text(", ")#context link(query(<id-613034>).first().location())[#text("Four")]#text(", ")#context link(query(<id-613035>).first().location())[#text("Five")]#text(", ")#context link(query(<id-613036>).first().location())[#text("Six")]#text(", ")#context link(query(<id-613037>).first().location())[#text("Seven")]#text(", ")#context link(query(<id-613038>).first().location())[#text("Eight")]#text(", ")#context link(query(<id-613039>).first().location())[#text("Nine")]#text(", ")#context link(query(<id-613130>).first().location())[#text("Ten")]#text(", ")#context link(query(<id-613131>).first().location())[#text("Eleven")]#text(", ")#context link(query(<id-613132>).first().location())[#text("Twelve")]#text(", ")#context link(query(<id-613133>).first().location())[#text("Thirteen")]#text(", ")#context link(query(<id-613134>).first().location())[#text("Fourteen")]#text(", ")#context link(query(<id-7370616e>).first().location())[#text("Span")]#text(", ")#context link(query(<id-73686f7274>).first().location())[#text("Short")]#text(", ")#context link(query(<id-77726170706564>).first().location())[#text("Wrapped")]#text(", ")#context link(query(<id-62756c6c6574>).first().location())[#text("Bullet")]#text(", ")#context link(query(<id-63656c6c>).first().location())[#text("Cell")]#text(", and ")#context link(query(<id-6e6f7465>).first().location())[#text("Note")]#text(".")

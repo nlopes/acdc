@@ -1,0 +1,44 @@
+= code-anchor-spacing(1)
+:manmanual: Anchor spacing
+:mansource: acdc
+:revdate: 2026-10-02
+
+== Name
+code-anchor-spacing - enabled code targets preserve spacing
+
+== Description
+
+[source,text,subs=+macros]
+----
+C01 xanchor:code-joined[]y.
+C02 x anchor:code-spaced[] y.
+C03 xanchor:code-period[].
+anchor:code-only[]
+C04 End.
+----
+
+[source,text,subs="+quotes,+macros"]
+----
+C05 1anchor:code-formatted[]*Bold*.
+----
+
+[literal,subs=+macros]
+....
+  C06 xanchor:literal[]y.
+....
+
+[source,rust,linenums,subs=+macros]
+----
+// C07 xanchor:numbered[]y.
+----
+
+[source,text,subs=-macros]
+----
+C08 xanchor:disabled[]y.
+----
+
+<<<
+
+See <<code-joined,Joined>>, <<code-spaced,Spaced>>,
+<<code-period,Period>>, <<code-only,Only>>, <<code-formatted,Formatted>>,
+<<literal,Literal>>, and <<numbered,Numbered>>.

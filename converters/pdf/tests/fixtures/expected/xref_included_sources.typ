@@ -81,6 +81,6 @@
 
 #heading(level: 1)[#text("1. ")#text("Included target")] <id-696e636c756465642d746172676574>
 
-#text("Target content with ")#metadata(none) <id-646f747465642e6964>#text("an anchor.")
+#text("Target content with ")#metadata(none)<id-646f747465642e6964>#text("an anchor.")
 
 #text("Backward: ")#context link(query(<id-696e636c756465642d746172676574>).first().location())[#text("Section 1")]#text(".")

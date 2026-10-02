@@ -161,13 +161,13 @@
 
 #heading(level: 1)[#text("Preserved list anchors")] <id-5f7072657365727665645f6c6973745f616e63686f7273>
 
-  - #text("Principal text. ")#metadata(none) <id-707265736572766564>#text(" Continued principal text.")
+  - #text("Principal text. ")#metadata(none)<id-707265736572766564>#text(" Continued principal text.")
 
 #text("See ")#context link(query(<id-707265736572766564>).first().location())[#text("Preserved target")]#text(".")
 
 #heading(level: 1)[#text("Inline and escaped controls")] <id-5f696e6c696e655f616e645f657363617065645f636f6e74726f6c73>
 
-  - #metadata(none) <id-696e6c696e65>#text("Principal text. ")#metadata(none) <id-696e6c696e652d776974682d74657874>#text("More principal text. ")#text("[[escaped]]")
+  - #metadata(none)<id-696e6c696e65>#text("Principal text. ")#metadata(none)<id-696e6c696e652d776974682d74657874>#text("More principal text. ")#text("[[escaped]]")
 
 #text("See ")#context link(query(<id-696e6c696e65>).first().location())[#text("Inline target")]#text(" and ")#context link(query(<id-696e6c696e652d776974682d74657874>).first().location())[#text("[inline-with-text]")]#text(".")
 

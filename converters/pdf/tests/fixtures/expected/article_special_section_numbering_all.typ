@@ -125,7 +125,7 @@
 
 #[
 #set list(marker: box(baseline: -0.2em, rect(width: 0.24em, height: 0.24em, fill: rgb("#6b7280"))))
-  - #block(width: 100%)[#metadata(none) <id-726566>#text("[ref]")#text(" Reference")]
+  - #block(width: 100%)[#metadata(none)<id-726566>#text("[ref]")#text(" Reference")]
 ]
 
 #heading(level: 1)[#text("4. ")#text("Glossary")] <id-5f676c6f7373617279>

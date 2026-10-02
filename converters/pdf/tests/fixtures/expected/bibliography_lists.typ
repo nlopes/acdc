@@ -85,13 +85,13 @@
 #blocktitle[#text("Primary sources")]
 #[
 #set list(marker: box(baseline: -0.2em, rect(width: 0.24em, height: 0.24em, fill: rgb("#6b7280"))))
-  - #block(width: 100%)[#metadata(none) <id-7265662d61>#link(<bibref-id-7265662d61>)[#text("[ref-a]")]#text(" First reference.")]
-  - #block(width: 100%)[#metadata(none) <id-7265662d62>#link(<bibref-id-7265662d62>)[#text("[")#text("Short label")#text("]")]#text(" Second reference with a custom label.")]
-  - #block(width: 100%)[#metadata(none) <id-7265662d63>#text("[")#text("Third label")#text("]")#text(" Third reference with a custom label.")]
-  - #block(width: 100%)[#metadata(none) <id-7265662d6e756d6265726564>#link(<bibref-id-7265662d6e756d6265726564>)[#text("[")#text("1")#text("]")]#text(" A numerically labelled reference.")]
+  - #block(width: 100%)[#metadata(none)<id-7265662d61>#link(<bibref-id-7265662d61>)[#text("[ref-a]")]#text(" First reference.")]
+  - #block(width: 100%)[#metadata(none)<id-7265662d62>#link(<bibref-id-7265662d62>)[#text("[")#text("Short label")#text("]")]#text(" Second reference with a custom label.")]
+  - #block(width: 100%)[#metadata(none)<id-7265662d63>#text("[")#text("Third label")#text("]")#text(" Third reference with a custom label.")]
+  - #block(width: 100%)[#metadata(none)<id-7265662d6e756d6265726564>#link(<bibref-id-7265662d6e756d6265726564>)[#text("[")#text("1")#text("]")]#text(" A numerically labelled reference.")]
   - #block(width: 100%)[#text("[")#text("[[escaped]]")#text("] Escaped bibliography syntax remains literal.")]
-  - #block(width: 100%)[#metadata(none) <id-726567756c61722d616e63686f72>#text(" A regular inline anchor stays hidden.")]
-  - #block(width: 100%)[#metadata(none) <id-7265662d626c6f636b>#text("[ref-block]")#text(" Reference with attached content.")
+  - #block(width: 100%)[#metadata(none)<id-726567756c61722d616e63686f72>#text(" A regular inline anchor stays hidden.")]
+  - #block(width: 100%)[#metadata(none)<id-7265662d626c6f636b>#text("[ref-block]")#text(" Reference with attached content.")
 
 #text("An attached paragraph with ")#strong[#text("formatting")]#text(".")
 
@@ -102,7 +102,7 @@
 
 #[
 #set list(marker: box(baseline: -0.2em, rect(width: 0.24em, height: 0.24em, fill: rgb("#6b7280"))))
-  - #block(width: 100%)[#metadata(none) <id-7265662d6578706c69636974>#link(<bibref-id-7265662d6578706c69636974>)[#text("[ref-explicit]")]#text(" An explicitly styled bibliography entry.")]
+  - #block(width: 100%)[#metadata(none)<id-7265662d6578706c69636974>#link(<bibref-id-7265662d6578706c69636974>)[#text("[ref-explicit]")]#text(" An explicitly styled bibliography entry.")]
 ]
 
 #text("See ")#metadata(none) <bibref-id-7265662d6578706c69636974>#context link(query(<id-7265662d6578706c69636974>).first().location())[#text("[ref-explicit]")]#text(".")

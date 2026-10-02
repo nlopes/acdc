@@ -110,9 +110,9 @@
 
 #text("See ")#context link(query(<id-736861726564>).first().location())[#text("First target")]#text(".")
 
-#text("First ")#metadata(none) <id-696e6c696e65>#text("anchor and second ")#text("anchor. See ")#context link(query(<id-696e6c696e65>).first().location())[#text("[inline]")]#text(".")
+#text("First ")#metadata(none)<id-696e6c696e65>#text("anchor and second ")#text("anchor. See ")#context link(query(<id-696e6c696e65>).first().location())[#text("[inline]")]#text(".")
 
-#text("A ")#metadata(none) <id-666f726d6174746564>#strong[#text("first span")]#text(" and ")#strong[#text("second span")]#text(". See ")#context link(query(<id-666f726d6174746564>).first().location())[#text("[formatted]")]#text(".")
+#text("A ")#metadata(none)<id-666f726d6174746564>#strong[#text("first span")]#text(" and ")#strong[#text("second span")]#text(". See ")#context link(query(<id-666f726d6174746564>).first().location())[#text("[formatted]")]#text(".")
 
 #metadata(none) <id-6e6f7465>
 #callout("note")[
@@ -124,7 +124,7 @@
 
 #[
 #set list(marker: box(baseline: -0.2em, rect(width: 0.24em, height: 0.24em, fill: rgb("#6b7280"))))
-  - #block(width: 100%)[#metadata(none) <id-626962>#link(<bibref-id-626962>)[#text("[bib]")]#text(" First entry.")]
+  - #block(width: 100%)[#metadata(none)<id-626962>#link(<bibref-id-626962>)[#text("[bib]")]#text(" First entry.")]
   - #block(width: 100%)[#link(<bibref-id-626962>)[#text("[bib]")]#text(" Second entry.")]
 ]
 

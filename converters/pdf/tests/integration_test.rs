@@ -168,6 +168,79 @@ fn verbatim_quotes_preserve_pdf_destinations_and_notes() -> Result<(), Error> {
 }
 
 #[test]
+fn inline_anchor_spacing_preserves_pdf_destinations() -> Result<(), Error> {
+    let pdf = render_input(include_str!("fixtures/source/inline_anchor_spacing.adoc"))?;
+    let pages = pdf
+        .get_pages()
+        .keys()
+        .map(|page| Ok((*page, pdf.extract_text(&[*page])?)))
+        .collect::<Result<Vec<_>, Error>>()?;
+    let link_page = pages.last().ok_or("missing reference page")?.0;
+    let expected = [
+        "P01", "P02", "P03", "P04", "P05", "P06", "P07", "P08", "P08", "P09", "P10", "P11", "P12",
+        "P15", "P13", "P16", "P17", "P18", "P19", "F20",
+    ]
+    .map(|marker| {
+        pages
+            .iter()
+            .find(|(_, text)| text.contains(marker))
+            .map(|(page, _)| *page)
+            .ok_or_else(|| format!("missing anchor occurrence: {marker}").into())
+    })
+    .into_iter()
+    .collect::<Result<Vec<_>, Error>>()?;
+    assert_eq!(internal_link_pages(&pdf, link_page)?, expected);
+    Ok(())
+}
+
+#[test]
+fn inline_anchor_spacing_keeps_glyph_positions() -> Result<(), Error> {
+    // A separate bold run exposes spacing changes without cross-anchor kerning.
+    for (marked, plain) in [
+        ("1anchor:target[]**End**.", "1**End**."),
+        ("1[[target]]**End**.", "1**End**."),
+        ("1anchor:first[]anchor:second[]**End**.", "1**End**."),
+        ("1 anchor:target[]**End**.", "1 **End**."),
+        ("1anchor:target[] **End**.", "1 **End**."),
+        // An empty passthrough keeps the two authored spaces in separate text runs.
+        ("1 anchor:target[] **End**.", "1 pass:[] **End**."),
+        ("anchor:target[]**End**.", "**End**."),
+        ("1 [#target]**End**.", "1 **End**."),
+        ("1anchor:target[]`2`**End**.", "1`2`**End**."),
+        (
+            "https://example.org[1]anchor:target[]**End**.",
+            "https://example.org[1]**End**.",
+        ),
+    ] {
+        let marked_pdf = render_input(&format!("= Spacing\n\n{marked}\n"))?;
+        let plain_pdf = render_input(&format!("= Spacing\n\n{plain}\n"))?;
+        let marked_position = text_origin(&marked_pdf, 1, "End")?;
+        let plain_position = text_origin(&plain_pdf, 1, "End")?;
+        assert!(
+            (marked_position.0 - plain_position.0).abs() < 0.01
+                && (marked_position.1 - plain_position.1).abs() < 0.01,
+            "{marked}: {marked_position:?} != {plain_position:?}"
+        );
+    }
+    Ok(())
+}
+
+#[cfg(feature = "pre-spec-subs")]
+#[test]
+fn inline_anchor_spacing_in_code_keeps_pdf_destinations() -> Result<(), Error> {
+    let source = include_str!("fixtures/source/subs_inline_anchor_spacing.adoc");
+    for source in [
+        source.to_owned(),
+        source.replace(":manmanual:", ":source-highlighter: rouge\n:manmanual:"),
+    ] {
+        let pdf = render_input(&source)?;
+        assert_eq!(pdf.get_pages().len(), 2);
+        assert_eq!(internal_link_pages(&pdf, 2)?, [1; 7]);
+    }
+    Ok(())
+}
+
+#[test]
 fn index_inline_spacing_preserves_catalog_destinations() -> Result<(), Error> {
     let pdf = render_input(include_str!("fixtures/source/index_inline_spacing.adoc"))?;
     let pages = internal_link_pages(&pdf, 3)?;

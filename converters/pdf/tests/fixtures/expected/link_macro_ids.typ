@@ -79,19 +79,19 @@
 
 #text("Before: ")#context link(query(<id-6c696e6b2d6964>).first().location())[#text("[link-id]")]#text(", ")#context link(query(<id-75726c2d6964>).first().location())[#text("[url-id]")]#text(", ")#context link(query(<id-6d61696c746f2d6964>).first().location())[#text("[mailto-id]")]#text(", ")#context link(query(<id-626172652d6c696e6b2d6964>).first().location())[#text("[bare-link-id]")]#text(", ")#context link(query(<id-626172652d6d61696c746f2d6964>).first().location())[#text("[bare-mailto-id]")]#text(", and ")#context link(query(<id-6475706c69636174652d6964>).first().location())[#text("[duplicate-id]")]#text(".")
 
-#text("Explicit link: ")#metadata(none) <id-6c696e6b2d6964>#link("https://example.com")[#text("Link text")]
+#text("Explicit link: ")#metadata(none)<id-6c696e6b2d6964>#link("https://example.com")[#text("Link text")]
 
-#text("Direct URL: ")#metadata(none) <id-75726c2d6964>#link("https://example.org")[#text("URL text")]
+#text("Direct URL: ")#metadata(none)<id-75726c2d6964>#link("https://example.org")[#text("URL text")]
 
-#text("Mail link: ")#metadata(none) <id-6d61696c746f2d6964>#link("mailto:person@example.com")[#text("Mail text")]
+#text("Mail link: ")#metadata(none)<id-6d61696c746f2d6964>#link("mailto:person@example.com")[#text("Mail text")]
 
 #text("Mail text without a comma: ")#link("mailto:nocomma@example.com")[#text("id=not-mailto-id")]
 
-#text("Bare link: ")#metadata(none) <id-626172652d6c696e6b2d6964>#link("https://example.net")[#text("https://example.net")]
+#text("Bare link: ")#metadata(none)<id-626172652d6c696e6b2d6964>#link("https://example.net")[#text("https://example.net")]
 
-#text("Bare mail link: ")#metadata(none) <id-626172652d6d61696c746f2d6964>#link("mailto:other@example.com")[#text("other@example.com")]
+#text("Bare mail link: ")#metadata(none)<id-626172652d6d61696c746f2d6964>#link("mailto:other@example.com")[#text("other@example.com")]
 
-#text("First duplicate: ")#metadata(none) <id-6475706c69636174652d6964>#link("https://example.com/first")[#text("First")]
+#text("First duplicate: ")#metadata(none)<id-6475706c69636174652d6964>#link("https://example.com/first")[#text("First")]
 
 #text("Second duplicate: ")#link("https://example.com/second")[#text("Second")]
 

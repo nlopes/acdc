@@ -79,31 +79,31 @@
 
 #text("See ")#context link(query(<id-746172676574>).first().location())[#text("Target ")#strong[#text("label")]]#text(", ")#context link(query(<id-656d707479>).first().location())[#text("[empty]")]#text(", ")#context link(query(<id-657870616e646564>).first().location())[#text("Expanded label")]#text(", ")#context link(query(<id-62756c6c6574>).first().location())[#text("Bullet label")]#text(", ")#context link(query(<id-7465726d>).first().location())[#text("Term label")]#text(", ")#context link(query(<id-63656c6c>).first().location())[#text("Cell label")]#text(", and ")#context link(query(<id-6e6f7465>).first().location())[#text("Note label")]#text(".")
 
-#metadata(none) <id-746172676574>#text("Destination text.")
+#metadata(none)<id-746172676574>#text("Destination text.")
 
-#metadata(none) <id-656d707479>#text("Empty label.")
+#metadata(none)<id-656d707479>#text("Empty label.")
 
-#metadata(none) <id-657870616e646564>#text("Expanded target.")
+#metadata(none)<id-657870616e646564>#text("Expanded target.")
 
-  - #metadata(none) <id-62756c6c6574>#text("List item.")
+  - #metadata(none)<id-62756c6c6574>#text("List item.")
 
 #block(width: 100%, above: 0pt, below: 0.5em)[
-#text(weight: "bold")[#metadata(none) <id-7465726d>#text("Term")]
+#text(weight: "bold")[#metadata(none)<id-7465726d>#text("Term")]
 #block(above: 0pt, below: 0pt, inset: (left: 1.5em))[#text("Description.")]
 ]
 
-#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#metadata(none) <id-63656c6c>#text("Cell text.")
+#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#metadata(none)<id-63656c6c>#text("Cell text.")
 
 ])
 
-#text("Text ")#counter(footnote).update(0)#footnote[#metadata(none) <id-6e6f7465>#text("Footnote body.")]#text(".")
+#text("Text ")#counter(footnote).update(0)#footnote[#metadata(none)<id-6e6f7465>#text("Footnote body.")]#text(".")
 
-#context link(query(<id-746172676574>).first().location())[#text("Before ")#metadata(none) <id-787265662d6c6162656c>#text("after")]#text(".")
+#context link(query(<id-746172676574>).first().location())[#text("Before ")#metadata(none)<id-787265662d6c6162656c>#text("after")]#text(".")
 
-#link("https://example.org")[#text("Before ")#metadata(none) <id-75726c2d6c6162656c>#text("after")]#text(".")
+#link("https://example.org")[#text("Before ")#metadata(none)<id-75726c2d6c6162656c>#text("after")]#text(".")
 
 #text("See ")#context link(query(<id-787265662d6c6162656c>).first().location())[#text("Inner label")]#text(" and ")#context link(query(<id-75726c2d6c6162656c>).first().location())[#text("URL label")]#text(".")
 
-#metadata(none) <id-6669727374>#metadata(none) <id-7365636f6e64>#text("Adjacent anchors.")
+#metadata(none)<id-6669727374>#metadata(none)<id-7365636f6e64>#text("Adjacent anchors.")
 
 #text("See ")#context link(query(<id-6669727374>).first().location())[#text("First")]#text(", ")#context link(query(<id-7365636f6e64>).first().location())[#text("Second")]#text(", and ")#context link(query(<id-746172676574>).first().location())[#text("Target ")#strong[#text("label")]]#text(".")

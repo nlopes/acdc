@@ -213,8 +213,8 @@
 #block(above: 0pt, below: 0pt, inset: (left: 1.5em))[#text("Definition")]
 ]
 
-#text("Paragraph with ")#metadata(none) <id-696e6c696e652d6669727374>#text("one anchor and ")#metadata(none) <id-696e6c696e652d7365636f6e64>#text("a second anchor.")
+#text("Paragraph with ")#metadata(none)<id-696e6c696e652d6669727374>#text("one anchor and ")#metadata(none)<id-696e6c696e652d7365636f6e64>#text("a second anchor.")
 
-  - #text("List item with ")#metadata(none) <id-696e6c696e652d6c697374>#text("an anchor.")
+  - #text("List item with ")#metadata(none)<id-696e6c696e652d6c697374>#text("an anchor.")
 
 #text("See ")#context link(query(<id-696e6c696e652d6669727374>).first().location())[#text("Inline First")]#text(", ")#context link(query(<id-696e6c696e652d7365636f6e64>).first().location())[#text("Inline Second")]#text(", and ")#context link(query(<id-696e6c696e652d6c697374>).first().location())[#text("Inline List")]#text(".")

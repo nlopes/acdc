@@ -131,7 +131,7 @@
 
 #text(fill: rgb("#006000"))[#link("https://example.org")[#text("One ")#text("\"")#text("quote")#text("\"")#text(" ")#metadata(none)<__indexterm-1>#text("term")#text(" two")]]
 
-#text(fill: rgb("#006000"))[#link("https://example.org")[#text("One ")#text("\"")#text("quote")#text("\"")#text(" ")#metadata(none) <id-746172676574>#text(" two")]]
+#text(fill: rgb("#006000"))[#link("https://example.org")[#text("One ")#text("\"")#text("quote")#text("\"")#text(" ")#metadata(none)<id-746172676574>#text(" two")]]
 
 #text("See ")#context link(query(<id-746172676574>).first().location())[#text("Target")]#text(".")
 

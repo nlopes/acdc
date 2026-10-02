@@ -77,19 +77,19 @@
 ]
 #v(1em)
 
-#metadata(none) <id-636166c3a9>#text("Unicode. ")#metadata(none) <id-e69db1e4baac>#text("More Unicode.")
+#metadata(none)<id-636166c3a9>#text("Unicode. ")#metadata(none)<id-e69db1e4baac>#text("More Unicode.")
 
-#metadata(none) <id-63616665cc81>#text("Combining mark. ")#metadata(none) <id-61e280bf62>#text("Connector punctuation.")
+#metadata(none)<id-63616665cc81>#text("Combining mark. ")#metadata(none)<id-61e280bf62>#text("Connector punctuation.")
 
-#metadata(none) <id-3a636f6c6f6e>#metadata(none) <id-5f756e646572>#metadata(none) <id-612d622e633a64>#text("Targets.")
+#metadata(none)<id-3a636f6c6f6e>#metadata(none)<id-5f756e646572>#metadata(none)<id-612d622e633a64>#text("Targets.")
 
-#text("before")#metadata(none) <id-6a6f696e6564>#text("after.")
+#text("before")#metadata(none)<id-6a6f696e6564>#text("after.")
 
-#text("Before")#metadata(none) <id-73686f727468616e64>#text("after.")
+#text("Before")#metadata(none)<id-73686f727468616e64>#text("after.")
 
-#metadata(none) <id-636f6d6d61>#metadata(none) <id-71756f746564>#metadata(none) <id-657175616c73>#text("Labels are text.")
+#metadata(none)<id-636f6d6d61>#metadata(none)<id-71756f746564>#metadata(none)<id-657175616c73>#text("Labels are text.")
 
-#metadata(none) <id-627261636b6574>#metadata(none) <id-6f70656e>#text("Bracket labels.")
+#metadata(none)<id-627261636b6574>#metadata(none)<id-6f70656e>#text("Bracket labels.")
 
 #text("See ")#context link(query(<id-636166c3a9>).first().location())[#text("Cafe")]#text(", ")#context link(query(<id-e69db1e4baac>).first().location())[#text("Tokyo")]#text(", ")#context link(query(<id-63616665cc81>).first().location())[#text("Decomposed")]#text(", ")#context link(query(<id-61e280bf62>).first().location())[#text("Connector")]#text(", ")#context link(query(<id-3a636f6c6f6e>).first().location())[#text("Colon")]#text(", ")#context link(query(<id-5f756e646572>).first().location())[#text("Underscore")]#text(", ")#context link(query(<id-612d622e633a64>).first().location())[#text("Punctuation")]#text(", ")#context link(query(<id-6a6f696e6564>).first().location())[#text("Joined")]#text(", ")#context link(query(<id-636f6d6d61>).first().location())[#text("Plain, label")]#text(", ")#context link(query(<id-71756f746564>).first().location())[#text("\"Quoted\"")]#text(", ")#context link(query(<id-657175616c73>).first().location())[#text("reftext=Literal,role=red")]#text(", ")#context link(query(<id-627261636b6574>).first().location())[#text("Close ] label")]#text(", ")#context link(query(<id-6f70656e>).first().location())[#text("Open [ bracket")]#text(".")
 
@@ -107,9 +107,9 @@
 
 #raw(block: true, "anchor:indented[Indented]Literal.")
 
-#metadata(none) <id-746f706963f09f9a80>#text("Symbol in an ID. ")#metadata(none) <id-61c2b762>#text("Punctuation in an ID.")
+#metadata(none)<id-746f706963f09f9a80>#text("Symbol in an ID. ")#metadata(none)<id-61c2b762>#text("Punctuation in an ID.")
 
-#metadata(none) <id-61e2808d62>#text("Join control in an ID.")
+#metadata(none)<id-61e2808d62>#text("Join control in an ID.")
 
 #text("See ")#context link(query(<id-746f706963f09f9a80>).first().location())[#text("Rocket")]#text(", ")#context link(query(<id-61c2b762>).first().location())[#text("Middle dot")]#text(", and ")#context link(query(<id-61e2808d62>).first().location())[#text("Joiner")]#text(".")
 

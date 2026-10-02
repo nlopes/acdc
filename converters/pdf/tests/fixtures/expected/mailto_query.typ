@@ -117,7 +117,7 @@
 
 #link("mailto:numeric@example.org")[#text("Numeric")]
 
-#metadata(none) <id-6d61696c>#text(fill: rgb("#006000"))[#link("mailto:attributes@example.org?subject=Subject&body=Body")[#text("Styled")]]
+#metadata(none)<id-6d61696c>#text(fill: rgb("#006000"))[#link("mailto:attributes@example.org?subject=Subject&body=Body")[#text("Styled")]]
 
 #link("mailto:single@example.org?subject=It%27s%20fine&body=Say%20%22hello%22")[#text("Single")]
 

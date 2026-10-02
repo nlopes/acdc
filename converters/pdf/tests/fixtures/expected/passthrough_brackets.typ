@@ -81,7 +81,7 @@
 
 #text("α ")#link("https://example.org")[#text("é")]#text(" / ")#link("https://example.net")[#text("東京")]#text(" ω.")
 
-#metadata(none) <id-746172676574>#text("Destination.")
+#metadata(none)<id-746172676574>#text("Destination.")
 
 #text("See ")#context link(query(<id-746172676574>).first().location())[#text("Destination")]#text(" and ")#context link(query(<id-746172676574>).first().location())[#text("Reference")]#text(".")
 

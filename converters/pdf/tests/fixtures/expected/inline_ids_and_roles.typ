@@ -77,13 +77,13 @@
 ]
 #v(1em)
 
-#text("A ")#metadata(none) <id-626f6c642d6964>#strong[#text("bold")]#text(", ")#metadata(none) <id-6974616c69632d6964>#emph[#text("italic")]#text(", ")#metadata(none) <id-6d6f6e6f2d6964>#raw("mono")#text(", ")#metadata(none) <id-6d61726b2d6964>#text("mark")#text(", ")#metadata(none) <id-7375622d6964>#sub[#text("sub")]#text(", ")#metadata(none) <id-73757065722d6964>#super[#text("super")]#text(", ")#metadata(none) <id-646f75626c652d6964>#text("“")#text("double")#text("”")#text(", and ")#metadata(none) <id-73696e676c652d6964>#text("‘")#text("single")#text("’")#text(".")
+#text("A ")#metadata(none)<id-626f6c642d6964>#strong[#text("bold")]#text(", ")#metadata(none)<id-6974616c69632d6964>#emph[#text("italic")]#text(", ")#metadata(none)<id-6d6f6e6f2d6964>#raw("mono")#text(", ")#metadata(none)<id-6d61726b2d6964>#text("mark")#text(", ")#metadata(none)<id-7375622d6964>#sub[#text("sub")]#text(", ")#metadata(none)<id-73757065722d6964>#super[#text("super")]#text(", ")#metadata(none)<id-646f75626c652d6964>#text("“")#text("double")#text("”")#text(", and ")#metadata(none)<id-73696e676c652d6964>#text("‘")#text("single")#text("’")#text(".")
 
 #text("See ")#context link(query(<id-626f6c642d6964>).first().location())[#text("[bold-id]")]#text(", ")#context link(query(<id-6974616c69632d6964>).first().location())[#text("italic link")]#text(", ")#context link(query(<id-6d6f6e6f2d6964>).first().location())[#text("mono link")]#text(", ")#context link(query(<id-6d61726b2d6964>).first().location())[#text("mark link")]#text(", ")#context link(query(<id-7375622d6964>).first().location())[#text("sub link")]#text(", ")#context link(query(<id-73757065722d6964>).first().location())[#text("super link")]#text(", ")#context link(query(<id-646f75626c652d6964>).first().location())[#text("double link")]#text(", and ")#context link(query(<id-73696e676c652d6964>).first().location())[#text("single link")]#text(".")
 
 #highlight[#text("plain highlight")]
 
-#metadata(none) <id-6d61726b2d6f70656e2d6964>#underline[#text("attributed span with an ID and role")]
+#metadata(none)<id-6d61726b2d6f70656e2d6964>#underline[#text("attributed span with an ID and role")]
 
 #strike[#text("line-through")]
 
@@ -103,7 +103,7 @@
 
 #highlight(fill: rgb("#fa0000"))[#text("red-background")]
 
-#metadata(none) <id-6261636b67726f756e642d726f6c652d6964>#highlight(fill: rgb("#fa0000"))[#underline[#text("background span with an ID and role")]]
+#metadata(none)<id-6261636b67726f756e642d726f6c652d6964>#highlight(fill: rgb("#fa0000"))[#underline[#text("background span with an ID and role")]]
 
 #text(fill: rgb("#bf0000"))[#underline[#text("combined known")]]
 

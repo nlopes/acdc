@@ -124,9 +124,9 @@
 
 #link("https://outer.example")[#text("Before ")#link("mailto:empty@example.org")[#text("empty@example.org")]#text(" after")]#text(".")
 
-#metadata(none) <id-6f757465722d6964>#text(fill: rgb("#006000"))[#link("https://outer.example")[#link("mailto:first@example.org")[#text("First")]#text(" after")]]
+#metadata(none)<id-6f757465722d6964>#text(fill: rgb("#006000"))[#link("https://outer.example")[#link("mailto:first@example.org")[#text("First")]#text(" after")]]
 
-#metadata(none) <id-6f6e6c792d6964>#link("https://outer.example")[#link("mailto:only@example.org")[#text("Only")]]
+#metadata(none)<id-6f6e6c792d6964>#link("https://outer.example")[#link("mailto:only@example.org")[#text("Only")]]
 
 #link("https://outer.example")[#strong[#link("mailto:styled@example.org")[#text("Styled only")]]]
 
@@ -140,7 +140,7 @@
 
 #context link(query(<id-746172676574>).first().location())[#text("Before ")#link("mailto:ref@example.org")[#text("Inner")]#text(" after")]
 
-#link("https://outer.example")[#text("Before ")#counter(footnote).update(0)#footnote[#text("Footnote with ")#link("https://note.example")[#text("Note")]#text(".")]<id-666f6f746e6f74653a6e6573746564>#text(" ")#metadata(none) <id-6c6162656c2d616e63686f72>#link("mailto:test@example.org")[#text("Inner")]#text(" after")]#text(".")
+#link("https://outer.example")[#text("Before ")#counter(footnote).update(0)#footnote[#text("Footnote with ")#link("https://note.example")[#text("Note")]#text(".")]<id-666f6f746e6f74653a6e6573746564>#text(" ")#metadata(none)<id-6c6162656c2d616e63686f72>#link("mailto:test@example.org")[#text("Inner")]#text(" after")]#text(".")
 
 #link("https://outer.example")[#text("Début ")#link("https://unicode.example")[#text("Été & soleil")]#text(" fin")]#text(".")
 

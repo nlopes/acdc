@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Inline anchors and IDs on formatted spans no longer add a visible space.
+  Adjacent text and punctuation stay joined, and authored spaces remain intact,
+  matching Asciidoctor PDF. Cross-reference destinations remain clickable.
 - Document attributes using `pass:q[...]`, `pass:m[...]`, or `pass:normal[...]`
   retain formatting and links, including attributes-enabled code. Unused values
   produce no notes or index entries; anonymous notes register at each use and
