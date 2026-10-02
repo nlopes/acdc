@@ -805,15 +805,22 @@ parser!(
             }
 
         rule escaped_attribute_reference() -> String
-            = start:position() "\\" text:$("{" attribute_name_pattern() "}") {
-                let location = state.calculate_location(start, text, 1);
-                let text = if state.attributes_enabled { text } else {
-                    state.arena.alloc_str(&format!("\\{text}"))
+            = start:position() source:$(escaped_attribute_reference_pattern()) {
+                let location = state.calculate_location(start, source, 0);
+                let text = if state.attributes_enabled {
+                    let text = source.strip_prefix('\\').unwrap_or(source);
+                    if let Some(prefix) = text.strip_suffix("\\}") {
+                        state.arena.alloc_str(&format!("{prefix}}}"))
+                    } else {
+                        text
+                    }
+                } else {
+                    source
                 };
                 let index = state.pass_found_count.get();
                 let placeholder = format!("���{index}���");
                 state.passthroughs.borrow_mut().push(Pass {
-                attribute_fragments: Box::default(),
+                    attribute_fragments: Box::default(),
                     text: Some(text),
                     substitutions: vec![Substitution::SpecialChars],
                     location: location.clone(),
@@ -826,7 +833,12 @@ parser!(
                 placeholder
             }
 
-        rule escaped_attribute_reference_pattern() = "\\{" attribute_name_pattern() "}"
+        // Escape recognition and the text lookahead must consume the same span.
+        // Opening escapes also stay literal when attribute substitutions are disabled.
+        rule escaped_attribute_reference_pattern()
+            = "\\{" attribute_name_pattern() "}"
+            / "\\"? "{" attribute_name_pattern() "\\}"
+                {? state.attributes_enabled.then_some(()).ok_or("attribute substitutions disabled") }
 
         rule attribute_reference() -> String
             = start:position() "{" attribute_name:attribute_name() "}" {

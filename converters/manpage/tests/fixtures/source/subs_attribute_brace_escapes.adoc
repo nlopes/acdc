@@ -1,0 +1,58 @@
+= code-brace-escapes(1)
+:doctype: manpage
+:manmanual: Attribute escapes
+:mansource: acdc
+:revdate: 2026-10-02
+:value: Expanded
+:_value_: Expanded
+:markup: *Bold* ((Registered)) footnote:[Registered note.]
+
+== NAME
+
+code-brace-escapes - preserve escaped references in code
+
+== DESCRIPTION
+
+[subs="attributes"]
+----
+C01 \{value} / {value\} / \{value\} / {value}.
+C02 α {value\} β \{value\} γ.
+C03 \{markup} / {markup\} / \{markup\}.
+C04 \\{value} / \\{value\} / \\\{value\}.
+C05 {value\\} / \{value\\} / {value\\\}.
+C06 \{bad name} / {bad name\} / \{bad name\}.
+----
+
+[subs="attributes"]
+....
+C07 \{value} / {value\} / \{value\} / {value}.
+....
+
+[source,rust,subs="attributes"]
+----
+C08 let template = "{value\} / \{value\} / {value}";
+----
+
+[subs="attributes,quotes,macros"]
+----
+C09 *{value\}* / https://example.org[\{value\}].
+----
+
+[subs="none"]
+----
+C10 \{value} / {value\} / \{value\} / {value}.
+----
+
+----
+C11 \{value} / {value\} / \{value\} / {value}.
+----
+
+[subs="quotes"]
+----
+C12 *{value\}* / *\{value\}* / *{value}*.
+----
+
+[subs="attributes"]
+----
+C13 \{_value_} / {_value_\} / \{_value_\}.
+----

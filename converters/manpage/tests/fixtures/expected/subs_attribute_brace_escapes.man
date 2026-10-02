@@ -1,0 +1,61 @@
+'\" t
+.\"     Title: code-brace-escapes
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-02
+.\"    Manual: Attribute escapes
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "CODE\-BRACE\-ESCAPES" "1" "2026-10-02" "acdc" "Attribute escapes"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+code\-brace\-escapes \- preserve escaped references in code
+.SH "DESCRIPTION"
+.EX
+C01 {value} / {value} / {value} / Expanded.
+C02 α {value} β {value} γ.
+C03 {markup} / {markup} / {markup}\&.
+C04 \e{value} / \e{value} / \e\e{value}\&.
+C05 {value\e\e} / \e{value\e\e} / {value\e\e\e}.
+C06 \e{bad name} / {bad name\e} / \e{bad name\e}.
+.EE
+.nf
+C07 {value} / {value} / {value} / Expanded.
+.fi
+.EX
+C08 let template = "{value} / {value} / Expanded";
+.EE
+.EX
+C09 \fB{value}\fP / {value}\&.
+.EE
+.EX
+C10 \e{value} / {value\e} / \e{value\e} / {value}.
+.EE
+.EX
+C11 \e{value} / {value\e} / \e{value\e} / {value}.
+.EE
+.EX
+C12 \fB{value\e}\fP / \fB\e{value\e}\fP / \fB{value}\fP\&.
+.EE
+.EX
+C13 {_value_} / {_value_} / {_value_}\&.
+.EE

@@ -490,11 +490,26 @@
             {
               "name": "text",
               "type": "string",
-              "value": " / {bold\\}",
+              "value": " / ",
               "location": [
                 {
                   "line": 29,
                   "col": 28
+                },
+                {
+                  "line": 29,
+                  "col": 30
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "{bold}",
+              "location": [
+                {
+                  "line": 29,
+                  "col": 31
                 },
                 {
                   "line": 29,

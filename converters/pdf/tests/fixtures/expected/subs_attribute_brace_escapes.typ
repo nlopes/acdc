@@ -1,7 +1,7 @@
 #set document(
-  title: "prepared-code(1)",
+  title: "code-brace-escapes(1)",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[prepared-code(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[code-brace-escapes(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -73,219 +73,100 @@
 #set page(numbering: "1")
 #counter(page).update(1)
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("prepared-code(1)")]
+#text(size: 22pt, weight: "bold")[#text("code-brace-escapes(1)")]
 ]
 #v(1em)
 
 #heading(level: 1)[#text("NAME")] <id-5f6e616d65>
 
-#text("prepared-code - formatted attributes in code")
-
-#heading(level: 1)[#text("SYNOPSIS")] <id-5f73796e6f70736973>
-
-#strong[#text("prepared-code")]
+#text("code-brace-escapes - preserve escaped references in code")
 
 #heading(level: 1)[#text("DESCRIPTION")] <id-5f6465736372697074696f6e>
 
-#{
-  // Slice highlighted text without discarding its syntax styles.
-  let code-slice(body, start, end) = {
-    if body.has("text") {
-      let size = body.text.len()
-      (text(body.text.slice(calc.min(start, size), calc.min(end, size))), size)
-    } else if body.has("children") {
-      let offset = 0
-      let parts = []
-      for child in body.children {
-        let (part, size) = code-slice(child, calc.max(0, start - offset), calc.max(0, end - offset))
-        parts += part
-        offset += size
-      }
-      (parts, offset)
-    } else if body.has("child") {
-      let (child, size) = code-slice(body.child, start, end)
-      (body.func()(child, body.styles), size)
-    } else {
-      ([], 0)
-    }
-  }
-  let links = (
-    ((12, 16, body => [#strong[#body]]), (19, 24, body => [#strong[#body]]), (27, 32, body => [#strong[#body]]), (39, 43, body => link("https://example.org", body)), ),
-    (),
-  )
-  let code-links(line) = {
-    let start = 0
-    let body = []
-    for (from, to, make-link) in links.at(line.number - 1, default: ()) {
-      body += code-slice(line.body, start, from).first()
-      body += make-link(code-slice(line.body, from, to).first())
-      start = to
-    }
-    body + code-slice(line.body, start, line.text.len()).first()
-  }
-  show raw.line: line => code-links(line)
-  raw(block: true, "Formatting: Bold / Early / Early (C) / Site\nLiteral references: {bold} / {bold}")
-}
-#{
-  // Slice highlighted text without discarding its syntax styles.
-  let code-slice(body, start, end) = {
-    if body.has("text") {
-      let size = body.text.len()
-      (text(body.text.slice(calc.min(start, size), calc.min(end, size))), size)
-    } else if body.has("children") {
-      let offset = 0
-      let parts = []
-      for child in body.children {
-        let (part, size) = code-slice(child, calc.max(0, start - offset), calc.max(0, end - offset))
-        parts += part
-        offset += size
-      }
-      (parts, offset)
-    } else if body.has("child") {
-      let (child, size) = code-slice(body.child, start, end)
-      (body.func()(child, body.styles), size)
-    } else {
-      ([], 0)
-    }
-  }
-  let links = (
-    ((9, 13, body => [#strong[#body]]), (16, 21, body => [#strong[#body]]), (24, 29, body => [#strong[#body]]), (36, 40, body => link("https://example.org", body)), ),
-  )
-  let code-links(line) = {
-    let start = 0
-    let body = []
-    for (from, to, make-link) in links.at(line.number - 1, default: ()) {
-      body += code-slice(line.body, start, from).first()
-      body += make-link(code-slice(line.body, from, to).first())
-      start = to
-    }
-    body + code-slice(line.body, start, line.text.len()).first()
-  }
-  show raw.line: line => code-links(line)
-  raw(block: true, "Escaped: Bold / Early / Early (C) / Site")
-}
-#{
-  let index-anchors = (
-    [#metadata(none)<__indexterm-1>],
-  )
-  // Slice highlighted text without discarding its syntax styles.
-  let code-slice(body, start, end) = {
-    if body.has("text") {
-      let size = body.text.len()
-      (text(body.text.slice(calc.min(start, size), calc.min(end, size))), size)
-    } else if body.has("children") {
-      let offset = 0
-      let parts = []
-      for child in body.children {
-        let (part, size) = code-slice(child, calc.max(0, start - offset), calc.max(0, end - offset))
-        parts += part
-        offset += size
-      }
-      (parts, offset)
-    } else if body.has("child") {
-      let (child, size) = code-slice(body.child, start, end)
-      (body.func()(child, body.styles), size)
-    } else {
-      ([], 0)
-    }
-  }
-  let links = (
-    ((8, 12, body => [#strong[#body]]), (15, 18, body => [#counter(footnote).update(0)#footnote[#text("Note body.")]<id-666f6f746e6f74653a6e>]), (21, 24, body => [#footnote(<id-666f6f746e6f74653a6e>)]), ),
-  )
-  let code-links(line) = {
-    let start = 0
-    let body = []
-    for (from, to, make-link) in links.at(line.number - 1, default: ()) {
-      body += code-slice(line.body, start, from).first()
-      body += make-link(code-slice(line.body, from, to).first())
-      start = to
-    }
-    body + code-slice(line.body, start, line.text.len()).first()
-  }
-  show raw.line: line => index-anchors.at(line.number - 1, default: []) + code-links(line)
-  raw(block: true, "Macros: Bold / ￼ / ￼ / Term")
-}
-#{
-  let index-anchors = (
-    [#metadata(none)<__indexterm-2>],
-  )
-  // Slice highlighted text without discarding its syntax styles.
-  let code-slice(body, start, end) = {
-    if body.has("text") {
-      let size = body.text.len()
-      (text(body.text.slice(calc.min(start, size), calc.min(end, size))), size)
-    } else if body.has("children") {
-      let offset = 0
-      let parts = []
-      for child in body.children {
-        let (part, size) = code-slice(child, calc.max(0, start - offset), calc.max(0, end - offset))
-        parts += part
-        offset += size
-      }
-      (parts, offset)
-    } else if body.has("child") {
-      let (child, size) = code-slice(body.child, start, end)
-      (body.func()(child, body.styles), size)
-    } else {
-      ([], 0)
-    }
-  }
-  let links = (
-    ((16, 20, body => [#strong[#body]]), (23, 26, body => [#footnote(<id-666f6f746e6f74653a6e>)]), (29, 33, body => link("https://example.org", body)), ),
-  )
-  let code-links(line) = {
-    let start = 0
-    let body = []
-    for (from, to, make-link) in links.at(line.number - 1, default: ()) {
-      body += code-slice(line.body, start, from).first()
-      body += make-link(code-slice(line.body, from, to).first())
-      start = to
-    }
-    body + code-slice(line.body, start, line.text.len()).first()
-  }
-  show raw.line: line => index-anchors.at(line.number - 1, default: []) + code-links(line)
-  raw(block: true, lang: "rust", "// Highlighted: Bold / ￼ / Site / Term")
-}
-#heading(level: 1)[#text("Index")] <id-5f696e646578>
+#raw(block: true, "C01 {value} / {value} / {value} / Expanded.\nC02 α {value} β {value} γ.\nC03 {markup} / {markup} / {markup}.\nC04 \\{value} / \\{value} / \\\\{value}.\nC05 {value\\\\} / \\{value\\\\} / {value\\\\\\}.\nC06 \\{bad name} / {bad name\\} / \\{bad name\\}.")
 
-#let _acdc_index_pages(targets, sequence) = context {
-  let occurrences = targets
-    .map(target => {
-      let location = query(target).last().location()
-      (location, counter(page).at(location).first())
-    })
-    .sorted(key: occurrence => occurrence.first().page())
-  if sequence == "page" or sequence == "range" {
-    occurrences = occurrences.dedup(key: occurrence => occurrence.last())
-  }
-  let linked = occurrence => link(
-    occurrence.first(),
-    counter(page).display(at: occurrence.first()),
-  )
-  let pages = if sequence == "range" {
-    let ranges = ()
-    for occurrence in occurrences {
-      if ranges.len() > 0 and occurrence.last() == ranges.last().last().last() + 1 {
-        let previous = ranges.pop()
-        ranges.push((previous.first(), occurrence))
-      } else {
-        ranges.push((occurrence, occurrence))
+#raw(block: true, "C07 {value} / {value} / {value} / Expanded.")
+
+#raw(block: true, "C08 let template = \"{value} / {value} / Expanded\";")
+
+#{
+  // Slice highlighted text without discarding its syntax styles.
+  let code-slice(body, start, end) = {
+    if body.has("text") {
+      let size = body.text.len()
+      (text(body.text.slice(calc.min(start, size), calc.min(end, size))), size)
+    } else if body.has("children") {
+      let offset = 0
+      let parts = []
+      for child in body.children {
+        let (part, size) = code-slice(child, calc.max(0, start - offset), calc.max(0, end - offset))
+        parts += part
+        offset += size
       }
-    }
-    ranges.map(range => if range.first().last() == range.last().last() {
-      linked(range.first())
+      (parts, offset)
+    } else if body.has("child") {
+      let (child, size) = code-slice(body.child, start, end)
+      (body.func()(child, body.styles), size)
     } else {
-      linked(range.first()) + [-] + linked(range.last())
-    })
-  } else {
-    occurrences.map(linked)
+      ([], 0)
+    }
   }
-  if pages.len() > 0 {
-    [, ] + pages.join[, ]
+  let links = (
+    ((4, 11, body => [#strong[#body]]), (14, 21, body => link("https://example.org", body)), ),
+  )
+  let code-links(line) = {
+    let start = 0
+    let body = []
+    for (from, to, make-link) in links.at(line.number - 1, default: ()) {
+      body += code-slice(line.body, start, from).first()
+      body += make-link(code-slice(line.body, from, to).first())
+      start = to
+    }
+    body + code-slice(line.body, start, line.text.len()).first()
   }
+  show raw.line: line => code-links(line)
+  raw(block: true, "C09 {value} / {value}.")
 }
-#columns(2, gutter: 12pt)[
-#text(weight: "bold")[#text("T")]
-#v(0.25em)
-#par(hanging-indent: 1em)[#text("Term")#_acdc_index_pages((<__indexterm-1>,<__indexterm-2>,), "term")]
-]
+#raw(block: true, "C10 \\{value} / {value\\} / \\{value\\} / {value}.")
+
+#raw(block: true, "C11 \\{value} / {value\\} / \\{value\\} / {value}.")
+
+#{
+  // Slice highlighted text without discarding its syntax styles.
+  let code-slice(body, start, end) = {
+    if body.has("text") {
+      let size = body.text.len()
+      (text(body.text.slice(calc.min(start, size), calc.min(end, size))), size)
+    } else if body.has("children") {
+      let offset = 0
+      let parts = []
+      for child in body.children {
+        let (part, size) = code-slice(child, calc.max(0, start - offset), calc.max(0, end - offset))
+        parts += part
+        offset += size
+      }
+      (parts, offset)
+    } else if body.has("child") {
+      let (child, size) = code-slice(body.child, start, end)
+      (body.func()(child, body.styles), size)
+    } else {
+      ([], 0)
+    }
+  }
+  let links = (
+    ((4, 12, body => [#strong[#body]]), (15, 24, body => [#strong[#body]]), (27, 34, body => [#strong[#body]]), ),
+  )
+  let code-links(line) = {
+    let start = 0
+    let body = []
+    for (from, to, make-link) in links.at(line.number - 1, default: ()) {
+      body += code-slice(line.body, start, from).first()
+      body += make-link(code-slice(line.body, from, to).first())
+      start = to
+    }
+    body + code-slice(line.body, start, line.text.len()).first()
+  }
+  show raw.line: line => code-links(line)
+  raw(block: true, "C12 {value\\} / \\{value\\} / {value}.")
+}
+#raw(block: true, "C13 {_value_} / {_value_} / {_value_}.")

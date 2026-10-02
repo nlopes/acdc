@@ -1496,11 +1496,10 @@ peg::parser! {
         /// Non-macro patterns that can be escaped with a backslash.
         rule escapable_pattern() -> &'input str
         =
-        // Curly braces (attributes): {...}
-        check_attribute_escape() "{" inner:$([^'}']*) "}" { state.intern_fmt(format_args!("{{{inner}}}")) }
+        // Attribute escapes are consumed by the attribute stage, not formatting.
         // Unconstrained formatting: match entire span including content and closing marker
         // \**not bold** -> **not bold**
-        / "**" inner:$((!"**" [_])*) "**" { state.intern_fmt(format_args!("**{inner}**")) }
+        "**" inner:$((!"**" [_])*) "**" { state.intern_fmt(format_args!("**{inner}**")) }
         / "__" inner:$((!("__" !['_']) [_])*) "__" { state.intern_fmt(format_args!("__{inner}__")) }
         / "``" inner:$((!"``" [_])*) "``" { state.intern_fmt(format_args!("``{inner}``")) }
         / "##" inner:$((!"##" [_])*) "##" { state.intern_fmt(format_args!("##{inner}##")) }
@@ -1526,9 +1525,9 @@ peg::parser! {
 
         /// Match escapable patterns without consuming
         rule escapable_pattern_match() -> ()
-        = check_attribute_escape() "{" [^'}']* "}"
+        =
         // Unconstrained formatting: match entire span
-        / "**" (!"**" [_])* "**"
+        "**" (!"**" [_])* "**"
         / "__" (!("__" !['_']) [_])* "__"
         / "``" (!"``" [_])* "``"
         / "##" (!"##" [_])* "##"
@@ -1538,12 +1537,6 @@ peg::parser! {
         / "~" [^'~' | ' ' | '\t' | '\n']+ "~"
         // Single escapable chars (excluding ^ and ~ which need complete patterns)
         / ['*' | '_' | '#' | '`' | '&'] {}
-
-        // Attribute substitution does not revisit escapes introduced by a value.
-        rule check_attribute_escape()
-        = pos:position!() {?
-            (!byte_came_from_attribute(state, pos)).then_some(()).ok_or("attribute escape introduced by value")
-        }
 
         rule footnote() -> InlineNode<'input>
         = footnote_match:footnote_match()

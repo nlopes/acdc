@@ -1,0 +1,36 @@
+<section class="doc-section level-1">
+<h2 id="_name">NAME</h2>
+<p>code-brace-escapes - preserve escaped references in code</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_description">DESCRIPTION</h2>
+<div class="listing-block">
+<pre>C01 {value} / {value} / {value} / Expanded.
+C02 α {value} β {value} γ.
+C03 {markup} / {markup} / {markup}.
+C04 \{value} / \{value} / \\{value}.
+C05 {value\\} / \{value\\} / {value\\\}.
+C06 \{bad name} / {bad name\} / \{bad name\}.</pre>
+</div>
+<div class="literal-block">
+<pre>C07 {value} / {value} / {value} / Expanded.</pre>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code class="language-rust" data-lang="rust">C08 let template = "{value} / {value} / Expanded";</code></pre>
+</div>
+<div class="listing-block">
+<pre>C09 <strong>{value}</strong> / <a href="https://example.org">{value}</a>.</pre>
+</div>
+<div class="listing-block">
+<pre>C10 \{value} / {value\} / \{value\} / {value}.</pre>
+</div>
+<div class="listing-block">
+<pre>C11 \{value} / {value\} / \{value\} / {value}.</pre>
+</div>
+<div class="listing-block">
+<pre>C12 <strong>{value\}</strong> / <strong>\{value\}</strong> / <strong>{value}</strong>.</pre>
+</div>
+<div class="listing-block">
+<pre>C13 {_value_} / {_value_} / {_value_}.</pre>
+</div>
+</section>

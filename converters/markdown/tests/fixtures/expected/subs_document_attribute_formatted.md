@@ -15,7 +15,7 @@ prepared-code - formatted attributes in code
 
 ```
 Formatting: Bold / Early / Early (C) / Site
-Literal references: {bold} / {bold\}
+Literal references: {bold} / {bold}
 ```
 
 ```

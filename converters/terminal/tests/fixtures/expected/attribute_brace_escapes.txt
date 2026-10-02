@@ -1,0 +1,36 @@
+[1m[4mbrace-escapes(1)[0m[2m2026-10-02[0m
+
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mNAME[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+brace-escapes - preserve escaped attribute references
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mDESCRIPTION[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+E01 {value} / {value} / {value} / Expanded.
+E02 {missing} / {missing} / {missing}.
+E03 {empty} / {empty} / {empty} / .
+E04 {markup} / {markup} / {markup}.
+E05 α {value} β {value} γ.
+E06 {value}{value}Expanded / x{value}y.
+E07 \{value} / \{value} / \\{value}.
+E08 {value\\} / \{value\\} / {value\\\}.
+E09 \{bad name} / {bad name\} / \{bad name\}.
+E10 \{} / {\} / {unfinished\.
+E11 [1m{value} and {value} and {value}[22m.
+E12 [38;5;14m{value}[39m / [38;5;14m{value}[39m / [38;5;14m{value}[39m.
+E13 [38;5;12m{value} / {value} / {value}[39m[2m (https://example.org)[0m.
+E14 [38;5;14m[1m[1][0m.
+E15 {value} / {value} / {value}.
+E16 \{value} / {value\} / \{value\}.
+E17 \{value} / {value\} / \{value\}.
+E18 {value} / {value} / {value} / Expanded.
+E19 \{value} / {value\} / \{value\} / {value}.
+E21 \{bad name} / {bad name\} / \{bad name\} / \{}.
+E22 {_value_} / {_value_} / {_value_}.
+E20 {value} / {value} / Later.
+
+─────
+[38;5;14m[1m[1][0m {value} / {value} / {value}

@@ -651,8 +651,16 @@ fn escaped_raw_attribute_reference<'a>(
     if !escaped_start && !name.ends_with('\\') {
         return None;
     }
+    let name = name.strip_suffix('\\').unwrap_or(name);
+    if name.is_empty()
+        || !name
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
+    {
+        return None;
+    }
     let source_start = start - usize::from(escaped_start);
-    let literal = format!("{{{}}}", name.strip_suffix('\\').unwrap_or(name));
+    let literal = format!("{{{name}}}");
     Some((
         source_start,
         InlineNode::RawText(Raw {

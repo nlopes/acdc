@@ -57,6 +57,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Escaped attribute references such as `{name\}` and `\{name\}` remain literal
+  and lose their escape backslashes when attributes are enabled, including in
+  code. Invalid references and contexts without attribute substitutions retain
+  their backslashes. Escaped values create no formatting, index entries, or
+  footnotes. This matches Asciidoctor for names without formatting markers;
+  acdc follows SDR-5 by protecting names such as `_name_` before formatting,
+  while Asciidoctor can format the name and retain its backslashes in prose.
 - `ifeval` comparisons accept operators and brackets inside single- or
   double-quoted operands. Both quote styles compare strings consistently,
   including empty values and numeric-looking text. This follows Asciidoctor's

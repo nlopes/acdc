@@ -1,0 +1,36 @@
+<section class="doc-section level-1">
+<h2 id="_name">NAME</h2>
+<p>brace-escapes - preserve escaped attribute references</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_description">DESCRIPTION</h2>
+<p>E01 {value} / {value} / {value} / Expanded.</p>
+<p>E02 {missing} / {missing} / {missing}.</p>
+<p>E03 {empty} / {empty} / {empty} / .</p>
+<p>E04 {markup} / {markup} / {markup}.</p>
+<p>E05 α {value} β {value} γ.</p>
+<p>E06 {value}{value}Expanded / x{value}y.</p>
+<p>E07 \{value} / \{value} / \\{value}.</p>
+<p>E08 {value\\} / \{value\\} / {value\\\}.</p>
+<p>E09 \{bad name} / {bad name\} / \{bad name\}.</p>
+<p>E10 \{} / {\} / {unfinished\.</p>
+<p>E11 <strong>{value} and {value} and {value}</strong>.</p>
+<p>E12 <code>{value}</code> / <code>{value}</code> / <code>{value}</code>.</p>
+<p>E13 <a href="https://example.org">{value} / {value} / {value}</a>.</p>
+<p>E14 <sup class="footnote-ref" id="_footnoteref_1">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup>.</p>
+<p>E15 {value} / {value} / {value}.</p>
+<p>E16 \{value} / {value\} / \{value\}.</p>
+<p>E17 \{value} / {value\} / \{value\}.</p>
+<p>E18 {value} / {value} / {value} / Expanded.</p>
+<p>E19 \{value} / {value\} / \{value\} / {value}.</p>
+<p>E21 \{bad name} / {bad name\} / \{bad name\} / \{}.</p>
+<p>E22 {_value_} / {_value_} / {_value_}.</p>
+<p>E20 {value} / {value} / Later.</p>
+</section>
+<section class="footnotes" aria-label="Footnotes" role="doc-endnotes">
+<hr>
+<ol class="footnotes">
+<li class="footnote" id="_footnote_1" role="doc-endnote">
+{value} / {value} / {value} <a class="footnote-backref" href="#_footnoteref_1" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+</ol>
+</section>

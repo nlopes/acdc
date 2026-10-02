@@ -62,6 +62,8 @@ terminal_fixture_catalog!([
     (document_attribute_formatted, true),
     (document_attribute_profile_edges, true),
     (subs_document_attribute_formatted, true, requires: feature = "highlighting"),
+    (attribute_brace_escapes, true),
+    (subs_attribute_brace_escapes, true, requires: feature = "highlighting"),
     (subs_passthrough_character_references, false),
     (passthrough_character_references, false),
     (document_attribute_text_pass_contexts, false),

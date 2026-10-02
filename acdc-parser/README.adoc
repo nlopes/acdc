@@ -131,6 +131,17 @@ acdc deliberately honors the quoted operand in every output format.
 Backslashes inside these values remain literal; they do not escape a closing quote.
 Unquoted number, boolean, and arithmetic comparisons retain their existing behavior.
 
+== Escaped attribute references
+
+When attribute substitutions are enabled, `\{name}`, `{name\}`, and `\{name\}` all produce the literal text `{name}`.
+The value is not expanded, so it cannot add formatting, index terms, or footnotes.
+This also applies to code blocks with `subs="attributes"` and inline `pass:a[...]`.
+Backslashes remain literal when attribute substitutions are disabled, or when the reference has an invalid name, such as `\{bad name}`.
+For names without formatting markers, these rules match Asciidoctor in HTML, PDF, and manpage output.
+acdc follows SDR-5 and protects the complete escaped reference before inline formatting.
+Thus `{_name_\}` produces literal `{_name_}` in acdc; Asciidoctor applies italics to `name` and retains the closing backslash in ordinary prose.
+With only attribute substitutions enabled, both processors preserve the complete name and remove the escape.
+
 == Parser options
 
 * **Safe mode** - `Safe`, `Secure`, `Server`, `Unsafe`

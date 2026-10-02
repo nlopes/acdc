@@ -1,0 +1,61 @@
+= brace-escapes(1)
+:doctype: manpage
+:manmanual: Attribute escapes
+:mansource: acdc
+:revdate: 2026-10-02
+:value: Expanded
+:_value_: Expanded
+:empty:
+:markup: *Bold* ((Registered)) footnote:[Registered note.]
+
+== NAME
+
+brace-escapes - preserve escaped attribute references
+
+== DESCRIPTION
+
+E01 \{value} / {value\} / \{value\} / {value}.
+
+E02 \{missing} / {missing\} / \{missing\}.
+
+E03 \{empty} / {empty\} / \{empty\} / {empty}.
+
+E04 \{markup} / {markup\} / \{markup\}.
+
+E05 α {value\} β \{value\} γ.
+
+E06 {value\}{value\}{value} / x{value\}y.
+
+E07 \\{value} / \\{value\} / \\\{value\}.
+
+E08 {value\\} / \{value\\} / {value\\\}.
+
+E09 \{bad name} / {bad name\} / \{bad name\}.
+
+E10 \{} / {\} / {unfinished\.
+
+E11 *\{value} and {value\} and \{value\}*.
+
+E12 `\{value}` / `{value\}` / `\{value\}`.
+
+E13 https://example.org[\{value} / {value\} / \{value\}].
+
+E14 footnote:n[\{value} / {value\} / \{value\}].
+
+E15 ((\{value})) / (({value\})) / ((\{value\})).
+
+E16 +\{value}+ / +{value\}+ / +\{value\}+.
+
+E17 pass:[\{value} / {value\} / \{value\}].
+
+E18 pass:a[\{value} / {value\} / \{value\} / {value}].
+
+E19 pass:q[\{value} / {value\} / \{value\} / {value}].
+
+E21 pass:a[\{bad name} / {bad name\} / \{bad name\} / \{}].
+
+E22 \{_value_} / {_value_\} / \{_value_\}.
+
+:value: Later
+
+E20 {value\} / \{value\} / {value}.

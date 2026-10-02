@@ -35,7 +35,7 @@ prepared\-code \- formatted attributes in code
 .SH "DESCRIPTION"
 .EX
 Formatting: \fBBold\fP / \fBEarly\fP / \fBEarly\fP (C) / Site
-Literal references: {bold} / {bold\e}
+Literal references: {bold} / {bold}
 .EE
 .EX
 Escaped: \fBBold\fP / \fBEarly\fP / \fBEarly\fP (C) / Site
