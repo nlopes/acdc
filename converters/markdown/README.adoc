@@ -154,11 +154,21 @@ cargo build --features markdown -p acdc-cli
 
 == Regenerating fixtures
 
-Markdown fixtures live in `tests/fixtures/source/` (inputs) and `tests/fixtures/expected/` (golden outputs). To regenerate after making converter changes:
+Markdown fixtures live in `tests/fixtures/source/` (inputs) and `tests/fixtures/expected/` (golden outputs).
+Get approval before regenerating existing outputs.
+Markdown has no `pre-spec-subs` feature of its own, but the parser can receive it from other workspace members.
+Fixtures that depend on block substitutions have two outputs: `.md` with parser substitutions enabled and `.no-subs.md` with them disabled.
+The tests and generator select the output from the parser's diagnostics; both GitHub Flavored Markdown and CommonMark use this rule.
+
+To regenerate a single fixture in each configuration:
 
 [source,console]
 ....
-cargo run -p acdc-converters-markdown --example generate_markdown_fixtures --all-features
-# or for a single fixture:
-cargo run -p acdc-converters-markdown --example generate_markdown_fixtures --all-features -- <fixture_name>
+# Parser substitutions enabled:
+cargo run -p acdc-converters-markdown --example generate_markdown_fixtures --all-features --features acdc-converters-core/pre-spec-subs -- <fixture_name>
+# Parser substitutions disabled:
+cargo run -p acdc-converters-markdown --example generate_markdown_fixtures --no-default-features -- <fixture_name>
 ....
+
+Omit the fixture name to regenerate all outputs for the selected configuration.
+An integration test requires both variants for every input with a block substitution attribute.

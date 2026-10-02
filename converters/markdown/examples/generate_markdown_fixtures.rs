@@ -6,6 +6,9 @@ use acdc_converters_core::{Converter, Diagnostics, GeneratorMetadata, Options, W
 use acdc_converters_markdown::{MarkdownVariant, Processor};
 use acdc_parser::Options as ParserOptions;
 
+#[path = "../tests/support/mod.rs"]
+mod fixture_support;
+
 fn main() -> Result<(), Box<dyn Error>> {
     let mut arguments = std::env::args_os().skip(1);
     let requested_fixture = arguments.next();
@@ -42,6 +45,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             .ok_or("invalid fixture file name")?;
         let parser_options = ParserOptions::default();
         let parsed = acdc_parser::parse_file(&input_path, &parser_options)?;
+        let output_path =
+            fixture_support::expected_fixture_path(expected_dir, stem, parsed.warnings());
         let doc = parsed.document();
         let variant = if stem.starts_with("commonmark_") {
             MarkdownVariant::CommonMark
@@ -61,7 +66,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         let source = WarningSource::new("markdown").with_variant(variant.as_str());
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         processor.write_to(doc, &mut output, Some(&input_path), None, &mut diagnostics)?;
-        fs::write(expected_dir.join(stem).with_extension("md"), output)?;
+        fs::write(output_path, output)?;
     }
 
     Ok(())

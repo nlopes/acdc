@@ -13,7 +13,55 @@ use pulldown_cmark::{
     Tag, TagEnd,
 };
 
+mod support;
+
 type Error = Box<dyn std::error::Error>;
+
+#[test]
+fn fixture_paths_preserve_stems_and_ignore_unrelated_warnings() -> Result<(), Error> {
+    for input in ["Body.\n", "= T\n:value: pass:q,c[*Bold*]\n\nBody.\n"] {
+        let parsed = parse(input, &ParserOptions::default())?;
+        for stem in ["subs_case", "commonmark_subs_case", "case.v1", "café"] {
+            assert_eq!(
+                support::expected_fixture_path(Path::new("expected"), stem, parsed.warnings()),
+                Path::new("expected").join(format!("{stem}.md"))
+            );
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn substitution_fixtures_have_both_expected_variants() -> Result<(), Error> {
+    let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+    let mut count = 0;
+    for entry in std::fs::read_dir(fixtures.join("source"))? {
+        let path = entry?.path();
+        if path.extension().is_none_or(|extension| extension != "adoc") {
+            continue;
+        }
+        let parsed = acdc_parser::parse_file(&path, &ParserOptions::default())?;
+        if !parsed.warnings().iter().any(|warning| {
+            matches!(&warning.kind, acdc_parser::WarningKind::Other(message)
+                if message.starts_with("The subs= attribute"))
+        }) {
+            continue;
+        }
+        let stem = path
+            .file_stem()
+            .and_then(|stem| stem.to_str())
+            .ok_or("invalid fixture stem")?;
+        for extension in ["md", "no-subs.md"] {
+            let expected = fixtures
+                .join("expected")
+                .join(format!("{stem}.{extension}"));
+            assert!(expected.is_file(), "missing {}", expected.display());
+        }
+        count += 1;
+    }
+    assert!(count > 0, "no substitution-dependent fixtures checked");
+    Ok(())
+}
 
 // Markdown source snapshots cannot prove that empty delimiters stay invisible.
 #[test]
@@ -180,15 +228,14 @@ fn test_gfm_fixtures(#[files("tests/fixtures/source/*.adoc")] path: PathBuf) -> 
     if file_name.starts_with("commonmark_") {
         return Ok(());
     }
-    let expected_path = Path::new("tests")
-        .join("fixtures")
-        .join("expected")
-        .join(file_name)
-        .with_extension("md");
-
     // Parse the AsciiDoc input with rendering defaults
     let parser_options = ParserOptions::default();
     let parsed = acdc_parser::parse_file(&path, &parser_options)?;
+    let expected_path = support::expected_fixture_path(
+        Path::new("tests/fixtures/expected"),
+        file_name,
+        parsed.warnings(),
+    );
     let doc = parsed.document();
 
     // Convert to Markdown (GFM variant)
@@ -233,15 +280,14 @@ fn test_commonmark_variant(
         .file_stem()
         .and_then(|s| s.to_str())
         .ok_or("Invalid fixture file name")?;
-    let expected_path = Path::new("tests")
-        .join("fixtures")
-        .join("expected")
-        .join(file_name)
-        .with_extension("md");
-
     // Parse the AsciiDoc input
     let parser_options = ParserOptions::default();
     let parsed = acdc_parser::parse_file(&path, &parser_options)?;
+    let expected_path = support::expected_fixture_path(
+        Path::new("tests/fixtures/expected"),
+        file_name,
+        parsed.warnings(),
+    );
     let doc = parsed.document();
 
     // Convert to Markdown (CommonMark variant)

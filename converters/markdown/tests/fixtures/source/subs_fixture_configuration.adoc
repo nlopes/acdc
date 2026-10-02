@@ -1,0 +1,25 @@
+= Fixture configuration
+:name: Early
+:bold: pass:q[*Bold*]
+:raw: pass:[*Literal*]
+
+Ordinary: {name} / {bold} / {raw}.
+
+[subs="attributes"]
+----
+Code: {name} / {bold} / {raw}.
+----
+
+[subs="none"]
+Literal: *bold* / {name} / https://example.org[Site].
+
+Escaped: \[subs="none"] stays text.
+
+:name: Late
+
+Ordinary after assignment: {name} / {bold}.
+
+[subs="attributes"]
+....
+Literal block: {name} / {bold} / \{name}.
+....

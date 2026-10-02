@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fixture checks and generation select separate expectations when the parser
+  ignores block substitutions. Standalone and workspace builds verify both
+  configurations without changing Markdown rendering or adding a converter
+  substitution feature.
 - Document attributes using `pass:q[...]`, `pass:m[...]`, or `pass:normal[...]`
   retain formatting, links, and footnotes. Unused values produce no notes or index
   entries; anonymous notes register at each use. Attribute text retains AsciiDoc

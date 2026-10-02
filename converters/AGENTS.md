@@ -42,6 +42,10 @@ Shared utilities in `core/`:
     not glob discovery. Subs fixtures must be registered in that list
     explicitly, and `test_fixture` has the matching `.contains("subs")`
     early-return.
+  - The **markdown** harness runs substitution fixtures in both configurations.
+    The parser's diagnostics select `.md` or `.no-subs.md` expectations, and
+    both variants are required for each substitution-dependent input. Do not
+    add a Markdown substitution feature or skip these fixtures.
 
 ## Test placement
 
@@ -64,11 +68,13 @@ Shared utilities in `core/`:
 cargo run -p acdc-converters-html --example generate_html_fixtures --all-features
 cargo run -p acdc-converters-terminal --example generate_terminal_fixtures --all-features
 cargo run -p acdc-converters-manpage --example generate_manpage_fixtures --all-features
-cargo run -p acdc-converters-markdown --example generate_markdown_fixtures --all-features
+cargo run -p acdc-converters-markdown --example generate_markdown_fixtures --all-features --features acdc-converters-core/pre-spec-subs
 cargo run -p acdc-converters-pdf --example generate_typst_fixtures --all-features
 
 # Regenerate a single Markdown fixture:
-cargo run -p acdc-converters-markdown --example generate_markdown_fixtures --all-features -- <fixture_name>
+cargo run -p acdc-converters-markdown --example generate_markdown_fixtures --all-features --features acdc-converters-core/pre-spec-subs -- <fixture_name>
+# Generate the disabled-substitution Markdown variant:
+cargo run -p acdc-converters-markdown --example generate_markdown_fixtures --no-default-features -- <fixture_name>
 ```
 
 ### Terminal capability fixtures
