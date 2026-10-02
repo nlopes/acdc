@@ -15,7 +15,8 @@ Email links.
 .MTO "early\(atexample.org?subject=Expanded%20subject&body=Caf%C3%A9%20%26%20tea" "Early" "\c"
 
 .EX
-Code
+\c
+.MTO "code\(atexample.org?subject=Subject%20text&body=Body%20text" "Code" "\c"
 .EE
 .sp
 \c

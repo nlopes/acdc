@@ -13,7 +13,6 @@ use acdc_parser::{BlockMetadata, Paragraph};
 
 use crate::{
     Error, ManpageVisitor,
-    delimited::{formatted_verbatim_text, source_content},
     document::extract_verbatim_text,
     escape::{EscapeMode, manify},
 };
@@ -220,17 +219,14 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         self.collect_index_terms_from_inlines(traversal, &para.content)?;
         self.write_sp()?;
         self.render_captioned_title(traversal, &para.title, &para.metadata)?;
+        let source_guards = matches!(para.metadata.style, Some("source" | "listing"));
+        let content =
+            self.verbatim_content(traversal, &para.content, &para.metadata, source_guards)?;
         let w = self.writer_mut();
         writeln!(w, ".if n .RS 4")?;
         writeln!(w, ".nf")?;
         writeln!(w, ".fam C")?;
 
-        // Extract and write content preserving whitespace
-        let content = if matches!(para.metadata.style, Some("source" | "listing")) {
-            source_content(&para.content, &para.metadata)
-        } else {
-            formatted_verbatim_text(&para.content)
-        };
         for line in content.lines() {
             writeln!(w, "{line}")?;
         }

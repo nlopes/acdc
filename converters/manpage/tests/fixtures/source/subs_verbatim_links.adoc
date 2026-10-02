@@ -1,0 +1,96 @@
+= verbatim-links(1)
+:doctype: manpage
+:manmanual: Link tests
+:mansource: acdc
+:revdate: 2026-10-02
+:name: Expanded
+:blank:
+
+== Name
+verbatim-links - enabled code links retain destinations
+
+== Synopsis
+*verbatim-links*
+
+== Description
+
+[source,text,subs=+macros]
+----
+C01 https://example.org[Label].
+  C02 link:https://example.org[Indented]  tail.
+C03 (https://example.org[Joined])suffix.
+C04 https://example.org[].
+C05 https://example.org and test@example.org.
+C06 mailto:test@example.org[Mail,Subject,Body]!
+C07 mailto:test@example.org[].
+C08 xref:target[Local] and xref:other.adoc#target[External].
+C09 <<target>> and xref:missing[Missing].
+C10 https://example.org[A "quote" and \path]\tail.
+C11 https://example.org[Label]
+.SH literal-control-line
+'literal-control-line
+C12 https://example.org[Label]pass:[.]
+C13 pass:m[link:https://example.org[Pass link\]] pass:[link:https://literal.example[Literal]].
+C14 https://example.org[{blank}] café.
+----
+
+[source,text,subs="+quotes,+macros"]
+----
+C15 *Before  https://example.org[Bold]  after*.
+C16 _Before mailto:test@example.org[Italic] after_.
+C17 `Before link:https://example.org[Mono] after`.
+----
+
+[subs=+macros]
+....
+  C18 https://example.org[Literal]  after.
+	C19 mailto:test@example.org[Tabbed]suffix.
+....
+
+[source,text,subs=+macros]
+C20 https://example.org[Source paragraph].
+
+[listing,subs=+macros]
+C21 link:https://example.org[Listing paragraph].
+
+[literal,subs=+macros]
+C22 mailto:test@example.org[Literal paragraph].
+
+[source,text,subs=-macros]
+----
+C23 https://example.org[Disabled] mailto:test@example.org[Disabled].
+----
+
+[source,text,subs="attributes,quotes,macros"]
+----
+C24 https://example.org[{name}] *{name}*.
+----
+
+[source,rust,subs=+macros]
+----
+C25 https://example.org[Callout] // <1>
+----
+<1> Callout body.
+
+[source,text,subs=+macros]
+----
+C26 https://example.org[(C)] (C).
+----
+
+[source,text,subs="+macros,+replacements"]
+----
+C27 https://example.org[(C)].
+----
+
+[literal,subs="+macros,+replacements"]
+C28 https://example.org[(C)].
+
+[source,xml,subs=+macros]
+----
+C29 <value>https://example.org[XML]</value> <!--1-->
+----
+<1> XML callout body.
+
+[[target]]
+== Target
+Target body.

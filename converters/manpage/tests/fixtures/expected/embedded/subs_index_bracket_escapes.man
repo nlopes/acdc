@@ -10,7 +10,8 @@ Expanded \e] term
 ((Disabled \e] term))
 .EX
 Code \e] term
-Code link ] term
+\c
+.URL "https://example.org" "Code link ] term" "\c"
 .EE
 .sp
 Pass ] term

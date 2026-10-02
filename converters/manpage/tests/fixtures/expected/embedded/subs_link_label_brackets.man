@@ -21,8 +21,12 @@
 .sp
 link:https://example.org[Literal \e] text]
 .EX
-let label = One ] two;
-let mail = Mail ] label;
+let label = \c
+.URL "https://example.org" "One ] two" "\c"
+;
+let mail = \c
+.MTO "test\(atexample.org" "Mail ] label" "\c"
+;
 .EE
 .EX
 link:https://example.org[Literal \e] text]

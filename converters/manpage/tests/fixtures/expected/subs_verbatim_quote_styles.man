@@ -38,7 +38,8 @@ B03 \fBtwo  spaces\fP and \fBfirst
 B04 \fBexpanded\fP \fB\fP link:https://example.org[Literal]
 .EE
 .EX
-B05 \fBBold\fP \fIItalic\fP \fBexpanded\fP \fB\fP Live
+B05 \fBBold\fP \fIItalic\fP \fBexpanded\fP \fB\fP \c
+.URL "https://example.org" "Live" "\c"
 .EE
 .nf
 B06 \fBBold\fP \fIItalic\fP \(lqCurved\(rq \(oqSingle\(cq

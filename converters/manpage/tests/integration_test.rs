@@ -10,6 +10,54 @@ use acdc_parser::{Options as ParserOptions, parse, parse_file};
 
 type Error = Box<dyn std::error::Error>;
 
+#[cfg(feature = "pre-spec-subs")]
+#[test]
+fn verbatim_links_keep_roff_commands_outside_arguments() -> Result<(), Error> {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/source/subs_verbatim_links_nested.adoc");
+    let parsed = parse_file(&path, &ParserOptions::default())?;
+    let processor = Processor::new(
+        ConverterOptions::builder().embedded(true).build(),
+        ParserOptions::builder()
+            .with_attributes(parsed.document().attributes.clone().into_inputs()),
+    )?;
+    let mut output = Vec::new();
+    let mut warnings = Vec::new();
+    let source = WarningSource::new("manpage");
+    let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+    processor.write_to(
+        parsed.document(),
+        &mut output,
+        Some(&path),
+        None,
+        &mut diagnostics,
+    )?;
+    let output = String::from_utf8(output)?;
+    let commands = output
+        .lines()
+        .filter(|line| line.starts_with(".URL ") || line.starts_with(".MTO "))
+        .collect::<Vec<_>>();
+    for target in [
+        "https://outer.example",
+        "https://image.example",
+        "first\\(atexample.org",
+        "second\\(atexample.org",
+    ] {
+        assert!(
+            commands.iter().any(|command| command.contains(target)),
+            "missing nested code target {target}: {output}"
+        );
+    }
+    for command in commands {
+        assert_eq!(
+            command.matches('"').count(),
+            6,
+            "invalid roff arguments: {command}"
+        );
+    }
+    Ok(())
+}
+
 #[test]
 fn nested_links_keep_roff_commands_outside_arguments() -> Result<(), Error> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))

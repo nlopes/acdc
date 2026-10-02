@@ -1,9 +1,25 @@
 .EX
-Before Inner after
-Before \e"Quoted\e" after
+\c
+.URL "https://code.example" "Before" " \c"
+\c
+.MTO "code\(atexample.org" "Inner" "\c"
+ \c
+.URL "https://code.example" "after" "\c"
+
+\c
+.URL "https://code.example" "Before" " \c"
+\c
+.MTO "code\(atexample.org" "\e\(dqQuoted\e\(dq" "\c"
+ \c
+.URL "https://code.example" "after" "\c"
 .EE
 .nf
-Before Inner after
+\c
+.URL "https://literal.example" "Before" " \c"
+\c
+.URL "https://inner.example" "Inner" "\c"
+ \c
+.URL "https://literal.example" "after" "\c"
 .fi
 .sp
 link:https://disabled.example[Before mailto:disabled@example.org[Inner] after]

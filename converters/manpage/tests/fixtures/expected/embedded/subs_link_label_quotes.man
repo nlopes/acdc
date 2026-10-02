@@ -15,9 +15,14 @@
 .URL "https://example.org" "\fBBold \(dqquote\(dq label\fP" "\c"
 
 .EX
-One "quote" two
-One "quote" two
-One "quote" two
+\c
+.URL "https://example.org" "One \(dqquote\(dq two" "\c"
+
+\c
+.URL "https://example.net" "One \(dqquote\(dq two" "\c"
+
+\c
+.MTO "test\(atexample.org" "One \(dqquote\(dq two" "\c"
 .EE
 .sp
 \c

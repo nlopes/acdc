@@ -34,8 +34,12 @@ verbatim\-nested \- nested formatting in code
 See Formatted, Empty, and Last\&.
 .bp
 .EX
-C01 \fBBold \fIItalic\fP Nested link [1] Visible  end\fP\&.
-C02 Outer tail [1]
+C01 \fBBold \fIItalic\fP \c
+.URL "https://example.org" "Nested \fIlink\fP" "\c"
+ [1] Visible  end\fP\&.
+C02 \c
+.URL "https://example.org/outer" "\fBOuter\fP \fItail\fP" "\c"
+ [1]
 C03 \fBMultiline first
   second\fP after.
 C04 \fBA long bold span that crosses the normal code wrap boundary and contains \fInested emphasis\fP before it ends with a final marker.\fP \fB(1)\fP

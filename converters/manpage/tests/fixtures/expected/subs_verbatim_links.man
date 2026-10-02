@@ -1,0 +1,177 @@
+'\" t
+.\"     Title: verbatim-links
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-02
+.\"    Manual: Link tests
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "VERBATIM\-LINKS" "1" "2026-10-02" "acdc" "Link tests"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+verbatim\-links \- enabled code links retain destinations
+.SH "SYNOPSIS"
+.sp
+\fBverbatim\-links\fP
+.SH "DESCRIPTION"
+.EX
+C01 \c
+.URL "https://example.org" "Label" "\c"
+\&.
+  C02 \c
+.URL "https://example.org" "Indented" "\c"
+  tail.
+C03 (\c
+.URL "https://example.org" "Joined" "\c"
+)suffix.
+C04 \c
+.URL "https://example.org" "" "\c"
+\&.
+C05 \c
+.URL "https://example.org" "" "\c"
+ and \c
+.MTO "test\(atexample.org" "" "\c"
+\&.
+C06 \c
+.MTO "test\(atexample.org?subject=Subject&body=Body" "Mail" "\c"
+!
+C07 \c
+.MTO "test\(atexample.org" "" "\c"
+\&.
+C08 Local and External\&.
+C09 TARGET and Missing\&.
+C10 \c
+.URL "https://example.org" "A \(dqquote\(dq and \epath" "\c"
+\etail.
+C11 \c
+.URL "https://example.org" "Label" "\c"
+
+\&.SH literal\-control\-line
+\&'literal\-control\-line
+C12 \c
+.URL "https://example.org" "Label" "\c"
+\&.
+C13 \c
+.URL "https://example.org" "Pass link" "\c"
+ link:https://literal.example[Literal].
+C14 \c
+.URL "https://example.org" "{blank}" "\c"
+ café.
+.EE
+.EX
+C15 \fBBefore  \c
+.URL "https://example.org" "Bold" "\c"
+  after\fP\&.
+C16 \fIBefore \c
+.MTO "test\(atexample.org" "Italic" "\c"
+ after\fP\&.
+C17 \f(CRBefore \c
+.URL "https://example.org" "Mono" "\c"
+ after\fP\&.
+.EE
+.nf
+  C18 \c
+.URL "https://example.org" "Literal" "\c"
+  after.
+        C19 \c
+.MTO "test\(atexample.org" "Tabbed" "\c"
+suffix.
+.fi
+.sp
+.if n .RS 4
+.nf
+.fam C
+C20 \c
+.URL "https://example.org" "Source paragraph" "\c"
+\&.
+.fam
+.fi
+.if n .RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+C21 \c
+.URL "https://example.org" "Listing paragraph" "\c"
+\&.
+.fam
+.fi
+.if n .RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+C22 \c
+.MTO "test\(atexample.org" "Literal paragraph" "\c"
+\&.
+.fam
+.fi
+.if n .RE
+.EX
+C23 https://example.org[Disabled] mailto:test@example.org[Disabled].
+.EE
+.EX
+C24 \c
+.URL "https://example.org" "Expanded" "\c"
+ \fBExpanded\fP\&.
+.EE
+.EX
+C25 \c
+.URL "https://example.org" "Callout" "\c"
+ \fB(1)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+Callout body.
+.RE
+.EX
+C26 \c
+.URL "https://example.org" "(C)" "\c"
+ (C).
+.EE
+.EX
+C27 \c
+.URL "https://example.org" "\(co" "\c"
+\&.
+.EE
+.sp
+.if n .RS 4
+.nf
+.fam C
+C28 \c
+.URL "https://example.org" "\(co" "\c"
+\&.
+.fam
+.fi
+.if n .RE
+.EX
+C29 <value>\c
+.URL "https://example.org" "XML" "\c"
+</value> \fB(1)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+XML callout body.
+.RE
+.SH "TARGET"
+.sp
+Target body.

@@ -1,0 +1,103 @@
+'\" t
+.\"     Title: nested-code-links
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-02
+.\"    Manual: Link tests
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "NESTED\-CODE\-LINKS" "1" "2026-10-02" "acdc" "Link tests"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+nested\-code\-links \- nested code links remain valid roff
+.SH "SYNOPSIS"
+.sp
+\fBnested\-code\-links\fP
+.SH "DESCRIPTION"
+.EX
+N01 \c
+.URL "https://outer.example" "Before" " \c"
+\c
+.MTO "test\(atexample.org" "Inner" "\c"
+ \c
+.URL "https://outer.example" "after" "\c"
+\&.
+N02 \c
+.MTO "first\(atexample.org" "First" "\c"
+\c
+.MTO "second\(atexample.org" "Second" "\c"
+\&.
+N03 \fBBefore \c
+.URL "https://outer.example" "" "\c"
+[Before *bold \c
+.MTO "test\(atexample.org" "Inner" "\c"
+ tail\fP after] end*.
+N04 \c
+.URL "https://outer.example" "Before [1] after" "\c"
+\&.
+N05 \c
+.URL "https://outer.example" "Before Term and  after" "\c"
+\&.
+N06 Before \c
+.MTO "index\(atexample.org" "Indexed" "\c"
+ after\&.
+N07 \c
+.URL "https://example.org" "Label" "\c"
+\&.
+N08 \c
+.URL "https://example.org" "Label" "\c"
+&amp;suffix.
+N09 \fBBefore \c
+.URL "https://example.org" "Multiline" "\c"
+
+  after\fP\&.
+N10 \c
+.URL "https://outer.example" "Before" " \c"
+\c
+.URL "https://image.example" "[Picture]" "\c"
+ \c
+.URL "https://outer.example" "after" "\c"
+\&.
+.EE
+.sp
+See After link\&.
+.SH "INDEX"
+.SS "B"
+.RS 4
+Before mailto:index@example.org[Indexed] after
+.br
+.RE
+.SS "H"
+.RS 4
+Hidden
+.br
+.RE
+.SS "T"
+.RS 4
+Term
+.br
+.RE
+.SH "NOTES"
+.IP [1] 4
+Note with \c
+.URL "https://note.example" "Note" "\c"
+\&.

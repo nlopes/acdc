@@ -11,11 +11,15 @@ pass:m[link:https://example.org[Label\e]]
 .sp
 See Code target\&.
 .EX
-Before Code link after.
+Before \c
+.URL "https://example.org" "Code link" "\c"
+ after.
 Destination.
 .EE
 .EX
-let value = 1;
+let value = \c
+.URL "https://example.org" "1" "\c"
+;
 [1]
 .EE
 .sp

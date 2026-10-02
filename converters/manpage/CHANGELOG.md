@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Macros-enabled source, listing, and literal blocks and paragraphs retain link
+  destinations, formatted labels, and cross-reference text. Code spacing and
+  callouts remain intact. This follows Asciidoctor's ordinary code-link behavior;
+  acdc also retains following code text that Asciidoctor sometimes discards.
+  Nested links retain acdc's valid separate targets instead of malformed roff.
 - Inline links keep adjacent punctuation and text attached, including raw
   passthroughs, attribute references, footnotes, and index terms. Authored
   spaces, wrapped lines, and hard breaks remain intact. Ordinary link spacing

@@ -1,0 +1,33 @@
+= nested-code-links(1)
+:doctype: manpage
+:manmanual: Link tests
+:mansource: acdc
+:revdate: 2026-10-02
+
+== Name
+nested-code-links - nested code links remain valid roff
+
+== Synopsis
+*nested-code-links*
+
+== Description
+
+[source,text,subs="+quotes,+macros"]
+----
+N01 https://outer.example[Before mailto:test@example.org[Inner] after].
+N02 https://outer.example[mailto:first@example.org[First]mailto:second@example.org[Second]].
+N03 *Before https://outer.example[Before *bold mailto:test@example.org[Inner] tail* after] end*.
+N04 https://outer.example[Before footnote:n[Note with https://note.example[Note].] after].
+N05 https://outer.example[Before ((Term)) and (((Hidden))) after].
+N06 ((Before mailto:index@example.org[Indexed] after)).
+N07 https://example.org[Label]anchor:after-link[].
+N08 https://example.org[Label]pass:[&amp;]suffix.
+N09 *Before https://example.org[Multiline]
+  after*.
+N10 https://outer.example[Before image:picture.svg[Picture,link=https://image.example] after].
+----
+
+See <<after-link,After link>>.
+
+[index]
+== Index

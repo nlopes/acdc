@@ -45,7 +45,9 @@ S04 indexterm2:[Attribute] and xref:target[Attribute]\&.
 S05 indexterm2:[Attribute] and xref:target[Attribute]\&.
 .EX
 S06 indexterm2:[One] \eindexterm2:[Two] xref:target[One] \exref:target[Two]
-S07 \eExplicit https://example.org[Bare]
+S07 \e\c
+.URL "https://example.org" "Explicit" "\c"
+ https://example.org[Bare]
 S08 \efootnote:[Incomplete
 .EE
 .EX
