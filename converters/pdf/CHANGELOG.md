@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Links and cross-references inside backticks remain clickable, including
+  mail links, wrapped labels, and targets on formatted or nested link labels.
+  Automatic labels use normal link and reference fallbacks; authored spacing
+  and narrow-table wrapping remain intact. Copied titles retain their TOC or
+  reference navigation, matching Asciidoctor PDF for ordinary links. acdc also
+  retains nested links and anchor-label text where Asciidoctor
+  PDF emits literal or incomplete markup.
 - Rendered reference IDs are available as public PDF named destinations, so
   external links such as `manual.pdf#nameddest=chapter` can reach sections,
   inline anchors, formatted spans, code targets, and blocks by their source IDs,

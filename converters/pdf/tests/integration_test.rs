@@ -12,6 +12,270 @@ use acdc_converters_pdf::{PdfOptions, Processor};
 type Error = Box<dyn std::error::Error>;
 
 #[test]
+fn inline_verbatim_links_keep_pdf_uri_annotations_and_ids() -> Result<(), Error> {
+    let pdf = render_input(include_str!("fixtures/source/inline_verbatim_links.adoc"))?;
+    let mut uris = Vec::new();
+    for page in pdf.get_pages().keys() {
+        uris.extend(
+            external_link_rects(&pdf, *page)?
+                .into_iter()
+                .map(|(uri, _)| uri),
+        );
+    }
+    for expected in [
+        "https://example.org/label",
+        "https://example.org/site",
+        "mailto:person@example.org",
+        "mailto:person@example.org?subject=Subject&body=Body",
+        "https://example.org/bare",
+        "https://example.org/bracketed",
+        "other.pdf#chapter",
+        "https://example.org/formatted",
+        "https://example.org/outer",
+        "https://example.org/inner",
+        "https://example.org/anchor",
+        "https://example.org/empty",
+        "https://example.org/one",
+        "https://example.org/two",
+        "https://example.org/first",
+        "https://example.org/second",
+        "https://example.org/item",
+        "https://example.org/cell",
+        "https://example.org/query?x=1&y=2",
+    ] {
+        assert!(
+            uris.iter().any(|uri| uri == expected),
+            "missing {expected}: {uris:?}"
+        );
+    }
+    assert!(
+        !uris
+            .iter()
+            .any(|uri| uri.ends_with("/escaped") || uri.ends_with("/raw"))
+    );
+    let targets = named_destinations(&pdf)?;
+    for id in [
+        "label-id",
+        "formatted-id",
+        "label-target",
+        "empty-label-id",
+        "duplicate",
+    ] {
+        assert!(targets.contains_key(id), "missing {id}");
+    }
+    let pages = pdf.get_pages();
+    let duplicate = *targets
+        .get("duplicate")
+        .ok_or("missing duplicate destination")?;
+    let target_page = destination_page_id(&pdf, duplicate)?;
+    let page = pages
+        .iter()
+        .find_map(|(page, id)| (*id == target_page).then_some(*page));
+    assert!(
+        pdf.extract_text(&[page.ok_or("missing duplicate page")?])?
+            .contains("P17")
+    );
+    Ok(())
+}
+
+#[test]
+fn inline_verbatim_links_preserve_local_reference_navigation() -> Result<(), Error> {
+    // Different fonts split the copied title into separate PDF annotations.
+    for (title, expected_pages) in [
+        ("Target", &[2, 2, 1, 2][..]),
+        (
+            "Target `https://example.org/title[Code]`",
+            &[2, 2, 1, 2, 2][..],
+        ),
+    ] {
+        let pdf = render_input(&format!(
+            "= Links\n\n`xref:target[Named]` and `<<target>>` and `xref:#[Top]`.\n\nSee <<target>>.\n\n<<<\n\n[[target]]\n== {title}\n"
+        ))?;
+        assert_eq!(internal_link_pages(&pdf, 1)?, expected_pages);
+        assert!(external_link_rects(&pdf, 1)?.is_empty());
+        assert!(pdf.extract_text(&[1])?.contains("Target"));
+        if title.contains("https") {
+            assert!(
+                external_link_rects(&pdf, 2)?
+                    .iter()
+                    .any(|(uri, _)| uri == "https://example.org/title")
+            );
+        }
+    }
+    Ok(())
+}
+
+#[cfg(feature = "pre-spec-subs")]
+#[test]
+fn inline_verbatim_links_honor_context_and_copied_title_ownership() -> Result<(), Error> {
+    let pdf = render_input(include_str!(
+        "fixtures/source/subs_inline_verbatim_links.adoc"
+    ))?;
+    assert!(
+        !external_link_rects(&pdf, 1)?
+            .iter()
+            .any(|(uri, _)| uri.ends_with("/heading")),
+        "the copied title must retain the TOC's heading link"
+    );
+    assert!(internal_link_pages(&pdf, 1)?.iter().all(|page| *page == 2));
+    let mut uris = Vec::new();
+    for page in pdf.get_pages().keys() {
+        uris.extend(
+            external_link_rects(&pdf, *page)?
+                .into_iter()
+                .map(|(uri, _)| uri),
+        );
+    }
+    for expected in [
+        "https://example.org/bold",
+        "https://example.org/role",
+        "https://example.org/pass",
+        "https://example.org/attribute",
+        "https://example.org/multiline",
+        "https://example.org/spaces",
+        "https://example.org/quotes-off",
+        "other.manual.pdf#target",
+        "other.pdf#target",
+        "https://example.org/heading",
+        "https://example.org/surrounding",
+        "https://example.org/nested-code",
+        "https://example.org/hidden",
+        "https://example.org/hidden-two",
+    ] {
+        assert!(
+            uris.iter().any(|uri| uri == expected),
+            "missing {expected}: {uris:?}"
+        );
+    }
+    assert!(!uris.iter().any(|uri| uri.ends_with("/disabled")));
+    let targets = named_destinations(&pdf)?;
+    let heading = *targets.get("heading-id").ok_or("missing heading ID")?;
+    assert_eq!(
+        destination_page_id(&pdf, heading)?,
+        *pdf.get_pages().get(&2).ok_or("missing body page")?
+    );
+    Ok(())
+}
+
+#[test]
+fn inline_verbatim_links_keep_glyph_positions_and_disjoint_rectangles() -> Result<(), Error> {
+    for (linked, plain) in [
+        (
+            "xlink:https://example.org/[Label]y".to_owned(),
+            "xLabely".to_owned(),
+        ),
+        (
+            "xlink:https://example.org/[café]y".to_owned(),
+            "xcaféy".to_owned(),
+        ),
+        (
+            "xlink:https://example.org/[cafe\u{301}]y".to_owned(),
+            "xcafe\u{301}y".to_owned(),
+        ),
+        (
+            "link:https://example.org/[First\n  second]".to_owned(),
+            "First\n  second".to_owned(),
+        ),
+        (
+            format!("link:https://example.org/[{}]", "wrapped words ".repeat(35)),
+            "wrapped words ".repeat(35),
+        ),
+        (
+            format!("xlink:https://example.org/[{}]y", "longword".repeat(20)),
+            format!("x{}y", "longword".repeat(20)),
+        ),
+        (
+            "link:https://example.org/[longword]".repeat(20),
+            "longword".repeat(20),
+        ),
+    ] {
+        for context in ["", "[cols=\"1,3\"]\n|===\n|", "[.pre-wrap]\n"] {
+            let suffix = if context.contains("cols") {
+                "\n|Other\n|===\n"
+            } else {
+                "\n"
+            };
+            let marked =
+                render_input(&format!("= Links\n\n{context}``{linked}``**End**.{suffix}"))?;
+            let control =
+                render_input(&format!("= Links\n\n{context}``{plain}``**End**.{suffix}"))?;
+            let actual = text_origin(&marked, 1, "End")?;
+            let expected = text_origin(&control, 1, "End")?;
+            assert!(
+                (actual.0 - expected.0).abs() < 0.01 && (actual.1 - expected.1).abs() < 0.01,
+                "{context} {linked}: {actual:?}, expected {expected:?}"
+            );
+            let rectangles = external_link_rects(&marked, 1)?;
+            assert!(!rectangles.is_empty());
+            if linked.contains("wrapped")
+                || (linked.contains("longword") && context.contains("cols"))
+            {
+                let mut rows = rectangles
+                    .iter()
+                    .map(|(_, [_, bottom, _, _])| bottom.to_bits())
+                    .collect::<Vec<_>>();
+                rows.sort_unstable();
+                rows.dedup();
+                assert!(
+                    rows.len() > 1,
+                    "{context} {linked}: wrapped code must have clickable links on multiple lines"
+                );
+            }
+        }
+    }
+    for content in [
+        "`https://outer.example[Left https://inner.example[Middle] right]`",
+        "https://outer.example[Left `https://inner.example[Middle]` right]",
+    ] {
+        let pdf = render_input(&format!("= Links\n\n{content}.\n"))?;
+        let mut rectangles = external_link_rects(&pdf, 1)?;
+        rectangles.sort_by(|(_, [left, ..]), (_, [right, ..])| left.total_cmp(right));
+        assert_eq!(rectangles.len(), 3, "{content}: {rectangles:?}");
+        for pair in rectangles.windows(2) {
+            let [(_, [_, _, right, _]), (_, [left, _, _, _])] = pair else {
+                return Err("missing link pair".into());
+            };
+            assert!(
+                *right <= *left + 0.01,
+                "{content}: overlapping links: {pair:?}"
+            );
+        }
+    }
+    Ok(())
+}
+
+fn external_link_rects(pdf: &PdfDocument, page: u32) -> Result<Vec<(String, [f32; 4])>, Error> {
+    let page = *pdf
+        .get_pages()
+        .get(&page)
+        .ok_or("missing annotation page")?;
+    let mut links = Vec::new();
+    for annotation in pdf.get_page_annotations(page)? {
+        let Ok(action) = annotation.get(b"A") else {
+            continue;
+        };
+        let (_, action) = pdf.dereference(action)?;
+        let Ok(uri) = action.as_dict()?.get(b"URI") else {
+            continue;
+        };
+        let uri = String::from_utf8(uri.as_str()?.to_vec())?;
+        let [left, bottom, right, top] = annotation.get(b"Rect")?.as_array()?.as_slice() else {
+            return Err("invalid link rectangle".into());
+        };
+        links.push((
+            uri,
+            [
+                left.as_float()?,
+                bottom.as_float()?,
+                right.as_float()?,
+                top.as_float()?,
+            ],
+        ));
+    }
+    Ok(links)
+}
+
+#[test]
 fn named_pdf_destinations_export_rendered_source_ids() -> Result<(), Error> {
     let pdf = render_input(include_str!("fixtures/source/named_destinations.adoc"))?;
     let destinations = named_destinations(&pdf)?;

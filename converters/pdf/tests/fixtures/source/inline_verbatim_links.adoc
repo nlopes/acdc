@@ -1,0 +1,64 @@
+= inline-links(1)
+:manmanual: Inline code links
+:mansource: acdc
+:revdate: 2026-10-02
+
+== Name
+inline-links - clickable links inside inline code
+
+== Description
+
+P01 `https://example.org/label[Label,id=label-id]`.
+
+P02 `Before link:https://example.org/site[Site] after`.
+
+P03 `mailto:person@example.org[Mail]`.
+
+P04 `mailto:person@example.org[Mail query,Subject,Body]`.
+
+P05 `https://example.org/bare`.
+
+P06 `<https://example.org/bracketed>`.
+
+P07 `xref:destination[Here]`.
+
+P08 `xref:destination[]`.
+
+P09 `xref:other.adoc#chapter[Other]`.
+
+P10 `xref:other.adoc#chapter[]`.
+
+P11 `https://example.org/formatted[*Bold* and _Italic_,id=formatted-id]`.
+
+P12 `https://example.org/outer[Outer https://example.org/inner[Inner] tail]`.
+
+P13 `https://example.org/anchor[Before anchor:label-target[]after]`.
+
+P14 `link:https://example.org/empty[,id=empty-label-id]`.
+
+P15 `\https://example.org/escaped[Literal]` and `pass:[https://example.org/raw[Raw]]`.
+
+P16 `https://example.org/one[One]link:https://example.org/two[Two]`.
+
+P17 `https://example.org/first[First,id=duplicate]`.
+
+* P18 `https://example.org/item[Item]`.
+
+[cols="1"]
+|===
+|P19 `https://example.org/cell[Cell]`.
+|===
+
+[[destination]]
+== Target
+
+P20 Target body.
+
+<<<
+
+P21 `https://example.org/second[Second,id=duplicate]`.
+
+See <<label-id,Label ID>>, <<formatted-id,Formatted ID>>,
+<<label-target,Anchor ID>>, <<empty-label-id,Empty label>>, and <<duplicate,First ID>>.
+
+P22 `https://example.org/query?x=1&y=2[Query]`.

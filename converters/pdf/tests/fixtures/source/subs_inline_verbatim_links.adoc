@@ -1,0 +1,48 @@
+= inline-contexts(1)
+:manmanual: Inline code links
+:mansource: acdc
+:revdate: 2026-10-02
+:toc:
+:linked: pass:m[https://example.org/attribute[Attribute]]
+
+== Name
+inline-contexts - inline code link contexts
+
+== Description
+
+P01 *Before `https://example.org/bold[Bold]` after*.
+
+P02 [.underline]#Before `https://example.org/role[Role]` after#.
+
+P03 pass:q,m[`https://example.org/pass[Pass\]`].
+
+P04 `{linked}`.
+
+P05 `https://example.org/multiline[First
+  second]`.
+
+[.pre-wrap]
+P06 `Before  https://example.org/spaces[Spaced  label]  after`.
+
+[subs=-macros]
+P07 `https://example.org/disabled[Literal]`.
+
+[subs=-quotes]
+P08 `https://example.org/quotes-off[Quotes off]`.
+
+:relfilesuffix: .manual.pdf
+P09 `xref:other.adoc#target[Custom]`.
+
+:relfilesuffix!:
+P10 `xref:other.adoc#target[Default]`.
+
+P11 `xref:missing[Missing]`.
+
+=== Copied `https://example.org/heading[Heading,id=heading-id]`
+
+P12 Heading body.
+
+P13 https://example.org/surrounding[Before `https://example.org/nested-code[Code]` after].
+
+:hide-uri-scheme:
+P14 `https://example.org/hidden` and `link:https://example.org/hidden-two[]`.

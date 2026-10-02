@@ -829,34 +829,102 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         }
     }
 
-    pub(crate) fn write_inline_verbatim_nodes(&mut self, nodes: &[InlineNode<'_>]) {
-        let mut code = self.inline_verbatim_text(nodes);
+    pub(crate) fn write_inline_verbatim_nodes(
+        &mut self,
+        traversal: &TraversalContext<'_>,
+        nodes: &[InlineNode<'_>],
+    ) -> Result<(), Error> {
+        let mut code = self.inline_verbatim_text(nodes, code_output_extension(traversal));
         let mut positions = code
             .links
             .iter()
-            .map(|span| (span.range.start, 0))
+            .flat_map(|span| [(span.range.start, 0), (span.range.end, 0)])
             .collect::<Vec<_>>();
         // Normalize the complete text so targets do not change whitespace at fragment boundaries.
         transform_code_text(&mut code.source, &mut positions, |text| {
             self.normalize_prose_whitespace(text)
         });
+        // Compute word breaks before splitting links so annotations do not change table wrapping.
+        let breaks = self
+            .table_cell_text_break_columns()
+            .map_or_else(Vec::new, |columns| {
+                long_unbreakable_ranges(&code.source, columns)
+            });
         let mut start = 0;
-        for ((position, _), span) in positions.into_iter().zip(code.links) {
-            if let Some(label) = span.anchor.as_deref().and_then(|id| self.anchors.claim(id)) {
+        for ([(position, _), (end, _)], span) in positions.as_chunks::<2>().0.iter().zip(code.links)
+        {
+            let label = span.anchor.as_deref().and_then(|id| self.anchors.claim(id));
+            if label.is_some() || span.target.is_some() {
+                let position = *position;
                 if start < position {
-                    self.write_inline_verbatim(&code.source[start..position]);
+                    self.write_inline_verbatim_fragment(&code.source, start..position, &breaks);
                 }
-                let _ = write!(self.writer, "#metadata(none)<{label}>");
+                if let Some(label) = label {
+                    let _ = write!(self.writer, "#metadata(none)<{label}>");
+                }
                 start = position;
+                if let Some(target) = span.target.as_ref().filter(|_| position < *end) {
+                    self.write_inline_verbatim_link(target, &code.source, position..*end, &breaks)?;
+                    start = *end;
+                }
             }
         }
-        self.write_inline_verbatim(&code.source[start..]);
+        self.write_inline_verbatim_fragment(&code.source, start..code.source.len(), &breaks);
+        Ok(())
     }
 
-    fn inline_verbatim_text(&self, nodes: &[InlineNode<'_>]) -> CodeText {
+    fn write_inline_verbatim_link(
+        &mut self,
+        target: &CodeLinkTarget,
+        source: &str,
+        range: Range<usize>,
+        breaks: &[Range<usize>],
+    ) -> Result<(), Error> {
+        let content = |visitor: &mut Self| {
+            visitor.write_inline_verbatim_fragment(source, range, breaks);
+            Ok(())
+        };
+        match target {
+            CodeLinkTarget::External(target) => self.write_external_link(target, content),
+            CodeLinkTarget::Internal(target) => self.write_labelled_link(target, content),
+            CodeLinkTarget::DocumentTop => {
+                self.writer.raw("#link((page: 1, x: 0pt, y: 0pt))[");
+                content(self)?;
+                self.writer.raw("]");
+                Ok(())
+            }
+        }
+    }
+
+    fn write_inline_verbatim_fragment(
+        &mut self,
+        source: &str,
+        range: Range<usize>,
+        breaks: &[Range<usize>],
+    ) {
+        if breaks
+            .iter()
+            .any(|word| word.start < range.start && range.start < word.end)
+        {
+            // Restore the break between clusters when a word crosses an annotation boundary.
+            self.writer.raw("#box(width: 0pt)");
+        }
+        let ranges = breaks.iter().filter_map(|word| {
+            let start = word.start.max(range.start);
+            let end = word.end.min(range.end);
+            (start < end).then(|| start - range.start..end - range.start)
+        });
+        self.write_text_ranges(
+            &source[range.start..range.end],
+            ranges,
+            TableTextKind::InlineVerbatim,
+        );
+    }
+
+    fn inline_verbatim_text(&self, nodes: &[InlineNode<'_>], extension: &str) -> CodeText {
         let mut code = CodeText::default();
         let transform = InlineTextTransform::default();
-        // Keep existing code text; collecting targets must not add footnotes or index entries.
+        // Extract text without registering footnotes or index entries.
         for node in nodes {
             let (id, children) = match node {
                 InlineNode::InlineAnchor(anchor) => (Some(anchor.id), None),
@@ -896,19 +964,37 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 | InlineNode::Macro(_)
                 | _ => (None, None),
             };
-            let anchor = id.map(str::to_owned).or_else(|| {
-                resolve_code_link(node, &self.processor.references, "pdf")
-                    .and_then(|link| link.anchor)
-            });
-            if let Some(anchor) = anchor {
+            if let Some(link) = resolve_code_link(node, &self.processor.references, extension) {
+                let mut child = if let Some(children) = children {
+                    self.inline_verbatim_text(children, extension)
+                } else {
+                    CodeText {
+                        source: link.text,
+                        ..CodeText::default()
+                    }
+                };
+                child.wrap_span(CodeSpan {
+                    // A copied title belongs to its outer TOC or reference link.
+                    target: if self.anchors.suspended {
+                        None
+                    } else {
+                        link.target
+                    },
+                    anchor: link.anchor,
+                    ..CodeSpan::default()
+                });
+                code.append(child);
+                continue;
+            }
+            if let Some(id) = id {
                 code.links.push(CodeSpan {
                     range: code.source.len()..code.source.len(),
-                    anchor: Some(anchor),
+                    anchor: Some(id.to_owned()),
                     ..CodeSpan::default()
                 });
             }
             if let Some(children) = children {
-                code.append(self.inline_verbatim_text(children));
+                code.append(self.inline_verbatim_text(children, extension));
             } else {
                 let _ = transform.write(&mut code.source, std::slice::from_ref(node));
             }
@@ -923,11 +1009,15 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
 
     fn write_table_text_expr(&mut self, text: &str, max_columns: usize, kind: TableTextKind) {
         let ranges = long_unbreakable_ranges(text, max_columns);
-        if ranges.is_empty() {
-            self.write_text_or_raw_expr(text, kind);
-            return;
-        }
+        self.write_text_ranges(text, ranges, kind);
+    }
 
+    fn write_text_ranges(
+        &mut self,
+        text: &str,
+        ranges: impl IntoIterator<Item = Range<usize>>,
+        kind: TableTextKind,
+    ) {
         let mut previous_end = 0;
         for range in ranges {
             if range.start > previous_end {
@@ -946,7 +1036,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             }
             previous_end = range.end;
         }
-        if previous_end < text.len() {
+        if previous_end < text.len() || text.is_empty() {
             self.write_text_or_raw_expr(&text[previous_end..], kind);
         }
     }
@@ -1838,13 +1928,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         nodes: &[InlineNode<'_>],
         tab_size: usize,
     ) -> Result<CodeText, Error> {
-        let extension = traversal
-            .get("relfilesuffix")
-            .and_then(|v| v.text())
-            .or_else(|| traversal.get("outfilesuffix").and_then(|v| v.text()))
-            .unwrap_or("pdf")
-            .trim_start_matches('.')
-            .to_owned();
+        let extension = code_output_extension(traversal).to_owned();
         let CodeText {
             source: mut text,
             indexes: mut positions,
@@ -4433,6 +4517,19 @@ pub(crate) fn collapse_source_whitespace(text: &str) -> Cow<'_, str> {
         }
     }
     Cow::Owned(collapsed)
+}
+
+fn code_output_extension<'ctx>(traversal: &'ctx TraversalContext<'_>) -> &'ctx str {
+    traversal
+        .get("relfilesuffix")
+        .and_then(|value| value.text())
+        .or_else(|| {
+            traversal
+                .get("outfilesuffix")
+                .and_then(|value| value.text())
+        })
+        .unwrap_or("pdf")
+        .trim_start_matches('.')
 }
 
 fn prose_whitespace(text: &str, pre_wrap: bool) -> Cow<'_, str> {

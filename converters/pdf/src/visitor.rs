@@ -704,7 +704,7 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
                 }
                 InlineNode::MonospaceText(mono) => {
                     let state = self.write_inline_span_start(mono.id, mono.role);
-                    self.write_inline_verbatim_nodes(&mono.content);
+                    self.write_inline_verbatim_nodes(traversal, &mono.content)?;
                     self.write_inline_span_end(state);
                 }
                 InlineNode::HighlightText(highlight) => {

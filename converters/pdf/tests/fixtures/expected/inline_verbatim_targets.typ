@@ -107,9 +107,9 @@
 
 #text("P12 ")#raw("Before ")#metadata(none)<id-656d7074792d7370616e>#raw("after")#text(".")
 
-#text("P13 ")#metadata(none)<id-6c696e6b2d6964>#raw("Label")#text(".")
+#text("P13 ")#metadata(none)<id-6c696e6b2d6964>#link("https://example.org")[#raw("Label")]#raw("")#text(".")
 
-#text("P14 ")#raw("Before ")#metadata(none)<id-6c6162656c2d746172676574>#raw("after")#text(".")
+#text("P14 ")#link("https://example.org")[#raw("Before ")]#metadata(none)<id-6c6162656c2d746172676574>#link("https://example.org")[#raw("after")]#raw("")#text(".")
 
 #text("P15 ")#raw("x")#metadata(none)<id-6174747269627574652d746172676574>#raw("y")#text(".")
 

@@ -208,6 +208,17 @@ Rendered reference IDs create public PDF named destinations using their original
 This includes document titles, sections, blocks, inline anchors, formatted spans, and IDs on explicit `link:`, direct URL, and `mailto:` macros.
 For example, `[[chapter]]` on a section and `anchor:term[]` in its text can be reached through `manual.pdf#nameddest=chapter` and `manual.pdf#nameddest=term` in supporting viewers.
 Targets inside inline code and code blocks with macros enabled are also exported.
+Links and cross-references inside backticks remain clickable while retaining monospace text:
+
+[source,asciidoc]
+----
+`https://example.org[Site]`
+`xref:chapter[Chapter]`
+----
+
+Automatic link labels honour `hide-uri-scheme`; external cross-references honour `relfilesuffix` at their source position.
+Links copied into TOC entries or automatic reference labels retain the enclosing navigation target; the original heading link remains clickable.
+Nested links keep separate click targets, and anchors inside link labels retain their full label text; Asciidoctor PDF can leave these cases as literal or incomplete markup.
 Content omitted from PDF output creates no destination.
 Local cross-references can appear before or after these targets.
 When several anchors precede a document title, the last anchor is used and automatic references show the full title and subtitle.
