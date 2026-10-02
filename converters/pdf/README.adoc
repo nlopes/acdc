@@ -204,10 +204,16 @@ that stricter profile automatically.
 
 == Named destinations, inline IDs, and roles
 
-Document-title IDs and IDs on explicit `link:`, direct URL, and `mailto:` macros create named PDF destinations.
+Rendered reference IDs create public PDF named destinations using their original AsciiDoc names.
+This includes document titles, sections, blocks, inline anchors, formatted spans, and IDs on explicit `link:`, direct URL, and `mailto:` macros.
+For example, `[[chapter]]` on a section and `anchor:term[]` in its text can be reached through `manual.pdf#nameddest=chapter` and `manual.pdf#nameddest=term` in supporting viewers.
+Targets inside inline code and code blocks with macros enabled are also exported.
+Content omitted from PDF output creates no destination.
 Local cross-references can appear before or after these targets.
 When several anchors precede a document title, the last anchor is used and automatic references show the full title and subtitle.
-For duplicate link IDs, acdc keeps the first destination so the PDF remains valid.
+For duplicate IDs, acdc keeps the first rendered destination so the PDF remains valid.
+Authored IDs take precedence if they collide with automatically encoded heading names.
+acdc also exports its broader Unicode IDs, such as `topic🚀`, which Asciidoctor leaves literal.
 
 IDs on bold, italic, monospace, highlight, subscript, superscript, and quoted text create PDF link targets.
 For example, `[#term]*Term*` can be referenced with `<<term>>`.

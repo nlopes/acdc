@@ -1,4 +1,4 @@
-use acdc_parser::{Options, ParseResult, parse, parse_file};
+use acdc_parser::{Document, Options, ParseResult, parse, parse_file};
 use lopdf::{Document as PdfDocument, Object, ObjectId, decode_text_string};
 use std::{
     collections::HashMap,
@@ -10,6 +10,169 @@ use acdc_converters_core::{Converter, Diagnostics, Options as ConverterOptions, 
 use acdc_converters_pdf::{PdfOptions, Processor};
 
 type Error = Box<dyn std::error::Error>;
+
+#[test]
+fn named_pdf_destinations_export_rendered_source_ids() -> Result<(), Error> {
+    let pdf = render_input(include_str!("fixtures/source/named_destinations.adoc"))?;
+    let destinations = named_destinations(&pdf)?;
+    for id in [
+        "document-top",
+        "_name",
+        "chapter",
+        "inline",
+        "shorthand",
+        "bold",
+        "italic",
+        "mono",
+        "mark",
+        "sub",
+        "super",
+        "double",
+        "single",
+        "empty",
+        "code",
+        "café",
+        "topic🚀",
+        "a:b",
+        "id-63686170746572",
+        "url-id",
+        "link-id",
+        "mail-id",
+        "paragraph",
+        "listing",
+        "cell",
+        "item",
+        "duplicate",
+        "discrete",
+        "_bibliography",
+        "book",
+    ] {
+        assert!(
+            destinations.contains_key(id),
+            "missing {id}: {destinations:?}"
+        );
+    }
+    for id in ["unused-header", "escaped", "raw"] {
+        assert!(!destinations.contains_key(id), "unexpected {id}");
+    }
+    Ok(())
+}
+
+#[test]
+fn named_pdf_destinations_keep_caller_built_document_titles() -> Result<(), Error> {
+    let parsed = parse(
+        include_str!("fixtures/source/named_destinations.adoc"),
+        &Options::default(),
+    )?;
+    let header = parsed
+        .document()
+        .header
+        .as_ref()
+        .ok_or("missing fixture header")?;
+    let mut document = Document::default();
+    document.header = Some(
+        acdc_parser::Header::new(header.title.clone(), header.location.clone())
+            .with_metadata(header.metadata.clone()),
+    );
+    document.attributes = parsed.document().attributes.clone();
+    let pdf = render_document(&document)?;
+    let destinations = named_destinations(&pdf)?;
+    assert!(destinations.contains_key("document-top"));
+    assert!(!destinations.contains_key("unused-header"));
+    Ok(())
+}
+
+#[test]
+fn named_pdf_destinations_preserve_positions_and_first_ownership() -> Result<(), Error> {
+    let pdf = render_input(include_str!("fixtures/source/named_destinations.adoc"))?;
+    let destinations = named_destinations(&pdf)?;
+    let pages = pdf.get_pages();
+    for (id, marker) in [
+        ("duplicate", "P11 "),
+        ("book", "[book] P14 Book target."),
+        ("code", "P03 "),
+    ] {
+        let target = *destinations.get(id).ok_or("missing named destination")?;
+        let page_id = destination_page_id(&pdf, target)?;
+        let page = pages
+            .iter()
+            .find_map(|(page, candidate)| (*candidate == page_id).then_some(*page))
+            .ok_or("missing target page")?;
+        assert!(
+            pdf.extract_text(&[page])?.contains(marker),
+            "{id}: missing {marker}"
+        );
+        let target = resolve_destination(&pdf, &destinations, target)?.as_array()?;
+        let top = target.get(3).ok_or("missing target height")?.as_float()?;
+        let (_, baseline) = text_origin(&pdf, page, marker)?;
+        assert!(
+            (0.0..20.0).contains(&(top - baseline)),
+            "{id}: target {top}, text {baseline}"
+        );
+    }
+    let chapter = *destinations
+        .get("chapter")
+        .ok_or("missing chapter destination")?;
+    let collision = *destinations
+        .get("id-63686170746572")
+        .ok_or("missing collision destination")?;
+    let chapter = resolve_destination(&pdf, &destinations, chapter)?.as_array()?;
+    let collision = resolve_destination(&pdf, &destinations, collision)?.as_array()?;
+    let chapter = chapter.get(3).ok_or("missing chapter height")?.as_float()?;
+    let collision = collision
+        .get(3)
+        .ok_or("missing collision height")?
+        .as_float()?;
+    assert!(
+        chapter > collision + 20.0,
+        "public source ID must take precedence over the generated heading name"
+    );
+    Ok(())
+}
+
+#[cfg(feature = "pre-spec-subs")]
+#[test]
+fn named_pdf_destinations_omit_unrendered_targets_and_copied_titles() -> Result<(), Error> {
+    let source = include_str!("fixtures/source/subs_named_destinations.adoc");
+    let parsed = parse(source, &Options::default())?;
+    for id in ["omitted", "_empty_index"] {
+        assert!(
+            parsed.document().references.contains_key(id),
+            "missing catalog control {id}"
+        );
+    }
+    let pdf = render_parsed(&parsed)?;
+    let destinations = named_destinations(&pdf)?;
+    for id in ["heading-target", "code-target"] {
+        assert!(destinations.contains_key(id), "missing {id}");
+    }
+    for id in [
+        "unused-value",
+        "disabled",
+        "not-formatted",
+        "omitted",
+        "_empty_index",
+    ] {
+        assert!(!destinations.contains_key(id), "unexpected {id}");
+    }
+    let target = *destinations
+        .get("heading-target")
+        .ok_or("missing heading destination")?;
+    let heading = resolve_destination(&pdf, &destinations, target)?.as_array()?;
+    let top = heading.get(3).ok_or("missing heading height")?.as_float()?;
+    let page_id = destination_page_id(&pdf, target)?;
+    let page = pdf
+        .get_pages()
+        .into_iter()
+        .find_map(|(page, id)| (id == page_id).then_some(page))
+        .ok_or("missing heading page")?;
+    let (_, baseline) = text_origin(&pdf, page, "P02 Heading body.")?;
+    assert!(
+        (0.0..45.0).contains(&(top - baseline)),
+        "body heading must own the target, not the TOC: {top}, {baseline}"
+    );
+    Ok(())
+}
 
 #[test]
 fn formatted_attribute_footnotes_register_at_use() -> Result<(), Error> {
@@ -285,7 +448,8 @@ fn inline_verbatim_targets_reach_the_glyph_position() -> Result<(), Error> {
         let destination = link
             .get(b"Dest")
             .or_else(|_| link.get(b"A")?.as_dict()?.get(b"D"))?;
-        let (_, destination) = pdf.dereference(destination)?;
+        let targets = named_destinations(&pdf)?;
+        let destination = resolve_destination(&pdf, &targets, destination)?;
         let [_, kind, left, top, ..] = destination.as_array()?.as_slice() else {
             return Err("incomplete target position".into());
         };
@@ -948,15 +1112,19 @@ fn render_input(input: &str) -> Result<PdfDocument, Error> {
 }
 
 fn render_parsed(parsed: &ParseResult) -> Result<PdfDocument, Error> {
+    render_document(parsed.document())
+}
+
+fn render_document(document: &Document<'_>) -> Result<PdfDocument, Error> {
     let processor = Processor::new(
         ConverterOptions::default(),
-        Options::builder().with_attributes(parsed.document().attributes.clone().into_inputs()),
+        Options::builder().with_attributes(document.attributes.clone().into_inputs()),
     )?;
     let source = WarningSource::new("pdf");
     let mut warnings = Vec::new();
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
     let mut output = Vec::new();
-    processor.write_to(parsed.document(), &mut output, None, None, &mut diagnostics)?;
+    processor.write_to(document, &mut output, None, None, &mut diagnostics)?;
     assert!(warnings.is_empty(), "{warnings:?}");
     Ok(PdfDocument::load_mem(&output)?)
 }
@@ -1262,7 +1430,8 @@ fn standalone_anchors_target_the_following_paragraph() -> Result<(), Error> {
         let target = link
             .get(b"Dest")
             .or_else(|_| link.get(b"A")?.as_dict()?.get(b"D"))?;
-        let (_, target) = pdf.dereference(target)?;
+        let targets = named_destinations(&pdf)?;
+        let target = resolve_destination(&pdf, &targets, target)?;
         let [_, kind, _, top, ..] = target.as_array()?.as_slice() else {
             return Err("incomplete paragraph destination".into());
         };
@@ -1291,32 +1460,86 @@ fn destination_page_id(pdf: &PdfDocument, destination: &Object) -> Result<Object
         .as_reference()?)
 }
 
-fn internal_link_pages(pdf: &PdfDocument, page: u32) -> Result<Vec<u32>, Error> {
-    let pages = pdf.get_pages();
-    let page_id = pages.get(&page).ok_or("missing source page")?;
+fn named_destinations(pdf: &PdfDocument) -> Result<HashMap<String, &Object>, Error> {
+    fn collect<'a>(
+        pdf: &'a PdfDocument,
+        node: &'a Object,
+        targets: &mut HashMap<String, &'a Object>,
+    ) -> Result<(), Error> {
+        let (_, node) = pdf.dereference(node)?;
+        let node = node.as_dict()?;
+        if let Ok(entries) = node.get(b"Names") {
+            let entries = entries.as_array()?;
+            let (pairs, remainder) = entries.as_chunks::<2>();
+            assert!(remainder.is_empty(), "incomplete destination name pair");
+            for [name, target] in pairs {
+                // The PDF renderer stores destination keys as UTF-8 bytes, not PDF text strings.
+                let name = String::from_utf8(name.as_str()?.to_vec())?;
+                assert!(
+                    targets.insert(name.clone(), target).is_none(),
+                    "duplicate destination {name}"
+                );
+            }
+        }
+        if let Ok(children) = node.get(b"Kids") {
+            for child in children.as_array()? {
+                collect(pdf, child, targets)?;
+            }
+        }
+        Ok(())
+    }
     let mut targets = HashMap::new();
     if let Ok(names) = pdf.catalog()?.get(b"Names") {
         let (_, names) = pdf.dereference(names)?;
         if let Ok(destinations) = names.as_dict()?.get(b"Dests") {
-            let (_, destinations) = pdf.dereference(destinations)?;
-            let entries = destinations.as_dict()?.get(b"Names")?.as_array()?;
-            for [name, target] in entries.as_chunks::<2>().0 {
-                targets.insert(name.as_str()?, destination_page_id(pdf, target)?);
-            }
+            collect(pdf, destinations, &mut targets)?;
         }
     }
+    Ok(targets)
+}
+
+fn resolve_destination<'a>(
+    pdf: &'a PdfDocument,
+    targets: &HashMap<String, &'a Object>,
+    destination: &'a Object,
+) -> Result<&'a Object, Error> {
+    let (_, destination) = pdf.dereference(destination)?;
+    match destination {
+        Object::String(..) | Object::Name(_) => {
+            let name = if let Object::Name(bytes) = destination {
+                String::from_utf8(bytes.clone())?
+            } else {
+                String::from_utf8(destination.as_str()?.to_vec())?
+            };
+            resolve_destination(
+                pdf,
+                targets,
+                targets.get(&name).ok_or("missing named destination")?,
+            )
+        }
+        Object::Dictionary(dictionary) => resolve_destination(pdf, targets, dictionary.get(b"D")?),
+        Object::Array(_) => Ok(destination),
+        Object::Null
+        | Object::Boolean(_)
+        | Object::Integer(_)
+        | Object::Real(_)
+        | Object::Stream(_)
+        | Object::Reference(_) => Err("invalid PDF destination".into()),
+    }
+}
+
+fn internal_link_pages(pdf: &PdfDocument, page: u32) -> Result<Vec<u32>, Error> {
+    let pages = pdf.get_pages();
+    let page_id = pages.get(&page).ok_or("missing source page")?;
+    let targets = named_destinations(pdf)?;
     pdf.get_page_annotations(*page_id)?
         .into_iter()
         .map(|annotation| {
             let destination = annotation
                 .get(b"Dest")
                 .or_else(|_| annotation.get(b"A")?.as_dict()?.get(b"D"))?;
-            let (_, destination) = pdf.dereference(destination)?;
-            let target = if let Ok(name) = destination.as_str() {
-                *targets.get(name).ok_or("missing named destination")?
-            } else {
-                destination_page_id(pdf, destination)?
-            };
+            let destination = resolve_destination(pdf, &targets, destination)?;
+            let target = destination_page_id(pdf, destination)?;
             pages
                 .iter()
                 .find_map(|(number, id)| (*id == target).then_some(*number))

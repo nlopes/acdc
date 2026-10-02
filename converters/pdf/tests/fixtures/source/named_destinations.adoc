@@ -1,0 +1,66 @@
+[[unused-header]]
+[[document-top]]
+= named-targets(1)
+:manmanual: Named destinations
+:mansource: acdc
+:revdate: 2026-10-02
+:toc:
+:blank:
+
+== Name
+named-targets - public PDF destinations
+
+[[chapter]]
+== Description
+
+P01 anchor:inline[]Text and [[shorthand]]short text.
+
+P02 [#bold]*Bold*, [#italic]_Italic_, [#mono]`Mono`, [#mark]#Mark#,
+[#sub]~Sub~, [#super]^Sup^, [#double]"`Double`", and [#single]'`Single`'.
+
+P03 [#empty]*{blank}* Empty and `xanchor:code[]y`.
+
+P04 anchor:café[]Accent and anchor:topic🚀[]Rocket.
+
+P05 anchor:a:b[]Colon and anchor:id-63686170746572[]Encoded-name collision.
+
+P06 https://example.org[URL,id=url-id], link:https://example.org[Link,id=link-id],
+and mailto:person@example.org[Mail,id=mail-id].
+
+[[paragraph]]
+P07 Paragraph target.
+
+[[listing]]
+----
+P08 Listing target.
+----
+
+[cols="1"]
+|===
+|P09 anchor:cell[]Cell target.
+|===
+
+* P10 anchor:item[]List target.
+
+P11 anchor:duplicate[]First duplicate.
+
+P12 \anchor:escaped[]Literal and pass:[anchor:raw[]] raw text.
+
+[[discrete]]
+[discrete]
+=== Discrete heading
+
+P13 Discrete body.
+
+[bibliography]
+== Bibliography
+
+* [[[book]]] P14 Book target.
+
+<<<
+
+P15 anchor:duplicate[]Second duplicate.
+
+See <<document-top,Document>>, <<chapter,Chapter>>, <<inline,Inline>>,
+<<café,Accent>>, <<topic🚀,Rocket>>, <<id-63686170746572,Collision>>,
+<<book,Book>>, and <<duplicate,First>>.

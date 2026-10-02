@@ -33,8 +33,8 @@ use acdc_converters_core::{
 };
 use acdc_parser::{
     Admonition, Author, Block, BlockMetadata, CaptionKind, DelimitedBlock, DelimitedBlockType,
-    Document, DocumentAttributes, ElementAttributes, IndexTerm, IndexTermRelationship, InlineMacro,
-    InlineNode, Location, Options as ParserOptions, Reference, SafeMode, Source, SourceLocation,
+    Document, DocumentAttributes, IndexTerm, IndexTermRelationship, InlineMacro, InlineNode,
+    Location, Options as ParserOptions, Reference, SafeMode, Source, SourceLocation,
 };
 use acdc_pdf_images::{
     Error as ImageError, ImageMap, ResolveConfig, ResolveFailure, SourcePolicy, resolve,
@@ -365,9 +365,27 @@ impl Processor<'_> {
         let emit_duration = emit_start.elapsed();
 
         let render_start = Instant::now();
-        let named_destinations = preparation
-            .named_destination_ids
-            .iter()
+        // Public PDF names use AsciiDoc IDs, not the encoded labels used by Typst.
+        // The renderer omits catalog entries whose labels were not actually emitted.
+        // Caller-built document titles may have an ID without a reference catalog entry.
+        let header_id = doc.header.as_ref().and_then(|header| {
+            header
+                .metadata
+                .id
+                .as_ref()
+                .or_else(|| header.metadata.anchors.last())
+                .map(|anchor| anchor.id)
+        });
+        let mut ids = doc
+            .references
+            .keys()
+            .copied()
+            .chain(header_id)
+            .collect::<Vec<_>>();
+        ids.sort_unstable();
+        ids.dedup();
+        let named_destinations = ids
+            .into_iter()
             .map(|id| NamedDestination::new(encode_label(id), id))
             .collect();
         let mut rendered = render_pdf(
@@ -1152,35 +1170,15 @@ fn collect_pdf_preparation(doc: &Document<'_>) -> PdfPreparation {
         Ok::<(), std::convert::Infallible>(())
     });
     let mut traversal = TraversalContext::new(&doc.attributes);
-    let context = PreparationContext {
-        attributes: &traversal,
-        references: &doc.references,
-    };
     if let Some(header) = &doc.header {
-        if let Some(anchor) = header
-            .metadata
-            .id
-            .as_ref()
-            .or_else(|| header.metadata.anchors.last())
-        {
-            preparation.named_destination_ids.push(anchor.id.to_owned());
-        }
-        collect_inline_preparation(header.title.as_ref(), &context, &mut preparation);
+        collect_inline_preparation(header.title.as_ref(), &traversal, &mut preparation);
         if let Some(subtitle) = &header.subtitle {
-            collect_inline_preparation(subtitle.as_ref(), &context, &mut preparation);
+            collect_inline_preparation(subtitle.as_ref(), &traversal, &mut preparation);
         }
     }
-    let mut visitor = PreparationVisitor {
-        references: &doc.references,
-        preparation,
-    };
+    let mut visitor = PreparationVisitor { preparation };
     let Ok(()) = traversal.visit_blocks(&mut visitor, &doc.blocks);
     visitor.preparation
-}
-
-struct PreparationContext<'attributes, 'source: 'attributes> {
-    attributes: &'attributes TraversalContext<'source>,
-    references: &'attributes HashMap<&'source str, Reference<'source>>,
 }
 
 #[derive(Default)]
@@ -1194,7 +1192,6 @@ struct PdfPreparation {
     has_autofit_blocks: bool,
     admonition_image_icon_count: usize,
     populated_index_sections: HashSet<String>,
-    named_destination_ids: Vec<String>,
 }
 
 struct ImageIconReference {
@@ -1264,12 +1261,11 @@ impl PdfPreparation {
     }
 }
 
-struct PreparationVisitor<'doc> {
-    references: &'doc HashMap<&'doc str, Reference<'doc>>,
+struct PreparationVisitor {
     preparation: PdfPreparation,
 }
 
-impl<'doc> Visitor<'doc> for PreparationVisitor<'doc> {
+impl<'doc> Visitor<'doc> for PreparationVisitor {
     type Error = std::convert::Infallible;
 
     fn before_block(
@@ -1277,50 +1273,46 @@ impl<'doc> Visitor<'doc> for PreparationVisitor<'doc> {
         traversal: &mut TraversalContext<'doc>,
         block: &'doc Block<'doc>,
     ) -> Result<(), Self::Error> {
-        let context = PreparationContext {
-            attributes: traversal,
-            references: self.references,
-        };
         let preparation = &mut self.preparation;
         match block {
             Block::Paragraph(paragraph) => {
                 preparation.has_unbreakable_blocks |= is_unbreakable_paragraph(paragraph);
                 preparation.has_autofit_blocks |= is_autofit_paragraph(paragraph, traversal);
-                collect_metadata_preparation(&paragraph.metadata, &context, preparation);
+                collect_metadata_preparation(&paragraph.metadata, traversal, preparation);
             }
             Block::DelimitedBlock(block) => {
                 preparation.has_unbreakable_blocks |= is_unbreakable_delimited_block(block);
                 preparation.has_autofit_blocks |= is_autofit_delimited_block(block, traversal);
-                collect_inline_preparation(&block.title, &context, preparation);
-                collect_metadata_preparation(&block.metadata, &context, preparation);
+                collect_inline_preparation(&block.title, traversal, preparation);
+                collect_metadata_preparation(&block.metadata, traversal, preparation);
                 if let DelimitedBlockType::DelimitedListing(nodes)
                 | DelimitedBlockType::DelimitedLiteral(nodes) = &block.inner
                 {
                     acdc_converters_core::index::visit_index_terms(nodes, &mut |term, _| {
-                        collect_index_term_preparation(term, &context, preparation);
+                        collect_index_term_preparation(term, traversal, preparation);
                         Ok::<(), Self::Error>(())
                     })?;
                 }
             }
             Block::DescriptionList(list) => {
-                collect_inline_preparation(&list.title, &context, preparation);
+                collect_inline_preparation(&list.title, traversal, preparation);
             }
             Block::CalloutList(list) => {
-                collect_inline_preparation(&list.title, &context, preparation);
+                collect_inline_preparation(&list.title, traversal, preparation);
             }
             Block::Admonition(admonition) => {
-                collect_admonition_preparation(admonition, &context, preparation);
+                collect_admonition_preparation(admonition, traversal, preparation);
             }
             Block::Image(image) => {
-                collect_inline_preparation(&image.title, &context, preparation);
+                collect_inline_preparation(&image.title, traversal, preparation);
                 preparation.insert_image(
                     resolve_target(&image.source.to_string(), traversal),
                     &image.location,
                 );
             }
-            Block::Audio(audio) => collect_inline_preparation(&audio.title, &context, preparation),
+            Block::Audio(audio) => collect_inline_preparation(&audio.title, traversal, preparation),
             Block::Video(video) => {
-                collect_inline_preparation(&video.title, &context, preparation);
+                collect_inline_preparation(&video.title, traversal, preparation);
                 if let Some(poster) = video
                     .metadata
                     .attributes
@@ -1366,22 +1358,18 @@ impl<'doc> Visitor<'doc> for PreparationVisitor<'doc> {
         traversal: &mut TraversalContext<'doc>,
         nodes: &[InlineNode<'_>],
     ) -> Result<(), Self::Error> {
-        let context = PreparationContext {
-            attributes: traversal,
-            references: self.references,
-        };
-        collect_inline_preparation(nodes, &context, &mut self.preparation);
+        collect_inline_preparation(nodes, traversal, &mut self.preparation);
         Ok(())
     }
 }
 
 fn collect_admonition_preparation<'a>(
     admonition: &'a Admonition<'a>,
-    context: &PreparationContext<'_, '_>,
+    attributes: &TraversalContext<'_>,
     preparation: &mut PdfPreparation,
 ) {
     preparation.has_unbreakable_blocks |= admonition.metadata.options.contains(&"unbreakable");
-    if IconMode::from_attributes(context.attributes) != IconMode::Text
+    if IconMode::from_attributes(attributes) != IconMode::Text
         && let Some(icon) = admonition
             .metadata
             .attributes
@@ -1390,7 +1378,7 @@ fn collect_admonition_preparation<'a>(
     {
         preparation.admonition_image_icon_count += 1;
         preparation.insert_named_image_icon(
-            admonition_icon_source(context.attributes, &icon),
+            admonition_icon_source(attributes, &icon),
             icon.into_owned(),
             admonition
                 .metadata
@@ -1399,7 +1387,7 @@ fn collect_admonition_preparation<'a>(
                 .unwrap_or(&admonition.location),
         );
     }
-    collect_inline_preparation(admonition.title.as_ref(), context, preparation);
+    collect_inline_preparation(admonition.title.as_ref(), attributes, preparation);
 }
 
 fn is_unbreakable_paragraph(paragraph: &acdc_parser::Paragraph<'_>) -> bool {
@@ -1457,58 +1445,58 @@ fn has_autofit_option(metadata: &BlockMetadata<'_>, attributes: &TraversalContex
 
 fn collect_metadata_preparation(
     metadata: &BlockMetadata<'_>,
-    context: &PreparationContext<'_, '_>,
+    attributes: &TraversalContext<'_>,
     preparation: &mut PdfPreparation,
 ) {
     if let Some(attribution) = &metadata.attribution {
-        collect_inline_preparation(attribution, context, preparation);
+        collect_inline_preparation(attribution, attributes, preparation);
     }
     if let Some(citetitle) = &metadata.citetitle {
-        collect_inline_preparation(citetitle, context, preparation);
+        collect_inline_preparation(citetitle, attributes, preparation);
     }
 }
 
 fn collect_inline_preparation(
     nodes: &[InlineNode<'_>],
-    context: &PreparationContext<'_, '_>,
+    attributes: &TraversalContext<'_>,
     preparation: &mut PdfPreparation,
 ) {
     for node in nodes {
         match node {
             InlineNode::BoldText(text) => {
-                collect_inline_preparation(&text.content, context, preparation);
+                collect_inline_preparation(&text.content, attributes, preparation);
             }
             InlineNode::ItalicText(text) => {
-                collect_inline_preparation(&text.content, context, preparation);
+                collect_inline_preparation(&text.content, attributes, preparation);
             }
             InlineNode::MonospaceText(text) => {
-                collect_inline_preparation(&text.content, context, preparation);
+                collect_inline_preparation(&text.content, attributes, preparation);
             }
             InlineNode::HighlightText(text) => {
-                collect_inline_preparation(&text.content, context, preparation);
+                collect_inline_preparation(&text.content, attributes, preparation);
             }
             InlineNode::SubscriptText(text) => {
-                collect_inline_preparation(&text.content, context, preparation);
+                collect_inline_preparation(&text.content, attributes, preparation);
             }
             InlineNode::SuperscriptText(text) => {
-                collect_inline_preparation(&text.content, context, preparation);
+                collect_inline_preparation(&text.content, attributes, preparation);
             }
             InlineNode::CurvedQuotationText(text) => {
-                collect_inline_preparation(&text.content, context, preparation);
+                collect_inline_preparation(&text.content, attributes, preparation);
             }
             InlineNode::CurvedApostropheText(text) => {
-                collect_inline_preparation(&text.content, context, preparation);
+                collect_inline_preparation(&text.content, attributes, preparation);
             }
             InlineNode::Macro(InlineMacro::Image(image)) => {
                 preparation.insert_image(
-                    resolve_target(&image.source.to_string(), context.attributes),
+                    resolve_target(&image.source.to_string(), attributes),
                     &image.location,
                 );
             }
             InlineNode::Macro(InlineMacro::Icon(icon)) => {
-                match IconMode::from_attributes(context.attributes) {
+                match IconMode::from_attributes(attributes) {
                     IconMode::Image => preparation.insert_image_icon(
-                        icon_image_source(context.attributes, &icon.target),
+                        icon_image_source(attributes, &icon.target),
                         &icon.target,
                         &icon.location,
                     ),
@@ -1527,30 +1515,22 @@ fn collect_inline_preparation(
                 }
             }
             InlineNode::Macro(InlineMacro::Footnote(footnote)) => {
-                collect_inline_preparation(&footnote.content, context, preparation);
+                collect_inline_preparation(&footnote.content, attributes, preparation);
             }
             InlineNode::Macro(InlineMacro::Url(url)) => {
-                collect_link_destination(&url.attributes, &url.location, context, preparation);
-                collect_inline_preparation(&url.text, context, preparation);
+                collect_inline_preparation(&url.text, attributes, preparation);
             }
             InlineNode::Macro(InlineMacro::Link(link)) => {
-                collect_link_destination(&link.attributes, &link.location, context, preparation);
-                collect_inline_preparation(&link.text, context, preparation);
+                collect_inline_preparation(&link.text, attributes, preparation);
             }
             InlineNode::Macro(InlineMacro::Mailto(mailto)) => {
-                collect_link_destination(
-                    &mailto.attributes,
-                    &mailto.location,
-                    context,
-                    preparation,
-                );
-                collect_inline_preparation(&mailto.text, context, preparation);
+                collect_inline_preparation(&mailto.text, attributes, preparation);
             }
             InlineNode::Macro(InlineMacro::CrossReference(xref)) => {
-                collect_inline_preparation(&xref.text, context, preparation);
+                collect_inline_preparation(&xref.text, attributes, preparation);
             }
             InlineNode::Macro(InlineMacro::IndexTerm(term)) => {
-                collect_index_term_preparation(term, context, preparation);
+                collect_index_term_preparation(term, attributes, preparation);
             }
             InlineNode::PlainText(_)
             | InlineNode::RawText(_)
@@ -1567,45 +1547,27 @@ fn collect_inline_preparation(
 
 fn collect_index_term_preparation(
     term: &IndexTerm<'_>,
-    context: &PreparationContext<'_, '_>,
+    attributes: &TraversalContext<'_>,
     preparation: &mut PdfPreparation,
 ) {
     preparation.has_index_terms = true;
-    collect_inline_preparation(term.term(), context, preparation);
+    collect_inline_preparation(term.term(), attributes, preparation);
     if let Some(secondary) = term.secondary() {
-        collect_inline_preparation(secondary, context, preparation);
+        collect_inline_preparation(secondary, attributes, preparation);
     }
     if let Some(tertiary) = term.tertiary() {
-        collect_inline_preparation(tertiary, context, preparation);
+        collect_inline_preparation(tertiary, attributes, preparation);
     }
     match term.relationship.as_ref() {
         Some(IndexTermRelationship::See { target }) => {
-            collect_inline_preparation(target, context, preparation);
+            collect_inline_preparation(target, attributes, preparation);
         }
         Some(IndexTermRelationship::SeeAlso { targets }) => {
             for target in targets {
-                collect_inline_preparation(target, context, preparation);
+                collect_inline_preparation(target, attributes, preparation);
             }
         }
         None | Some(_) => {}
-    }
-}
-
-fn collect_link_destination(
-    attributes: &ElementAttributes<'_>,
-    location: &Location,
-    context: &PreparationContext<'_, '_>,
-    preparation: &mut PdfPreparation,
-) {
-    let Some(id) = attributes.get_string("id") else {
-        return;
-    };
-    if context
-        .references
-        .get(id.as_ref())
-        .is_some_and(|reference| reference.location == *location)
-    {
-        preparation.named_destination_ids.push(id.into_owned());
     }
 }
 

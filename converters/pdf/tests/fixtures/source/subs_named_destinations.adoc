@@ -1,0 +1,37 @@
+= named-contexts(1)
+:manmanual: Named destinations
+:mansource: acdc
+:revdate: 2026-10-02
+:toc:
+:unused: pass:m[anchor:unused-value[]]
+
+== Name
+named-contexts - PDF destination ownership
+
+== Description
+
+P01 Body content.
+
+=== Copied anchor:heading-target[]Title
+
+P02 Heading body.
+
+[source,text,subs=+macros]
+----
+P03 xanchor:code-target[]y.
+----
+
+[subs=-macros]
+P04 anchor:disabled[]Literal target.
+
+[subs=-quotes]
+P05 [#not-formatted]*Literal formatting*.
+
+[index]
+== Empty index
+
+Ignored anchor:omitted[]index content.
+
+== References
+
+P06 See <<heading-target,Heading>> and <<code-target,Code>>.
