@@ -110,6 +110,27 @@ The implementation here follows from:
 * [x] Line breaks (+)
 ====
 
+== Conditional expressions
+
+The `ifeval` directive compares two values with `==`, `!=`, `<`, `<=`, `>`, or `>=`.
+Single and double quotes select string comparisons.
+Operators and square brackets inside a quoted value remain part of that value.
+Attribute references resolve before comparison; quoted numbers remain strings.
+
+[source,asciidoc]
+----
+ifeval::["<tag>" == '<tag>']
+This content is included.
+endif::[]
+----
+
+This follows the https://docs.asciidoctor.org/asciidoc/latest/directives/ifeval/[documented string rules].
+Asciidoctor 2.0.26 can split an expression at an operator inside a quoted value and select the wrong branch.
+It also retains the closing quote, causing equal strings in different quote styles to compare as unequal.
+acdc deliberately honors the quoted operand in every output format.
+Backslashes inside these values remain literal; they do not escape a closing quote.
+Unquoted number, boolean, and arithmetic comparisons retain their existing behavior.
+
 == Parser options
 
 * **Safe mode** - `Safe`, `Secure`, `Server`, `Unsafe`

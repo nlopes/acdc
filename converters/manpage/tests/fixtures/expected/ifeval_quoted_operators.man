@@ -1,0 +1,82 @@
+'\" t
+.\"     Title: quoted-operators
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-02
+.\"    Manual: Conditional comparisons
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "QUOTED\-OPERATORS" "1" "2026-10-02" "acdc" "Conditional comparisons"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+quoted\-operators \- compare quoted operands
+.SH "DESCRIPTION"
+.sp
+Q01 Double\-quoted markup matches.
+.sp
+Q02 Single\-quoted markup matches.
+.sp
+Q03 Every embedded operator stays text.
+.sp
+Q04 Unequal strings match.
+.sp
+Q05 Less\-than uses string order.
+.sp
+Q06 Less\-than\-or\-equal includes equality.
+.sp
+Q07 Greater\-than uses string order.
+.sp
+Q08 Greater\-than\-or\-equal includes equality.
+.sp
+Q09 Brackets remain inside quoted operands.
+.sp
+Q10 Attribute references compare with literal markup.
+.sp
+Q11 Attribute references preserve operator text.
+.sp
+Q12 Both quote styles represent the empty string.
+.sp
+Q13 Inner whitespace remains significant.
+.sp
+Q14 Outer whitespace does not enter the operand.
+.sp
+Q15 Comparison spaces are optional.
+.sp
+Q16 The other quote character is literal.
+.sp
+Q17 Double quotes inside single quotes stay literal.
+.sp
+Q18 Unicode strings compare across quote styles.
+.sp
+Q19 Backslashes stay literal, including before a closing quote.
+.sp
+Q20 Quoted numbers compare as strings.
+.sp
+Q21 Quoted booleans compare as strings.
+.sp
+Q22 Quoted arithmetic remains text.
+.sp
+Q23 Unquoted numbers still compare as numbers.
+.sp
+Q24 Unquoted booleans retain their meaning.
+.sp
+Q25 Content after all conditions remains visible.

@@ -1,0 +1,77 @@
+= quoted-contexts(1)
+:doctype: manpage
+:manmanual: Conditional comparisons
+:mansource: acdc
+:revdate: 2026-10-02
+:state: <early>
+:condition-enabled:
+
+ifeval::["{state}" == '<early>']
+:header-result: accepted
+endif::[]
+
+== NAME
+
+quoted-contexts - retain conditional source order
+
+== DESCRIPTION
+
+C01 Header assignment: {header-result}.
+
+ifeval::["{state}" == '<early>']
+C02 The initial value matches.
+endif::[]
+
+:state: >late<
+
+ifeval::["{state}" == '>late<']
+:body-result: accepted
+C03 The body assignment takes effect.
+endif::[]
+
+ifeval::["{state}" == '<early>']
+F01 The old value must not match after assignment.
+endif::[]
+
+C04 Body assignment: {body-result}.
+
+ifdef::condition-enabled[]
+ifeval::['[nested] <= value' == "[nested] <= value"]
+C05 A quoted comparison nests inside ifdef.
+endif::[]
+endif::condition-enabled[]
+
+ifeval::['<outer>' == "<outer>"]
+ifeval::["<inner>" != '<different>']
+C06 Active nested comparisons include their content.
+endif::[]
+endif::[]
+
+ifeval::['<outer>' != "<outer>"]
+ifeval::['<inner>' == "<inner>"]
+F02 A true inner comparison cannot activate a false parent.
+endif::[]
+endif::[]
+
+ifeval::['<outer>' == "<outer>"]
+ifeval::['<inner>' != "<inner>"]
+F03 A false inner comparison stays hidden.
+endif::[]
+C07 Closing the inner comparison restores its parent.
+endif::[]
+
+ifeval::["<list>" == '<list>']
+* C08 A conditional list item remains a list.
+endif::[]
+
+ifeval::['<block>' == "<block>"]
+----
+C09 A conditional listing remains a listing.
+----
+endif::[]
+
+ifeval::["<formatted>" == '<formatted>']
+C10 *Formatting* remains available in included content.
+endif::[]
+
+C11 Final content keeps its original source location.

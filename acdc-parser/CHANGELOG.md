@@ -57,6 +57,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `ifeval` comparisons accept operators and brackets inside single- or
+  double-quoted operands. Both quote styles compare strings consistently,
+  including empty values and numeric-looking text. This follows Asciidoctor's
+  documented string rules but deliberately differs from Asciidoctor 2.0.26,
+  whose expression splitter can select the wrong branch when an operator
+  occurs inside a quoted operand and whose value resolver retains the closing
+  quote. acdc removes both delimiters so equal strings match across quote
+  styles. The corrected conditions apply to every output format.
 - Document attribute values accept `pass:q[...]`, `pass:m[...]`, `pass:r[...]`,
   and `pass:normal[...]`, including frozen references, aliases, and use in
   attributes-enabled code. Text reads, JSON, conditions, and include paths retain

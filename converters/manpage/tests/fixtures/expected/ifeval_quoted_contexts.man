@@ -1,0 +1,57 @@
+'\" t
+.\"     Title: quoted-contexts
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-02
+.\"    Manual: Conditional comparisons
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "QUOTED\-CONTEXTS" "1" "2026-10-02" "acdc" "Conditional comparisons"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+quoted\-contexts \- retain conditional source order
+.SH "DESCRIPTION"
+.sp
+C01 Header assignment: accepted.
+.sp
+C02 The initial value matches.
+.sp
+C03 The body assignment takes effect.
+.sp
+C04 Body assignment: accepted.
+.sp
+C05 A quoted comparison nests inside ifdef.
+.sp
+C06 Active nested comparisons include their content.
+.sp
+C07 Closing the inner comparison restores its parent.
+.RS 0
+.IP \(bu 2
+C08 A conditional list item remains a list.
+.RE
+.EX
+C09 A conditional listing remains a listing.
+.EE
+.sp
+C10 \fBFormatting\fP remains available in included content.
+.sp
+C11 Final content keeps its original source location.

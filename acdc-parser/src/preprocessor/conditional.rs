@@ -119,7 +119,14 @@ peg::parser! {
         / name:name() { AttributeCondition::new(vec![name], None) }
 
         rule eval_value() -> String
-            = n:$((!operator() ![']'] [_])+)  {
+            // A complete quoted operand can contain operators and brackets.
+            = n:$( [' ' | '\t']* (
+                "\"" (!"\"" [_])* "\""
+                / "'" (!"'" [_])* "'"
+            ) [' ' | '\t']*) &(operator() / "]") {
+                n.trim().to_string()
+            }
+            / n:$((!operator() ![']'] [_])+)  {
                 n.trim().to_string()
             }
 
@@ -286,6 +293,11 @@ impl EvalValue {
                 // First we substitute any attributes in the string with their values
                 let s = substitute(s, HEADER, attributes);
 
+                // Quotes select string comparisons even for numbers and booleans.
+                if let Some(value) = Self::strip_quotes(&s) {
+                    return EvalValue::String(value.to_string());
+                }
+
                 // Try to parse as bool, f64, or evaluate as expression, otherwise return as string
                 s.parse::<bool>()
                     .map(EvalValue::Boolean)
@@ -297,19 +309,17 @@ impl EvalValue {
                             .map(|v| v as f64)
                             .map(EvalValue::Number)
                     })
-                    .unwrap_or_else(|_| EvalValue::String(Self::strip_quotes(&s)))
+                    .unwrap_or_else(|_| EvalValue::String(s.into_owned()))
             }
             value @ (EvalValue::Number(_) | EvalValue::Boolean(_)) => value.clone(),
         }
     }
 
     #[tracing::instrument(level = "trace")]
-    fn strip_quotes(s: &str) -> String {
-        if s.starts_with('\'') && s.ends_with('\'') {
-            s[1..s.len() - 1].to_string()
-        } else {
-            s.to_string()
-        }
+    fn strip_quotes(s: &str) -> Option<&str> {
+        s.strip_prefix('\'')
+            .and_then(|value| value.strip_suffix('\''))
+            .or_else(|| s.strip_prefix('"')?.strip_suffix('"'))
     }
 }
 
@@ -501,6 +511,43 @@ mod tests {
             ),
             Err(Error::InvalidIfEvalDirectiveMismatchedTypes(..))
         ));
+        Ok(())
+    }
+
+    #[test]
+    fn quoted_ifeval_rejects_invalid_directives_without_panicking() {
+        for line in [
+            "ifeval::[\"<tag>\" \"<tag>\"]",
+            "ifeval::[\"<tag>\" ==]",
+            "ifeval::[\"<tag>\" == \"<tag>\"] trailing",
+            "ifeval::[\"<tag> == \"<tag>\"]",
+            "ifeval::[' == ']",
+        ] {
+            assert!(
+                matches!(
+                    parse_line(line, 1, 0, None),
+                    Err(Error::InvalidConditionalDirective(..))
+                ),
+                "unexpected result for {line:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn quoted_ifeval_retains_mismatched_type_errors() -> Result<(), Error> {
+        for line in ["ifeval::[\"2\" > 1]", "ifeval::['true' == true]"] {
+            let conditional = parse_line(line, 1, 0, None)?;
+            assert!(matches!(
+                conditional.is_true(
+                    &DocumentAttributes::default(),
+                    &mut String::new(),
+                    1,
+                    0,
+                    None
+                ),
+                Err(Error::InvalidIfEvalDirectiveMismatchedTypes(..))
+            ));
+        }
         Ok(())
     }
 

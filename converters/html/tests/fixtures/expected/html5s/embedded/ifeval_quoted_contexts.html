@@ -1,0 +1,25 @@
+<section class="doc-section level-1">
+<h2 id="_name">NAME</h2>
+<p>quoted-contexts - retain conditional source order</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_description">DESCRIPTION</h2>
+<p>C01 Header assignment: accepted.</p>
+<p>C02 The initial value matches.</p>
+<p>C03 The body assignment takes effect.</p>
+<p>C04 Body assignment: accepted.</p>
+<p>C05 A quoted comparison nests inside ifdef.</p>
+<p>C06 Active nested comparisons include their content.</p>
+<p>C07 Closing the inner comparison restores its parent.</p>
+<div class="ulist">
+<ul>
+<li>
+C08 A conditional list item remains a list.</li>
+</ul>
+</div>
+<div class="listing-block">
+<pre>C09 A conditional listing remains a listing.</pre>
+</div>
+<p>C10 <strong>Formatting</strong> remains available in included content.</p>
+<p>C11 Final content keeps its original source location.</p>
+</section>

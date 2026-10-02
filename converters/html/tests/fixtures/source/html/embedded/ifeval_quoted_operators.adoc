@@ -1,0 +1,139 @@
+= quoted-operators(1)
+:doctype: manpage
+:manmanual: Conditional comparisons
+:mansource: acdc
+:revdate: 2026-10-02
+:markup: <tag>
+:operator-text: a == b != c <= d >= e < f > g
+
+== NAME
+
+quoted-operators - compare quoted operands
+
+== DESCRIPTION
+
+ifeval::["<tag>" == "<tag>"]
+Q01 Double-quoted markup matches.
+endif::[]
+
+ifeval::['<tag>' == '<tag>']
+Q02 Single-quoted markup matches.
+endif::[]
+
+ifeval::["a == b != c <= d >= e < f > g" == 'a == b != c <= d >= e < f > g']
+Q03 Every embedded operator stays text.
+endif::[]
+
+ifeval::["a < b" != "a > b"]
+Q04 Unequal strings match.
+endif::[]
+
+ifeval::['a < b' < 'b < a']
+Q05 Less-than uses string order.
+endif::[]
+
+ifeval::["a <= b" <= "a <= b"]
+Q06 Less-than-or-equal includes equality.
+endif::[]
+
+ifeval::['b > a' > 'a > b']
+Q07 Greater-than uses string order.
+endif::[]
+
+ifeval::["b >= a" >= "b >= a"]
+Q08 Greater-than-or-equal includes equality.
+endif::[]
+
+ifeval::["left ] [ right" == 'left ] [ right']
+Q09 Brackets remain inside quoted operands.
+endif::[]
+
+ifeval::["{markup}" == '<tag>']
+Q10 Attribute references compare with literal markup.
+endif::[]
+
+ifeval::["{operator-text}" == '{operator-text}']
+Q11 Attribute references preserve operator text.
+endif::[]
+
+ifeval::["" == '']
+Q12 Both quote styles represent the empty string.
+endif::[]
+
+ifeval::[" padded < value " == ' padded < value ']
+Q13 Inner whitespace remains significant.
+endif::[]
+
+ifeval::[   " spaced > value "   ==   ' spaced > value '   ]
+Q14 Outer whitespace does not enter the operand.
+endif::[]
+
+ifeval::["same < value"=='same < value']
+Q15 Comparison spaces are optional.
+endif::[]
+
+ifeval::["l'été < demain" == 'l’été < demain']
+F01 Different apostrophes must not match.
+endif::[]
+
+ifeval::["l'été < demain" == "l'été < demain"]
+Q16 The other quote character is literal.
+endif::[]
+
+ifeval::['say "hello" > now' == 'say "hello" > now']
+Q17 Double quotes inside single quotes stay literal.
+endif::[]
+
+ifeval::['naïve < café 🚀' == "naïve < café 🚀"]
+Q18 Unicode strings compare across quote styles.
+endif::[]
+
+ifeval::["C:\work\[draft] < done\" == 'C:\work\[draft] < done\']
+Q19 Backslashes stay literal, including before a closing quote.
+endif::[]
+
+ifeval::["10" < '2']
+Q20 Quoted numbers compare as strings.
+endif::[]
+
+ifeval::["true" == 'true']
+Q21 Quoted booleans compare as strings.
+endif::[]
+
+ifeval::["1 + 1" == '1 + 1']
+Q22 Quoted arithmetic remains text.
+endif::[]
+
+ifeval::[2 < 10]
+Q23 Unquoted numbers still compare as numbers.
+endif::[]
+
+ifeval::[true == true]
+Q24 Unquoted booleans retain their meaning.
+endif::[]
+
+ifeval::["a < b" == 'a > b']
+F02 Unequal strings must not satisfy equality.
+endif::[]
+
+ifeval::["same == value" != 'same == value']
+F03 Equal strings must not satisfy inequality.
+endif::[]
+
+ifeval::['same < value' < "same < value"]
+F04 Equal strings must not satisfy less-than.
+endif::[]
+
+ifeval::['z <= a' <= "a <= z"]
+F05 Reversed strings must not satisfy less-than-or-equal.
+endif::[]
+
+ifeval::['same > value' > "same > value"]
+F06 Equal strings must not satisfy greater-than.
+endif::[]
+
+ifeval::['a >= z' >= "z >= a"]
+F07 Reversed strings must not satisfy greater-than-or-equal.
+endif::[]
+
+Q25 Content after all conditions remains visible.
