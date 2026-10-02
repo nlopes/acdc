@@ -11,6 +11,68 @@ use acdc_converters_pdf::{PdfOptions, Processor};
 
 type Error = Box<dyn std::error::Error>;
 
+#[test]
+fn formatted_attribute_footnotes_register_at_use() -> Result<(), Error> {
+    let pdf = render_input(include_str!(
+        "fixtures/source/document_attribute_formatted.adoc"
+    ))?;
+    let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+    let text = pdf.extract_text(&pages)?;
+    assert!(text.matches("Anonymous body.").count() > 1, "{text}");
+    assert_eq!(text.matches("Named body.").count(), 1, "{text}");
+    assert!(!text.contains("Unused body."), "{text}");
+    assert!(!text.contains("Unused"), "{text}");
+    Ok(())
+}
+
+#[test]
+fn unused_attribute_footnotes_do_not_add_an_empty_pdf_page() -> Result<(), Error> {
+    let pdf = render_input(
+        "= T\n:unused: pass:m[footnote:[Unused body.]]\n\nBody ((Term)).\n\n[index]\n== Index\n",
+    )?;
+    assert_eq!(pdf.get_pages().len(), 1);
+    assert!(!pdf.extract_text(&[1])?.contains("Unused body."));
+    assert!(internal_link_pages(&pdf, 1)?.iter().all(|page| *page == 1));
+    Ok(())
+}
+
+#[cfg(feature = "pre-spec-subs")]
+#[test]
+fn formatted_attributes_keep_pdf_code_formatting_and_links() -> Result<(), Error> {
+    let source = include_str!("fixtures/source/subs_document_attribute_formatted.adoc");
+    for source in [
+        source.to_owned(),
+        source.replace(":source-highlighter: syntect", ""),
+    ] {
+        let pdf = render_input(&source)?;
+        let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+        let text = pdf.extract_text(&pages)?;
+        assert!(!text.contains("<strong>Bold</strong>"), "{text}");
+        assert!(!text.contains("*Bold*"), "{text}");
+        assert_eq!(text.matches("Note body.").count(), 1, "{text}");
+        let mut urls = Vec::new();
+        for page in pdf.get_pages().values() {
+            for annotation in pdf.get_page_annotations(*page)? {
+                if let Ok(action) = annotation.get(b"A") {
+                    let (_, action) = pdf.dereference(action)?;
+                    if let Ok(uri) = action.as_dict()?.get(b"URI") {
+                        urls.push(String::from_utf8(uri.as_str()?.to_vec())?);
+                    }
+                }
+            }
+        }
+        assert_eq!(
+            urls,
+            [
+                "https://example.org",
+                "https://example.org",
+                "https://example.org"
+            ]
+        );
+    }
+    Ok(())
+}
+
 #[cfg(feature = "pre-spec-subs")]
 #[test]
 fn passthrough_character_references_preserve_visible_pdf_code() -> Result<(), Error> {

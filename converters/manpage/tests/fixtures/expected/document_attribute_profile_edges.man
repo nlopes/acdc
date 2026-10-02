@@ -1,0 +1,49 @@
+'\" t
+.\"     Title: profile-edges
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-02
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "PROFILE\-EDGES" "1" "2026-10-02" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+profile\-edges \- retained attribute profile edge cases
+.SH "DESCRIPTION"
+.sp
+before prefix \fBÉva\fP / \fIItalic\fP suffix after / *Literal* / \fBÉva\fP / https://example.org[Protected] before \fBÉva\fP / \fIItalic\fP after / {bold} / https://example.org[Literal] / \fBÉva\fP / https://example.org[Literal] / \fBÉva\fP\&.
+.sp
+ / \fB{missing}\fP / \fB{name}\fP / \fBEarly\fP\&.
+.sp
+\c
+.URL "https://example.org" "Site" ""
+/ [1] / [2] / [3] / [3] / [3]\&.
+.sp
+pass:q,c[*Escaped*] / pass:a,c[{bold}] / pass:typo[*Unknown*]\&.
+.SH "NOTES"
+.IP [1] 4
+Anonymous note.
+.IP [2] 4
+Anonymous note.
+.IP [3] 4
+Named note.

@@ -443,17 +443,26 @@ impl RawAttributeValue<'_> {
     }
 
     pub(crate) fn resolve(&self, attributes: &DocumentAttributes<'_>) -> Self {
+        self.resolve_with_warning(attributes).0
+    }
+
+    pub(crate) fn resolve_with_warning(
+        &self,
+        attributes: &DocumentAttributes<'_>,
+    ) -> (Self, Option<String>) {
         use crate::model::substitution::resolve_attribute_entry_text;
         match self {
             Self::Text(Cow::Borrowed(text)) => {
-                Self::Resolved(resolve_attribute_entry_text(text, attributes))
+                let (value, warning) = resolve_attribute_entry_text(text, attributes);
+                (Self::Resolved(value), warning)
             }
             Self::Text(Cow::Owned(text)) => {
-                Self::Resolved(resolve_attribute_entry_text(text, attributes).into_static())
+                let (value, warning) = resolve_attribute_entry_text(text, attributes);
+                (Self::Resolved(value.into_static()), warning)
             }
-            Self::Resolved(value) => Self::Resolved(value.clone()),
-            Self::Set => Self::Set,
-            Self::Unset => Self::Unset,
+            Self::Resolved(value) => (Self::Resolved(value.clone()), None),
+            Self::Set => (Self::Set, None),
+            Self::Unset => (Self::Unset, None),
         }
     }
 }

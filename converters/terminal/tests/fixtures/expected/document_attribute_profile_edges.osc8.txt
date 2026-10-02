@@ -1,0 +1,19 @@
+[1m[4mprofile-edges(1)[0m
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mNAME[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+profile-edges - retained attribute profile edge cases
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mDESCRIPTION[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+before prefix [1mÉva[22m / [3mItalic[23m suffix after / *Literal* / [1mÉva[22m / https://example.org[Protected] before [1mÉva[22m / [3mItalic[23m after / {bold} / https://example.org[Literal] / [1mÉva[22m / https://example.org[Literal] / [1mÉva[22m.
+ / [1m{missing}[22m / [1m{name}[22m / [1mEarly[22m.
+[38;5;12m]8;;https://example.org\Site]8;;\[39m / [38;5;14m[1m[1][0m / [38;5;14m[1m[2][0m / [38;5;14m[1m[3][0m / [38;5;14m[1m[3][0m / [38;5;14m[1m[3][0m.
+pass:q,c[*Escaped*] / pass:a,c[{bold}] / pass:typo[*Unknown*].
+
+─────
+[38;5;14m[1m[1][0m Anonymous note.
+[38;5;14m[1m[2][0m Anonymous note.
+[38;5;14m[1m[3][0m Named note.

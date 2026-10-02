@@ -21,17 +21,82 @@ use super::{
 
 const QUOTES_THEN_MACROS: &[Substitution] = &[Substitution::Quotes, Substitution::Macros];
 
+/// Expand an attribute at its grammar position, before later macros register.
+/// Locations stay relative to the placeholder until the normal source map runs.
+pub(crate) fn process_attribute_placeholder<'a>(
+    index: usize,
+    start: usize,
+    end: usize,
+    state: &ParserState<'a>,
+) -> Vec<InlineNode<'a>> {
+    let Some(mut pass) = state.attribute_passthroughs.get(index).cloned() else {
+        return Vec::new();
+    };
+    pass.location = state.create_location(start, end);
+    process_passthrough(
+        pass.text.unwrap_or_default(),
+        &pass,
+        state,
+        state.inline_ctx.substitutions,
+    )
+}
+
 /// Apply an inline passthrough's substitutions in source order.
 fn process_passthrough<'a>(
     content: &'a str,
     passthrough: &Pass<'a>,
     state: &ParserState<'a>,
+    attribute_substitutions: SubstitutionPlan,
 ) -> Vec<InlineNode<'a>> {
     let raw = Raw {
         content,
         location: passthrough_content_location(passthrough, content, state),
         subs: Vec::new(),
     };
+    if !passthrough.attribute_fragments.is_empty() {
+        let mut nodes = Vec::new();
+        let remaining = attribute_substitutions.after(&Substitution::Attributes);
+        let mut cursor = 0;
+        for fragment in &passthrough.attribute_fragments {
+            if cursor < fragment.range.start {
+                nodes.extend(process_raw_substitutions(
+                    Raw {
+                        content: &content[cursor..fragment.range.start],
+                        ..raw.clone()
+                    },
+                    &remaining,
+                    state,
+                ));
+            }
+            nodes.extend(process_raw_substitutions(
+                Raw {
+                    content: &content[fragment.range.clone()],
+                    ..raw.clone()
+                },
+                &fragment.substitutions,
+                state,
+            ));
+            cursor = fragment.range.end;
+        }
+        if cursor < content.len() {
+            nodes.extend(process_raw_substitutions(
+                Raw {
+                    content: &content[cursor..],
+                    ..raw.clone()
+                },
+                &remaining,
+                state,
+            ));
+        }
+        // These characters replace one source reference, irrespective of the
+        // retained text's length or the number of parsing profiles it contains.
+        for node in &mut nodes {
+            super::location_walk::walk_inline_locations_mut(node, &mut |location| {
+                *location = raw.location.clone();
+            });
+        }
+        return nodes;
+    }
     let substitutions = resolve_passthrough_substitutions(&passthrough.substitutions);
     if passthrough.kind != PassthroughKind::Macro || !content.contains(r"\]") {
         return process_raw_substitutions(raw, &substitutions, state);
@@ -480,6 +545,22 @@ fn expand_raw_attributes<'a>(raw: &Raw<'a>, state: &ParserState<'a>) -> Vec<Inli
         };
         let end = start + 1 + relative_end + 1;
         let name = &raw.content[start + 1..end - 1];
+        if let Some((source_start, literal)) =
+            escaped_raw_attribute_reference(raw, start, end, state)
+        {
+            push_raw_segment(
+                &mut result,
+                raw,
+                copied_until,
+                source_start,
+                raw.subs.clone(),
+                state,
+            );
+            result.push(literal);
+            cursor = end;
+            copied_until = end;
+            continue;
+        }
         if name.is_empty()
             || !name
                 .bytes()
@@ -504,6 +585,24 @@ fn expand_raw_attributes<'a>(raw: &Raw<'a>, state: &ParserState<'a>) -> Vec<Inli
         let reference_location = raw_segment_location(raw, start, end, state);
         let mut value = String::new();
         let _ = resolved.write_text(&mut value);
+        cursor = end;
+        copied_until = end;
+        if !resolved.inline_fragments().is_empty() {
+            let passthrough = Pass {
+                attribute_fragments: resolved.inline_fragments().into(),
+                text: Some(state.intern_str(&value)),
+                substitutions: Vec::new(),
+                location: reference_location,
+                kind: PassthroughKind::AttributeRef,
+            };
+            result.extend(process_passthrough(
+                passthrough.text.unwrap_or_default(),
+                &passthrough,
+                state,
+                SubstitutionPlan::only(&Substitution::Attributes),
+            ));
+            continue;
+        }
         let mut value_cursor = 0;
         // Prepared ranges have already undergone definition-time substitutions.
         // Only ordinary attribute text still needs its header escaping here.
@@ -529,8 +628,6 @@ fn expand_raw_attributes<'a>(raw: &Raw<'a>, state: &ParserState<'a>) -> Vec<Inli
                 subs: vec![Substitution::SpecialChars],
             }));
         }
-        cursor = end;
-        copied_until = end;
     }
     push_raw_segment(
         &mut result,
@@ -541,6 +638,29 @@ fn expand_raw_attributes<'a>(raw: &Raw<'a>, state: &ParserState<'a>) -> Vec<Inli
         state,
     );
     result
+}
+
+fn escaped_raw_attribute_reference<'a>(
+    raw: &Raw<'a>,
+    start: usize,
+    end: usize,
+    state: &ParserState<'a>,
+) -> Option<(usize, InlineNode<'a>)> {
+    let name = &raw.content[start + 1..end - 1];
+    let escaped_start = raw.content[..start].ends_with('\\');
+    if !escaped_start && !name.ends_with('\\') {
+        return None;
+    }
+    let source_start = start - usize::from(escaped_start);
+    let literal = format!("{{{}}}", name.strip_suffix('\\').unwrap_or(name));
+    Some((
+        source_start,
+        InlineNode::RawText(Raw {
+            content: state.intern_str(&literal),
+            location: raw_segment_location(raw, source_start, end, state),
+            subs: raw.subs.clone(),
+        }),
+    ))
 }
 
 fn push_raw_segment<'a>(
@@ -982,7 +1102,12 @@ pub(crate) fn process_passthrough_placeholders<'a>(
 
             // Process the passthrough content using original string positions from passthrough.location
             if let Some(passthrough_content) = &passthrough.text {
-                let processed_nodes = process_passthrough(passthrough_content, passthrough, state);
+                let processed_nodes = process_passthrough(
+                    passthrough_content,
+                    passthrough,
+                    state,
+                    processed.attribute_substitutions,
+                );
                 for node in processed_nodes {
                     result.push(node);
                 }

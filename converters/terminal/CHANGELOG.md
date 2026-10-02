@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Document attributes using `pass:q[...]`, `pass:m[...]`, or `pass:normal[...]`
+  retain formatting, links, and footnotes. Unused values produce no notes or index
+  entries; anonymous notes register at each use. Attribute text retains AsciiDoc
+  source, differing from Asciidoctor's generated markup. Output-dependent lists
+  such as `q,c` stay literal with a parser warning.
 - Preserve literal and restored inline passthrough references according to substitution
   order, including escaped references and digit-length limits.
 - Text-only substitution lists in document attribute values now apply at

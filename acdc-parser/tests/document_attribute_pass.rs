@@ -192,7 +192,7 @@ fn document_attribute_pass_raw_fragments_keep_reference_locations() -> Result<()
 }
 
 #[test]
-fn document_attribute_pass_explicit_substitution_lists_stay_deferred() -> Result<(), Error> {
+fn document_attribute_pass_explicit_quotes_do_not_expand_attributes() -> Result<(), Error> {
     let parsed = parse(
         "= T\n:name: Early\n:value: pass:q[*{name}*]\n\nBody.\n",
         &Options::default(),
@@ -203,7 +203,7 @@ fn document_attribute_pass_explicit_substitution_lists_stay_deferred() -> Result
             .attributes
             .get("value")
             .and_then(DocumentAttributeValue::text),
-        Some("pass:q[*Early*]")
+        Some("*{name}*")
     );
     Ok(())
 }

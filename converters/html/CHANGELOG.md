@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Document attributes using `pass:q[...]`, `pass:m[...]`, or `pass:normal[...]`
+  retain formatting and links in prose and attributes-enabled code, including
+  highlighting. Unused values produce no notes or index entries; anonymous
+  notes register at each use. Unlike Asciidoctor, output-dependent lists such as
+  `q,c` stay literal with a parser warning. Parsed listing titles also retain
+  their formatting, while plain text is no longer reparsed for formatting.
 - Render restored references such as `pass:c,r[&#169;]` as characters, including enabled
   and highlighted code. Reversed substitution order and escaped references remain
   literal, matching Asciidoctor.

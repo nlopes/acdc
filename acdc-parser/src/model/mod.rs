@@ -26,11 +26,13 @@ mod title;
 pub use admonition::{Admonition, AdmonitionVariant};
 pub use anchor::{Anchor, Reference, TocEntry, UNNUMBERED_SECTION_STYLES};
 pub(crate) use attributes::RawAttributes;
+pub(crate) use attributes::{
+    AttributeInlineFragment, DocumentAttributeStatus, default_document_attribute_values,
+};
 pub use attributes::{
     AttributeName, AttributeValue, DocumentAttributeAssignment, DocumentAttributeValue,
     DocumentAttributes, ElementAttributes, MAX_SECTION_LEVELS, MAX_TOC_LEVELS, strip_quotes,
 };
-pub(crate) use attributes::{DocumentAttributeStatus, default_document_attribute_values};
 pub use attribution::{Attribution, CiteTitle};
 pub use caption::{Caption, CaptionKind};
 pub use inlines::*;

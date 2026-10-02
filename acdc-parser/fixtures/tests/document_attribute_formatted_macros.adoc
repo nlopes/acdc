@@ -1,0 +1,30 @@
+= macro-values(1)
+:doctype: manpage
+:experimental:
+:mono: pass:q[`Code`]
+:bare: pass:m[https://example.org]
+:controls: pass:m[https://example.org[Site,role=hot,window=_blank,id=dest]]
+:email: pass:m[mailto:writer@example.org[Mail,Hello,Body]]
+:button: pass:m[btn:[Save]]
+:keys: pass:m[kbd:[Ctrl+C]]
+:menu: pass:m[menu:File[Open]]
+:icon: pass:m[icon:heart[]]
+:image: pass:m[image:sample.png[Alt,20,10]]
+:xref: pass:m[xref:target[]]
+
+== NAME
+
+macro-values - prepared macro values
+
+== DESCRIPTION
+
+{mono} / {bare} / {controls} / {email}.
+
+{button} / {keys} / {menu} / {icon}.
+
+{image} / {xref}.
+
+[[target]]
+== Target title
+
+Body.

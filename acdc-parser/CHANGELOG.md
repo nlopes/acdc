@@ -57,6 +57,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Document attribute values accept `pass:q[...]`, `pass:m[...]`, `pass:r[...]`,
+  and `pass:normal[...]`, including frozen references, aliases, and use in
+  attributes-enabled code. Text reads, JSON, conditions, and include paths retain
+  AsciiDoc source such as `*Bold*` across output formats, deliberately differing
+  from Asciidoctor's generated markup. Unused values create no footnotes, index
+  entries, or anchors; anonymous notes register separately at each use, while
+  named notes share their ID. Output-dependent lists such as `q,c` and `m,c`,
+  unknown names, and text-only escaping lists that reference formatted values
+  stay literal and produce structured warnings. Cross-reference labels resolve
+  against document targets rather than freezing unresolved converted labels.
 - Restore character references during inline passthrough replacements in the requested
   order. `pass:c,r[&#169;]` is active, while `pass:r,c[&#169;]` and escaped references
   stay literal. Preserve source spans and prepared attribute values in these
@@ -64,13 +74,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Text-only `pass:a[...]`, `pass:c[...]`, `pass:v[...]`, and `pass:none[...]`
   attribute values now resolve at definition time, including long names and
   ordered combinations. Escaped references, aliases, caller overrides, and later
-  escaping match Asciidoctor. Formatting and macro substitution lists remain
-  unsupported at definition time.
+  escaping match Asciidoctor.
 - Whole-value `pass:[...]` in document attributes is now resolved at definition
   time, matching Asciidoctor. Literal references, empty values, aliases, and raw
   characters survive later use, including code with macros disabled. Caller
-  values stay as supplied. Explicit substitution lists such as `pass:q[...]`
-  retain their existing limitations.
+  values stay as supplied.
   Attribute-introduced passthroughs also stay literal inside footnotes, rather
   than being evaluated a second time.
 - Listing and literal blocks now apply requested quote and attribute substitutions

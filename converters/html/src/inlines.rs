@@ -59,10 +59,10 @@ use acdc_converters_core::{
 };
 use acdc_parser::{
     Anchor, AttributeValue, Autolink, Bold, Button, CalloutRef, CrossReference, CurvedApostrophe,
-    CurvedQuotation, ElementAttributes, Footnote, Form, Highlight, Icon, Image, IndexTerm,
+    CurvedQuotation, ElementAttributes, Footnote, Highlight, Icon, Image, IndexTerm,
     IndexTermRelationship, InlineMacro, InlineNode, Italic, Keyboard, Link, Mailto, Menu,
     Monospace, Pass, Plain, Raw, Stem, StemNotation, Subscript, Substitution, Superscript, Url,
-    Verbatim, parse_text_for_quotes, strip_quotes,
+    Verbatim, strip_quotes,
 };
 
 use crate::{
@@ -248,84 +248,6 @@ fn write_tag_with_attrs<W: Write + ?Sized>(
     }
 }
 
-/// Tracks what was written by `write_quote_open` so `write_quote_close` can match.
-#[derive(Clone, Copy)]
-enum QuoteRenderState {
-    /// Wrote HTML tag - close with `</tag>`
-    Html,
-    /// Basic mode - no tags written, no closing needed
-    Basic,
-    /// Quotes disabled - wrote literal delimiter, close with same
-    Literal,
-}
-
-/// Write opening markup for inline formatting (bold, italic, etc.).
-///
-/// Returns state indicating what was written, for use with `write_quote_close`.
-fn write_quote_open<W: Write + ?Sized>(
-    w: &mut W,
-    tag: &str,
-    delim: &str,
-    id: Option<&str>,
-    role: Option<&str>,
-    subs: &[Substitution],
-    basic: bool,
-) -> io::Result<QuoteRenderState> {
-    if subs.contains(&Substitution::Quotes) {
-        if basic {
-            Ok(QuoteRenderState::Basic)
-        } else {
-            write_tag_with_attrs(w, tag, id, role)?;
-            Ok(QuoteRenderState::Html)
-        }
-    } else {
-        write!(w, "{delim}")?;
-        Ok(QuoteRenderState::Literal)
-    }
-}
-
-/// Write closing markup for inline formatting.
-fn write_quote_close<W: Write + ?Sized>(
-    w: &mut W,
-    tag: &str,
-    delim: &str,
-    state: QuoteRenderState,
-) -> io::Result<()> {
-    match state {
-        QuoteRenderState::Html => write!(w, "</{tag}>"),
-        QuoteRenderState::Basic => Ok(()),
-        QuoteRenderState::Literal => write!(w, "{delim}"),
-    }
-}
-
-/// Tag/delimiter/basic-mode bundle for `render_simple_quote`.
-///
-/// Grouping these keeps `render_simple_quote`'s signature under clippy's
-/// `too_many_arguments` threshold and matches the shape of `write_quote_open`.
-#[derive(Clone, Copy)]
-struct SimpleQuoteStyle<'a> {
-    /// HTML element name (e.g. `"strong"`, `"em"`, `"code"`).
-    tag: &'a str,
-    /// `AsciiDoc` delimiter used as the literal fallback (e.g. `"*"`, `"**"`).
-    delim: &'a str,
-    /// When `true` and quotes substitution is enabled, omits HTML wrappers (inlines-basic mode).
-    basic: bool,
-}
-
-/// Entity/literal bundle for `render_curved`.
-///
-/// Open/close HTML entities plus the plain-text fallback used when quotes substitution
-/// is disabled.
-#[derive(Clone, Copy)]
-struct CurvedForm<'a> {
-    /// Opening HTML entity (e.g. `"&ldquo;"`).
-    open_entity: &'a str,
-    /// Closing HTML entity (e.g. `"&rdquo;"`).
-    close_entity: &'a str,
-    /// Literal character emitted when quotes substitution is off.
-    literal: char,
-}
-
 pub(crate) struct InlineLink {
     href: String,
     id: String,
@@ -477,22 +399,22 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
+        // The parser selects formatting, including explicit attribute profiles
+        // in code. Block substitutions still govern text escaping and typography.
         match node {
-            InlineNode::PlainText(p) => self.render_plain(traversal, p, options, subs),
+            InlineNode::PlainText(p) => self.render_plain(p, options, subs),
             InlineNode::RawText(r) => self.render_raw(r),
             InlineNode::VerbatimText(v) => self.render_verbatim(traversal, v, options, subs),
             InlineNode::CalloutRef(c) => self.render_callout_ref(c),
-            InlineNode::BoldText(b) => self.render_bold(traversal, b, options, subs),
-            InlineNode::ItalicText(i) => self.render_italic(traversal, i, options, subs),
-            InlineNode::HighlightText(h) => self.render_highlight(traversal, h, options, subs),
-            InlineNode::MonospaceText(m) => self.render_monospace(traversal, m, options, subs),
-            InlineNode::CurvedQuotationText(c) => self.render_curved_quotation(traversal, c, subs),
-            InlineNode::CurvedApostropheText(c) => {
-                self.render_curved_apostrophe(traversal, c, subs)
-            }
-            InlineNode::StandaloneCurvedApostrophe(_) => self.render_standalone_apostrophe(subs),
-            InlineNode::SuperscriptText(s) => self.render_superscript(traversal, s, subs),
-            InlineNode::SubscriptText(s) => self.render_subscript(traversal, s, subs),
+            InlineNode::BoldText(b) => self.render_bold(traversal, b, options),
+            InlineNode::ItalicText(i) => self.render_italic(traversal, i, options),
+            InlineNode::HighlightText(h) => self.render_highlight(traversal, h, options),
+            InlineNode::MonospaceText(m) => self.render_monospace(traversal, m, options),
+            InlineNode::CurvedQuotationText(c) => self.render_curved_quotation(traversal, c),
+            InlineNode::CurvedApostropheText(c) => self.render_curved_apostrophe(traversal, c),
+            InlineNode::StandaloneCurvedApostrophe(_) => self.render_standalone_apostrophe(),
+            InlineNode::SuperscriptText(s) => self.render_superscript(traversal, s),
+            InlineNode::SubscriptText(s) => self.render_subscript(traversal, s),
             InlineNode::Macro(m) => self.render_inline_macro(traversal, m, options, subs),
             InlineNode::LineBreak(_) => {
                 writeln!(self.writer_mut(), "<br>")?;
@@ -564,55 +486,43 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     fn render_simple_quote(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        style: &SimpleQuoteStyle<'_>,
+        tag: &str,
         id: Option<&str>,
         role: Option<&str>,
         content: &[InlineNode<'_>],
-        subs: &[Substitution],
+        basic: bool,
     ) -> Result<(), Error> {
-        let SimpleQuoteStyle { tag, delim, basic } = *style;
-        let state = write_quote_open(self.writer_mut(), tag, delim, id, role, subs, basic)?;
+        if !basic {
+            write_tag_with_attrs(self.writer_mut(), tag, id, role)?;
+        }
         self.visit_inline_nodes(traversal, content)?;
-        write_quote_close(self.writer_mut(), tag, delim, state)?;
+        if !basic {
+            write!(self.writer_mut(), "</{tag}>")?;
+        }
         Ok(())
     }
 
-    /// Render a curved-quote or curved-apostrophe node. When the quotes substitution is
-    /// disabled, the literal character is emitted on both sides instead.
+    /// Render a curved-quote or curved-apostrophe node.
     fn render_curved(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        form: &CurvedForm<'_>,
+        entities: (&str, &str),
         id: Option<&str>,
         role: Option<&str>,
         content: &[InlineNode<'_>],
-        subs: &[Substitution],
     ) -> Result<(), Error> {
-        let CurvedForm {
-            open_entity,
-            close_entity,
-            literal,
-        } = *form;
-        let quotes_on = subs.contains(&Substitution::Quotes);
+        let (open_entity, close_entity) = entities;
         let has_attrs = id.is_some() || role.is_some();
-        if quotes_on && has_attrs {
+        if has_attrs {
             write_tag_with_attrs(self.writer_mut(), "span", id, role)?;
         }
         self.open_inline_link()?;
-        if quotes_on {
-            write!(self.writer_mut(), "{open_entity}")?;
-        } else {
-            write!(self.writer_mut(), "{literal}")?;
-        }
+        write!(self.writer_mut(), "{open_entity}")?;
         self.visit_inline_nodes(traversal, content)?;
         self.open_inline_link()?;
-        if quotes_on {
-            write!(self.writer_mut(), "{close_entity}")?;
-        } else {
-            write!(self.writer_mut(), "{literal}")?;
-        }
+        write!(self.writer_mut(), "{close_entity}")?;
         self.close_inline_link()?;
-        if quotes_on && has_attrs {
+        if has_attrs {
             write!(self.writer_mut(), "</span>")?;
         }
         Ok(())
@@ -620,31 +530,17 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
     fn render_plain(
         &mut self,
-        traversal: &mut TraversalContext<'a>,
         p: &Plain<'_>,
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
         // Attribute substitution already applied by the inline preprocessor during parsing.
         let content = &p.content;
-        // If escaped (e.g. `\^2^`), skip quote re-parsing; otherwise use block subs.
+        // Escaped text must also bypass typography replacements.
         let effective_subs: &[Substitution] = if p.escaped { &[] } else { subs };
 
-        if effective_subs.contains(&Substitution::Quotes) {
-            // Quotes on: parse for inline formatting, then recurse without Quotes to avoid loops.
-            let parsed = parse_text_for_quotes(content);
-            let no_quotes_subs: Vec<_> = effective_subs
-                .iter()
-                .filter(|s| **s != Substitution::Quotes)
-                .cloned()
-                .collect();
-            for node in parsed.inlines() {
-                self.render_inline_node(traversal, node, options, &no_quotes_subs)?;
-            }
-            return Ok(());
-        }
-
-        // No quotes: output with escaping and typography only.
+        // Formatting is already represented by inline nodes. Plain text can
+        // contain literal delimiters introduced after quote substitution.
         let text = substitution_text(content, effective_subs, options, self.text_boundaries());
         let w = self.writer_mut();
         if options.hardbreaks {
@@ -713,23 +609,14 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         b: &Bold<'_>,
         options: &RenderOptions,
-        subs: &[Substitution],
     ) -> Result<(), Error> {
-        let delim = match b.form {
-            Form::Constrained => "*",
-            Form::Unconstrained => "**",
-        };
         self.render_simple_quote(
             traversal,
-            &SimpleQuoteStyle {
-                tag: "strong",
-                delim,
-                basic: options.inlines_basic,
-            },
+            "strong",
             b.id,
             b.role,
             &b.content,
-            subs,
+            options.inlines_basic,
         )
     }
 
@@ -738,23 +625,14 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         i: &Italic<'_>,
         options: &RenderOptions,
-        subs: &[Substitution],
     ) -> Result<(), Error> {
-        let delim = match i.form {
-            Form::Constrained => "_",
-            Form::Unconstrained => "__",
-        };
         self.render_simple_quote(
             traversal,
-            &SimpleQuoteStyle {
-                tag: "em",
-                delim,
-                basic: options.inlines_basic,
-            },
+            "em",
             i.id,
             i.role,
             &i.content,
-            subs,
+            options.inlines_basic,
         )
     }
 
@@ -763,23 +641,14 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         m: &Monospace<'_>,
         options: &RenderOptions,
-        subs: &[Substitution],
     ) -> Result<(), Error> {
-        let delim = match m.form {
-            Form::Constrained => "`",
-            Form::Unconstrained => "``",
-        };
         self.render_simple_quote(
             traversal,
-            &SimpleQuoteStyle {
-                tag: "code",
-                delim,
-                basic: options.inlines_basic,
-            },
+            "code",
             m.id,
             m.role,
             &m.content,
-            subs,
+            options.inlines_basic,
         )
     }
 
@@ -788,7 +657,6 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         h: &Highlight<'_>,
         options: &RenderOptions,
-        subs: &[Substitution],
     ) -> Result<(), Error> {
         // Warn about deprecated built-in roles.
         if let Some(role) = h.role {
@@ -801,18 +669,6 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                     "Replace the deprecated built-in role with explicit passthrough markup or CSS.",
                 );
             }
-        }
-
-        if !subs.contains(&Substitution::Quotes) {
-            // No quotes substitution — output raw markup.
-            let delim = match h.form {
-                Form::Constrained => "#",
-                Form::Unconstrained => "##",
-            };
-            write!(self.writer_mut(), "{delim}")?;
-            self.visit_inline_nodes(traversal, &h.content)?;
-            write!(self.writer_mut(), "{delim}")?;
-            return Ok(());
         }
 
         let is_semantic = self.processor.variant() == HtmlVariant::Semantic;
@@ -842,49 +698,20 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         &mut self,
         traversal: &mut TraversalContext<'a>,
         c: &CurvedQuotation<'_>,
-        subs: &[Substitution],
     ) -> Result<(), Error> {
-        self.render_curved(
-            traversal,
-            &CurvedForm {
-                open_entity: "&ldquo;",
-                close_entity: "&rdquo;",
-                literal: '"',
-            },
-            c.id,
-            c.role,
-            &c.content,
-            subs,
-        )
+        self.render_curved(traversal, ("&ldquo;", "&rdquo;"), c.id, c.role, &c.content)
     }
 
     fn render_curved_apostrophe(
         &mut self,
         traversal: &mut TraversalContext<'a>,
         c: &CurvedApostrophe<'_>,
-        subs: &[Substitution],
     ) -> Result<(), Error> {
-        self.render_curved(
-            traversal,
-            &CurvedForm {
-                open_entity: "&lsquo;",
-                close_entity: "&rsquo;",
-                literal: '\'',
-            },
-            c.id,
-            c.role,
-            &c.content,
-            subs,
-        )
+        self.render_curved(traversal, ("&lsquo;", "&rsquo;"), c.id, c.role, &c.content)
     }
 
-    fn render_standalone_apostrophe(&mut self, subs: &[Substitution]) -> Result<(), Error> {
-        let w = self.writer_mut();
-        if subs.contains(&Substitution::Quotes) {
-            write!(w, "&rsquo;")?;
-        } else {
-            write!(w, "'")?;
-        }
+    fn render_standalone_apostrophe(&mut self) -> Result<(), Error> {
+        write!(self.writer_mut(), "&rsquo;")?;
         Ok(())
     }
 
@@ -892,42 +719,18 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         &mut self,
         traversal: &mut TraversalContext<'a>,
         s: &Superscript<'_>,
-        subs: &[Substitution],
     ) -> Result<(), Error> {
         // Note: superscript doesn't check inlines_basic (pass false to preserve behavior).
-        self.render_simple_quote(
-            traversal,
-            &SimpleQuoteStyle {
-                tag: "sup",
-                delim: "^",
-                basic: false,
-            },
-            s.id,
-            s.role,
-            &s.content,
-            subs,
-        )
+        self.render_simple_quote(traversal, "sup", s.id, s.role, &s.content, false)
     }
 
     fn render_subscript(
         &mut self,
         traversal: &mut TraversalContext<'a>,
         s: &Subscript<'_>,
-        subs: &[Substitution],
     ) -> Result<(), Error> {
         // Note: subscript doesn't check inlines_basic (pass false to preserve behavior).
-        self.render_simple_quote(
-            traversal,
-            &SimpleQuoteStyle {
-                tag: "sub",
-                delim: "~",
-                basic: false,
-            },
-            s.id,
-            s.role,
-            &s.content,
-            subs,
-        )
+        self.render_simple_quote(traversal, "sub", s.id, s.role, &s.content, false)
     }
 
     /// Render an inline macro by dispatching to the per-variant renderer.

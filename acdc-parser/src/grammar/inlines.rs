@@ -1115,14 +1115,39 @@ peg::parser! {
         inject span_start(_input, l, _r) -> usize { l }
         inject span_end(_input, _l, r) -> usize { r }
 
+        // Group consecutive ordinary nodes so profiles need no vector per node.
+        // Expansions still run at their source position, before later macros.
         pub(crate) rule inlines() -> Vec<InlineNode<'input>>
-        = nodes:(non_plain_text() / plain_text())+ {? expand_escaped_index_terms(nodes, state) }
+        = check_attribute_profiles() chunks:(profiled_attribute() / nodes:normal_inline()+ { nodes })+ {? expand_escaped_index_terms(chunks.into_iter().flatten().collect(), state) }
+        / nodes:normal_inline()+ {? expand_escaped_index_terms(nodes, state) }
+
+        rule normal_inline() -> InlineNode<'input>
+        = non_plain_text() / plain_text()
 
         pub(crate) rule inlines_no_autolinks() -> Vec<InlineNode<'input>>
-        = nodes:(non_plain_text() / plain_text())+ {? expand_escaped_index_terms(nodes, state) }
+        = inlines()
 
         pub(crate) rule verbatim_inlines() -> Vec<InlineNode<'input>>
-        = nodes:(verbatim_index_term() / verbatim_footnote() / verbatim_anchor() / verbatim_link() / quotes_non_plain_text() / verbatim_plain_text())+ {? expand_escaped_index_terms(nodes, state) }
+        = check_attribute_profiles() chunks:(profiled_attribute() / nodes:verbatim_inline()+ { nodes })+ {? expand_escaped_index_terms(chunks.into_iter().flatten().collect(), state) }
+        / nodes:verbatim_inline()+ {? expand_escaped_index_terms(nodes, state) }
+
+        rule verbatim_inline() -> InlineNode<'input>
+        = verbatim_index_term() / verbatim_footnote() / verbatim_anchor() / verbatim_link() / quotes_non_plain_text() / verbatim_plain_text()
+
+        rule check_attribute_profiles()
+        = {? (!state.attribute_passthroughs.is_empty()).then_some(()).ok_or("no attribute profiles") }
+
+        rule profiled_attribute_match() -> usize
+        = "���" index:$(digits()) "���" {?
+            index.parse::<usize>().ok().filter(|index| {
+                state.attribute_passthroughs.get(*index).is_some_and(|pass| !pass.attribute_fragments.is_empty())
+            }).ok_or("not a profiled attribute")
+        }
+
+        rule profiled_attribute() -> Vec<InlineNode<'input>>
+        = index:profiled_attribute_match() {
+            crate::grammar::passthrough_processing::process_attribute_placeholder(index, span_start, span_end, state)
+        }
 
         rule verbatim_anchor() -> InlineNode<'input>
         = check_macros() node:(
@@ -1178,6 +1203,7 @@ peg::parser! {
 
         rule verbatim_plain_text() -> InlineNode<'input>
         = content:$((
+            !profiled_attribute_match()
             !(check_index_terms() (
                 &("\\"+ index_term_match()) escaped_syntax_match() / index_term_match()
             ))
@@ -1210,9 +1236,13 @@ peg::parser! {
 
         /// Reduced inline rule set for "quotes" substitution in passthroughs.
         /// Only matches formatting markup + escaped markup + plain text.
-        /// Does not match macros, xrefs, anchors, autolinks, footnotes, etc.
+        /// Explicit attribute profiles can insert their own enabled constructs.
         pub(crate) rule quotes_only_inlines() -> Vec<InlineNode<'input>>
-        = (quotes_non_plain_text() / quotes_plain_text())+
+        = check_attribute_profiles() chunks:(profiled_attribute() / nodes:quotes_inline()+ { nodes })+ { chunks.into_iter().flatten().collect() }
+        / quotes_inline()+
+
+        rule quotes_inline() -> InlineNode<'input>
+        = quotes_non_plain_text() / quotes_plain_text()
 
         /// Non-plain-text alternatives for quotes-only mode: formatting markup only.
         /// Keep in sync with the formatting entries in `non_plain_text` above.
@@ -1246,10 +1276,11 @@ peg::parser! {
             / "\\" "~" !([^'~' | ' ' | '\t' | '\n']+ "~")
             // Fast path: characters that can never start any quotes inline construct.
             // Fewer triggers than plain_text since quotes context has no macros/autolinks.
-            / [^('\n' | '\r' | '\\' | '[' | '*' | '_' | '`' | '#' | '^' | '~' | '"' | '\'')]+
+            / [^('\n' | '\r' | '\\' | '[' | '*' | '_' | '`' | '#' | '^' | '~' | '"' | '\'' | '\u{FFFD}')]+
             / (
                 !(
-                    eol()*<2,>
+                    profiled_attribute_match()
+                    / eol()*<2,>
                     / ![_]
                     / &['\\'] escaped_syntax_match()
                     / check_quotes() &['*' | '_' | '`' | '#' | '^' | '~' | '"' | '\'' | '['] (
@@ -1648,6 +1679,7 @@ peg::parser! {
             tracing::debug!(?content, "Found pass inline");
             let location = state.create_block_location(span_start, span_end, state.inline_ctx.offset);
             InlineNode::Macro(InlineMacro::Pass(Pass {
+                attribute_fragments: Box::default(),
                 text: Some(content),
                 substitutions: substitutions.into_iter().filter_map(|s| parse_substitution(s.trim())).collect(),
                 location,
@@ -1659,12 +1691,11 @@ peg::parser! {
         rule inline_pass_match()
         = check_pass_token() "pass:" ([^('[' | ']' | ',')]+ ("," [^('[' | ']' | ',')]+)*)? "[" ("\\]" / [^']'])* "]"
 
-        // Text-only pass wrappers are resolved at definition time. Substitution must
+        // Whole-value pass wrappers are resolved at definition time. Substitution must
         // not activate a wrapper that remains inside the stored attribute value.
         rule check_pass_token()
         = start:position!() {?
             if let Some((names, _)) = state.input[start..].strip_prefix("pass:").and_then(|tail| tail.split_once('['))
-                && crate::model::substitution::attribute_text_substitution_names(names).is_some()
                 && (start..start + 6 + names.len()).any(|pos| byte_came_from_attribute(state, pos))
             {
                 Err("passthrough introduced by attribute")
@@ -3230,7 +3261,7 @@ peg::parser! {
             "\\" "^" !([^'^' | ' ' | '\t' | '\n']+ "^")
             / "\\" "~" !([^'~' | ' ' | '\t' | '\n']+ "~")
             // Fast path: characters that can never start any inline construct.
-            / ['\t' | ',' | ';' | '.' | '?' | '!' | ':' | '/' | '>' | ')' | ']' | '}' | '|' | '@' | '&' | '=' | '{' | '-' | '\u{00A0}'..='\u{10FFFF}']+
+            / ['\t' | ',' | ';' | '.' | '?' | '!' | ':' | '/' | '>' | ')' | ']' | '}' | '|' | '@' | '&' | '=' | '{' | '-' | '\u{00A0}'..='\u{FFFC}' | '\u{FFFE}'..='\u{10FFFF}']+
             // Quick path: Rust-native lookup table check for safe characters (uppercase,
             // non-macro lowercase, digits, space). Skips the full 7-branch PEG lookahead.
             / plain_text_quick_safe() [_]
@@ -3241,6 +3272,7 @@ peg::parser! {
                     // Attribute expansion can create an internal empty line. Let
                     // plain text absorb it when post replacements cannot handle it.
                     check_post_replacements() eol()*<2,>
+                    / profiled_attribute_match()
                     / check_hardbreaks() line_break_eol()
                     / ![_]
                     / &['\\'] (check_macros() "\\" anchor_macro_pattern() / index_label_bracket_match() / escaped_label_character_match() / escaped_syntax_match())

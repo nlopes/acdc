@@ -1,0 +1,692 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "macro-values(1)",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 17
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 13,
+        "col": 28
+      }
+    ]
+  },
+  "attributes": {
+    "bare": "https://example.org",
+    "button": "btn:[Save]",
+    "controls": "https://example.org[Site,role=hot,window=_blank,id=dest]",
+    "doctype": "manpage",
+    "email": "mailto:writer@example.org[Mail,Hello,Body]",
+    "experimental": true,
+    "icon": "icon:heart[]",
+    "image": "image:sample.png[Alt,20,10]",
+    "keys": "kbd:[Ctrl+C]",
+    "manname": "macro-values",
+    "manname-title": "NAME",
+    "manpurpose": "prepared macro values",
+    "mantitle": "macro-values",
+    "manvolnum": "1",
+    "menu": "menu:File[Open]",
+    "mono": "`Code`",
+    "xref": "xref:target[]"
+  },
+  "blocks": [
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "NAME",
+          "location": [
+            {
+              "line": 15,
+              "col": 4
+            },
+            {
+              "line": 15,
+              "col": 7
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "macro-values - prepared macro values",
+              "location": [
+                {
+                  "line": 17,
+                  "col": 1
+                },
+                {
+                  "line": 17,
+                  "col": 36
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 17,
+              "col": 1
+            },
+            {
+              "line": 17,
+              "col": 36
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 15,
+          "col": 1
+        },
+        {
+          "line": 17,
+          "col": 36
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "DESCRIPTION",
+          "location": [
+            {
+              "line": 19,
+              "col": 4
+            },
+            {
+              "line": 19,
+              "col": 14
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "Code",
+                  "location": [
+                    {
+                      "line": 21,
+                      "col": 1
+                    },
+                    {
+                      "line": 21,
+                      "col": 6
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 21,
+                  "col": 1
+                },
+                {
+                  "line": 21,
+                  "col": 6
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " / ",
+              "location": [
+                {
+                  "line": 21,
+                  "col": 7
+                },
+                {
+                  "line": 21,
+                  "col": 9
+                }
+              ]
+            },
+            {
+              "name": "ref",
+              "type": "inline",
+              "variant": "autolink",
+              "target": {
+                "type": "url",
+                "value": "https://example.org"
+              },
+              "location": [
+                {
+                  "line": 21,
+                  "col": 10
+                },
+                {
+                  "line": 21,
+                  "col": 15
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " / ",
+              "location": [
+                {
+                  "line": 21,
+                  "col": 16
+                },
+                {
+                  "line": 21,
+                  "col": 18
+                }
+              ]
+            },
+            {
+              "name": "ref",
+              "type": "inline",
+              "variant": "link",
+              "target": {
+                "type": "url",
+                "value": "https://example.org"
+              },
+              "inlines": [
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "Site",
+                  "location": [
+                    {
+                      "line": 21,
+                      "col": 19
+                    },
+                    {
+                      "line": 21,
+                      "col": 28
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 21,
+                  "col": 19
+                },
+                {
+                  "line": 21,
+                  "col": 28
+                }
+              ],
+              "attributes": {
+                "id": "dest",
+                "role": "hot",
+                "window": "_blank"
+              }
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " / ",
+              "location": [
+                {
+                  "line": 21,
+                  "col": 29
+                },
+                {
+                  "line": 21,
+                  "col": 31
+                }
+              ]
+            },
+            {
+              "name": "ref",
+              "type": "inline",
+              "variant": "mailto",
+              "target": {
+                "type": "url",
+                "value": "mailto:writer@example.org"
+              },
+              "inlines": [
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "Mail",
+                  "location": [
+                    {
+                      "line": 21,
+                      "col": 32
+                    },
+                    {
+                      "line": 21,
+                      "col": 38
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 21,
+                  "col": 32
+                },
+                {
+                  "line": 21,
+                  "col": 38
+                }
+              ],
+              "attributes": {}
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 21,
+                  "col": 39
+                },
+                {
+                  "line": 21,
+                  "col": 39
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 21,
+              "col": 1
+            },
+            {
+              "line": 21,
+              "col": 39
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "button",
+              "type": "inline",
+              "label": "Save",
+              "location": [
+                {
+                  "line": 23,
+                  "col": 1
+                },
+                {
+                  "line": 23,
+                  "col": 8
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " / ",
+              "location": [
+                {
+                  "line": 23,
+                  "col": 9
+                },
+                {
+                  "line": 23,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "keyboard",
+              "type": "inline",
+              "keys": [
+                "Ctrl",
+                "C"
+              ],
+              "location": [
+                {
+                  "line": 23,
+                  "col": 12
+                },
+                {
+                  "line": 23,
+                  "col": 17
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " / ",
+              "location": [
+                {
+                  "line": 23,
+                  "col": 18
+                },
+                {
+                  "line": 23,
+                  "col": 20
+                }
+              ]
+            },
+            {
+              "name": "menu",
+              "type": "inline",
+              "target": "File",
+              "items": [
+                "Open"
+              ],
+              "location": [
+                {
+                  "line": 23,
+                  "col": 21
+                },
+                {
+                  "line": 23,
+                  "col": 26
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " / ",
+              "location": [
+                {
+                  "line": 23,
+                  "col": 27
+                },
+                {
+                  "line": 23,
+                  "col": 29
+                }
+              ]
+            },
+            {
+              "name": "icon",
+              "type": "inline",
+              "target": {
+                "type": "name",
+                "value": "heart"
+              },
+              "location": [
+                {
+                  "line": 23,
+                  "col": 30
+                },
+                {
+                  "line": 23,
+                  "col": 35
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 23,
+                  "col": 36
+                },
+                {
+                  "line": 23,
+                  "col": 36
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 23,
+              "col": 1
+            },
+            {
+              "line": 23,
+              "col": 36
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "image",
+              "type": "inline",
+              "title": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Alt",
+                  "location": [
+                    {
+                      "line": 1,
+                      "col": 1
+                    },
+                    {
+                      "line": 1,
+                      "col": 27
+                    }
+                  ]
+                }
+              ],
+              "target": {
+                "type": "path",
+                "value": "sample.png"
+              },
+              "location": [
+                {
+                  "line": 25,
+                  "col": 1
+                },
+                {
+                  "line": 25,
+                  "col": 7
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " / ",
+              "location": [
+                {
+                  "line": 25,
+                  "col": 8
+                },
+                {
+                  "line": 25,
+                  "col": 10
+                }
+              ]
+            },
+            {
+              "name": "xref",
+              "type": "inline",
+              "target": "target",
+              "location": [
+                {
+                  "line": 25,
+                  "col": 11
+                },
+                {
+                  "line": 25,
+                  "col": 16
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 25,
+                  "col": 17
+                },
+                {
+                  "line": 25,
+                  "col": 17
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 25,
+              "col": 1
+            },
+            {
+              "line": 25,
+              "col": 17
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 19,
+          "col": 1
+        },
+        {
+          "line": 25,
+          "col": 17
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Target title",
+          "location": [
+            {
+              "line": 28,
+              "col": 4
+            },
+            {
+              "line": 28,
+              "col": 15
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "metadata": {
+        "anchors": [
+          {
+            "id": "target",
+            "location": [
+              {
+                "line": 27,
+                "col": 1
+              },
+              {
+                "line": 27,
+                "col": 11
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Body.",
+              "location": [
+                {
+                  "line": 30,
+                  "col": 1
+                },
+                {
+                  "line": 30,
+                  "col": 5
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 30,
+              "col": 1
+            },
+            {
+              "line": 30,
+              "col": 5
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 27,
+          "col": 1
+        },
+        {
+          "line": 30,
+          "col": 5
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 30,
+      "col": 5
+    }
+  ]
+}

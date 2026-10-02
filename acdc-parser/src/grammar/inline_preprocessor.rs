@@ -295,6 +295,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
             let content = &source[start + 1..end];
             let location = self.location_from_offsets(source_start + start, source_start + end + 1);
             self.passthroughs.borrow_mut().push(Pass {
+                attribute_fragments: Box::default(),
                 text: Some(content),
                 substitutions: vec![Substitution::SpecialChars],
                 location: location.clone(),
@@ -404,10 +405,13 @@ impl<'a> InlinePreprocessorParserState<'a> {
             return format!("{{{attribute_name}}}");
         };
 
-        if is_character_reference && let Some(value) = resolved.as_str() {
+        if (is_character_reference || !resolved.inline_fragments().is_empty())
+            && let Some(value) = resolved.as_str()
+        {
             let absolute_start = location.absolute_start;
             let absolute_end = location.absolute_end;
             self.passthroughs.borrow_mut().push(Pass {
+                attribute_fragments: resolved.inline_fragments().into(),
                 text: Some(self.arena.alloc_str(value.as_ref())),
                 substitutions: Vec::new(),
                 location,
@@ -809,6 +813,7 @@ parser!(
                 let index = state.pass_found_count.get();
                 let placeholder = format!("���{index}���");
                 state.passthroughs.borrow_mut().push(Pass {
+                attribute_fragments: Box::default(),
                     text: Some(text),
                     substitutions: vec![Substitution::SpecialChars],
                     location: location.clone(),
@@ -927,6 +932,7 @@ parser!(
                 return format!("+{content}+");
             }
             state.passthroughs.borrow_mut().push(Pass {
+                attribute_fragments: Box::default(),
                 text: Some(content),
                 // We add SpecialChars here for single and double but we don't do
                 // anything with them, only the converter does.
@@ -954,6 +960,7 @@ parser!(
                 }
                 let location = state.calculate_location(start, content, 4);
                 state.passthroughs.borrow_mut().push(Pass {
+                attribute_fragments: Box::default(),
                     text: Some(content),
                     // We add SpecialChars here for single and double but we don't do
                     // anything with them, only the converter does.
@@ -982,6 +989,7 @@ parser!(
                 }
                 let location = state.calculate_location(start, content, 6);
                 state.passthroughs.borrow_mut().push(Pass {
+                attribute_fragments: Box::default(),
                     text: Some(content),
                     substitutions: Vec::new(),
                     location: location.clone(),
@@ -1012,6 +1020,7 @@ parser!(
             let padding = 5 + subs_str.len() + 1 + 1; // "pass:" + subs + "[" + "]"
             let location = state.calculate_location(start, content, padding);
                 state.passthroughs.borrow_mut().push(Pass {
+                attribute_fragments: Box::default(),
                     text: Some(content),
                     substitutions: substitutions.clone(),
                     location: location.clone(),

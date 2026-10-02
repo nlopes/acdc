@@ -93,15 +93,51 @@ It handles document structure (header, sections, blocks), block-level elements (
 
 Inline content needs special handling, as specified in https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/sdrs/sdr-005-formal-grammar-for-inline-syntax.adoc[SDR-005: Formal Grammar for Inline Syntax].
 
-The spec defines inline markup with substitution rules that must be applied in a specific order.
-Nested inline markup (like bold text within a link) requires preprocessing before the main parsing pass.
+SDR-5 replaces output-dependent substitutions with a formal inline grammar.
+Attribute references and passthrough boundaries need preprocessing before that grammar runs.
 
 I use a two-pass approach:
 
-. **Preprocessing pass**: Apply substitutions in the spec-defined order
-. **Parsing pass**: Parse the preprocessed content into `InlineNode` elements
+. **Preprocessing pass**: Expand attribute references and protect passthrough regions, retaining their source locations
+. **Parsing pass**: Parse the resulting source into `InlineNode` elements and restore protected content
 
-This correctly handles nested inline markup, attribute references within inline elements, passthrough and literal content, and special character substitutions.
+Converters then render those nodes and escape text as required by their output format.
+The existing `pre-spec-subs` compatibility feature retains some legacy ordered behavior; this is not a claim of complete SDR-5 conformance.
+
+==== Parsing and conversion boundary
+
+The project follows SDR-5's decision to keep parsing independent of conversion.
+The parser must not generate HTML tags, PDF markup, or roff commands to determine an attribute value or evaluate a conditional.
+Explicit checks of intrinsic attributes such as `backend` remain valid; they are author-supplied conditions, rather than an effect of rendering attribute content.
+
+Formatted document attributes retain AsciiDoc source text and private inline parsing profiles.
+For example, `:value: pass:q[*Bold*]` exposes `*Bold*` through text reads, JSON, conditions, and include paths, while a reference produces bold inline content through its quote profile.
+Text reads never expose `<strong>Bold</strong>` or backend-specific equivalents for this value.
+This deliberately differs from Asciidoctor, which converts such values during assignment.
+See https://docs.asciidoctor.org/asciidoc/latest/attributes/attribute-entry-substitutions/[Asciidoctor's attribute-entry documentation].
+
+SDR-5 leaves the mapping of custom `pass:` substitution lists open for further research.
+Supporting common lists through parsing profiles is an acdc policy; it is not an exact rule prescribed by that design record.
+Common profiles support quotes (`q`), macros (`m`), replacements (`r`), post replacements (`p`), and `normal`, including long names and combinations.
+Attribute references selected by `a` freeze at definition time, before the retained profile runs at use; both `a,q` and `q,a` therefore parse the frozen source.
+Aliases preserve profiles and protect raw fragments.
+An explicit `a` list imports referenced profiles and protects its surrounding source; an explicit structural list applies its own rules to the complete expanded source.
+Unused definitions register no footnotes, index terms, or anchors.
+Anonymous footnotes register separately at each use; named footnotes retain the existing shared-ID policy.
+
+Orders that require generated output to be escaped again, such as `q,c` and `m,c`, stay literal with a structured parser warning.
+Text-only lists combining `a` and `c` also stay literal with a warning when their references carry inline profiles; their effect on those profiles needs a separate design.
+Unknown substitution names stay literal with a warning.
+These restrictions apply to attribute-entry values; the existing inline passthrough and block-substitution behavior is separate.
+Profiles reuse existing deferred text substitutions.
+Some converter code and raw-text paths still omit those replacements; for example, a retained `normal` profile's `(C)` can remain literal in a listing.
+This is a remaining converter limitation, not a reason to convert values during assignment.
+
+The implementation stores source spans and compact rule lists rather than converted markup or owned inline trees.
+Profiles are parsed when referenced in document content, so one parsed document can be converted to several formats.
+Earlier compatibility behavior, including attribute character escaping and the treatment of ordinary attribute-introduced formatting, also needs a separate migration audit.
+The main inline preprocessor's closing-brace attribute escape (`{value\}`) also remains inconsistent with its opening escape in listings.
+Backend-neutral attribute expansion, source locations, and caller assignment policy remain necessary before includes and conditions can be processed.
 
 ==== Attribute parsing: blocks vs inlines
 

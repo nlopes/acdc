@@ -16,6 +16,15 @@ use acdc_parser::{AttributeValue, Options as ParserOptions, SafeMode, parse, par
 
 type Error = Box<dyn StdError>;
 
+#[test]
+fn formatted_attribute_footnotes_keep_unique_link_targets() -> Result<(), Error> {
+    check_link_label_footnote_targets("document_attribute_formatted")?;
+    check_link_label_footnote_targets("document_attribute_profile_edges")?;
+    #[cfg(all(feature = "pre-spec-subs", feature = "highlighting"))]
+    check_link_label_footnote_targets("subs_document_attribute_formatted")?;
+    Ok(())
+}
+
 #[cfg(all(feature = "highlighting", feature = "pre-spec-subs"))]
 #[test]
 fn document_attribute_pass_raw_tags_remain_nested_under_highlighting() -> Result<(), Error> {

@@ -1,0 +1,57 @@
+'\" t
+.\"     Title: prepared-code
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-02
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "PREPARED\-CODE" "1" "2026-10-02" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+prepared\-code \- formatted attributes in code
+.SH "SYNOPSIS"
+.sp
+\fBprepared\-code\fP
+.SH "DESCRIPTION"
+.EX
+Formatting: \fBBold\fP / \fBEarly\fP / \fBEarly\fP (C) / Site
+Literal references: {bold} / {bold\e}
+.EE
+.EX
+Escaped: \fBBold\fP / \fBEarly\fP / \fBEarly\fP (C) / Site
+.EE
+.EX
+Macros: \fBBold\fP / [1] / [1] / Term
+.EE
+.EX
+// Highlighted: \fBBold\fP / [1] / Site / Term
+.EE
+.SH "INDEX"
+.SS "T"
+.RS 4
+Term
+.br
+.RE
+.SH "NOTES"
+.IP [1] 4
+Note body.

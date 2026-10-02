@@ -1,0 +1,48 @@
+= prepared-code(1)
+:doctype: manpage
+:source-highlighter: syntect
+:name: Early
+:bold: pass:q[*Bold*]
+:frozen: pass:a,q[*{name}*]
+:normal: pass:normal[*{name}* (C)]
+:link: pass:m[https://example.org[Site]]
+:term: pass:m[((Term))]
+:note: pass:m[footnote:n[Note body.]]
+:alias: {bold} / {note}
+:acdc-index:
+
+== NAME
+
+prepared-code - formatted attributes in code
+
+== SYNOPSIS
+
+*prepared-code*
+
+== DESCRIPTION
+
+:name: Late
+
+[subs="specialchars,attributes"]
+----
+Formatting: {bold} / {frozen} / {normal} / {link}
+Literal references: \{bold} / {bold\}
+----
+
+[subs="attributes,specialchars"]
+----
+Escaped: {bold} / {frozen} / {normal} / {link}
+----
+
+[subs="attributes"]
+----
+Macros: {alias} / {note} / {term}
+----
+
+[source,rust,subs="specialchars,attributes"]
+----
+// Highlighted: {alias} / {link} / {term}
+----
+
+[index]
+== Index

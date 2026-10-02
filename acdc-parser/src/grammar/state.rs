@@ -14,7 +14,7 @@ use bumpalo::Bump;
 
 use crate::{
     CalloutRef, CaptionKind, DocumentAttribute, DocumentAttributes, Error, Footnote, Location,
-    Options, SourceLocation, TocEntry, Warning, WarningKind, XrefCaptionLabel, XrefSignifier,
+    Options, Pass, SourceLocation, TocEntry, Warning, WarningKind, XrefCaptionLabel, XrefSignifier,
     document_attribute::{AttributeDeclaration, RawAttributeValue},
     grammar::LineMap,
     model::{
@@ -126,6 +126,9 @@ pub(crate) struct ParserState<'a> {
     /// and plain text. Used by `parse_text_for_quotes` to apply "quotes" substitution
     /// without matching macros, xrefs, etc.
     pub(crate) quotes_only: bool,
+    /// Profiled attribute placeholders available to this inline grammar. Consume
+    /// them in source order so their notes precede later literal references.
+    pub(crate) attribute_passthroughs: Rc<[Pass<'a>]>,
     /// When parsing content extracted from a constrained formatting rule, holds
     /// the delimiter byte of the outer formatting (e.g., `b'_'` for italic).
     /// Used to correctly fail boundary checks when the outer delimiter is a
@@ -465,7 +468,7 @@ impl<'a> ParserState<'a> {
         let AttributeDeclaration { name, value } = declaration;
         let key = Cow::Borrowed(*name);
         let set = !matches!(value, RawAttributeValue::Unset);
-        let value = value.resolve(&self.document_attributes);
+        let (value, profile_warning) = value.resolve_with_warning(&self.document_attributes);
         let force_locked = self
             .nested_parent_attributes
             .as_ref()
@@ -503,6 +506,13 @@ impl<'a> ParserState<'a> {
                 return None;
             }
         };
+        // A locked or invalid assignment must not warn about a value that was ignored.
+        if let Some(message) = profile_warning {
+            self.add_warning(Warning::new(
+                WarningKind::Other(message.into()),
+                Some(self.create_error_source_location(location.clone())),
+            ));
+        }
         if updates_hardbreaks {
             self.hardbreaks = set;
         }
@@ -553,6 +563,7 @@ impl<'a> ParserState<'a> {
             included_files: HashSet::new(),
             warnings: Rc::new(RefCell::new(Vec::new())),
             quotes_only: false,
+            attribute_passthroughs: Rc::default(),
             outer_constrained_delimiter: None,
             scope: ParserScope::Document,
             inline_ctx: InlineContext::default(),
@@ -592,6 +603,7 @@ impl<'a> ParserState<'a> {
             included_files: HashSet::new(),
             warnings: Rc::new(RefCell::new(Vec::new())),
             quotes_only: true,
+            attribute_passthroughs: Rc::default(),
             outer_constrained_delimiter: None,
             scope: ParserScope::Document,
             inline_ctx: InlineContext {
@@ -637,6 +649,7 @@ impl<'a> ParserState<'a> {
             // without a separate drain step.
             warnings: Rc::clone(&parent.warnings),
             quotes_only: parent.quotes_only,
+            attribute_passthroughs: Rc::clone(&parent.attribute_passthroughs),
             outer_constrained_delimiter: parent.outer_constrained_delimiter,
             scope: ParserScope::Inline,
             inline_ctx,

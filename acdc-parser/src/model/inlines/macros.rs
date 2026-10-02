@@ -10,6 +10,8 @@ pub const ICON_SIZES: &[&str] = &["1x", "2x", "3x", "4x", "5x", "lg", "fw"];
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct Pass<'a> {
+    #[serde(skip)]
+    pub(crate) attribute_fragments: Box<[crate::model::AttributeInlineFragment]>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub text: Option<&'a str>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

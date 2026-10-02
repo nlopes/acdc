@@ -144,6 +144,38 @@ assert_eq!(depth.text(), Some("064"));
 input. `with_defaults` replaces earlier defaults. Use `false` or `()` to unset an
 attribute, including one supplied by defaults.
 
+## Parsing and conversion
+
+acdc follows [SDR-5's separation of parsing and conversion](https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/sdrs/sdr-005-formal-grammar-for-inline-syntax.adoc).
+The parser expands source references and constructs inline nodes. Converters
+produce output markup and apply the escaping required by their output format.
+The parser may use explicit `backend` conditions, but must not render an attribute
+to HTML or roff to decide its value.
+
+Formatted attributes retain AsciiDoc source text
+and supported inline parsing profiles. For example, `:value: pass:q[*Bold*]`
+retains `*Bold*` for `text()`, JSON, conditions, and include paths, while its
+references can produce bold inline content. Asciidoctor instead stores generated
+backend markup at definition time; acdc deliberately does not adopt that behavior.
+
+References selected by `a` freeze at definition time. Both `a,q` and `q,a` parse
+that frozen source at use. Aliases retain their profiles and protect raw text.
+An explicit `a` list imports profiles while keeping surrounding text literal;
+an explicit structural list controls the complete expanded source.
+Unused values register no macros; anonymous footnotes register separately at each
+use, while named notes share their ID. Lists such as `q,c` or `m,c` that need
+rendered markup, unknown substitution names, and text-only `a`/`c` combinations
+that reference profiled values stay literal with a structured parser warning.
+Profiles use the converters' existing deferred replacement rules; some code and
+raw-text paths still retain typography syntax such as `(C)` in a `normal` value.
+
+Existing `pre-spec-subs` compatibility behavior is not complete SDR-5 conformance.
+SDR-5 leaves the exact mapping of custom `pass:` lists unresolved; support for
+common profiles is an acdc policy. Earlier text-only escaping and ordinary
+attribute-introduced formatting remain separate migration work, as does the
+main preprocessor's closing-brace escape in listings (`{value\}`). See the
+[architecture document](../ARCHITECTURE.adoc) for the boundary and migration scope.
+
 ## Intrinsic document attributes
 
 acdc initializes the intrinsic backend, input, time, safe-mode, and environment

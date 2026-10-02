@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Document attributes using `pass:q[...]`, `pass:m[...]`, or `pass:normal[...]`
+  retain formatting and links, including attributes-enabled code. Unused values
+  produce no notes or index entries; anonymous notes register at each use and
+  named notes share their ID. Unlike Asciidoctor PDF, attribute text and conditions
+  use retained AsciiDoc source. Output-dependent lists such as `q,c` stay literal
+  with a parser warning.
 - Render restored inline passthrough character references correctly in prose and code,
   including highlighting. Preserve literal references when character escaping follows
   replacements. Highlighted output keeps escaped references literal; Asciidoctor PDF

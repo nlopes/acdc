@@ -1,0 +1,61 @@
+= prepared-attributes(1)
+:doctype: manpage
+:name: Early
+:empty:
+:bold: pass:q[*Bold*]
+:frozen: pass:a,q[*{name}*]
+:quotes-first: pass:q,a[*{name}*]
+:normal: pass:normal[*{name}* (C)]
+:link: pass:m[https://example.org[Site]]
+:term: pass:m[((Term))]
+:anonymous: pass:m[footnote:[Anonymous body.]]
+:note: pass:m[footnote:n[Named body.]]
+:unused-term: pass:m[(((Unused))) ]
+:unused-note: pass:m[footnote:u[Unused body.]]
+:alias: {bold} / {frozen} / {anonymous}
+:empty-before: pass:a,q[*{empty}*]
+:empty-after: pass:q,a[*{empty}*]
+:escaped: pass:a,q[*\{name}*]
+:q-c: pass:q,c[*Escaped*]
+:m-c: pass:m,c[https://example.org[Escaped site]]
+:partial: prefix pass:q[*Literal*]
+:acdc-index:
+
+== NAME
+
+prepared-attributes - formatted document attributes
+
+== SYNOPSIS
+
+*prepared-attributes*
+
+== DESCRIPTION
+
+:name: Late
+:bold: pass:q[*Body*]
+:body: pass:a,q[*{name}*]
+
+Frozen: {frozen} / {quotes-first} / {normal} / {body}.
+
+Alias: {alias} / {bold} / {anonymous} / {anonymous}.
+
+Macros: {link} / {term} / {note} / footnote:n[].
+
+Empty: {empty-before} / {empty-after}. Escaped: {escaped}.
+
+Order: {q-c} / {m-c}. Partial: {partial}.
+
+[cols="a,a"]
+|===
+|:name: Cell
+
+Cell: {frozen} / {alias}.
+|Other: {name} / {bold}.
+|===
+
+:bold!:
+
+Unset: {bold} / {alias}.
+
+[index]
+== Index

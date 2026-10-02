@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Document attributes using `pass:q[...]`, `pass:m[...]`, or `pass:normal[...]`
+  retain formatting, links, and footnotes. Unused values produce no notes or index
+  entries; anonymous notes register at each use. Unlike Asciidoctor, attribute
+  text and conditions use AsciiDoc source instead of roff. Output-dependent lists
+  such as `q,c` stay literal with a parser warning.
 - Preserve literal and restored inline passthrough references according to substitution
   order, including escaped references and digit-length limits. Valid hexadecimal and
   zero-padded numeric references still render as Unicode where Asciidoctor manpage keeps

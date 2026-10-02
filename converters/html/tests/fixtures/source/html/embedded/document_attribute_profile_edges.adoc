@@ -1,0 +1,42 @@
+= profile-edges(1)
+:doctype: manpage
+:name: Early
+:blank:
+:bold: pass:q[*Éva*]
+:italic: pass:q[_Italic_]
+:empty: pass:q[]
+:missing: pass:a,q[*{missing}*]
+:escaped: pass:a,q[*\{name}*]
+:frozen: pass:a,q[*{name}*]
+:alias: prefix {bold} / {italic} suffix
+:second: before {alias} after
+:explicit-alias: pass:a[https://example.org[Protected] before {bold} / {italic} after]
+:escaped-alias: \{bold}
+:raw: pass:[*Literal*]
+:raw-alias: {raw} / {bold}
+:raw-link: pass:[https://example.org[Literal]]
+:mixed-link: {raw-link} / {bold}
+:mixed-again: {mixed-link} / {mixed-link}
+:link: pass:m[https://example.org[Site]]
+:unused: pass:m[footnote:[Unused note.] anchor:unused[] ((Unused))]
+:note: pass:m[footnote:[Anonymous note.]]
+:named: pass:m[footnote:n[Named note.]]
+:bad: pass:q,c[*Escaped*]
+:bad-alias: pass:a,c[{bold}]
+:unknown: pass:typo[*Unknown*]
+
+== NAME
+
+profile-edges - retained attribute profile edge cases
+
+== DESCRIPTION
+
+:name: Late
+
+{second} / {raw-alias} / {explicit-alias} / {escaped-alias} / {mixed-again}.
+
+{empty} / {missing} / {escaped} / {frozen}.
+
+{link} / {note} / {note} / {named} / {named} / footnote:n[].
+
+{bad} / {bad-alias} / {unknown}.

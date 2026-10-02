@@ -111,6 +111,20 @@ impl SubstitutionPlan {
         }
         self
     }
+
+    pub(crate) fn after(self, substitution: &Substitution) -> Vec<Substitution> {
+        let mut stages: Vec<_> = DEFAULT_PARSER_SUBSTITUTIONS
+            .iter()
+            .filter(|stage| self.precedes(substitution, stage))
+            .cloned()
+            .collect();
+        stages.sort_by_key(|stage| {
+            substitution_stage_index(stage)
+                .and_then(|index| self.ranks.get(index))
+                .copied()
+        });
+        stages
+    }
 }
 
 impl Default for SubstitutionPlan {
@@ -1264,17 +1278,60 @@ pub fn substitute_attributes<'text, 'value>(
     substitute_attributes_with_ranges(text, lookup, |_, _| {})
 }
 
-/// Resolve attribute-entry substitutions while retaining prepared fragments.
+/// Resolve attribute source and return a diagnostic for unsupported profiles.
 pub(crate) fn resolve_attribute_entry_text<'text>(
     text: &'text str,
     attributes: &DocumentAttributes<'_>,
-) -> super::DocumentAttributeValue<'text> {
+) -> (super::DocumentAttributeValue<'text>, Option<String>) {
+    if let Some(profile) = attribute_inline_profile(text, attributes) {
+        return match profile {
+            Ok((inner, mut substitutions)) => {
+                let inner = if substitutions.contains(&Substitution::Attributes) {
+                    expand_attribute_entry_references(inner, attributes, false).into()
+                } else {
+                    Cow::Borrowed(inner)
+                };
+                // References are frozen at assignment. Structural rules run at
+                // the use site and must not expand those references again.
+                substitutions.retain(|stage| *stage != Substitution::Attributes);
+                let fragment = super::AttributeInlineFragment {
+                    range: 0..inner.len(),
+                    substitutions: substitutions.into_boxed_slice(),
+                };
+                (
+                    super::DocumentAttributeValue::with_inline_fragments(
+                        inner,
+                        Vec::new(),
+                        vec![fragment],
+                    ),
+                    None,
+                )
+            }
+            Err(message) => (
+                super::DocumentAttributeValue::with_inline_fragments(
+                    Cow::Borrowed(text),
+                    Vec::new(),
+                    vec![super::AttributeInlineFragment {
+                        range: 0..text.len(),
+                        substitutions: vec![Substitution::SpecialChars].into_boxed_slice(),
+                    }],
+                ),
+                Some(message),
+            ),
+        };
+    }
     if let Some((inner, substitutions)) = attribute_text_substitutions(text) {
+        if substitutions == [AttributeTextSubstitution::Attributes] {
+            let value = resolve_attribute_references(inner, attributes, true);
+            if !value.inline_fragments().is_empty() {
+                return (value, None);
+            }
+        }
         let mut inner = Cow::Borrowed(inner);
         for substitution in substitutions {
             inner = match substitution {
                 AttributeTextSubstitution::Attributes => {
-                    expand_attribute_entry_references(&inner, attributes).into()
+                    expand_attribute_entry_references(&inner, attributes, true).into()
                 }
                 AttributeTextSubstitution::SpecialChars => {
                     escape_attribute_characters(&inner).into()
@@ -1286,13 +1343,35 @@ pub(crate) fn resolve_attribute_entry_text<'text>(
         } else {
             std::iter::once(0..inner.len()).collect()
         };
-        return super::DocumentAttributeValue::with_passthrough_ranges(inner, ranges);
+        return (
+            super::DocumentAttributeValue::with_passthrough_ranges(inner, ranges),
+            None,
+        );
     }
+    (resolve_attribute_references(text, attributes, false), None)
+}
+
+fn resolve_attribute_references<'text>(
+    text: &'text str,
+    attributes: &DocumentAttributes<'_>,
+    protect_gaps: bool,
+) -> super::DocumentAttributeValue<'text> {
     let mut ranges = Vec::new();
+    let mut fragments = Vec::new();
     let text = substitute_attributes_with_ranges(
         text,
         |name| attributes.get(name),
         |value, offset| {
+            fragments.extend(
+                value
+                    .inline_fragments()
+                    .iter()
+                    .cloned()
+                    .map(|mut fragment| {
+                        fragment.range = fragment.range.start + offset..fragment.range.end + offset;
+                        fragment
+                    }),
+            );
             ranges.extend(
                 value
                     .passthrough_ranges()
@@ -1301,7 +1380,78 @@ pub(crate) fn resolve_attribute_entry_text<'text>(
             );
         },
     );
-    super::DocumentAttributeValue::with_passthrough_ranges(text, ranges)
+    if protect_gaps && !fragments.is_empty() {
+        // An explicit `a` list imports referenced profiles but enables no
+        // structural rules for the surrounding source.
+        let mut gaps = Vec::new();
+        let mut cursor = 0;
+        for fragment in &fragments {
+            if cursor < fragment.range.start {
+                gaps.push(cursor..fragment.range.start);
+            }
+            cursor = fragment.range.end;
+        }
+        if cursor < text.len() {
+            gaps.push(cursor..text.len());
+        }
+        fragments.extend(
+            gaps.into_iter()
+                .map(|range| super::AttributeInlineFragment {
+                    range,
+                    substitutions: Box::default(),
+                }),
+        );
+    }
+    super::DocumentAttributeValue::with_inline_fragments(text, ranges, fragments)
+}
+
+/// Select retained source rules, rejecting lists that require converted markup.
+fn attribute_inline_profile<'text>(
+    text: &'text str,
+    attributes: &DocumentAttributes<'_>,
+) -> Option<Result<(&'text str, Vec<Substitution>), String>> {
+    let (names, inner) = text.trim().strip_prefix("pass:")?.split_once('[')?;
+    let inner = inner.strip_suffix(']')?;
+    let mut substitutions = Vec::new();
+    for name in names
+        .split(',')
+        .filter(|name| !name.is_empty() && *name != "none")
+    {
+        let Some(stage) = parse_substitution(name) else {
+            return Some(Err(format!(
+                "unknown attribute-value substitution: {name}; value retained literally"
+            )));
+        };
+        substitutions.push(stage);
+    }
+    let substitutions = resolve_passthrough_substitutions(&substitutions);
+    if !substitutions.iter().any(|stage| {
+        matches!(
+            stage,
+            Substitution::Quotes
+                | Substitution::Macros
+                | Substitution::Replacements
+                | Substitution::PostReplacements
+        )
+    }) {
+        if substitutions.contains(&Substitution::Attributes)
+            && substitutions.contains(&Substitution::SpecialChars)
+            && !resolve_attribute_references(inner, attributes, false)
+                .inline_fragments()
+                .is_empty()
+        {
+            return Some(Err("attribute-value escaping combined with formatted references is unsupported; value retained literally".into()));
+        }
+        return None;
+    }
+    let mut structural = false;
+    for stage in &substitutions {
+        if *stage == Substitution::SpecialChars && structural {
+            return Some(Err("attribute-value escaping after formatting or macros requires backend markup; value retained literally".into()));
+        }
+        structural |= matches!(stage, Substitution::Quotes | Substitution::Macros);
+    }
+    Some(Ok((inner, substitutions)))
 }
 
 #[derive(PartialEq, Eq)]
@@ -1387,7 +1537,11 @@ pub(crate) fn is_restorable_character_reference(body: &str) -> bool {
     }
 }
 
-fn expand_attribute_entry_references(text: &str, attributes: &DocumentAttributes<'_>) -> String {
+fn expand_attribute_entry_references(
+    text: &str,
+    attributes: &DocumentAttributes<'_>,
+    escape_document_values: bool,
+) -> String {
     let mut output = String::with_capacity(text.len());
     let mut remaining = text;
     while let Some((prefix, candidate)) = remaining.split_once('{') {
@@ -1403,7 +1557,7 @@ fn expand_attribute_entry_references(text: &str, attributes: &DocumentAttributes
             output.push_str(prefix);
             let mut value_text = String::new();
             let _ = value.write_text(&mut value_text);
-            if attributes.is_document_value(name) {
+            if escape_document_values && attributes.is_document_value(name) {
                 // Ordinary entries already underwent header escaping. Raw ranges
                 // contain prepared text and must not be escaped a second time.
                 let mut cursor = 0;

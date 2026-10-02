@@ -1,4 +1,4 @@
-use std::{borrow::Cow, ops::Range};
+use std::{borrow::Cow, ops::Range, rc::Rc};
 
 use crate::{
     Error, InlineNode, InlinePreprocessorParserState, Location, Plain, Position, ProcessedContent,
@@ -243,6 +243,17 @@ fn parse_processed_inlines<'a>(
 ) -> Result<Vec<InlineNode<'a>>, Error> {
     let inline_ctx = inline_context(state, block_metadata, autolinks);
     let mut inline_peg_state = ParserState::for_inline_parsing(text, state, inline_ctx);
+    if !processed.passthroughs.is_empty() {
+        inline_peg_state.attribute_passthroughs = if processed
+            .passthroughs
+            .iter()
+            .any(|pass| !pass.attribute_fragments.is_empty())
+        {
+            processed.passthroughs.clone().into()
+        } else {
+            Rc::default()
+        };
+    }
     inline_peg_state.empty_attribute_offsets = processed
         .source_map
         .empty_attribute_offsets(location.absolute_start);

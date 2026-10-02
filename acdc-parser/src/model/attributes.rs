@@ -44,12 +44,21 @@ enum ValueKind<'a> {
     Passthrough {
         text: Cow<'a, str>,
         ranges: Box<[Range<usize>]>,
+        fragments: Box<[AttributeInlineFragment]>,
     },
     Presence,
     Integer {
         value: i128,
         source: Option<Cow<'a, str>>,
     },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct AttributeInlineFragment {
+    // Byte spans select grammar rules when retained source is inserted. They
+    // never store rendered markup or declaration-specific AST locations.
+    pub(crate) range: Range<usize>,
+    pub(crate) substitutions: Box<[crate::Substitution]>,
 }
 
 impl<'a> DocumentAttributeValue<'a> {
@@ -128,9 +137,14 @@ impl<'a> DocumentAttributeValue<'a> {
     pub(crate) fn as_borrowed(&self) -> DocumentAttributeValue<'_> {
         DocumentAttributeValue(match &self.0 {
             ValueKind::Text(value) => ValueKind::Text(Cow::Borrowed(value)),
-            ValueKind::Passthrough { text, ranges } => ValueKind::Passthrough {
+            ValueKind::Passthrough {
+                text,
+                ranges,
+                fragments,
+            } => ValueKind::Passthrough {
                 text: Cow::Borrowed(text),
                 ranges: ranges.clone(),
+                fragments: fragments.clone(),
             },
             ValueKind::Presence => ValueKind::Presence,
             ValueKind::Integer { value, source } => ValueKind::Integer {
@@ -145,9 +159,14 @@ impl<'a> DocumentAttributeValue<'a> {
     pub fn into_static(self) -> DocumentAttributeValue<'static> {
         DocumentAttributeValue(match self.0 {
             ValueKind::Text(value) => ValueKind::Text(Cow::Owned(value.into_owned())),
-            ValueKind::Passthrough { text, ranges } => ValueKind::Passthrough {
+            ValueKind::Passthrough {
+                text,
+                ranges,
+                fragments,
+            } => ValueKind::Passthrough {
                 text: Cow::Owned(text.into_owned()),
                 ranges,
+                fragments,
             },
             ValueKind::Presence => ValueKind::Presence,
             ValueKind::Integer { value, source } => ValueKind::Integer {
@@ -194,12 +213,43 @@ impl<'a> DocumentAttributeValue<'a> {
     }
 
     pub(crate) fn with_passthrough_ranges(text: Cow<'a, str>, ranges: Vec<Range<usize>>) -> Self {
-        if ranges.is_empty() {
+        Self::with_inline_fragments(text, ranges, Vec::new())
+    }
+
+    pub(crate) fn inline_fragments(&self) -> &[AttributeInlineFragment] {
+        match &self.0 {
+            ValueKind::Passthrough { fragments, .. } => fragments,
+            ValueKind::Text(_) | ValueKind::Presence | ValueKind::Integer { .. } => &[],
+        }
+    }
+
+    pub(crate) fn with_inline_fragments(
+        text: Cow<'a, str>,
+        ranges: Vec<Range<usize>>,
+        mut fragments: Vec<AttributeInlineFragment>,
+    ) -> Self {
+        if !fragments.is_empty() {
+            // An alias may combine profiled text with an earlier raw value.
+            // Protect those raw spans from the surrounding use-site rules.
+            for range in &ranges {
+                if !fragments.iter().any(|fragment| {
+                    fragment.range.start <= range.start && fragment.range.end >= range.end
+                }) {
+                    fragments.push(AttributeInlineFragment {
+                        range: range.clone(),
+                        substitutions: Box::default(),
+                    });
+                }
+            }
+            fragments.sort_by_key(|fragment| fragment.range.start);
+        }
+        if ranges.is_empty() && fragments.is_empty() {
             Self::from(text)
         } else {
             Self(ValueKind::Passthrough {
                 text,
                 ranges: ranges.into_boxed_slice(),
+                fragments: fragments.into_boxed_slice(),
             })
         }
     }
