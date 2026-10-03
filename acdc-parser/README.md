@@ -189,6 +189,21 @@ SDR-5; SDR-5 does not prescribe these custom-list semantics.
 Raw-arrow replacement and some block-level code replacement paths remain
 separate compatibility limits.
 
+Visible index shorthand preserves balanced internal parentheses. For example,
+`((Term (R)))` contains the complete label `Term (R)` and displays `Term ®`
+when replacements are enabled. `((fn((x)) tail))` keeps its nested pairs;
+`((word)))` leaves an extra `)` outside the term. Unbalanced literal parentheses
+retain the existing compatibility delimiter rules. Unlike Asciidoctor's legacy
+macro stage, acdc also keeps complete labels when replacements are disabled
+or run after macros. This source-based delimiter policy keeps parsing separate
+from conversion under SDR-5; SDR-5 does not specify these exact index rules.
+There is also a converter context gap: `prefixindexterm2:[--]tail` retains
+`prefix--tail` in HTML and manpages because typography is applied to separate
+fragments. Preserving neighboring text context can fix that without changing
+the parsing/conversion boundary. PDF code applies replacements across flattened
+fragments. Highlighted HTML follows unhighlighted HTML's current behavior;
+display typography does not change registration-time catalog text.
+
 Existing `pre-spec-subs` compatibility behavior is not complete SDR-5 conformance.
 SDR-5 leaves the exact mapping of custom `pass:` lists unresolved; support for
 common profiles is an acdc policy. Earlier text-only escaping and ordinary

@@ -637,7 +637,7 @@
                 {
                   "name": "text",
                   "type": "string",
-                  "value": "Term (R",
+                  "value": "Term (R)",
                   "location": [
                     {
                       "line": 34,
@@ -645,7 +645,7 @@
                     },
                     {
                       "line": 34,
-                      "col": 17
+                      "col": 18
                     }
                   ]
                 }
@@ -658,18 +658,18 @@
                 },
                 {
                   "line": 34,
-                  "col": 19
+                  "col": 20
                 }
               ]
             },
             {
               "name": "text",
               "type": "string",
-              "value": ") (TM)",
+              "value": " (TM)",
               "location": [
                 {
                   "line": 34,
-                  "col": 20
+                  "col": 21
                 },
                 {
                   "line": 34,

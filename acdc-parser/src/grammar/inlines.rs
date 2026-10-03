@@ -1758,13 +1758,13 @@ peg::parser! {
             trimmed_index_term_segment(content, base + start)
         }
 
-        // Shorthand ends at a delimiter even inside quotes or nested parentheses.
         rule check_index_token(start: usize, len: usize)
         = {? macro_token_allowed(state, start, len).then_some(()).ok_or("index syntax introduced after macros") }
 
         rule index_term_shorthand_close() = start:position!() "))" check_index_token(start, 2) !")"
         rule index_term_concealed_close() = start:position!() ")" index_term_shorthand_close() check_index_token(start, 3)
 
+        // Concealed shorthand retains its legacy delimiter precedence.
         rule index_term_concealed_content() -> IndexTermSegment<'input>
         = !escaped_index_inner() open:position!() "(((" check_index_token(open, 3) start:position!()
           content:$((!(index_term_concealed_close() / index_term_shorthand_close()) [_])*)
@@ -1772,17 +1772,26 @@ peg::parser! {
             IndexTermSegment { text: content, start }
         }
 
-        // An extra closing parenthesis remains outside a visible index term.
+        // Fallback for literal, unbalanced parentheses in pre-spec labels.
         rule index_term_flow_close() = start:position!() "))" check_index_token(start, 2) !"))"
 
         rule index_term_flow_content() -> IndexTermSegment<'input>
         = (escaped_index_inner() / !"(((") open:position!() "((" check_index_token(open, 2) start:position!()
-          content:$((!index_term_flow_close() [_])*)
-          index_term_flow_close() {?
+          content:index_term_flow_body() {?
             index_content_present(state, start, content)
                 .then_some(IndexTermSegment { text: content, start })
                 .ok_or("empty index term")
         }
+
+        // Preserve internal pairs before selecting the outer delimiter. If the
+        // label is not balanced, retain the existing literal-parenthesis rules.
+        rule index_term_flow_body() -> &'input str
+        = content:$((index_term_parenthesis_group() / "\\" [_] / [^'(' | ')' | '\\'])*)
+          close:position!() "))" check_index_token(close, 2) { content }
+        / content:$((!index_term_flow_close() [_])*) index_term_flow_close() { content }
+
+        rule index_term_parenthesis_group()
+        = "(" (index_term_parenthesis_group() / "\\" [_] / [^'(' | ')' | '\\'])* ")"
 
         // Escaping a concealed shorthand leaves its inner visible term active.
         rule escaped_index_prefix() -> InlineNode<'input>

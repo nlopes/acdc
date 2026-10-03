@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Visible index shorthand and catalog entries retain complete balanced internal
+  parentheses, including `((function(argument)))` and `((fn((x)) tail))`.
+  Extra closing punctuation stays outside the term. Unlike Asciidoctor's legacy
+  macro stage, labels do not lose an internal closing parenthesis.
+
 - Fixture checks and generation select separate expectations when the parser
   ignores block substitutions. Standalone and workspace builds verify both
   configurations without changing Markdown rendering or adding a converter

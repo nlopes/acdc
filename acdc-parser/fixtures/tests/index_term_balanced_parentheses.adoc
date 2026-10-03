@@ -1,0 +1,61 @@
+= Balanced index parentheses
+
+P01 ((Term (R))) after.
+
+P02 ((function(argument))) after.
+
+P03 Before ((function(argument))) after.
+
+P04 ((fn((x)) tail)) after.
+
+P05 Before ((fn((x)) tail)) after.
+
+P06 ((word))) after.
+
+P07 ((word)))) after.
+
+P08 ((function(argument)))) after.
+
+P09 ((first)) and ((second)).
+
+P10 ((Open (literal)) and ((Next)).
+
+P11 ((Literal ) text)) after.
+
+P12 (("function(x), detail")) after.
+
+P13 (("quoted )) tail")) after.
+
+P14 ((Escaped \( literal)) after.
+
+P15 ((Escaped \) literal)) after.
+
+P16 \((function(argument))) after.
+
+P17 \(((function(argument)))) after.
+
+P18 (((function(argument)))) after.
+
+P19 indexterm2:[function(argument)] after.
+
+P20 ((Term >> function(argument))) after.
+
+P21 ((Term &> fn((x)) tail &> Other)) after.
+
+P22 ((café (déjà vu))) after.
+
+P23 ((First (one)
+and (two))) after.
+
+P24 ((Before pass:[((literal))] after)) end.
+
+P25 link:https://example.org[((Linked (R))) label] after.
+
+P26 ((Unclosed (label)
+
+P27 Empty (()) after.
+
+P28 ((((nested)))) after.
+
+[index]
+== Index

@@ -551,7 +551,7 @@
               {
                 "name": "text",
                 "type": "string",
-                "value": "fn((x",
+                "value": "fn((x)) tail",
                 "location": [
                   {
                     "line": 17,
@@ -559,7 +559,7 @@
                   },
                   {
                     "line": 17,
-                    "col": 16
+                    "col": 23
                   }
                 ]
               }
@@ -573,18 +573,18 @@
             },
             {
               "line": 17,
-              "col": 18
+              "col": 25
             }
           ]
         },
         {
           "name": "text",
           "type": "string",
-          "value": " tail)))",
+          "value": ")",
           "location": [
             {
               "line": 17,
-              "col": 19
+              "col": 26
             },
             {
               "line": 17,
@@ -649,7 +649,7 @@
               {
                 "name": "text",
                 "type": "string",
-                "value": "fn((x",
+                "value": "fn((x)) tail",
                 "location": [
                   {
                     "line": 19,
@@ -657,7 +657,7 @@
                   },
                   {
                     "line": 19,
-                    "col": 23
+                    "col": 30
                   }
                 ]
               }
@@ -671,18 +671,18 @@
             },
             {
               "line": 19,
-              "col": 25
+              "col": 32
             }
           ]
         },
         {
           "name": "text",
           "type": "string",
-          "value": " tail))) after.",
+          "value": ") after.",
           "location": [
             {
               "line": 19,
-              "col": 26
+              "col": 33
             },
             {
               "line": 19,
@@ -748,7 +748,7 @@
                 {
                   "name": "text",
                   "type": "string",
-                  "value": "fn((x",
+                  "value": "fn((x)) tail",
                   "location": [
                     {
                       "line": 21,
@@ -756,7 +756,7 @@
                     },
                     {
                       "line": 21,
-                      "col": 16
+                      "col": 23
                     }
                   ]
                 }
@@ -771,18 +771,18 @@
             },
             {
               "line": 21,
-              "col": 18
+              "col": 25
             }
           ]
         },
         {
           "name": "text",
           "type": "string",
-          "value": " tail)))",
+          "value": ")",
           "location": [
             {
               "line": 21,
-              "col": 19
+              "col": 26
             },
             {
               "line": 21,
@@ -848,7 +848,7 @@
                 {
                   "name": "text",
                   "type": "string",
-                  "value": "fn((x",
+                  "value": "fn((x)) tail",
                   "location": [
                     {
                       "line": 23,
@@ -856,7 +856,7 @@
                     },
                     {
                       "line": 23,
-                      "col": 23
+                      "col": 30
                     }
                   ]
                 }
@@ -871,18 +871,18 @@
             },
             {
               "line": 23,
-              "col": 25
+              "col": 32
             }
           ]
         },
         {
           "name": "text",
           "type": "string",
-          "value": " tail))) after.",
+          "value": ") after.",
           "location": [
             {
               "line": 23,
-              "col": 26
+              "col": 33
             },
             {
               "line": 23,
@@ -1164,7 +1164,7 @@
             {
               "name": "text",
               "type": "string",
-              "value": "function(argument",
+              "value": "function(argument)",
               "location": [
                 {
                   "line": 33,
@@ -1172,7 +1172,7 @@
                 },
                 {
                   "line": 33,
-                  "col": 19
+                  "col": 20
                 }
               ]
             }
@@ -1185,18 +1185,18 @@
             },
             {
               "line": 33,
-              "col": 21
+              "col": 22
             }
           ]
         },
         {
           "name": "text",
           "type": "string",
-          "value": ") and ",
+          "value": " and ",
           "location": [
             {
               "line": 33,
-              "col": 22
+              "col": 23
             },
             {
               "line": 33,

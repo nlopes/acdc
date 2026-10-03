@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Visible index shorthand retains complete balanced parenthetical labels and
+  catalog entries. `((Term (R)))` displays `Term ®` with replacements enabled.
+  Unlike Asciidoctor's legacy macro stage, complete labels also survive disabled
+  replacements, replacements after macros, and nested pairs.
+
 - Code with replacements enabled retains unrelated formatting backslashes,
   including link labels, when quote substitutions are disabled. This matches
   Asciidoctor's text behavior while preserving enabled typography and links.

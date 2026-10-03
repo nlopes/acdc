@@ -139,6 +139,21 @@ are enabled. A replacement escape such as `\(C)` still displays literal `(C)`.
 This follows SDR-5's separation of parsing and conversion: the parser retains
 inactive syntax, and converters apply enabled typography.
 
+Visible index shorthand preserves balanced internal parentheses. For example,
+`((Term (R)))` contains the complete label `Term (R)` and displays `Term ®`
+when replacements are enabled. `((fn((x)) tail))` keeps its nested pairs;
+`((word)))` leaves an extra `)` outside the term. Unbalanced literal parentheses
+retain the existing compatibility delimiter rules. Unlike Asciidoctor's legacy
+macro stage, acdc also keeps complete labels when replacements are disabled
+or run after macros. This source-based delimiter policy keeps parsing separate
+from conversion under SDR-5; SDR-5 does not specify these exact index rules.
+There is also a converter context gap: `prefixindexterm2:[--]tail` retains
+`prefix--tail` in HTML and manpages because typography is applied to separate
+fragments. Preserving neighboring text context can fix that without changing
+the parsing/conversion boundary. PDF code applies replacements across flattened
+fragments. Highlighted HTML follows unhighlighted HTML's current behavior;
+display typography does not change registration-time catalog text.
+
 == Escaped attribute references
 
 When attribute substitutions are enabled, `\{name}`, `{name\}`, and `\{name\}` all produce the literal text `{name}`.

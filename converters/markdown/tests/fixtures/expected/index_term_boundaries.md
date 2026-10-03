@@ -14,13 +14,13 @@ Before  after.
 
 Before  after.
 
-(term tail)))
+(term)
 
-Before (term tail))) after.
+Before (term) after.
 
-(term tail)))
+(term)
 
-Before (term tail))) after.
+Before (term) after.
 
 term
 

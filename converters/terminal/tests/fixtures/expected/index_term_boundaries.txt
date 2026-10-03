@@ -6,10 +6,10 @@ Before  after.
 Before  after.
 
 Before  after.
-(term tail)))
-Before (term tail))) after.
-(term tail)))
-Before (term tail))) after.
+(term)
+Before (term) after.
+(term)
+Before (term) after.
 term
 
 term >> literal

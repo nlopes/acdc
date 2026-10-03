@@ -1,0 +1,165 @@
+'\" t
+.\"     Title: index-parentheses
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-03
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "INDEX\-PARENTHESES" "1" "2026-10-03" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+index\-parentheses \- complete index labels
+.SH "SYNOPSIS"
+.sp
+\fBindex\-parentheses\fP
+.SH "DESCRIPTION"
+.sp
+P01 Term \(rg after.
+.sp
+P02 function(argument) after.
+.sp
+P03 Before function(argument) after.
+.sp
+P04 fn((x)) tail after.
+.sp
+P05 Before fn((x)) tail after.
+.sp
+P06 word) after.
+.sp
+P07 word)) after.
+.sp
+P08 function(argument)) after.
+.sp
+P09 first and second\&.
+.sp
+P10 Open (literal and Next\&.
+.sp
+P11 Literal ) text after.
+.sp
+P12 "function(x), detail" after.
+.sp
+P13 "quoted tail")) after.
+.sp
+P14 Escaped \e( literal after.
+.sp
+P15 Escaped \e) literal after.
+.sp
+P16 ((function(argument))) after.
+.sp
+P17 (function(argument)) after.
+.sp
+P18  after.
+.sp
+P19 function(argument) after.
+.sp
+P20 Term after.
+.sp
+P21 Term after.
+.sp
+P22 café (déjà vu) after.
+.sp
+P23 First (one) and (two) after.
+.sp
+P24 Before ((literal)) after end.
+.sp
+P25 \c
+.URL "https://example.org" "Linked \(rg label" "\c"
+ after.
+.sp
+P26 ((Unclosed (label)
+.sp
+P27 Empty (()) after.
+.sp
+P28  after.
+.SH "INDEX"
+.SS "@"
+.RS 4
+"function(x), detail"
+.br
+"quoted
+.br
+(nested)
+.br
+.RE
+.SS "B"
+.RS 4
+Before ((literal)) after
+.br
+.RE
+.SS "C"
+.RS 4
+café (déjà vu)
+.br
+.RE
+.SS "E"
+.RS 4
+Escaped \e( literal
+.br
+Escaped \e) literal
+.br
+.RE
+.SS "F"
+.RS 4
+First (one) and (two)
+.br
+first
+.br
+fn((x)) tail
+.br
+function(argument)
+.br
+.RE
+.SS "L"
+.RS 4
+Linked \(rg
+.br
+Literal ) text
+.br
+.RE
+.SS "N"
+.RS 4
+Next
+.br
+.RE
+.SS "O"
+.RS 4
+Open (literal
+.br
+.RE
+.SS "S"
+.RS 4
+second
+.br
+.RE
+.SS "T"
+.RS 4
+Term (see function(argument))
+.br
+Term \(rg
+.br
+.RE
+.SS "W"
+.RS 4
+word
+.br
+.RE

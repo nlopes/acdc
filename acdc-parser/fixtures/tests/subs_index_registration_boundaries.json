@@ -651,7 +651,7 @@
             {
               "name": "text",
               "type": "string",
-              "value": "Outer ((Inner)",
+              "value": "Outer ((Inner))",
               "location": [
                 {
                   "line": 19,
@@ -659,7 +659,7 @@
                 },
                 {
                   "line": 19,
-                  "col": 23
+                  "col": 24
                 }
               ]
             }
@@ -672,18 +672,18 @@
             },
             {
               "line": 19,
-              "col": 25
+              "col": 26
             }
           ]
         },
         {
           "name": "text",
           "type": "string",
-          "value": ") and ",
+          "value": " and ",
           "location": [
             {
               "line": 19,
-              "col": 26
+              "col": 27
             },
             {
               "line": 19,
@@ -698,7 +698,7 @@
             {
               "name": "text",
               "type": "string",
-              "value": "function(x",
+              "value": "function(x)",
               "location": [
                 {
                   "line": 19,
@@ -706,7 +706,7 @@
                 },
                 {
                   "line": 19,
-                  "col": 43
+                  "col": 44
                 }
               ]
             }
@@ -719,18 +719,18 @@
             },
             {
               "line": 19,
-              "col": 45
+              "col": 46
             }
           ]
         },
         {
           "name": "text",
           "type": "string",
-          "value": ") and ",
+          "value": " and ",
           "location": [
             {
               "line": 19,
-              "col": 46
+              "col": 47
             },
             {
               "line": 19,
@@ -1301,7 +1301,7 @@
             {
               "name": "text",
               "type": "string",
-              "value": "Outer ((Inner)",
+              "value": "Outer ((Inner))",
               "location": [
                 {
                   "line": 26,
@@ -1309,7 +1309,7 @@
                 },
                 {
                   "line": 26,
-                  "col": 16
+                  "col": 17
                 }
               ]
             }
@@ -1322,18 +1322,18 @@
             },
             {
               "line": 26,
-              "col": 18
+              "col": 19
             }
           ]
         },
         {
           "name": "text",
           "type": "string",
-          "value": ") ",
+          "value": " ",
           "location": [
             {
               "line": 26,
-              "col": 19
+              "col": 20
             },
             {
               "line": 26,
@@ -1348,7 +1348,7 @@
             {
               "name": "text",
               "type": "string",
-              "value": "function(x",
+              "value": "function(x)",
               "location": [
                 {
                   "line": 26,
@@ -1356,7 +1356,7 @@
                 },
                 {
                   "line": 26,
-                  "col": 32
+                  "col": 33
                 }
               ]
             }
@@ -1369,18 +1369,18 @@
             },
             {
               "line": 26,
-              "col": 34
+              "col": 35
             }
           ]
         },
         {
           "name": "text",
           "type": "string",
-          "value": ") ",
+          "value": " ",
           "location": [
             {
               "line": 26,
-              "col": 35
+              "col": 36
             },
             {
               "line": 26,

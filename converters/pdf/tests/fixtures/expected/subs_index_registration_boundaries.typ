@@ -83,7 +83,7 @@
 
 #text("Before ")#metadata(none)<__indexterm-5>#text("Start >> Target End")#text(" and ")#metadata(none)<__indexterm-6>#text(" after.")
 
-#text("Before ")#metadata(none)<__indexterm-7>#text("Outer ((Inner)")#text(") and ")#metadata(none)<__indexterm-8>#text("function(x")#text(") and ")#metadata(none)<__indexterm-9>#text("Term")#text(") after.")
+#text("Before ")#metadata(none)<__indexterm-7>#text("Outer ((Inner))")#text(" and ")#metadata(none)<__indexterm-8>#text("function(x)")#text(" and ")#metadata(none)<__indexterm-9>#text("Term")#text(") after.")
 
 #{
   let index-anchors = (
@@ -142,7 +142,7 @@
 #v(0.75em)
 #text(weight: "bold")[#text("F")]
 #v(0.25em)
-#par(hanging-indent: 1em)[#text("function(x")#_acdc_index_pages((<__indexterm-8>,<__indexterm-17>,), "term")]
+#par(hanging-indent: 1em)[#text("function(x)")#_acdc_index_pages((<__indexterm-8>,<__indexterm-17>,), "term")]
 #v(0.75em)
 #text(weight: "bold")[#text("N")]
 #v(0.25em)
@@ -150,7 +150,7 @@
 #v(0.75em)
 #text(weight: "bold")[#text("O")]
 #v(0.25em)
-#par(hanging-indent: 1em)[#text("Outer ((Inner)")#_acdc_index_pages((<__indexterm-7>,<__indexterm-16>,), "term")]
+#par(hanging-indent: 1em)[#text("Outer ((Inner))")#_acdc_index_pages((<__indexterm-7>,<__indexterm-16>,), "term")]
 #v(0.75em)
 #text(weight: "bold")[#text("S")]
 #v(0.25em)

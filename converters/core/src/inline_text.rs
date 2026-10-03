@@ -85,6 +85,16 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
         self
     }
 
+    /// Use the enclosing fragment's paragraph boundaries for typography.
+    ///
+    /// The default treats both ends as paragraph boundaries. Nested inlines
+    /// retain these limits, so embedded fragments do not gain paragraph edges.
+    #[must_use]
+    pub fn text_boundaries(mut self, boundaries: TextBoundaries) -> Self {
+        self.text_boundaries = boundaries;
+        self
+    }
+
     /// Resolve a cross-reference with no text of its own through this catalog,
     /// so it contributes its target's reference text.
     ///
@@ -298,6 +308,42 @@ pub fn inlines_to_string(inlines: &[InlineNode<'_>]) -> String {
 #[cfg(test)]
 mod tests {
     use acdc_parser::{Block, InlineNode, LineBreak, Location, Options, Plain, parse};
+
+    #[test]
+    fn isolated_index_labels_retain_their_enclosing_text_boundaries()
+    -> Result<(), Box<dyn std::error::Error>> {
+        for (source, expected) in [
+            ("indexterm2:[--]", "\u{2009}—\u{2009}"),
+            ("indexterm2:[--]tail", "--tail"),
+            ("prefixindexterm2:[--]", "prefix--"),
+            ("prefixindexterm2:[--]tail", "prefix--tail"),
+            ("prefixindexterm2:[(C)]tail", "prefix©tail"),
+        ] {
+            let parsed = parse(source, &Options::default())?;
+            let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+                return Err("expected one paragraph".into());
+            };
+            let transform = super::InlineTextTransform::default().rendered_replacements(true);
+            assert_eq!(
+                transform.to_string(&paragraph.content),
+                expected,
+                "{source}"
+            );
+            let mut fragments = String::new();
+            for (index, node) in paragraph.content.iter().enumerate() {
+                fragments.push_str(
+                    &transform
+                        .text_boundaries(super::TextBoundaries::new(
+                            index == 0,
+                            index + 1 == paragraph.content.len(),
+                        ))
+                        .to_string(std::slice::from_ref(node)),
+                );
+            }
+            assert_eq!(fragments, expected, "{source}");
+        }
+        Ok(())
+    }
 
     #[test]
     fn rendered_code_typography_preserves_unrelated_escapes() {

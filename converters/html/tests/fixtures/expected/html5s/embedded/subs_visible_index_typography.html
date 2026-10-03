@@ -1,0 +1,145 @@
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>visible-index-typography - visible index substitutions</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_synopsis">Synopsis</h2>
+<p><strong>visible-index-typography</strong></p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_description">Description</h2>
+<p>I01 <a id="_indexterm_0"></a>Named &#169; &#174; &#8482; After.</p>
+<p>I02 <a id="_indexterm_1"></a>Shorthand &#169; tail After.</p>
+<p>I03 <a id="_indexterm_2"></a>Closing &#174; After.</p>
+<div class="listing-block">
+<pre class="highlight"><code class="language-rust" data-lang="rust">I04 <a id="_indexterm_3"></a>Code &#169; &#174; &#8482; After <a href="https://next.example/04">Next04</a>
+I05 <a id="_indexterm_4"></a>Code &#169; tail After <a href="https://next.example/05">Next05</a>
+I06 <a id="_indexterm_5"></a>It&#8217;s &#8230;&#8203; a&#8212;&#8203;b After <a href="https://next.example/06">Next06</a>
+I07 <a id="_indexterm_6"></a>&#169; Own After <a href="https://next.example/07">Next07</a>
+I08 <a id="_indexterm_7"></a>(C) Escaped After <a href="https://next.example/08">Next08</a>
+I09 <a id="_indexterm_8"></a>(C) Literal After <a href="https://next.example/09">Next09</a>
+I10 <a id="_indexterm_9"></a>(C) (R) (TM) ... -&gt; After <a href="https://next.example/10">Next10</a>
+I11 <a id="_indexterm_10"></a><a id="_indexterm_11"></a>Unicode café &#169;<a id="_indexterm_12"></a> After <a href="https://next.example/11">Next11</a>
+I12 <a id="_indexterm_13"></a>&#169; Decoded After <a href="https://next.example/12">Next12</a>
+I13 <a id="_indexterm_14"></a>&amp;#169; Literal After <a href="https://next.example/13">Next13</a>
+I14 <a id="_indexterm_15"></a>&amp;#169; Escaped After <a href="https://next.example/14">Next14</a>
+I15 <a id="_indexterm_16"></a>One &#169;<a id="_indexterm_17"></a>Two &#174; After <a href="https://next.example/15">Next15</a>
+I16 <a id="_indexterm_18"></a>Closing &#174; After <a href="https://next.example/16">Next16</a>
+I17 <a href="https://outer.example">Outer </a><a id="_indexterm_19"></a><a href="https://outer.example">Inner &#169;</a><a href="https://outer.example"> End</a> After <a href="https://next.example/17">Next17</a>
+I18 <a id="_indexterm_20"></a>Linked <a href="https://inner.example">Inner &#174;</a> End After <a href="https://next.example/18">Next18</a></code></pre>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code class="language-rust" data-lang="rust">I19 <a id="_indexterm_21"></a>Late &#174; After <a href="https://next.example/19">Next19</a>
+I20 <a id="_indexterm_22"></a>(C) Still escaped After <a href="https://next.example/20">Next20</a></code></pre>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code class="language-rust" data-lang="rust">I21 <a id="_indexterm_23"></a>Disabled (C) (R) (TM) After <a href="https://next.example/21">Next21</a>
+I22 <a id="_indexterm_24"></a>&#169; Own enabled After <a href="https://next.example/22">Next22</a>
+I23 <a id="_indexterm_25"></a>(C) Literal After <a href="https://next.example/23">Next23</a></code></pre>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code class="language-rust" data-lang="rust">I24 indexterm2:[Disabled macro &#169;] After</code></pre>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code class="language-rust" data-lang="rust"><a id="_indexterm_26"></a>--tail I25
+I26 prefix<a id="_indexterm_27"></a>--tail
+I27 prefix<a id="_indexterm_28"></a>--</code></pre>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code class="language-rust" data-lang="rust"><a id="_indexterm_29"></a>&thinsp;&mdash;&thinsp;</code></pre>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code class="language-rust" data-lang="rust">I28 <a id="_indexterm_30"></a>Callout &#169; <a href="https://next.example/28">Next28</a> <b class="conum">(1)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Callout remains attached.</li>
+</ol>
+</section>
+<section class="doc-section level-1">
+<h2 id="_index">Index</h2>
+<h3 class="indexletter">@</h3>
+<dl class="indexterms">
+<dt>&#169; Decoded
+ <a href="#_indexterm_13">Description</a></dt>
+<dt>&amp;#169; Escaped
+ <a href="#_indexterm_15">Description</a></dt>
+<dt>&amp;#169; Literal
+ <a href="#_indexterm_14">Description</a></dt>
+<dt>(C) Literal
+ <a href="#_indexterm_8">Description</a>, <a href="#_indexterm_25">Description (2)</a></dt>
+<dt>&#169; Own
+ <a href="#_indexterm_6">Description</a></dt>
+<dt>&#169; Own enabled
+ <a href="#_indexterm_24">Description</a></dt>
+<dt>--
+ <a href="#_indexterm_26">Description</a>, <a href="#_indexterm_27">Description (2)</a>, <a href="#_indexterm_28">Description (3)</a>, <a href="#_indexterm_29">Description (4)</a></dt>
+<dt>(C) Escaped
+ <a href="#_indexterm_7">Description</a></dt>
+<dt>(C) Still escaped
+ <a href="#_indexterm_22">Description</a></dt>
+<dt>(C) (R) (TM) ... -&gt;
+ <a href="#_indexterm_9">Description</a></dt>
+</dl>
+<h3 class="indexletter">C</h3>
+<dl class="indexterms">
+<dt>Callout &#169;
+ <a href="#_indexterm_30">Description</a></dt>
+<dt>Closing &#174;
+ <a href="#_indexterm_2">Description</a>, <a href="#_indexterm_18">Description (2)</a></dt>
+<dt>Code &#169; &#174; &#8482;
+ <a href="#_indexterm_3">Description</a></dt>
+<dt>Code &#169; tail
+ <a href="#_indexterm_4">Description</a></dt>
+</dl>
+<h3 class="indexletter">D</h3>
+<dl class="indexterms">
+<dt>Disabled (C) (R) (TM)
+ <a href="#_indexterm_23">Description</a></dt>
+</dl>
+<h3 class="indexletter">H</h3>
+<dl class="indexterms">
+<dt>Hidden first
+ <a href="#_indexterm_10">Description</a></dt>
+<dt>Hidden last
+ <a href="#_indexterm_12">Description</a></dt>
+</dl>
+<h3 class="indexletter">I</h3>
+<dl class="indexterms">
+<dt>Inner &#169;
+ <a href="#_indexterm_19">Description</a></dt>
+<dt>It&#8217;s &#8230;&#8203; a&#8212;&#8203;b
+ <a href="#_indexterm_5">Description</a></dt>
+</dl>
+<h3 class="indexletter">L</h3>
+<dl class="indexterms">
+<dt>Late (R)
+ <a href="#_indexterm_21">Description</a></dt>
+<dt>Linked https://inner.example[Inner &#174;] End
+ <a href="#_indexterm_20">Description</a></dt>
+</dl>
+<h3 class="indexletter">N</h3>
+<dl class="indexterms">
+<dt>Named &#169; &#174; &#8482;
+ <a href="#_indexterm_0">Description</a></dt>
+</dl>
+<h3 class="indexletter">O</h3>
+<dl class="indexterms">
+<dt>One &#169;
+ <a href="#_indexterm_16">Description</a></dt>
+</dl>
+<h3 class="indexletter">S</h3>
+<dl class="indexterms">
+<dt>Shorthand &#169; tail
+ <a href="#_indexterm_1">Description</a></dt>
+</dl>
+<h3 class="indexletter">T</h3>
+<dl class="indexterms">
+<dt>Two &#174;
+ <a href="#_indexterm_17">Description</a></dt>
+</dl>
+<h3 class="indexletter">U</h3>
+<dl class="indexterms">
+<dt>Unicode café &#169;
+ <a href="#_indexterm_11">Description</a></dt>
+</dl>
+</section>

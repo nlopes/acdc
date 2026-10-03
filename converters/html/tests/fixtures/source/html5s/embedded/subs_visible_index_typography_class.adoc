@@ -1,0 +1,80 @@
+= visible-index-typography(1)
+:doctype: manpage
+:revdate: 2026-10-03
+:acdc-index:
+:source-highlighter: syntect
+:highlight-css: class
+
+== Name
+
+visible-index-typography - visible index substitutions
+
+== Synopsis
+
+*visible-index-typography*
+
+== Description
+
+I01 indexterm2:[Named (C) (R) (TM)] After.
+
+I02 ((Shorthand (C) tail)) After.
+
+I03 ((Closing (R))) After.
+
+[source,rust,linenums,subs="+replacements,+macros"]
+----
+I04 indexterm2:[Code (C) (R) (TM)] After https://next.example/04[Next04]
+I05 ((Code (C) tail)) After https://next.example/05[Next05]
+I06 indexterm2:[It's ... a--b] After https://next.example/06[Next06]
+I07 indexterm2:[pass:r[(C)] Own] After https://next.example/07[Next07]
+I08 indexterm2:[pass:r[\(C)] Escaped] After https://next.example/08[Next08]
+I09 indexterm2:[pass:[(C)] Literal] After https://next.example/09[Next09]
+I10 indexterm2:[\(C) \(R) \(TM) \... \->] After https://next.example/10[Next10]
+I11 (((Hidden first)))indexterm2:[Unicode café (C)](((Hidden last))) After https://next.example/11[Next11]
+I12 indexterm2:[pass:c,r[&#169;] Decoded] After https://next.example/12[Next12]
+I13 indexterm2:[pass:r,c[&#169;] Literal] After https://next.example/13[Next13]
+I14 indexterm2:[pass:c,r[\&#169;] Escaped] After https://next.example/14[Next14]
+I15 indexterm2:[One (C)]indexterm2:[Two (R)] After https://next.example/15[Next15]
+I16 ((Closing (R))) After https://next.example/16[Next16]
+I17 https://outer.example[Outer indexterm2:[Inner (C)] End] After https://next.example/17[Next17]
+I18 ((Linked https://inner.example[Inner (R)] End)) After https://next.example/18[Next18]
+----
+
+[source,rust,subs="+macros,+replacements"]
+----
+I19 indexterm2:[Late (R)] After https://next.example/19[Next19]
+I20 indexterm2:[pass:r[\(C)] Still escaped] After https://next.example/20[Next20]
+----
+
+[source,rust,subs="+macros"]
+----
+I21 indexterm2:[Disabled (C) (R) (TM)] After https://next.example/21[Next21]
+I22 indexterm2:[pass:r[(C)] Own enabled] After https://next.example/22[Next22]
+I23 indexterm2:[pass:[(C)] Literal] After https://next.example/23[Next23]
+----
+
+[source,rust,subs="+replacements"]
+----
+I24 indexterm2:[Disabled macro (C)] After
+----
+
+[source,rust,subs="+macros,+replacements"]
+----
+indexterm2:[--]tail I25
+I26 prefixindexterm2:[--]tail
+I27 prefixindexterm2:[--]
+----
+
+[source,rust,subs="+macros,+replacements"]
+----
+indexterm2:[--]
+----
+
+[source,rust,subs="+replacements,+macros,+callouts"]
+----
+I28 indexterm2:[Callout (C)] https://next.example/28[Next28] <1>
+----
+<1> Callout remains attached.
+
+[index]
+== Index

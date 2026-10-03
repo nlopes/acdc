@@ -876,7 +876,7 @@ fn capture_code_inlines<'a, W: std::io::Write>(
         .collect::<Vec<_>>();
     let mut links = Vec::new();
     let mut offset = 0;
-    for (node, label) in highlight_inlines.iter().zip(&labels) {
+    for (index, (node, label)) in highlight_inlines.iter().zip(&labels).enumerate() {
         if let Some(label) = label {
             let mut options = visitor.render_options.clone();
             options.embedded = true;
@@ -899,9 +899,14 @@ fn capture_code_inlines<'a, W: std::io::Write>(
             });
             offset += label.len();
         } else {
-            offset += syntax::extract_text_and_callouts(std::slice::from_ref(node), None)
-                .0
-                .len();
+            offset += syntax::extract_text_and_callouts(
+                std::slice::from_ref(node),
+                subs.contains(&Substitution::Replacements),
+                TextBoundaries::new(index == 0, index + 1 == highlight_inlines.len()),
+                None,
+            )
+            .0
+            .len();
         }
     }
     Ok((labels, links))
@@ -1015,6 +1020,7 @@ fn render_highlighted_code<'a, W: std::io::Write>(
         metadata,
         options,
         &links,
+        subs.contains(&Substitution::Replacements),
         Some(&mut visitor.diagnostics),
     )?;
     if !anchors.is_empty() {

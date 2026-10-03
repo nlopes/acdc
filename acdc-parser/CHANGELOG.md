@@ -57,6 +57,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Visible shorthand index terms preserve balanced internal parentheses, including
+  `((Term (R)))` and `((fn((x)) tail))`, while extra closing punctuation stays
+  outside the term. Catalog labels and source spans retain the complete content.
+  This fixes symbol rendering in all converters with replacements enabled.
+  Unlike Asciidoctor's legacy macro stage, acdc keeps complete labels when
+  replacements are disabled or run after macros. Unbalanced literal parentheses
+  retain the existing compatibility rules.
+
 - Formatting backslashes remain literal when quote substitutions are disabled,
   including literal paragraphs and enabled code link labels. This matches
   Asciidoctor and retains their complete source spans.

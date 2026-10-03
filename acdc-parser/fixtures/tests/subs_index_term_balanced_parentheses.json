@@ -1,0 +1,2017 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Index parentheses and substitutions",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 37
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 4,
+        "col": 8
+      }
+    ]
+  },
+  "attributes": {
+    "close": ")",
+    "open": "(",
+    "symbol": "(R)"
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "S01 ",
+          "location": [
+            {
+              "line": 7,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "indexterm",
+          "type": "inline",
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Term (R)",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 7
+                },
+                {
+                  "line": 7,
+                  "col": 14
+                }
+              ]
+            }
+          ],
+          "visible": true,
+          "location": [
+            {
+              "line": 7,
+              "col": 5
+            },
+            {
+              "line": 7,
+              "col": 16
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " after.",
+          "location": [
+            {
+              "line": 7,
+              "col": 17
+            },
+            {
+              "line": 7,
+              "col": 23
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "substitutions": [
+          "macros"
+        ]
+      },
+      "location": [
+        {
+          "line": 6,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 23
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "S02 ",
+          "location": [
+            {
+              "line": 10,
+              "col": 1
+            },
+            {
+              "line": 10,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "indexterm",
+          "type": "inline",
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Term (R)",
+              "location": [
+                {
+                  "line": 10,
+                  "col": 7
+                },
+                {
+                  "line": 10,
+                  "col": 14
+                }
+              ]
+            }
+          ],
+          "catalog": {
+            "kind": {
+              "Flow": [
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "Term (R)",
+                  "location": [
+                    {
+                      "line": 10,
+                      "col": 7
+                    },
+                    {
+                      "line": 10,
+                      "col": 14
+                    }
+                  ]
+                }
+              ]
+            },
+            "location": [
+              {
+                "line": 10,
+                "col": 5
+              },
+              {
+                "line": 10,
+                "col": 16
+              }
+            ]
+          },
+          "visible": true,
+          "location": [
+            {
+              "line": 10,
+              "col": 5
+            },
+            {
+              "line": 10,
+              "col": 16
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " after.",
+          "location": [
+            {
+              "line": 10,
+              "col": 17
+            },
+            {
+              "line": 10,
+              "col": 23
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "substitutions": [
+          "macros",
+          "replacements"
+        ]
+      },
+      "location": [
+        {
+          "line": 9,
+          "col": 1
+        },
+        {
+          "line": 10,
+          "col": 23
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "S03 ",
+          "location": [
+            {
+              "line": 13,
+              "col": 1
+            },
+            {
+              "line": 13,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "indexterm",
+          "type": "inline",
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Term (R)",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 7
+                },
+                {
+                  "line": 13,
+                  "col": 14
+                }
+              ]
+            }
+          ],
+          "visible": true,
+          "location": [
+            {
+              "line": 13,
+              "col": 5
+            },
+            {
+              "line": 13,
+              "col": 16
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " after.",
+          "location": [
+            {
+              "line": 13,
+              "col": 17
+            },
+            {
+              "line": 13,
+              "col": 23
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "substitutions": [
+          "replacements",
+          "macros"
+        ]
+      },
+      "location": [
+        {
+          "line": 12,
+          "col": 1
+        },
+        {
+          "line": 13,
+          "col": 23
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "metadata": {
+        "substitutions": [
+          "+macros"
+        ]
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "S04 ",
+          "location": [
+            {
+              "line": 17,
+              "col": 1
+            },
+            {
+              "line": 17,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "indexterm",
+          "type": "inline",
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Code (R)",
+              "location": [
+                {
+                  "line": 17,
+                  "col": 7
+                },
+                {
+                  "line": 17,
+                  "col": 14
+                }
+              ]
+            }
+          ],
+          "visible": true,
+          "location": [
+            {
+              "line": 17,
+              "col": 5
+            },
+            {
+              "line": 17,
+              "col": 16
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " after ",
+          "location": [
+            {
+              "line": 17,
+              "col": 17
+            },
+            {
+              "line": 17,
+              "col": 23
+            }
+          ]
+        },
+        {
+          "name": "ref",
+          "type": "inline",
+          "variant": "link",
+          "target": {
+            "type": "url",
+            "value": "https://example.org/04"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Next04",
+              "location": [
+                {
+                  "line": 17,
+                  "col": 47
+                },
+                {
+                  "line": 17,
+                  "col": 52
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 17,
+              "col": 24
+            },
+            {
+              "line": 17,
+              "col": 53
+            }
+          ],
+          "attributes": {}
+        }
+      ],
+      "location": [
+        {
+          "line": 15,
+          "col": 1
+        },
+        {
+          "line": 18,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "metadata": {
+        "substitutions": [
+          "+replacements",
+          "+macros"
+        ]
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "S05 ",
+          "location": [
+            {
+              "line": 22,
+              "col": 1
+            },
+            {
+              "line": 22,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "indexterm",
+          "type": "inline",
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Code (R)",
+              "location": [
+                {
+                  "line": 22,
+                  "col": 7
+                },
+                {
+                  "line": 22,
+                  "col": 14
+                }
+              ]
+            }
+          ],
+          "visible": true,
+          "location": [
+            {
+              "line": 22,
+              "col": 5
+            },
+            {
+              "line": 22,
+              "col": 16
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " after ",
+          "location": [
+            {
+              "line": 22,
+              "col": 17
+            },
+            {
+              "line": 22,
+              "col": 23
+            }
+          ]
+        },
+        {
+          "name": "ref",
+          "type": "inline",
+          "variant": "link",
+          "target": {
+            "type": "url",
+            "value": "https://example.org/05"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Next05",
+              "location": [
+                {
+                  "line": 22,
+                  "col": 47
+                },
+                {
+                  "line": 22,
+                  "col": 52
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 22,
+              "col": 24
+            },
+            {
+              "line": 22,
+              "col": 53
+            }
+          ],
+          "attributes": {}
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "\nS06 ",
+          "location": [
+            {
+              "line": 22,
+              "col": 54
+            },
+            {
+              "line": 23,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "indexterm",
+          "type": "inline",
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "fn((x)) tail",
+              "location": [
+                {
+                  "line": 23,
+                  "col": 7
+                },
+                {
+                  "line": 23,
+                  "col": 18
+                }
+              ]
+            }
+          ],
+          "visible": true,
+          "location": [
+            {
+              "line": 23,
+              "col": 5
+            },
+            {
+              "line": 23,
+              "col": 20
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " after ",
+          "location": [
+            {
+              "line": 23,
+              "col": 21
+            },
+            {
+              "line": 23,
+              "col": 27
+            }
+          ]
+        },
+        {
+          "name": "ref",
+          "type": "inline",
+          "variant": "link",
+          "target": {
+            "type": "url",
+            "value": "https://example.org/06"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Next06",
+              "location": [
+                {
+                  "line": 23,
+                  "col": 51
+                },
+                {
+                  "line": 23,
+                  "col": 56
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 23,
+              "col": 28
+            },
+            {
+              "line": 23,
+              "col": 57
+            }
+          ],
+          "attributes": {}
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "\nS07 ",
+          "location": [
+            {
+              "line": 23,
+              "col": 58
+            },
+            {
+              "line": 24,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "indexterm",
+          "type": "inline",
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Code (R)",
+              "location": [
+                {
+                  "line": 24,
+                  "col": 7
+                },
+                {
+                  "line": 24,
+                  "col": 14
+                }
+              ]
+            }
+          ],
+          "visible": true,
+          "location": [
+            {
+              "line": 24,
+              "col": 5
+            },
+            {
+              "line": 24,
+              "col": 16
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ") after ",
+          "location": [
+            {
+              "line": 24,
+              "col": 17
+            },
+            {
+              "line": 24,
+              "col": 24
+            }
+          ]
+        },
+        {
+          "name": "ref",
+          "type": "inline",
+          "variant": "link",
+          "target": {
+            "type": "url",
+            "value": "https://example.org/07"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Next07",
+              "location": [
+                {
+                  "line": 24,
+                  "col": 48
+                },
+                {
+                  "line": 24,
+                  "col": 53
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 24,
+              "col": 25
+            },
+            {
+              "line": 24,
+              "col": 54
+            }
+          ],
+          "attributes": {}
+        }
+      ],
+      "location": [
+        {
+          "line": 20,
+          "col": 1
+        },
+        {
+          "line": 25,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "metadata": {
+        "substitutions": [
+          "+macros",
+          "+replacements"
+        ]
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "S08 ",
+          "location": [
+            {
+              "line": 29,
+              "col": 1
+            },
+            {
+              "line": 29,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "indexterm",
+          "type": "inline",
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Late (R)",
+              "location": [
+                {
+                  "line": 29,
+                  "col": 7
+                },
+                {
+                  "line": 29,
+                  "col": 14
+                }
+              ]
+            }
+          ],
+          "catalog": {
+            "kind": {
+              "Flow": [
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "Late (R)",
+                  "location": [
+                    {
+                      "line": 29,
+                      "col": 7
+                    },
+                    {
+                      "line": 29,
+                      "col": 14
+                    }
+                  ]
+                }
+              ]
+            },
+            "location": [
+              {
+                "line": 29,
+                "col": 5
+              },
+              {
+                "line": 29,
+                "col": 16
+              }
+            ]
+          },
+          "visible": true,
+          "location": [
+            {
+              "line": 29,
+              "col": 5
+            },
+            {
+              "line": 29,
+              "col": 16
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " after ",
+          "location": [
+            {
+              "line": 29,
+              "col": 17
+            },
+            {
+              "line": 29,
+              "col": 23
+            }
+          ]
+        },
+        {
+          "name": "ref",
+          "type": "inline",
+          "variant": "link",
+          "target": {
+            "type": "url",
+            "value": "https://example.org/08"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Next08",
+              "location": [
+                {
+                  "line": 29,
+                  "col": 47
+                },
+                {
+                  "line": 29,
+                  "col": 52
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 29,
+              "col": 24
+            },
+            {
+              "line": 29,
+              "col": 53
+            }
+          ],
+          "attributes": {}
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "\nS09 ",
+          "location": [
+            {
+              "line": 29,
+              "col": 54
+            },
+            {
+              "line": 30,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "indexterm",
+          "type": "inline",
+          "term": [
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "\\(R)",
+              "location": [
+                {
+                  "line": 30,
+                  "col": 14
+                },
+                {
+                  "line": 30,
+                  "col": 17
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " Escaped",
+              "location": [
+                {
+                  "line": 30,
+                  "col": 19
+                },
+                {
+                  "line": 30,
+                  "col": 26
+                }
+              ]
+            }
+          ],
+          "catalog": {
+            "kind": {
+              "Flow": [
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "\\(R)",
+                  "location": [
+                    {
+                      "line": 30,
+                      "col": 14
+                    },
+                    {
+                      "line": 30,
+                      "col": 17
+                    }
+                  ]
+                },
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": " Escaped",
+                  "location": [
+                    {
+                      "line": 30,
+                      "col": 19
+                    },
+                    {
+                      "line": 30,
+                      "col": 26
+                    }
+                  ]
+                }
+              ]
+            },
+            "location": [
+              {
+                "line": 30,
+                "col": 5
+              },
+              {
+                "line": 30,
+                "col": 28
+              }
+            ]
+          },
+          "visible": true,
+          "location": [
+            {
+              "line": 30,
+              "col": 5
+            },
+            {
+              "line": 30,
+              "col": 28
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " after ",
+          "location": [
+            {
+              "line": 30,
+              "col": 29
+            },
+            {
+              "line": 30,
+              "col": 35
+            }
+          ]
+        },
+        {
+          "name": "ref",
+          "type": "inline",
+          "variant": "link",
+          "target": {
+            "type": "url",
+            "value": "https://example.org/09"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Next09",
+              "location": [
+                {
+                  "line": 30,
+                  "col": 59
+                },
+                {
+                  "line": 30,
+                  "col": 64
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 30,
+              "col": 36
+            },
+            {
+              "line": 30,
+              "col": 65
+            }
+          ],
+          "attributes": {}
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "\nS10 ",
+          "location": [
+            {
+              "line": 30,
+              "col": 66
+            },
+            {
+              "line": 31,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "indexterm",
+          "type": "inline",
+          "term": [
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "(R)",
+              "location": [
+                {
+                  "line": 31,
+                  "col": 13
+                },
+                {
+                  "line": 31,
+                  "col": 15
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " Literal",
+              "location": [
+                {
+                  "line": 31,
+                  "col": 17
+                },
+                {
+                  "line": 31,
+                  "col": 24
+                }
+              ]
+            }
+          ],
+          "catalog": {
+            "kind": {
+              "Flow": [
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "(R)",
+                  "location": [
+                    {
+                      "line": 31,
+                      "col": 13
+                    },
+                    {
+                      "line": 31,
+                      "col": 15
+                    }
+                  ]
+                },
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": " Literal",
+                  "location": [
+                    {
+                      "line": 31,
+                      "col": 17
+                    },
+                    {
+                      "line": 31,
+                      "col": 24
+                    }
+                  ]
+                }
+              ]
+            },
+            "location": [
+              {
+                "line": 31,
+                "col": 5
+              },
+              {
+                "line": 31,
+                "col": 26
+              }
+            ]
+          },
+          "visible": true,
+          "location": [
+            {
+              "line": 31,
+              "col": 5
+            },
+            {
+              "line": 31,
+              "col": 26
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " after ",
+          "location": [
+            {
+              "line": 31,
+              "col": 27
+            },
+            {
+              "line": 31,
+              "col": 33
+            }
+          ]
+        },
+        {
+          "name": "ref",
+          "type": "inline",
+          "variant": "link",
+          "target": {
+            "type": "url",
+            "value": "https://example.org/10"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Next10",
+              "location": [
+                {
+                  "line": 31,
+                  "col": 57
+                },
+                {
+                  "line": 31,
+                  "col": 62
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 31,
+              "col": 34
+            },
+            {
+              "line": 31,
+              "col": 63
+            }
+          ],
+          "attributes": {}
+        }
+      ],
+      "location": [
+        {
+          "line": 27,
+          "col": 1
+        },
+        {
+          "line": 32,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "metadata": {
+        "substitutions": [
+          "+attributes",
+          "+macros",
+          "+replacements"
+        ]
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "S11 ",
+          "location": [
+            {
+              "line": 36,
+              "col": 1
+            },
+            {
+              "line": 36,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "indexterm",
+          "type": "inline",
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Attribute (R)",
+              "location": [
+                {
+                  "line": 36,
+                  "col": 7
+                },
+                {
+                  "line": 36,
+                  "col": 24
+                }
+              ]
+            }
+          ],
+          "catalog": {
+            "kind": {
+              "Flow": [
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "Attribute (R)",
+                  "location": [
+                    {
+                      "line": 36,
+                      "col": 7
+                    },
+                    {
+                      "line": 36,
+                      "col": 24
+                    }
+                  ]
+                }
+              ]
+            },
+            "location": [
+              {
+                "line": 36,
+                "col": 5
+              },
+              {
+                "line": 36,
+                "col": 26
+              }
+            ]
+          },
+          "visible": true,
+          "location": [
+            {
+              "line": 36,
+              "col": 5
+            },
+            {
+              "line": 36,
+              "col": 26
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " after ",
+          "location": [
+            {
+              "line": 36,
+              "col": 27
+            },
+            {
+              "line": 36,
+              "col": 33
+            }
+          ]
+        },
+        {
+          "name": "ref",
+          "type": "inline",
+          "variant": "link",
+          "target": {
+            "type": "url",
+            "value": "https://example.org/11"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Next11",
+              "location": [
+                {
+                  "line": 36,
+                  "col": 57
+                },
+                {
+                  "line": 36,
+                  "col": 62
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 36,
+              "col": 34
+            },
+            {
+              "line": 36,
+              "col": 63
+            }
+          ],
+          "attributes": {}
+        }
+      ],
+      "location": [
+        {
+          "line": 34,
+          "col": 1
+        },
+        {
+          "line": 37,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "metadata": {
+        "substitutions": [
+          "+macros",
+          "+attributes",
+          "+replacements"
+        ]
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "S12 ",
+          "location": [
+            {
+              "line": 41,
+              "col": 1
+            },
+            {
+              "line": 41,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "indexterm",
+          "type": "inline",
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Late attribute (R)",
+              "location": [
+                {
+                  "line": 41,
+                  "col": 7
+                },
+                {
+                  "line": 41,
+                  "col": 29
+                }
+              ]
+            }
+          ],
+          "catalog": {
+            "kind": {
+              "Flow": [
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "Late attribute {symbol}",
+                  "location": [
+                    {
+                      "line": 41,
+                      "col": 7
+                    },
+                    {
+                      "line": 41,
+                      "col": 29
+                    }
+                  ]
+                }
+              ]
+            },
+            "location": [
+              {
+                "line": 41,
+                "col": 5
+              },
+              {
+                "line": 41,
+                "col": 31
+              }
+            ]
+          },
+          "visible": true,
+          "location": [
+            {
+              "line": 41,
+              "col": 5
+            },
+            {
+              "line": 41,
+              "col": 31
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " after ",
+          "location": [
+            {
+              "line": 41,
+              "col": 32
+            },
+            {
+              "line": 41,
+              "col": 38
+            }
+          ]
+        },
+        {
+          "name": "ref",
+          "type": "inline",
+          "variant": "link",
+          "target": {
+            "type": "url",
+            "value": "https://example.org/12"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Next12",
+              "location": [
+                {
+                  "line": 41,
+                  "col": 62
+                },
+                {
+                  "line": 41,
+                  "col": 67
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 41,
+              "col": 39
+            },
+            {
+              "line": 41,
+              "col": 68
+            }
+          ],
+          "attributes": {}
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "\nS13 ",
+          "location": [
+            {
+              "line": 41,
+              "col": 69
+            },
+            {
+              "line": 42,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "indexterm",
+          "type": "inline",
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Late close )",
+              "location": [
+                {
+                  "line": 42,
+                  "col": 7
+                },
+                {
+                  "line": 42,
+                  "col": 24
+                }
+              ]
+            }
+          ],
+          "catalog": {
+            "kind": {
+              "Flow": [
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "Late close {close}",
+                  "location": [
+                    {
+                      "line": 42,
+                      "col": 7
+                    },
+                    {
+                      "line": 42,
+                      "col": 24
+                    }
+                  ]
+                }
+              ]
+            },
+            "location": [
+              {
+                "line": 42,
+                "col": 5
+              },
+              {
+                "line": 42,
+                "col": 26
+              }
+            ]
+          },
+          "visible": true,
+          "location": [
+            {
+              "line": 42,
+              "col": 5
+            },
+            {
+              "line": 42,
+              "col": 26
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " after ",
+          "location": [
+            {
+              "line": 42,
+              "col": 27
+            },
+            {
+              "line": 42,
+              "col": 33
+            }
+          ]
+        },
+        {
+          "name": "ref",
+          "type": "inline",
+          "variant": "link",
+          "target": {
+            "type": "url",
+            "value": "https://example.org/13"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Next13",
+              "location": [
+                {
+                  "line": 42,
+                  "col": 57
+                },
+                {
+                  "line": 42,
+                  "col": 62
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 42,
+              "col": 34
+            },
+            {
+              "line": 42,
+              "col": 63
+            }
+          ],
+          "attributes": {}
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "\nS14 ",
+          "location": [
+            {
+              "line": 42,
+              "col": 64
+            },
+            {
+              "line": 43,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "indexterm",
+          "type": "inline",
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Late open (literal",
+              "location": [
+                {
+                  "line": 43,
+                  "col": 7
+                },
+                {
+                  "line": 43,
+                  "col": 29
+                }
+              ]
+            }
+          ],
+          "catalog": {
+            "kind": {
+              "Flow": [
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "Late open {open}literal",
+                  "location": [
+                    {
+                      "line": 43,
+                      "col": 7
+                    },
+                    {
+                      "line": 43,
+                      "col": 29
+                    }
+                  ]
+                }
+              ]
+            },
+            "location": [
+              {
+                "line": 43,
+                "col": 5
+              },
+              {
+                "line": 43,
+                "col": 31
+              }
+            ]
+          },
+          "visible": true,
+          "location": [
+            {
+              "line": 43,
+              "col": 5
+            },
+            {
+              "line": 43,
+              "col": 31
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " after ",
+          "location": [
+            {
+              "line": 43,
+              "col": 32
+            },
+            {
+              "line": 43,
+              "col": 38
+            }
+          ]
+        },
+        {
+          "name": "ref",
+          "type": "inline",
+          "variant": "link",
+          "target": {
+            "type": "url",
+            "value": "https://example.org/14"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Next14",
+              "location": [
+                {
+                  "line": 43,
+                  "col": 62
+                },
+                {
+                  "line": 43,
+                  "col": 67
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 43,
+              "col": 39
+            },
+            {
+              "line": 43,
+              "col": 68
+            }
+          ],
+          "attributes": {}
+        }
+      ],
+      "location": [
+        {
+          "line": 39,
+          "col": 1
+        },
+        {
+          "line": 44,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "metadata": {
+        "substitutions": [
+          "+replacements"
+        ]
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "S15 ((Disabled macro (R))) after.",
+          "location": [
+            {
+              "line": 48,
+              "col": 1
+            },
+            {
+              "line": 48,
+              "col": 33
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 46,
+          "col": 1
+        },
+        {
+          "line": 49,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "S16 ",
+          "location": [
+            {
+              "line": 51,
+              "col": 1
+            },
+            {
+              "line": 51,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": null,
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "A ",
+              "location": [
+                {
+                  "line": 51,
+                  "col": 15
+                },
+                {
+                  "line": 51,
+                  "col": 16
+                }
+              ]
+            },
+            {
+              "name": "indexterm",
+              "type": "inline",
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Footnote (R)",
+                  "location": [
+                    {
+                      "line": 51,
+                      "col": 19
+                    },
+                    {
+                      "line": 51,
+                      "col": 30
+                    }
+                  ]
+                }
+              ],
+              "visible": true,
+              "location": [
+                {
+                  "line": 51,
+                  "col": 17
+                },
+                {
+                  "line": 51,
+                  "col": 32
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " term.",
+              "location": [
+                {
+                  "line": 51,
+                  "col": 33
+                },
+                {
+                  "line": 51,
+                  "col": 38
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 51,
+              "col": 5
+            },
+            {
+              "line": 51,
+              "col": 39
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " after.",
+          "location": [
+            {
+              "line": 51,
+              "col": 40
+            },
+            {
+              "line": 51,
+              "col": 46
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 51,
+          "col": 1
+        },
+        {
+          "line": 51,
+          "col": 46
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Index",
+          "location": [
+            {
+              "line": 54,
+              "col": 4
+            },
+            {
+              "line": 54,
+              "col": 8
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "metadata": {
+        "style": "index"
+      },
+      "location": [
+        {
+          "line": 53,
+          "col": 1
+        },
+        {
+          "line": 54,
+          "col": 8
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 54,
+      "col": 8
+    }
+  ]
+}

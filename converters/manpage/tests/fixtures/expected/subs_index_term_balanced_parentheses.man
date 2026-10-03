@@ -1,0 +1,128 @@
+'\" t
+.\"     Title: index-parentheses
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-03
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "INDEX\-PARENTHESES" "1" "2026-10-03" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+index\-parentheses \- complete index labels
+.SH "SYNOPSIS"
+.sp
+\fBindex\-parentheses\fP
+.SH "DESCRIPTION"
+.sp
+S01 Term (R) after.
+.sp
+S02 Term \(rg after.
+.sp
+S03 Term \(rg after.
+.EX
+S04 Code (R) after \c
+.URL "https://example.org/04" "Next04" "\c"
+.EE
+.EX
+S05 Code \(rg after \c
+.URL "https://example.org/05" "Next05" "\c"
+
+S06 fn((x)) tail after \c
+.URL "https://example.org/06" "Next06" "\c"
+
+S07 Code \(rg) after \c
+.URL "https://example.org/07" "Next07" "\c"
+.EE
+.EX
+S08 Late \(rg after \c
+.URL "https://example.org/08" "Next08" "\c"
+
+S09 (R) Escaped after \c
+.URL "https://example.org/09" "Next09" "\c"
+
+S10 (R) Literal after \c
+.URL "https://example.org/10" "Next10" "\c"
+.EE
+.EX
+S11 Attribute \(rg after \c
+.URL "https://example.org/11" "Next11" "\c"
+.EE
+.EX
+S12 Late attribute \(rg after \c
+.URL "https://example.org/12" "Next12" "\c"
+
+S13 Late close ) after \c
+.URL "https://example.org/13" "Next13" "\c"
+
+S14 Late open (literal after \c
+.URL "https://example.org/14" "Next14" "\c"
+.EE
+.EX
+S15 ((Disabled macro \(rg)) after.
+.EE
+.sp
+S16 [1] after.
+.SH "INDEX"
+.SS "@"
+.RS 4
+(R) Literal
+.br
+(R) Escaped
+.br
+.RE
+.SS "A"
+.RS 4
+Attribute (R)
+.br
+.RE
+.SS "C"
+.RS 4
+Code \(rg
+.br
+.RE
+.SS "F"
+.RS 4
+fn((x)) tail
+.br
+.RE
+.SS "L"
+.RS 4
+Late (R)
+.br
+Late attribute {symbol}
+.br
+Late close {close}
+.br
+Late open {open}literal
+.br
+.RE
+.SS "T"
+.RS 4
+Term (R)
+.br
+Term \(rg
+.br
+.RE
+.SH "NOTES"
+.IP [1] 4
+A Footnote \(rg term.

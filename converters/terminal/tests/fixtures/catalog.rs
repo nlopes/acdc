@@ -1,5 +1,7 @@
 // (fixture_name, has_osc8_variant [, requires: <cfg>])
 terminal_fixture_catalog!([
+    (index_term_balanced_parentheses, false),
+    (subs_index_term_balanced_parentheses, true),
     (deferred_typography, true),
     (subs_deferred_typography, true, requires: feature = "highlighting"),
     (index_compound_table_cell, false),

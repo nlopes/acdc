@@ -229,6 +229,112 @@ fn highlighted_index_links_resolve_inside_code() -> Result<(), Error> {
     Ok(())
 }
 
+#[cfg(all(feature = "pre-spec-subs", feature = "highlighting"))]
+#[test]
+fn visible_index_typography_keeps_following_links_and_unique_targets() -> Result<(), Error> {
+    for stem in [
+        "subs_visible_index_typography_highlighting",
+        "subs_visible_index_typography_class",
+    ] {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join(format!("tests/fixtures/source/html/embedded/{stem}.adoc"));
+        for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+            let output = render_fixture(&path, variant, true)?;
+            for number in (4..=23).chain([28]) {
+                let label = format!("Next{number:02}");
+                let link = format!("<a href=\"https://next.example/{number:02}\">{label}</a>");
+                assert_eq!(output.matches(&link).count(), 1, "{stem}: {output}");
+                assert_eq!(output.matches(&label).count(), 1, "{stem}: {output}");
+            }
+            let mut occurrences = HashSet::new();
+            for tail in output.split("href=\"#_indexterm_").skip(1) {
+                let (number, _) = tail
+                    .split_once('"')
+                    .ok_or("missing index link terminator")?;
+                assert!(
+                    occurrences.insert(number),
+                    "duplicate index entry: {output}"
+                );
+                let anchor = format!("id=\"_indexterm_{number}\"");
+                assert_eq!(output.matches(&anchor).count(), 1, "{stem}: {output}");
+            }
+            assert!(!occurrences.is_empty());
+        }
+    }
+    Ok(())
+}
+
+#[cfg(all(feature = "pre-spec-subs", feature = "highlighting"))]
+#[test]
+fn visible_index_typography_keeps_registration_labels_and_source_order() -> Result<(), Error> {
+    let input = ":source-highlighter: syntect\n:acdc-index:\n\n\
+        [source,rust,subs=\"+macros,+replacements\"]\n----\n\
+        (((Hidden first)))indexterm2:[One (C)] https://next.example[Next]\n\
+        indexterm2:[Two (R)](((Hidden last)))\n----\n\n[index]\n== Index\n";
+    for mode in ["inline", "class"] {
+        let output = convert_string(
+            input,
+            &[("highlight-css", AttributeValue::String(mode.into()))],
+        )?;
+        let (_, catalog) = output
+            .split_once("class=\"indexterms\"")
+            .ok_or("missing index catalog")?;
+        for (number, label) in [
+            (0, "Hidden first"),
+            (1, "One (C)"),
+            (2, "Two (R)"),
+            (3, "Hidden last"),
+        ] {
+            let id = format!("id=\"_indexterm_{number}\"");
+            assert_eq!(output.matches(&id).count(), 1, "{output}");
+            let (_, entry) = catalog
+                .split_once(label)
+                .ok_or("missing registration label")?;
+            let (entry, _) = entry.split_once("</dt>").ok_or("missing index entry end")?;
+            assert!(
+                entry.contains(&format!("href=\"#_indexterm_{number}\"")),
+                "{output}"
+            );
+        }
+        assert!(
+            !output.contains("_indexterm_4"),
+            "unexpected registration: {output}"
+        );
+    }
+    Ok(())
+}
+
+#[cfg(all(feature = "pre-spec-subs", feature = "highlighting"))]
+#[test]
+fn visible_index_typography_survives_missing_theme_fallback() -> Result<(), Error> {
+    let input = read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join(
+        "tests/fixtures/source/html/embedded/subs_visible_index_typography_highlighting.adoc",
+    ))?;
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        let output = convert_string_with_variant(
+            &input,
+            &[(
+                "syntect-style",
+                AttributeValue::String("missing-theme".into()),
+            )],
+            variant,
+        )?;
+        for line in [
+            "I04 Code © ® ™ After <a href=\"https://next.example/04\">Next04</a>",
+            "I08 (C) Escaped After <a href=\"https://next.example/08\">Next08</a>",
+            "I12 © Decoded After <a href=\"https://next.example/12\">Next12</a>",
+            "I22 © Own enabled After <a href=\"https://next.example/22\">Next22</a>",
+        ] {
+            assert!(output.contains(line), "{variant:?}: {output}");
+        }
+        assert!(
+            output.contains("class=\"conum\" data-value=\"1\""),
+            "{output}"
+        );
+    }
+    Ok(())
+}
+
 #[test]
 fn index_catalog_links_resolve_to_unique_occurrences() -> Result<(), Error> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))

@@ -50,7 +50,7 @@ C07 \e*literal\e* \c
 .URL "https://example.org/escape" "\e*label\e* \e^up\e^ \e__down__" "\c"
  \(co
 C08 \(co Target \(rg \(tm
-C09 \(co Term (R) \(tm
+C09 \(co Term \(rg \(tm
 .EE
 .EX
 C10 \(rg (C) \(tm

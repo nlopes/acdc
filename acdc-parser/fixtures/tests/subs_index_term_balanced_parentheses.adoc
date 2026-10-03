@@ -1,0 +1,54 @@
+= Index parentheses and substitutions
+:symbol: (R)
+:close: )
+:open: (
+
+[subs="macros"]
+S01 ((Term (R))) after.
+
+[subs="macros,replacements"]
+S02 ((Term (R))) after.
+
+[subs="replacements,macros"]
+S03 ((Term (R))) after.
+
+[subs="+macros"]
+----
+S04 ((Code (R))) after https://example.org/04[Next04]
+----
+
+[subs="+replacements,+macros"]
+----
+S05 ((Code (R))) after https://example.org/05[Next05]
+S06 ((fn((x)) tail)) after https://example.org/06[Next06]
+S07 ((Code (R)))) after https://example.org/07[Next07]
+----
+
+[subs="+macros,+replacements"]
+----
+S08 ((Late (R))) after https://example.org/08[Next08]
+S09 ((pass:r[\(R)] Escaped)) after https://example.org/09[Next09]
+S10 ((pass:[(R)] Literal)) after https://example.org/10[Next10]
+----
+
+[subs="+attributes,+macros,+replacements"]
+----
+S11 ((Attribute {symbol})) after https://example.org/11[Next11]
+----
+
+[subs="+macros,+attributes,+replacements"]
+----
+S12 ((Late attribute {symbol})) after https://example.org/12[Next12]
+S13 ((Late close {close})) after https://example.org/13[Next13]
+S14 ((Late open {open}literal)) after https://example.org/14[Next14]
+----
+
+[subs="+replacements"]
+----
+S15 ((Disabled macro (R))) after.
+----
+
+S16 footnote:[A ((Footnote (R))) term.] after.
+
+[index]
+== Index

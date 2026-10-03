@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Rendered plain-text extraction can retain a fragment's surrounding paragraph
+  boundaries, so an embedded index label does not gain extra dash replacements.
+
 - Index-section discovery supports earlier sections and sections nested in book
   parts, while existing last-section style queries remain available.
 

@@ -26,8 +26,9 @@ use syntect::parsing::SyntaxSet;
 
 #[cfg(feature = "highlighting")]
 use acdc_converters_core::{
-    Diagnostics,
+    Diagnostics, InlineTextTransform,
     code::{SourceLineOptions, source_line_count},
+    substitutions::TextBoundaries,
 };
 #[cfg(feature = "highlighting")]
 use acdc_parser::{BlockMetadata, InlineNode};
@@ -80,6 +81,7 @@ pub(crate) fn highlight_code<W: Write + ?Sized>(
     metadata: &BlockMetadata<'_>,
     options: HighlightOptions<'_>,
     links: &[HighlightedLink],
+    replacements: bool,
     diagnostics: Option<&mut Diagnostics<'_>>,
 ) -> Result<(), Error> {
     let HighlightOptions {
@@ -87,7 +89,8 @@ pub(crate) fn highlight_code<W: Write + ?Sized>(
         theme_name,
         mode,
     } = options;
-    let (code, callouts) = extract_text_and_callouts(inlines, diagnostics);
+    let (code, callouts) =
+        extract_text_and_callouts(inlines, replacements, TextBoundaries::BOTH, diagnostics);
     let syntax_set = SyntaxSet::load_defaults_newlines();
 
     let syntax = syntax_set
@@ -98,15 +101,9 @@ pub(crate) fn highlight_code<W: Write + ?Sized>(
     let options = SourceLineOptions::resolve(metadata, &code);
     if options.is_empty() && links.is_empty() {
         return match mode {
-            HighlightMode::Inline => highlight_code_inline(
-                writer,
-                &code,
-                &callouts,
-                inlines,
-                &syntax_set,
-                syntax,
-                theme_name,
-            ),
+            HighlightMode::Inline => {
+                highlight_code_inline(writer, &code, &callouts, &syntax_set, syntax, theme_name)
+            }
             HighlightMode::Class => {
                 highlight_code_classed(writer, &code, &callouts, &syntax_set, syntax)
             }
@@ -125,7 +122,6 @@ pub(crate) fn highlight_code<W: Write + ?Sized>(
             &mut highlighted,
             &code,
             highlight_callouts,
-            inlines,
             &syntax_set,
             syntax,
             theme_name,
@@ -289,7 +285,6 @@ fn highlight_code_inline<W: Write + ?Sized>(
     writer: &mut W,
     code: &str,
     callouts: &HashMap<usize, usize>,
-    inlines: &[InlineNode],
     syntax_set: &SyntaxSet,
     syntax: &syntect::parsing::SyntaxReference,
     theme_name: &str,
@@ -298,7 +293,7 @@ fn highlight_code_inline<W: Write + ?Sized>(
 
     let theme_set = ThemeSet::load_defaults();
     let Some(theme) = theme_set.themes.get(theme_name) else {
-        return write_escaped_code_with_callouts(writer, inlines);
+        return write_escaped_code_with_callouts(writer, code, callouts);
     };
 
     let html = highlighted_html_for_string(code, syntax_set, syntax, theme)
@@ -438,16 +433,15 @@ fn html_escape(s: &str) -> String {
 
 /// Write HTML-escaped code with callout markers.
 ///
-/// This is the fallback when syntax highlighting is disabled or unavailable.
+/// This is the fallback when the requested highlighting theme is unavailable.
 #[cfg(feature = "highlighting")]
 fn write_escaped_code_with_callouts<W: Write + ?Sized>(
     writer: &mut W,
-    inlines: &[InlineNode],
+    code: &str,
+    callouts: &HashMap<usize, usize>,
 ) -> Result<(), Error> {
-    let (code, callouts) = extract_text_and_callouts(inlines, None);
-
     if callouts.is_empty() {
-        let escaped = html_escape(&code);
+        let escaped = html_escape(code);
         write!(writer, "{escaped}")?;
     } else {
         for (i, line) in code.split('\n').enumerate() {
@@ -471,16 +465,21 @@ fn write_escaped_code_with_callouts<W: Write + ?Sized>(
 ///
 /// Returns the code text (without callout markers) and a map of line numbers
 /// to callout numbers.
+/// Ordinary fragments and captured labels must already contain display text.
+/// Visible index labels retain their profiles and use `replacements` for
+/// ordinary label text.
 #[cfg(feature = "highlighting")]
 pub(crate) fn extract_text_and_callouts(
     inlines: &[InlineNode],
+    replacements: bool,
+    boundaries: TextBoundaries,
     mut diagnostics: Option<&mut Diagnostics<'_>>,
 ) -> (String, HashMap<usize, usize>) {
     let mut result = String::new();
     let mut callouts: HashMap<usize, usize> = HashMap::new();
     let mut current_line = 0;
 
-    for node in inlines {
+    for (index, node) in inlines.iter().enumerate() {
         #[allow(clippy::match_same_arms)]
         match node {
             InlineNode::VerbatimText(verbatim) => {
@@ -516,9 +515,18 @@ pub(crate) fn extract_text_and_callouts(
             }
             InlineNode::Macro(acdc_parser::InlineMacro::IndexTerm(term)) => {
                 if term.is_visible() {
-                    let text = acdc_converters_core::InlineTextTransform::default()
+                    // Index labels remain structured until text extraction, so
+                    // apply their display substitutions here. Catalog labels
+                    // are registered independently from the original nodes.
+                    let text = InlineTextTransform::default()
                         .line_break("\n")
-                        .to_string(term.term());
+                        .decode_char_refs(true)
+                        .rendered_replacements(replacements)
+                        .text_boundaries(TextBoundaries::new(
+                            boundaries.at_paragraph_start() && index == 0,
+                            boundaries.at_paragraph_end() && index + 1 == inlines.len(),
+                        ))
+                        .to_string(std::slice::from_ref(node));
                     current_line += text.matches('\n').count();
                     result.push_str(&text);
                 }
@@ -572,7 +580,8 @@ mod tests {
     #[test]
     fn test_extract_text_and_callouts_from_verbatim() {
         let inlines = create_verbatim_inlines("fn main() {\n    println!(\"Hello\");\n}");
-        let (text, callouts) = extract_text_and_callouts(&inlines, None);
+        let (text, callouts) =
+            extract_text_and_callouts(&inlines, false, TextBoundaries::BOTH, None);
         assert_eq!(text, "fn main() {\n    println!(\"Hello\");\n}");
         assert!(callouts.is_empty());
     }
@@ -596,7 +605,8 @@ mod tests {
             }),
         ];
 
-        let (text, callouts) = extract_text_and_callouts(&inlines, None);
+        let (text, callouts) =
+            extract_text_and_callouts(&inlines, false, TextBoundaries::BOTH, None);
         assert_eq!(text, "let x = 1; \nlet y = 2; \n");
         assert_eq!(callouts.get(&0), Some(&1));
         assert_eq!(callouts.get(&1), Some(&2));
@@ -630,6 +640,7 @@ mod tests {
                 mode: HighlightMode::Inline,
             },
             &[],
+            false,
             None,
         )?;
 
@@ -667,6 +678,7 @@ mod tests {
                 mode: HighlightMode::Inline,
             },
             &[],
+            false,
             None,
         )?;
 
@@ -696,6 +708,7 @@ mod tests {
                 mode: HighlightMode::Inline,
             },
             &[],
+            false,
             None,
         )?;
 
@@ -727,6 +740,7 @@ mod tests {
                 mode: HighlightMode::Class,
             },
             &[],
+            false,
             None,
         )?;
 
@@ -769,6 +783,7 @@ mod tests {
                 mode: HighlightMode::Class,
             },
             &[],
+            false,
             None,
         )?;
 

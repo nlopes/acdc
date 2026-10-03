@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Visible index labels in highlighted code honor enabled typography and their
+  own passthrough substitutions, matching unhighlighted HTML. For example,
+  `[subs="+replacements,+macros"]` renders `indexterm2:[Code (R)]` as `Code ®`.
+  Following links retain their labels and destinations; catalog labels keep
+  their registration-time substitutions. The separate converter context gap
+  for dash patterns split across index boundaries remains documented in the
+  parser README.
+- Visible shorthand index labels retain balanced internal parentheses, including
+  `((Term (R)))` in prose and highlighted code. With replacements enabled this
+  displays `Term ®`. Unlike Asciidoctor's legacy macro stage, complete labels also
+  survive disabled replacements, replacements after macros, and nested pairs.
+
 - `[subs="+replacements"]` applies typography to ordinary highlighted code,
   including symbols, arrows, and dashes. Code and link labels retain formatting
   backslashes when quote substitutions are disabled, matching Asciidoctor.
