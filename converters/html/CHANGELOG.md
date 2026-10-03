@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Typography enabled by `pass:r[...]` or `pass:normal[...]` survives syntax
+  highlighting, including document attribute values and adjacent code links.
+  Escaped symbols stay literal and unrelated formatting escapes remain intact.
+  Unlike Asciidoctor's assignment-time conversion, escaped symbols in prepared
+  attributes stay literal at each use, including replacements-enabled code.
 - Document attributes using `pass:q[...]`, `pass:m[...]`, or `pass:normal[...]`
   retain formatting and links in prose and attributes-enabled code, including
   highlighting. Unused values produce no notes or index entries; anonymous

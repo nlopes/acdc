@@ -129,14 +129,16 @@ Orders that require generated output to be escaped again, such as `q,c` and `m,c
 Text-only lists combining `a` and `c` also stay literal with a warning when their references carry inline profiles; their effect on those profiles needs a separate design.
 Unknown substitution names stay literal with a warning.
 These restrictions apply to attribute-entry values; the existing inline passthrough and block-substitution behavior is separate.
-Profiles reuse existing deferred text substitutions.
-Some converter code and raw-text paths still omit those replacements; for example, a retained `normal` profile's `(C)` can remain literal in a listing.
-This is a remaining converter limitation, not a reason to convert values during assignment.
+Profiles apply typography during conversion, including raw text, code, and backtick spans.
+Their escaped replacement patterns remain literal and do not undergo surrounding block replacements a second time.
+For example, `:value: pass:r[\(C)]` exposes `\(C)` through text reads and renders `(C)` at each use.
+Asciidoctor removes this escape during assignment, so ordinary prose and replacements-enabled code can later render `©`.
+This difference follows acdc's source-first policy under SDR-5; SDR-5 does not prescribe these custom-list semantics.
+Raw-arrow replacement, replacement-only substitution order, and block-level typography in some code paths remain separate compatibility limits.
 
 The implementation stores source spans and compact rule lists rather than converted markup or owned inline trees.
 Profiles are parsed when referenced in document content, so one parsed document can be converted to several formats.
 Earlier compatibility behavior, including attribute character escaping and the treatment of ordinary attribute-introduced formatting, also needs a separate migration audit.
-The main inline preprocessor's closing-brace attribute escape (`{value\}`) also remains inconsistent with its opening escape in listings.
 Backend-neutral attribute expansion, source locations, and caller assignment policy remain necessary before includes and conditions can be processed.
 
 ==== Attribute parsing: blocks vs inlines

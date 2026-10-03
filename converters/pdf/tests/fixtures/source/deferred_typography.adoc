@@ -1,0 +1,60 @@
+= deferred-type(1)
+:doctype: manpage
+:manmanual: Deferred typography
+:mansource: acdc
+:revdate: 2026-10-03
+:normal-value: pass:n[(C) (R) (TM)]
+:replacement-value: pass:r[(C) (R) (TM)]
+:escaped-value: pass:r[\(C) \(R) \(TM) \... word\--word]
+:literal-value: pass:[(C) (R) (TM)]
+:alias: {replacement-value}
+
+== Name
+deferred-type - deferred replacement profiles
+
+== Synopsis
+deferred-type
+
+== Description
+
+P01 {normal-value}.
+
+P02 {replacement-value}.
+
+P03 {escaped-value}.
+
+P04 {literal-value}.
+
+P05 pass:r[(C) (R) (TM) ... don't word--word].
+
+P06 pass:[(C) (R) (TM) ... don't word--word].
+
+P07 pass:r[\*literal\* \_literal\_ \`literal\` \#literal\#].
+
+P08 pass:r[\(C) \(R) \(TM) \... word\--word].
+
+P09 pass:q,r[*(C)* _word--word_].
+
+P10 pass:c,r[<tag> (C) &].
+
+P11 pass:r,c[(C) <tag> &].
+
+P12 pass:r[word -- word --].
+
+P13 pass:r[--word] and pass:r[word--].
+
+P14 https://example.org[pass:r[(C)\]].
+
+P15 `{normal-value}`.
+
+P16 `{escaped-value}`.
+
+P17 `{literal-value}`.
+
+P18 {alias}.
+
+* P19 {replacement-value}.
+
+|===
+|P20 {replacement-value}.
+|===

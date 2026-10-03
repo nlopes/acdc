@@ -34,7 +34,7 @@ prepared\-attributes \- formatted document attributes
 \fBprepared\-attributes\fP
 .SH "DESCRIPTION"
 .sp
-Frozen: \fBEarly\fP / \fBEarly\fP / \fBEarly\fP (C) / \fBLate\fP\&.
+Frozen: \fBEarly\fP / \fBEarly\fP / \fBEarly\fP \(co / \fBLate\fP\&.
 .sp
 Alias: \fBBold\fP / \fBEarly\fP / [1] / \fBBody\fP / [2] / [3]\&.
 .sp

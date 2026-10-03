@@ -1,5 +1,6 @@
 = prepared-code(1)
 :doctype: manpage
+:revdate: 2026-10-02
 :source-highlighter: syntect
 :name: Early
 :bold: pass:q[*Bold*]

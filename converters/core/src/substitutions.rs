@@ -240,6 +240,59 @@ const ESCAPED_TRADEMARK: &str = "\u{E000}TRADEMARK\u{E000}";
 const ESCAPED_COPYRIGHT: &str = "\u{E000}COPYRIGHT\u{E000}";
 const ESCAPED_REGISTERED: &str = "\u{E000}REGISTERED\u{E000}";
 
+fn protect_replacement_escapes(text: &str, include_arrows: bool) -> Cow<'_, str> {
+    let mut text = Cow::Borrowed(text);
+    if !text.contains('\\') {
+        return text;
+    }
+    for (escaped, protected) in [
+        ("\\...", ESCAPED_ELLIPSIS),
+        ("\\--", ESCAPED_EMDASH),
+        ("\\(TM)", ESCAPED_TRADEMARK),
+        ("\\(C)", ESCAPED_COPYRIGHT),
+        ("\\(R)", ESCAPED_REGISTERED),
+    ] {
+        text = replace_if_present(text, escaped, protected);
+    }
+    if include_arrows {
+        for (escaped, protected) in [
+            ("\\->", ESCAPED_ARROW_RIGHT),
+            ("\\<-", ESCAPED_ARROW_LEFT),
+            ("\\=>", ESCAPED_DARROW_RIGHT),
+            ("\\<=", ESCAPED_DARROW_LEFT),
+        ] {
+            text = replace_if_present(text, escaped, protected);
+        }
+    }
+    text
+}
+
+/// Apply a passthrough's own replacement profile, independent of block settings.
+///
+/// Replacement escapes stay literal; escapes for disabled formatting rules are
+/// preserved. Raw arrows retain their existing passthrough behavior.
+#[must_use]
+pub fn apply_passthrough_replacements<'a>(
+    text: &'a str,
+    subs: &[Substitution],
+    replacements: &Replacements<'_>,
+    text_boundaries: TextBoundaries,
+) -> Cow<'a, str> {
+    if !subs.contains(&Substitution::Replacements) {
+        return Cow::Borrowed(text);
+    }
+    let replacements = Replacements {
+        double_arrow_right: "=>",
+        double_arrow_left: "<=",
+        arrow_right: "->",
+        arrow_left: "<-",
+        ..*replacements
+    };
+    let protected = protect_replacement_escapes(text, false);
+    let replaced = replacements.apply(&protected, text_boundaries);
+    Cow::Owned(restore_escaped_patterns(&replaced))
+}
+
 /// Remove backslash escapes from `AsciiDoc` formatting characters and patterns.
 ///
 /// Converts formatting escapes such as `\*` → `*`.
@@ -302,16 +355,7 @@ pub fn strip_backslash_escapes(text: &str) -> String {
     }
 
     // Slow path: only rebuild strings for patterns that actually appear.
-    let mut text = Cow::Borrowed(text);
-    text = replace_if_present(text, "\\...", ESCAPED_ELLIPSIS);
-    text = replace_if_present(text, "\\->", ESCAPED_ARROW_RIGHT);
-    text = replace_if_present(text, "\\<-", ESCAPED_ARROW_LEFT);
-    text = replace_if_present(text, "\\=>", ESCAPED_DARROW_RIGHT);
-    text = replace_if_present(text, "\\<=", ESCAPED_DARROW_LEFT);
-    text = replace_if_present(text, "\\--", ESCAPED_EMDASH);
-    text = replace_if_present(text, "\\(TM)", ESCAPED_TRADEMARK);
-    text = replace_if_present(text, "\\(C)", ESCAPED_COPYRIGHT);
-    text = replace_if_present(text, "\\(R)", ESCAPED_REGISTERED);
+    let text = protect_replacement_escapes(text, true);
 
     // Then handle single-character escapes. Skip the char loop entirely if
     // the only remaining backslashes are non-escapable — saves a rebuild.

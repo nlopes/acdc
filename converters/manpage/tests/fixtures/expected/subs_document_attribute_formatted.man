@@ -34,13 +34,13 @@ prepared\-code \- formatted attributes in code
 \fBprepared\-code\fP
 .SH "DESCRIPTION"
 .EX
-Formatting: \fBBold\fP / \fBEarly\fP / \fBEarly\fP (C) / \c
+Formatting: \fBBold\fP / \fBEarly\fP / \fBEarly\fP \(co / \c
 .URL "https://example.org" "Site" "\c"
 
 Literal references: {bold} / {bold}
 .EE
 .EX
-Escaped: \fBBold\fP / \fBEarly\fP / \fBEarly\fP (C) / \c
+Escaped: \fBBold\fP / \fBEarly\fP / \fBEarly\fP \(co / \c
 .URL "https://example.org" "Site" "\c"
 .EE
 .EX

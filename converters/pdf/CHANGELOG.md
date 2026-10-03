@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `pass:r[...]` and `pass:normal[...]` typography renders in code and backtick
+  spans, including prepared document attributes. Escaped symbols stay literal;
+  following links and anchor destinations retain their positions. Unlike
+  Asciidoctor's assignment-time conversion, escaped symbols in prepared
+  attributes stay literal at each use, including replacements-enabled code.
 - Links and cross-references inside backticks remain clickable, including
   mail links, wrapped labels, and targets on formatted or nested link labels.
   Automatic labels use normal link and reference fallbacks; authored spacing

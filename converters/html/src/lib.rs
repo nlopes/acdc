@@ -863,11 +863,12 @@ fn capture_code_inlines<'a, W: std::io::Write>(
                     | InlineNode::CurvedApostropheText(_)
                     | InlineNode::StandaloneCurvedApostrophe(_)
             );
-            // A lone bracket can form a tag with other nodes. Keep the existing
-            // escaping for those fragments instead of inserting a broken tag.
+            // Render a raw fragment's typography before highlighting discards its
+            // profile. A lone bracket still uses escaping to avoid broken tags.
             let raw = matches!(node, InlineNode::RawText(raw)
-                if raw.subs.is_empty() && raw.content.contains(['<', '>', '&'])
-                    && !matches!(raw.content, "<" | ">"));
+                if raw.subs.contains(&Substitution::Replacements)
+                    || (raw.subs.is_empty() && raw.content.contains(['<', '>', '&'])
+                        && !matches!(raw.content, "<" | ">")));
             (linked || formatted || raw).then_some(text)
         })
         .collect::<Vec<_>>();

@@ -9,7 +9,7 @@ use acdc_converters_core::substitutions::apply_replacements;
 use acdc_converters_core::{
     TraversalContext, decode_numeric_char_refs,
     link::{link_fallback, mailto_fallback, mailto_target},
-    substitutions::{Replacements, TextBoundaries},
+    substitutions::{Replacements, TextBoundaries, apply_passthrough_replacements},
     visitor::{Visitor, WritableVisitor},
     xref::{XrefDisplay, resolve_xref},
 };
@@ -392,10 +392,16 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             InlineNode::PlainText(text) => self.render_plain_text(text.content)?,
 
             InlineNode::RawText(text) => {
+                let replaced = apply_passthrough_replacements(
+                    text.content,
+                    &text.subs,
+                    &replacements(),
+                    self.text_boundaries,
+                );
                 let decoded = if text.subs.last() == Some(&Substitution::SpecialChars) {
-                    Cow::Borrowed(text.content)
+                    Cow::Borrowed(replaced.as_ref())
                 } else {
-                    decode_numeric_char_refs(text.content)
+                    decode_numeric_char_refs(&replaced)
                 };
                 let content = if self.strip_next_leading_space {
                     self.strip_next_leading_space = false;

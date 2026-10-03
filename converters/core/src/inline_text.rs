@@ -13,13 +13,26 @@ use std::{
 
 use acdc_parser::{InlineMacro, InlineNode, Reference, Substitution};
 
-use crate::{decode_numeric_char_refs, xref::reference_text};
+use crate::{
+    decode_numeric_char_refs,
+    substitutions::{Replacements, TextBoundaries, apply_passthrough_replacements},
+    xref::reference_text,
+};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Typography {
+    Source,
+    Passthroughs,
+    All,
+}
 
 /// Plain-text extraction policy for inline nodes.
 #[derive(Clone, Copy, Debug)]
 pub struct InlineTextTransform<'t, 'd> {
     line_break: &'t str,
     decode_char_refs: bool,
+    typography: Typography,
+    text_boundaries: TextBoundaries,
     references: Option<&'t HashMap<&'d str, Reference<'d>>>,
     /// Set while extracting a target's reference text, so a cross-reference
     /// inside it falls back to `[id]` instead of recursing. See
@@ -32,6 +45,8 @@ impl Default for InlineTextTransform<'_, '_> {
         Self {
             line_break: " ",
             decode_char_refs: false,
+            typography: Typography::Source,
+            text_boundaries: TextBoundaries::BOTH,
             references: None,
             resolving_xref: false,
         }
@@ -53,6 +68,20 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
     #[must_use]
     pub fn decode_char_refs(mut self, decode: bool) -> Self {
         self.decode_char_refs = decode;
+        self
+    }
+
+    /// Apply typography when extracting rendered text.
+    ///
+    /// Raw fragments use their own profiles. `ordinary_text` also enables
+    /// replacements in ordinary text. The default retains semantic source text.
+    #[must_use]
+    pub fn rendered_replacements(mut self, ordinary_text: bool) -> Self {
+        self.typography = if ordinary_text {
+            Typography::All
+        } else {
+            Typography::Passthroughs
+        };
         self
     }
 
@@ -81,8 +110,15 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
     ///
     /// Returns any error produced by the underlying writer.
     pub fn write<W: Write + ?Sized>(self, w: &mut W, inlines: &[InlineNode<'_>]) -> fmt::Result {
-        for node in inlines {
-            self.write_inline_node(w, node)?;
+        for (index, node) in inlines.iter().enumerate() {
+            let context = Self {
+                text_boundaries: TextBoundaries::new(
+                    self.text_boundaries.at_paragraph_start() && index == 0,
+                    self.text_boundaries.at_paragraph_end() && index + 1 == inlines.len(),
+                ),
+                ..self
+            };
+            context.write_inline_node(w, node)?;
         }
         Ok(())
     }
@@ -93,15 +129,25 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
             reason = "plain-text extraction intentionally ignores unknown non-exhaustive inline nodes"
         )]
         match node {
-            InlineNode::PlainText(text) => w.write_str(text.content),
-            InlineNode::RawText(text)
-                if self.decode_char_refs
-                    && text.subs.last() != Some(&Substitution::SpecialChars) =>
-            {
-                w.write_str(&decode_numeric_char_refs(text.content))
+            InlineNode::PlainText(text) => self.write_text(w, text.content),
+            InlineNode::RawText(text) => {
+                let content = if self.typography == Typography::Source {
+                    Cow::Borrowed(text.content)
+                } else {
+                    apply_passthrough_replacements(
+                        text.content,
+                        &text.subs,
+                        &Replacements::unicode(),
+                        self.text_boundaries,
+                    )
+                };
+                if self.decode_char_refs && text.subs.last() != Some(&Substitution::SpecialChars) {
+                    w.write_str(&decode_numeric_char_refs(&content))
+                } else {
+                    w.write_str(&content)
+                }
             }
-            InlineNode::RawText(text) => w.write_str(text.content),
-            InlineNode::VerbatimText(text) => w.write_str(text.content),
+            InlineNode::VerbatimText(text) => self.write_text(w, text.content),
             InlineNode::BoldText(bold) => self.write(w, &bold.content),
             InlineNode::ItalicText(italic) => self.write(w, &italic.content),
             InlineNode::MonospaceText(mono) => self.write(w, &mono.content),
@@ -116,6 +162,14 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
             InlineNode::Macro(macro_node) => self.write_inline_macro(w, macro_node),
             InlineNode::CalloutRef(callout) => write!(w, "<{}>", callout.number),
             _ => Ok(()),
+        }
+    }
+
+    fn write_text<W: Write + ?Sized>(self, w: &mut W, text: &str) -> fmt::Result {
+        if self.typography == Typography::All {
+            w.write_str(&Replacements::unicode().transform(text, self.text_boundaries))
+        } else {
+            w.write_str(text)
         }
     }
 
@@ -243,7 +297,53 @@ pub fn inlines_to_string(inlines: &[InlineNode<'_>]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use acdc_parser::{InlineNode, LineBreak, Location, Plain};
+    use acdc_parser::{Block, InlineNode, LineBreak, Location, Options, Plain, parse};
+
+    #[test]
+    fn deferred_typography_preserves_semantic_source_and_own_escapes()
+    -> Result<(), Box<dyn std::error::Error>> {
+        for source in [
+            r"pass:r[(C) \(R) \*literal\* \->]",
+            ":value: pass:r[(C) \\(R) \\*literal\\* \\->]\n\n{value}",
+        ] {
+            let parsed = parse(source, &Options::default())?;
+            let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+                return Err("expected one paragraph".into());
+            };
+            let transform = super::InlineTextTransform::default();
+            assert_eq!(
+                transform.to_string(&paragraph.content),
+                r"(C) \(R) \*literal\* \->"
+            );
+            assert_eq!(
+                transform
+                    .rendered_replacements(false)
+                    .to_string(&paragraph.content),
+                r"© (R) \*literal\* \->"
+            );
+            assert_eq!(
+                transform.to_string(&paragraph.content),
+                r"(C) \(R) \*literal\* \->"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn deferred_typography_does_not_reapply_surrounding_replacements()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = parse(r"pass:r[\(C)] (R) pass:[(TM)]", &Options::default())?;
+        let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+            return Err("expected one paragraph".into());
+        };
+        assert_eq!(
+            super::InlineTextTransform::default()
+                .rendered_replacements(true)
+                .to_string(&paragraph.content),
+            "(C) ® (TM)"
+        );
+        Ok(())
+    }
 
     use super::{InlineTextTransform, inlines_to_string};
 

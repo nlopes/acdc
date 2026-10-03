@@ -1,5 +1,6 @@
 = prepared-attributes(1)
 :doctype: manpage
+:revdate: 2026-10-02
 :name: Early
 :empty:
 :bold: pass:q[*Bold*]

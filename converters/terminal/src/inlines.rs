@@ -9,13 +9,13 @@ use acdc_converters_core::{
     Diagnostics, InlineTextTransform, TraversalContext, WarningSource, decode_numeric_char_refs,
     inlines_to_string,
     link::{autolink_fallback, link_fallback, mailto_fallback, mailto_target},
-    substitutions::{Replacements, TextBoundaries},
+    substitutions::{Replacements, TextBoundaries, apply_passthrough_replacements},
     visitor::{Visitor, WritableVisitor},
     xref::{XrefDisplay, resolve_xref},
 };
 use acdc_parser::{
     Button, CrossReference, Image, IndexTerm, IndexTermRelationship, InlineMacro, InlineNode,
-    Keyboard, Substitution,
+    Keyboard, Raw, Substitution,
 };
 use crossterm::{
     QueueableCommand,
@@ -212,8 +212,27 @@ fn render_inline_nodes_with_styles_to_owned<'a>(
     Ok(String::from_utf8(visitor.into_writer())?)
 }
 
-/// Helper to render a single inline node directly to a writer.
-/// Always called from within inline spans, so `string_boundaries_are_space` is false.
+fn write_raw_text<W: Write + ?Sized>(
+    w: &mut W,
+    raw: &Raw<'_>,
+    boundaries: TextBoundaries,
+) -> Result<(), Error> {
+    let replaced = apply_passthrough_replacements(
+        raw.content,
+        &raw.subs,
+        &Replacements::unicode(),
+        boundaries,
+    );
+    let text = if raw.subs.last() == Some(&Substitution::SpecialChars) {
+        Cow::Borrowed(replaced.as_ref())
+    } else {
+        decode_numeric_char_refs(&replaced)
+    };
+    write!(w, "{text}")?;
+    Ok(())
+}
+
+/// Render one node inside a span, where text edges are not paragraph edges.
 fn render_inline_node_to_writer<'a, W: Write + ?Sized>(
     node: &InlineNode,
     w: &mut W,
@@ -226,12 +245,7 @@ fn render_inline_node_to_writer<'a, W: Write + ?Sized>(
             write!(w, "{text}")?;
         }
         InlineNode::RawText(r) => {
-            let text = if r.subs.last() == Some(&Substitution::SpecialChars) {
-                Cow::Borrowed(r.content)
-            } else {
-                decode_numeric_char_refs(r.content)
-            };
-            write!(w, "{text}")?;
+            write_raw_text(w, r, TextBoundaries::NONE)?;
         }
         InlineNode::VerbatimText(v) => {
             // Verbatim text preserves backslashes
@@ -361,13 +375,7 @@ impl<'a, W: Write> crate::TerminalVisitor<'a, '_, W> {
                 // Anchors are invisible in terminal output
             }
             InlineNode::RawText(r) => {
-                let w = self.writer_mut();
-                let text = if r.subs.last() == Some(&Substitution::SpecialChars) {
-                    Cow::Borrowed(r.content)
-                } else {
-                    decode_numeric_char_refs(r.content)
-                };
-                write!(w, "{text}")?;
+                write_raw_text(&mut self.writer, r, self.text_boundaries)?;
             }
             InlineNode::VerbatimText(v) => {
                 let w = self.writer_mut();

@@ -52,7 +52,8 @@ use acdc_converters_core::{
     link::{autolink_fallback, link_fallback, mailto_fallback, mailto_target},
     media::resolve_target,
     substitutions::{
-        Replacements, TextBoundaries, restore_escaped_patterns, strip_backslash_escapes,
+        Replacements, TextBoundaries, apply_passthrough_replacements, restore_escaped_patterns,
+        strip_backslash_escapes,
     },
     visitor::{Visitor, WritableVisitor},
     xref::{XrefDisplay, interdocument_xref, resolve_xref},
@@ -89,21 +90,12 @@ fn replacements() -> Replacements<'static> {
     replacements
 }
 
-fn passthrough_replacements() -> Replacements<'static> {
-    let mut replacements = replacements();
-    replacements.double_arrow_right = "=>";
-    replacements.double_arrow_left = "<=";
-    replacements.arrow_right = "->";
-    replacements.arrow_left = "<-";
-    replacements
-}
-
 fn passthrough_substitution_text(
     text: &str,
     subs: &[Substitution],
     text_boundaries: TextBoundaries,
 ) -> String {
-    let replacements = passthrough_replacements();
+    let replacements = replacements();
     let mut text = text.to_string();
     let mut applied_special_chars = false;
 
@@ -117,7 +109,8 @@ fn passthrough_substitution_text(
                 applied_special_chars = true;
             }
             Substitution::Replacements => {
-                text = replacements.apply(&text, text_boundaries);
+                text = apply_passthrough_replacements(&text, subs, &replacements, text_boundaries)
+                    .into_owned();
             }
             Substitution::Attributes
             | Substitution::Macros

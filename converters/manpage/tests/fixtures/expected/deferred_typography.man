@@ -1,0 +1,82 @@
+'\" t
+.\"     Title: deferred-type
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-03
+.\"    Manual: Deferred typography
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "DEFERRED\-TYPE" "1" "2026-10-03" "acdc" "Deferred typography"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+deferred\-type \- deferred replacement profiles
+.SH "SYNOPSIS"
+.sp
+deferred\-type
+.SH "DESCRIPTION"
+.sp
+P01 \(co \(rg \(tm\&.
+.sp
+P02 \(co \(rg \(tm\&.
+.sp
+P03 (C) (R) (TM) ... word\-\-word\&.
+.sp
+P04 \(co \(rg \(tm.
+.sp
+P05 \(co \(rg \(tm .\|.\|. don\(cqt word\(emword\&.
+.sp
+P06 (C) (R) (TM) ... don't word\-\-word\&.
+.sp
+P07 \e*literal\e* \e_literal\e_ \e`literal\e` \e#literal\e#\&.
+.sp
+P08 (C) (R) (TM) ... word\-\-word\&.
+.sp
+P09 \fB\(co\fP \fIword\(emword\fP\&.
+.sp
+P10 <tag> \(co &\&.
+.sp
+P11 \(co <tag> &\&.
+.sp
+P12 word \(em word \-\-\&.
+.sp
+P13 \-\-word and word\-\-\&.
+.sp
+P14 \c
+.URL "https://example.org" "" "\c"
+[\(co]\&.
+.sp
+P15 \f(CR\(co \(rg \(tm\fP\&.
+.sp
+P16 \f(CR(C) (R) (TM) ... word\-\-word\fP\&.
+.sp
+P17 \f(CR\(co \(rg \(tm\fP\&.
+.sp
+P18 \(co \(rg \(tm\&.
+.RS 0
+.IP \(bu 2
+P19 \(co \(rg \(tm\&.
+.RE
+.TS
+allbox tab(:);
+ltx.
+P20 \(co \(rg \(tm\&.
+.TE

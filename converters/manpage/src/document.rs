@@ -73,11 +73,13 @@ fn write_url_macros<W: Write + ?Sized>(w: &mut W, linkstyle: &str) -> std::io::R
 /// Plain text for verbatim block content.
 ///
 /// Hard line breaks are newlines, and numeric character references decode to
-/// characters because roff output carries no HTML entities.
+/// characters because roff output carries no HTML entities. Passthroughs apply
+/// their own typography settings, independently of the surrounding block.
 pub(crate) fn extract_verbatim_text(nodes: &[InlineNode]) -> String {
     InlineTextTransform::default()
         .line_break("\n")
         .decode_char_refs(true)
+        .rendered_replacements(false)
         .to_string(nodes)
 }
 

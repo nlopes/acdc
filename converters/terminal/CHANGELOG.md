@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Typography enabled by `pass:r[...]` or `pass:normal[...]` renders in prose
+  and code, including prepared document attributes and highlighted source.
+  Escaped symbols and unrelated formatting escapes remain literal. Prepared
+  values keep acdc's source-first policy: their escaped symbols stay literal at
+  each use, rather than following Asciidoctor's assignment-time conversion.
 - Document attributes using `pass:q[...]`, `pass:m[...]`, or `pass:normal[...]`
   retain formatting, links, and footnotes. Unused values produce no notes or index
   entries; anonymous notes register at each use. Attribute text retains AsciiDoc

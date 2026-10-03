@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Typography enabled by `pass:r[...]` or `pass:normal[...]` renders in prose,
+  code, and backtick spans, including prepared document attributes. Escaped
+  symbols and unrelated formatting escapes remain literal. Unlike Asciidoctor's
+  assignment-time conversion, escaped symbols in prepared attributes stay
+  literal at each use, including replacements-enabled code.
 - Macros-enabled source, listing, and literal blocks and paragraphs retain link
   destinations, formatted labels, and cross-reference text. Code spacing and
   callouts remain intact. This follows Asciidoctor's ordinary code-link behavior;

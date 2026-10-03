@@ -1,11 +1,7 @@
-#[cfg(feature = "pre-spec-subs")]
-use std::borrow::Cow;
 use std::io::{BufWriter, IntoInnerError, Write};
 
 #[cfg(feature = "pre-spec-subs")]
-use acdc_converters_core::substitutions::{
-    Replacements, TextBoundaries, apply_replacements, effective_subs_flags,
-};
+use acdc_converters_core::substitutions::{SubsFlags, effective_subs_flags};
 use acdc_converters_core::{
     InlineTextTransform, TraversalContext,
     code::{SourceLineOptions, default_line_comment, detect_language},
@@ -504,8 +500,8 @@ pub(crate) fn render_preformatted_content(
     processor: &Processor<'_>,
 ) -> Result<String, Error> {
     let language = detect_language(metadata);
-    let (source, callouts, formatted) = source_with_callout_placeholders(inlines, language);
-    let source = apply_source_substitutions(source, processor);
+    let (source, callouts, formatted) =
+        source_with_callout_placeholders(inlines, language, processor);
     let mut output = Vec::new();
     // Explicit quote formatting takes precedence over syntax colours. Sending
     // its terminal escapes through the highlighter would display or corrupt them.
@@ -529,33 +525,31 @@ pub(crate) fn render_preformatted_content(
     Ok(apply_source_line_options(&output, &options))
 }
 
-#[cfg(feature = "pre-spec-subs")]
-fn apply_source_substitutions(mut source: String, processor: &Processor<'_>) -> String {
-    let substitutions = processor.current_subs.get();
-    if let Cow::Owned(replaced) = apply_replacements(
-        &source,
-        substitutions,
-        &Replacements::unicode(),
-        TextBoundaries::BOTH,
-    ) {
-        source = replaced;
-    }
-    source
-}
-
-#[cfg(not(feature = "pre-spec-subs"))]
-fn apply_source_substitutions(source: String, _processor: &Processor<'_>) -> String {
-    source
+fn code_text_transform(processor: &Processor<'_>) -> InlineTextTransform<'static, 'static> {
+    #[cfg(feature = "pre-spec-subs")]
+    let replacements = processor
+        .current_subs
+        .get()
+        .contains(SubsFlags::REPLACEMENTS);
+    #[cfg(not(feature = "pre-spec-subs"))]
+    let replacements = {
+        let _ = processor;
+        false
+    };
+    InlineTextTransform::default()
+        .line_break("\n")
+        .rendered_replacements(replacements)
 }
 
 fn source_with_callout_placeholders(
     nodes: &[InlineNode<'_>],
     language: Option<&str>,
+    processor: &Processor<'_>,
 ) -> (String, Vec<(String, usize)>, bool) {
     let mut source = String::new();
     let mut callouts = Vec::new();
     let mut formatted = false;
-    let transform = InlineTextTransform::default().line_break("\n");
+    let transform = code_text_transform(processor);
     let comment_prefix = default_line_comment(language);
 
     for (index, node) in nodes.iter().enumerate() {
@@ -580,7 +574,12 @@ fn source_with_callout_placeholders(
                     content = strip_callout_guard(&content, comment_prefix);
                 }
             }
-            source.push_str(&content);
+            source.push_str(&transform.to_string(&[InlineNode::VerbatimText(
+                acdc_parser::Verbatim {
+                    content: &content,
+                    location: verbatim.location.clone(),
+                },
+            )]));
         } else if let InlineNode::CalloutRef(callout) = node {
             let offset = u32::try_from(callouts.len()).unwrap_or(0xFFFD).min(0xFFFD);
             let placeholder = char::from_u32(0xF0000 + offset)
@@ -588,7 +587,7 @@ fn source_with_callout_placeholders(
                 .to_string();
             source.push_str(&placeholder);
             callouts.push((placeholder, callout.number));
-        } else if let Some(text) = formatted_code_text(node) {
+        } else if let Some(text) = formatted_code_text(node, processor) {
             source.push_str(&text);
             formatted = true;
         } else {
@@ -598,13 +597,13 @@ fn source_with_callout_placeholders(
     (source, callouts, formatted)
 }
 
-fn formatted_code_text(node: &InlineNode<'_>) -> Option<String> {
+fn formatted_code_text(node: &InlineNode<'_>, processor: &Processor<'_>) -> Option<String> {
     let children = acdc_converters_core::code::code_inline_children(node)?;
-    let transform = InlineTextTransform::default().line_break("\n");
+    let transform = code_text_transform(processor);
     let text = children
         .iter()
         .map(|child| {
-            formatted_code_text(child)
+            formatted_code_text(child, processor)
                 .unwrap_or_else(|| transform.to_string(std::slice::from_ref(child)))
         })
         .collect::<String>();

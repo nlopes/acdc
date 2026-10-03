@@ -1,0 +1,91 @@
+'\" t
+.\"     Title: deferred-code
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-03
+.\"    Manual: Deferred typography
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "DEFERRED\-CODE" "1" "2026-10-03" "acdc" "Deferred typography"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+deferred\-code \- deferred typography in code
+.SH "SYNOPSIS"
+.sp
+deferred\-code
+.SH "DESCRIPTION"
+.EX
+P01 \(co \(rg \(tm
+.EE
+.EX
+P02 \(co \(rg \(tm .\|.\|. don\(cqt word\(em\&word
+.EE
+.sp
+.if n .RS 4
+.nf
+.fam C
+P03 \(co \(rg \(tm
+.fam
+.fi
+.if n .RE
+.EX
+P04 \(co .\|.\|. don\(cqt word\(em\&word
+.EE
+.EX
+P05 (C) (R) (TM) ... word\-\-word
+.EE
+.EX
+P06 (C) (R)
+.EE
+.EX
+P07 (C) (R) (TM) ... word\-\-word (C) (R) (TM)
+.EE
+.sp
+P08 \(co .\|.\|. don\(cqt word\(emword and (C).
+.EX
+P09 \fB(C)\fP \fB(R)\fP
+.EE
+.EX
+P10 \(co \(rg \(tm\c
+.URL "https://example.org/code" "Next" "\c"
+.EE
+.EX
+P11 \(co .\|.\|. don\(cqt word\(em\&word
+.EE
+.EX
+P12 (C) (R) (TM)
+.EE
+.EX
+P13 {missing}
+.EE
+.EX
+P14 \e*literal\e* ... (C)
+.EE
+.EX
+P15 \(co \(rg \(tm \fB(1)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+Deferred replacements retain callout numbering.
+.RE
+.sp
+P16 pass:r[\(co] and \(co.

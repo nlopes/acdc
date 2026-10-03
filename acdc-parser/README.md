@@ -179,14 +179,20 @@ Unused values register no macros; anonymous footnotes register separately at eac
 use, while named notes share their ID. Lists such as `q,c` or `m,c` that need
 rendered markup, unknown substitution names, and text-only `a`/`c` combinations
 that reference profiled values stay literal with a structured parser warning.
-Profiles use the converters' existing deferred replacement rules; some code and
-raw-text paths still retain typography syntax such as `(C)` in a `normal` value.
+Profiles apply typography during conversion, including code and backtick spans.
+For example, `:value: pass:r[(C)]` retains `(C)` for text reads and renders `©`
+at each use. `:value: pass:r[\(C)]` retains `\(C)` for text reads and renders
+literal `(C)`, including code that enables replacements. Asciidoctor removes
+that escape during assignment and can later render `©` in ordinary prose and
+replacements-enabled code. acdc's behavior follows its source-first policy under
+SDR-5; SDR-5 does not prescribe these custom-list semantics.
+Raw-arrow replacement and some block-level code replacement paths remain
+separate compatibility limits.
 
 Existing `pre-spec-subs` compatibility behavior is not complete SDR-5 conformance.
 SDR-5 leaves the exact mapping of custom `pass:` lists unresolved; support for
 common profiles is an acdc policy. Earlier text-only escaping and ordinary
-attribute-introduced formatting remain separate migration work, as does the
-main preprocessor's closing-brace escape in listings (`{value\}`). See the
+attribute-introduced formatting remain separate migration work. See the
 [architecture document](../ARCHITECTURE.adoc) for the boundary and migration scope.
 
 ## Intrinsic document attributes

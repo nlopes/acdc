@@ -1,0 +1,94 @@
+= deferred-code(1)
+:doctype: manpage
+:manmanual: Deferred typography
+:mansource: acdc
+:revdate: 2026-10-03
+:normal-value: pass:n[(C) (R) (TM)]
+:replacement-value: pass:r[(C) ... don't word--word]
+:escaped-value: pass:r[\(C) \(R) \(TM) \... word\--word]
+:literal-value: pass:[(C) (R) (TM)]
+:source-highlighter: syntect
+:alias: {replacement-value}
+
+== Name
+deferred-code - deferred typography in code
+
+== Synopsis
+deferred-code
+
+== Description
+
+[subs="+attributes"]
+----
+P01 {normal-value}
+----
+
+[subs="+macros"]
+----
+P02 pass:r[(C) (R) (TM) ... don't word--word]
+----
+
+[literal,subs="+attributes"]
+P03 {normal-value}
+
+[source,text,subs="+attributes"]
+----
+P04 {replacement-value}
+----
+
+[subs="+attributes"]
+----
+P05 {escaped-value}
+----
+
+[subs="+replacements,+macros"]
+----
+P06 pass:r[\(C)] pass:[(R)]
+----
+
+[source,text,subs="+attributes,+replacements"]
+----
+P07 {escaped-value} {literal-value}
+----
+
+[subs="-replacements"]
+P08 {replacement-value} and (C).
+
+[subs="+macros,+replacements,+quotes"]
+----
+P09 *pass:r[\(C)]* *pass:[(R)]*
+----
+
+[subs="+attributes,+macros"]
+----
+P10 {normal-value}anchor:code-target[]https://example.org/code[Next]
+----
+
+[subs="+attributes"]
+----
+P11 {alias}
+----
+
+[subs="+attributes"]
+----
+P12 {literal-value}
+----
+
+[subs="+attributes"]
+----
+P13 {missing}
+----
+
+[subs="+macros"]
+----
+P14 pass:r[\*literal\* \... \(C)]
+----
+
+[subs="+attributes"]
+----
+P15 {normal-value} <1>
+----
+<1> Deferred replacements retain callout numbering.
+
+[subs="-macros"]
+P16 pass:r[(C)] and (C).

@@ -80,9 +80,9 @@ P20 \c
 .sp
 P21 café \(coΩ \(co\(co
 .sp
-P22 \(co \-\- tail
+P22 \(co \(em tail
 .sp
-P23 head \-\- \(co
+P23 head \(em \(co
 .sp
 P24 &amp;#169; &amp;
 .sp

@@ -12,6 +12,66 @@ use acdc_converters_pdf::{PdfOptions, Processor};
 type Error = Box<dyn std::error::Error>;
 
 #[test]
+fn deferred_typography_keeps_pdf_link_and_anchor_positions() -> Result<(), Error> {
+    for body in [
+        "`{value}anchor:target[]https://example.org/type[Next]`.",
+        #[cfg(feature = "pre-spec-subs")]
+        "[subs=\"+attributes,+macros\"]\n----\n{value}anchor:target[]https://example.org/type[Next]\n----",
+    ] {
+        let actual = render_input(&format!("= Type\n:value: pass:r[(C)]\n\n{body}\n"))?;
+        let expected = render_input(&format!("= Type\n:value: pass:r[©]\n\n{body}\n"))?;
+        let origin = text_origin(&actual, 1, "Next")?;
+        let control = text_origin(&expected, 1, "Next")?;
+        assert!(
+            (origin.0 - control.0).abs() < 0.01 && (origin.1 - control.1).abs() < 0.01,
+            "{body}: {origin:?}, expected {control:?}"
+        );
+        let targets = named_destinations(&actual)?;
+        let control_targets = named_destinations(&expected)?;
+        let target = resolve_destination(
+            &actual,
+            &targets,
+            targets.get("target").ok_or("missing target")?,
+        )?
+        .as_array()?;
+        let control_target = resolve_destination(
+            &expected,
+            &control_targets,
+            control_targets
+                .get("target")
+                .ok_or("missing control target")?,
+        )?
+        .as_array()?;
+        let coordinates = target.get(2..4).ok_or("missing target coordinates")?;
+        let control_coordinates = control_target
+            .get(2..4)
+            .ok_or("missing control coordinates")?;
+        for (actual, expected) in coordinates.iter().zip(control_coordinates) {
+            assert!(
+                (actual.as_float()? - expected.as_float()?).abs() < 0.01,
+                "{body}: anchor position differs"
+            );
+        }
+        let links = external_link_rects(&actual, 1)?;
+        let control_links = external_link_rects(&expected, 1)?;
+        let ([(uri, rectangle)], [(_, control_rectangle)]) =
+            (links.as_slice(), control_links.as_slice())
+        else {
+            return Err("expected one URI annotation".into());
+        };
+        assert_eq!(uri, "https://example.org/type");
+        assert!(
+            rectangle
+                .iter()
+                .zip(control_rectangle)
+                .all(|(actual, expected)| (actual - expected).abs() < 0.01),
+            "{body}: link annotation position differs"
+        );
+    }
+    Ok(())
+}
+
+#[test]
 fn constrained_monospace_boundaries_preserve_pdf_positions_and_links() -> Result<(), Error> {
     for content in [
         "café",

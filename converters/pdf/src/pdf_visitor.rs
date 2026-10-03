@@ -18,7 +18,7 @@ use acdc_converters_core::{
     list::OrderedListNumbering,
     section::effective_section_level,
     shows_block_title,
-    substitutions::{Replacements, TextBoundaries},
+    substitutions::{Replacements, TextBoundaries, apply_passthrough_replacements},
     table::{CellKind, GridRow, build_grid, determine_column_count},
     toc::{Config as TocConfig, NumberingConfig, effective_level, has_real_parts, section_numbers},
     visitor::Visitor,
@@ -53,9 +53,24 @@ struct CodeText {
     source: String,
     indexes: Vec<(usize, usize)>,
     links: Vec<CodeSpan>,
+    protected: Vec<Range<usize>>,
 }
 
 impl CodeText {
+    fn push_inline_text(&mut self, node: &InlineNode<'_>) {
+        let start = self.source.len();
+        let decode = matches!(node, InlineNode::RawText(raw) if raw.subs.is_empty());
+        let _ = InlineTextTransform::default()
+            .line_break("\n")
+            .rendered_replacements(false)
+            .decode_char_refs(decode)
+            .write(&mut self.source, std::slice::from_ref(node));
+        if matches!(node, InlineNode::RawText(_)) {
+            // Raw fragments have already followed their own profile.
+            self.protected.push(start..self.source.len());
+        }
+    }
+
     fn wrap_span(&mut self, mut outer: CodeSpan) {
         if outer.target.is_none() && outer.anchor.is_none() && outer.prefix.is_empty() {
             return;
@@ -102,6 +117,12 @@ impl CodeText {
             link.range = link.range.start + offset..link.range.end + offset;
             link
         }));
+        self.protected.extend(
+            child
+                .protected
+                .into_iter()
+                .map(|range| range.start + offset..range.end + offset),
+        );
     }
 }
 
@@ -923,7 +944,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
 
     fn inline_verbatim_text(&self, nodes: &[InlineNode<'_>], extension: &str) -> CodeText {
         let mut code = CodeText::default();
-        let transform = InlineTextTransform::default();
+        let transform = InlineTextTransform::default().rendered_replacements(false);
         // Extract text without registering footnotes or index entries.
         for node in nodes {
             let (id, children) = match node {
@@ -1135,12 +1156,6 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     }
 
     pub(crate) fn write_raw(&mut self, raw: &Raw<'_>) {
-        let mut replacements = Replacements::unicode();
-        replacements.double_arrow_right = "=>";
-        replacements.double_arrow_left = "<=";
-        replacements.arrow_right = "->";
-        replacements.arrow_left = "<-";
-
         let mut text = raw.content.to_string();
         let mut applied_special_chars = false;
         for substitution in &raw.subs {
@@ -1155,7 +1170,13 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     applied_special_chars = true;
                 }
                 Substitution::Replacements => {
-                    text = replacements.apply(&text, self.text_boundaries);
+                    text = apply_passthrough_replacements(
+                        &text,
+                        &raw.subs,
+                        &Replacements::unicode(),
+                        self.text_boundaries,
+                    )
+                    .into_owned();
                 }
                 Substitution::Attributes
                 | Substitution::Macros
@@ -1637,6 +1658,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             source,
             indexes: index_positions,
             links,
+            ..
         } = self.code_text(traversal, nodes, tab_size)?;
         let autofit = has_autofit_option(metadata, traversal);
         let options = if Self::source_highlighting_enabled(traversal) {
@@ -1933,6 +1955,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             source: mut text,
             indexes: mut positions,
             mut links,
+            protected,
         } = self.collect_code_text(traversal, nodes, &extension, false)?;
         // Keep a final anchor-only line through raw code's trailing-line trimming.
         // Its placeholder is replaced with empty content, so it adds no glyph or space.
@@ -1965,10 +1988,18 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         #[cfg(feature = "pre-spec-subs")]
         {
             let subs = self.processor.current_subs.get();
-            transform_code_substitutions(&mut text, &mut positions, index_count, |text| {
-                apply_replacements(text, subs, &Replacements::unicode(), TextBoundaries::BOTH)
-            });
+            transform_code_substitutions(
+                &mut text,
+                &mut positions,
+                index_count,
+                &protected,
+                |text| {
+                    apply_replacements(text, subs, &Replacements::unicode(), TextBoundaries::BOTH)
+                },
+            );
         }
+        #[cfg(not(feature = "pre-spec-subs"))]
+        let _ = protected;
         transform_code_text(&mut text, &mut positions, |text| {
             expand_code_tabs(text, tab_size)
         });
@@ -1982,6 +2013,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             source: text,
             indexes: positions,
             links,
+            ..CodeText::default()
         })
     }
 
@@ -1993,7 +2025,6 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         suppress_indexes: bool,
     ) -> Result<CodeText, Error> {
         let mut code = CodeText::default();
-        let transform = InlineTextTransform::default().line_break("\n");
 
         for (index, node) in nodes.iter().enumerate() {
             if !suppress_indexes && let InlineNode::Macro(InlineMacro::IndexTerm(term)) = node {
@@ -2086,10 +2117,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             } else if let InlineNode::CalloutRef(callout) = node {
                 let _ = write!(code.source, "({})", callout.number);
             } else {
-                let decode = matches!(node, InlineNode::RawText(raw) if raw.subs.is_empty());
-                let _ = transform
-                    .decode_char_refs(decode)
-                    .write(&mut code.source, std::slice::from_ref(node));
+                code.push_inline_text(node);
             }
         }
 
@@ -4720,14 +4748,18 @@ fn transform_code_substitutions(
     text: &mut String,
     positions: &mut [(usize, usize)],
     index_count: usize,
+    protected: &[Range<usize>],
     transform: impl Fn(&str) -> Cow<'_, str>,
 ) {
-    // A substitution cannot cross the markup boundary of a rendered link.
-    let boundaries = positions
+    // Replacements cannot cross a link boundary or reprocess a passthrough.
+    let mut boundaries = positions
         .iter()
         .skip(index_count)
         .map(|(offset, _)| *offset)
+        .chain(protected.iter().flat_map(|range| [range.start, range.end]))
         .collect::<Vec<_>>();
+    boundaries.sort_unstable();
+    boundaries.dedup();
     transform_code_text(text, positions, |fragment| {
         if boundaries.is_empty() {
             return transform(fragment);
@@ -4741,7 +4773,11 @@ fn transform_code_substitutions(
             .chain(std::iter::once(fragment.len()))
         {
             if let Some(part) = fragment.get(start..end) {
-                transformed.push_str(&transform(part));
+                if protected.iter().any(|range| range.contains(&start)) {
+                    transformed.push_str(part);
+                } else {
+                    transformed.push_str(&transform(part));
+                }
             }
             start = end;
         }
