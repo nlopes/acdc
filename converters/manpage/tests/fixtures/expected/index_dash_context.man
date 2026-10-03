@@ -114,11 +114,11 @@ P34 Sam\(cqs
 .sp
 P35 pré\(cqété
 .sp
-P36 3\&'4
+P36 3\(aq4
 .sp
-P37 _\&'s
+P37 _\(aqs
 .sp
-P38 Sam\&'s
+P38 Sam\(aqs
 .sp
 P39 Sam\(cqs
 .sp
@@ -150,7 +150,7 @@ P50 Sam\(cqs \c
 .SH "INDEX"
 .SS "@"
 .RS 4
-\&'
+\(aq
 .br
 \-
 .br
@@ -164,7 +164,7 @@ P50 Sam\(cqs \c
 .br
 \-\-tail
 .br
-\e'
+\e\(aq
 .br
 \-\-
 .br
@@ -200,6 +200,6 @@ prefix\-\-
 .RE
 .SS "S"
 .RS 4
-Sam'
+Sam\(aq
 .br
 .RE

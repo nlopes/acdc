@@ -2,7 +2,7 @@
 Before \c
 .URL "https://example.org" "\(dqLiteral label\(dq" "\c"
  and \c
-.URL "https://example.net" "\&'Literal label'" "\c"
+.URL "https://example.net" "\(aqLiteral label\(aq" "\c"
 \&.
 .sp
 \c
@@ -14,11 +14,11 @@ Before \c
 
 .sp
 \c
-.URL "guide.html" "One \&'quote\&' two" "\c"
+.URL "guide.html" "One \(aqquote\(aq two" "\c"
 
 .sp
 \c
-.URL "https://example.org" "One \e'quote\e' two" "\c"
+.URL "https://example.org" "One \e\(aqquote\e\(aq two" "\c"
 
 .sp
 \c

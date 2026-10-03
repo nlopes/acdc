@@ -1,0 +1,27 @@
+= quotes(1)
+:doctype: manpage
+:revdate: 2026-10-03
+
+== NAME
+
+quotes - embedded apostrophe controls
+
+== SYNOPSIS
+
+*quotes*
+
+== DESCRIPTION
+
+E01 3indexterm2:[']4
+
+E02 Sam\'s
+
+E03 Sam's
+
+E04 pass:['single' Sam's]
+
+E05 link:https://next.example/quote's[3'4]
+
+== 3'4 HEADING
+
+E06 ‘single’ Sam’s

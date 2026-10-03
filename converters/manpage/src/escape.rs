@@ -87,9 +87,10 @@ pub fn manify(text: &str, mode: EscapeMode) -> Cow<'_, str> {
                 at_line_start = false;
             }
 
-            // Escape leading apostrophe (would be interpreted as macro)
-            '\'' if at_line_start => {
-                result.push_str("\\&'");
+            // Groff renders a literal apostrophe as a closing quote. The
+            // explicit glyph also protects it from acting as a line request.
+            '\'' => {
+                result.push_str("\\(aq");
                 at_line_start = false;
             }
 
@@ -124,8 +125,8 @@ fn needs_escaping(text: &str, mode: EscapeMode) -> bool {
     // Check for characters that need escaping
     for (i, ch) in text.chars().enumerate() {
         match ch {
-            '\\' | '-' => return true,
-            '.' | '\'' if i == 0 || text.as_bytes().get(i.saturating_sub(1)) == Some(&b'\n') => {
+            '\\' | '-' | '\'' => return true,
+            '.' if i == 0 || text.as_bytes().get(i.saturating_sub(1)) == Some(&b'\n') => {
                 return true;
             }
             '\t' if mode == EscapeMode::Preserve => return true,
@@ -252,11 +253,14 @@ fn replace_special_chars(text: &str) -> String {
 /// Used for `.TH` arguments and other contexts requiring quoted strings.
 #[must_use]
 pub(crate) fn escape_quoted(text: &str) -> Cow<'_, str> {
-    if !text.contains('"') && !text.contains('\\') {
+    if !text.contains(['"', '\\', '\'']) {
         return Cow::Borrowed(text);
     }
 
-    let result = text.replace('\\', "\\\\").replace('"', "\\\"");
+    let result = text
+        .replace('\\', "\\\\")
+        .replace('"', "\\\"")
+        .replace('\'', "\\(aq");
 
     Cow::Owned(result)
 }
@@ -355,6 +359,35 @@ mod tests {
     }
 
     #[test]
+    fn manify_keeps_literal_apostrophes_distinct_from_curly_quotes() {
+        for mode in [
+            EscapeMode::Normalize,
+            EscapeMode::Preserve,
+            EscapeMode::Collapse,
+        ] {
+            for (source, expected) in [
+                ("'", "\\(aq"),
+                ("3'4", "3\\(aq4"),
+                ("_'s", "_\\(aqs"),
+                ("Sam's", "Sam\\(aqs"),
+                ("pré'été", "pré\\(aqété"),
+                ("‘Sam’s’", "\\(oqSam\\(cqs\\(cq"),
+                ("'Sam’s'", "\\(aqSam\\(cqs\\(aq"),
+            ] {
+                assert_eq!(manify(source, mode), expected, "{mode:?}: {source}");
+            }
+        }
+        assert_eq!(
+            manify("'first\n'second", EscapeMode::Preserve),
+            "\\(aqfirst\n\\(aqsecond"
+        );
+        assert!(matches!(
+            manify("plain prose", EscapeMode::Normalize),
+            Cow::Borrowed(_)
+        ));
+    }
+
+    #[test]
     fn test_manify_preserve_whitespace() {
         assert_eq!(manify("a\tb", EscapeMode::Preserve), "a        b");
     }
@@ -363,6 +396,11 @@ mod tests {
     fn test_escape_quoted() {
         assert_eq!(escape_quoted("simple"), "simple");
         assert_eq!(escape_quoted("has \"quotes\""), "has \\\"quotes\\\"");
+        assert_eq!(escape_quoted("3'4 and Sam’s"), "3\\(aq4 and Sam’s");
+        assert_eq!(
+            escape_quoted("\\path's \"title\""),
+            "\\\\path\\(aqs \\\"title\\\""
+        );
     }
 
     #[test]
@@ -371,7 +409,11 @@ mod tests {
             escape_roff_macro_argument(".target\n\"quote\\path"),
             "\\&.target \\(dqquote\\epath"
         );
-        assert_eq!(escape_roff_macro_argument("'break"), "\\&'break");
+        assert_eq!(escape_roff_macro_argument("'break"), "\\(aqbreak");
+        assert_eq!(
+            escape_roff_macro_argument("https://example.org/quote's"),
+            "https://example.org/quote\\(aqs"
+        );
     }
 
     #[test]

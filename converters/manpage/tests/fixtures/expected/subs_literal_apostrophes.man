@@ -1,0 +1,99 @@
+'\" t
+.\"     Title: literal-apostrophes
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-03
+.\"    Manual: Quote's manual
+.\"    Source: 3'4 source
+.\"  Language: English
+.\"
+.TH "LITERAL\-APOSTROPHES" "1" "2026-10-03" "3\(aq4 source" "Quote\(aqs manual"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+literal\-apostrophes \- substitution controls for apostrophes
+.SH "SYNOPSIS"
+.sp
+\fBliteral\-apostrophes\fP
+.SH "DESCRIPTION"
+.sp
+S01 Sam\(aqs
+.sp
+S02 Sam\(cqs
+.sp
+S03 Sam\(cqs
+.sp
+S04 Sam\(aqs
+.sp
+S05 Sam\(cqs and Sam\(aqs
+.sp
+S06 Sam\(aqs and Sam\(cqs
+.sp
+S07 \c
+.URL "https://next.example/plain" "Sam\(aqs" "\c"
+
+.sp
+S08 \c
+.URL "https://next.example/plain" "Sam\(aqs" "\c"
+
+.sp
+S09 3\(aq4 and _\(aqs
+.sp
+S10 3\(aq4 Sam\(aqs \(aqsingle\(aq
+.sp
+S11 Sam\(aqs [1]
+.EX
+R01 3\(aq4
+R02 3\(aq4
+R03 Sam\(aqs
+R04 Sam\(cqs
+R05 Sam\(cqs
+R06 Sam\(aqs
+R07 Sam\(cqs
+R08 \c
+.URL "https://next.example/quote\(aqs" "3\(aq4" "\c"
+
+R09 \c
+.URL "https://next.example/plain" "Sam\(aqs" "\c"
+
+\(aqline\-start request control
+.EE
+.EX
+D01 Sam\(aqs
+D02 Sam\(aqs
+D03 Sam\(cqs
+D04 Sam\(aqs
+D05 \c
+.URL "https://next.example/plain" "Sam\(aqs" "\c"
+.EE
+.SH "INDEX"
+.SS "@"
+.RS 4
+\(aq
+.br
+.RE
+.SS "M"
+.RS 4
+m
+.br
+.RE
+.SH "NOTES"
+.IP [1] 4
+Sam\(cqs

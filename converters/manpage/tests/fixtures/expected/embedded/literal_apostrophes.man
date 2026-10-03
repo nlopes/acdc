@@ -1,0 +1,19 @@
+.SH "SYNOPSIS"
+.sp
+\fBquotes\fP
+.SH "DESCRIPTION"
+.sp
+E01 3\(aq4
+.sp
+E02 Sam\(aqs
+.sp
+E03 Sam\(cqs
+.sp
+E04 \(aqsingle\(aq Sam\(aqs
+.sp
+E05 \c
+.URL "https://next.example/quote\(aqs" "3\(aq4" "\c"
+
+.SH "3\(aq4 HEADING"
+.sp
+E06 \(oqsingle\(cq Sam\(cqs

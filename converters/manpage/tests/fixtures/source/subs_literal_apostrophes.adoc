@@ -1,0 +1,74 @@
+= literal-apostrophes(1)
+:doctype: manpage
+:manmanual: Quote's manual
+:mansource: 3'4 source
+:revdate: 2026-10-03
+
+== NAME
+
+literal-apostrophes - substitution controls for apostrophes
+
+== SYNOPSIS
+
+*literal-apostrophes*
+
+== DESCRIPTION
+
+[subs="macros"]
+S01 Samindexterm2:[']s
+
+[subs="macros,replacements"]
+S02 Samindexterm2:[']s
+
+[subs="replacements,macros"]
+S03 Samindexterm2:[']s
+
+[subs="-replacements"]
+S04 Sam's
+
+[subs="macros"]
+S05 pass:r[Sam's] and Sam's
+
+[subs="macros,replacements"]
+S06 pass:[Sam's] and Sam's
+
+[subs="macros"]
+S07 link:https://next.example/plain[Sam's]
+
+[subs="macros,replacements"]
+S08 link:https://next.example/plain[Sam\'s]
+
+[subs="macros,replacements"]
+S09 3indexterm2:[']4 and _indexterm2:[']s
+
+[subs="none"]
+S10 3'4 Sam's 'single'
+
+[subs="macros"]
+S11 Sam's footnote:[Sam's]
+
+[source,text,subs="specialchars,macros,replacements"]
+----
+R01 3'4
+R02 3indexterm2:[']4
+R03 Sam\'s
+R04 Sam's
+R05 Saindexterm2:[m]'s
+R06 pass:[Sam's]
+R07 pass:r[Sam's]
+R08 link:https://next.example/quote's[3'4]
+R09 link:https://next.example/plain[Sam\'s]
+'line-start request control
+----
+
+[source,text,subs="specialchars,macros"]
+----
+D01 Sam's
+D02 Samindexterm2:[']s
+D03 pass:r[Sam's]
+D04 pass:[Sam's]
+D05 link:https://next.example/plain[Sam's]
+----
+
+[index]
+== Index

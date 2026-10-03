@@ -83,7 +83,7 @@ Image body.
 .SH "EXTERNAL [OTHER] AND [OTHER#PART] AND OTHER PART"
 .sp
 External reference body.
-.SH "CHARACTERS IT'S ' &#39; &#x2019;"
+.SH "CHARACTERS IT\(aqS \(aq &#39; &#x2019;"
 .sp
 Character body.
 .SH "SEE SEE [RECURSIVE] AGAIN AGAIN"

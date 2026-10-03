@@ -164,13 +164,13 @@ S41 Sam\(cqs \c
 S42 pré\(cqété \c
 .URL "https://next.example/42" "Next42" "\c"
 
-S43 3\&'4 \c
+S43 3\(aq4 \c
 .URL "https://next.example/43" "Next43" "\c"
 
-S44 _\&'s \c
+S44 _\(aqs \c
 .URL "https://next.example/44" "Next44" "\c"
 
-S45 Sam\&'s \c
+S45 Sam\(aqs \c
 .URL "https://next.example/45" "Next45" "\c"
 
 S46 Sam\(cqs \c
@@ -208,7 +208,7 @@ S57 Sam\(cqs
 .sp
 S58 Sam\(cqs
 .sp
-S59 Sam\&'s
+S59 Sam\(aqs
 .sp
 S60 prefix\(emtail
 .sp
@@ -222,7 +222,7 @@ S63 prefix\(em\&tail \c
 .SH "INDEX"
 .SS "@"
 .RS 4
-\&'
+\(aq
 .br
 \-
 .br
@@ -234,7 +234,7 @@ S63 prefix\(em\&tail \c
 .br
 \-\-tail
 .br
-\e'
+\e\(aq
 .br
 \-\-
 .br
@@ -268,6 +268,6 @@ prefix\-\-
 .RE
 .SS "S"
 .RS 4
-Sam'
+Sam\(aq
 .br
 .RE

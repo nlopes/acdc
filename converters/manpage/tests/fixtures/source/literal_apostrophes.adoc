@@ -1,0 +1,80 @@
+= literal-apostrophes(1)
+:doctype: manpage
+:manmanual: Quote's manual
+:mansource: 3'4 source
+:revdate: 2026-10-03
+
+== NAME
+
+literal-apostrophes - straight and curly apostrophes
+
+== SYNOPSIS
+
+*literal-apostrophes*
+
+== DESCRIPTION
+
+P01 3'4
+
+P02 3indexterm2:[']4
+
+P03 _indexterm2:[']s
+
+P04 Sam\'s
+
+P05 Samindexterm2:[\']s
+
+P06 Sam's
+
+P07 Saindexterm2:[m]'s
+
+P08 pré\'été
+
+P09 pass:['single' Sam's]
+
+P10 pass:r[Sam's]
+
+P11 3anchor:quote[]'4
+
+P12 3indexterm:[Hidden]'4
+
+P13 **3'4**
+
+P14 `3'4`
+
+P15 ‘single’ Sam’s
+
+P16 link:https://next.example/quote's[3'4]
+
+P17 link:https://next.example/plain[pass:[Sam's]]
+
+P18 mailto:sam@example.org[Sam\'s mail]
+
+P19 anchor:quoted[3'4]target
+
+P20 <<quoted>>
+
+P21 first line
+'wrapped line
+
+P22 footnote:[3'4 and Sam\'s; Sam's]
+
+== 3'4 HEADING
+
+P23 heading control.
+
+=== 'quoted' subsection
+
+P24 subsection control.
+
+.Code control
+[source,text]
+----
+C01 3'4
+C02 Sam's
+'line-start request control
+C03 ‘single’ Sam’s
+----
+
+[index]
+== Index

@@ -44,7 +44,7 @@ P04 \(co \(rg \(tm.
 .sp
 P05 \(co \(rg \(tm .\|.\|. don\(cqt word\(emword\&.
 .sp
-P06 (C) (R) (TM) ... don't word\-\-word\&.
+P06 (C) (R) (TM) ... don\(aqt word\-\-word\&.
 .sp
 P07 \e*literal\e* \e_literal\e_ \e`literal\e` \e#literal\e#\&.
 .sp

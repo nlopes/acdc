@@ -34,25 +34,25 @@ roff\-safety \- verify untrusted roff text remains literal
 roff\-safety
 .SH "DESCRIPTION"
 .sp
-UI labels: \fB\&.sp+\efB+a"quote\fP, [\fB\&'break \efI a"quote\fP], and \fB\&.ce\fP \(ra \fB\&'break\fP \(ra \fB\efB\fP \(ra \fBa"quote\fP\&.
+UI labels: \fB\&.sp+\efB+a"quote\fP, [\fB\(aqbreak \efI a"quote\fP], and \fB\&.ce\fP \(ra \fB\(aqbreak\fP \(ra \fB\efB\fP \(ra \fBa"quote\fP\&.
 .sp
-Inline STEM: \&.sp 'break \efB a"quote\&.
+Inline STEM: \&.sp \(aqbreak \efB a"quote\&.
 .sp
 \fBFigure 1. A "quoted" \epath image\fP
 .br
-.URL "https://example.invalid/.target'part\(dqquote\epath" "[status]" ""
+.URL "https://example.invalid/.target\(aqpart\(dqquote\epath" "[status]" ""
 .sp
 \fBA "quoted" \epath audio\fP
 .br
-.URL "https://example.invalid/.target'part\(dqquote\epath" "[Audio: A \(dqquoted\(dq \epath audio]" ""
+.URL "https://example.invalid/.target\(aqpart\(dqquote\epath" "[Audio: A \(dqquoted\(dq \epath audio]" ""
 .sp
 \fBA "quoted" \epath video\fP
 .br
-.URL "https://example.invalid/.target'part\(dqquote\epath" "[Video: A \(dqquoted\(dq \epath video]" ""
+.URL "https://example.invalid/.target\(aqpart\(dqquote\epath" "[Video: A \(dqquoted\(dq \epath video]" ""
 .sp
 
 \&.sp
-\&'break
+\(aqbreak
 \efB
 a"quote
 

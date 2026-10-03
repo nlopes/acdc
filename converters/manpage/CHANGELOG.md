@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Literal apostrophes retain their straight glyph in prose, code, index labels,
+  headings, and link text instead of displaying as curly quotes in groff.
+  Enabled replacements still render contractions such as `Sam's` as `Sam’s`;
+  escaped and replacements-disabled apostrophes remain literal, matching
+  Asciidoctor's body text. Unlike Asciidoctor, acdc also preserves literal
+  apostrophes in displayed link destinations and `mansource` metadata, where
+  the reference can render a curly quote or omit the quote, respectively.
+
 - Enabled replacements render dashes and contractions across visible index labels
   in prose and code: `prefixindexterm2:[--]tail` displays `prefix—tail`, retaining
   escaped dashes and following links. Unlike Asciidoctor's default substitution

@@ -1,0 +1,122 @@
+'\" t
+.\"     Title: literal-apostrophes
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-03
+.\"    Manual: Quote's manual
+.\"    Source: 3'4 source
+.\"  Language: English
+.\"
+.TH "LITERAL\-APOSTROPHES" "1" "2026-10-03" "3\(aq4 source" "Quote\(aqs manual"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+literal\-apostrophes \- straight and curly apostrophes
+.SH "SYNOPSIS"
+.sp
+\fBliteral\-apostrophes\fP
+.SH "DESCRIPTION"
+.sp
+P01 3\(aq4
+.sp
+P02 3\(aq4
+.sp
+P03 _\(aqs
+.sp
+P04 Sam\(aqs
+.sp
+P05 Sam\(aqs
+.sp
+P06 Sam\(cqs
+.sp
+P07 Sam\(cqs
+.sp
+P08 pré\(aqété
+.sp
+P09 \(aqsingle\(aq Sam\(aqs
+.sp
+P10 Sam\(cqs
+.sp
+P11 3\(aq4
+.sp
+P12 3\(aq4
+.sp
+P13 \fB3\(aq4\fP
+.sp
+P14 \f(CR3\(aq4\fP
+.sp
+P15 \(oqsingle\(cq Sam\(cqs
+.sp
+P16 \c
+.URL "https://next.example/quote\(aqs" "3\(aq4" "\c"
+
+.sp
+P17 \c
+.URL "https://next.example/plain" "Sam\(aqs" "\c"
+
+.sp
+P18 \c
+.MTO "sam\(atexample.org" "Sam\(aqs mail" "\c"
+
+.sp
+P19 target
+.sp
+P20 3\(aq4
+.sp
+P21 first line
+\(aqwrapped line
+.sp
+P22 [1]
+.SH "3\(aq4 HEADING"
+.sp
+P23 heading control.
+.SS "\(aqquoted\(aq subsection"
+.sp
+P24 subsection control.
+.sp
+\fBCode control\fP
+.br
+.EX
+C01 3\(aq4
+C02 Sam\(aqs
+\(aqline\-start request control
+C03 \(oqsingle\(cq Sam\(cqs
+.EE
+.SH "INDEX"
+.SS "@"
+.RS 4
+\(aq
+.br
+\e\(aq
+.br
+.RE
+.SS "H"
+.RS 4
+Hidden
+.br
+.RE
+.SS "M"
+.RS 4
+m
+.br
+.RE
+.SH "NOTES"
+.IP [1] 4
+3\(aq4 and Sam\(aqs; Sam\(cqs

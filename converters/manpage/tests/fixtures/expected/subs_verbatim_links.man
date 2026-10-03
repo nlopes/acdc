@@ -66,7 +66,7 @@ C11 \c
 .URL "https://example.org" "Label" "\c"
 
 \&.SH literal\-control\-line
-\&'literal\-control\-line
+\(aqliteral\-control\-line
 C12 \c
 .URL "https://example.org" "Label" "\c"
 \&.
