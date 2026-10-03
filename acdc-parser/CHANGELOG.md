@@ -57,6 +57,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Constrained bold, italic, code, and highlight spans work after punctuation
+  such as `=`, `%`, `$`, and `@`, and inside raw passthrough tags. Parsing uses
+  source characters before output escaping, so `>*Bold*` becomes bold in acdc
+  where Asciidoctor's default escaping leaves the marks literal. Letters,
+  numbers, underscores, `:`, `;`, `}`, and literal entity terminators still
+  require unconstrained marks.
 - Constrained inline code works next to bold and highlighted text, including
   empty attribute expansions, anchors, links, roles, and IDs. For example,
   `` `Code`**End** `` renders code followed by bold text, matching Asciidoctor.

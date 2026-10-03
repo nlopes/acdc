@@ -854,33 +854,9 @@ fn has_inline_line_break_prefix(state: &ParserState<'_>, span_start: usize) -> b
             .is_ok()
 }
 
-pub(crate) fn match_constrained_boundary(b: u8) -> bool {
-    matches!(
-        b,
-        b' ' | b'\t'
-            | b'\n'
-            | b'\r'
-            | b'('
-            | b'{'
-            | b'['
-            | b')'
-            | b']'
-            | b'/'
-            | b'-'
-            | b'|'
-            | b','
-            | b'.'
-            | b'?'
-            | b'!'
-            | b'\''
-            | b'"'
-            | b'^'
-            | b'~'
-            | b'+'
-            | b'*'
-            | b'#'
-            | b'`'
-    )
+fn match_constrained_boundary(b: u8) -> bool {
+    // Use source punctuation; converter escaping must not change parsing.
+    !is_word_char(b) && !matches!(b, b':' | b';' | b'}')
 }
 
 /**
@@ -894,12 +870,15 @@ fn check_constrained_opening_boundary(
     pos: usize,
     input: &[u8],
     outer_delimiter: Option<u8>,
+    marker: u8,
 ) -> bool {
     if pos == 0 {
         return outer_delimiter.is_none_or(|d| !is_word_char(d));
     }
     match input.get(pos - 1) {
         None => true,
+        // A hash after an ampersand belongs to character-reference syntax.
+        Some(b'&') if marker == b'#' => false,
         Some(&b) if b.is_ascii() => match_constrained_boundary(b),
         // The preceding byte belongs to a multibyte (non-ASCII) character. It is
         // a valid boundary unless that character is a Unicode word character
@@ -2553,7 +2532,7 @@ peg::parser! {
 
             // Check if we're at start of input OR preceded by word boundary character
             let absolute_pos = start + state.inline_ctx.offset;
-            if !check_constrained_opening_boundary(absolute_pos, state.input.as_bytes(), state.outer_constrained_delimiter) {
+            if !check_constrained_opening_boundary(absolute_pos, state.input.as_bytes(), state.outer_constrained_delimiter, b'*') {
                 tracing::debug!(absolute_pos, prev_byte = ?state.input.as_bytes().get(absolute_pos.saturating_sub(1)), "Invalid word boundary for constrained bold");
                 return Err("invalid word boundary for constrained bold");
             }
@@ -2602,7 +2581,7 @@ peg::parser! {
         closing_pos:position!()
         constrained_boundary_follow('*')
         {?
-            let valid_opening = check_constrained_opening_boundary(boundary_pos, state.input.as_bytes(), state.outer_constrained_delimiter);
+            let valid_opening = check_constrained_opening_boundary(boundary_pos, state.input.as_bytes(), state.outer_constrained_delimiter, b'*');
             let valid_closing = check_constrained_closing_at_end(closing_pos, state.input.len(), state.outer_constrained_delimiter);
 
             if valid_opening && valid_closing { Ok(()) } else { Err("invalid word boundary") }
@@ -2631,7 +2610,7 @@ peg::parser! {
 
             // Check if we're at start of input OR preceded by word boundary character
             let absolute_pos = start + state.inline_ctx.offset;
-            if !check_constrained_opening_boundary(absolute_pos, state.input.as_bytes(), state.outer_constrained_delimiter) {
+            if !check_constrained_opening_boundary(absolute_pos, state.input.as_bytes(), state.outer_constrained_delimiter, b'_') {
                 return Err("invalid word boundary for constrained italic");
             }
 
@@ -2678,7 +2657,7 @@ peg::parser! {
         closing_pos:position!()
         constrained_boundary_follow('_')
         {?
-            let valid_opening = check_constrained_opening_boundary(boundary_pos, state.input.as_bytes(), state.outer_constrained_delimiter);
+            let valid_opening = check_constrained_opening_boundary(boundary_pos, state.input.as_bytes(), state.outer_constrained_delimiter, b'_');
             let valid_closing = check_constrained_closing_at_end(closing_pos, state.input.len(), state.outer_constrained_delimiter);
 
             if valid_opening && valid_closing { Ok(()) } else { Err("invalid word boundary") }
@@ -2792,7 +2771,7 @@ peg::parser! {
 
             // Check if we're at start of input OR preceded by word boundary character
             let absolute_pos = start + state.inline_ctx.offset;
-            if !check_constrained_opening_boundary(absolute_pos, state.input.as_bytes(), state.outer_constrained_delimiter) {
+            if !check_constrained_opening_boundary(absolute_pos, state.input.as_bytes(), state.outer_constrained_delimiter, b'`') {
                 return Err("monospace must be at word boundary");
             }
 
@@ -2836,7 +2815,7 @@ peg::parser! {
         closing_pos:position!()
         monospace_boundary_follow()
         {?
-            let valid_opening = check_constrained_opening_boundary(boundary_pos, state.input.as_bytes(), state.outer_constrained_delimiter);
+            let valid_opening = check_constrained_opening_boundary(boundary_pos, state.input.as_bytes(), state.outer_constrained_delimiter, b'`');
             let valid_closing = check_constrained_closing_at_end(closing_pos, state.input.len(), state.outer_constrained_delimiter);
 
             if valid_opening && valid_closing { Ok(()) } else { Err("monospace must be at word boundary") }
@@ -2900,7 +2879,7 @@ peg::parser! {
 
             // Check if we're at start of input OR preceded by word boundary character
             let absolute_pos = start + state.inline_ctx.offset;
-            if !check_constrained_opening_boundary(absolute_pos, state.input.as_bytes(), state.outer_constrained_delimiter) {
+            if !check_constrained_opening_boundary(absolute_pos, state.input.as_bytes(), state.outer_constrained_delimiter, b'#') {
                 tracing::debug!(absolute_pos, prev_byte = ?state.input.as_bytes().get(absolute_pos.saturating_sub(1)), "Invalid word boundary for constrained highlight");
                 return Err("invalid word boundary for constrained highlight");
             }
@@ -2948,7 +2927,7 @@ peg::parser! {
         closing_pos:position!()
         constrained_boundary_follow('#')
         {?
-            let valid_opening = check_constrained_opening_boundary(boundary_pos, state.input.as_bytes(), state.outer_constrained_delimiter);
+            let valid_opening = check_constrained_opening_boundary(boundary_pos, state.input.as_bytes(), state.outer_constrained_delimiter, b'#');
             let valid_closing = check_constrained_closing_at_end(closing_pos, state.input.len(), state.outer_constrained_delimiter);
 
             if valid_opening && valid_closing { Ok(()) } else { Err("invalid word boundary") }

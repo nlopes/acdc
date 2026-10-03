@@ -1,0 +1,56 @@
+= opening-contexts(1)
+:doctype: manpage
+:manmanual: Formatting boundaries
+:mansource: acdc
+:revdate: 2026-10-03
+:prepared: pass:q[<del>*Bold*</del>]
+:raw: pass:[<del>*literal*</del>]
+
+== Name
+opening-contexts - constrained punctuation in substitution contexts
+
+== Description
+
+P01 pass:q[<del>*bold _italic_*</del>].
+
+P02 pass:q[<del>_italic *bold*_</del>].
+
+P03 pass:q[<del>`Code`</del> <del>#Mark#</del>].
+
+P04 pass:q[&*Bold* <_Italic_ >`Code` =#Mark#].
+
+P05 pass:c,q[>*Bold* <_Italic_ &`Code`].
+
+P06 pass:q,c[>*Bold* <_Italic_ &`Code`].
+
+P07 {prepared} {raw}.
+
+[subs="-quotes"]
+P08 =*literal* >_literal_ &`literal`.
+
+[subs="quotes"]
+P09 >*Bold* <_Italic_ &`Code`.
+
+[subs="quotes,specialchars"]
+P10 >*Bold* <_Italic_ &`Code`.
+
+[source,text,subs="+quotes"]
+----
+P11 >*Bold* =_Italic_ &`Code`.
+----
+
+[literal,subs="+quotes"]
+P12 >*Bold* =_Italic_ &`Code`.
+
+* P13 =*Bold* >_Italic_ &`Code`.
+
+|===
+|P14 =*Bold* >_Italic_ &`Code`.
+|===
+
+.P15 >*Bold* =_Italic_ &`Code`.
+paragraph.
+
+=== P16 >*Bold* =_Italic_ &`Code`.
+
+end.

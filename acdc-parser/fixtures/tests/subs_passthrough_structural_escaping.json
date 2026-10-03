@@ -534,11 +534,59 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Escaped single markup: +<mark>*bold*</mark>+",
+          "value": "Escaped single markup: +<mark>",
           "location": [
             {
               "line": 19,
               "col": 1
+            },
+            {
+              "line": 19,
+              "col": 31
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "bold",
+              "location": [
+                {
+                  "line": 19,
+                  "col": 33
+                },
+                {
+                  "line": 19,
+                  "col": 36
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 19,
+              "col": 32
+            },
+            {
+              "line": 19,
+              "col": 37
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "</mark>+",
+          "location": [
+            {
+              "line": 19,
+              "col": 38
             },
             {
               "line": 19,
@@ -656,7 +704,7 @@
         {
           "name": "text",
           "type": "string",
-          "value": "<mark>*bold*</mark>",
+          "value": "<mark>",
           "location": [
             {
               "line": 23,
@@ -664,7 +712,55 @@
             },
             {
               "line": 23,
-              "col": 45
+              "col": 33
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "bold",
+              "location": [
+                {
+                  "line": 23,
+                  "col": 35
+                },
+                {
+                  "line": 23,
+                  "col": 38
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 23,
+              "col": 34
+            },
+            {
+              "line": 23,
+              "col": 39
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "</mark>",
+          "location": [
+            {
+              "line": 23,
+              "col": 40
+            },
+            {
+              "line": 23,
+              "col": 46
             }
           ]
         },

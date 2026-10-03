@@ -1,7 +1,7 @@
 #set document(
-  title: "Passthrough substitutions",
+  title: "opening-bounds(1)",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Passthrough substitutions]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[opening-bounds(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -73,118 +73,76 @@
 #set page(numbering: "1")
 #counter(page).update(1)
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("Passthrough substitutions")]
+#text(size: 22pt, weight: "bold")[#text("opening-bounds(1)")]
 ]
 #v(1em)
 
-#heading(level: 1)[#text("Structural forms")] <id-5f7374727563747572616c5f666f726d73>
+#heading(level: 1)[#text("Name")] <id-5f6e616d65>
 
-#text("Single: ")#text("<tag> {name} *bold* (C) -> ... --")
+#text("opening-bounds - constrained opening punctuation")
 
-#text("Double: ")#text("<tag> {name} *bold* (C) -> ... --")
+#heading(level: 1)[#text("Description")] <id-5f6465736372697074696f6e>
 
-#text("Triple: ")#text("#pagebreak() {name} *bold* (C)")
+#text("P01 =")#strong[#text("Bold")]#text(" =")#emph[#text("Italic")]#text(" =")#raw("Code")#text(" =")#highlight[#text("Mark")]#text(".")
 
-#text("Single numeric: ")#text("&#169;")
+#text("P02 %")#strong[#text("Bold")]#text(" %")#emph[#text("Italic")]#text(" %")#raw("Code")#text(" %")#highlight[#text("Mark")]#text(".")
 
-#text("Double numeric: ")#text("&#169;")
+#text("P03 $")#strong[#text("Bold")]#text(" $")#emph[#text("Italic")]#text(" $")#raw("Code")#text(" $")#highlight[#text("Mark")]#text(".")
 
-#text("Triple numeric: ")#text("©")
+#text("P04 @")#strong[#text("Bold")]#text(" @")#emph[#text("Italic")]#text(" @")#raw("Code")#text(" @")#highlight[#text("Mark")]#text(".")
 
-#text("Escaped single plain: +plain+")
+#text("P05 <")#strong[#text("Bold")]#text(" <")#emph[#text("Italic")]#text(" <")#raw("Code")#text(" <")#highlight[#text("Mark")]#text(".")
 
-#text("Escaped double plain: ")#text("+plain")#text("+")
+#text("P06 >")#strong[#text("Bold")]#text(" >")#emph[#text("Italic")]#text(" >")#raw("Code")#text(" >")#highlight[#text("Mark")]#text(".")
 
-#text("Escaped triple plain: ")#text("++plain")#text("++")
+#text("P07 &")#strong[#text("Bold")]#text(" &")#emph[#text("Italic")]#text(" &")#raw("Code")#text(" &#Mark#.")
 
-#text("Escaped single formatting: +")#strong[#text("bold")]#text("+")
+#text("P08 :*Bold* :_Italic_ :`Code` :#Mark#.")
 
-#text("Escaped double formatting: ")#text("+*bold*")#text("+")
+#text("P09 ;*Bold* ;_Italic_ ;`Code` ;#Mark#.")
 
-#text("Escaped triple formatting: ")#text("+")#strong[#text("bold")]#text("+")
+#text("P10 }*Bold* }_Italic_ }`Code` }#Mark#.")
 
-#text("Escaped single attribute: +Ada+")
+#text("P11 A*Bold* A_Italic_ A`Code` A#Mark#.")
 
-#text("Escaped double attribute: ")#text("+{name}")#text("+")
+#text("P12 1*Bold* 1_Italic_ 1`Code` 1#Mark#.")
 
-#text("Escaped triple attribute: ")#text("+")#text("Ada")#text("+")
+#text("P13 _*Bold*.")
 
-#text("Escaped single markup: +<mark>")#strong[#text("bold")]#text("</mark>+")
+#text("P14 café*Bold* café_Italic_ café`Code` café#Mark#.")
 
-#text("Escaped double markup: ")#text("+<mark>*bold*</mark>")#text("+")
+#text("P15 日*Bold* 日_Italic_ 日`Code` 日#Mark#.")
 
-#text("Escaped triple markup: ")#text("+")#text("<mark>")#strong[#text("bold")]#text("</mark>")#text("+")
+#text("P16 «")#strong[#text("Bold")]#text("» «")#emph[#text("Italic")]#text("» «")#raw("Code")#text("» «")#highlight[#text("Mark")]#text("».")
 
-#text("Escaped single numeric: +©+")
+#text("P17 =")#text("*")#text("Bold* =")#text("_")#text("Italic_ =")#text("`")#text("Code` =")#text("#")#text("Mark#.")
 
-#text("Escaped double numeric: ")#text("+&#169;")#text("+")
+#text("P18 &amp;*Bold* *_Italic_ *`Code` &gt;#Mark#.")
 
-#text("Escaped triple numeric: ")#text("+")#text("©+++")
+#text("P19 :")#strong[#text("Bold")]#text(" ;")#emph[#text("Italic")]#text(" }")#raw("Code")#text(" _")#highlight[#text("Mark")]#text(".")
 
-#text("Macros disabled escaped single: \\+")#strong[#text("bold")]#text("+")
+#text("P20 [")#strong[#text("Bold")]#text("] (")#strong[#text("Bold")]#text(") {")#strong[#text("Bold")]#text("} /")#strong[#text("Bold")]#text("/ |")#strong[#text("Bold")]#text("|.")
 
-#text("Macros disabled escaped double: \\++")#strong[#text("bold")]#text("++")
+#text("P21 <del>")#strong[#text("Bold")]#text("</del> <del>")#emph[#text("Italic")]#text("</del> <del>")#raw("Code")#text("</del> <del>")#highlight[#text("Mark")]#text("</del>.")
 
-#text("Macros disabled escaped triple: \\+++")#strong[#text("bold")]#text("+++")
+#text("P22 ⇒")#strong[#text("Bold")]#text(".")
 
-#text("Macro without substitutions: ")#text("literal #pagebreak() {name} *bold* (C)")
+#text("P23 =")#strong[#text("Bold")]#text(" =")#metadata(none)<id-636f6465>#raw("Code")#text(".")
 
-#text("Numeric reference without substitutions: ")#text("©")
+#text("P24 =* leading* =_ trailing _ =` trailing ` =# leading#.")
 
-#heading(level: 1)[#text("Individual substitutions")] <id-5f696e646976696475616c5f737562737469747574696f6e73>
+#text("P25 ")#text("$*literal*")#text(" ")#text("@_literal_")#text(" ")#text("<`literal`")#text(".")
 
-#text("Special characters: ")#text("<tag> & &#169;")
+#text("P26 =*Bold*word.")
 
-#text("Attributes: ")#text("Ada")#text(" *bold*")
+#text("P27 _`Code`.")
 
-#text("Quotes: ")#strong[#text("bold")]#text(" ")#emph[#text("italic")]#text(" ")#highlight[#text("marked")]
+#text("P28 _#Mark#.")
 
-#text("Replacements: ")#text("© -> … — ")
+#text("P29 =")#raw("Code")#strong[#text("End")]#text(".")
 
-#text("Macros: ")#link("https://example.com")[#text("https://example.com")]
+#text("P30 =_Italic_1.")
 
-#text("Post replacements: ")#text("first")#linebreak()#text("second")
+#text("P31 =`Code`_.")
 
-#heading(level: 1)[#text("Substitution groups")] <id-5f737562737469747574696f6e5f67726f757073>
-
-#text("Normal: ")#text("<tag> ")#text("Ada")#text(" ")#strong[#text("bold")]#text(" © ")#link("https://example.com")[#text("https://example.com")]
-
-#text("Normal quotes before attributes: ")#text("*attribute bold*")
-
-#text("Verbatim: ")#text("<tag> {name} *bold* (C) <1>")
-
-#heading(level: 1)[#text("Ordered substitutions")] <id-5f6f7264657265645f737562737469747574696f6e73>
-
-#text("Quotes then attributes: ")#text("*attribute bold*")
-
-#text("Attributes then quotes: ")#strong[#text("attribute bold")]
-
-#text("Replacements then attributes: ")#text("(C)")
-
-#text("Attributes then replacements: ")#text("©")
-
-#text("Macros then attributes: ")#text("https://example.com")
-
-#text("Attributes then macros: ")#link("https://example.com")[#text("https://example.com")]
-
-#text("Special chars then attributes markup: ")#text("<mark>inserted</mark>")
-
-#text("Attributes then special chars markup: ")#text("&lt;mark&gt;inserted&lt;/mark&gt;")
-
-#text("Special chars then attributes numeric: ")#text("&#169;")
-
-#text("Attributes then special chars numeric: ")#text("&amp;#169;")
-
-#text("Post then attributes: ")#text("first ")#text("+")#text(" second")
-
-#text("Attributes then post: ")#text("first")#linebreak()#text("second")
-
-#heading(level: 1)[#text("Escaping")] <id-5f6573636170696e67>
-
-#text("No substitutions: ")#text("\\*literal*")
-
-#text("Quotes: ")#text("*")#text("literal*")
-
-#text("Replacement escape: ")#text("\\->")
-
-#text("Typst source stays text: ")#text("literal #pagebreak() ) \\ \" #raw(\"injected\")")
+#text("P32 =#Mark#日.")

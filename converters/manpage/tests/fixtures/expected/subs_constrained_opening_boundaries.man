@@ -1,0 +1,81 @@
+'\" t
+.\"     Title: opening-contexts
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-03
+.\"    Manual: Formatting boundaries
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "OPENING\-CONTEXTS" "1" "2026-10-03" "acdc" "Formatting boundaries"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+opening\-contexts \- constrained punctuation in substitution contexts
+.SH "DESCRIPTION"
+.sp
+P01 <del>\fBbold \fIitalic\fP\fP</del>\&.
+.sp
+P02 <del>\fIitalic *bold*\fP</del>\&.
+.sp
+P03 <del>\f(CRCode\fP</del> <del>\fBMark\fP</del>\&.
+.sp
+P04 &\fBBold\fP <\fIItalic\fP >\f(CRCode\fP =\fBMark\fP\&.
+.sp
+P05 >\fBBold\fP <\fIItalic\fP &\f(CRCode\fP\&.
+.sp
+P06 >\fBBold\fP <\fIItalic\fP &\f(CRCode\fP\&.
+.sp
+P07 <del>\fBBold\fP</del> <del>*literal*</del>\&.
+.sp
+P08 =*literal* >_literal_ &`literal`.
+.sp
+P09 >\fBBold\fP <\fIItalic\fP &\f(CRCode\fP\&.
+.sp
+P10 >\fBBold\fP <\fIItalic\fP &\f(CRCode\fP\&.
+.EX
+P11 >\fBBold\fP =\fIItalic\fP &\f(CRCode\fP\&.
+.EE
+.sp
+.if n .RS 4
+.nf
+.fam C
+P12 >\fBBold\fP =\fIItalic\fP &\f(CRCode\fP\&.
+.fam
+.fi
+.if n .RE
+.RS 0
+.IP \(bu 2
+P13 =\fBBold\fP >\fIItalic\fP &\f(CRCode\fP\&.
+.RE
+.TS
+allbox tab(:);
+ltx.
+T{
+P14 =\fBBold\fP >\fIItalic\fP &\f(CRCode\fP\&.
+T}
+.TE
+.sp
+\fBP15 >\fBBold\fP =\fIItalic\fP &\f(CRCode\fP\&.\fP
+.br
+paragraph.
+.SS "P16 >Bold =Italic &Code."
+.sp
+end.

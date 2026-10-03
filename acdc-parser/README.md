@@ -152,6 +152,19 @@ produce output markup and apply the escaping required by their output format.
 The parser may use explicit `backend` conditions, but must not render an attribute
 to HTML or roff to decide its value.
 
+Constrained formatting uses source punctuation as its boundary. For example,
+`>*Bold*` produces a literal `>` followed by bold text; each converter escapes
+the `>` for its output format. Asciidoctor's default substitutions escape it
+before formatting and therefore leave the asterisks literal. In `pass:q[...]`,
+both processors recognize formatting directly after a raw tag. Literal entity
+references such as `&gt;*Bold*` retain their semicolon boundary and need doubled
+formatting marks.
+
+This follows [SDR-5's decision on special characters](https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/sdrs/sdr-005-formal-grammar-for-inline-syntax.adoc#special-characters),
+which assigns their encoding to converters after parsing. SDR-5 does not
+prescribe this exact example; the behavior follows acdc's boundary rule and
+deferred escaping.
+
 Formatted attributes retain AsciiDoc source text
 and supported inline parsing profiles. For example, `:value: pass:q[*Bold*]`
 retains `*Bold*` for `text()`, JSON, conditions, and include paths, while its

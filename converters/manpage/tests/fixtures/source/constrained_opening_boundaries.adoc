@@ -1,0 +1,74 @@
+= opening-bounds(1)
+:doctype: manpage
+:manmanual: Formatting boundaries
+:mansource: acdc
+:revdate: 2026-10-03
+
+== Name
+opening-bounds - constrained opening punctuation
+
+== Description
+
+P01 =*Bold* =_Italic_ =`Code` =#Mark#.
+
+P02 %*Bold* %_Italic_ %`Code` %#Mark#.
+
+P03 $*Bold* $_Italic_ $`Code` $#Mark#.
+
+P04 @*Bold* @_Italic_ @`Code` @#Mark#.
+
+P05 <*Bold* <_Italic_ <`Code` <#Mark#.
+
+P06 >*Bold* >_Italic_ >`Code` >#Mark#.
+
+P07 &*Bold* &_Italic_ &`Code` &#Mark#.
+
+P08 :*Bold* :_Italic_ :`Code` :#Mark#.
+
+P09 ;*Bold* ;_Italic_ ;`Code` ;#Mark#.
+
+P10 }*Bold* }_Italic_ }`Code` }#Mark#.
+
+P11 A*Bold* A_Italic_ A`Code` A#Mark#.
+
+P12 1*Bold* 1_Italic_ 1`Code` 1#Mark#.
+
+P13 _*Bold*.
+
+P14 café*Bold* café_Italic_ café`Code` café#Mark#.
+
+P15 日*Bold* 日_Italic_ 日`Code` 日#Mark#.
+
+P16 «*Bold*» «_Italic_» «`Code`» «#Mark#».
+
+P17 =\*Bold* =\_Italic_ =\`Code` =\#Mark#.
+
+P18 &amp;*Bold* &#42;_Italic_ &#x2a;`Code` &gt;#Mark#.
+
+P19 :**Bold** ;__Italic__ }``Code`` _##Mark##.
+
+P20 [*Bold*] (*Bold*) {*Bold*} /*Bold*/ |*Bold*|.
+
+P21 <del>*Bold*</del> <del>_Italic_</del> <del>`Code`</del> <del>#Mark#</del>.
+
+P22 =>*Bold*.
+
+P23 =[.role]*Bold* =[#code]`Code`.
+
+P24 =* leading* =_ trailing _ =` trailing ` =# leading#.
+
+P25 pass:[$*literal*] +@_literal_+ +<`literal`+.
+
+P26 =*Bold*word.
+
+P27 _`Code`.
+
+P28 _#Mark#.
+
+P29 =`Code`**End**.
+
+P30 =_Italic_1.
+
+P31 =`Code`_.
+
+P32 =#Mark#日.

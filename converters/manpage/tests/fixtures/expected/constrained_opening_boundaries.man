@@ -1,0 +1,96 @@
+'\" t
+.\"     Title: opening-bounds
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-03
+.\"    Manual: Formatting boundaries
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "OPENING\-BOUNDS" "1" "2026-10-03" "acdc" "Formatting boundaries"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+opening\-bounds \- constrained opening punctuation
+.SH "DESCRIPTION"
+.sp
+P01 =\fBBold\fP =\fIItalic\fP =\f(CRCode\fP =\fBMark\fP\&.
+.sp
+P02 %\fBBold\fP %\fIItalic\fP %\f(CRCode\fP %\fBMark\fP\&.
+.sp
+P03 $\fBBold\fP $\fIItalic\fP $\f(CRCode\fP $\fBMark\fP\&.
+.sp
+P04 @\fBBold\fP @\fIItalic\fP @\f(CRCode\fP @\fBMark\fP\&.
+.sp
+P05 <\fBBold\fP <\fIItalic\fP <\f(CRCode\fP <\fBMark\fP\&.
+.sp
+P06 >\fBBold\fP >\fIItalic\fP >\f(CRCode\fP >\fBMark\fP\&.
+.sp
+P07 &\fBBold\fP &\fIItalic\fP &\f(CRCode\fP &#Mark#.
+.sp
+P08 :*Bold* :_Italic_ :`Code` :#Mark#.
+.sp
+P09 ;*Bold* ;_Italic_ ;`Code` ;#Mark#.
+.sp
+P10 }*Bold* }_Italic_ }`Code` }#Mark#.
+.sp
+P11 A*Bold* A_Italic_ A`Code` A#Mark#.
+.sp
+P12 1*Bold* 1_Italic_ 1`Code` 1#Mark#.
+.sp
+P13 _*Bold*.
+.sp
+P14 café*Bold* café_Italic_ café`Code` café#Mark#.
+.sp
+P15 日*Bold* 日_Italic_ 日`Code` 日#Mark#.
+.sp
+P16 «\fBBold\fP» «\fIItalic\fP» «\f(CRCode\fP» «\fBMark\fP».
+.sp
+P17 =*Bold* =_Italic_ =`Code` =#Mark#.
+.sp
+P18 &amp;*Bold* &#42;_Italic_ &#x2a;`Code` &gt;#Mark#.
+.sp
+P19 :\fBBold\fP ;\fIItalic\fP }\f(CRCode\fP _\fBMark\fP\&.
+.sp
+P20 [\fBBold\fP] (\fBBold\fP) {\fBBold\fP} /\fBBold\fP/ |\fBBold\fP|.
+.sp
+P21 <del>\fBBold\fP</del> <del>\fIItalic\fP</del> <del>\f(CRCode\fP</del> <del>\fBMark\fP</del>.
+.sp
+P22 \(rA\fBBold\fP\&.
+.sp
+P23 =\fBBold\fP =\f(CRCode\fP\&.
+.sp
+P24 =* leading* =_ trailing _ =` trailing ` =# leading#.
+.sp
+P25 $*literal* @_literal_ <`literal`\&.
+.sp
+P26 =*Bold*word.
+.sp
+P27 _`Code`.
+.sp
+P28 _#Mark#.
+.sp
+P29 =\f(CRCode\fP\fBEnd\fP\&.
+.sp
+P30 =_Italic_1.
+.sp
+P31 =`Code`_.
+.sp
+P32 =#Mark#日.
