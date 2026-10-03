@@ -31,7 +31,7 @@
 comprehensive\-test \- exercise all manpage converter features
 .SH "SYNOPSIS"
 .sp
-\fBcomprehensive\-test\fP [\fB\-v\fP|\fB\-\-verbose\fP] [\fB\-o\fP \fIFILE\fP] \fIINPUT\fP.\|.\|.
+\fBcomprehensive\-test\fP [\fB\-v\fP|\fB\-\-verbose\fP] [\fB\-o\fP \fIFILE\fP] \fIINPUT\fP\&.\|.\|.
 .SH "DESCRIPTION"
 .sp
 This is the main description paragraph.

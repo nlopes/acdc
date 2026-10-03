@@ -7,7 +7,7 @@ use std::io::{BufWriter, Write};
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::effective_subs_flags;
 use acdc_converters_core::{
-    TraversalContext, inlines_to_string,
+    InlineTextTransform, TraversalContext, inlines_to_string,
     visitor::{Visitor, WritableVisitor},
 };
 use acdc_parser::{BlockMetadata, CaptionKind, InlineNode, Paragraph};
@@ -207,9 +207,12 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         let separator = "─"
             .repeat(20)
             .with(self.processor.appearance.colors.label_listing);
+        let content = extract_plain_text(
+            &para.content,
+            crate::delimited::code_text_transform(self.processor),
+        );
         let w = self.writer_mut();
         writeln!(w, "{separator}")?;
-        let content = extract_plain_text(&para.content);
         write!(w, "{content}")?;
         if !content.ends_with('\n') {
             writeln!(w)?;
@@ -297,8 +300,11 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     }
 }
 
-fn extract_plain_text(inlines: &[InlineNode]) -> String {
-    crate::extract_inline_text(inlines, "\n")
+fn extract_plain_text(inlines: &[InlineNode], transform: InlineTextTransform<'_, '_>) -> String {
+    transform
+        .line_break("\n")
+        .decode_char_refs(true)
+        .to_string(inlines)
 }
 
 #[cfg(test)]
@@ -337,19 +343,28 @@ mod tests {
     #[test]
     fn extract_bold_text_from_literal() {
         let inlines = [bold(vec![plain("important")])];
-        assert_eq!(extract_plain_text(&inlines), "important");
+        assert_eq!(
+            extract_plain_text(&inlines, InlineTextTransform::default()),
+            "important"
+        );
     }
 
     #[test]
     fn extract_nested_formatting() {
         let inlines = [bold(vec![italic(vec![plain("nested")])])];
-        assert_eq!(extract_plain_text(&inlines), "nested");
+        assert_eq!(
+            extract_plain_text(&inlines, InlineTextTransform::default()),
+            "nested"
+        );
     }
 
     #[test]
     fn extract_mixed_plain_and_formatted() {
         let inlines = [plain("before "), bold(vec![plain("bold")]), plain(" after")];
-        assert_eq!(extract_plain_text(&inlines), "before bold after");
+        assert_eq!(
+            extract_plain_text(&inlines, InlineTextTransform::default()),
+            "before bold after"
+        );
     }
 
     #[test]
@@ -361,6 +376,9 @@ mod tests {
             }),
             plain("second"),
         ];
-        assert_eq!(extract_plain_text(&inlines), "first\nsecond");
+        assert_eq!(
+            extract_plain_text(&inlines, InlineTextTransform::default()),
+            "first\nsecond"
+        );
     }
 }

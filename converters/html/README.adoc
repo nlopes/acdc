@@ -566,6 +566,11 @@ Verbatim blocks (listing, literal) support the `subs` attribute:
 - `subs=+attributes` - enable attribute expansion
 - `subs=+replacements` - enable typography (arrows, dashes, ellipsis)
 
+Enabled typography also applies before syntax highlighting, retaining token colors
+and enabled links. Formatting backslashes such as `\*literal\*` remain literal
+when quote substitutions are disabled. Raw passthroughs use their own substitution
+settings and are not processed again by the surrounding block.
+
 === Icon support
 
 When `:icons: font` is set, icon macros render as https://fontawesome.com/[Font Awesome] `<i>` elements. By default the icon uses `fa-solid`, but you can select a specific FA family with the `set` (or `pack`) attribute on the macro:

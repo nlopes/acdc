@@ -1,0 +1,72 @@
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>code-typography - typography enabled in code</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_synopsis">Synopsis</h2>
+<p><strong>code-typography</strong></p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_description">Description</h2>
+<div class="listing-block">
+<pre class="highlight"><code><span style="color:#323232;">C01 © ® ™ … don’t word—​word → ← ⇒ ⇐</span></code></pre>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code><span style="color:#323232;">C02 (C) (R) (TM) ... word--word -&gt; &lt;- =&gt; &lt;=
+</span><span style="color:#323232;">C03 \*bold\* \_italic\_ \`code\` \#mark\# \^up\^ \~down\~</span></code></pre>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code><span style="color:#323232;">C04 © (R) (TM) ®
+</span><span style="color:#323232;">C05 \*raw\* \-> &#169; (C)
+</span><span style="color:#323232;">C06 © <a id="code-target"></a><a href="https://example.org/type">Next &#174;</a> ™
+</span><span style="color:#323232;">C07 \*literal\* <a href="https://example.org/escape">\*label\* \^up\^ \__down__</a> ©
+</span><span style="color:#323232;">C08 © <a href="#code-target">Target &#174;</a> ™
+</span><span style="color:#323232;">C09 © Term (R) ™</span></code></pre>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code><span style="color:#323232;">C10 ® (C) ™</span></code></pre>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code><span style="color:#323232;">C11 <strong>&#169;</strong> <em>&#174;</em> <code>&#8482;</code>
+</span><span style="color:#323232;">C12 *literal* ©</span></code></pre>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code><span style="color:#323232;">C13 <strong>(C)</strong> *literal*</span></code></pre>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code><span style="color:#323232;">C14 (C) \*literal\* pass:r[(R)]</span></code></pre>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>C15 &#169; (R) \*literal\* word&#8212;&#8203;word</pre>
+</div>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>C16 &#169; (R) <a href="https://example.org/literal">Literal &#8482;</a></pre>
+</div>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code class="language-rust" data-lang="rust"><span style="font-style:italic;color:#969896;">// C17 © &quot;string&quot; → next  <i class="conum" data-value="1"></i><b>(1)</b>
+</span><span style="font-style:italic;color:#969896;">// C18 \*literal\* ® </span> <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>First callout.</li>
+<li>Second callout.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-xml" data-lang="xml"><span style="color:#323232;">&lt;</span><span style="color:#63a35c;">tag</span><span style="color:#323232;">&gt;C19 © </span><span style="background-color:#f5f5f5;font-weight:bold;color:#b52a1d;">&amp;</span><span style="color:#323232;"> literal&lt;/</span><span style="color:#63a35c;">tag</span><span style="color:#323232;">&gt; </span><span style="font-style:italic;color:#969896;">&lt;!---→</span> <i class="conum" data-value="1"></i><b>(1)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>XML callout.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code><span style="color:#323232;">C20 <strong>&#169;</strong>(R)<a href="https://example.org/mixed">Next &#8482;</a>…
+</span><span style="color:#323232;">C21 — <strong>middle</strong> — </span></code></pre>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code><span style="color:#323232;">C22 -- © ... ®
+</span><span style="color:#323232;">C23 &#169;<a id="after-raw"></a><a href="https://example.org/after">After</a></span></code></pre>
+</div>
+<p>See <a href="#code-target">code</a> and <a href="#after-raw">raw</a>.</p>
+</section>

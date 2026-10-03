@@ -98,5 +98,7 @@ terminal_fixture_catalog!([
     (index_terms_table_header, false),
     (subs_replacements_disabled, false),
     (subs_replacements_explicit, false),
+    (subs_code_typography, true),
+    (subs_code_typography_highlighting, true, requires: feature = "highlighting"),
     (subs_hardbreak_dialogue, false),
 ]);

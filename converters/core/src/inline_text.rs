@@ -167,7 +167,7 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
 
     fn write_text<W: Write + ?Sized>(self, w: &mut W, text: &str) -> fmt::Result {
         if self.typography == Typography::All {
-            w.write_str(&Replacements::unicode().transform(text, self.text_boundaries))
+            w.write_str(&Replacements::unicode().transform_verbatim(text, self.text_boundaries))
         } else {
             w.write_str(text)
         }
@@ -298,6 +298,17 @@ pub fn inlines_to_string(inlines: &[InlineNode<'_>]) -> String {
 #[cfg(test)]
 mod tests {
     use acdc_parser::{Block, InlineNode, LineBreak, Location, Options, Plain, parse};
+
+    #[test]
+    fn rendered_code_typography_preserves_unrelated_escapes() {
+        let nodes = [plain(r"(C) \(R) \*literal\* \->")];
+        let source = super::InlineTextTransform::default();
+        assert_eq!(source.to_string(&nodes), r"(C) \(R) \*literal\* \->");
+        assert_eq!(
+            source.rendered_replacements(true).to_string(&nodes),
+            r"© (R) \*literal\* ->"
+        );
+    }
 
     #[test]
     fn deferred_typography_preserves_semantic_source_and_own_escapes()

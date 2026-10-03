@@ -27,7 +27,7 @@ use crate::{
     manpage_visitor::TextCase,
 };
 
-fn replacements() -> Replacements<'static> {
+pub(crate) fn replacements() -> Replacements<'static> {
     let mut replacements = Replacements::unicode();
     replacements.em_dash_spaced = " \u{2014} ";
     replacements.em_dash_word_bounded = "\u{2014}";

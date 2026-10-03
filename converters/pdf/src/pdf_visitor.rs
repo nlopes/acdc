@@ -4,7 +4,7 @@ use std::{
 };
 
 #[cfg(feature = "pre-spec-subs")]
-use acdc_converters_core::substitutions::{apply_replacements, effective_subs_flags};
+use acdc_converters_core::substitutions::{SubsFlags, apply_replacements, effective_subs_flags};
 use acdc_converters_core::{
     Diagnostics, Doctype, InlineTextTransform, TraversalContext,
     code::{
@@ -1994,7 +1994,13 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 index_count,
                 &protected,
                 |text| {
-                    apply_replacements(text, subs, &Replacements::unicode(), TextBoundaries::BOTH)
+                    if subs.contains(SubsFlags::REPLACEMENTS) {
+                        Cow::Owned(
+                            Replacements::unicode().transform_verbatim(text, TextBoundaries::BOTH),
+                        )
+                    } else {
+                        Cow::Borrowed(text)
+                    }
                 },
             );
         }

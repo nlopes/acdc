@@ -5,11 +5,12 @@
 use std::{borrow::Cow, io::Write};
 
 #[cfg(feature = "pre-spec-subs")]
-use acdc_converters_core::substitutions::effective_subs_flags;
+use acdc_converters_core::substitutions::{SubsFlags, effective_subs_flags};
 use acdc_converters_core::{
     TraversalContext,
     code::{default_line_comment, detect_language},
     shows_block_title,
+    substitutions::TextBoundaries,
     visitor::WritableVisitor,
 };
 use acdc_parser::{
@@ -211,44 +212,74 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         source_metadata: Option<&BlockMetadata<'_>>,
     ) -> Result<(), Error> {
         let comment_prefix = default_line_comment(source_metadata.and_then(detect_language));
-        for (index, node) in nodes.iter().enumerate() {
-            if source_metadata.is_some()
-                && let InlineNode::VerbatimText(verbatim) = node
-            {
-                let mut content = Cow::Borrowed(verbatim.content);
-                if index
-                    .checked_sub(1)
-                    .is_some_and(|previous| is_xml_callout(nodes, previous))
+        let previous_boundaries = self.text_boundaries;
+        let result = (|| {
+            for (index, node) in nodes.iter().enumerate() {
+                self.text_boundaries = TextBoundaries::new(
+                    previous_boundaries.at_paragraph_start() && index == 0,
+                    previous_boundaries.at_paragraph_end() && index + 1 == nodes.len(),
+                );
+                if source_metadata.is_some()
+                    && let InlineNode::VerbatimText(verbatim) = node
                 {
-                    content =
-                        Cow::Owned(content.strip_prefix("-->").unwrap_or(&content).to_string());
-                }
-                if index
-                    .checked_add(1)
-                    .is_some_and(|next| matches!(nodes.get(next), Some(InlineNode::CalloutRef(_))))
-                {
-                    content = if index
-                        .checked_add(1)
-                        .is_some_and(|next| is_xml_callout(nodes, next))
+                    let mut content = Cow::Borrowed(verbatim.content);
+                    if index
+                        .checked_sub(1)
+                        .is_some_and(|previous| is_xml_callout(nodes, previous))
                     {
-                        Cow::Owned(content.strip_suffix("<!--").unwrap_or(&content).to_string())
-                    } else {
-                        strip_callout_guard(content, comment_prefix)
-                    };
+                        content =
+                            Cow::Owned(content.strip_prefix("-->").unwrap_or(&content).to_string());
+                    }
+                    if index.checked_add(1).is_some_and(|next| {
+                        matches!(nodes.get(next), Some(InlineNode::CalloutRef(_)))
+                    }) {
+                        content = if index
+                            .checked_add(1)
+                            .is_some_and(|next| is_xml_callout(nodes, next))
+                        {
+                            Cow::Owned(content.strip_suffix("<!--").unwrap_or(&content).to_string())
+                        } else {
+                            strip_callout_guard(content, comment_prefix)
+                        };
+                    }
+                    self.write_verbatim_text(&content)?;
+                } else if source_metadata.is_some()
+                    && let InlineNode::CalloutRef(callout) = node
+                {
+                    write!(self.writer_mut(), "\\fB({})\\fP", callout.number)?;
+                } else {
+                    self.write_verbatim_node(traversal, node)?;
                 }
-                write!(
-                    self.writer_mut(),
-                    "{}",
-                    manify(&content, EscapeMode::Preserve)
-                )?;
-            } else if source_metadata.is_some()
-                && let InlineNode::CalloutRef(callout) = node
-            {
-                write!(self.writer_mut(), "\\fB({})\\fP", callout.number)?;
-            } else {
-                self.write_verbatim_node(traversal, node)?;
             }
-        }
+            Ok(())
+        })();
+        self.text_boundaries = previous_boundaries;
+        result
+    }
+
+    fn write_verbatim_text(&mut self, text: &str) -> Result<(), Error> {
+        #[cfg(feature = "pre-spec-subs")]
+        let text = if self
+            .processor
+            .current_subs
+            .get()
+            .contains(SubsFlags::REPLACEMENTS)
+        {
+            let mut replaced =
+                crate::inlines::replacements().transform_verbatim(text, self.text_boundaries);
+            // Like prose, omit the space generated after a final em dash while
+            // retaining authored trailing whitespace in verbatim content.
+            if self.text_boundaries.at_paragraph_end()
+                && text.ends_with("--")
+                && replaced.ends_with(' ')
+            {
+                replaced.pop();
+            }
+            Cow::Owned(replaced)
+        } else {
+            Cow::Borrowed(text)
+        };
+        write!(self.writer_mut(), "{}", manify(&text, EscapeMode::Preserve))?;
         Ok(())
     }
 
@@ -258,6 +289,8 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         node: &InlineNode<'_>,
     ) -> Result<(), Error> {
         let (prefix, content, suffix) = match node {
+            InlineNode::PlainText(text) => return self.write_verbatim_text(text.content),
+            InlineNode::VerbatimText(text) => return self.write_verbatim_text(text.content),
             InlineNode::BoldText(text) => ("\\fB", text.content.as_slice(), "\\fP"),
             InlineNode::ItalicText(text) => ("\\fI", text.content.as_slice(), "\\fP"),
             InlineNode::MonospaceText(text) => ("\\f(CR", text.content.as_slice(), "\\fP"),
@@ -266,18 +299,14 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             InlineNode::SubscriptText(text) => ("", text.content.as_slice(), ""),
             InlineNode::CurvedQuotationText(text) => ("\\(lq", text.content.as_slice(), "\\(rq"),
             InlineNode::CurvedApostropheText(text) => ("\\(oq", text.content.as_slice(), "\\(cq"),
-            InlineNode::Macro(InlineMacro::IndexTerm(term))
-                if term.is_visible() && contains_link(node) =>
-            {
+            InlineNode::Macro(InlineMacro::IndexTerm(term)) if term.is_visible() => {
                 ("", term.term(), "")
             }
             InlineNode::Macro(_) if contains_link(node) => {
                 // Link commands need their renderer; flattening keeps only the label.
                 return self.render_inline_node(traversal, node);
             }
-            InlineNode::PlainText(_)
-            | InlineNode::RawText(_)
-            | InlineNode::VerbatimText(_)
+            InlineNode::RawText(_)
             | InlineNode::StandaloneCurvedApostrophe(_)
             | InlineNode::LineBreak(_)
             | InlineNode::InlineAnchor(_)

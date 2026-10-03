@@ -221,7 +221,13 @@ pub fn apply_replacements<'a>(
     text_boundaries: TextBoundaries,
 ) -> Cow<'a, str> {
     if subs.contains(SubsFlags::REPLACEMENTS) {
-        Cow::Owned(replacements.transform(text, text_boundaries))
+        // Quote substitutions own formatting escapes. Replacements in code or
+        // quotes-disabled prose must leave those escapes intact.
+        Cow::Owned(if subs.contains(SubsFlags::QUOTES) {
+            replacements.transform(text, text_boundaries)
+        } else {
+            replacements.transform_verbatim(text, text_boundaries)
+        })
     } else {
         Cow::Borrowed(text)
     }
@@ -240,7 +246,13 @@ const ESCAPED_TRADEMARK: &str = "\u{E000}TRADEMARK\u{E000}";
 const ESCAPED_COPYRIGHT: &str = "\u{E000}COPYRIGHT\u{E000}";
 const ESCAPED_REGISTERED: &str = "\u{E000}REGISTERED\u{E000}";
 
-fn protect_replacement_escapes(text: &str, include_arrows: bool) -> Cow<'_, str> {
+/// Protect escaped typography patterns until [`restore_escaped_patterns`] runs.
+///
+/// Formatting escapes remain unchanged. `include_arrows` selects whether arrow
+/// escapes participate. Callers that leave arrows literal also retain their
+/// backslashes.
+#[must_use]
+pub fn protect_replacement_escapes(text: &str, include_arrows: bool) -> Cow<'_, str> {
     let mut text = Cow::Borrowed(text);
     if !text.contains('\\') {
         return text;
@@ -495,6 +507,14 @@ impl Replacements<'_> {
     #[must_use]
     pub fn transform(&self, text: &str, text_boundaries: TextBoundaries) -> String {
         let text = strip_backslash_escapes(text);
+        let text = self.apply(&text, text_boundaries);
+        restore_escaped_patterns(&text)
+    }
+
+    /// Apply typography without removing unrelated formatting escapes in code.
+    #[must_use]
+    pub fn transform_verbatim(&self, text: &str, text_boundaries: TextBoundaries) -> String {
+        let text = protect_replacement_escapes(text, true);
         let text = self.apply(&text, text_boundaries);
         restore_escaped_patterns(&text)
     }
@@ -817,6 +837,29 @@ mod tests {
 
     // --- apply_replacements tests ---
 
+    #[cfg(feature = "pre-spec-subs")]
+    #[test]
+    fn replacements_leave_formatting_escapes_to_quotes() {
+        assert_eq!(
+            apply_replacements(
+                r"(C) \*literal\*",
+                SubsFlags::REPLACEMENTS,
+                &UNICODE,
+                TextBoundaries::BOTH
+            ),
+            r"© \*literal\*"
+        );
+        assert_eq!(
+            apply_replacements(
+                r"(C) \*literal\*",
+                SubsFlags::REPLACEMENTS | SubsFlags::QUOTES,
+                &UNICODE,
+                TextBoundaries::BOTH
+            ),
+            "© *literal*"
+        );
+    }
+
     const UNICODE: Replacements<'static> = Replacements::unicode();
 
     #[test]
@@ -1008,6 +1051,25 @@ mod tests {
         assert_eq!(
             UNICODE.apply("plain text", TextBoundaries::BOTH),
             "plain text"
+        );
+    }
+
+    #[test]
+    fn verbatim_replacements_preserve_formatting_escapes() {
+        assert_eq!(
+            UNICODE.transform_verbatim(
+                r"(C) \(R) \(TM) \... word\--word \-> \<- \=> \<= \*bold\* \_italic\_ \`code\` \#mark\# \^up\^ \~down\~",
+                TextBoundaries::BOTH,
+            ),
+            r"© (R) (TM) ... word--word -> <- => <= \*bold\* \_italic\_ \`code\` \#mark\# \^up\^ \~down\~"
+        );
+        assert_eq!(
+            UNICODE.transform_verbatim("-- word --", TextBoundaries::NONE),
+            "-- word --"
+        );
+        assert_eq!(
+            UNICODE.transform_verbatim("-- word --", TextBoundaries::BOTH),
+            "\u{2009}—\u{2009}word\u{2009}—\u{2009}"
         );
     }
 

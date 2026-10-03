@@ -2,6 +2,59 @@ use acdc_parser::{Block, InlineNode, Options, parse};
 
 type Error = Box<dyn std::error::Error>;
 
+#[test]
+fn default_literal_paragraph_keeps_formatting_escapes() -> Result<(), Error> {
+    let text = r"\*literal\* \^up^ \~down~ \__italic__";
+    let parsed = parse(&format!("[literal]\n{text}\n"), &Options::default())?;
+    let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+        return Err("expected literal paragraph".into());
+    };
+    let [InlineNode::PlainText(plain)] = paragraph.content.as_slice() else {
+        return Err("expected one literal fragment".into());
+    };
+    assert_eq!(plain.content, text);
+    Ok(())
+}
+
+#[cfg(feature = "pre-spec-subs")]
+#[test]
+fn quotes_disabled_preserves_formatting_escapes_and_source_spans() -> Result<(), Error> {
+    use acdc_parser::InlineMacro;
+
+    let text = r"\*bold\* \_italic\_ \`code\` \#mark\# \^up\^ \~down\~ \**bold** \__italic__ \``code`` \##mark## \&";
+    for body in [text.to_string(), format!("https://example.org[{text}]")] {
+        for style in ["", "literal,"] {
+            let source = format!("[{style}subs=\"+macros,-quotes\"]\n{body}\n");
+            let parsed = parse(&source, &Options::default())?;
+            let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+                return Err("expected one paragraph".into());
+            };
+            let nodes = match paragraph.content.as_slice() {
+                [InlineNode::Macro(InlineMacro::Link(link))] => &link.text,
+                [InlineNode::Macro(InlineMacro::Url(url))] => &url.text,
+                _ => &paragraph.content,
+            };
+            let mut actual = String::new();
+            for node in nodes {
+                let InlineNode::PlainText(plain) = node else {
+                    return Err(format!(
+                        "expected literal text with quotes disabled: {source}: {node:?}"
+                    )
+                    .into());
+                };
+                actual.push_str(plain.content);
+                let span = &plain.location;
+                assert_eq!(
+                    source.get(span.absolute_start..=span.absolute_end),
+                    Some(plain.content)
+                );
+            }
+            assert_eq!(actual, text, "{source}");
+        }
+    }
+    Ok(())
+}
+
 // Snapshots record locations, but this asserts that dedenting display text does
 // not also shorten the original inclusive source span.
 #[cfg(feature = "pre-spec-subs")]

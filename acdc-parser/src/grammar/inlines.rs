@@ -1355,7 +1355,7 @@ peg::parser! {
         /// Only matches when there's a complete pattern (content with no spaces
         /// followed by closing marker).
         rule escaped_superscript_subscript() -> InlineNode<'input>
-        = check_catalog_escape() "\\" content:escaped_super_sub_pattern() {
+        = check_catalog_escape() check_quotes() "\\" content:escaped_super_sub_pattern() {
             InlineNode::PlainText(Plain {
                 content,
                 location: state.create_location(span_start + state.inline_ctx.offset, span_end + state.inline_ctx.offset),
@@ -1475,7 +1475,9 @@ peg::parser! {
 
         /// Non-macro patterns that can be escaped with a backslash.
         rule escapable_pattern() -> &'input str
-        =
+        = check_quotes() content:(
+        // Formatting escapes belong to quote substitution. Code and labels
+        // with quotes disabled must retain the complete authored text.
         // Attribute escapes are consumed by the attribute stage, not formatting.
         // Unconstrained formatting: match entire span including content and closing marker
         // \**not bold** -> **not bold**
@@ -1495,6 +1497,7 @@ peg::parser! {
         // Constrained formatting markers and other single escapable chars
         // Note: ^ and ~ are NOT included here - they require complete patterns above
         / c:$(['*' | '_' | '#' | '`' | '&']) { c }
+        ) { content }
 
         /// Match escaped syntax without consuming - for use in negative lookaheads.
         rule escaped_syntax_match() -> ()
@@ -1505,7 +1508,7 @@ peg::parser! {
 
         /// Match escapable patterns without consuming
         rule escapable_pattern_match() -> ()
-        =
+        = check_quotes() (
         // Unconstrained formatting: match entire span
         "**" (!"**" [_])* "**"
         / "__" (!("__" !['_']) [_])* "__"
@@ -1517,6 +1520,7 @@ peg::parser! {
         / "~" [^'~' | ' ' | '\t' | '\n']+ "~"
         // Single escapable chars (excluding ^ and ~ which need complete patterns)
         / ['*' | '_' | '#' | '`' | '&'] {}
+        )
 
         rule footnote() -> InlineNode<'input>
         = footnote_match:footnote_match()

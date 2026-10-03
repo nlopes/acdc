@@ -12,6 +12,65 @@ use acdc_converters_pdf::{PdfOptions, Processor};
 type Error = Box<dyn std::error::Error>;
 
 #[test]
+#[cfg(feature = "pre-spec-subs")]
+fn code_typography_preserves_escapes_and_pdf_navigation() -> Result<(), Error> {
+    let actual = render_input(
+        "= Code\n\n[subs=\"+replacements,+macros\"]\n----\n(C) \\(R) \\*literal\\* pass:r[\\(TM)] anchor:target[]https://example.org/type[Next \\*label\\*]\n----",
+    )?;
+    let control = render_input(
+        "= Code\n\n[subs=\"+macros\"]\n----\n© (R) \\*literal\\* pass:[(TM)] anchor:target[]https://example.org/type[Next \\*label\\*]\n----",
+    )?;
+    assert!(actual.extract_text(&[1])?.contains(r"\*literal\*"));
+    assert!(actual.extract_text(&[1])?.contains(r"Next \*label\*"));
+    let origin = text_origin(&actual, 1, r"Next \*label\*")?;
+    let expected = text_origin(&control, 1, r"Next \*label\*")?;
+    assert!((origin.0 - expected.0).abs() < 0.01 && (origin.1 - expected.1).abs() < 0.01);
+    let links = external_link_rects(&actual, 1)?;
+    let expected_links = external_link_rects(&control, 1)?;
+    let ([(uri, rectangle)], [(_, expected_rectangle)]) =
+        (links.as_slice(), expected_links.as_slice())
+    else {
+        return Err("expected one URI annotation".into());
+    };
+    assert_eq!(uri, "https://example.org/type");
+    assert!(
+        rectangle
+            .iter()
+            .zip(expected_rectangle)
+            .all(|(actual, expected)| (actual - expected).abs() < 0.01)
+    );
+    let targets = named_destinations(&actual)?;
+    let expected_targets = named_destinations(&control)?;
+    let target = resolve_destination(
+        &actual,
+        &targets,
+        *targets.get("target").ok_or("missing target")?,
+    )?
+    .as_array()?;
+    let expected_target = resolve_destination(
+        &control,
+        &expected_targets,
+        *expected_targets
+            .get("target")
+            .ok_or("missing control target")?,
+    )?
+    .as_array()?;
+    for (actual, expected) in target
+        .get(2..4)
+        .ok_or("missing target coordinates")?
+        .iter()
+        .zip(
+            expected_target
+                .get(2..4)
+                .ok_or("missing control coordinates")?,
+        )
+    {
+        assert!((actual.as_float()? - expected.as_float()?).abs() < 0.01);
+    }
+    Ok(())
+}
+
+#[test]
 fn deferred_typography_keeps_pdf_link_and_anchor_positions() -> Result<(), Error> {
     for body in [
         "`{value}anchor:target[]https://example.org/type[Next]`.",

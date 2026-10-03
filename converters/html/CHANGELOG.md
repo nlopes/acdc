@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `[subs="+replacements"]` applies typography to ordinary highlighted code,
+  including symbols, arrows, and dashes. Code and link labels retain formatting
+  backslashes when quote substitutions are disabled, matching Asciidoctor.
 - Typography enabled by `pass:r[...]` or `pass:normal[...]` survives syntax
   highlighting, including document attribute values and adjacent code links.
   Escaped symbols stay literal and unrelated formatting escapes remain intact.

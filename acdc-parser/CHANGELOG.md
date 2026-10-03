@@ -57,6 +57,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Formatting backslashes remain literal when quote substitutions are disabled,
+  including literal paragraphs and enabled code link labels. This matches
+  Asciidoctor and retains their complete source spans.
 - Constrained bold, italic, code, and highlight spans work after punctuation
   such as `=`, `%`, `$`, and `@`, and inside raw passthrough tags. Parsing uses
   source characters before output escaping, so `>*Bold*` becomes bold in acdc

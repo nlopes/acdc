@@ -131,6 +131,14 @@ acdc deliberately honors the quoted operand in every output format.
 Backslashes inside these values remain literal; they do not escape a closing quote.
 Unquoted number, boolean, and arithmetic comparisons retain their existing behavior.
 
+== Formatting escapes
+
+Formatting escapes belong to quote substitution. With quotes disabled, code and
+link labels retain backslashes such as `\*literal\*`, even when replacements
+are enabled. A replacement escape such as `\(C)` still displays literal `(C)`.
+This follows SDR-5's separation of parsing and conversion: the parser retains
+inactive syntax, and converters apply enabled typography.
+
 == Escaped attribute references
 
 When attribute substitutions are enabled, `\{name}`, `{name\}`, and `\{name\}` all produce the literal text `{name}`.

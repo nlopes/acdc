@@ -1,0 +1,114 @@
+'\" t
+.\"     Title: code-typography
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-03
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "CODE\-TYPOGRAPHY" "1" "2026-10-03" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+code\-typography \- typography enabled in code
+.SH "SYNOPSIS"
+.sp
+\fBcode\-typography\fP
+.SH "DESCRIPTION"
+.EX
+C01 \(co \(rg \(tm .\|.\|. don\(cqt word\(emword \(-> \(<- \(rA \(lA
+.EE
+.EX
+C02 (C) (R) (TM) ... word\-\-word \-> <\- => <=
+C03 \e*bold\e* \e_italic\e_ \e`code\e` \e#mark\e# \e^up\e^ \e~down\e~
+.EE
+.EX
+C04 \(co (R) (TM) \(rg
+C05 \e*raw\e* \e\-> \(co (C)
+C06 \(co \c
+.URL "https://example.org/type" "Next \(rg" "\c"
+ \(tm
+C07 \e*literal\e* \c
+.URL "https://example.org/escape" "\e*label\e* \e^up\e^ \e__down__" "\c"
+ \(co
+C08 \(co Target \(rg \(tm
+C09 \(co Term (R) \(tm
+.EE
+.EX
+C10 \(rg (C) \(tm
+.EE
+.EX
+C11 \fB\(co\fP \fI\(rg\fP \f(CR\(tm\fP
+C12 *literal* \(co
+.EE
+.EX
+C13 \fB(C)\fP *literal*
+.EE
+.EX
+C14 (C) \e*literal\e* pass:r[(R)]
+.EE
+.sp
+.if n .RS 4
+.nf
+.fam C
+C15 \(co (R) \e*literal\e* word\(emword
+.fam
+.fi
+.if n .RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+C16 \(co (R) \c
+.URL "https://example.org/literal" "Literal \(tm" "\c"
+.fam
+.fi
+.if n .RE
+.EX
+// C17 \(co "string" \(-> next \fB(1)\fP
+// C18 \e*literal\e* \(rg \fB(2)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+First callout.
+.IP \fB(2)\fP 4
+Second callout.
+.RE
+.EX
+<tag>C19 \(co & literal</tag> \fB(1)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+XML callout.
+.RE
+.EX
+C20 \fB\(co\fP(R)\c
+.URL "https://example.org/mixed" "Next \(tm" "\c"
+\&.\|.\|.
+C21 \(em \fBmiddle\fP \(em
+.EE
+.EX
+C22 \-\- \(co \&... \(rg
+C23 \(co\c
+.URL "https://example.org/after" "After" "\c"
+.EE
+.sp
+See code and raw\&.

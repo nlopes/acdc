@@ -525,7 +525,9 @@ pub(crate) fn render_preformatted_content(
     Ok(apply_source_line_options(&output, &options))
 }
 
-fn code_text_transform(processor: &Processor<'_>) -> InlineTextTransform<'static, 'static> {
+pub(crate) fn code_text_transform(
+    processor: &Processor<'_>,
+) -> InlineTextTransform<'static, 'static> {
     #[cfg(feature = "pre-spec-subs")]
     let replacements = processor
         .current_subs

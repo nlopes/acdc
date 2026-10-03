@@ -80,6 +80,13 @@ pub fn manify(text: &str, mode: EscapeMode) -> Cow<'_, str> {
                 at_line_start = false;
             }
 
+            // The Unicode replacement below expands an ellipsis to periods,
+            // which also need protection at the start of a roff input line.
+            '\u{2026}' if at_line_start => {
+                result.push_str("\\&…");
+                at_line_start = false;
+            }
+
             // Escape leading apostrophe (would be interpreted as macro)
             '\'' if at_line_start => {
                 result.push_str("\\&'");
@@ -320,6 +327,15 @@ mod tests {
     #[test]
     fn test_manify_leading_period() {
         assert_eq!(manify(".hidden", EscapeMode::Normalize), "\\&.hidden");
+    }
+
+    #[test]
+    fn manify_protects_replaced_ellipsis_at_line_start() {
+        assert_eq!(
+            manify("…\n…", EscapeMode::Preserve),
+            "\\&.\\|.\\|.\n\\&.\\|.\\|."
+        );
+        assert_eq!(manify("word…", EscapeMode::Preserve), "word.\\|.\\|.");
     }
 
     #[test]

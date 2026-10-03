@@ -52,8 +52,8 @@ use acdc_converters_core::{
     link::{autolink_fallback, link_fallback, mailto_fallback, mailto_target},
     media::resolve_target,
     substitutions::{
-        Replacements, TextBoundaries, apply_passthrough_replacements, restore_escaped_patterns,
-        strip_backslash_escapes,
+        Replacements, TextBoundaries, apply_passthrough_replacements, protect_replacement_escapes,
+        restore_escaped_patterns, strip_backslash_escapes,
     },
     visitor::{Visitor, WritableVisitor},
     xref::{XrefDisplay, interdocument_xref, resolve_xref},
@@ -1472,7 +1472,11 @@ fn substitution_text(
     // Strip backslash escapes first (before any other processing)
     // Only needed when replacements are applied (escape sequences only matter for replacements)
     let text = if should_apply_replacements {
-        strip_backslash_escapes(text)
+        if options.inlines_verbatim || !subs.contains(&Substitution::Quotes) {
+            protect_replacement_escapes(text, true).into_owned()
+        } else {
+            strip_backslash_escapes(text)
+        }
     } else {
         text.to_string()
     };

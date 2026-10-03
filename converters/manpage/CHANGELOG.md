@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `[subs="+replacements"]` applies typography in listing, source, and literal
+  blocks, including formatted text and enabled link labels. Formatting
+  backslashes remain when quote substitutions are disabled, matching
+  Asciidoctor. An ellipsis after a code link no longer becomes a roff command.
 - Typography enabled by `pass:r[...]` or `pass:normal[...]` renders in prose,
   code, and backtick spans, including prepared document attributes. Escaped
   symbols and unrelated formatting escapes remain literal. Unlike Asciidoctor's

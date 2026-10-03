@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Code with replacements enabled retains unrelated formatting backslashes,
+  including link labels, when quote substitutions are disabled. This matches
+  Asciidoctor's text behavior while preserving enabled typography and links.
+- Literal paragraphs use their enabled typography and independent passthrough
+  settings, matching listing blocks and Asciidoctor.
 - Typography enabled by `pass:r[...]` or `pass:normal[...]` renders in prose
   and code, including prepared document attributes and highlighted source.
   Escaped symbols and unrelated formatting escapes remain literal. Prepared

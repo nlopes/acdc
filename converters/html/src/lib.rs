@@ -7,6 +7,8 @@ use std::{
     rc::Rc,
 };
 
+#[cfg(feature = "highlighting")]
+use acdc_converters_core::substitutions::{Replacements, TextBoundaries};
 use acdc_converters_core::{
     BackendProfile, Converter, Diagnostics, Options, TraversalContext, WarningSource,
     visitor::Visitor, xref::XrefGuard,
@@ -906,6 +908,28 @@ fn capture_code_inlines<'a, W: std::io::Write>(
 }
 
 #[cfg(feature = "highlighting")]
+fn code_nodes_with_text<'a>(
+    inlines: &[InlineNode<'a>],
+    text: &'a [Option<String>],
+) -> Vec<InlineNode<'a>> {
+    inlines
+        .iter()
+        .zip(text)
+        .map(|(node, text)| {
+            text.as_ref().map_or_else(
+                || node.clone(),
+                |text| {
+                    InlineNode::VerbatimText(acdc_parser::Verbatim {
+                        content: text,
+                        location: node.location().clone(),
+                    })
+                },
+            )
+        })
+        .collect()
+}
+
+#[cfg(feature = "highlighting")]
 fn render_highlighted_code<'a, W: std::io::Write>(
     traversal: &mut TraversalContext<'a>,
     highlight_inlines: &[InlineNode<'_>],
@@ -914,22 +938,46 @@ fn render_highlighted_code<'a, W: std::io::Write>(
     subs: &[Substitution],
     options: syntax::HighlightOptions<'_>,
 ) -> Result<(), Error> {
+    // Replace ordinary text before highlighting, so token colors and captured
+    // macro offsets both refer to the text that will be displayed. Raw fragments
+    // and formatted labels retain their own rendering path in the capture step.
+    let typography = subs.contains(&Substitution::Replacements).then(|| {
+        highlight_inlines
+            .iter()
+            .enumerate()
+            .map(|(index, node)| {
+                let text = match node {
+                    InlineNode::PlainText(text) => text.content,
+                    InlineNode::VerbatimText(text) => text.content,
+                    InlineNode::RawText(_)
+                    | InlineNode::BoldText(_)
+                    | InlineNode::ItalicText(_)
+                    | InlineNode::MonospaceText(_)
+                    | InlineNode::HighlightText(_)
+                    | InlineNode::SubscriptText(_)
+                    | InlineNode::SuperscriptText(_)
+                    | InlineNode::CurvedQuotationText(_)
+                    | InlineNode::CurvedApostropheText(_)
+                    | InlineNode::StandaloneCurvedApostrophe(_)
+                    | InlineNode::LineBreak(_)
+                    | InlineNode::InlineAnchor(_)
+                    | InlineNode::Macro(_)
+                    | InlineNode::CalloutRef(_)
+                    | _ => return None,
+                };
+                Some(Replacements::unicode().transform_verbatim(
+                    text,
+                    TextBoundaries::new(index == 0, index + 1 == highlight_inlines.len()),
+                ))
+            })
+            .collect::<Vec<_>>()
+    });
+    let prepared = typography
+        .as_ref()
+        .map(|text| code_nodes_with_text(highlight_inlines, text));
+    let highlight_inlines = prepared.as_deref().unwrap_or(highlight_inlines);
     let (labels, links) = capture_code_inlines(traversal, highlight_inlines, visitor, subs)?;
-    let resolved = highlight_inlines
-        .iter()
-        .zip(&labels)
-        .map(|(node, label)| {
-            label.as_ref().map_or_else(
-                || node.clone(),
-                |label| {
-                    InlineNode::VerbatimText(acdc_parser::Verbatim {
-                        content: label,
-                        location: node.location().clone(),
-                    })
-                },
-            )
-        })
-        .collect::<Vec<_>>();
+    let resolved = code_nodes_with_text(highlight_inlines, &labels);
     let highlight_inlines = &resolved;
     let mut anchors = std::collections::BTreeMap::<usize, Vec<String>>::new();
     let mut line = 0;

@@ -57,7 +57,7 @@ P05 (C) (R) (TM) ... word\-\-word
 P06 (C) (R)
 .EE
 .EX
-P07 (C) (R) (TM) ... word\-\-word (C) (R) (TM)
+P07 (C) (R) (TM) ... word\-\-word \(co \(rg \(tm
 .EE
 .sp
 P08 \(co .\|.\|. don\(cqt word\(emword and (C).

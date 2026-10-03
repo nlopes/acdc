@@ -112,6 +112,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Enabled typography in code and quotes-disabled text retains unrelated
+  formatting backslashes, matching Asciidoctor. Escaped symbols and arrows stay
+  literal; source-text extraction remains unchanged.
 - Rendered plain-text output can apply `pass:r[...]` and `pass:normal[...]`
   typography while source-text reads remain unchanged. Escaped replacements
   stay literal, independently of surrounding replacement settings.

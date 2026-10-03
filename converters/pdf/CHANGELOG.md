@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Code and link labels with replacements enabled retain formatting backslashes
+  when quote substitutions are disabled, matching Asciidoctor PDF. Symbols still
+  render correctly and nearby link annotations and anchor positions stay aligned.
 - `pass:r[...]` and `pass:normal[...]` typography renders in code and backtick
   spans, including prepared document attributes. Escaped symbols stay literal;
   following links and anchor destinations retain their positions. Unlike

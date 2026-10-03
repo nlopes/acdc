@@ -12,6 +12,38 @@ type Error = Box<dyn std::error::Error>;
 
 #[cfg(feature = "pre-spec-subs")]
 #[test]
+fn code_typography_omits_generated_trailing_space() -> Result<(), Error> {
+    for (subs, input, expected) in [
+        ("+replacements", "Tail --", "Tail \\(em"),
+        ("+replacements", "Tail  --", "Tail  \\(em"),
+        ("+replacements", "Tail \\--", "Tail \\-\\-"),
+        ("-replacements", "Tail --", "Tail \\-\\-"),
+    ] {
+        let source = format!(
+            "= spaces(1)\n:doctype: manpage\n:revdate: 2026-10-03\n\n== Name\n\nspaces - whitespace in code\n\n== Description\n\n[subs=\"{subs}\"]\n----\n{input}\n----\n"
+        );
+        let parsed = parse(&source, &ParserOptions::default())?;
+        let processor = Processor::new(
+            ConverterOptions::builder().embedded(true).build(),
+            ParserOptions::builder(),
+        )?;
+        let mut output = Vec::new();
+        let mut warnings = Vec::new();
+        let warning_source = WarningSource::new("manpage");
+        let mut diagnostics = Diagnostics::new(&warning_source, &mut warnings);
+        processor.write_to(parsed.document(), &mut output, None, None, &mut diagnostics)?;
+        let output = String::from_utf8(output)?;
+        assert_eq!(
+            output.lines().find(|line| line.starts_with("Tail ")),
+            Some(expected),
+            "{source}"
+        );
+    }
+    Ok(())
+}
+
+#[cfg(feature = "pre-spec-subs")]
+#[test]
 fn verbatim_links_keep_roff_commands_outside_arguments() -> Result<(), Error> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/source/subs_verbatim_links_nested.adoc");

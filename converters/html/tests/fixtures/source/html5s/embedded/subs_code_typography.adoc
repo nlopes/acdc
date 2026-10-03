@@ -1,0 +1,89 @@
+= code-typography(1)
+:doctype: manpage
+:revdate: 2026-10-03
+:prepared: pass:r[\(C)]
+
+== Name
+
+code-typography - typography enabled in code
+
+== Synopsis
+
+*code-typography*
+
+== Description
+
+[subs="+replacements"]
+----
+C01 (C) (R) (TM) ... don't word--word -> <- => <=
+----
+
+[subs="+replacements"]
+----
+C02 \(C) \(R) \(TM) \... word\--word \-> \<- \=> \<=
+C03 \*bold\* \_italic\_ \`code\` \#mark\# \^up\^ \~down\~
+----
+
+[subs="+replacements,+macros"]
+----
+C04 (C) pass:r[\(R)] pass:[(TM)] (R)
+C05 pass:r[\*raw\* \->] pass:r[(C)] pass:[(C)]
+C06 (C) anchor:code-target[]https://example.org/type[Next (R)] (TM)
+C07 \*literal\* https://example.org/escape[\*label\* \^up\^ \__down__] (C)
+C08 (C) xref:code-target[Target (R)] (TM)
+C09 (C) ((Term (R))) (TM)
+----
+
+[subs="+attributes,+replacements,+macros"]
+----
+C10 (R) {prepared} (TM)
+----
+
+[subs="+quotes,+replacements"]
+----
+C11 *(C)* _(R)_ `(TM)`
+C12 \*literal\* (C)
+----
+
+[subs="+quotes"]
+----
+C13 *(C)* \*literal\*
+----
+
+----
+C14 (C) \*literal\* pass:r[(R)]
+----
+
+[literal,subs="+replacements"]
+C15 (C) \(R) \*literal\* word--word
+
+[literal,subs="+replacements,+macros"]
+C16 (C) pass:r[\(R)] https://example.org/literal[Literal (TM)]
+
+[source,rust,subs="+replacements"]
+----
+// C17 (C) "string" -> next <1>
+// C18 \*literal\* (R) <2>
+----
+<1> First callout.
+<2> Second callout.
+
+[source,xml,subs="+replacements"]
+----
+<tag>C19 (C) & literal</tag> <!--1-->
+----
+<1> XML callout.
+
+[subs="+replacements,+quotes,+macros"]
+----
+C20 *(C)*pass:r[\(R)]https://example.org/mixed[Next (TM)]...
+C21 -- *middle* --
+----
+
+[subs="+replacements,+macros"]
+----
+C22 pass:[--] (C) pass:r[\...] (R)
+C23 pass:r[(C)]anchor:after-raw[]https://example.org/after[After]
+----
+
+See <<code-target,code>> and <<after-raw,raw>>.
