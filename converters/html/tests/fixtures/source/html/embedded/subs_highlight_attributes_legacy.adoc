@@ -1,0 +1,27 @@
+= Highlight attributes
+:revdate: 2026-10-03
+:source-highlighter: syntect
+:acdc-index:
+:syntect-css: class
+:syntect-style: Solarized (dark)
+
+[[target]]
+== Target
+
+[source,rust,linenums,subs="+macros,+quotes,+replacements,+callouts"]
+----
+H01 let count = 1; indexterm2:[Visible (R)]
+H02 link:https://example.org/highlight[Before footnote:shared[Shared note.] after]
+H03 xref:target[Target footnote:shared[] end]
+H04 pass:r[(C)] ((Index label))
+H05 let value = 2; <1>
+----
+<1> Attached callout.
+
+[source,rust]
+----
+H06 footnote:[Disabled note.] indexterm2:[Disabled term]
+----
+
+[index]
+== Index

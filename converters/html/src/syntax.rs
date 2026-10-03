@@ -6,7 +6,8 @@
 //! - **Inline** (default): `<span style="color:#...">` — themes baked into HTML
 //! - **Class**: `<span class="syntax-keyword">` — themes applied via CSS classes
 //!
-//! The mode is controlled by the `:syntect-css:` document attribute.
+//! The mode is controlled by `:highlight-css:`. `syntect-css` is a
+//! `[deprecated]` compatibility alias.
 //!
 //! # Callout Handling
 //!

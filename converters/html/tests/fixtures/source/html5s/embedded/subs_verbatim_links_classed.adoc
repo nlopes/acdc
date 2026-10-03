@@ -1,6 +1,6 @@
 = Highlighted links
 :source-highlighter: rouge
-:syntect-css: class
+:highlight-css: class
 :acdc-index:
 
 [source,rust,linenums,highlight=2,subs=+macros]

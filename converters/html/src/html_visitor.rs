@@ -22,6 +22,11 @@ use acdc_parser::{
 
 use crate::{Error, HtmlVariant, Processor, RenderOptions, STYLESDIR_DEFAULT, docinfo::DocInfo};
 
+const DEPRECATED_HIGHLIGHT_ATTRIBUTES: [(&str, &str); 2] = [
+    ("syntect-css", "highlight-css"),
+    ("syntect-style", "highlight-style"),
+];
+
 fn link_css<W: Write>(
     writer: &mut W,
     attributes: &DocumentAttributes,
@@ -199,6 +204,8 @@ pub struct HtmlVisitor<'a, 'd, W: Write> {
     /// Resolved docinfo content for injection at head, header, and footer positions.
     docinfo: DocInfo,
     pub(crate) text_boundaries: TextBoundaries,
+    // Header, body and table-cell assignments share one warning per alias.
+    warned_highlight_aliases: [bool; DEPRECATED_HIGHLIGHT_ATTRIBUTES.len()],
 }
 
 impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
@@ -233,6 +240,22 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
             inline_link: None,
             docinfo,
             text_boundaries: TextBoundaries::BOTH,
+            warned_highlight_aliases: [false; DEPRECATED_HIGHLIGHT_ATTRIBUTES.len()],
+        }
+    }
+
+    fn warn_deprecated_highlight_attributes(&mut self, traversal: &TraversalContext<'a>) {
+        for ((alias, primary), warned) in DEPRECATED_HIGHLIGHT_ATTRIBUTES
+            .into_iter()
+            .zip(&mut self.warned_highlight_aliases)
+        {
+            if !*warned && traversal.is_explicit(alias) {
+                self.diagnostics.warn_with_advice(
+                    format!("attribute `{alias}` is deprecated"),
+                    format!("Use `{primary}` instead."),
+                );
+                *warned = true;
+            }
         }
     }
 
@@ -275,7 +298,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
     /// Emit syntax highlighting CSS in `<head>` when class-based mode is active.
     ///
     /// - Without `linkcss`: embeds CSS in a `<style>` block (default).
-    /// - With `linkcss`: emits a `<link>` to `{stylesdir}/acdc-syntect.css`.
+    /// - With `linkcss`: emits a `<link>` to `{stylesdir}/acdc-highlight.css`.
     #[cfg(feature = "highlighting")]
     fn maybe_emit_syntax_css(&mut self) -> Result<(), Error> {
         if self
@@ -304,7 +327,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
                         self.writer,
                         r#"<link rel="stylesheet" href="{}/{}">"#,
                         stylesdir.trim_end_matches('/'),
-                        crate::SYNTECT_STYLESHEET
+                        crate::HIGHLIGHT_STYLESHEET
                     )?;
                 } else if let Ok(css) = crate::syntax::highlight_css(&theme_name) {
                     writeln!(self.writer, "<style>\n{css}</style>")?;
@@ -625,11 +648,33 @@ impl<'a, W: Write> Visitor<'a> for HtmlVisitor<'a, '_, W> {
         Ok(())
     }
 
+    fn before_block(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        _block: &'a Block<'a>,
+    ) -> Result<(), Self::Error> {
+        // Cell headers initialize their scope without an attribute callback.
+        if traversal.is_nested_document() {
+            self.warn_deprecated_highlight_attributes(traversal);
+        }
+        Ok(())
+    }
+
+    fn visit_document_attribute(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        _attribute: &'a acdc_parser::DocumentAttribute<'a>,
+    ) -> Result<(), Self::Error> {
+        self.warn_deprecated_highlight_attributes(traversal);
+        Ok(())
+    }
+
     fn visit_document_start(
         &mut self,
-        _traversal: &mut TraversalContext<'a>,
+        traversal: &mut TraversalContext<'a>,
         doc: &'a Document<'a>,
     ) -> Result<(), Self::Error> {
+        self.warn_deprecated_highlight_attributes(traversal);
         // In embedded mode, skip the document frame (DOCTYPE, html, head, body)
         if self.render_options.embedded {
             return Ok(());

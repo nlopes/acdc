@@ -1,0 +1,16 @@
+= Deprecated highlight attributes
+:highlight-css: inline
+:highlight-style: InspiredGitHub
+:syntect-css!:
+
+Literal names: syntect-css and syntect-style.
+
+:syntect-style: Solarized (dark)
+:syntect-css: class
+
+First body assignment.
+
+:syntect-style!:
+:syntect-css: inline
+
+Repeated body assignments.

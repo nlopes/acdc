@@ -102,7 +102,28 @@ An absent or unset signifier keeps the number-only form.
 
 === Syntax Highlighting
 
-Source blocks with a language specified render with syntax highlighting (requires the `highlighting` feature flag). Uses syntect with inline CSS styles.
+Source blocks with a language specified render with syntax highlighting (requires the `highlighting` feature flag). Uses syntect with inline CSS styles by default.
+
+Set `:highlight-css: class`, or pass `-a highlight-css=class`, to emit `syntax-*`
+token classes instead. Standalone output supplies the highlighting stylesheet;
+in embedded output, the containing page supplies it. Asciidoctor's Rouge
+highlighter uses `:rouge-css: class` and different token classes.
+
+Set `:highlight-style: Solarized (dark)`, or pass
+`-a 'highlight-style=Solarized (dark)'`, to choose a theme. Without a theme,
+the default follows `:dark-mode:`.
+
+NOTE: [deprecated] `syntect-css` and `syntect-style` remain compatibility aliases.
+Use `highlight-css` and `highlight-style` in new documents. An explicit
+assignment to a primary name takes precedence over its alias, including an
+empty value or unset. Linked highlighting CSS now uses `acdc-highlight.css`
+with either pair.
+Update manually maintained links that use the previous `acdc-syntect.css`
+filename. The `syntax-*` token classes stay the same.
+
+Using either deprecated attribute emits a converter warning with its
+replacement, once per attribute per conversion. Explicit unsets and values
+overridden by the primary names also produce this warning.
 
 [source,console]
 ....
@@ -377,7 +398,7 @@ server-side, to keep that input away from the emulator.
 
 ==== Syntax highlighting CSS
 
-When using class-based syntax highlighting (`:syntect-css: class`), the highlighting CSS is handled the same way, embedded by default, or linked/written to disk when `:linkcss:` is set. See the <<Syntax Highlighting>> section above.
+When using class-based syntax highlighting (`:highlight-css: class`), the highlighting CSS is handled the same way, embedded by default, or linked/written to disk when `:linkcss:` is set. See the <<Syntax Highlighting>> section above.
 
 === Docinfo files
 
@@ -483,7 +504,7 @@ Most output is class-based and fully overridable by the seams above. A few eleme
 |===
 | Inline-styled | How to override
 
-| Syntax-highlighted code colours | Inline is the default; set `:syntect-css: class` to emit overridable `syntax-*` classes (plus a `<style>` block) instead.
+| Syntax-highlighted code colours | Inline is the default; set `:highlight-css: class` to emit overridable `syntax-*` classes (plus a `<style>` block) instead.
 | A recording's own colours | The cell palette, plus a replay container's background/foreground when the cast recorded a theme; use `!important`.
 | Table column and table widths | Per-table values (matches Asciidoctor); use `!important`.
 | Page break; image `align`/`float` (semantic backend) | Match Asciidoctor's output; use `!important`.

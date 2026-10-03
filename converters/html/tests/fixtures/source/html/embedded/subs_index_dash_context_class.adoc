@@ -5,7 +5,7 @@
 :revdate: 2026-10-03
 :acdc-index:
 :source-highlighter: syntect
-:syntect-css: class
+:highlight-css: class
 
 == NAME
 

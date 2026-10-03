@@ -1,0 +1,21 @@
+= Nested deprecated highlight attributes
+
+[cols="a",options="noheader"]
+|===
+|
+:syntect-css: class
+
+First cell.
+
+:syntect-css!:
+:syntect-style: InspiredGitHub
+
+Repeated assignments in the first cell.
+|
+:syntect-style!:
+:syntect-css: inline
+
+Second cell.
+|===
+
+Outer paragraph.

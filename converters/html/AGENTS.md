@@ -52,7 +52,7 @@ after_write() (post-conversion, file on disk)
 | `default_stylesheet_name(is_dark)` | Returns the filename for the current variant/dark-mode combination (e.g. `asciidoctor-light-mode.css`) |
 | `handle_copycss(doc, html_path)` | Post-conversion: writes built-in CSS to disk (or copies custom CSS) when `:linkcss:` + `:copycss:` |
 | `handle_copy_syntax_css(doc, html_path)` | Post-conversion: writes `acdc-highlight.css` when `:linkcss:` + class-based highlighting |
-| `resolve_highlight_settings(processor)` | Resolves theme name and inline/class mode from `:highlight-style:` and `:highlight-css:` attributes |
+| `resolve_highlight_settings(document_attributes)` | Resolves theme name and inline/class mode from `:highlight-style:` and `:highlight-css:`, with deprecated `syntect-*` aliases |
 | `document_attributes_defaults()` | Sets default values for `copycss`, `stylesdir`, `stylesheet`, `webfonts` |
 
 ## Attribute flow
@@ -72,7 +72,18 @@ Key attributes and their defaults:
 | `webfonts` | `""` (empty) | Empty = default Google Fonts. Non-empty = custom families. `false` = disabled |
 | `dark-mode` | not set | When present, use dark variant of built-in CSS + color-scheme meta |
 | `highlight-css` | not set | `class` = CSS class mode. Anything else = inline styles (default) |
-| `highlight-style` | auto | Theme name (giallo theme). Falls back to light/dark default based on `:dark-mode:` |
+| `highlight-style` | auto | Syntect theme name. Falls back to light/dark default based on `:dark-mode:` |
+| `syntect-css` | not set | [deprecated] Compatibility alias for `highlight-css` |
+| `syntect-style` | not set | [deprecated] Compatibility alias for `highlight-style` |
+
+An explicit primary assignment, including an empty value or unset, takes
+precedence over its alias. Body highlighting, head styles and CSS file writes
+use the same resolver. Both primary and deprecated names generate and link
+`acdc-highlight.css`; keep the `syntax-*` token classes compatible.
+Deprecated assignments emit structured warnings with replacement advice,
+once per alias per conversion, including unsets and overridden values.
+The visitor checks header, body and nested cell assignments, even when the
+highlighting feature is off; the `source-highlighter: syntect` value remains valid.
 
 ## Static CSS assets
 
@@ -87,7 +98,7 @@ Four built-in stylesheets in `static/`:
 
 All four are compiled into the binary via `include_str!` in `load_css()`. The filename constants are in `lib.rs` (`STYLESHEET_LIGHT_MODE`, `STYLESHEET_DARK_MODE`, etc.).
 
-The syntax highlighting stylesheet (`acdc-highlight.css`) is generated at runtime from giallo theme data — it has no static file.
+The syntax highlighting stylesheet (`acdc-highlight.css`) is generated at runtime from syntect theme data — it has no static file.
 
 ## Decision tree for stylesheet output
 

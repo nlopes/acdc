@@ -435,14 +435,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   without `linkcss`, the CSS file is read from disk and embedded in a `<style>` tag,
   replacing the default stylesheet. Falls back to the built-in CSS if the file cannot be
   read.
-- **CSS class-based syntax highlighting** — new `:syntect-css: class` document attribute
+- **CSS class-based syntax highlighting** — `:highlight-css: class` document attribute
   switches syntax highlighting from inline `style=` attributes to CSS class names
   (`class="syntax-*"`). A corresponding `<style>` block with theme CSS is automatically
   embedded in `<head>`. When `:linkcss:` is set, the CSS is instead linked via
-  `<link rel="stylesheet" href="{stylesdir}/acdc-syntect.css">` and written to disk
+  `<link rel="stylesheet" href="{stylesdir}/acdc-highlight.css">` and written to disk
   alongside the HTML output (analogous to asciidoctor's `asciidoctor-coderay.css`).
-  The `:syntect-style:` attribute allows overriding the default theme
-  (e.g., `:syntect-style: Solarized (dark)`). Inline mode remains the default
+  The `:highlight-style:` attribute allows overriding the default theme
+  (e.g., `:highlight-style: Solarized (dark)`). Inline mode remains the default
   for backward compatibility. ([#341])
 - **Book doctype parts rendering** — level 0 sections render as standalone
   `<h1 class="sect0">` (no wrapper div), matching asciidoctor. Body class now respects
@@ -707,6 +707,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `<strong>bold</strong>` instead of literal asterisks.
 
 ### Changed
+
+- Use `:highlight-css: class` for CSS class highlighting and `:highlight-style:`
+  for theme selection. `syntect-css` and `syntect-style` remain [deprecated]
+  compatibility aliases. Using either deprecated name produces a converter
+  warning with its replacement, once per attribute per conversion, including
+  unsets and values overridden by primary names. An explicit primary assignment
+  takes precedence,
+  including empty values and unsets; highlighting defaults are unchanged.
+  Linked highlighting CSS is now written and referenced as `acdc-highlight.css`
+  for both primary and deprecated options. Update manually maintained links
+  that use the previous `acdc-syntect.css` filename.
+  Embedded HTML still needs its containing page to supply the highlighting CSS.
+  Asciidoctor's Rouge highlighter uses `:rouge-css: class` and different token
+  classes; the `highlight-*` names are acdc HTML options.
 
 - **Breaking:** configure HTML conversion with the parser options builder and use
   the converter's validated parser options for parsing. Construction and HTML
