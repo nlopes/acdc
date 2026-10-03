@@ -1,5 +1,7 @@
 // (fixture_name, has_osc8_variant [, requires: <cfg>])
 terminal_fixture_catalog!([
+    (index_dash_context, false),
+    (subs_index_dash_context, true),
     (index_term_balanced_parentheses, false),
     (subs_index_term_balanced_parentheses, true),
     (deferred_typography, true),

@@ -1,0 +1,205 @@
+'\" t
+.\"     Title: index-dash-context
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-03
+.\"    Manual: Index context
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "INDEX\-DASH\-CONTEXT" "1" "2026-10-03" "acdc" "Index context"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+index\-dash\-context \- neighboring index text
+.SH "SYNOPSIS"
+.sp
+\fBindex\-dash\-context\fP
+.SH "DESCRIPTION"
+.sp
+P01 prefix\(emtail
+.sp
+P02 prefix\(emtail
+.sp
+P03 prefix\(emtail
+.sp
+P04 prefix\(emtail
+.sp
+P05 prefix\(emtail
+.sp
+P06 prefix\(emtail
+.sp
+P07 prefix\(emtail
+.sp
+P08 prefixbegin\(emendtail
+.sp
+P09 prefixbegin\(emendtail
+.sp
+P10 pré\(emété
+.sp
+P11 word_\(em_tail
+.sp
+P12 prefix\-\-tail
+.sp
+P13 prefix\-\-\-tail
+.sp
+P14 prefix\-\-\-tail
+.sp
+P15 prefix\-\-\-tail
+.sp
+P16 prefix\-\-
+.sp
+P17 \-\-tail
+.sp
+P18 prefix.\-\-tail
+.sp
+P19 prefix\-\-\&.tail
+.sp
+P20 prefix \(em tail
+.sp
+P21 prefix\-\-\fBbold\fP
+.sp
+P22 prefix\-\-tail
+.sp
+P23 prefix\(emtail
+.sp
+P24 prefix\-\-tail
+.sp
+P25 prefix\-\- \c
+.URL "https://next.example/prose" "Next" "\c"
+
+.sp
+\fBStandalone control\fP
+.br
+ \(em
+.sp
+\fBHidden standalone control\fP
+.br
+ \(em
+.sp
+P26 prefix\(emtail
+.sp
+P27 prefix\(emtail
+.sp
+P28 prefix\(emtail
+.sp
+P29 prefix \(em tail
+.sp
+P30 prefix \(em tail
+.sp
+P31 prefix  \(em  tail
+.sp
+P32 Sam\(cqs
+.sp
+P33 Sam\(cqs
+.sp
+P34 Sam\(cqs
+.sp
+P35 pré\(cqété
+.sp
+P36 3\&'4
+.sp
+P37 _\&'s
+.sp
+P38 Sam\&'s
+.sp
+P39 Sam\(cqs
+.sp
+P40 Sam\(cqs
+.sp
+P41 prefix\-\-tail
+.sp
+P42 prefix \-\- tail
+.sp
+P43 prefix \-\- tail
+.sp
+P44 prefix \-\- tail
+.sp
+P45 prefix \(em \fBBold\fP
+.sp
+P46 prefix\-\fB\-\fPtail
+.sp
+P47 prefix \(em \-\- \(em tail
+.sp
+P48 prefix \(em  \(em tail
+.sp
+P49 prefix \(em \c
+.URL "https://next.example/spaced" "Spaced" "\c"
+
+.sp
+P50 Sam\(cqs \c
+.URL "https://next.example/apostrophe" "Apostrophe" "\c"
+
+.SH "INDEX"
+.SS "@"
+.RS 4
+\&'
+.br
+\-
+.br
+ \(em
+.br
+\-\-
+.br
+\-\-\-
+.br
+\-\-end
+.br
+\-\-tail
+.br
+\e'
+.br
+\-\-
+.br
+.RE
+.SS "B"
+.RS 4
+begin
+.br
+begin\-\-
+.br
+.RE
+.SS "E"
+.RS 4
+end
+.br
+.RE
+.SS "H"
+.RS 4
+Hidden
+.br
+Hidden standalone
+.br
+.RE
+.SS "M"
+.RS 4
+m
+.br
+.RE
+.SS "P"
+.RS 4
+prefix\-\-
+.br
+.RE
+.SS "S"
+.RS 4
+Sam'
+.br
+.RE

@@ -392,12 +392,18 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             InlineNode::PlainText(text) => self.render_plain_text(text.content)?,
 
             InlineNode::RawText(text) => {
-                let replaced = apply_passthrough_replacements(
+                let mut replaced = apply_passthrough_replacements(
                     text.content,
                     &text.subs,
                     &replacements(),
                     self.text_boundaries,
                 );
+                if self.text_boundaries.at_paragraph_end()
+                    && text.content.ends_with("--")
+                    && replaced.ends_with(' ')
+                {
+                    replaced.to_mut().pop();
+                }
                 let decoded = if text.subs.last() == Some(&Substitution::SpecialChars) {
                     Cow::Borrowed(replaced.as_ref())
                 } else {

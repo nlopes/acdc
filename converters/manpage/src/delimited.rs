@@ -7,10 +7,9 @@ use std::{borrow::Cow, io::Write};
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::{SubsFlags, effective_subs_flags};
 use acdc_converters_core::{
-    TraversalContext,
+    InlineTextTransform, TraversalContext,
     code::{default_line_comment, detect_language},
     shows_block_title,
-    substitutions::TextBoundaries,
     visitor::WritableVisitor,
 };
 use acdc_parser::{
@@ -213,12 +212,20 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     ) -> Result<(), Error> {
         let comment_prefix = default_line_comment(source_metadata.and_then(detect_language));
         let previous_boundaries = self.text_boundaries;
+        #[cfg(feature = "pre-spec-subs")]
+        let replacements = self
+            .processor
+            .current_subs
+            .get()
+            .contains(SubsFlags::REPLACEMENTS);
+        #[cfg(not(feature = "pre-spec-subs"))]
+        let replacements = false;
+
         let result = (|| {
             for (index, node) in nodes.iter().enumerate() {
-                self.text_boundaries = TextBoundaries::new(
-                    previous_boundaries.at_paragraph_start() && index == 0,
-                    previous_boundaries.at_paragraph_end() && index + 1 == nodes.len(),
-                );
+                self.text_boundaries = previous_boundaries
+                    .with_ordinary_replacements(replacements)
+                    .for_inline(nodes, index);
                 if source_metadata.is_some()
                     && let InlineNode::VerbatimText(verbatim) = node
                 {
@@ -313,7 +320,12 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             | InlineNode::Macro(_)
             | InlineNode::CalloutRef(_)
             | _ => {
-                let text = extract_verbatim_text(std::slice::from_ref(node));
+                let text = InlineTextTransform::default()
+                    .line_break("\n")
+                    .decode_char_refs(true)
+                    .rendered_replacements(false)
+                    .text_boundaries(self.text_boundaries)
+                    .to_string(std::slice::from_ref(node));
                 write!(self.writer_mut(), "{}", manify(&text, EscapeMode::Preserve))?;
                 return Ok(());
             }

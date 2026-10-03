@@ -198,7 +198,7 @@ pub struct HtmlVisitor<'a, 'd, W: Write> {
     pub(crate) captured_raw_fragments: Option<Vec<String>>,
     /// Resolved docinfo content for injection at head, header, and footer positions.
     docinfo: DocInfo,
-    text_boundaries: TextBoundaries,
+    pub(crate) text_boundaries: TextBoundaries,
 }
 
 impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
@@ -1166,22 +1166,18 @@ impl<'a, W: Write> Visitor<'a> for HtmlVisitor<'a, '_, W> {
         nodes: &[InlineNode],
     ) -> Result<(), Self::Error> {
         let previous_boundaries = self.text_boundaries;
-        let last = nodes.len().saturating_sub(1);
         let result = (|| {
             for (index, node) in nodes.iter().enumerate() {
-                let follows_break =
-                    index > 0 && matches!(nodes.get(index - 1), Some(InlineNode::LineBreak(_)));
-                let precedes_break = matches!(nodes.get(index + 1), Some(InlineNode::LineBreak(_)));
-                self.text_boundaries = TextBoundaries::new(
-                    follows_break
-                        || (!self.render_options.in_inline_span
-                            && previous_boundaries.at_paragraph_start()
-                            && index == 0),
-                    precedes_break
-                        || (!self.render_options.in_inline_span
-                            && previous_boundaries.at_paragraph_end()
-                            && index == last),
-                );
+                let boundaries = if self.render_options.in_inline_span {
+                    TextBoundaries::NONE
+                } else {
+                    previous_boundaries
+                };
+                self.text_boundaries = boundaries
+                    .with_ordinary_replacements(
+                        self.current_subs.contains(&Substitution::Replacements),
+                    )
+                    .for_inline(nodes, index);
                 self.visit_inline_node(traversal, node)?;
             }
             self.close_inline_link()

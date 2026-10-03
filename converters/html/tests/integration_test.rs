@@ -231,6 +231,99 @@ fn highlighted_index_links_resolve_inside_code() -> Result<(), Error> {
 
 #[cfg(all(feature = "pre-spec-subs", feature = "highlighting"))]
 #[test]
+fn index_dash_context_keeps_highlighted_link_offsets_and_catalog_targets() -> Result<(), Error> {
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        for mode in ["inline", "class", "fallback"] {
+            let input = ":acdc-index:\n:source-highlighter: syntect\n\n\
+                [source,text,subs=\"specialchars,macros,replacements\"]\n----\n\
+                prefixindexterm:[Hidden]indexterm2:[--]tail link:https://next.example/context[Next]\n\
+                prefixindexterm2:[--]tail link:https://next.example/second[Second]\n\
+                prefixindexterm2:[--]link:https://next.example/tail[Tail]\n\
+                link:https://next.example/before[Before]indexterm2:[--]tail\n\
+                prefix indexterm2:[--] tail link:https://next.example/spaced[Spaced]\n\
+                prefix-indexterm2:[-]tail link:https://next.example/split[Split]\n\
+                indexterm2:[Sam']s link:https://next.example/apostrophe[Apostrophe]\n\
+                ----\n\n[index]\n== Index\n";
+            let attributes = match mode {
+                "class" => vec![("syntect-css", AttributeValue::String("class".into()))],
+                "fallback" => vec![(
+                    "syntect-style",
+                    AttributeValue::String("missing-theme".into()),
+                )],
+                _ => Vec::new(),
+            };
+            let output = convert_string_with_variant(input, &attributes, variant)?;
+            if mode == "class" {
+                assert!(output.contains("class=\"syntax-"), "{output}");
+            }
+            for (target, label) in [
+                ("context", "Next"),
+                ("second", "Second"),
+                ("tail", "Tail"),
+                ("before", "Before"),
+                ("spaced", "Spaced"),
+                ("split", "Split"),
+                ("apostrophe", "Apostrophe"),
+            ] {
+                let link = format!("<a href=\"https://next.example/{target}\">{label}</a>");
+                assert_eq!(output.matches(&link).count(), 1, "{mode}: {output}");
+                assert_eq!(output.matches(label).count(), 1, "{mode}: {output}");
+            }
+            assert!(output.contains("—\u{200b}"), "{mode}: {output}");
+            let (_, catalog) = output
+                .split_once("class=\"indexterms\"")
+                .ok_or("missing index catalog")?;
+            assert!(catalog.contains(">--\n"), "{mode}: {output}");
+            let mut in_tag = false;
+            let visible = output
+                .chars()
+                .filter(|character| match character {
+                    '<' => {
+                        in_tag = true;
+                        false
+                    }
+                    '>' => {
+                        in_tag = false;
+                        false
+                    }
+                    _ => !in_tag,
+                })
+                .collect::<String>();
+            assert!(visible.contains("prefix--Tail"), "{mode}: {output}");
+            assert!(visible.contains("Before--tail"), "{mode}: {output}");
+            assert!(
+                visible.contains("prefix\u{2009}—\u{2009}tail Spaced"),
+                "{mode}: {output}"
+            );
+            assert!(
+                visible.contains("prefix—\u{200b}tail Split"),
+                "{mode}: {output}"
+            );
+            assert!(visible.contains("Sam’s Apostrophe"), "{mode}: {output}");
+            for number in 0..8 {
+                assert_eq!(
+                    output
+                        .matches(&format!("id=\"_indexterm_{number}\""))
+                        .count(),
+                    1,
+                    "{mode}: {output}"
+                );
+                assert_eq!(
+                    catalog
+                        .matches(&format!("href=\"#_indexterm_{number}\""))
+                        .count(),
+                    1,
+                    "{mode}: {output}"
+                );
+            }
+            assert!(!output.contains("_indexterm_8"), "{mode}: {output}");
+        }
+    }
+    Ok(())
+}
+
+#[cfg(all(feature = "pre-spec-subs", feature = "highlighting"))]
+#[test]
 fn visible_index_typography_keeps_following_links_and_unique_targets() -> Result<(), Error> {
     for stem in [
         "subs_visible_index_typography_highlighting",

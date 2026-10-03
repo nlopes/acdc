@@ -963,6 +963,197 @@ fn index_inline_spacing_preserves_catalog_destinations() -> Result<(), Error> {
 }
 
 #[test]
+fn index_dash_context_keeps_catalog_labels_independent_of_body_context() -> Result<(), Error> {
+    for body in [
+        "indexterm:[pass:r[--]]",
+        "prefixindexterm:[pass:r[--]]tail",
+        "indexterm2:[pass:r[--]]tail",
+        "**prefix indexterm:[pass:r[--]] tail**",
+        "__prefix indexterm:[pass:r[--]] tail__",
+    ] {
+        let pdf = render_input(&format!(
+            "= Catalog context\n\n{body}\n\n<<<\n\n[index]\n== Index\n"
+        ))?;
+        let page = *pdf
+            .get_pages()
+            .keys()
+            .last()
+            .ok_or("missing catalog page")?;
+        let catalog = pdf.extract_text(&[page])?;
+        assert!(catalog.contains('—'), "{body}: {catalog}");
+        assert!(!catalog.contains("--"), "{body}: {catalog}");
+    }
+    Ok(())
+}
+
+#[test]
+#[cfg(feature = "pre-spec-subs")]
+fn index_dash_context_preserves_code_destinations_and_link_positions() -> Result<(), Error> {
+    let input = "= Context\n\n[source,text,subs=\"specialchars,macros,replacements\"]\n----\n\
+        12anchor:before[]indexterm2:[--]anchor:after[]34 link:https://next.example/context[Next]\n----\n";
+    let control = "= Context\n\n[source,text,subs=\"specialchars,macros,replacements\"]\n----\n\
+        12anchor:before[]—\u{200b}anchor:after[]34 link:https://next.example/context[Next]\n----\n";
+    let actual = render_input(input)?;
+    let expected = render_input(control)?;
+    let actual_links = external_link_rects(&actual, 1)?;
+    let expected_links = external_link_rects(&expected, 1)?;
+    let ([(uri, rectangle)], [(expected_uri, expected_rectangle)]) =
+        (actual_links.as_slice(), expected_links.as_slice())
+    else {
+        return Err("expected one URI annotation per document".into());
+    };
+    assert_eq!(uri, expected_uri);
+    for (position, control_position) in rectangle.iter().zip(expected_rectangle) {
+        assert!((position - control_position).abs() < 0.01);
+    }
+    let destinations = named_destinations(&actual)?;
+    let expected_destinations = named_destinations(&expected)?;
+    for id in ["before", "after"] {
+        let actual_target = *destinations.get(id).ok_or("missing destination")?;
+        let expected_target = *expected_destinations
+            .get(id)
+            .ok_or("missing control destination")?;
+        let actual_target =
+            resolve_destination(&actual, &destinations, actual_target)?.as_array()?;
+        let expected_target =
+            resolve_destination(&expected, &expected_destinations, expected_target)?.as_array()?;
+        for index in [2, 3] {
+            let position = actual_target
+                .get(index)
+                .ok_or("missing coordinate")?
+                .as_float()?;
+            let control_position = expected_target
+                .get(index)
+                .ok_or("missing control coordinate")?
+                .as_float()?;
+            assert!(
+                (position - control_position).abs() < 0.01,
+                "{id}: {position} != {control_position}"
+            );
+        }
+    }
+    Ok(())
+}
+
+#[test]
+#[cfg(feature = "pre-spec-subs")]
+fn index_replacement_context_keeps_code_anchor_ownership() -> Result<(), Error> {
+    for (body, control) in [
+        (
+            "12 anchor:before[]indexterm2:[--]anchor:after[] 34",
+            "12anchor:before[]\u{2009}—\u{2009}anchor:after[]34",
+        ),
+        (
+            "12anchor:before[]-indexterm2:[-]anchor:after[]34",
+            "12anchor:before[]—\u{200b}anchor:after[]34",
+        ),
+        (
+            "12anchor:before[]indexterm2:[-]-anchor:after[]34",
+            "12anchor:before[]—\u{200b}anchor:after[]34",
+        ),
+        (
+            "12anchor:before[]indexterm2:[']anchor:after[]s",
+            "12anchor:before[]’anchor:after[]s",
+        ),
+    ] {
+        let document = |text| {
+            format!(
+                "= Context\n\n[source,text,subs=\"specialchars,macros,replacements\"]\n----\n{text} link:https://next.example/ownership[Next]\n----\n"
+            )
+        };
+        let actual = render_input(&document(body))?;
+        let expected = render_input(&document(control))?;
+        let actual_destinations = named_destinations(&actual)?;
+        let expected_destinations = named_destinations(&expected)?;
+        for id in ["before", "after"] {
+            let actual_target = resolve_destination(
+                &actual,
+                &actual_destinations,
+                actual_destinations.get(id).ok_or("missing destination")?,
+            )?
+            .as_array()?;
+            let expected_target = resolve_destination(
+                &expected,
+                &expected_destinations,
+                expected_destinations
+                    .get(id)
+                    .ok_or("missing control destination")?,
+            )?
+            .as_array()?;
+            for coordinate in [2, 3] {
+                let actual_coordinate = actual_target
+                    .get(coordinate)
+                    .ok_or("missing coordinate")?
+                    .as_float()?;
+                let expected_coordinate = expected_target
+                    .get(coordinate)
+                    .ok_or("missing control coordinate")?
+                    .as_float()?;
+                assert!(
+                    (actual_coordinate - expected_coordinate).abs() < 0.01,
+                    "{body}: {id}"
+                );
+            }
+        }
+        let actual_links = external_link_rects(&actual, 1)?;
+        let expected_links = external_link_rects(&expected, 1)?;
+        let ([(uri, rectangle)], [(control_uri, control_rectangle)]) =
+            (actual_links.as_slice(), expected_links.as_slice())
+        else {
+            return Err("expected one URI annotation per document".into());
+        };
+        assert_eq!(uri, control_uri);
+        for (actual, expected) in rectangle.iter().zip(control_rectangle) {
+            assert!((actual - expected).abs() < 0.01, "{body}: following link");
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn index_dash_context_preserves_following_pdf_link_positions() -> Result<(), Error> {
+    // Digits avoid the kerning changes caused by a zero-width index marker.
+    for (marked, plain) in [
+        ("12indexterm2:[--]34", "12—\u{200b}34"),
+        ("12indexterm2:[--34]", "12—\u{200b}34"),
+        ("indexterm2:[12--]34", "12—\u{200b}34"),
+        ("12indexterm:[Hidden]indexterm2:[--]34", "12—\u{200b}34"),
+        (
+            "12anchor:before[]indexterm2:[--]anchor:after[]34",
+            "12—\u{200b}34",
+        ),
+        (r"12indexterm2:[\--]34", r"12\--34"),
+        ("12 indexterm2:[--] 34", "12\u{2009}—\u{2009}34"),
+        ("12-indexterm2:[-]34", "12—\u{200b}34"),
+        ("12indexterm2:[-]-34", "12—\u{200b}34"),
+        ("12indexterm2:[']s", "12’s"),
+    ] {
+        let marked_pdf = render_input(&format!(
+            "= Context\n\n{marked} link:https://next.example/context[Next]\n"
+        ))?;
+        let plain_pdf = render_input(&format!(
+            "= Context\n\n{plain} link:https://next.example/context[Next]\n"
+        ))?;
+        let actual = external_link_rects(&marked_pdf, 1)?;
+        let control = external_link_rects(&plain_pdf, 1)?;
+        let ([(uri, rectangle)], [(control_uri, control_rectangle)]) =
+            (actual.as_slice(), control.as_slice())
+        else {
+            return Err("expected one URI annotation per document".into());
+        };
+        assert_eq!(uri, control_uri);
+        assert_eq!(uri, "https://next.example/context");
+        for (position, expected) in rectangle.iter().zip(control_rectangle) {
+            assert!(
+                (position - expected).abs() < 0.01,
+                "{marked}: {rectangle:?} != {control_rectangle:?}"
+            );
+        }
+    }
+    Ok(())
+}
+
+#[test]
 fn index_inline_spacing_markers_keep_glyph_positions() -> Result<(), Error> {
     // Digits avoid kerning across the marker; bold End forms a separate text run.
     for (marked, plain) in [

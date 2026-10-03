@@ -842,13 +842,15 @@ pub(crate) fn build_class(base: &str, roles: &[&str]) -> String {
 fn capture_code_inlines<'a, W: std::io::Write>(
     traversal: &mut TraversalContext<'a>,
     highlight_inlines: &[InlineNode<'_>],
+    text_context: &[InlineNode<'_>],
     visitor: &mut HtmlVisitor<'a, '_, W>,
     subs: &[Substitution],
 ) -> Result<(Vec<Option<String>>, Vec<syntax::HighlightedLink>), Error> {
     let labels = highlight_inlines
         .iter()
-        .map(|node| {
-            let (text, linked) = acdc_converters_core::code::code_inline_text(
+        .enumerate()
+        .map(|(index, node)| {
+            let (mut text, linked) = acdc_converters_core::code::code_inline_text(
                 std::slice::from_ref(node),
                 &visitor.processor.references,
                 "html",
@@ -871,6 +873,17 @@ fn capture_code_inlines<'a, W: std::io::Write>(
                 if raw.subs.contains(&Substitution::Replacements)
                     || (raw.subs.is_empty() && raw.content.contains(['<', '>', '&'])
                         && !matches!(raw.content, "<" | ">")));
+            if raw {
+                text = acdc_converters_core::InlineTextTransform::default()
+                    .line_break("\n")
+                    .rendered_replacements(false)
+                    .text_boundaries(
+                        TextBoundaries::BOTH
+                            .with_ordinary_replacements(subs.contains(&Substitution::Replacements))
+                            .for_inline(text_context, index),
+                    )
+                    .to_string(std::slice::from_ref(node));
+            }
             (linked || formatted || raw).then_some(text)
         })
         .collect::<Vec<_>>();
@@ -888,6 +901,9 @@ fn capture_code_inlines<'a, W: std::io::Write>(
                 visitor.diagnostics.reborrow(),
             );
             capture.current_subs = subs.to_vec();
+            capture.text_boundaries = TextBoundaries::BOTH
+                .with_ordinary_replacements(subs.contains(&Substitution::Replacements))
+                .for_inline(text_context, index);
             capture
                 .current_section_title
                 .clone_from(&visitor.current_section_title);
@@ -902,7 +918,10 @@ fn capture_code_inlines<'a, W: std::io::Write>(
             offset += syntax::extract_text_and_callouts(
                 std::slice::from_ref(node),
                 subs.contains(&Substitution::Replacements),
-                TextBoundaries::new(index == 0, index + 1 == highlight_inlines.len()),
+                TextBoundaries::BOTH
+                    .with_ordinary_replacements(subs.contains(&Substitution::Replacements))
+                    .for_inline(text_context, index),
+                None,
                 None,
             )
             .0
@@ -972,7 +991,7 @@ fn render_highlighted_code<'a, W: std::io::Write>(
                 };
                 Some(Replacements::unicode().transform_verbatim(
                     text,
-                    TextBoundaries::new(index == 0, index + 1 == highlight_inlines.len()),
+                    TextBoundaries::BOTH.for_inline(highlight_inlines, index),
                 ))
             })
             .collect::<Vec<_>>()
@@ -980,8 +999,12 @@ fn render_highlighted_code<'a, W: std::io::Write>(
     let prepared = typography
         .as_ref()
         .map(|text| code_nodes_with_text(highlight_inlines, text));
+    // All fragments use the original source context. Earlier replacements
+    // must not hide spaces or dash halves from another fragment's owner.
+    let text_context = highlight_inlines;
     let highlight_inlines = prepared.as_deref().unwrap_or(highlight_inlines);
-    let (labels, links) = capture_code_inlines(traversal, highlight_inlines, visitor, subs)?;
+    let (labels, links) =
+        capture_code_inlines(traversal, highlight_inlines, text_context, visitor, subs)?;
     let resolved = code_nodes_with_text(highlight_inlines, &labels);
     let highlight_inlines = &resolved;
     let mut anchors = std::collections::BTreeMap::<usize, Vec<String>>::new();
@@ -1018,7 +1041,10 @@ fn render_highlighted_code<'a, W: std::io::Write>(
         output,
         highlight_inlines,
         metadata,
-        options,
+        syntax::HighlightOptions {
+            text_context: Some(text_context),
+            ..options
+        },
         &links,
         subs.contains(&Substitution::Replacements),
         Some(&mut visitor.diagnostics),
@@ -1094,6 +1120,7 @@ pub(crate) fn render_pre_code<'a, W: std::io::Write>(
                 language: lang,
                 theme_name: &theme_name,
                 mode,
+                text_context: None,
             },
         )?;
         writeln!(visitor.writer, "</code></pre>")?;

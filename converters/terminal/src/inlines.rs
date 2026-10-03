@@ -368,6 +368,12 @@ impl<'a, W: Write> crate::TerminalVisitor<'a, '_, W> {
                 let w = self.writer_mut();
                 render_button(button, w, experimental)?;
             }
+            InlineNode::Macro(InlineMacro::IndexTerm(term)) => {
+                register_index_term(term, processor, traversal)?;
+                if term.is_visible() {
+                    self.visit_inline_nodes(traversal, term.term())?;
+                }
+            }
             InlineNode::Macro(m) => {
                 render_inline_macro_to_writer(m, &mut self.writer, processor, traversal)?;
             }

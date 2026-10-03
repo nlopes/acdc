@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Enabled replacements render dashes and contractions across visible index labels
+  in prose and code: `prefixindexterm2:[--]tail` displays `prefix—tail`, retaining
+  escaped dashes and following links. Unlike Asciidoctor's default substitution
+  order, parsed neighboring words remain visible to replacements.
+  Spaced dashes consume one source space on each side, split dash pairs render
+  once, and `Saindexterm2:[m]'s` produces a curly apostrophe. Protected passthroughs
+  retain their spaces and escapes.
+
 - Visible index shorthand retains complete balanced parenthetical labels and
   catalog entries. `((Term (R)))` displays `Term ®` with replacements enabled.
   Unlike Asciidoctor's legacy macro stage, complete labels also survive disabled

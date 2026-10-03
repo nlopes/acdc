@@ -197,12 +197,25 @@ retain the existing compatibility delimiter rules. Unlike Asciidoctor's legacy
 macro stage, acdc also keeps complete labels when replacements are disabled
 or run after macros. This source-based delimiter policy keeps parsing separate
 from conversion under SDR-5; SDR-5 does not specify these exact index rules.
-There is also a converter context gap: `prefixindexterm2:[--]tail` retains
-`prefix--tail` in HTML and manpages because typography is applied to separate
-fragments. Preserving neighboring text context can fix that without changing
-the parsing/conversion boundary. PDF code applies replacements across flattened
-fragments. Highlighted HTML follows unhighlighted HTML's current behavior;
-display typography does not change registration-time catalog text.
+Converters retain neighboring text across visible index labels,
+hidden index terms, and ordinary anchors. With replacements enabled,
+`prefixindexterm2:[--]tail` displays `prefix—tail` in HTML, PDF, manpages, and
+terminal output, including highlighted code. The same context handles a split
+dash pair in `prefix-indexterm2:[-]tail`, consumes one space on each side of
+`prefix indexterm2:[--] tail`, and renders `Saindexterm2:[m]'s` as `Sam’s`.
+Repeated spaced pairs share their source delimiters: `-- -- --` replaces the
+first and third pairs, matching Asciidoctor. Escaped dashes and disabled
+replacements remain literal; registration-time catalog text stays unchanged.
+This matches Asciidoctor HTML and manpages when replacements run after macros
+and there are no intervening generated anchors. Asciidoctor's default order
+leaves this example literal, and Asciidoctor PDF retains more macro boundaries.
+acdc deliberately uses parsed word context during conversion under its selected
+SDR-5 policy; SDR-5 does not prescribe these exact typography rules. Formatting
+and link boundaries still separate replacement runs. Passthroughs retain their
+own substitution profiles: their text can supply word context, but replacements
+cannot consume spaces, escapes, or dash halves from another profile. For example,
+`prefix indexterm2:[pass:r[--]] tail` retains `--`; Asciidoctor converts the
+isolated passthrough to a spaced em dash before inserting it.
 
 Existing `pre-spec-subs` compatibility behavior is not complete SDR-5 conformance.
 SDR-5 leaves the exact mapping of custom `pass:` lists unresolved; support for

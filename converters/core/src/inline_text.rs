@@ -77,6 +77,9 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
     /// replacements in ordinary text. The default retains semantic source text.
     #[must_use]
     pub fn rendered_replacements(mut self, ordinary_text: bool) -> Self {
+        self.text_boundaries = self
+            .text_boundaries
+            .with_ordinary_replacements(ordinary_text);
         self.typography = if ordinary_text {
             Typography::All
         } else {
@@ -85,10 +88,10 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
         self
     }
 
-    /// Use the enclosing fragment's paragraph boundaries for typography.
+    /// Use the enclosing fragment's text context for typography.
     ///
-    /// The default treats both ends as paragraph boundaries. Nested inlines
-    /// retain these limits, so embedded fragments do not gain paragraph edges.
+    /// The default treats both ends as paragraph boundaries with no neighbors.
+    /// Nested index labels retain this context rather than gaining paragraph edges.
     #[must_use]
     pub fn text_boundaries(mut self, boundaries: TextBoundaries) -> Self {
         self.text_boundaries = boundaries;
@@ -122,10 +125,7 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
     pub fn write<W: Write + ?Sized>(self, w: &mut W, inlines: &[InlineNode<'_>]) -> fmt::Result {
         for (index, node) in inlines.iter().enumerate() {
             let context = Self {
-                text_boundaries: TextBoundaries::new(
-                    self.text_boundaries.at_paragraph_start() && index == 0,
-                    self.text_boundaries.at_paragraph_end() && index + 1 == inlines.len(),
-                ),
+                text_boundaries: self.text_boundaries.for_inline(inlines, index),
                 ..self
             };
             context.write_inline_node(w, node)?;
@@ -316,7 +316,7 @@ mod tests {
             ("indexterm2:[--]", "\u{2009}—\u{2009}"),
             ("indexterm2:[--]tail", "--tail"),
             ("prefixindexterm2:[--]", "prefix--"),
-            ("prefixindexterm2:[--]tail", "prefix--tail"),
+            ("prefixindexterm2:[--]tail", "prefix—\u{200b}tail"),
             ("prefixindexterm2:[(C)]tail", "prefix©tail"),
         ] {
             let parsed = parse(source, &Options::default())?;
@@ -333,14 +333,230 @@ mod tests {
             for (index, node) in paragraph.content.iter().enumerate() {
                 fragments.push_str(
                     &transform
-                        .text_boundaries(super::TextBoundaries::new(
-                            index == 0,
-                            index + 1 == paragraph.content.len(),
-                        ))
+                        .text_boundaries(
+                            super::TextBoundaries::BOTH.for_inline(&paragraph.content, index),
+                        )
                         .to_string(std::slice::from_ref(node)),
                 );
             }
             assert_eq!(fragments, expected, "{source}");
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn index_dash_context_preserves_source_and_neighboring_words()
+    -> Result<(), Box<dyn std::error::Error>> {
+        for prefix in ["word", "é", "字", "word_"] {
+            for suffix in ["word", "é", "字", "_tail"] {
+                for gap in [
+                    String::new(),
+                    "indexterm:[Hidden]".into(),
+                    "anchor:gap[]".into(),
+                    "indexterm:[Hidden]".repeat(128),
+                ] {
+                    for label in ["--", "--end", "begin--"] {
+                        let input = format!("{prefix}{gap}indexterm2:[{label}]{gap}{suffix}");
+                        let parsed = parse(&input, &Options::default())?;
+                        let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice()
+                        else {
+                            return Err("expected one paragraph".into());
+                        };
+                        let transform = super::InlineTextTransform::default();
+                        let source = transform.to_string(&paragraph.content);
+                        assert_eq!(source, format!("{prefix}{label}{suffix}"), "{input}");
+                        let expected = source.replace("--", "—\u{200b}");
+                        assert_eq!(
+                            transform
+                                .rendered_replacements(true)
+                                .to_string(&paragraph.content),
+                            expected,
+                            "{input}"
+                        );
+                        assert_eq!(transform.to_string(&paragraph.content), source, "{input}");
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn index_dash_context_keeps_nonword_boundaries_and_escapes()
+    -> Result<(), Box<dyn std::error::Error>> {
+        for (input, expected) in [
+            ("indexterm2:[--]", "\u{2009}—\u{2009}"),
+            ("indexterm:[Hidden]indexterm2:[--]", "\u{2009}—\u{2009}"),
+            ("wordindexterm2:[--]", "word--"),
+            ("indexterm2:[--]word", "--word"),
+            ("word indexterm2:[--] word", "word\u{2009}—\u{2009}word"),
+            ("word.indexterm2:[--]word", "word.--word"),
+            ("wordindexterm2:[--].word", "word--.word"),
+            (r"wordindexterm2:[\--]word", "word--word"),
+            ("wordindexterm2:[---]word", "word---word"),
+            ("word-indexterm2:[--]word", "word---word"),
+            ("wordindexterm2:[--]-word", "word---word"),
+            ("wordindexterm2:[--]**bold**", "word--bold"),
+        ] {
+            let parsed = parse(input, &Options::default())?;
+            let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+                return Err("expected one paragraph".into());
+            };
+            assert_eq!(
+                super::InlineTextTransform::default()
+                    .rendered_replacements(true)
+                    .to_string(&paragraph.content),
+                expected,
+                "{input}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn index_replacement_context_consumes_only_enabled_source_text()
+    -> Result<(), Box<dyn std::error::Error>> {
+        for (input, expected) in [
+            ("prefix indexterm2:[--] tail", "prefix\u{2009}—\u{2009}tail"),
+            ("prefix-indexterm2:[-]tail", "prefix—\u{200b}tail"),
+            ("prefixindexterm2:[-]-tail", "prefix—\u{200b}tail"),
+            (
+                "prefixindexterm2:[-]indexterm2:[-]tail",
+                "prefix—\u{200b}tail",
+            ),
+            (
+                "prefix-indexterm:[Hidden]indexterm2:[-]tail",
+                "prefix—\u{200b}tail",
+            ),
+            (
+                "prefix-indexterm2:[-]anchor:end[]tail",
+                "prefix—\u{200b}tail",
+            ),
+            ("Saindexterm2:[m]'s", "Sam’s"),
+            ("indexterm2:[Sam']s", "Sam’s"),
+            ("Samindexterm2:[']s", "Sam’s"),
+            ("préindexterm2:[']été", "pré’été"),
+            ("3indexterm2:[']4", "3'4"),
+            ("_indexterm2:[']s", "_'s"),
+            (r"Samindexterm2:[\']s", "Sam's"),
+            (r"Sam\indexterm2:[']s", "Samindexterm2:[']s"),
+            (r"prefix\indexterm2:[-]-tail", "prefixindexterm2:[-]-tail"),
+            (r"prefix-\indexterm2:[-]tail", "prefix-indexterm2:[-]tail"),
+            (
+                "prefix  indexterm2:[--]  tail",
+                "prefix \u{2009}—\u{2009} tail",
+            ),
+            ("prefix-indexterm2:[--]tail", "prefix---tail"),
+            ("prefix indexterm2:[pass:[--]] tail", "prefix -- tail"),
+            ("prefixpass:[ ]indexterm2:[--] tail", "prefix -- tail"),
+            ("prefix indexterm2:[--]pass:[ ]tail", "prefix -- tail"),
+            ("prefixpass:[-]indexterm2:[-]tail", "prefix--tail"),
+            ("prefix indexterm2:[pass:r[--]] tail", "prefix -- tail"),
+            ("prefixindexterm2:[pass:r[--]]tail", "prefix—\u{200b}tail"),
+        ] {
+            let parsed = parse(input, &Options::default())?;
+            let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+                return Err("expected one paragraph".into());
+            };
+            let source = super::InlineTextTransform::default().to_string(&paragraph.content);
+            let rendered = super::InlineTextTransform::default()
+                .rendered_replacements(true)
+                .to_string(&paragraph.content);
+            assert_eq!(rendered, expected, "{input}");
+            assert_eq!(
+                super::InlineTextTransform::default().to_string(&paragraph.content),
+                source
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn fragmented_replacement_context_matches_unsplit_text() {
+        for input in [
+            "a -- b",
+            "a--b",
+            "-- -- --",
+            "a -- -- -- -- -- b",
+            "a --  -- b",
+            "a---b",
+            "a-- --b",
+            "Sam's",
+            "pré'été",
+            r"Sam\'s",
+            r"a\--b",
+            "a\n--\nb",
+            "a --\n--\n-- b",
+            "-- -- -- -- -- -- -- -- -- -- --",
+        ] {
+            let whole = [plain(input)];
+            let expected = super::InlineTextTransform::default()
+                .rendered_replacements(true)
+                .to_string(&whole);
+            for split in input.char_indices().map(|(index, _)| index).skip(1) {
+                let fragments = [plain(&input[..split]), plain(&input[split..])];
+                assert_eq!(
+                    super::InlineTextTransform::default()
+                        .rendered_replacements(true)
+                        .to_string(&fragments),
+                    expected,
+                    "{input:?} at {split}"
+                );
+            }
+            let characters = input.chars().map(|ch| ch.to_string()).collect::<Vec<_>>();
+            let fragments = characters
+                .iter()
+                .map(|text| plain(text))
+                .collect::<Vec<_>>();
+            assert_eq!(
+                super::InlineTextTransform::default()
+                    .rendered_replacements(true)
+                    .to_string(&fragments),
+                expected,
+                "{input:?} split by character"
+            );
+        }
+    }
+
+    #[test]
+    fn replacement_context_only_neighbors_cannot_consume_source() {
+        let nodes = [plain("word "), plain("--"), plain(" tail")];
+        let boundaries = super::TextBoundaries::BOTH
+            .for_inline(&nodes, 1)
+            .with_neighbors(Some(' '), Some(' '));
+        assert_eq!(
+            super::Replacements::unicode().transform_verbatim("--", boundaries),
+            "--"
+        );
+        let word_boundaries = boundaries.with_neighbors(Some('d'), Some('t'));
+        assert_eq!(
+            super::Replacements::unicode().transform_verbatim("--", word_boundaries),
+            "—\u{200b}"
+        );
+    }
+
+    #[test]
+    fn index_replacement_context_respects_disabled_ordinary_text()
+    -> Result<(), Box<dyn std::error::Error>> {
+        for (input, expected) in [
+            ("prefix indexterm2:[--] tail", "prefix -- tail"),
+            ("prefix-indexterm2:[-]tail", "prefix--tail"),
+            ("Saindexterm2:[m]'s", "Sam's"),
+            ("prefixindexterm2:[pass:r[--]]tail", "prefix—\u{200b}tail"),
+            ("prefix indexterm2:[pass:r[--]] tail", "prefix -- tail"),
+            ("prefix-indexterm2:[pass:r[-]]tail", "prefix--tail"),
+        ] {
+            let parsed = parse(input, &Options::default())?;
+            let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+                return Err("expected one paragraph".into());
+            };
+            assert_eq!(
+                super::InlineTextTransform::default()
+                    .rendered_replacements(false)
+                    .to_string(&paragraph.content),
+                expected,
+                "{input}"
+            );
         }
         Ok(())
     }

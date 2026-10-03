@@ -9,13 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Enabled replacements render dashes and contractions across visible index labels
+  in prose and code: `prefixindexterm2:[--]tail` displays `prefix—tail`, with
+  following links and catalog labels preserved. Unlike Asciidoctor's default
+  substitution order, parsed neighboring words remain visible to replacements.
+  Spaced dashes consume one source space on each side, split dash pairs render
+  once, and `Saindexterm2:[m]'s` displays `Sam’s`. Protected passthroughs retain
+  their spaces and escapes; highlighted links keep their destinations and labels.
+
 - Visible index labels in highlighted code honor enabled typography and their
   own passthrough substitutions, matching unhighlighted HTML. For example,
   `[subs="+replacements,+macros"]` renders `indexterm2:[Code (R)]` as `Code ®`.
   Following links retain their labels and destinations; catalog labels keep
-  their registration-time substitutions. The separate converter context gap
-  for dash patterns split across index boundaries remains documented in the
-  parser README.
+  their registration-time substitutions.
 - Visible shorthand index labels retain balanced internal parentheses, including
   `((Term (R)))` in prose and highlighted code. With replacements enabled this
   displays `Term ®`. Unlike Asciidoctor's legacy macro stage, complete labels also

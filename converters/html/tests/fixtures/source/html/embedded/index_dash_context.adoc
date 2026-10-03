@@ -1,0 +1,126 @@
+= index-dash-context(1)
+:doctype: manpage
+:manmanual: Index context
+:mansource: acdc
+:revdate: 2026-10-03
+:acdc-index:
+
+== NAME
+
+index-dash-context - neighboring index text
+
+== SYNOPSIS
+
+*index-dash-context*
+
+== DESCRIPTION
+
+P01 prefixindexterm2:[--]tail
+
+P02 prefixindexterm2:[--tail]
+
+P03 indexterm2:[prefix--]tail
+
+P04 prefix((--))tail
+
+P05 prefixindexterm:[Hidden]indexterm2:[--]tail
+
+P06 prefixindexterm2:[--]indexterm:[Hidden]tail
+
+P07 prefixanchor:before[]indexterm2:[--]anchor:after[]tail
+
+P08 prefixindexterm2:[begin--]indexterm2:[end]tail
+
+P09 prefixindexterm2:[begin]indexterm2:[--end]tail
+
+P10 préindexterm2:[--]été
+
+P11 word_indexterm2:[--]_tail
+
+P12 prefixindexterm2:[\--]tail
+
+P13 prefixindexterm2:[---]tail
+
+P14 prefix-indexterm2:[--]tail
+
+P15 prefixindexterm2:[--]-tail
+
+P16 prefixindexterm2:[--]
+
+P17 indexterm2:[--]tail
+
+P18 prefix.indexterm2:[--]tail
+
+P19 prefixindexterm2:[--].tail
+
+P20 prefix indexterm2:[--] tail
+
+P21 prefixindexterm2:[--]**bold**
+
+P22 prefixindexterm2:[pass:[--]]tail
+
+P23 prefixindexterm2:[pass:r[--]]tail
+
+P24 prefixindexterm2:[pass:r[\--]]tail
+
+P25 prefixindexterm2:[--] link:https://next.example/prose[Next]
+
+.Standalone control
+indexterm2:[--]
+
+.Hidden standalone control
+indexterm:[Hidden standalone]indexterm2:[--]
+
+P26 prefix-indexterm2:[-]tail
+
+P27 prefixindexterm2:[-]-tail
+
+P28 prefixindexterm2:[-]indexterm2:[-]tail
+
+P29 prefix indexterm:[Hidden]indexterm2:[--] tail
+
+P30 prefix anchor:space-before[]indexterm2:[--]anchor:space-after[] tail
+
+P31 prefix  indexterm2:[--]  tail
+
+P32 Saindexterm2:[m]'s
+
+P33 indexterm2:[Sam']s
+
+P34 Samindexterm2:[']s
+
+P35 préindexterm2:[']été
+
+P36 3indexterm2:[']4
+
+P37 _indexterm2:[']s
+
+P38 Samindexterm2:[\']s
+
+P39 Saindexterm:[Hidden]indexterm2:[m]'s
+
+P40 Saanchor:apostrophe[]indexterm2:[m]'s
+
+P41 prefixpass:[-]indexterm2:[-]tail
+
+P42 prefixpass:[ ]indexterm2:[--] tail
+
+P43 prefix indexterm2:[--]pass:[ ]tail
+
+P44 prefix indexterm2:[pass:r[--]] tail
+
+P45 prefix indexterm2:[--] **Bold**
+
+P46 prefix-**-**tail
+
+P47 prefix indexterm2:[--] -- indexterm2:[--] tail
+
+P48 prefix indexterm2:[--]  indexterm2:[--] tail
+
+P49 prefix indexterm2:[--] link:https://next.example/spaced[Spaced]
+
+P50 indexterm2:[Sam']s link:https://next.example/apostrophe[Apostrophe]
+
+
+[index]
+== Index

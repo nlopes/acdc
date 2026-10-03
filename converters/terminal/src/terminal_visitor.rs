@@ -2,6 +2,9 @@
 
 use std::io::Write;
 
+#[cfg(feature = "pre-spec-subs")]
+use acdc_converters_core::substitutions::SubsFlags;
+
 use acdc_converters_core::{
     Diagnostics, TraversalContext,
     substitutions::TextBoundaries,
@@ -369,22 +372,25 @@ impl<'a, W: Write> Visitor<'a> for TerminalVisitor<'a, '_, W> {
         nodes: &[InlineNode],
     ) -> Result<(), Self::Error> {
         let previous_boundaries = self.text_boundaries;
-        let last = nodes.len().saturating_sub(1);
+        #[cfg(feature = "pre-spec-subs")]
+        let replacements = self
+            .processor
+            .current_subs
+            .get()
+            .contains(SubsFlags::REPLACEMENTS);
+        #[cfg(not(feature = "pre-spec-subs"))]
+        let replacements = true;
+
         let result = (|| {
             for (index, node) in nodes.iter().enumerate() {
-                let follows_break =
-                    index > 0 && matches!(nodes.get(index - 1), Some(InlineNode::LineBreak(_)));
-                let precedes_break = matches!(nodes.get(index + 1), Some(InlineNode::LineBreak(_)));
-                self.text_boundaries = TextBoundaries::new(
-                    follows_break
-                        || (!self.in_inline_span
-                            && previous_boundaries.at_paragraph_start()
-                            && index == 0),
-                    precedes_break
-                        || (!self.in_inline_span
-                            && previous_boundaries.at_paragraph_end()
-                            && index == last),
-                );
+                let boundaries = if self.in_inline_span {
+                    TextBoundaries::NONE
+                } else {
+                    previous_boundaries
+                };
+                self.text_boundaries = boundaries
+                    .with_ordinary_replacements(replacements)
+                    .for_inline(nodes, index);
                 self.visit_inline_node(traversal, node)?;
             }
             Ok(())

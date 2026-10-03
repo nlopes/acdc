@@ -1,0 +1,102 @@
+[1m[4mindex-dash-context(1)[0m[2m2026-10-03[0m
+
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mNAME[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+index-dash-context - neighboring index text
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mSYNOPSIS[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[1mindex-dash-context[22m
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mDESCRIPTION[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+P01 prefix—​tail
+P02 prefix—​tail
+P03 prefix—​tail
+P04 prefix—​tail
+P05 prefix—​tail
+P06 prefix—​tail
+P07 prefix—​tail
+P08 prefixbegin—​endtail
+P09 prefixbegin—​endtail
+P10 pré—​été
+P11 word_—​_tail
+P12 prefix--tail
+P13 prefix---tail
+P14 prefix---tail
+P15 prefix---tail
+P16 prefix--
+P17 --tail
+P18 prefix.--tail
+P19 prefix--.tail
+P20 prefix — tail
+P21 prefix--[1mbold[22m
+P22 prefix--tail
+P23 prefix—​tail
+P24 prefix--tail
+P25 prefix-- [38;5;12mNext[39m[2m (https://next.example/prose)[0m
+Standalone control — 
+Hidden standalone control — 
+P26 prefix—​tail
+P27 prefix—​tail
+P28 prefix—​tail
+P29 prefix — tail
+P30 prefix — tail
+P31 prefix  —  tail
+P32 Sam’s
+P33 Sam’s
+P34 Sam’s
+P35 pré’été
+P36 3'4
+P37 _'s
+P38 Sam's
+P39 Sam’s
+P40 Sam’s
+P41 prefix--tail
+P42 prefix -- tail
+P43 prefix -- tail
+P44 prefix -- tail
+P45 prefix — [1mBold[22m
+P46 prefix-[1m-[22mtail
+P47 prefix — -- — tail
+P48 prefix —  — tail
+P49 prefix — [38;5;12mSpaced[39m[2m (https://next.example/spaced)[0m
+P50 Sam’s [38;5;12mApostrophe[39m[2m (https://next.example/apostrophe)[0m
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mIndex[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+
+[38;5;14m[1m@[0m
+  '
+  -
+  --
+  ---
+  --end
+  --tail
+  \'
+  --
+
+[38;5;14m[1mB[0m
+  begin
+  begin--
+
+[38;5;14m[1mE[0m
+  end
+
+[38;5;14m[1mH[0m
+  Hidden
+  Hidden standalone
+
+[38;5;14m[1mM[0m
+  m
+
+[38;5;14m[1mP[0m
+  prefix--
+
+[38;5;14m[1mS[0m
+  Sam'

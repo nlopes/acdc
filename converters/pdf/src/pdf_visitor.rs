@@ -57,12 +57,13 @@ struct CodeText {
 }
 
 impl CodeText {
-    fn push_inline_text(&mut self, node: &InlineNode<'_>) {
+    fn push_inline_text(&mut self, node: &InlineNode<'_>, boundaries: TextBoundaries) {
         let start = self.source.len();
         let decode = matches!(node, InlineNode::RawText(raw) if raw.subs.is_empty());
         let _ = InlineTextTransform::default()
             .line_break("\n")
             .rendered_replacements(false)
+            .text_boundaries(boundaries)
             .decode_char_refs(decode)
             .write(&mut self.source, std::slice::from_ref(node));
         if matches!(node, InlineNode::RawText(_)) {
@@ -810,22 +811,25 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         nodes: &[InlineNode<'_>],
     ) -> Result<(), Error> {
         let previous_boundaries = self.text_boundaries;
-        let last = nodes.len().saturating_sub(1);
+        #[cfg(feature = "pre-spec-subs")]
+        let replacements = self
+            .processor
+            .current_subs
+            .get()
+            .contains(SubsFlags::REPLACEMENTS);
+        #[cfg(not(feature = "pre-spec-subs"))]
+        let replacements = true;
+
         let result = (|| {
             for (index, node) in nodes.iter().enumerate() {
-                let follows_break =
-                    index > 0 && matches!(nodes.get(index - 1), Some(InlineNode::LineBreak(_)));
-                let precedes_break = matches!(nodes.get(index + 1), Some(InlineNode::LineBreak(_)));
-                self.text_boundaries = TextBoundaries::new(
-                    follows_break
-                        || (!self.in_inline_span
-                            && previous_boundaries.at_paragraph_start()
-                            && index == 0),
-                    precedes_break
-                        || (!self.in_inline_span
-                            && previous_boundaries.at_paragraph_end()
-                            && index == last),
-                );
+                let boundaries = if self.in_inline_span {
+                    TextBoundaries::NONE
+                } else {
+                    previous_boundaries
+                };
+                self.text_boundaries = boundaries
+                    .with_ordinary_replacements(replacements)
+                    .for_inline(nodes, index);
                 self.visit_inline_node(traversal, node)?;
             }
             Ok(())
@@ -1956,7 +1960,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             indexes: mut positions,
             mut links,
             protected,
-        } = self.collect_code_text(traversal, nodes, &extension, false)?;
+        } = self.collect_code_text(traversal, nodes, &extension, false, TextBoundaries::BOTH)?;
         // Keep a final anchor-only line through raw code's trailing-line trimming.
         // Its placeholder is replaced with empty content, so it adds no glyph or space.
         let end = text.len();
@@ -1987,22 +1991,22 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         let _ = traversal;
         #[cfg(feature = "pre-spec-subs")]
         {
-            let subs = self.processor.current_subs.get();
-            transform_code_substitutions(
-                &mut text,
-                &mut positions,
-                index_count,
-                &protected,
-                |text| {
-                    if subs.contains(SubsFlags::REPLACEMENTS) {
-                        Cow::Owned(
-                            Replacements::unicode().transform_verbatim(text, TextBoundaries::BOTH),
-                        )
-                    } else {
-                        Cow::Borrowed(text)
-                    }
-                },
-            );
+            if self
+                .processor
+                .current_subs
+                .get()
+                .contains(SubsFlags::REPLACEMENTS)
+            {
+                transform_code_substitutions(
+                    &mut text,
+                    &mut positions,
+                    index_count,
+                    &protected,
+                    |text, boundaries| {
+                        Cow::Owned(Replacements::unicode().transform_verbatim(text, boundaries))
+                    },
+                );
+            }
         }
         #[cfg(not(feature = "pre-spec-subs"))]
         let _ = protected;
@@ -2029,10 +2033,12 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         nodes: &[InlineNode<'_>],
         extension: &str,
         suppress_indexes: bool,
+        boundaries: TextBoundaries,
     ) -> Result<CodeText, Error> {
         let mut code = CodeText::default();
 
         for (index, node) in nodes.iter().enumerate() {
+            let boundaries = boundaries.for_inline(nodes, index);
             if !suppress_indexes && let InlineNode::Macro(InlineMacro::IndexTerm(term)) = node {
                 let entry = self.render_index_entry(traversal, term)?;
                 if let Some(anchor) = self.index_catalog.add(entry) {
@@ -2069,24 +2075,22 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     extension,
                     suppress_indexes
                         || matches!(node, InlineNode::Macro(InlineMacro::IndexTerm(_))),
+                    boundaries,
                 )?;
                 code.append(self.format_code_text(node, child));
             } else if let Some(link) =
                 resolve_code_link(node, &self.processor.references, extension)
             {
-                let child = if let InlineNode::Macro(InlineMacro::Link(link)) = node {
-                    Some(link.text.as_slice())
-                } else if let InlineNode::Macro(InlineMacro::Url(link)) = node {
-                    Some(link.text.as_slice())
-                } else if let InlineNode::Macro(InlineMacro::Mailto(link)) = node {
-                    Some(link.text.as_slice())
-                } else if let InlineNode::Macro(InlineMacro::CrossReference(link)) = node {
-                    Some(link.text.as_slice())
-                } else {
-                    None
-                };
-                let mut child = if let Some(children) = child.filter(|nodes| !nodes.is_empty()) {
-                    self.collect_code_text(traversal, children, extension, suppress_indexes)?
+                let mut child = if let Some(children) =
+                    code_link_children(node).filter(|nodes| !nodes.is_empty())
+                {
+                    self.collect_code_text(
+                        traversal,
+                        children,
+                        extension,
+                        suppress_indexes,
+                        boundaries,
+                    )?
                 } else {
                     CodeText {
                         source: link.text,
@@ -2123,7 +2127,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             } else if let InlineNode::CalloutRef(callout) = node {
                 let _ = write!(code.source, "({})", callout.number);
             } else {
-                code.push_inline_text(node);
+                code.push_inline_text(node, boundaries);
             }
         }
 
@@ -4025,7 +4029,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         let plain = InlineTextTransform::default().to_string(inlines);
         let output = replace(&mut self.writer, Writer::new());
         let previous = self.index_catalog.set_suspended(true);
+        let boundaries = replace(&mut self.text_boundaries, TextBoundaries::BOTH);
+        let in_span = replace(&mut self.in_inline_span, false);
         let result = self.write_inlines(traversal, inlines);
+        self.text_boundaries = boundaries;
+        self.in_inline_span = in_span;
         self.index_catalog.set_suspended(previous);
         let markup = replace(&mut self.writer, output).into_string();
         result?;
@@ -4553,6 +4561,29 @@ pub(crate) fn collapse_source_whitespace(text: &str) -> Cow<'_, str> {
     Cow::Owned(collapsed)
 }
 
+fn code_link_children<'n, 'a>(node: &'n InlineNode<'a>) -> Option<&'n [InlineNode<'a>]> {
+    let InlineNode::Macro(inline_macro) = node else {
+        return None;
+    };
+    match inline_macro {
+        InlineMacro::Link(link) => Some(&link.text),
+        InlineMacro::Url(link) => Some(&link.text),
+        InlineMacro::Mailto(link) => Some(&link.text),
+        InlineMacro::CrossReference(link) => Some(&link.text),
+        InlineMacro::Footnote(_)
+        | InlineMacro::Icon(_)
+        | InlineMacro::Image(_)
+        | InlineMacro::Keyboard(_)
+        | InlineMacro::Button(_)
+        | InlineMacro::Menu(_)
+        | InlineMacro::Autolink(_)
+        | InlineMacro::Pass(_)
+        | InlineMacro::Stem(_)
+        | InlineMacro::IndexTerm(_)
+        | _ => None,
+    }
+}
+
 fn code_output_extension<'ctx>(traversal: &'ctx TraversalContext<'_>) -> &'ctx str {
     traversal
         .get("relfilesuffix")
@@ -4755,20 +4786,29 @@ fn transform_code_substitutions(
     positions: &mut [(usize, usize)],
     index_count: usize,
     protected: &[Range<usize>],
-    transform: impl Fn(&str) -> Cow<'_, str>,
+    transform: impl Fn(&str, TextBoundaries) -> Cow<'_, str>,
 ) {
-    // Replacements cannot cross a link boundary or reprocess a passthrough.
+    // Nonempty spans and passthroughs separate replacement runs. An empty
+    // anchor has no text and must not split a word-bounded dash.
     let mut boundaries = positions
+        .get(index_count..)
+        .unwrap_or_default()
+        .as_chunks::<2>()
+        .0
         .iter()
-        .skip(index_count)
-        .map(|(offset, _)| *offset)
+        .filter(|[start, end]| start.0 != end.0)
+        .flat_map(|[start, end]| [start.0, end.0])
         .chain(protected.iter().flat_map(|range| [range.start, range.end]))
         .collect::<Vec<_>>();
     boundaries.sort_unstable();
     boundaries.dedup();
+    let original = text.clone();
     transform_code_text(text, positions, |fragment| {
         if boundaries.is_empty() {
-            return transform(fragment);
+            return transform(
+                fragment,
+                TextBoundaries::BOTH.with_following_text(&original[fragment.len()..]),
+            );
         }
         let mut transformed = String::with_capacity(fragment.len());
         let mut start = 0;
@@ -4782,7 +4822,19 @@ fn transform_code_substitutions(
                 if protected.iter().any(|range| range.contains(&start)) {
                     transformed.push_str(part);
                 } else {
-                    transformed.push_str(&transform(part));
+                    // Measure ownership against the complete replacement run.
+                    // A destination beside a consumed space or dash half must
+                    // move with its source owner, without crossing a span.
+                    let run_end = boundaries
+                        .iter()
+                        .copied()
+                        .find(|cut| *cut >= end)
+                        .unwrap_or(original.len());
+                    transformed.push_str(&transform(
+                        part,
+                        TextBoundaries::new(start == 0, run_end == original.len())
+                            .with_following_text(&original[end..run_end]),
+                    ));
                 }
             }
             start = end;

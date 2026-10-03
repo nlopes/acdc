@@ -61,6 +61,7 @@ pub(crate) struct HighlightOptions<'a> {
     pub(crate) language: &'a str,
     pub(crate) theme_name: &'a str,
     pub(crate) mode: HighlightMode,
+    pub(crate) text_context: Option<&'a [InlineNode<'a>]>,
 }
 
 /// The `ClassStyle` used for class-based output.  Every scope token is
@@ -88,9 +89,15 @@ pub(crate) fn highlight_code<W: Write + ?Sized>(
         language,
         theme_name,
         mode,
+        text_context,
     } = options;
-    let (code, callouts) =
-        extract_text_and_callouts(inlines, replacements, TextBoundaries::BOTH, diagnostics);
+    let (code, callouts) = extract_text_and_callouts(
+        inlines,
+        replacements,
+        TextBoundaries::BOTH,
+        text_context,
+        diagnostics,
+    );
     let syntax_set = SyntaxSet::load_defaults_newlines();
 
     let syntax = syntax_set
@@ -473,11 +480,13 @@ pub(crate) fn extract_text_and_callouts(
     inlines: &[InlineNode],
     replacements: bool,
     boundaries: TextBoundaries,
+    text_context: Option<&[InlineNode]>,
     mut diagnostics: Option<&mut Diagnostics<'_>>,
 ) -> (String, HashMap<usize, usize>) {
     let mut result = String::new();
     let mut callouts: HashMap<usize, usize> = HashMap::new();
     let mut current_line = 0;
+    let text_context = text_context.unwrap_or(inlines);
 
     for (index, node) in inlines.iter().enumerate() {
         #[allow(clippy::match_same_arms)]
@@ -522,10 +531,11 @@ pub(crate) fn extract_text_and_callouts(
                         .line_break("\n")
                         .decode_char_refs(true)
                         .rendered_replacements(replacements)
-                        .text_boundaries(TextBoundaries::new(
-                            boundaries.at_paragraph_start() && index == 0,
-                            boundaries.at_paragraph_end() && index + 1 == inlines.len(),
-                        ))
+                        .text_boundaries(
+                            boundaries
+                                .with_ordinary_replacements(replacements)
+                                .for_inline(text_context, index),
+                        )
                         .to_string(std::slice::from_ref(node));
                     current_line += text.matches('\n').count();
                     result.push_str(&text);
@@ -581,7 +591,7 @@ mod tests {
     fn test_extract_text_and_callouts_from_verbatim() {
         let inlines = create_verbatim_inlines("fn main() {\n    println!(\"Hello\");\n}");
         let (text, callouts) =
-            extract_text_and_callouts(&inlines, false, TextBoundaries::BOTH, None);
+            extract_text_and_callouts(&inlines, false, TextBoundaries::BOTH, None, None);
         assert_eq!(text, "fn main() {\n    println!(\"Hello\");\n}");
         assert!(callouts.is_empty());
     }
@@ -606,7 +616,7 @@ mod tests {
         ];
 
         let (text, callouts) =
-            extract_text_and_callouts(&inlines, false, TextBoundaries::BOTH, None);
+            extract_text_and_callouts(&inlines, false, TextBoundaries::BOTH, None, None);
         assert_eq!(text, "let x = 1; \nlet y = 2; \n");
         assert_eq!(callouts.get(&0), Some(&1));
         assert_eq!(callouts.get(&1), Some(&2));
@@ -638,6 +648,7 @@ mod tests {
                 language: "rust",
                 theme_name: DEFAULT_THEME_LIGHT,
                 mode: HighlightMode::Inline,
+                text_context: None,
             },
             &[],
             false,
@@ -676,6 +687,7 @@ mod tests {
                 language: "rust",
                 theme_name: DEFAULT_THEME_LIGHT,
                 mode: HighlightMode::Inline,
+                text_context: None,
             },
             &[],
             false,
@@ -706,6 +718,7 @@ mod tests {
                 language: "unknown_lang_xyz",
                 theme_name: DEFAULT_THEME_LIGHT,
                 mode: HighlightMode::Inline,
+                text_context: None,
             },
             &[],
             false,
@@ -738,6 +751,7 @@ mod tests {
                 language: "rust",
                 theme_name: DEFAULT_THEME_LIGHT,
                 mode: HighlightMode::Class,
+                text_context: None,
             },
             &[],
             false,
@@ -781,6 +795,7 @@ mod tests {
                 language: "rust",
                 theme_name: DEFAULT_THEME_LIGHT,
                 mode: HighlightMode::Class,
+                text_context: None,
             },
             &[],
             false,

@@ -1412,9 +1412,19 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         // Flow terms (visible): also output the term text.
         // Concealed terms: no visible text.
         if it.is_visible() {
-            for inline in it.term() {
-                self.render_inline_node(traversal, inline, options, subs)?;
-            }
+            let boundaries = self.text_boundaries();
+            let result = it
+                .term()
+                .iter()
+                .enumerate()
+                .try_for_each(|(index, inline)| {
+                    self.text_boundaries = boundaries
+                        .with_ordinary_replacements(subs.contains(&Substitution::Replacements))
+                        .for_inline(it.term(), index);
+                    self.render_inline_node(traversal, inline, options, subs)
+                });
+            self.text_boundaries = boundaries;
+            result?;
         }
         Ok(())
     }

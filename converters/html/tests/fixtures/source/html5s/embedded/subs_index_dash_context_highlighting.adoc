@@ -1,0 +1,148 @@
+= index-dash-context(1)
+:doctype: manpage
+:manmanual: Index context
+:mansource: acdc
+:revdate: 2026-10-03
+:acdc-index:
+:source-highlighter: syntect
+
+== NAME
+
+index-dash-context - neighboring index text
+
+== SYNOPSIS
+
+*index-dash-context*
+
+== DESCRIPTION
+
+[subs="macros,replacements"]
+S01 prefixindexterm2:[--]tail
+
+[subs="replacements,macros"]
+S02 prefixindexterm2:[--]tail
+
+[subs="macros"]
+S03 prefixindexterm2:[--]tail
+
+[subs="replacements"]
+S04 prefixindexterm2:[--]tail
+
+[subs="macros"]
+S05 prefixindexterm2:[pass:r[--]]tail
+
+[subs="macros"]
+S06 prefixindexterm2:[pass:[--]]tail
+
+[source,text,subs="specialchars,macros,replacements"]
+----
+S07 prefixindexterm2:[--]tail link:https://next.example/07[Next07]
+S08 prefixindexterm2:[--tail] link:https://next.example/08[Next08]
+S09 indexterm2:[prefix--]tail link:https://next.example/09[Next09]
+S10 prefixindexterm:[Hidden]indexterm2:[--]tail link:https://next.example/10[Next10]
+S11 prefixanchor:code-before[]indexterm2:[--]anchor:code-after[]tail link:https://next.example/11[Next11]
+S12 prefixindexterm2:[begin--]indexterm2:[end]tail link:https://next.example/12[Next12]
+S13 préindexterm2:[--]été link:https://next.example/13[Next13]
+S14 word_indexterm2:[--]_tail link:https://next.example/14[Next14]
+S15 prefixindexterm2:[\--]tail link:https://next.example/15[Next15]
+S16 prefixindexterm2:[---]tail link:https://next.example/16[Next16]
+S17 prefix-indexterm2:[--]tail link:https://next.example/17[Next17]
+S18 prefixindexterm2:[--]-tail link:https://next.example/18[Next18]
+S19 prefixindexterm2:[--] link:https://next.example/19[Next19]
+S20 indexterm2:[--]tail link:https://next.example/20[Next20]
+S21 prefix.indexterm2:[--]tail link:https://next.example/21[Next21]
+S22 prefixindexterm2:[--].tail link:https://next.example/22[Next22]
+S23 prefix indexterm2:[--] tail link:https://next.example/23[Next23]
+S24 prefixindexterm2:[pass:[--]]tail link:https://next.example/24[Next24]
+S25 prefixindexterm2:[pass:r[--]]tail link:https://next.example/25[Next25]
+S26 prefixindexterm2:[pass:r[\--]]tail link:https://next.example/26[Next26]
+S31 prefixindexterm2:[--]link:https://next.example/31[Tail31]
+S32 link:https://next.example/32[Prefix32]indexterm2:[--]tail
+----
+
+[source,text,subs="specialchars,replacements,macros"]
+----
+S27 prefixindexterm2:[--]tail link:https://next.example/27[Next27]
+----
+
+[source,text,subs="specialchars,macros"]
+----
+S28 prefixindexterm2:[--]tail link:https://next.example/28[Next28]
+S29 prefixindexterm2:[pass:r[--]]tail link:https://next.example/29[Next29]
+----
+
+[source,text,subs="specialchars,replacements"]
+----
+S30 prefixindexterm2:[--]tail
+----
+
+[source,text,subs="specialchars,macros,replacements"]
+----
+indexterm2:[--]
+----
+
+[source,text,subs="specialchars,macros,replacements"]
+----
+prefixindexterm2:[--]
+----
+
+[source,text,subs="specialchars,macros,replacements"]
+----
+S33 prefix-indexterm2:[-]tail link:https://next.example/33[Next33]
+S34 prefixindexterm2:[-]-tail link:https://next.example/34[Next34]
+S35 prefixindexterm2:[-]indexterm2:[-]tail link:https://next.example/35[Next35]
+S36 prefix indexterm:[Hidden]indexterm2:[--] tail link:https://next.example/36[Next36]
+S37 prefix anchor:space-before[]indexterm2:[--]anchor:space-after[] tail link:https://next.example/37[Next37]
+S38 prefix  indexterm2:[--]  tail link:https://next.example/38[Next38]
+S39 Saindexterm2:[m]'s link:https://next.example/39[Next39]
+S40 indexterm2:[Sam']s link:https://next.example/40[Next40]
+S41 Samindexterm2:[']s link:https://next.example/41[Next41]
+S42 préindexterm2:[']été link:https://next.example/42[Next42]
+S43 3indexterm2:[']4 link:https://next.example/43[Next43]
+S44 _indexterm2:[']s link:https://next.example/44[Next44]
+S45 Samindexterm2:[\']s link:https://next.example/45[Next45]
+S46 Saindexterm:[Hidden]indexterm2:[m]'s link:https://next.example/46[Next46]
+S47 Saanchor:apostrophe[]indexterm2:[m]'s link:https://next.example/47[Next47]
+S48 prefixpass:[-]indexterm2:[-]tail link:https://next.example/48[Next48]
+S49 prefixpass:[ ]indexterm2:[--] tail link:https://next.example/49[Next49]
+S50 prefix indexterm2:[--]pass:[ ]tail link:https://next.example/50[Next50]
+S51 prefix indexterm2:[pass:r[--]] tail link:https://next.example/51[Next51]
+S52 prefix indexterm2:[--] -- indexterm2:[--] tail link:https://next.example/52[Next52]
+S53 prefix indexterm2:[--]  indexterm2:[--] tail link:https://next.example/53[Next53]
+----
+
+[subs="macros,replacements"]
+S54 prefix indexterm2:[--] tail
+
+[subs="replacements,macros"]
+S55 prefix indexterm2:[--] tail
+
+[subs="macros"]
+S56 prefix indexterm2:[--] tail
+
+[subs="macros,replacements"]
+S57 Saindexterm2:[m]'s
+
+[subs="replacements,macros"]
+S58 Saindexterm2:[m]'s
+
+[subs="macros"]
+S59 Saindexterm2:[m]'s
+
+[subs="macros,replacements"]
+S60 prefix-indexterm2:[-]tail
+
+[subs="replacements,macros"]
+S61 prefix-indexterm2:[-]tail
+
+[subs="macros"]
+S62 prefix-indexterm2:[-]tail
+
+[source,text,subs="specialchars,macros,replacements"]
+----
+S63 prefixpass:r[--]tail link:https://next.example/63[Next63]
+----
+
+
+[index]
+== Index

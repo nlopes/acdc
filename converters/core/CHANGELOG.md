@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Rendered text extraction retains dash and apostrophe context across index labels
+  and invisible targets without changing source labels. Spaced dashes consume one
+  source space on each side, and split dash pairs render once. Passthrough profiles
+  keep their own spaces and escapes. Unlike Asciidoctor's default substitution
+  order, parsed index labels remain visible to enabled replacements.
+
 - Rendered plain-text extraction can retain a fragment's surrounding paragraph
   boundaries, so an embedded index label does not gain extra dash replacements.
 
