@@ -129,6 +129,12 @@ jobs:
       - uses: taiki-e/install-action@nextest
       - name: Run converter tests
         run: cargo nextest run -p acdc-converters-core -p acdc-converters-html -p acdc-converters-manpage -p acdc-converters-terminal -p acdc-converters-markdown --all-features --verbose
+      - name: Run HTML tests - substitutions without highlighting
+        run: cargo nextest run -p acdc-converters-html --no-default-features --features pre-spec-subs --verbose
+      - name: Run HTML tests - no default features
+        run: cargo nextest run -p acdc-converters-html --no-default-features --verbose
+      - name: Run HTML tests - highlighting without substitutions
+        run: cargo nextest run -p acdc-converters-html --no-default-features --features highlighting --verbose
       - name: Run Markdown tests - no default features
         run: cargo nextest run -p acdc-converters-markdown --no-default-features --verbose
       - name: Run Ghostty-backed terminal tests

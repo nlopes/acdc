@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- HTML fixture tests now check plain code output when the `highlighting` feature
+  is disabled, alongside the existing highlighted expectations. CI covers both
+  modes with `pre-spec-subs` enabled and disabled. Rendered output is unchanged.
+
 - Enabled replacements render dashes and contractions across visible index labels
   in prose and code: `prefixindexterm2:[--]tail` displays `prefix—tail`, with
   following links and catalog labels preserved. Unlike Asciidoctor's default

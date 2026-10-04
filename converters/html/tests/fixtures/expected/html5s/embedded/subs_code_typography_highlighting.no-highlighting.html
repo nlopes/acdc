@@ -1,0 +1,72 @@
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>code-typography - typography enabled in code</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_synopsis">Synopsis</h2>
+<p><strong>code-typography</strong></p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_description">Description</h2>
+<div class="listing-block">
+<pre>C01 &#169; &#174; &#8482; &#8230;&#8203; don&#8217;t word&#8212;&#8203;word &#8594; &#8592; &#8658; &#8656;</pre>
+</div>
+<div class="listing-block">
+<pre>C02 (C) (R) (TM) ... word--word -&gt; &lt;- =&gt; &lt;=
+C03 \*bold\* \_italic\_ \`code\` \#mark\# \^up\^ \~down\~</pre>
+</div>
+<div class="listing-block">
+<pre>C04 &#169; (R) (TM) &#174;
+C05 \*raw\* \-> &#169; (C)
+C06 &#169; <a id="code-target"></a><a href="https://example.org/type">Next &#174;</a> &#8482;
+C07 \*literal\* <a href="https://example.org/escape">\*label\* \^up\^ \__down__</a> &#169;
+C08 &#169; <a href="#code-target">Target &#174;</a> &#8482;
+C09 &#169; Term &#174; &#8482;</pre>
+</div>
+<div class="listing-block">
+<pre>C10 &#174; (C) &#8482;</pre>
+</div>
+<div class="listing-block">
+<pre>C11 <strong>&#169;</strong> <em>&#174;</em> <code>&#8482;</code>
+C12 *literal* &#169;</pre>
+</div>
+<div class="listing-block">
+<pre>C13 <strong>(C)</strong> *literal*</pre>
+</div>
+<div class="listing-block">
+<pre>C14 (C) \*literal\* pass:r[(R)]</pre>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>C15 &#169; (R) \*literal\* word&#8212;&#8203;word</pre>
+</div>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>C16 &#169; (R) <a href="https://example.org/literal">Literal &#8482;</a></pre>
+</div>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code class="language-rust" data-lang="rust">// C17 &#169; "string" &#8594; next <b class="conum">(1)</b>
+// C18 \*literal\* &#174; <b class="conum">(2)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>First callout.</li>
+<li>Second callout.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-xml" data-lang="xml">&lt;tag&gt;C19 &#169; &amp; literal&lt;/tag&gt; &lt;!--<b class="conum">(1)</b>-&#8594;</code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>XML callout.</li>
+</ol>
+<div class="listing-block">
+<pre>C20 <strong>&#169;</strong>(R)<a href="https://example.org/mixed">Next &#8482;</a>&#8230;&#8203;
+C21&thinsp;&mdash;&thinsp;<strong>middle</strong>&thinsp;&mdash;&thinsp;</pre>
+</div>
+<div class="listing-block">
+<pre>C22 -- &#169; ... &#174;
+C23 &#169;<a id="after-raw"></a><a href="https://example.org/after">After</a></pre>
+</div>
+<p>See <a href="#code-target">code</a> and <a href="#after-raw">raw</a>.</p>
+</section>

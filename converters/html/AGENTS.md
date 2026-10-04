@@ -5,6 +5,31 @@ Architecture docs for the `acdc-converters-html` crate, focused on the styleshee
 For `[subs="…"]` plumbing (the `pre-spec-subs` feature, `effective_subs` call
 sites, fixture-naming conventions), see `converters/AGENTS.md`.
 
+## Feature-specific fixtures
+
+Keep canonical `.html` expectations for builds with highlighting enabled.
+Fixtures with a `source-highlighter` header attribute also need
+`.no-highlighting.html` expectations in each variant directory. The harness
+selects them when `highlighting` is disabled; it uses the parsed attributes,
+so an explicit unset selects the canonical expectation. Both modes exercise
+the same source inputs. Fixtures whose stems contain `subs` remain skipped
+when `pre-spec-subs` is disabled.
+
+The generator follows the same selection rules. With highlighting disabled,
+it writes only the plain alternatives, preserving canonical expectations.
+With highlighting enabled, it writes canonical expectations. Create source
+fixtures directly and get approval before updating existing expectations.
+From the workspace root, scope regeneration by source stem:
+
+```console
+cargo run -p acdc-converters-html --example generate_html_fixtures --all-features -- <fixture_name>
+cargo run -p acdc-converters-html --example generate_html_fixtures --no-default-features --features pre-spec-subs -- <fixture_name>
+```
+
+CI checks all four combinations of `highlighting` and `pre-spec-subs`.
+The all-features converter step covers both enabled; HTML-specific steps
+cover substitutions alone, highlighting alone, and neither feature.
+
 ## Stylesheet rendering pipeline
 
 The entry point is `render_head()` in `html_visitor.rs`, which calls `render_stylesheet()` as part of the `<head>` output. In embedded mode, `visit_document_start()` returns early and `render_head()` is never called, so none of the stylesheet pipeline runs. Similarly, `after_write()` returns early when embedded, skipping `copycss` and syntax CSS file writes.

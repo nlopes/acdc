@@ -1,0 +1,43 @@
+<div class="sect1">
+<h2 id="_name">Name</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>verbatim-styles - formatting in verbatim blocks</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_description">Description</h2>
+<div class="sectionbody">
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-rust" data-lang="rust">B01 <strong>Bold</strong> <em>Italic</em> <code>Mono</code> <mark>Mark</mark> <sup>Super</sup> <sub>Sub</sub>
+B02 <strong><em>Nested</em></strong> <span class="underline">Under</span> <span class="line-through">Strike</span>
+B03 <strong>two  spaces</strong> and <strong>first
+  second</strong> after.
+B04 <strong>expanded</strong> <strong></strong> link:https://example.org[Literal]</code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-rust" data-lang="rust">B05 <strong>Bold</strong> <em>Italic</em> <strong>expanded</strong> <strong></strong> <a href="https://example.org">Live</a></code></pre>
+</div>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>B06 <strong>Bold</strong> <em>Italic</em> &ldquo;Curved&rdquo; &lsquo;Single&rsquo;
+B07 *literal* <strong>double</strong> <em>double</em> é*literal*é</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>B08 <strong>Bold</strong> expanded <b class="conum">(1)</b></pre>
+</div>
+</div>
+<div class="colist arabic">
+<ol>
+<li><p>Callout stays attached.</p></li>
+</ol>
+</div>
+</div>
+</div>

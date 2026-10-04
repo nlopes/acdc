@@ -1,0 +1,44 @@
+<div class="sect1">
+<h2 id="_name">Name</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>mailto-subs - substitution ordering</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_synopsis">Synopsis</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Email links.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_description">Description</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><a href="mailto:normal@example.org?subject=Expanded%20subject&amp;body=Caf%C3%A9%20%26%20tea">Normal</a></p>
+</div>
+<div class="paragraph">
+<p><a href="mailto:late@example.org?subject=%7Bsubject%7D&amp;body=%7Bbody%7D" class="green">One, two</a></p>
+</div>
+<div class="paragraph">
+<p><a href="mailto:early@example.org?subject=Expanded%20subject&amp;body=Caf%C3%A9%20%26%20tea">Early</a></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text"><a href="mailto:code@example.org?subject=Subject%20text&amp;body=Body%20text">Code</a></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p><a href="mailto:label@example.org">One, two</a></p>
+</div>
+<div class="paragraph">
+<p><a href="mailto:pass@example.org?subject=Subject&amp;body=Body">Pass</a></p>
+</div>
+<div class="paragraph">
+<p>mailto:disabled@example.org[Disabled,Subject,Body]</p>
+</div>
+</div>
+</div>

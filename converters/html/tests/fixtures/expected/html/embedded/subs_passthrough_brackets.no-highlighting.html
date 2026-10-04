@@ -1,0 +1,40 @@
+<div class="paragraph">
+<p>pass:m[link:https://example.org[Label\]]</p>
+</div>
+<div class="paragraph">
+<p>pass:a,m[link:https://example.org[Expanded\]]</p>
+</div>
+<div class="paragraph">
+<p>pass:m[link:https://example.org[Label\]]</p>
+</div>
+<div class="paragraph">
+<p><a href="https://example.org">Expanded</a></p>
+</div>
+<div class="paragraph">
+<p>See <a href="#code-target">Code target</a>.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text">Before <a href="https://example.org">Code link</a> after.
+<a id="code-target"></a>Destination.</code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-rust" data-lang="rust">let value = <a href="https://example.org">1</a>;
+<sup class="footnote" id="_footnote_code-note">[<a id="_footnoteref_1" class="footnote" href="#_footnotedef_1" title="View footnote.">1</a>]</sup></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Reuse <sup class="footnoteref">[<a class="footnote" href="#_footnotedef_1" title="View footnote.">1</a>]</sup>.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>pass:m[link:https://example.org[Literal\]]</pre>
+</div>
+</div>
+<div id="footnotes">
+<hr>
+<div class="footnote" id="_footnotedef_1">
+<a href="#_footnoteref_1">1</a>. Code note.</div>
+</div>

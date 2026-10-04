@@ -1,55 +1,77 @@
-//! Generate expected HTML output files for integration tests.
+//! Generate HTML fixtures for the compiled feature configuration.
 //!
-//! Discovers variant subdirectories (`html`, `html5s`) under `tests/fixtures/source/`
-//! and generates expected outputs for each.
+//! With highlighting enabled, writes canonical `.html` expectations.
+//! Without highlighting, writes only the required `.no-highlighting.html`
+//! alternatives. Substitution-dependent fixtures are omitted when substitutions
+//! are disabled. Optional arguments select source fixture stems.
 //!
-//! Optional arguments select fixture stems; omit them to generate all fixtures.
-//!
-//! Usage:
-//!   `cargo run --example generate_html_fixtures`
+//! Run from the workspace root.
 
-use acdc_converters_core::{GeneratorMetadata, Options};
-use acdc_converters_dev::generate_fixtures::FixtureGenerator;
+use std::{error::Error, fs, path::Path};
+
+use acdc_converters_core::{Diagnostics, GeneratorMetadata, Options, WarningSource};
 use acdc_converters_html::{HtmlVariant, Processor, RenderOptions};
+use acdc_parser::{Options as ParserOptions, parse_file};
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let arguments = std::env::args().skip(1).collect::<Vec<_>>();
-    let names = arguments.iter().map(String::as_str).collect::<Vec<_>>();
-    let generator = FixtureGenerator::new("html", "html");
-    let generator = if names.is_empty() {
-        generator
-    } else {
-        generator.with_fixtures(&names)
-    };
-    for variant in generator.subdirs()? {
-        generator
-            .in_subdir(&variant)
-            .generate(|mode, doc, output| {
-                let html_variant = match variant.as_str() {
-                    "html5s" => HtmlVariant::Semantic,
-                    _ => HtmlVariant::Standard,
-                };
-                let embedded = mode == Some("embedded");
+#[path = "../tests/support/mod.rs"]
+mod fixture_support;
+
+fn main() -> Result<(), Box<dyn Error>> {
+    let names = std::env::args().skip(1).collect::<Vec<_>>();
+    let fixtures = Path::new("converters/html/tests/fixtures");
+    for (directory, variant) in [
+        ("html", HtmlVariant::Standard),
+        ("html5s", HtmlVariant::Semantic),
+    ] {
+        for mode in ["embedded", "standalone"] {
+            let source_dir = fixtures.join("source").join(directory).join(mode);
+            let expected_dir = fixtures.join("expected").join(directory).join(mode);
+            let mut paths = source_dir
+                .read_dir()?
+                .map(|entry| entry.map(|entry| entry.path()))
+                .collect::<Result<Vec<_>, _>>()?;
+            paths.sort();
+            for path in paths {
+                if path.extension().is_none_or(|extension| extension != "adoc") {
+                    continue;
+                }
+                let stem = path
+                    .file_stem()
+                    .and_then(|stem| stem.to_str())
+                    .ok_or("invalid HTML fixture stem")?;
+                if fixture_support::skip_fixture(stem)
+                    || (!names.is_empty() && !names.iter().any(|name| name == stem))
+                {
+                    continue;
+                }
+                let parsed = parse_file(&path, &ParserOptions::default())?;
+                let doc = parsed.document();
+                if !cfg!(feature = "highlighting") && !fixture_support::has_highlighter(doc) {
+                    continue;
+                }
+                let output_path = fixture_support::expected_fixture_path(&expected_dir, stem, doc);
                 let options = Options::builder()
                     .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
                     .build();
                 let processor = Processor::new_with_variant(
                     options,
-                    acdc_parser::Options::builder()
-                        .with_attributes(doc.attributes.clone().into_inputs()),
-                    html_variant,
+                    ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+                    variant,
                 )?;
                 let render_options = RenderOptions {
-                    embedded,
+                    embedded: mode == "embedded",
                     ..RenderOptions::default()
                 };
+                let mut output = Vec::new();
                 let mut warnings = Vec::new();
-                let source = acdc_converters_core::WarningSource::new("html");
-                let mut diagnostics =
-                    acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-                processor.convert_to_writer(doc, output, &render_options, &mut diagnostics)?;
-                Ok(())
-            })?;
+                let source = WarningSource::new("html").with_variant(variant.as_str());
+                let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+                processor.convert_to_writer(doc, &mut output, &render_options, &mut diagnostics)?;
+                fs::create_dir_all(&expected_dir)?;
+                fs::write(&output_path, output)?;
+                println!("Generated {}", output_path.display());
+            }
+        }
     }
     Ok(())
 }

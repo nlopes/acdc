@@ -1,0 +1,24 @@
+<p>pass:m[link:https://example.org[Label\]]</p>
+<p>pass:a,m[link:https://example.org[Expanded\]]</p>
+<p>pass:m[link:https://example.org[Label\]]</p>
+<p><a href="https://example.org">Expanded</a></p>
+<p>See <a href="#code-target">Code target</a>.</p>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text">Before <a href="https://example.org">Code link</a> after.
+<a id="code-target"></a>Destination.</code></pre>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code class="language-rust" data-lang="rust">let value = <a href="https://example.org">1</a>;
+<sup class="footnote-ref" id="_footnoteref_1">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup></code></pre>
+</div>
+<p>Reuse <sup class="footnote-ref">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup>.</p>
+<div class="listing-block">
+<pre>pass:m[link:https://example.org[Literal\]]</pre>
+</div>
+<section class="footnotes" aria-label="Footnotes" role="doc-endnotes">
+<hr>
+<ol class="footnotes">
+<li class="footnote" id="_footnote_1" role="doc-endnote">
+Code note. <a class="footnote-backref" href="#_footnoteref_1" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+</ol>
+</section>

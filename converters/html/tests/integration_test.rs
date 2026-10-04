@@ -14,7 +14,123 @@ use acdc_converters_dev::output::remove_lines_trailing_whitespace;
 use acdc_converters_html::{HtmlVariant, HtmlVisitor, Processor, RenderOptions};
 use acdc_parser::{AttributeValue, Options as ParserOptions, SafeMode, parse, parse_file};
 
+mod support;
+
 type Error = Box<dyn StdError>;
+
+#[rstest::rstest]
+#[case::absent("= T\n\n", false, false)]
+#[case::named("= T\n:source-highlighter: syntect\n\n", true, false)]
+#[case::empty("= T\n:source-highlighter:\n\n", true, false)]
+#[case::unset(
+    "= T\n:source-highlighter: rouge\n:source-highlighter!:\n\n",
+    false,
+    false
+)]
+#[case::caller_unset("= T\n:source-highlighter: syntect\n\n", false, true)]
+#[case::verbatim("= T\n\n----\n:source-highlighter: syntect\n----\n\n", false, false)]
+#[case::comment(
+    "= T\n\nParagraph.\n\n////\n:source-highlighter: syntect\n////\n\n",
+    false,
+    false
+)]
+#[case::body("= T\n\nParagraph.\n\n:source-highlighter: syntect\n\n", false, false)]
+fn fixture_expectations_follow_effective_header_highlighter(
+    #[case] prefix: &str,
+    #[case] highlighter: bool,
+    #[case] caller_unset: bool,
+) -> Result<(), Error> {
+    let input = format!("{prefix}[source,rust]\n----\nfn main() {{}}\n----\n");
+    let mut options = ParserOptions::builder();
+    if caller_unset {
+        options = options.with_attribute("source-highlighter", false);
+    }
+    let parsed = parse(&input, &options.build()?)?;
+    let expected = if !cfg!(feature = "highlighting") && highlighter {
+        "example.no-highlighting.html"
+    } else {
+        "example.html"
+    };
+    assert_eq!(
+        support::expected_fixture_path(Path::new("expected"), "example", parsed.document()),
+        Path::new("expected").join(expected)
+    );
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        let output = render_fixture_document(parsed.document(), variant, true)?;
+        assert_eq!(
+            output.contains("<span style=\"color:"),
+            cfg!(feature = "highlighting") && highlighter,
+            "{output}"
+        );
+    }
+    Ok(())
+}
+
+#[cfg(not(feature = "highlighting"))]
+#[test]
+fn plain_source_keeps_text_callouts_and_wrap_options() -> Result<(), Error> {
+    for (directory, variant) in [
+        ("html", HtmlVariant::Standard),
+        ("html5s", HtmlVariant::Semantic),
+    ] {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
+            "tests/fixtures/source/{directory}/embedded/source_line_options.adoc"
+        ));
+        let output = render_fixture(&path, variant, true)?;
+        assert!(!output.contains("<span style=\"color:"), "{output}");
+        assert!(!output.contains("syntax-"), "{output}");
+        assert!(!output.contains("<table"), "{output}");
+        assert_eq!(output.matches("<pre").count(), 14, "{output}");
+        for text in [
+            "fn ten() {}\nfn eleven() {}",
+            "fn invalid_start() {}",
+            "plain one\nplain two",
+            "fn paragraph_one() {}\nfn paragraph_two() {}",
+            "fn callout_one() {} <b class=\"conum\">(1)</b>",
+            "First callout.",
+            "Second callout.",
+            "fn after_unset() {}",
+        ] {
+            assert!(output.contains(text), "missing {text}: {output}");
+        }
+        assert_eq!(output.matches("class=\"highlight nowrap\"").count(), 2);
+    }
+    Ok(())
+}
+
+#[cfg(all(feature = "pre-spec-subs", not(feature = "highlighting")))]
+#[test]
+fn plain_code_keeps_enabled_macros_and_literal_controls() -> Result<(), Error> {
+    for (directory, variant) in [
+        ("html", HtmlVariant::Standard),
+        ("html5s", HtmlVariant::Semantic),
+    ] {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
+            "tests/fixtures/source/{directory}/embedded/subs_highlight_attributes.adoc"
+        ));
+        let output = render_fixture(&path, variant, true)?;
+        check_link_structure(&output, "plain_highlight_attributes")?;
+        assert!(!output.contains("syntax-"), "{output}");
+        assert!(!output.contains("<span style=\"color:"), "{output}");
+        assert!(!output.contains("<table"), "{output}");
+        for text in [
+            "href=\"https://example.org/highlight\"",
+            "href=\"#target\"",
+            "href=\"#_indexterm_0\"",
+            "id=\"_indexterm_1\"",
+            "Visible &#174;",
+            "H04 &#169;",
+            "<b class=\"conum\">(1)</b>",
+            "Attached callout.",
+            "Shared note.",
+            "H06 footnote:[Disabled note.] indexterm2:[Disabled term]",
+        ] {
+            assert!(output.contains(text), "missing {text}: {output}");
+        }
+        assert!(!output.contains("href=\"#_indexterm_2\""), "{output}");
+    }
+    Ok(())
+}
 
 #[test]
 fn formatted_attribute_footnotes_keep_unique_link_targets() -> Result<(), Error> {
@@ -614,18 +730,22 @@ fn run_fixture_test(
         .and_then(|s| s.to_str())
         .ok_or("Invalid fixture file name")?;
 
-    // Fixtures whose name contains `subs` test `[subs="…"]` behaviour, which
-    // only takes effect under the `pre-spec-subs` feature. When the feature
-    // is off, skip — the expected output captures the feature-on behaviour
-    // and cannot match.
-    #[cfg(not(feature = "pre-spec-subs"))]
-    if file_name.contains("subs") {
+    if support::skip_fixture(file_name) {
         return Ok(());
     }
 
-    let expected_path = expected_dir.join(file_name).with_extension("html");
+    let parsed = parse_file(path, &ParserOptions::default())?;
+    // Require both baselines even in highlighting-enabled CI, so new inputs
+    // cannot omit the plain rendering coverage.
+    if support::has_highlighter(parsed.document()) {
+        let plain_path = expected_dir
+            .join(file_name)
+            .with_extension("no-highlighting.html");
+        assert!(plain_path.is_file(), "missing {}", plain_path.display());
+    }
+    let expected_path = support::expected_fixture_path(expected_dir, file_name, parsed.document());
 
-    let actual = render_fixture(path, variant, embedded)?;
+    let actual = render_fixture_document(parsed.document(), variant, embedded)?;
     let expected = read_to_string(&expected_path)?;
     let expected_normalized = remove_lines_trailing_whitespace(&expected);
     let actual_normalized = remove_lines_trailing_whitespace(&actual);
@@ -641,8 +761,14 @@ fn run_fixture_test(
 fn render_fixture(path: &Path, variant: HtmlVariant, embedded: bool) -> Result<String, Error> {
     let parser_options = ParserOptions::default();
     let parsed = parse_file(path, &parser_options)?;
-    let doc = parsed.document();
+    render_fixture_document(parsed.document(), variant, embedded)
+}
 
+fn render_fixture_document(
+    doc: &acdc_parser::Document<'_>,
+    variant: HtmlVariant,
+    embedded: bool,
+) -> Result<String, Error> {
     let converter_options = ConverterOptions::builder()
         .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
         .build();
