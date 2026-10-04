@@ -1,0 +1,114 @@
+<div class="sect1">
+<h2 id="_name">Name</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>cell-substitutions - substitutions in table paragraphs</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_synopsis">Synopsis</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Shared note definition.<sup class="footnote" id="_footnote_shared">[<a id="_footnoteref_1" class="footnote" href="#_footnotedef_1" title="View footnote.">1</a>]</sup></p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><div id="title-target" class="paragraph">
+<div class="title">Title <sup class="footnoteref">[<a class="footnote" href="#_footnotedef_1" title="View footnote.">1</a>]</sup> <a id="_indexterm_0"></a>Title term</div>
+<p>Prose &#169; <a href="https://example.org/prose">Prose link</a>.</p>
+</div>
+</td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><div class="literalblock">
+<div class="title">Literal macros</div>
+<div class="content">
+<pre>&lt;code&gt; <a href="https://example.org/code">Code link</a> <a id="code-target"></a><a id="_indexterm_1"></a>Code term <sup class="footnoteref">[<a class="footnote" href="#_footnotedef_1" title="View footnote.">1</a>]</sup>.</pre>
+</div>
+</div>
+</td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><div class="listingblock">
+<div class="title">Source macros</div>
+<div class="content">
+<pre class="highlight"><code class="language-rust" data-lang="rust"><a id="_indexterm_2"></a><span style="font-weight:bold;color:#a71d5d;">let</span><span style="color:#323232;"> value </span><span style="font-weight:bold;color:#a71d5d;">=</span><span style="color:#323232;"> <a href="https://example.org/source">Source link</a>; <a id="source-target"></a>Source term</span></code></pre>
+</div>
+</div>
+</td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><div class="paragraph">
+<p>Disabled (C) link:https://example.org/disabled[Disabled link] footnote:[Disabled note.] ((Disabled term)).</p>
+</div>
+</td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><div class="paragraph">
+<p>Normal after disabled &#169; <a href="https://example.org/after">After link</a>.</p>
+</div>
+</td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><div class="paragraph">
+<p>Literal (C) <strong>enabled bold</strong>.</p>
+</div>
+</td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><table class="tableblock frame-all grid-all stretch">
+<caption class="title">Table 1. Nested table</caption>
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><div id="nested-example" class="exampleblock">
+<div class="title">Example 1. Nested example</div>
+<div class="content">
+Nested text with <a href="#title-target">Title </a><sup class="footnoteref">[<a class="footnote" href="#_footnotedef_1" title="View footnote.">1</a>]</sup><a href="#title-target"> </a><a id="_indexterm_3"></a><a href="#title-target">Title term</a>.
+</div>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>Outside <a href="#title-target">Title </a><sup class="footnoteref">[<a class="footnote" href="#_footnotedef_1" title="View footnote.">1</a>]</sup><a href="#title-target"> </a><a id="_indexterm_4"></a><a href="#title-target">Title term</a>, <a href="#code-target">[code-target]</a>, <a href="#source-target">[source-target]</a>, and <a href="#nested-example">Nested example</a>.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_index">Index</h2>
+<div class="sectionbody">
+<h3 class="indexletter">C</h3>
+<dl class="indexterms">
+<dt>Code term
+ <a href="#_indexterm_1">Synopsis</a></dt>
+</dl>
+<h3 class="indexletter">S</h3>
+<dl class="indexterms">
+<dt>Source term
+ <a href="#_indexterm_2">Synopsis</a></dt>
+</dl>
+<h3 class="indexletter">T</h3>
+<dl class="indexterms">
+<dt>Title term
+ <a href="#_indexterm_0">Synopsis</a>, <a href="#_indexterm_3">Synopsis (2)</a>, <a href="#_indexterm_4">Synopsis (3)</a></dt>
+</dl>
+</div>
+</div>
+<div id="footnotes">
+<hr>
+<div class="footnote" id="_footnotedef_1">
+<a href="#_footnoteref_1">1</a>. Shared title note.</div>
+</div>

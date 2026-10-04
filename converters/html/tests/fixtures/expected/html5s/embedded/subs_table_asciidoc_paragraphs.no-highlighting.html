@@ -1,0 +1,100 @@
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>cell-substitutions - substitutions in table paragraphs</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_synopsis">Synopsis</h2>
+<p>Shared note definition.<sup class="footnote-ref" id="_footnoteref_1">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup></p>
+<div class="table-block">
+<table class="frame-all grid-all stretch">
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="halign-left valign-top"><section id="title-target" class="paragraph">
+<h6 class="block-title">Title <sup class="footnote-ref">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup> <a id="_indexterm_0"></a>Title term</h6>
+<p>Prose &#169; <a href="https://example.org/prose">Prose link</a>.</p>
+</section>
+</td>
+</tr>
+<tr>
+<td class="halign-left valign-top"><div class="literalblock">
+<div class="title">Literal macros</div>
+<div class="content">
+<pre>&lt;code&gt; <a href="https://example.org/code">Code link</a> <a id="code-target"></a><a id="_indexterm_1"></a>Code term <sup class="footnote-ref">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup>.</pre>
+</div>
+</div>
+</td>
+</tr>
+<tr>
+<td class="halign-left valign-top"><figure class="listing-block">
+<figcaption>Source macros</figcaption>
+<pre class="highlight"><code class="language-rust" data-lang="rust">let value = <a href="https://example.org/source">Source link</a>; <a id="source-target"></a><a id="_indexterm_2"></a>Source term</code></pre>
+</figure>
+</td>
+</tr>
+<tr>
+<td class="halign-left valign-top"><p>Disabled (C) link:https://example.org/disabled[Disabled link] footnote:[Disabled note.] ((Disabled term)).</p>
+</td>
+</tr>
+<tr>
+<td class="halign-left valign-top"><p>Normal after disabled &#169; <a href="https://example.org/after">After link</a>.</p>
+</td>
+</tr>
+<tr>
+<td class="halign-left valign-top"><p>Literal (C) <strong>enabled bold</strong>.</p>
+</td>
+</tr>
+<tr>
+<td class="halign-left valign-top"><div class="table-block">
+<table class="frame-all grid-all stretch">
+<caption class="title">Table 1. Nested table</caption>
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="halign-left valign-top"><figure id="nested-example" class="example-block">
+<figcaption>Example 1. Nested example</figcaption>
+<div class="example">
+Nested text with <a href="#title-target">Title </a><sup class="footnote-ref">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup><a href="#title-target"> </a><a id="_indexterm_3"></a><a href="#title-target">Title term</a>.
+</div>
+</figure>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Outside <a href="#title-target">Title </a><sup class="footnote-ref">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup><a href="#title-target"> </a><a id="_indexterm_4"></a><a href="#title-target">Title term</a>, <a href="#code-target">[code-target]</a>, <a href="#source-target">[source-target]</a>, and <a href="#nested-example">Nested example</a>.</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_index">Index</h2>
+<h3 class="indexletter">C</h3>
+<dl class="indexterms">
+<dt>Code term
+ <a href="#_indexterm_1">Synopsis</a></dt>
+</dl>
+<h3 class="indexletter">S</h3>
+<dl class="indexterms">
+<dt>Source term
+ <a href="#_indexterm_2">Synopsis</a></dt>
+</dl>
+<h3 class="indexletter">T</h3>
+<dl class="indexterms">
+<dt>Title term
+ <a href="#_indexterm_0">Synopsis</a>, <a href="#_indexterm_3">Synopsis (2)</a>, <a href="#_indexterm_4">Synopsis (3)</a></dt>
+</dl>
+</section>
+<section class="footnotes" aria-label="Footnotes" role="doc-endnotes">
+<hr>
+<ol class="footnotes">
+<li class="footnote" id="_footnote_1" role="doc-endnote">
+Shared title note. <a class="footnote-backref" href="#_footnoteref_1" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+</ol>
+</section>

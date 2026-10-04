@@ -2750,7 +2750,7 @@ fn table_paragraphs_keep_boundaries_in_both_variants() -> Result<(), Error> {
         &acdc_parser::Options::default(),
     )?;
     let output = render_fixture_document(parsed.document(), HtmlVariant::Semantic, true)?;
-    assert!(output.contains(">Single.</td>"), "{output}");
+    assert!(output.contains("<p>Single.</p>"), "{output}");
     let parsed = acdc_parser::parse(
         "[cols=\"1\",options=header]\n|===\n|First.\n\nSecond.\n|Body.\n|===\n",
         &acdc_parser::Options::default(),
@@ -2758,6 +2758,22 @@ fn table_paragraphs_keep_boundaries_in_both_variants() -> Result<(), Error> {
     for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
         let output = render_fixture_document(parsed.document(), variant, true)?;
         assert!(output.contains(">First.\nSecond.</th>"), "{output}");
+    }
+    Ok(())
+}
+
+#[cfg(feature = "pre-spec-subs")]
+#[test]
+fn asciidoc_table_paragraphs_keep_unique_link_targets() -> Result<(), Error> {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/source/html/embedded/subs_table_asciidoc_paragraphs.adoc");
+    let parsed = parse_file(&path, &ParserOptions::default())?;
+    assert_eq!(parsed.document().footnotes.len(), 1);
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        for embedded in [true, false] {
+            let output = render_fixture_document(parsed.document(), variant, embedded)?;
+            check_link_structure(&output, "asciidoc table paragraphs")?;
+        }
     }
     Ok(())
 }

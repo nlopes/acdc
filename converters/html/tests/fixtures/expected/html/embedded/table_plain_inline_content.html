@@ -20,20 +20,35 @@
 ////
 I01 <a href="https://example.org/table">Visit</a>.
 ////</p><p class="tableblock">I01 Second paragraph with <sup class="footnote">[<a id="_footnoteref_1" class="footnote" href="#_footnotedef_1" title="View footnote.">1</a>]</sup>.</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">A02 Before.</p><p class="tableblock">A02 Second paragraph.</p></td>
+<td class="tableblock halign-left valign-top"><div class="paragraph">
+<p>A02 Before.</p>
+</div>
+<div class="paragraph">
+<p>A02 Second paragraph.</p>
+</div>
+</td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">[role=example]
 I03 Visible metadata-looking text.
 :value: cell
 I03 value=outer.</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">A04 Paragraph with <a href="https://example.org/nested">Nested</a>.</p><p class="tableblock">A04 Second paragraph.</p></td>
+<td class="tableblock halign-left valign-top"><div class="paragraph">
+<p>A04 Paragraph with <a href="https://example.org/nested">Nested</a>.</p>
+</div>
+<div class="paragraph">
+<p>A04 Second paragraph.</p>
+</div>
+</td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">I05 Before.
 <a id="plain-cell-target"></a>
 I05 Target and Plain cell term.</p><p class="tableblock">I05 After.</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">A06 Before.</p><div class="ulist">
+<td class="tableblock halign-left valign-top"><div class="paragraph">
+<p>A06 Before.</p>
+</div>
+<div class="ulist">
 <ul>
 <li>
 <p>A06 List item.</p>
@@ -43,7 +58,10 @@ I05 Target and Plain cell term.</p><p class="tableblock">I05 After.</p></td>
 </li>
 </ul>
 </div>
-<p class="tableblock">A06 After.</p></td>
+<div class="paragraph">
+<p>A06 After.</p>
+</div>
+</td>
 </tr>
 </tbody>
 </table>

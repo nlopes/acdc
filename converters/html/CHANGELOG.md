@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- AsciiDoc (`a`) table cells render paragraph titles, captions, IDs, roles, quote
+  attributions, verse layout, and literal/source styles. Per-paragraph
+  substitutions and code highlighting are honored, matching the same blocks
+  outside tables. Header cells remain inline text, matching Asciidoctor.
+
 - Table cells keep paragraph boundaries in HTML5s instead of joining adjacent
   words. Cells with multiple rendered blocks retain paragraph wrappers;
   single-paragraph cells keep their existing layout. Header cells keep separating

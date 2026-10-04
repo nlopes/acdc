@@ -1,0 +1,50 @@
+= cell-substitutions(1)
+:doctype: manpage
+:revdate: 2026-10-04
+:manname: cell-substitutions
+:manpurpose: substitutions in table paragraphs
+:source-highlighter: syntect
+:acdc-index:
+
+== Name
+
+cell-substitutions - substitutions in table paragraphs
+
+== Synopsis
+
+Shared note definition.footnote:shared[Shared title note.]
+
+[cols="1a"]
+|===
+|.Title footnote:shared[] ((Title term))
+[#title-target]
+Prose (C) link:https://example.org/prose[Prose link].
+
+|.Literal macros
+[literal,subs="specialcharacters,macros"]
+<code> link:https://example.org/code[Code link] anchor:code-target[]((Code term)) footnote:shared[].
+
+|.Source macros
+[source,rust,subs="specialcharacters,macros"]
+let value = link:https://example.org/source[Source link]; anchor:source-target[]((Source term))
+
+|[subs="specialcharacters"]
+Disabled (C) link:https://example.org/disabled[Disabled link] footnote:[Disabled note.] ((Disabled term)).
+
+|Normal after disabled (C) link:https://example.org/after[After link].
+
+|[subs="normal,-replacements"]
+Literal (C) *enabled bold*.
+
+|.Nested table
+!===
+a!.Nested example
+[example#nested-example]
+Nested text with <<title-target>>.
+!===
+|===
+
+Outside <<title-target>>, <<code-target>>, <<source-target>>, and <<nested-example>>.
+
+[index]
+== Index

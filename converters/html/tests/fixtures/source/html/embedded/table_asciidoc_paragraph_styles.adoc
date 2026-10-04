@@ -1,0 +1,111 @@
+= cell-styles(1)
+:doctype: manpage
+:revdate: 2026-10-04
+:manname: cell-styles
+:manpurpose: styled table paragraphs
+:example-caption: Demo
+
+== Name
+
+cell-styles - styled table paragraphs
+
+== Synopsis
+
+[cols="1a",options="header,footer"]
+|===
+|.Header title
+[example#header-text]
+Header text.
+
+|.Body *title*
+[example#body-example.cell-role]
+Body text.
+
+|.Footer title
+[example#footer-example]
+Footer text.
+|===
+
+[cols="1a"]
+|===
+|.Regular title
+[#regular-target.regular-role]
+Regular *bold* text.
+
+|[#untitled-target.untitled-role]
+Untitled paragraph.
+
+|.Quote title
+[quote,Writer,Book]
+Quoted text.
+
+|.Verse title
+[verse,Poet,Poem]
+Verse one.
+Verse two.
+
+|.Literal title
+[literal]
+<literal> *raw* text.
+
+|.Listing title
+[listing]
+<listing> *raw* text.
+
+|.Source title
+[source,rust]
+fn main() {}
+
+|.Details title
+[example%collapsible%open]
+Details text.
+
+|[example%collapsible]
+Untitled details.
+
+|.Abstract title
+[abstract]
+Abstract text.
+
+|Plain paragraph one.
+
+Plain paragraph two.
+
+* Attached list.
+
+|NOTE: Attached admonition.
+
+d|.Normal text
+[example]
+NOTE: Normal cell text.
+
+l|.Literal cell text
+[example]
+*Unprocessed literal cell text.*
+|===
+
+[cols="1"]
+|===
+a|.Explicit AsciiDoc title
+[example]
+Explicit AsciiDoc text.
+|===
+
+[cols="1a"]
+|===
+|
+:cell-only: local
+
+Single nested paragraph.
+
+|{cell-only}
+
+|[example]
+Untitled example.
+|===
+
+.Outer title
+[example]
+Outer example.
+
+Outside <<regular-target>>, <<untitled-target>>, <<body-example>>, and <<footer-example>>.

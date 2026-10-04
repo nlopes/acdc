@@ -117,7 +117,13 @@ fn render_cell_content<'a, V>(
 where
     V: WritableVisitor<'a, Error = Error>,
 {
-    let scoped = style == Some(ColumnStyle::AsciiDoc);
+    if style == Some(ColumnStyle::AsciiDoc) {
+        // AsciiDoc cells contain full blocks. Their visitor preserves paragraph
+        // metadata and substitution settings within the cell's attribute scope.
+        return traversal.with_table_cell(column, |traversal| {
+            traversal.visit_blocks(visitor, &column.content)
+        });
+    }
     // Bare cell text is sufficient for one paragraph. Multiple blocks need
     // paragraph boundaries even when the variant omits table paragraph classes.
     let has_multiple_blocks = column
@@ -128,60 +134,53 @@ where
         .count()
         == 2;
     let needs_paragraphs = wrap_paragraph || (has_multiple_blocks && !header);
-    let mut render = |traversal: &mut TraversalContext<'a>| {
-        for (index, block) in column.content.iter().enumerate() {
-            if let Block::Paragraph(para) = block {
-                // Header cells use one text flow, but source paragraph breaks
-                // must still separate words when the browser collapses whitespace.
-                if header && index > 0 {
-                    writeln!(visitor.writer_mut())?;
-                }
-                if style == Some(ColumnStyle::Literal) {
-                    let writer = visitor.writer_mut();
-                    write!(writer, "<div class=\"literal\"><pre>")?;
-                    let _ = writer;
-                    for node in &para.content {
-                        if let InlineNode::VerbatimText(verbatim) = node {
-                            write!(visitor.writer_mut(), "{}", escape_pcdata(verbatim.content))?;
-                        } else {
-                            visitor.visit_inline_node(traversal, node)?;
-                        }
-                    }
-                    let writer = visitor.writer_mut();
-                    write!(writer, "</pre></div>")?;
-                } else if needs_paragraphs {
-                    // A blank body cell (empty or only `{empty}`) renders as an
-                    // empty <td> with no <p class="tableblock"> wrapper.
-                    if inline_nodes_blank(&para.content) {
-                        continue;
-                    }
-                    let writer = visitor.writer_mut();
-                    let open = if wrap_paragraph {
-                        "<p class=\"tableblock\">"
-                    } else {
-                        "<p>"
-                    };
-                    write!(writer, "{open}")?;
-                    let _ = writer;
-
-                    render_styled_content(traversal, visitor, &para.content, style)?;
-
-                    let writer = visitor.writer_mut();
-                    write!(writer, "</p>")?;
-                } else {
-                    render_styled_content(traversal, visitor, &para.content, style)?;
-                }
-            } else {
-                traversal.visit_block(visitor, block)?;
+    for (index, block) in column.content.iter().enumerate() {
+        if let Block::Paragraph(para) = block {
+            // Header cells use one text flow, but source paragraph breaks
+            // must still separate words when the browser collapses whitespace.
+            if header && index > 0 {
+                writeln!(visitor.writer_mut())?;
             }
+            if style == Some(ColumnStyle::Literal) {
+                let writer = visitor.writer_mut();
+                write!(writer, "<div class=\"literal\"><pre>")?;
+                let _ = writer;
+                for node in &para.content {
+                    if let InlineNode::VerbatimText(verbatim) = node {
+                        write!(visitor.writer_mut(), "{}", escape_pcdata(verbatim.content))?;
+                    } else {
+                        visitor.visit_inline_node(traversal, node)?;
+                    }
+                }
+                let writer = visitor.writer_mut();
+                write!(writer, "</pre></div>")?;
+            } else if needs_paragraphs {
+                // A blank body cell (empty or only `{empty}`) renders as an
+                // empty <td> with no <p class="tableblock"> wrapper.
+                if inline_nodes_blank(&para.content) {
+                    continue;
+                }
+                let writer = visitor.writer_mut();
+                let open = if wrap_paragraph {
+                    "<p class=\"tableblock\">"
+                } else {
+                    "<p>"
+                };
+                write!(writer, "{open}")?;
+                let _ = writer;
+
+                render_styled_content(traversal, visitor, &para.content, style)?;
+
+                let writer = visitor.writer_mut();
+                write!(writer, "</p>")?;
+            } else {
+                render_styled_content(traversal, visitor, &para.content, style)?;
+            }
+        } else {
+            traversal.visit_block(visitor, block)?;
         }
-        Ok(())
-    };
-    if scoped {
-        traversal.with_table_cell(column, render)
-    } else {
-        render(traversal)
     }
+    Ok(())
 }
 
 /// Render inline content with optional style wrappers.

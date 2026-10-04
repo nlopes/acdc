@@ -1,0 +1,216 @@
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>cell-styles - styled table paragraphs</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_synopsis">Synopsis</h2>
+<div class="table-block">
+<table class="frame-all grid-all stretch">
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<thead>
+<tr>
+<th class="halign-left valign-top">.Header title
+[example#header-text]
+Header text.</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="halign-left valign-top"><figure id="body-example" class="example-block cell-role">
+<figcaption>Demo 1. Body <strong>title</strong></figcaption>
+<div class="example">
+Body text.
+</div>
+</figure>
+</td>
+</tr>
+</tbody>
+<tfoot>
+<tr>
+<td class="halign-left valign-top"><figure id="footer-example" class="example-block">
+<figcaption>Demo 2. Footer title</figcaption>
+<div class="example">
+Footer text.
+</div>
+</figure>
+</td>
+</tr>
+</tfoot>
+</table>
+</div>
+<div class="table-block">
+<table class="frame-all grid-all stretch">
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="halign-left valign-top"><section id="regular-target" class="paragraph regular-role">
+<h6 class="block-title">Regular title</h6>
+<p>Regular <strong>bold</strong> text.</p>
+</section>
+</td>
+</tr>
+<tr>
+<td class="halign-left valign-top"><p class="untitled-role" id="untitled-target">Untitled paragraph.</p>
+</td>
+</tr>
+<tr>
+<td class="halign-left valign-top"><div class="quoteblock">
+<div class="title">Quote title</div>
+<blockquote>
+Quoted text.
+</blockquote>
+<div class="attribution">
+&#8212; Writer<br>
+<cite>Book</cite>
+</div>
+</div>
+</td>
+</tr>
+<tr>
+<td class="halign-left valign-top"><div class="verseblock">
+<div class="title">Verse title</div>
+<pre class="content">Verse one.
+Verse two.</pre>
+<div class="attribution">
+&#8212; Poet<br>
+<cite>Poem</cite>
+</div>
+</div>
+</td>
+</tr>
+<tr>
+<td class="halign-left valign-top"><div class="literalblock">
+<div class="title">Literal title</div>
+<div class="content">
+<pre>&lt;literal&gt; *raw* text.</pre>
+</div>
+</div>
+</td>
+</tr>
+<tr>
+<td class="halign-left valign-top"><figure class="listing-block">
+<figcaption>Listing title</figcaption>
+<pre>&lt;listing&gt; *raw* text.</pre>
+</figure>
+</td>
+</tr>
+<tr>
+<td class="halign-left valign-top"><figure class="listing-block">
+<figcaption>Source title</figcaption>
+<pre class="highlight"><code class="language-rust" data-lang="rust">fn main() {}</code></pre>
+</figure>
+</td>
+</tr>
+<tr>
+<td class="halign-left valign-top"><details open>
+<summary class="title">Details title</summary>
+<div class="content">
+Details text.
+</div>
+</details>
+</td>
+</tr>
+<tr>
+<td class="halign-left valign-top"><details>
+<summary class="title">Details</summary>
+<div class="content">
+Untitled details.
+</div>
+</details>
+</td>
+</tr>
+<tr>
+<td class="halign-left valign-top"><section class="quote-block abstract">
+<h6 class="block-title">Abstract title</h6>
+<blockquote>
+Abstract text.
+</blockquote>
+</section>
+</td>
+</tr>
+<tr>
+<td class="halign-left valign-top"><p>Plain paragraph one.</p>
+<p>Plain paragraph two.</p>
+<div class="ulist">
+<ul>
+<li>
+Attached list.</li>
+</ul>
+</div>
+</td>
+</tr>
+<tr>
+<td class="halign-left valign-top"><aside class="admonition-block note" role="note">
+<h6 class="block-title label-only"><span class="title-label">Note:</span></h6>
+<p>Attached admonition.</p>
+</aside>
+</td>
+</tr>
+<tr>
+<td class="halign-left valign-top">.Normal text
+[example]
+NOTE: Normal cell text.</td>
+</tr>
+<tr>
+<td class="halign-left valign-top"><div class="literal"><pre>.Literal cell text
+[example]
+*Unprocessed literal cell text.*</pre></div></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="table-block">
+<table class="frame-all grid-all stretch">
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="halign-left valign-top"><figure class="example-block">
+<figcaption>Demo 3. Explicit AsciiDoc title</figcaption>
+<div class="example">
+Explicit AsciiDoc text.
+</div>
+</figure>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="table-block">
+<table class="frame-all grid-all stretch">
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="halign-left valign-top"><p>Single nested paragraph.</p>
+</td>
+</tr>
+<tr>
+<td class="halign-left valign-top"><p>{cell-only}</p>
+</td>
+</tr>
+<tr>
+<td class="halign-left valign-top"><div class="example-block">
+<div class="example">
+Untitled example.
+</div>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<figure class="example-block">
+<figcaption>Demo 4. Outer title</figcaption>
+<div class="example">
+Outer example.
+</div>
+</figure>
+<p>Outside <a href="#regular-target">Regular title</a>, <a href="#untitled-target">[untitled-target]</a>, <a href="#body-example">Body <strong>title</strong></a>, and <a href="#footer-example">Footer title</a>.</p>
+</section>
