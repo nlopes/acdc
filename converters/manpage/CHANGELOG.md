@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Quote and verse paragraphs retain their authored titles, formatting, macros,
+  and custom captions, including inside AsciiDoc table cells. Titles use normal
+  substitutions independently of the body's `subs=` settings, matching
+  Asciidoctor. Formatting inside titles no longer changes the font of the
+  following body; body spacing and verse line breaks remain unchanged.
+
 - Table-cell paragraphs retain their boundaries instead of joining adjacent
   words. AsciiDoc (`a`) cells also keep paragraph breaks before following lists
   and sections, matching Asciidoctor's block separation.

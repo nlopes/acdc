@@ -31,32 +31,44 @@
 title\-macros \- verify title macro registration
 .SH "SYNOPSIS"
 .sp
-\fBNamed title [1] Named title term\fP
+.nr acdc-title-font \n[.f]
+\fBNamed title [1] Named title term\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
 Named paragraph.
 .sp
-\fBAnonymous title [2] Anonymous title term\fP
+.nr acdc-title-font \n[.f]
+\fBAnonymous title [2] Anonymous title term\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
 Anonymous paragraph.
 .sp
 Body [3] and reused [1]\&.
 .sp
-\fBRepeated title [1]\fP
+.nr acdc-title-font \n[.f]
+\fBRepeated title [1]\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
 Repeated paragraph.
 .sp
-\fBReferenced title [1]\fP
+.nr acdc-title-font \n[.f]
+\fBReferenced title [1]\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
 Reference paragraph.
 .sp
+.nr acdc-title-font \n[.f]
 \fBÉva title \c
 .URL "https://example.org/title" "Title link" "\c"
- \fP
+ \f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
 Unicode paragraph.
 .sp
-\fBAttribute title [4]\fP
+.nr acdc-title-font \n[.f]
+\fBAttribute title [4]\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
 Attribute paragraph.
 .sp
 See Named title [1] Named title term, Anonymous title [2] Anonymous title term, and Title anchor\&.

@@ -91,8 +91,10 @@ P23 heading control.
 .sp
 P24 subsection control.
 .sp
-\fBCode control\fP
+.nr acdc-title-font \n[.f]
+\fBCode control\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
 .EX
 C01 3\(aq4
 C02 Sam\(aqs

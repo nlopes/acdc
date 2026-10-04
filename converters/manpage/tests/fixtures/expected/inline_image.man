@@ -46,12 +46,16 @@ A linked inline image without alt text: \c
 .URL "https://example.com/release" "[release badge]" "\c"
 \&.
 .sp
-\fBFigure 1. A block image\fP
+.nr acdc-title-font \n[.f]
+\fBFigure 1. A block image\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
 [Sunset photo]
 .sp
 [untitled]
 .sp
-\fBFigure 2. A linked block image\fP
+.nr acdc-title-font \n[.f]
+\fBFigure 2. A linked block image\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
 .URL "https://example.com/architecture" "[System architecture]" ""

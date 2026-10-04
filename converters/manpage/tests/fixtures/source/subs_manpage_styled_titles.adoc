@@ -1,0 +1,54 @@
+= title-subs(1)
+:doctype: manpage
+:revdate: 2026-10-04
+:manname: title-subs
+:manpurpose: separate title and body substitutions
+:value: expanded
+
+== Name
+
+title-subs - separate title and body substitutions
+
+== Synopsis
+
+.Q01 Title *bold* {value} (C)
+[quote,Writer,Book,subs="none"]
+Q01 body *bold* {value} (C).
+
+.V01 Title _italic_ {value} (R)
+[verse,Poet,Poem,subs="none"]
+V01 first *bold* {value} (C).
+V01 second.
+
+.Q02 Title (C) with literal pass:[(R)]
+[quote,subs="-replacements"]
+Q02 body (C).
+
+.V02 Title (R) with literal pass:[(C)]
+[verse,subs="-replacements"]
+V02 body (R).
+
+[cols="1a"]
+|===
+|.Q03 Cell title (C)
+[quote,subs="none"]
+Q03 cell body (C).
+
+|.V03 Cell title (R)
+[verse,subs="none"]
+V03 cell body (R).
+|===
+
+.C01 Listing title (C)
+[listing,subs="none"]
+C01 listing body (C).
+
+.C02 Literal title (R)
+[literal,subs="none"]
+C02 literal body (R).
+
+.C03 Ordinary title (C)
+[subs="none"]
+C03 ordinary body (C).
+
+Following prose (C).

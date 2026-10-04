@@ -86,12 +86,16 @@ P25 prefix\-\- \c
 .URL "https://next.example/prose" "Next" "\c"
 
 .sp
-\fBStandalone control\fP
+.nr acdc-title-font \n[.f]
+\fBStandalone control\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
  \(em
 .sp
-\fBHidden standalone control\fP
+.nr acdc-title-font \n[.f]
+\fBHidden standalone control\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
  \(em
 .sp
 P26 prefix\(emtail

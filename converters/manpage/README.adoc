@@ -74,6 +74,11 @@ The manpage converter:
 - Uses left-alignment only (`.ad l`) as is standard for manpages
 - Includes the tbl preprocessor directive (`'\" t`) when tables are present
 - Preserves inline formatting (bold, italic, monospace) using roff font escapes
+- Renders quote and verse paragraph titles above their bodies, including inside
+  AsciiDoc table cells. Titles use normal substitutions even when the body uses
+  `subs="none"`, and restore the surrounding font after nested formatting.
+  Enabled links and authored quotation marks in titles remain visible;
+  Asciidoctor's roff title macro can discard them.
 - Renders figure, table, example, and listing captions with their source-position
   label, number, custom prefix, or disabled-prefix behavior
 - Renders images as readable alternative text and preserves configured image

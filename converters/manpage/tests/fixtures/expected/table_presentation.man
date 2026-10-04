@@ -34,8 +34,10 @@ table\-presentation \- verify table presentation
 table\-presentation
 .SH "DESCRIPTION"
 .sp
-\fBTable 1. Ends frame, row grid, proportional columns, header, and footer\fP
+.nr acdc-title-font \n[.f]
+\fBTable 1. Ends frame, row grid, proportional columns, header, and footer\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
 .TS
 expand tab(:);
 ltBw(15n) ltBw(45n)
@@ -53,8 +55,10 @@ Total:two rows
 _
 .TE
 .sp
-\fBTable 2. Sides frame, column grid, percentage widths, and centered table\fP
+.nr acdc-title-font \n[.f]
+\fBTable 2. Sides frame, column grid, percentage widths, and centered table\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
 .TS
 center tab(:);
 | ltw(9n) | ltw(27n) |
@@ -63,8 +67,10 @@ one:first
 two:second
 .TE
 .sp
-\fBTable 3. Content\-determined columns without rules\fP
+.nr acdc-title-font \n[.f]
+\fBTable 3. Content\-determined columns without rules\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
 .TS
 tab(:);
 lt lt

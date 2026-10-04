@@ -1,0 +1,97 @@
+= styled-titles(1)
+:doctype: manpage
+:revdate: 2026-10-04
+:manname: styled-titles
+:manpurpose: preserve quote and verse titles
+:label: expanded
+:acdc-index:
+
+== Name
+
+styled-titles - preserve quote and verse titles
+
+== Synopsis
+
+.Q01 Quoted *title* (C)
+[quote,Writer,Book]
+Q01 quote body.
+
+.V01 Verse _title_ (R)
+[verse,Poet,Poem]
+V01 verse first.
+V01 verse second.
+
+.Q02 {label} with "quotes" and Éva's title
+[quote,caption="Lead: "]
+Q02 quote without attribution.
+
+.V02 A title without attribution
+[verse]
+V02 verse first.
+V02 verse second.
+
+.Q03 Title link:https://example.org/title[Title link] footnote:shared[Title note.] ((Title term))
+[quote]
+Q03 quote body.
+
+.V03 Title footnote:shared[] and indexterm2:[Verse term]
+[verse]
+V03 verse body.
+
+[quote,Untitled writer]
+Q04 untitled quote.
+
+[verse,Untitled poet]
+V04 untitled verse first.
+V04 untitled verse second.
+
+[cols="1a"]
+|===
+|.Q05 Cell *title* (C)
+[quote,Cell writer,Cell book]
+Q05 cell quote body.
+
+|.V05 Cell _title_ (R)
+[verse,Cell poet,Cell poem]
+V05 cell verse first.
+V05 cell verse second.
+
+d|.Q06 Normal cell title text
+[quote]
+Q06 normal cell text.
+
+l|.V06 Literal cell title text
+[verse]
+V06 literal cell text.
+|===
+
+* List item.
++
+.Q07 Attached quote title
+[quote]
+Q07 attached quote body.
+
+--
+.V07 Nested verse title
+[verse]
+V07 nested verse first.
+V07 nested verse second.
+--
+
+.Q08 Delimited quote control
+[quote,Delimited writer]
+____
+Q08 delimited quote body.
+____
+
+.V08 Delimited verse control
+[verse,Delimited poet]
+____
+V08 delimited verse first.
+V08 delimited verse second.
+____
+
+After styled paragraphs, reused footnote:shared[].
+
+[index]
+== Index

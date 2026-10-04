@@ -3,7 +3,7 @@
 use std::io::Write;
 
 #[cfg(feature = "pre-spec-subs")]
-use acdc_converters_core::substitutions::SubsFlags;
+use acdc_converters_core::substitutions::{SubsFlags, effective_subs_flags};
 
 use acdc_converters_core::{
     Diagnostics, TraversalContext, document_attribute_text,
@@ -152,6 +152,8 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
             return Ok(());
         }
 
+        // Inline formatting changes roff's previous font, so save the enclosing font.
+        writeln!(self.writer_mut(), ".nr acdc-title-font \\n[.f]")?;
         write!(self.writer_mut(), "\\fB")?;
         let prefix = match metadata.caption.as_ref() {
             Some(Caption::Numbered {
@@ -169,9 +171,19 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
                 manify(&prefix, EscapeMode::Normalize)
             )?;
         }
-        self.visit_inline_nodes(traversal, title)?;
-        writeln!(self.writer_mut(), "\\fP")?;
+        // A title uses normal substitutions even when its block's body disables them.
+        #[cfg(feature = "pre-spec-subs")]
+        let previous_subs = self
+            .processor
+            .current_subs
+            .replace(effective_subs_flags(None, false));
+        let result = self.visit_inline_nodes(traversal, title);
+        #[cfg(feature = "pre-spec-subs")]
+        self.processor.current_subs.set(previous_subs);
+        result?;
+        writeln!(self.writer_mut(), "\\f[\\n[acdc-title-font]]")?;
         writeln!(self.writer_mut(), ".br")?;
+        writeln!(self.writer_mut(), ".rr acdc-title-font")?;
         Ok(())
     }
 }

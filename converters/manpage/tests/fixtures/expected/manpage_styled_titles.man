@@ -1,0 +1,259 @@
+'\" t
+.\"     Title: styled-titles
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-04
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "STYLED\-TITLES" "1" "2026-10-04" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+styled\-titles \- preserve quote and verse titles
+.SH "SYNOPSIS"
+.sp
+.nr acdc-title-font \n[.f]
+\fBQ01 Quoted \fBtitle\fP \(co\f[\n[acdc-title-font]]
+.br
+.rr acdc-title-font
+.RS 3
+.ll -.6i
+.sp
+Q01 quote body.
+.br
+.RE
+.ll
+.RS 5
+.ll -.10i
+Book \(em Writer
+.RE
+.ll
+.sp
+.nr acdc-title-font \n[.f]
+\fBV01 Verse \fItitle\fP \(rg\f[\n[acdc-title-font]]
+.br
+.rr acdc-title-font
+.nf
+V01 verse first.
+V01 verse second.
+.fi
+.br
+.in +.5i
+.ll -.5i
+Poem \(em Poet
+.in
+.ll
+.sp
+.nr acdc-title-font \n[.f]
+\fBQ02 expanded with "quotes" and Éva\(cqs title\f[\n[acdc-title-font]]
+.br
+.rr acdc-title-font
+.RS 3
+.ll -.6i
+.sp
+Q02 quote without attribution.
+.br
+.RE
+.ll
+.sp
+.nr acdc-title-font \n[.f]
+\fBV02 A title without attribution\f[\n[acdc-title-font]]
+.br
+.rr acdc-title-font
+.nf
+V02 verse first.
+V02 verse second.
+.fi
+.sp
+.nr acdc-title-font \n[.f]
+\fBQ03 Title \c
+.URL "https://example.org/title" "Title link" "\c"
+ [1] Title term\f[\n[acdc-title-font]]
+.br
+.rr acdc-title-font
+.RS 3
+.ll -.6i
+.sp
+Q03 quote body.
+.br
+.RE
+.ll
+.sp
+.nr acdc-title-font \n[.f]
+\fBV03 Title [1] and Verse term\f[\n[acdc-title-font]]
+.br
+.rr acdc-title-font
+.nf
+V03 verse body.
+.fi
+.RS 3
+.ll -.6i
+.sp
+Q04 untitled quote.
+.br
+.RE
+.ll
+.RS 5
+.ll -.10i
+\(em Untitled writer
+.RE
+.ll
+.sp
+.nf
+V04 untitled verse first.
+V04 untitled verse second.
+.fi
+.br
+.in +.5i
+.ll -.5i
+\(em Untitled poet
+.in
+.ll
+.TS
+allbox tab(:);
+ltx
+ltx
+ltx
+ltx.
+T{
+.sp
+.nr acdc-title-font \n[.f]
+\fBQ05 Cell \fBtitle\fP \(co\f[\n[acdc-title-font]]
+.br
+.rr acdc-title-font
+.RS 3
+.ll -.6i
+.sp
+Q05 cell quote body.
+.br
+.RE
+.ll
+.RS 5
+.ll -.10i
+Cell book \(em Cell writer
+.RE
+.ll
+
+T}
+T{
+.sp
+.nr acdc-title-font \n[.f]
+\fBV05 Cell \fItitle\fP \(rg\f[\n[acdc-title-font]]
+.br
+.rr acdc-title-font
+.nf
+V05 cell verse first.
+V05 cell verse second.
+.fi
+.br
+.in +.5i
+.ll -.5i
+Cell poem \(em Cell poet
+.in
+.ll
+
+T}
+T{
+\&.Q06 Normal cell title text
+[quote]
+Q06 normal cell text.
+T}
+T{
+.nf
+\&.V06 Literal cell title text
+[verse]
+V06 literal cell text.
+.fi
+T}
+.TE
+.RS 0
+.IP \(bu 2
+List item.
+.RS 2
+.sp
+.nr acdc-title-font \n[.f]
+\fBQ07 Attached quote title\f[\n[acdc-title-font]]
+.br
+.rr acdc-title-font
+.RS 3
+.ll -.6i
+.sp
+Q07 attached quote body.
+.br
+.RE
+.ll
+.RE
+.RE
+.sp
+.nr acdc-title-font \n[.f]
+\fBV07 Nested verse title\f[\n[acdc-title-font]]
+.br
+.rr acdc-title-font
+.nf
+V07 nested verse first.
+V07 nested verse second.
+.fi
+.sp
+.nr acdc-title-font \n[.f]
+\fBQ08 Delimited quote control\f[\n[acdc-title-font]]
+.br
+.rr acdc-title-font
+.RS 4
+.sp
+Q08 delimited quote body.
+.RE
+.RS 5
+.ll -.10i
+\(em Delimited writer
+.RE
+.ll
+.sp
+.nr acdc-title-font \n[.f]
+\fBV08 Delimited verse control\f[\n[acdc-title-font]]
+.br
+.rr acdc-title-font
+.nf
+V08 delimited verse first.
+V08 delimited verse second.
+.fi
+.br
+.in +.5i
+.ll -.5i
+\(em Delimited poet
+.in
+.ll
+.sp
+After styled paragraphs, reused [1]\&.
+.SH "INDEX"
+.SS "T"
+.RS 4
+Title term
+.br
+.RE
+.SS "V"
+.RS 4
+Verse term
+.br
+.RE
+.SH "NOTES"
+.IP [1] 4
+Title note.

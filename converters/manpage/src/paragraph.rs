@@ -2,13 +2,14 @@
 //!
 //! Handles paragraph breaks, titles, and styled paragraphs (quote, verse, literal).
 
-use acdc_converters_core::TraversalContext;
-
 use std::io::Write;
 
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::effective_subs_flags;
-use acdc_converters_core::visitor::{Visitor, WritableVisitor};
+use acdc_converters_core::{
+    TraversalContext,
+    visitor::{Visitor, WritableVisitor},
+};
 use acdc_parser::{BlockMetadata, Paragraph};
 
 use crate::{
@@ -102,9 +103,9 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         Ok(())
     }
 
-    /// Render a quote-styled paragraph (asciidoctor-compatible).
+    /// Render a quote-styled paragraph, placing its title before the indented text.
     ///
-    /// Output format:
+    /// Body layout:
     /// ```roff
     /// .RS 3
     /// .ll -.6i
@@ -124,6 +125,10 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         para: &Paragraph,
     ) -> Result<(), Error> {
+        if !para.title.is_empty() {
+            self.write_sp()?;
+            self.render_captioned_title(traversal, &para.title, &para.metadata)?;
+        }
         let w = self.writer_mut();
 
         // Quote block structure
@@ -151,9 +156,9 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         Ok(())
     }
 
-    /// Render a verse-styled paragraph (asciidoctor-compatible).
+    /// Render a verse-styled paragraph, placing its title before the preserved lines.
     ///
-    /// Output format:
+    /// Body layout:
     /// ```roff
     /// .sp
     /// .nf
@@ -172,10 +177,11 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         para: &Paragraph,
     ) -> Result<(), Error> {
+        self.write_sp()?;
+        self.render_captioned_title(traversal, &para.title, &para.metadata)?;
         let w = self.writer_mut();
 
         // Verse block - preserve line breaks
-        writeln!(w, ".sp")?;
         writeln!(w, ".nf")?;
 
         // Extract and write content preserving whitespace

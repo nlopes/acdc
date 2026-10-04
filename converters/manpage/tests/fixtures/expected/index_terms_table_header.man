@@ -31,8 +31,10 @@
 index\-terms\-table\-header \- index terms in table headers
 .SH "DESCRIPTION"
 .sp
-\fBTable 1. Cataloged table\fP
+.nr acdc-title-font \n[.f]
+\fBTable 1. Cataloged table\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
 .TS
 allbox expand tab(:);
 ltBw(15n) ltBw(45n)

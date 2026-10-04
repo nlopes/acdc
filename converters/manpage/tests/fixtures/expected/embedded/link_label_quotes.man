@@ -123,8 +123,10 @@ Reuse [1]\&.
 .sp
 See Target\&.
 .sp
-\fBOne \e"quote\e" two\fP
+.nr acdc-title-font \n[.f]
+\fBOne \e"quote\e" two\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
 Block title control.
 .sp
 Target.

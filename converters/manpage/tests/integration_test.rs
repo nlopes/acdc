@@ -11,6 +11,42 @@ use acdc_parser::{Options as ParserOptions, parse, parse_file};
 type Error = Box<dyn std::error::Error>;
 
 #[cfg(feature = "pre-spec-subs")]
+#[rstest::rstest]
+fn styled_titles_keep_substitutions_separate_from_the_body(
+    #[values("quote", "verse")] style: &str,
+    #[values(true, false)] embedded: bool,
+) -> Result<(), Error> {
+    let source = format!(
+        "= title-subs(1)\n:doctype: manpage\n:revdate: 2026-10-04\n\n== Name\n\ntitle-subs - title substitutions\n\n== Synopsis\n\n.Title (C) *Bold* footnote:named[Title note.]\n[{style},subs=\"none\"]\nBody (C) *Bold* footnote:[Inactive note.].\n\nAfter (C).\n"
+    );
+    let parsed = parse(&source, &ParserOptions::default())?;
+    assert_eq!(parsed.document().footnotes.len(), 1);
+    let processor = Processor::new(
+        ConverterOptions::builder().embedded(embedded).build(),
+        ParserOptions::builder(),
+    )?;
+    let mut output = Vec::new();
+    let mut warnings = Vec::new();
+    let warning_source = WarningSource::new("manpage");
+    let mut diagnostics = Diagnostics::new(&warning_source, &mut warnings);
+    processor.write_to(parsed.document(), &mut output, None, None, &mut diagnostics)?;
+    let output = String::from_utf8(output)?;
+    assert!(output.contains("Title \\(co"), "{style}: {output}");
+    assert!(output.contains("\\fBBold\\fP"), "{style}: {output}");
+    assert!(
+        output.contains("Body (C) *Bold* footnote:[Inactive note.]."),
+        "{style}: {output}"
+    );
+    assert!(output.contains("After \\(co."), "{style}: {output}");
+    assert_eq!(
+        output.matches("Title note.").count(),
+        usize::from(!embedded),
+        "{style}: {output}"
+    );
+    Ok(())
+}
+
+#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn code_typography_omits_generated_trailing_space() -> Result<(), Error> {
     for (subs, input, expected) in [
@@ -463,8 +499,8 @@ Backward full: <<figure-target>> and <<table-target>>.
         "Forward basic: A figure title and A table title",
         "Forward short: TargetFigure 1 and BeforeTable 1",
         "Forward full: TargetFigure 1, \\(lqA figure title\\(rq and BeforeTable 1, \\(lqA table title\\(rq",
-        "\\fBTargetFigure 1. A figure title\\fP",
-        "\\fBTargetTable 1. A table title\\fP",
+        "\\fBTargetFigure 1. A figure title",
+        "\\fBTargetTable 1. A table title",
         "Backward basic: A figure title and A table title",
         "Backward short: TargetFigure 1 and AfterTable 1",
         "Backward full: TargetFigure 1, \\(lqA figure title\\(rq and AfterTable 1, \\(lqA table title\\(rq",

@@ -73,8 +73,10 @@ P14 =\fBBold\fP >\fIItalic\fP &\f(CRCode\fP\&.
 T}
 .TE
 .sp
-\fBP15 >\fBBold\fP =\fIItalic\fP &\f(CRCode\fP\&.\fP
+.nr acdc-title-font \n[.f]
+\fBP15 >\fBBold\fP =\fIItalic\fP &\f(CRCode\fP\&.\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
 paragraph.
 .SS "P16 >Bold =Italic &Code."
 .sp

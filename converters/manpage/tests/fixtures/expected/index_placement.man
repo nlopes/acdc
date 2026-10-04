@@ -33,8 +33,10 @@ index\-demo \- demonstrate index placement
 .sp
 An Alpha and another Alpha\&. Hidden occurrence.
 .sp
-\fBTable 1. Cell terms\fP
+.nr acdc-title-font \n[.f]
+\fBTable 1. Cell terms\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
 .TS
 allbox tab(:);
 ltx.

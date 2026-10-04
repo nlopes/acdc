@@ -31,8 +31,10 @@
 title\-contexts \- verify title macros in nested blocks
 .SH "SYNOPSIS"
 .sp
-\fBSource title [1]\fP
+.nr acdc-title-font \n[.f]
+\fBSource title [1]\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
 .if n .RS 4
 .nf
 .fam C
@@ -41,11 +43,15 @@ fn main() {}
 .fi
 .if n .RE
 .sp
-\fBOpen title [2]\fP
+.nr acdc-title-font \n[.f]
+\fBOpen title [2]\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
 .sp
-\fBNested title [3]\fP
+.nr acdc-title-font \n[.f]
+\fBNested title [3]\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
 Nested paragraph.
 .sp
 \fBList title [4]\fP
@@ -54,8 +60,10 @@ Nested paragraph.
 List item.
 .RS 2
 .sp
-\fBAttached title [5]\fP
+.nr acdc-title-font \n[.f]
+\fBAttached title [5]\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
 Attached paragraph.
 .RE
 .RE
@@ -72,8 +80,10 @@ ltx
 ltx.
 T{
 .sp
-\fBCell title [7]\fP
+.nr acdc-title-font \n[.f]
+\fBCell title [7]\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
 Cell paragraph.
 
 T}

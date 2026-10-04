@@ -35,8 +35,10 @@ table\-combined\-span\-formatting \- test combined table span formatting
 .SH "DESCRIPTION"
 .SS "Column defaults"
 .sp
-\fBTable 1. Defaults follow source cells\fP
+.nr acdc-title-font \n[.f]
+\fBTable 1. Defaults follow source cells\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
 .TS
 allbox tab(:);
 cx s cx
@@ -59,8 +61,10 @@ Third \fIitalic\fP
 T}
 .TE
 .sp
-\fBTable 2. Duplicates use each column\fP
+.nr acdc-title-font \n[.f]
+\fBTable 2. Duplicates use each column\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
 .TS
 allbox tab(:);
 rdx ltx cx.

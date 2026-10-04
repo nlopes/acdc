@@ -38,16 +38,22 @@ UI labels: \fB\&.sp+\efB+a"quote\fP, [\fB\(aqbreak \efI a"quote\fP], and \fB\&.c
 .sp
 Inline STEM: \&.sp \(aqbreak \efB a"quote\&.
 .sp
-\fBFigure 1. A "quoted" \epath image\fP
+.nr acdc-title-font \n[.f]
+\fBFigure 1. A "quoted" \epath image\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
 .URL "https://example.invalid/.target\(aqpart\(dqquote\epath" "[status]" ""
 .sp
-\fBA "quoted" \epath audio\fP
+.nr acdc-title-font \n[.f]
+\fBA "quoted" \epath audio\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
 .URL "https://example.invalid/.target\(aqpart\(dqquote\epath" "[Audio: A \(dqquoted\(dq \epath audio]" ""
 .sp
-\fBA "quoted" \epath video\fP
+.nr acdc-title-font \n[.f]
+\fBA "quoted" \epath video\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
 .URL "https://example.invalid/.target\(aqpart\(dqquote\epath" "[Video: A \(dqquoted\(dq \epath video]" ""
 .sp
 

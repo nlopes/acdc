@@ -1,0 +1,147 @@
+'\" t
+.\"     Title: title-subs
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-04
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "TITLE\-SUBS" "1" "2026-10-04" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+title\-subs \- separate title and body substitutions
+.SH "SYNOPSIS"
+.sp
+.nr acdc-title-font \n[.f]
+\fBQ01 Title \fBbold\fP expanded \(co\f[\n[acdc-title-font]]
+.br
+.rr acdc-title-font
+.RS 3
+.ll -.6i
+.sp
+Q01 body *bold* {value} (C).
+.br
+.RE
+.ll
+.RS 5
+.ll -.10i
+Book \(em Writer
+.RE
+.ll
+.sp
+.nr acdc-title-font \n[.f]
+\fBV01 Title \fIitalic\fP expanded \(rg\f[\n[acdc-title-font]]
+.br
+.rr acdc-title-font
+.nf
+V01 first *bold* {value} (C).
+V01 second.
+.fi
+.br
+.in +.5i
+.ll -.5i
+Poem \(em Poet
+.in
+.ll
+.sp
+.nr acdc-title-font \n[.f]
+\fBQ02 Title \(co with literal (R)\f[\n[acdc-title-font]]
+.br
+.rr acdc-title-font
+.RS 3
+.ll -.6i
+.sp
+Q02 body (C).
+.br
+.RE
+.ll
+.sp
+.nr acdc-title-font \n[.f]
+\fBV02 Title \(rg with literal (C)\f[\n[acdc-title-font]]
+.br
+.rr acdc-title-font
+.nf
+V02 body (R).
+.fi
+.TS
+allbox tab(:);
+ltx
+ltx.
+T{
+.sp
+.nr acdc-title-font \n[.f]
+\fBQ03 Cell title \(co\f[\n[acdc-title-font]]
+.br
+.rr acdc-title-font
+.RS 3
+.ll -.6i
+.sp
+Q03 cell body (C).
+.br
+.RE
+.ll
+
+T}
+T{
+.sp
+.nr acdc-title-font \n[.f]
+\fBV03 Cell title \(rg\f[\n[acdc-title-font]]
+.br
+.rr acdc-title-font
+.nf
+V03 cell body (R).
+.fi
+
+T}
+.TE
+.sp
+.nr acdc-title-font \n[.f]
+\fBC01 Listing title \(co\f[\n[acdc-title-font]]
+.br
+.rr acdc-title-font
+.if n .RS 4
+.nf
+.fam C
+C01 listing body (C).
+.fam
+.fi
+.if n .RE
+.sp
+.nr acdc-title-font \n[.f]
+\fBC02 Literal title \(rg\f[\n[acdc-title-font]]
+.br
+.rr acdc-title-font
+.if n .RS 4
+.nf
+.fam C
+C02 literal body (R).
+.fam
+.fi
+.if n .RE
+.sp
+.nr acdc-title-font \n[.f]
+\fBC03 Ordinary title \(co\f[\n[acdc-title-font]]
+.br
+.rr acdc-title-font
+C03 ordinary body (C).
+.sp
+Following prose \(co.

@@ -31,74 +31,100 @@
 dialogue \- substitution parity
 .SH "DESCRIPTION"
 .sp
-\fBDocumented conflict\fP
+.nr acdc-title-font \n[.f]
+\fBDocumented conflict\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
  \(em Come here! \(em I said. + \(em What is it? \(em replied Lance.
 .sp
-\fBDocumented workaround\fP
+.nr acdc-title-font \n[.f]
+\fBDocumented workaround\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
  \(em Come here! \(em I said.
 .br
  \(em What is it? \(em replied Lance.
 .sp
-\fBNo substitutions\fP
+.nr acdc-title-font \n[.f]
+\fBNo substitutions\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
 \-\- First line. +
 \-\- Second line.
 .sp
-\fBNo post replacements\fP
+.nr acdc-title-font \n[.f]
+\fBNo post replacements\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
  \(em First line. + \(em Second line.
 .sp
-\fBNo replacements\fP
+.nr acdc-title-font \n[.f]
+\fBNo replacements\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
 \-\- First line.
 .br
 \-\- Second line.
 .sp
-\fBNo attributes in the workaround\fP
+.nr acdc-title-font \n[.f]
+\fBNo attributes in the workaround\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
  \(em First line.
 .br
 {empty} \(em Second line.
 .sp
-\fBNo replacements in the workaround\fP
+.nr acdc-title-font \n[.f]
+\fBNo replacements in the workaround\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
 \-\- First line.
 .br
 
 .br
 \-\- Second line.
 .sp
-\fBNo post replacements in the workaround\fP
+.nr acdc-title-font \n[.f]
+\fBNo post replacements in the workaround\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
  \(em First line.
  \(em Second line.
 .sp
-\fBReplacements before post replacements\fP
+.nr acdc-title-font \n[.f]
+\fBReplacements before post replacements\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
  \(em First line. + \(em Second line.
 .sp
-\fBPost replacements before replacements\fP
+.nr acdc-title-font \n[.f]
+\fBPost replacements before replacements\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
  \(em First line.
 .br
  \(em Second line.
 .sp
-\fBReplacements moved after post replacements\fP
+.nr acdc-title-font \n[.f]
+\fBReplacements moved after post replacements\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
  \(em First line.
 .br
  \(em Second line.
 .sp
-\fBParagraph boundaries\fP
+.nr acdc-title-font \n[.f]
+\fBParagraph boundaries\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
  \(em alpha
 .sp
 alpha \(em
 .sp
-\fBInternal boundaries\fP
+.nr acdc-title-font \n[.f]
+\fBInternal boundaries\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
 alpha \(em beta
 .sp
 alpha\(embeta
@@ -107,8 +133,10 @@ alpha \-\-beta
 .sp
 alpha\-\- beta
 .sp
-\fBFormatting boundaries\fP
+.nr acdc-title-font \n[.f]
+\fBFormatting boundaries\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
 \fB\-\- alpha\fP
 .sp
 \fBalpha \-\-\fP

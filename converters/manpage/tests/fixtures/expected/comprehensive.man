@@ -148,8 +148,10 @@ Prints world to stdout
 .SH "BLOCKS"
 .SS "Code Block"
 .sp
-\fBExample script\fP
+.nr acdc-title-font \n[.f]
+\fBExample script\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
 .EX
 #!/bin/bash
 set \-euo pipefail
@@ -173,8 +175,10 @@ On Simplicity \(em Albert Einstein
 .ll
 .SS "Example Block"
 .sp
-\fBExample 1. Example title\fP
+.nr acdc-title-font \n[.f]
+\fBExample 1. Example title\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
 .RS 4
 .sp
 This is an example block.
@@ -238,8 +242,10 @@ This is important.
 .RE
 .SH "TABLES"
 .sp
-\fBTable 1. Simple table\fP
+.nr acdc-title-font \n[.f]
+\fBTable 1. Simple table\f[\n[acdc-title-font]]
 .br
+.rr acdc-title-font
 .TS
 allbox tab(:);
 ltBx ltBx ltBx
