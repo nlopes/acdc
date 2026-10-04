@@ -1,0 +1,1151 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "table-comment-contexts(1)",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 27
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 5,
+        "col": 60
+      }
+    ]
+  },
+  "attributes": {
+    "doctype": "manpage",
+    "manname": "table-comment-contexts",
+    "manname-title": "Name",
+    "manpurpose": "preserve outer comment boundaries around tables",
+    "mantitle": "table-comment-contexts",
+    "manvolnum": "1",
+    "revdate": "2026-10-04"
+  },
+  "blocks": [
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Name",
+          "location": [
+            {
+              "line": 7,
+              "col": 4
+            },
+            {
+              "line": 7,
+              "col": 7
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "table-comment-contexts - preserve outer comment boundaries around tables",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 1
+                },
+                {
+                  "line": 9,
+                  "col": 72
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 9,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 72
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 72
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Synopsis",
+          "location": [
+            {
+              "line": 11,
+              "col": 4
+            },
+            {
+              "line": 11,
+              "col": 11
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "C01 Listing-looking text in a literal cell.",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 1
+                },
+                {
+                  "line": 13,
+                  "col": 43
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 13,
+              "col": 1
+            },
+            {
+              "line": 13,
+              "col": 43
+            }
+          ]
+        },
+        {
+          "name": "table",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "|===",
+          "metadata": {
+            "attributes": {
+              "cols": "1l"
+            }
+          },
+          "content": {
+            "header": null,
+            "footer": null,
+            "rows": [
+              {
+                "columns": [
+                  {
+                    "content": [
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "////\nVISIBLE TABLE INCLUDE\n////\n----",
+                            "location": [
+                              {
+                                "line": 18,
+                                "col": 1
+                              },
+                              {
+                                "line": 21,
+                                "col": 4
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 18,
+                            "col": 1
+                          },
+                          {
+                            "line": 21,
+                            "col": 4
+                          }
+                        ]
+                      }
+                    ],
+                    "style": "literal"
+                  }
+                ]
+              }
+            ],
+            "columns": [
+              {
+                "style": "literal"
+              }
+            ],
+            "location": [
+              {
+                "line": 16,
+                "col": 1
+              },
+              {
+                "line": 22,
+                "col": 4
+              }
+            ]
+          },
+          "location": [
+            {
+              "line": 15,
+              "col": 1
+            },
+            {
+              "line": 22,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "comment",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "////",
+          "blocks": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "include::missing-after-listing-looking-cell.adoc[]",
+              "location": [
+                {
+                  "line": 25,
+                  "col": 1
+                },
+                {
+                  "line": 25,
+                  "col": 50
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 24,
+              "col": 1
+            },
+            {
+              "line": 26,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "C01 After the table.",
+              "location": [
+                {
+                  "line": 28,
+                  "col": 1
+                },
+                {
+                  "line": 28,
+                  "col": 20
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 28,
+              "col": 1
+            },
+            {
+              "line": 28,
+              "col": 20
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "C02 Passthrough-looking text in a literal cell.",
+              "location": [
+                {
+                  "line": 30,
+                  "col": 1
+                },
+                {
+                  "line": 30,
+                  "col": 47
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 30,
+              "col": 1
+            },
+            {
+              "line": 30,
+              "col": 47
+            }
+          ]
+        },
+        {
+          "name": "table",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "|===",
+          "metadata": {
+            "attributes": {
+              "cols": "1l"
+            }
+          },
+          "content": {
+            "header": null,
+            "footer": null,
+            "rows": [
+              {
+                "columns": [
+                  {
+                    "content": [
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "++++\n////\nVISIBLE TABLE INCLUDE\n////",
+                            "location": [
+                              {
+                                "line": 35,
+                                "col": 1
+                              },
+                              {
+                                "line": 38,
+                                "col": 4
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 35,
+                            "col": 1
+                          },
+                          {
+                            "line": 38,
+                            "col": 4
+                          }
+                        ]
+                      }
+                    ],
+                    "style": "literal"
+                  }
+                ]
+              }
+            ],
+            "columns": [
+              {
+                "style": "literal"
+              }
+            ],
+            "location": [
+              {
+                "line": 33,
+                "col": 1
+              },
+              {
+                "line": 39,
+                "col": 4
+              }
+            ]
+          },
+          "location": [
+            {
+              "line": 32,
+              "col": 1
+            },
+            {
+              "line": 39,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "comment",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "////",
+          "blocks": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "include::missing-after-passthrough-looking-cell.adoc[]",
+              "location": [
+                {
+                  "line": 42,
+                  "col": 1
+                },
+                {
+                  "line": 42,
+                  "col": 54
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 41,
+              "col": 1
+            },
+            {
+              "line": 43,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "C02 After the table.",
+              "location": [
+                {
+                  "line": 45,
+                  "col": 1
+                },
+                {
+                  "line": 45,
+                  "col": 20
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 45,
+              "col": 1
+            },
+            {
+              "line": 45,
+              "col": 20
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "C03 CSV cell.",
+              "location": [
+                {
+                  "line": 47,
+                  "col": 1
+                },
+                {
+                  "line": 47,
+                  "col": 13
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 47,
+              "col": 1
+            },
+            {
+              "line": 47,
+              "col": 13
+            }
+          ]
+        },
+        {
+          "name": "table",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": ",===",
+          "metadata": {
+            "attributes": {
+              "cols": "1l"
+            }
+          },
+          "content": {
+            "header": null,
+            "footer": null,
+            "rows": [
+              {
+                "columns": [
+                  {
+                    "content": [
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "////\nVISIBLE TABLE INCLUDE\n////",
+                            "location": [
+                              {
+                                "line": 51,
+                                "col": 2
+                              },
+                              {
+                                "line": 53,
+                                "col": 4
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 51,
+                            "col": 2
+                          },
+                          {
+                            "line": 53,
+                            "col": 4
+                          }
+                        ]
+                      }
+                    ],
+                    "style": "literal"
+                  }
+                ]
+              }
+            ],
+            "columns": [
+              {
+                "style": "literal"
+              }
+            ],
+            "location": [
+              {
+                "line": 50,
+                "col": 1
+              },
+              {
+                "line": 54,
+                "col": 4
+              }
+            ]
+          },
+          "location": [
+            {
+              "line": 49,
+              "col": 1
+            },
+            {
+              "line": 54,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "comment",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "////",
+          "blocks": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "include::missing-after-csv-cell.adoc[]",
+              "location": [
+                {
+                  "line": 57,
+                  "col": 1
+                },
+                {
+                  "line": 57,
+                  "col": 38
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 56,
+              "col": 1
+            },
+            {
+              "line": 58,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "C03 After the table.",
+              "location": [
+                {
+                  "line": 60,
+                  "col": 1
+                },
+                {
+                  "line": 60,
+                  "col": 20
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 60,
+              "col": 1
+            },
+            {
+              "line": 60,
+              "col": 20
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "C04 DSV cells.",
+              "location": [
+                {
+                  "line": 62,
+                  "col": 1
+                },
+                {
+                  "line": 62,
+                  "col": 14
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 62,
+              "col": 1
+            },
+            {
+              "line": 62,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "table",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": ":===",
+          "metadata": {
+            "attributes": {
+              "cols": "1l"
+            }
+          },
+          "content": {
+            "header": null,
+            "footer": null,
+            "rows": [
+              {
+                "columns": [
+                  {
+                    "content": [
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "////",
+                            "location": [
+                              {
+                                "line": 66,
+                                "col": 1
+                              },
+                              {
+                                "line": 66,
+                                "col": 4
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 66,
+                            "col": 1
+                          },
+                          {
+                            "line": 66,
+                            "col": 4
+                          }
+                        ]
+                      }
+                    ],
+                    "style": "literal"
+                  }
+                ]
+              },
+              {
+                "columns": [
+                  {
+                    "content": [
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "VISIBLE TABLE INCLUDE",
+                            "location": [
+                              {
+                                "line": 1,
+                                "col": 1,
+                                "file": [
+                                  "table_comment_visible.inc"
+                                ]
+                              },
+                              {
+                                "line": 1,
+                                "col": 21,
+                                "file": [
+                                  "table_comment_visible.inc"
+                                ]
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 1,
+                            "col": 1,
+                            "file": [
+                              "table_comment_visible.inc"
+                            ]
+                          },
+                          {
+                            "line": 1,
+                            "col": 21,
+                            "file": [
+                              "table_comment_visible.inc"
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "style": "literal"
+                  }
+                ]
+              },
+              {
+                "columns": [
+                  {
+                    "content": [
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "////",
+                            "location": [
+                              {
+                                "line": 68,
+                                "col": 1
+                              },
+                              {
+                                "line": 68,
+                                "col": 4
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 68,
+                            "col": 1
+                          },
+                          {
+                            "line": 68,
+                            "col": 4
+                          }
+                        ]
+                      }
+                    ],
+                    "style": "literal"
+                  }
+                ]
+              }
+            ],
+            "columns": [
+              {
+                "style": "literal"
+              }
+            ],
+            "location": [
+              {
+                "line": 65,
+                "col": 1
+              },
+              {
+                "line": 69,
+                "col": 4
+              }
+            ]
+          },
+          "location": [
+            {
+              "line": 64,
+              "col": 1
+            },
+            {
+              "line": 69,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "comment",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "////",
+          "blocks": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "include::missing-after-dsv-cells.adoc[]",
+              "location": [
+                {
+                  "line": 72,
+                  "col": 1
+                },
+                {
+                  "line": 72,
+                  "col": 39
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 71,
+              "col": 1
+            },
+            {
+              "line": 73,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "C04 After the table.",
+              "location": [
+                {
+                  "line": 75,
+                  "col": 1
+                },
+                {
+                  "line": 75,
+                  "col": 20
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 75,
+              "col": 1
+            },
+            {
+              "line": 75,
+              "col": 20
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "C05 Table fence in a listing.",
+              "location": [
+                {
+                  "line": 77,
+                  "col": 1
+                },
+                {
+                  "line": 77,
+                  "col": 29
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 77,
+              "col": 1
+            },
+            {
+              "line": 77,
+              "col": 29
+            }
+          ]
+        },
+        {
+          "name": "listing",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "----",
+          "metadata": {
+            "style": "source"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "|===\n////\nVISIBLE TABLE INCLUDE",
+              "location": [
+                {
+                  "line": 81,
+                  "col": 1
+                },
+                {
+                  "line": 81,
+                  "col": 21,
+                  "file": [
+                    "table_comment_visible.inc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 79,
+              "col": 1
+            },
+            {
+              "line": 84,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "comment",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "////",
+          "blocks": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "include::missing-after-listing-fence.adoc[]",
+              "location": [
+                {
+                  "line": 87,
+                  "col": 1
+                },
+                {
+                  "line": 87,
+                  "col": 43
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 86,
+              "col": 1
+            },
+            {
+              "line": 88,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "C05 After the listing.",
+              "location": [
+                {
+                  "line": 90,
+                  "col": 1
+                },
+                {
+                  "line": 90,
+                  "col": 22
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 90,
+              "col": 1
+            },
+            {
+              "line": 90,
+              "col": 22
+            }
+          ]
+        },
+        {
+          "name": "comment",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "////",
+          "blocks": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "include::missing-after-excluded-fence.adoc[]",
+              "location": [
+                {
+                  "line": 97,
+                  "col": 1
+                },
+                {
+                  "line": 97,
+                  "col": 44
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 96,
+              "col": 1
+            },
+            {
+              "line": 98,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "C06 After an excluded table fence.",
+              "location": [
+                {
+                  "line": 100,
+                  "col": 1
+                },
+                {
+                  "line": 100,
+                  "col": 34
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 100,
+              "col": 1
+            },
+            {
+              "line": 100,
+              "col": 34
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 11,
+          "col": 1
+        },
+        {
+          "line": 100,
+          "col": 34
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 100,
+      "col": 34
+    }
+  ]
+}

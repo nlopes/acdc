@@ -1,0 +1,5 @@
+= Comment recovery
+:kept: original
+////
+:kept: hidden
+include::missing-comment-file.adoc[]

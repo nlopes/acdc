@@ -25,8 +25,8 @@
         "col": 1
       },
       {
-        "line": 5,
-        "col": 62
+        "line": 3,
+        "col": 17
       }
     ]
   },
@@ -43,6 +43,21 @@
   },
   "blocks": [
     {
+      "name": "comment",
+      "type": "block",
+      "content": " The first level-one section supplies manpage name metadata.",
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 63
+        }
+      ]
+    },
+    {
       "name": "program-name",
       "type": "attribute",
       "value": "tool",
@@ -53,7 +68,7 @@
         },
         {
           "line": 7,
-          "col": 20
+          "col": 19
         }
       ]
     },

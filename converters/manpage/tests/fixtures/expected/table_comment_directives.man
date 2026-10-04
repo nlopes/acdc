@@ -1,0 +1,162 @@
+'\" t
+.\"     Title: table-comment-directives
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-04
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "TABLE\-COMMENT\-DIRECTIVES" "1" "2026-10-04" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+table\-comment\-directives \- keep directives active in table buffers
+.SH "SYNOPSIS"
+.sp
+T01 Plain table cell.
+.TS
+allbox tab(:);
+ltx.
+T{
+////
+VISIBLE TABLE INCLUDE////
+T}
+.TE
+.sp
+T02 Literal table cell.
+.TS
+allbox tab(:);
+ltx.
+T{
+.nf
+////
+VISIBLE TABLE INCLUDE
+////
+.fi
+T}
+.TE
+.sp
+T03 AsciiDoc cell comment.
+.TS
+allbox tab(:);
+ltx.
+A03 Visible cell content.
+.TE
+.sp
+T04 Mixed cell styles.
+.TS
+allbox tab(:);
+ltx ltx ltx.
+T{
+M04 Plain cell.////
+VISIBLE TABLE INCLUDE////
+T}:T{
+.nf
+M04 Literal cell.
+////
+VISIBLE TABLE INCLUDE
+////
+.fi
+T}:M04 AsciiDoc cell.M04 Visible content.
+.TE
+.sp
+T05 Nested table.
+.TS
+allbox tab(:);
+ltx.
+T{
+.TS
+allbox tab(:);
+ltx.
+T{
+.nf
+////
+VISIBLE TABLE INCLUDE
+////
+.fi
+T}
+.TE
+N05 Visible outer cell content.
+T}
+.TE
+.sp
+T06 Listing control.
+.EX
+////
+VISIBLE TABLE INCLUDE
+////
+.EE
+.sp
+T07 Visible after a real body comment.
+.sp
+T08 Visible after a commented table fence.
+.sp
+T09 Included literal cell.
+.TS
+allbox tab(:);
+ltx.
+T{
+.nf
+////
+VISIBLE TABLE INCLUDE
+////
+.fi
+T}
+.TE
+.sp
+T10 Included plain cell with selected lines.
+.TS
+allbox tab(:);
+ltx.
+T{
+////
+VISIBLE TABLE INCLUDE////
+T}
+.TE
+.sp
+T11 Included AsciiDoc cell comment.
+.TS
+allbox tab(:);
+ltx.
+A11 Visible after the included comment.
+.TE
+.sp
+T12 Included listing content.
+.EX
+////
+VISIBLE TABLE INCLUDE
+////
+.EE
+.sp
+T13 Table fences across source files.
+.TS
+allbox tab(:);
+ltx.
+T{
+.nf
+////
+VISIBLE TABLE INCLUDE
+////
+.fi
+T}
+.TE
+.sp
+T13 Visible after the included table fences.

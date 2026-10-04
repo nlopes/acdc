@@ -25,15 +25,14 @@
         "col": 1
       },
       {
-        "line": 10,
-        "col": 24
+        "line": 7,
+        "col": 19
       }
     ]
   },
   "attributes": {
     "condition-enabled": true,
     "doctype": "manpage",
-    "header-result": "accepted",
     "manmanual": "Conditional comparisons",
     "manname": "quoted-contexts",
     "manname-title": "NAME",
@@ -45,6 +44,21 @@
     "state": "<early>"
   },
   "blocks": [
+    {
+      "name": "header-result",
+      "type": "attribute",
+      "value": "accepted",
+      "location": [
+        {
+          "line": 10,
+          "col": 1
+        },
+        {
+          "line": 10,
+          "col": 24
+        }
+      ]
+    },
     {
       "name": "section",
       "type": "block",
@@ -205,7 +219,7 @@
             },
             {
               "line": 25,
-              "col": 15
+              "col": 14
             }
           ]
         },
@@ -220,7 +234,7 @@
             },
             {
               "line": 28,
-              "col": 23
+              "col": 22
             }
           ]
         },

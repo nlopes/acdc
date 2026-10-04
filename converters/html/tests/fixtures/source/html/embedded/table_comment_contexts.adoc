@@ -1,0 +1,100 @@
+= table-comment-contexts(1)
+:doctype: manpage
+:revdate: 2026-10-04
+:manname: table-comment-contexts
+:manpurpose: preserve outer comment boundaries around tables
+
+== Name
+
+table-comment-contexts - preserve outer comment boundaries around tables
+
+== Synopsis
+
+C01 Listing-looking text in a literal cell.
+
+[cols="1l"]
+|===
+|
+////
+include::table_comment_visible.inc[]
+////
+----
+|===
+
+////
+include::missing-after-listing-looking-cell.adoc[]
+////
+
+C01 After the table.
+
+C02 Passthrough-looking text in a literal cell.
+
+[cols="1l"]
+|===
+|
+++++
+////
+include::table_comment_visible.inc[]
+////
+|===
+
+////
+include::missing-after-passthrough-looking-cell.adoc[]
+////
+
+C02 After the table.
+
+C03 CSV cell.
+
+[cols="1l"]
+,===
+"////
+include::table_comment_visible.inc[]
+////"
+,===
+
+////
+include::missing-after-csv-cell.adoc[]
+////
+
+C03 After the table.
+
+C04 DSV cells.
+
+[cols="1l"]
+:===
+////
+include::table_comment_visible.inc[]
+////
+:===
+
+////
+include::missing-after-dsv-cells.adoc[]
+////
+
+C04 After the table.
+
+C05 Table fence in a listing.
+
+[source]
+----
+|===
+////
+include::table_comment_visible.inc[]
+----
+
+////
+include::missing-after-listing-fence.adoc[]
+////
+
+C05 After the listing.
+
+ifdef::missing-table-condition[]
+|===
+endif::[]
+
+////
+include::missing-after-excluded-fence.adoc[]
+////
+
+C06 After an excluded table fence.

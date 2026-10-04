@@ -25,13 +25,28 @@
         "col": 1
       },
       {
-        "line": 3,
-        "col": 50
+        "line": 1,
+        "col": 30
       }
     ]
   },
   "attributes": {},
   "blocks": [
+    {
+      "name": "comment",
+      "type": "block",
+      "content": " This comment should be FILTERED (outside block)",
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 3,
+          "col": 51
+        }
+      ]
+    },
     {
       "name": "paragraph",
       "type": "block",

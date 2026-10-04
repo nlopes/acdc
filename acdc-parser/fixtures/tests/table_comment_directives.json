@@ -1,0 +1,2025 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "table-comment-directives(1)",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 29
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 5,
+        "col": 52
+      }
+    ]
+  },
+  "attributes": {
+    "doctype": "manpage",
+    "manname": "table-comment-directives",
+    "manname-title": "Name",
+    "manpurpose": "keep directives active in table buffers",
+    "mantitle": "table-comment-directives",
+    "manvolnum": "1",
+    "revdate": "2026-10-04"
+  },
+  "blocks": [
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Name",
+          "location": [
+            {
+              "line": 7,
+              "col": 4
+            },
+            {
+              "line": 7,
+              "col": 7
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "table-comment-directives - keep directives active in table buffers",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 1
+                },
+                {
+                  "line": 9,
+                  "col": 66
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 9,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 66
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 66
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Synopsis",
+          "location": [
+            {
+              "line": 11,
+              "col": 4
+            },
+            {
+              "line": 11,
+              "col": 11
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "T01 Plain table cell.",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 1
+                },
+                {
+                  "line": 13,
+                  "col": 21
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 13,
+              "col": 1
+            },
+            {
+              "line": 13,
+              "col": 21
+            }
+          ]
+        },
+        {
+          "name": "table",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "|===",
+          "metadata": {
+            "attributes": {
+              "cols": "1"
+            }
+          },
+          "content": {
+            "header": null,
+            "footer": null,
+            "rows": [
+              {
+                "columns": [
+                  {
+                    "content": [
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "////\nVISIBLE TABLE INCLUDE",
+                            "location": [
+                              {
+                                "line": 18,
+                                "col": 1
+                              },
+                              {
+                                "line": 18,
+                                "col": 21,
+                                "file": [
+                                  "table_comment_visible.inc"
+                                ]
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 18,
+                            "col": 1
+                          },
+                          {
+                            "line": 18,
+                            "col": 21,
+                            "file": [
+                              "table_comment_visible.inc"
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "////",
+                            "location": [
+                              {
+                                "line": 20,
+                                "col": 1
+                              },
+                              {
+                                "line": 20,
+                                "col": 4
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 20,
+                            "col": 1
+                          },
+                          {
+                            "line": 20,
+                            "col": 4
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 16,
+                "col": 1
+              },
+              {
+                "line": 21,
+                "col": 4
+              }
+            ]
+          },
+          "location": [
+            {
+              "line": 15,
+              "col": 1
+            },
+            {
+              "line": 21,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "T02 Literal table cell.",
+              "location": [
+                {
+                  "line": 23,
+                  "col": 1
+                },
+                {
+                  "line": 23,
+                  "col": 23
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 23,
+              "col": 1
+            },
+            {
+              "line": 23,
+              "col": 23
+            }
+          ]
+        },
+        {
+          "name": "table",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "|===",
+          "metadata": {
+            "attributes": {
+              "cols": "1l"
+            }
+          },
+          "content": {
+            "header": null,
+            "footer": null,
+            "rows": [
+              {
+                "columns": [
+                  {
+                    "content": [
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "////\nVISIBLE TABLE INCLUDE\n////",
+                            "location": [
+                              {
+                                "line": 28,
+                                "col": 1
+                              },
+                              {
+                                "line": 30,
+                                "col": 4
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 28,
+                            "col": 1
+                          },
+                          {
+                            "line": 30,
+                            "col": 4
+                          }
+                        ]
+                      }
+                    ],
+                    "style": "literal"
+                  }
+                ]
+              }
+            ],
+            "columns": [
+              {
+                "style": "literal"
+              }
+            ],
+            "location": [
+              {
+                "line": 26,
+                "col": 1
+              },
+              {
+                "line": 31,
+                "col": 4
+              }
+            ]
+          },
+          "location": [
+            {
+              "line": 25,
+              "col": 1
+            },
+            {
+              "line": 31,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "T03 AsciiDoc cell comment.",
+              "location": [
+                {
+                  "line": 33,
+                  "col": 1
+                },
+                {
+                  "line": 33,
+                  "col": 26
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 33,
+              "col": 1
+            },
+            {
+              "line": 33,
+              "col": 26
+            }
+          ]
+        },
+        {
+          "name": "table",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "|===",
+          "metadata": {
+            "attributes": {
+              "cols": "1a"
+            }
+          },
+          "content": {
+            "header": null,
+            "footer": null,
+            "rows": [
+              {
+                "columns": [
+                  {
+                    "content": [
+                      {
+                        "name": "comment",
+                        "type": "block",
+                        "form": "delimited",
+                        "delimiter": "////",
+                        "blocks": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "VISIBLE TABLE INCLUDE\nfootnote:[Hidden table note.] (((Hidden table term))) anchor:hidden-table[]",
+                            "location": [
+                              {
+                                "line": 1,
+                                "col": 1,
+                                "file": [
+                                  "table_comment_visible.inc"
+                                ]
+                              },
+                              {
+                                "line": 40,
+                                "col": 75
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 38,
+                            "col": 1
+                          },
+                          {
+                            "line": 41,
+                            "col": 4
+                          }
+                        ]
+                      },
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "A03 Visible cell content.",
+                            "location": [
+                              {
+                                "line": 43,
+                                "col": 1
+                              },
+                              {
+                                "line": 43,
+                                "col": 25
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 43,
+                            "col": 1
+                          },
+                          {
+                            "line": 43,
+                            "col": 25
+                          }
+                        ]
+                      }
+                    ],
+                    "style": "asciidoc"
+                  }
+                ]
+              }
+            ],
+            "columns": [
+              {
+                "style": "asciidoc"
+              }
+            ],
+            "location": [
+              {
+                "line": 36,
+                "col": 1
+              },
+              {
+                "line": 44,
+                "col": 4
+              }
+            ]
+          },
+          "location": [
+            {
+              "line": 35,
+              "col": 1
+            },
+            {
+              "line": 44,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "T04 Mixed cell styles.",
+              "location": [
+                {
+                  "line": 46,
+                  "col": 1
+                },
+                {
+                  "line": 46,
+                  "col": 22
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 46,
+              "col": 1
+            },
+            {
+              "line": 46,
+              "col": 22
+            }
+          ]
+        },
+        {
+          "name": "table",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "|===",
+          "metadata": {
+            "attributes": {
+              "cols": "1,1l,1a"
+            }
+          },
+          "content": {
+            "header": null,
+            "footer": null,
+            "rows": [
+              {
+                "columns": [
+                  {
+                    "content": [
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "M04 Plain cell.",
+                            "location": [
+                              {
+                                "line": 50,
+                                "col": 2
+                              },
+                              {
+                                "line": 50,
+                                "col": 16
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 50,
+                            "col": 2
+                          },
+                          {
+                            "line": 50,
+                            "col": 16
+                          }
+                        ]
+                      },
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "////\nVISIBLE TABLE INCLUDE",
+                            "location": [
+                              {
+                                "line": 51,
+                                "col": 1
+                              },
+                              {
+                                "line": 51,
+                                "col": 21,
+                                "file": [
+                                  "table_comment_visible.inc"
+                                ]
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 51,
+                            "col": 1
+                          },
+                          {
+                            "line": 51,
+                            "col": 21,
+                            "file": [
+                              "table_comment_visible.inc"
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "////",
+                            "location": [
+                              {
+                                "line": 53,
+                                "col": 1
+                              },
+                              {
+                                "line": 53,
+                                "col": 4
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 53,
+                            "col": 1
+                          },
+                          {
+                            "line": 53,
+                            "col": 4
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "content": [
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "M04 Literal cell.\n////\nVISIBLE TABLE INCLUDE\n////",
+                            "location": [
+                              {
+                                "line": 55,
+                                "col": 2
+                              },
+                              {
+                                "line": 58,
+                                "col": 4
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 55,
+                            "col": 2
+                          },
+                          {
+                            "line": 58,
+                            "col": 4
+                          }
+                        ]
+                      }
+                    ],
+                    "style": "literal"
+                  },
+                  {
+                    "content": [
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "M04 AsciiDoc cell.",
+                            "location": [
+                              {
+                                "line": 60,
+                                "col": 2
+                              },
+                              {
+                                "line": 60,
+                                "col": 19
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 60,
+                            "col": 2
+                          },
+                          {
+                            "line": 60,
+                            "col": 19
+                          }
+                        ]
+                      },
+                      {
+                        "name": "comment",
+                        "type": "block",
+                        "form": "delimited",
+                        "delimiter": "////",
+                        "blocks": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "VISIBLE TABLE INCLUDE",
+                            "location": [
+                              {
+                                "line": 1,
+                                "col": 1,
+                                "file": [
+                                  "table_comment_visible.inc"
+                                ]
+                              },
+                              {
+                                "line": 1,
+                                "col": 21,
+                                "file": [
+                                  "table_comment_visible.inc"
+                                ]
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 62,
+                            "col": 1
+                          },
+                          {
+                            "line": 64,
+                            "col": 4
+                          }
+                        ]
+                      },
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "M04 Visible content.",
+                            "location": [
+                              {
+                                "line": 66,
+                                "col": 1
+                              },
+                              {
+                                "line": 66,
+                                "col": 20
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 66,
+                            "col": 1
+                          },
+                          {
+                            "line": 66,
+                            "col": 20
+                          }
+                        ]
+                      }
+                    ],
+                    "style": "asciidoc"
+                  }
+                ]
+              }
+            ],
+            "columns": [
+              {},
+              {
+                "style": "literal"
+              },
+              {
+                "style": "asciidoc"
+              }
+            ],
+            "location": [
+              {
+                "line": 49,
+                "col": 1
+              },
+              {
+                "line": 67,
+                "col": 4
+              }
+            ]
+          },
+          "location": [
+            {
+              "line": 48,
+              "col": 1
+            },
+            {
+              "line": 67,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "T05 Nested table.",
+              "location": [
+                {
+                  "line": 69,
+                  "col": 1
+                },
+                {
+                  "line": 69,
+                  "col": 17
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 69,
+              "col": 1
+            },
+            {
+              "line": 69,
+              "col": 17
+            }
+          ]
+        },
+        {
+          "name": "table",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "|===",
+          "metadata": {
+            "attributes": {
+              "cols": "1a"
+            }
+          },
+          "content": {
+            "header": null,
+            "footer": null,
+            "rows": [
+              {
+                "columns": [
+                  {
+                    "content": [
+                      {
+                        "name": "table",
+                        "type": "block",
+                        "form": "delimited",
+                        "delimiter": "!===",
+                        "metadata": {
+                          "attributes": {
+                            "cols": "1l"
+                          }
+                        },
+                        "content": {
+                          "header": null,
+                          "footer": null,
+                          "rows": [
+                            {
+                              "columns": [
+                                {
+                                  "content": [
+                                    {
+                                      "name": "paragraph",
+                                      "type": "block",
+                                      "inlines": [
+                                        {
+                                          "name": "text",
+                                          "type": "string",
+                                          "value": "////\nVISIBLE TABLE INCLUDE\n////",
+                                          "location": [
+                                            {
+                                              "line": 77,
+                                              "col": 1
+                                            },
+                                            {
+                                              "line": 79,
+                                              "col": 4
+                                            }
+                                          ]
+                                        }
+                                      ],
+                                      "location": [
+                                        {
+                                          "line": 77,
+                                          "col": 1
+                                        },
+                                        {
+                                          "line": 79,
+                                          "col": 4
+                                        }
+                                      ]
+                                    }
+                                  ],
+                                  "style": "literal"
+                                }
+                              ]
+                            }
+                          ],
+                          "columns": [
+                            {
+                              "style": "literal"
+                            }
+                          ],
+                          "location": [
+                            {
+                              "line": 75,
+                              "col": 1
+                            },
+                            {
+                              "line": 80,
+                              "col": 4
+                            }
+                          ]
+                        },
+                        "location": [
+                          {
+                            "line": 74,
+                            "col": 1
+                          },
+                          {
+                            "line": 80,
+                            "col": 4
+                          }
+                        ]
+                      },
+                      {
+                        "name": "comment",
+                        "type": "block",
+                        "form": "delimited",
+                        "delimiter": "////",
+                        "blocks": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "VISIBLE TABLE INCLUDE",
+                            "location": [
+                              {
+                                "line": 1,
+                                "col": 1,
+                                "file": [
+                                  "table_comment_visible.inc"
+                                ]
+                              },
+                              {
+                                "line": 1,
+                                "col": 21,
+                                "file": [
+                                  "table_comment_visible.inc"
+                                ]
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 82,
+                            "col": 1
+                          },
+                          {
+                            "line": 84,
+                            "col": 4
+                          }
+                        ]
+                      },
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "N05 Visible outer cell content.",
+                            "location": [
+                              {
+                                "line": 86,
+                                "col": 1
+                              },
+                              {
+                                "line": 86,
+                                "col": 31
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 86,
+                            "col": 1
+                          },
+                          {
+                            "line": 86,
+                            "col": 31
+                          }
+                        ]
+                      }
+                    ],
+                    "style": "asciidoc"
+                  }
+                ]
+              }
+            ],
+            "columns": [
+              {
+                "style": "asciidoc"
+              }
+            ],
+            "location": [
+              {
+                "line": 72,
+                "col": 1
+              },
+              {
+                "line": 87,
+                "col": 4
+              }
+            ]
+          },
+          "location": [
+            {
+              "line": 71,
+              "col": 1
+            },
+            {
+              "line": 87,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "T06 Listing control.",
+              "location": [
+                {
+                  "line": 89,
+                  "col": 1
+                },
+                {
+                  "line": 89,
+                  "col": 20
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 89,
+              "col": 1
+            },
+            {
+              "line": 89,
+              "col": 20
+            }
+          ]
+        },
+        {
+          "name": "listing",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "----",
+          "metadata": {
+            "style": "source"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "////\nVISIBLE TABLE INCLUDE\n////",
+              "location": [
+                {
+                  "line": 93,
+                  "col": 1
+                },
+                {
+                  "line": 95,
+                  "col": 4
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 91,
+              "col": 1
+            },
+            {
+              "line": 96,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "comment",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "////",
+          "blocks": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "include::missing-table-comment-file.adoc[]",
+              "location": [
+                {
+                  "line": 99,
+                  "col": 1
+                },
+                {
+                  "line": 99,
+                  "col": 42
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 98,
+              "col": 1
+            },
+            {
+              "line": 100,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "T07 Visible after a real body comment.",
+              "location": [
+                {
+                  "line": 102,
+                  "col": 1
+                },
+                {
+                  "line": 102,
+                  "col": 38
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 102,
+              "col": 1
+            },
+            {
+              "line": 102,
+              "col": 38
+            }
+          ]
+        },
+        {
+          "name": "comment",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "////",
+          "blocks": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "|===\ninclude::another-missing-table-comment-file.adoc[]",
+              "location": [
+                {
+                  "line": 105,
+                  "col": 1
+                },
+                {
+                  "line": 106,
+                  "col": 50
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 104,
+              "col": 1
+            },
+            {
+              "line": 107,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "T08 Visible after a commented table fence.",
+              "location": [
+                {
+                  "line": 109,
+                  "col": 1
+                },
+                {
+                  "line": 109,
+                  "col": 42
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 109,
+              "col": 1
+            },
+            {
+              "line": 109,
+              "col": 42
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "T09 Included literal cell.",
+              "location": [
+                {
+                  "line": 111,
+                  "col": 1
+                },
+                {
+                  "line": 111,
+                  "col": 26
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 111,
+              "col": 1
+            },
+            {
+              "line": 111,
+              "col": 26
+            }
+          ]
+        },
+        {
+          "name": "table",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "|===",
+          "metadata": {
+            "attributes": {
+              "cols": "1l"
+            }
+          },
+          "content": {
+            "header": null,
+            "footer": null,
+            "rows": [
+              {
+                "columns": [
+                  {
+                    "content": [
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "////\nVISIBLE TABLE INCLUDE\n////",
+                            "location": [
+                              {
+                                "line": 1,
+                                "col": 1,
+                                "file": [
+                                  "table_comment_cell.asciidoc"
+                                ]
+                              },
+                              {
+                                "line": 5,
+                                "col": 4,
+                                "file": [
+                                  "table_comment_cell.asciidoc"
+                                ]
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 1,
+                            "col": 1,
+                            "file": [
+                              "table_comment_cell.asciidoc"
+                            ]
+                          },
+                          {
+                            "line": 5,
+                            "col": 4,
+                            "file": [
+                              "table_comment_cell.asciidoc"
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "style": "literal"
+                  }
+                ]
+              }
+            ],
+            "columns": [
+              {
+                "style": "literal"
+              }
+            ],
+            "location": [
+              {
+                "line": 114,
+                "col": 1
+              },
+              {
+                "line": 117,
+                "col": 4
+              }
+            ]
+          },
+          "location": [
+            {
+              "line": 113,
+              "col": 1
+            },
+            {
+              "line": 117,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "T10 Included plain cell with selected lines.",
+              "location": [
+                {
+                  "line": 119,
+                  "col": 1
+                },
+                {
+                  "line": 119,
+                  "col": 44
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 119,
+              "col": 1
+            },
+            {
+              "line": 119,
+              "col": 44
+            }
+          ]
+        },
+        {
+          "name": "table",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "|===",
+          "metadata": {
+            "attributes": {
+              "cols": "1"
+            }
+          },
+          "content": {
+            "header": null,
+            "footer": null,
+            "rows": [
+              {
+                "columns": [
+                  {
+                    "content": [
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "////\nVISIBLE TABLE INCLUDE",
+                            "location": [
+                              {
+                                "line": 1,
+                                "col": 1,
+                                "file": [
+                                  "table_comment_cell.asciidoc"
+                                ]
+                              },
+                              {
+                                "line": 1,
+                                "col": 21,
+                                "file": [
+                                  "table_comment_cell.asciidoc",
+                                  "table_comment_visible.inc"
+                                ]
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 1,
+                            "col": 1,
+                            "file": [
+                              "table_comment_cell.asciidoc"
+                            ]
+                          },
+                          {
+                            "line": 1,
+                            "col": 21,
+                            "file": [
+                              "table_comment_cell.asciidoc",
+                              "table_comment_visible.inc"
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "////",
+                            "location": [
+                              {
+                                "line": 5,
+                                "col": 1,
+                                "file": [
+                                  "table_comment_cell.asciidoc"
+                                ]
+                              },
+                              {
+                                "line": 5,
+                                "col": 4,
+                                "file": [
+                                  "table_comment_cell.asciidoc"
+                                ]
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 5,
+                            "col": 1,
+                            "file": [
+                              "table_comment_cell.asciidoc"
+                            ]
+                          },
+                          {
+                            "line": 5,
+                            "col": 4,
+                            "file": [
+                              "table_comment_cell.asciidoc"
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 122,
+                "col": 1
+              },
+              {
+                "line": 125,
+                "col": 4
+              }
+            ]
+          },
+          "location": [
+            {
+              "line": 121,
+              "col": 1
+            },
+            {
+              "line": 125,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "T11 Included AsciiDoc cell comment.",
+              "location": [
+                {
+                  "line": 127,
+                  "col": 1
+                },
+                {
+                  "line": 127,
+                  "col": 35
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 127,
+              "col": 1
+            },
+            {
+              "line": 127,
+              "col": 35
+            }
+          ]
+        },
+        {
+          "name": "table",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "|===",
+          "metadata": {
+            "attributes": {
+              "cols": "1a"
+            }
+          },
+          "content": {
+            "header": null,
+            "footer": null,
+            "rows": [
+              {
+                "columns": [
+                  {
+                    "content": [
+                      {
+                        "name": "comment",
+                        "type": "block",
+                        "form": "delimited",
+                        "delimiter": "////",
+                        "blocks": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "VISIBLE TABLE INCLUDE",
+                            "location": [
+                              {
+                                "line": 1,
+                                "col": 1,
+                                "file": [
+                                  "table_comment_cell.asciidoc",
+                                  "table_comment_visible.inc"
+                                ]
+                              },
+                              {
+                                "line": 1,
+                                "col": 21,
+                                "file": [
+                                  "table_comment_cell.asciidoc",
+                                  "table_comment_visible.inc"
+                                ]
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 1,
+                            "col": 1,
+                            "file": [
+                              "table_comment_cell.asciidoc"
+                            ]
+                          },
+                          {
+                            "line": 5,
+                            "col": 4,
+                            "file": [
+                              "table_comment_cell.asciidoc"
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "A11 Visible after the included comment.",
+                            "location": [
+                              {
+                                "line": 134,
+                                "col": 1
+                              },
+                              {
+                                "line": 134,
+                                "col": 39
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 134,
+                            "col": 1
+                          },
+                          {
+                            "line": 134,
+                            "col": 39
+                          }
+                        ]
+                      }
+                    ],
+                    "style": "asciidoc"
+                  }
+                ]
+              }
+            ],
+            "columns": [
+              {
+                "style": "asciidoc"
+              }
+            ],
+            "location": [
+              {
+                "line": 130,
+                "col": 1
+              },
+              {
+                "line": 135,
+                "col": 4
+              }
+            ]
+          },
+          "location": [
+            {
+              "line": 129,
+              "col": 1
+            },
+            {
+              "line": 135,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "T12 Included listing content.",
+              "location": [
+                {
+                  "line": 137,
+                  "col": 1
+                },
+                {
+                  "line": 137,
+                  "col": 29
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 137,
+              "col": 1
+            },
+            {
+              "line": 137,
+              "col": 29
+            }
+          ]
+        },
+        {
+          "name": "listing",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "----",
+          "metadata": {
+            "style": "source"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "////\nVISIBLE TABLE INCLUDE\n////",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 1,
+                  "file": [
+                    "table_comment_cell.asciidoc"
+                  ]
+                },
+                {
+                  "line": 5,
+                  "col": 4,
+                  "file": [
+                    "table_comment_cell.asciidoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 139,
+              "col": 1
+            },
+            {
+              "line": 142,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "T13 Table fences across source files.",
+              "location": [
+                {
+                  "line": 144,
+                  "col": 1
+                },
+                {
+                  "line": 144,
+                  "col": 37
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 144,
+              "col": 1
+            },
+            {
+              "line": 144,
+              "col": 37
+            }
+          ]
+        },
+        {
+          "name": "table",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "|===",
+          "metadata": {
+            "attributes": {
+              "cols": "1l"
+            }
+          },
+          "content": {
+            "header": null,
+            "footer": null,
+            "rows": [
+              {
+                "columns": [
+                  {
+                    "content": [
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "////\nVISIBLE TABLE INCLUDE\n////",
+                            "location": [
+                              {
+                                "line": 147,
+                                "col": 1
+                              },
+                              {
+                                "line": 149,
+                                "col": 4
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 147,
+                            "col": 1
+                          },
+                          {
+                            "line": 149,
+                            "col": 4
+                          }
+                        ]
+                      }
+                    ],
+                    "style": "literal"
+                  }
+                ]
+              }
+            ],
+            "columns": [
+              {
+                "style": "literal"
+              }
+            ],
+            "location": [
+              {
+                "line": 2,
+                "col": 1,
+                "file": [
+                  "table_comment_open.asciidoc"
+                ]
+              },
+              {
+                "line": 2,
+                "col": 4,
+                "file": [
+                  "table_comment_close.asciidoc"
+                ]
+              }
+            ]
+          },
+          "location": [
+            {
+              "line": 1,
+              "col": 1,
+              "file": [
+                "table_comment_open.asciidoc"
+              ]
+            },
+            {
+              "line": 1,
+              "col": 4,
+              "file": [
+                "table_comment_close.asciidoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "comment",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "////",
+          "blocks": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "include::missing-after-included-table-close.adoc[]",
+              "location": [
+                {
+                  "line": 153,
+                  "col": 1
+                },
+                {
+                  "line": 153,
+                  "col": 50
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 152,
+              "col": 1
+            },
+            {
+              "line": 154,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "T13 Visible after the included table fences.",
+              "location": [
+                {
+                  "line": 156,
+                  "col": 1
+                },
+                {
+                  "line": 156,
+                  "col": 44
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 156,
+              "col": 1
+            },
+            {
+              "line": 156,
+              "col": 44
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 11,
+          "col": 1
+        },
+        {
+          "line": 156,
+          "col": 44
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 156,
+      "col": 44
+    }
+  ]
+}

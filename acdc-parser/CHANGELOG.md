@@ -57,6 +57,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `////` comments before and within document headers no longer assign hidden
+  attributes or replace author and revision information. Their contents remain
+  raw without evaluating includes, conditionals or attribute
+  continuations, matching Asciidoctor. Empty comments close correctly, and
+  comment delimiters inside code and passthrough blocks remain literal.
+  Slash lines in plain and literal table cells remain text, with includes and
+  conditionals processed normally, matching Asciidoctor's table buffering.
+  This also applies to included cell content and table fences split across files.
+  The first blank line ends the header, so later assignments remain body events.
+  Attribute locations end at the declaration's last character, excluding its newline.
+
 - Visible shorthand index terms preserve balanced internal parentheses, including
   `((Term (R)))` and `((fn((x)) tail))`, while extra closing punctuation stays
   outside the term. Catalog labels and source spans retain the complete content.

@@ -1,0 +1,36 @@
+<div id="preamble">
+<div class="sectionbody">
+</div>
+</div>
+<div class="sect1">
+<h2 id="_name">Name</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>comment-boundaries - check header boundaries</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_checks">Checks</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>B01 kept=header; body=body-value; hidden={hidden}.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-rust" data-lang="rust">////
+let text = "{kept}";
+////</code></pre>
+</div>
+</div>
+<pre>//// literal passthrough ////</pre><div class="paragraph">
+<p>/// Three slashes are literal text.</p>
+</div>
+<div class="paragraph">
+<p>//// Four slashes followed by text are literal text.</p>
+</div>
+<div class="paragraph">
+<p>B02 Final paragraph.</p>
+</div>
+</div>
+</div>

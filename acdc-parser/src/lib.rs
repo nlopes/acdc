@@ -607,6 +607,184 @@ mod tests {
     }
 
     #[test]
+    fn table_comments_leave_hidden_footnotes_and_targets_unregistered() -> Result<(), Error> {
+        let parsed = parse_file(
+            "fixtures/tests/table_comment_directives.adoc",
+            &Options::default(),
+        )?;
+        assert!(parsed.document().footnotes.is_empty());
+        assert!(!parsed.document().references.contains_key("hidden-table"));
+        assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
+        Ok(())
+    }
+
+    #[test]
+    fn header_comments_do_not_assign_attributes_or_register_macros() -> Result<(), Error> {
+        let parsed = parse_file(
+            "fixtures/tests/header_comment_attributes.adoc",
+            &Options::default(),
+        )?;
+        let doc = parsed.document();
+        assert_eq!(doc.attributes.text("kept"), Some("original"));
+        assert_eq!(doc.attributes.text("author"), Some("Correct Author"));
+        assert_eq!(doc.attributes.text("revnumber"), Some("1.0"));
+        assert_eq!(doc.attributes.text("active-header"), Some("active"));
+        for name in [
+            "source-highlighter",
+            "hidden-before",
+            "hidden-author",
+            "hidden-revision",
+            "hidden-header",
+            "hidden-body",
+        ] {
+            assert!(
+                !doc.attributes.contains_key(name),
+                "comment assigned {name}"
+            );
+        }
+        assert!(doc.footnotes.is_empty());
+        assert!(!doc.references.contains_key("hidden"));
+        assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
+        Ok(())
+    }
+
+    #[test]
+    fn header_comment_unsets_preserve_caller_values() -> Result<(), Error> {
+        let input = "= T\n////\n:kept!:\n:tabsize: invalid\n////\n\n{kept}\n";
+        for builder in [
+            Options::builder().with_attribute("kept", "caller"),
+            Options::builder().with_default_attribute("kept", "caller"),
+        ] {
+            let options = builder.build()?;
+            for parsed in [
+                parse(input, &options)?,
+                parse_from_reader(input.as_bytes(), &options)?,
+            ] {
+                assert_eq!(parsed.document().attributes.text("kept"), Some("caller"));
+                assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn header_comment_does_not_pull_body_attributes_into_the_header() -> Result<(), Error> {
+        let parsed = parse_file(
+            "fixtures/tests/header_comment_boundaries.adoc",
+            &Options::default(),
+        )?;
+        let doc = parsed.document();
+        assert_eq!(doc.attributes.text("kept"), Some("header"));
+        assert!(!doc.attributes.contains_key("body"));
+        assert!(!doc.attributes.contains_key("source-highlighter"));
+        let event = doc
+            .blocks
+            .iter()
+            .find_map(|block| {
+                if let Block::DocumentAttribute(attribute) = block {
+                    Some(attribute)
+                } else {
+                    None
+                }
+            })
+            .expect("body assignment");
+        assert_eq!(event.name, "body");
+        let source = include_str!("../fixtures/tests/header_comment_boundaries.adoc");
+        let line = u32::try_from(
+            source
+                .lines()
+                .position(|line| line == ":body: body-value")
+                .expect("body entry")
+                + 1,
+        )
+        .expect("source line fits u32");
+        assert_eq!(event.location.start.line, line);
+        assert_eq!(event.location.end.line, line);
+        assert_eq!(
+            &source[event.location.absolute_start..=event.location.absolute_end],
+            ":body: body-value"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn header_comment_unterminated_reports_one_warning_without_effects() -> Result<(), Error> {
+        let parsed = parse_file(
+            "fixtures/tests/header_comment_unterminated.adoc",
+            &Options::default(),
+        )?;
+        assert_eq!(parsed.document().attributes.text("kept"), Some("original"));
+        assert_eq!(parsed.warnings().len(), 1, "{:?}", parsed.warnings());
+        let warning = parsed
+            .warnings()
+            .first()
+            .expect("unterminated comment warning");
+        assert!(matches!(
+            &warning.kind,
+            WarningKind::UnterminatedDelimitedBlock { kind, delimiter }
+                if *kind == "comment" && delimiter == "////"
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn header_comment_empty_blocks_keep_header_and_body_boundaries() -> Result<(), Error> {
+        for input in [
+            "////\n////\n\n= T\n:kept: value\n\nBody.\n",
+            "= T\n////\n////\nCorrect Author\n:kept: value\n\nBody.\n",
+            "= T\n:kept: value\n\n////\n////\n\nBody.\n",
+        ] {
+            let parsed = parse(input, &Options::default())?;
+            assert!(parsed.document().header.is_some(), "{input}");
+            assert_eq!(parsed.document().attributes.text("kept"), Some("value"));
+            assert!(
+                parsed.warnings().is_empty(),
+                "{input}: {:?}",
+                parsed.warnings()
+            );
+            assert!(parsed.document().blocks.iter().any(|block| matches!(
+                block, Block::Paragraph(paragraph) if paragraph.content.iter().any(|inline| matches!(inline,
+                    InlineNode::PlainText(text) if text.content == "Body."))
+            )));
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn document_attribute_locations_exclude_newlines_and_keep_unicode() -> Result<(), Error> {
+        for body in [
+            ":value: café\n\nBody.",
+            "[.role]\n:value: café\nBody.",
+            ":value: café",
+        ] {
+            let source = format!("= T\n\n{body}");
+            let parsed = parse(&source, &Options::default())?;
+            let attribute = parsed
+                .document()
+                .blocks
+                .iter()
+                .find_map(|block| {
+                    if let Block::DocumentAttribute(attribute) = block {
+                        Some(attribute)
+                    } else {
+                        None
+                    }
+                })
+                .expect("body attribute event");
+            let location = &attribute.location;
+            let last = source[location.absolute_end..]
+                .chars()
+                .next()
+                .expect("final declaration character");
+            let end = location.absolute_end + last.len_utf8();
+            assert_eq!(&source[location.absolute_start..end], ":value: café");
+            assert_eq!(last, 'é');
+            assert_eq!(location.start.line, location.end.line);
+        }
+        Ok(())
+    }
+
+    #[test]
     fn caller_hardbreak_attributes_create_line_break_nodes() -> Result<(), Box<dyn StdError>> {
         for name in ["hardbreaks", "hardbreaks-option"] {
             let options = Options::builder().with_attribute(name, "false").build()?;

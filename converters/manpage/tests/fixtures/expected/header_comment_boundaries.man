@@ -1,0 +1,46 @@
+'\" t
+.\"     Title: comment-boundaries
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-04
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "COMMENT\-BOUNDARIES" "1" "2026-10-04" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+comment\-boundaries \- check header boundaries
+.SH "CHECKS"
+.sp
+B01 kept=header; body=body\-value; hidden={hidden}.
+.EX
+////
+let text = "{kept}";
+////
+.EE
+<pre>//// literal passthrough ////</pre>
+.sp
+/// Three slashes are literal text.
+.sp
+//// Four slashes followed by text are literal text.
+.sp
+B02 Final paragraph.

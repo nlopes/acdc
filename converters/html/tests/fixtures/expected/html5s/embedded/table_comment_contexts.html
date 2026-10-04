@@ -1,0 +1,85 @@
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>table-comment-contexts - preserve outer comment boundaries around tables</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_synopsis">Synopsis</h2>
+<p>C01 Listing-looking text in a literal cell.</p>
+<div class="table-block">
+<table class="frame-all grid-all stretch">
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="halign-left valign-top"><div class="literal"><pre>////
+VISIBLE TABLE INCLUDE
+////
+----</pre></div></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>C01 After the table.</p>
+<p>C02 Passthrough-looking text in a literal cell.</p>
+<div class="table-block">
+<table class="frame-all grid-all stretch">
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="halign-left valign-top"><div class="literal"><pre>++++
+////
+VISIBLE TABLE INCLUDE
+////</pre></div></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>C02 After the table.</p>
+<p>C03 CSV cell.</p>
+<div class="table-block">
+<table class="frame-all grid-all stretch">
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="halign-left valign-top"><div class="literal"><pre>////
+VISIBLE TABLE INCLUDE
+////</pre></div></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>C03 After the table.</p>
+<p>C04 DSV cells.</p>
+<div class="table-block">
+<table class="frame-all grid-all stretch">
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="halign-left valign-top"><div class="literal"><pre>////</pre></div></td>
+</tr>
+<tr>
+<td class="halign-left valign-top"><div class="literal"><pre>VISIBLE TABLE INCLUDE</pre></div></td>
+</tr>
+<tr>
+<td class="halign-left valign-top"><div class="literal"><pre>////</pre></div></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>C04 After the table.</p>
+<p>C05 Table fence in a listing.</p>
+<div class="listing-block">
+<pre>|===
+////
+VISIBLE TABLE INCLUDE</pre>
+</div>
+<p>C05 After the listing.</p>
+<p>C06 After an excluded table fence.</p>
+</section>

@@ -1,0 +1,5 @@
+////
+ifndef::table-hidden[]
+include::table_comment_visible.inc[]
+endif::[]
+////

@@ -1,4 +1,9 @@
-//! Line-comment adjacency tracking for the preprocessor.
+//! Comment context tracking for the preprocessor.
+//!
+//! `////` block comments bypass preprocessing on both paths. Other verbatim
+//! blocks keep slash lines literal while still processing directives.
+//! Tables are buffered before their cell styles are parsed, so their slash
+//! lines do not start comment blocks during outer preprocessing.
 //!
 //! asciidoctor's reader removes `//` line comments. A comment sitting directly
 //! against preceding block content (no blank line) would otherwise be absorbed
@@ -9,9 +14,8 @@
 //! a heading boundary too. Comments inside verbatim blocks are preserved
 //! verbatim, and `tag::` / `end::` directives are kept for include tag filtering.
 //!
-//! [`CommentScanner`] holds the running line-to-line context that decision
-//! needs (the open verbatim block and whether the previous line was content a
-//! comment would attach to). It is shared by the two callers so the rule lives
+//! [`CommentScanner`] holds the open comment/verbatim block and the preceding
+//! line context. It is shared by the two callers so the rule lives
 //! in one place: [`super::Preprocessor::process_inner`] actually drops the
 //! comments while rebuilding the text, and
 //! [`super::Preprocessor::try_pass_through`] replays the same decision to detect
@@ -77,12 +81,25 @@ fn is_attaching_content(line: &str, setext: bool) -> bool {
         && !is_title_line(line, setext)
 }
 
-/// Running line context for deciding whether an adjacent `//` line comment
-/// should be dropped (see the module docs for the rule).
-pub(super) struct CommentScanner<'a> {
+// Valid delimiters use one leading byte and a uniform remainder. Keeping their
+// byte and length lets block context cross include buffers without borrowing them.
+fn delimiter_key(line: &str) -> Option<(u8, usize)> {
+    line.bytes().next().map(|byte| (byte, line.len()))
+}
+
+/// Open block delimiters shared across include boundaries.
+#[derive(Debug, Default, Clone, Copy)]
+pub(super) struct BlockContext {
     /// The open verbatim/raw block delimiter, or `None` when outside one
     /// (so "inside a verbatim block" is `verbatim.is_some()`).
-    verbatim: Option<&'a str>,
+    verbatim: Option<(u8, usize)>,
+    table: Option<(u8, usize)>,
+    block_comment: Option<(u8, usize)>,
+}
+
+/// Running block and line context for the comment rules in the module docs.
+pub(super) struct CommentScanner {
+    blocks: BlockContext,
     /// Whether the previous emitted line is content a comment would merge into.
     prev_attaches: bool,
     /// Whether Setext titles are active, so their underlines count as a heading
@@ -90,28 +107,31 @@ pub(super) struct CommentScanner<'a> {
     setext: bool,
 }
 
-impl<'a> CommentScanner<'a> {
+impl CommentScanner {
     /// Start as if at a blank boundary so a leading comment is preserved.
-    pub(super) fn new(setext: bool) -> Self {
+    pub(super) fn new(setext: bool, blocks: BlockContext) -> Self {
         Self {
-            verbatim: None,
+            blocks,
             prev_attaches: false,
             setext,
         }
     }
 
-    /// Whether `line` is a verbatim/raw block delimiter (the caller must then
-    /// push and [`record`](Self::record) it). Toggles the block open/closed; a
-    /// non-matching delimiter seen while already inside a block is left as-is
-    /// but still reported as a delimiter line.
-    pub(super) fn at_verbatim_delimiter(&mut self, line: &'a str) -> bool {
-        match Preprocessor::is_verbatim_delimiter(line) {
-            Some(delimiter) if self.verbatim == Some(delimiter) => {
-                self.verbatim = None;
+    /// Outside table buffers, whether `line` is a verbatim/raw block delimiter.
+    /// The caller must then push and [`record`](Self::record) it. A non-matching
+    /// delimiter inside a block leaves it open but is still reported as a
+    /// delimiter line.
+    pub(super) fn at_verbatim_delimiter(&mut self, line: &str) -> bool {
+        if self.blocks.table.is_some() {
+            return false;
+        }
+        match Preprocessor::is_verbatim_delimiter(line).and_then(delimiter_key) {
+            Some(delimiter) if self.blocks.verbatim == Some(delimiter) => {
+                self.blocks.verbatim = None;
                 true
             }
-            Some(delimiter) if self.verbatim.is_none() => {
-                self.verbatim = Some(delimiter);
+            Some(delimiter) if self.blocks.verbatim.is_none() => {
+                self.blocks.verbatim = Some(delimiter);
                 true
             }
             Some(_) => true,
@@ -119,11 +139,72 @@ impl<'a> CommentScanner<'a> {
         }
     }
 
+    /// Track the outer table fence without interpreting its cell contents.
+    /// `AsciiDoc` cell comments are handled when the buffered cells are parsed.
+    pub(super) fn at_table_delimiter(&mut self, line: &str) -> bool {
+        if let Some(delimiter) = self.blocks.table {
+            if delimiter_key(line) == Some(delimiter)
+                && line.bytes().skip(1).all(|byte| byte == b'=')
+            {
+                self.blocks.table = None;
+                return true;
+            }
+            return false;
+        }
+        if self.blocks.verbatim.is_some() {
+            return false;
+        }
+        let mut bytes = line.bytes();
+        if line.len() >= 4
+            && matches!(bytes.next(), Some(b'|' | b'!' | b',' | b':'))
+            && bytes.all(|byte| byte == b'=')
+        {
+            self.blocks.table = delimiter_key(line);
+            return true;
+        }
+        false
+    }
+
+    /// Comment contents bypass preprocessing, unlike listing and passthrough
+    /// contents, where include and conditional directives still apply.
+    pub(super) fn preserves_comment_line(&mut self, line: &str) -> bool {
+        if let Some(delimiter) = self.blocks.block_comment {
+            if delimiter_key(line) == Some(delimiter) && line.bytes().all(|byte| byte == b'/') {
+                self.blocks.block_comment = None;
+            }
+            return true;
+        }
+        if self.blocks.verbatim.is_none()
+            && self.blocks.table.is_none()
+            && line.len() >= 4
+            && line.bytes().all(|byte| byte == b'/')
+        {
+            self.blocks.block_comment = delimiter_key(line);
+            return true;
+        }
+        false
+    }
+
+    pub(super) fn block_context(&self) -> BlockContext {
+        self.blocks
+    }
+
+    /// Includes share block boundaries with their caller, even when a fence is
+    /// opened or closed in a different source file.
+    pub(super) fn record_expansion(&mut self, text: &str) {
+        for line in text.lines() {
+            if !self.preserves_comment_line(line) && !self.at_table_delimiter(line) {
+                self.at_verbatim_delimiter(line);
+            }
+            self.record(line);
+        }
+    }
+
     /// Whether `line` is an adjacent line comment the reader drops. Pure
     /// (`&self`): the drop path must not mutate state, so a run of adjacent
     /// comments is dropped together.
     pub(super) fn drops(&self, line: &str) -> bool {
-        self.verbatim.is_none()
+        self.blocks.verbatim.is_none()
             && is_line_comment(line)
             && !super::tag::is_tag_directive_line(line)
             && self.prev_attaches

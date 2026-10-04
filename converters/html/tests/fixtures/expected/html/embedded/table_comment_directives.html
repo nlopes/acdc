@@ -1,0 +1,187 @@
+<div class="sect1">
+<h2 id="_name">Name</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>table-comment-directives - keep directives active in table buffers</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_synopsis">Synopsis</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>T01 Plain table cell.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">////
+VISIBLE TABLE INCLUDE</p><p class="tableblock">////</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>T02 Literal table cell.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><div class="literal"><pre>////
+VISIBLE TABLE INCLUDE
+////</pre></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>T03 AsciiDoc cell comment.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A03 Visible cell content.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>T04 Mixed cell styles.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 33.3333%;">
+<col style="width: 33.3333%;">
+<col style="width: 33.3333%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">M04 Plain cell.</p><p class="tableblock">////
+VISIBLE TABLE INCLUDE</p><p class="tableblock">////</p></td>
+<td class="tableblock halign-left valign-top"><div class="literal"><pre>M04 Literal cell.
+////
+VISIBLE TABLE INCLUDE
+////</pre></div></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">M04 AsciiDoc cell.</p><p class="tableblock">M04 Visible content.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>T05 Nested table.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><div class="literal"><pre>////
+VISIBLE TABLE INCLUDE
+////</pre></div></td>
+</tr>
+</tbody>
+</table>
+<p class="tableblock">N05 Visible outer cell content.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>T06 Listing control.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>////
+VISIBLE TABLE INCLUDE
+////</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>T07 Visible after a real body comment.</p>
+</div>
+<div class="paragraph">
+<p>T08 Visible after a commented table fence.</p>
+</div>
+<div class="paragraph">
+<p>T09 Included literal cell.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><div class="literal"><pre>////
+VISIBLE TABLE INCLUDE
+////</pre></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>T10 Included plain cell with selected lines.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">////
+VISIBLE TABLE INCLUDE</p><p class="tableblock">////</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>T11 Included AsciiDoc cell comment.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A11 Visible after the included comment.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>T12 Included listing content.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>////
+VISIBLE TABLE INCLUDE
+////</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>T13 Table fences across source files.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><div class="literal"><pre>////
+VISIBLE TABLE INCLUDE
+////</pre></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>T13 Visible after the included table fences.</p>
+</div>
+</div>
+</div>

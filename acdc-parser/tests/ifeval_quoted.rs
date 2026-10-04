@@ -71,14 +71,14 @@ fn quoted_ifeval_keeps_caller_attribute_precedence(
         builder.with_default_attribute("state", "<early>").build()?
     };
     let parsed = parse(source, &options)?;
-    assert_eq!(
-        parsed
-            .document()
-            .attributes
-            .get("header-result")
-            .and_then(|value| value.text()),
-        Some("accepted")
-    );
+    // The blank line before the conditional ends the header; the accepted
+    // assignment belongs to the body, even though its name says "header".
+    assert!(!parsed.document().attributes.contains_key("header-result"));
+    assert!(parsed.document().blocks.iter().any(|block| matches!(
+        block, Block::DocumentAttribute(attribute) if attribute.name == "header-result"
+            && matches!(attribute.assignment(), acdc_parser::DocumentAttributeAssignment::Set(value)
+                if value.text() == Some("accepted"))
+    )));
     let old_value_matches = parsed
         .document()
         .blocks

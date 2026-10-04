@@ -1,0 +1,43 @@
+= comment-boundaries(1)
+:doctype: manpage
+:revdate: 2026-10-04
+:manname: comment-boundaries
+:manpurpose: check header boundaries
+:kept: header
+
+////
+:source-highlighter: syntect
+:hidden: hidden
+////
+:body: body-value
+
+////
+////
+
+== Name
+
+comment-boundaries - check header boundaries
+
+== Checks
+
+B01 kept={kept}; body={body}; hidden={hidden}.
+
+[source,rust]
+----
+////
+let text = "{kept}";
+////
+----
+
+++++
+<pre>//// literal passthrough ////</pre>
+++++
+
+/// Three slashes are literal text.
+
+//// Four slashes followed by text are literal text.
+
+//
+// A real line comment.
+
+B02 Final paragraph.

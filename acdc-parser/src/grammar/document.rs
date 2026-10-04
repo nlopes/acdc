@@ -2993,11 +2993,8 @@ peg::parser! {
         // the asciidoc document should not consider empty lines at the beginning or end
         // of the file.
         //
-        // We also ignore comments before the header - maybe we should change this but as
-        // it stands in our current model, it makes no sense to have comments in the
-        // blocks as it is a completely separate part of the document.
         pub(crate) rule document() -> Result<Document<'input>, Error>
-        = eol()* start:position() comments_before_header:comment_line_block(0)* header_result:header() prepare_manpage_front_matter() header_attributes:header_attribute_snapshot() blocks:blocks(0, None, None) end:position!() (eol()* / ![_]) {
+        = eol()* start:position() comments_before_header:(comment:leading_comment() eol()* { comment })* header_result:header() prepare_manpage_front_matter() header_attributes:header_attribute_snapshot() blocks:blocks(0, None, None) end:position!() (eol()* / ![_]) {
             let header = header_result?;
             let mut blocks: Vec<Block<'_>> = comments_before_header.into_iter().collect::<Result<Vec<_>, Error>>()?.into_iter().chain(blocks?).collect();
 
@@ -3297,13 +3294,15 @@ peg::parser! {
         = "//" !"/" [^'\n']* (eol() / ![_]) { None }
         / line:$([^'\n']+) (eol() / ![_]) { Some(line) }
 
+        // A blank line ends the header. Blank lines inside an atomic comment
+        // block do not end the surrounding header.
         pub(crate) rule header() -> Result<Option<Header<'input>>, Error>
             = start:position!()
-            ((document_attribute() / comment()) (eol()+ / ![_]))*
+            ((document_attribute() / header_comment()) (eol() / ![_]))*
             // Parse header metadata (anchors and attributes) before the document title
             metadata:header_metadata()
             title_authors:(title_authors:title_authors() { title_authors })?
-            (eol()+ (document_attribute() / comment()))*
+            (eol() (document_attribute() / header_comment()))*
             end:position!()
             (eol()*<,2> / ![_])
         {
@@ -3382,11 +3381,11 @@ peg::parser! {
             / { BlockMetadata::default() }
 
         pub(crate) rule title_authors() -> (Title<'input>, Option<Subtitle<'input>>, Vec<Author<'input>>)
-        // Comment lines between the title and the author line are skipped (matching
+        // Comments between the title and the author line are skipped (matching
         // `asciidoctor`). The first non-comment line is the author line only when it is
         // not an attribute entry (`:name:`). An attribute entry means there is no author
         // and it belongs to the header body.
-        = title_and_subtitle:document_title() eol() (comment() eol())* !document_attribute_match() !comment() authors:authors_and_revision() &(eol()+ / ![_])
+        = title_and_subtitle:document_title() eol() (header_comment() eol())* !document_attribute_match() !comment() authors:authors_and_revision() &(eol()+ / ![_])
         {
             let (title, subtitle) = title_and_subtitle;
             tracing::debug!(?title, ?subtitle, ?authors, "Found title and authors in the document header.");
@@ -3524,7 +3523,7 @@ peg::parser! {
 
         rule authors_and_revision() -> Vec<Author<'input>>
             // Capture the author line, substitute any attribute references, then parse
-            = start:position!() author_line:$([^'\n']+) end:position!() (eol() (comment() eol())* revision_pre_substitution())? {?
+            = start:position!() author_line:$([^'\n']+) end:position!() (eol() (header_comment() eol())* revision_pre_substitution())? {?
                 let substituted_cow = substitute(author_line.trim(), HEADER, &state.document_attributes);
                 // Intern any owned substitution result so the downstream
                 // `authors()` parse can yield `Author<'input>` that outlives
@@ -3679,7 +3678,7 @@ peg::parser! {
         = start:position!() att:document_attribute_match() end:position!() (&eol() / ![_])
         {
             tracing::debug!(?att, "Found document attribute in the document header");
-            let location = state.create_location(start, end);
+            let location = state.create_block_location(start, end, 0);
             state.apply_document_attribute(&att, true, location);
         }
 
@@ -3773,6 +3772,18 @@ peg::parser! {
                 content,
                 location: state.create_location(span_start + offset, end + offset),
             }))
+        }
+
+        rule leading_comment() -> Result<Block<'input>, Error>
+        = comment_line_block(0)
+        / start:position!() block:comment_block(start, 0, &BlockParsingMetadata::default()) { block }
+
+        // Consume a block comment as a whole so its contents cannot become
+        // header attributes, author information or revision information.
+        rule header_comment()
+        = comment()
+        / start:position!() result:comment_block(start, 0, &BlockParsingMetadata::default()) {?
+            result.map(|_| ()).map_err(|_| "invalid header comment")
         }
 
         /// Like `comment_line_block` but leaves the trailing newline unconsumed
@@ -3917,7 +3928,7 @@ peg::parser! {
         = att:document_attribute_match()
         {
             let name = Cow::Borrowed(att.name);
-            let location = state.create_location(span_start + offset, span_end + offset);
+            let location = state.create_block_location(span_start, span_end, offset);
             let event = state
                 .apply_document_attribute(&att, false, location.clone())
                 .unwrap_or_else(|| DocumentAttribute::rejected(name, location));
@@ -4197,7 +4208,7 @@ peg::parser! {
         = start:position!() attr:document_attribute_match() end:position!() eol()
         {
             tracing::debug!(?attr, "Found document attribute in block metadata");
-            (attr, state.create_location(start + offset, end + offset))
+            (attr, state.create_block_location(start, end, offset))
         }
 
         rule check_section_blocks()
@@ -4402,13 +4413,15 @@ peg::parser! {
         // comparison in `block_close_delim` keeps a different-length or
         // different-character run from closing the block.
         rule until_block_close(expected: &str) -> &'input str
-            = content:$((!(eol() block_close_delim(expected)) (eol() / [^'\n']+))*) { content }
+            = &block_close_delim(expected) { "" }
+            / content:$((!(eol() block_close_delim(expected)) (eol() / [^'\n']+))*) { content }
 
-        // A maximal run of a single block-delimiter character equal to `expected`.
+        // A complete line of one block-delimiter character equal to `expected`.
         // Per-character alternatives (not a mixed character class) so a run stops
         // at the first foreign character, exactly like the old per-type rules.
         rule block_close_delim(expected: &str) -> &'input str
             = delim:$("="+ / "/"+ / "-"+ / "."+ / "*"+ / "_"+ / "+"+ / "~"+ / "`"+)
+              &(eol() / ![_])
               {? if delim == expected { Ok(delim) } else { Err("delimiter mismatch") } }
 
         // A `////` comment block specifically. The generic `delimited_block` covers
@@ -6867,7 +6880,7 @@ peg::parser! {
         rule eol() = quiet!{ "\n" }
 
         rule comment_line() = quiet!{ comment() (eol() / ![_]) }
-        rule comment() = quiet!{ "//" [^'\n']+ (&eol() / ![_]) }
+        rule comment() = quiet!{ "//" !"/" [^'\n']* (&eol() / ![_]) }
 
         // Separator whitespace belongs to the declaration, not its value.
         // Soft wraps arrive folded; preserved hard wraps are collected below.
@@ -9823,9 +9836,8 @@ link:https://example.net[Text,positional-id]
     #[test]
     fn test_unterminated_delimited_blocks_emit_warning() -> Result<(), Error> {
         // (delimiter line + content, expected kind, expected opening delimiter).
-        // A leading `para\n\n` keeps the delimiter in the document body — a
-        // `////` at the very start would otherwise be eaten by the header's
-        // leading-comment scan.
+        // A leading paragraph keeps every case in the body so the common
+        // delimited-block parser handles it.
         let cases = [
             ("====\ntext", "example", "===="),
             ("----\ntext", "listing", "----"),

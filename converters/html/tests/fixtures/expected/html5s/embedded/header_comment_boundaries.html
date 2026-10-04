@@ -1,0 +1,18 @@
+<section id="preamble" aria-label="Preamble">
+</section>
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>comment-boundaries - check header boundaries</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_checks">Checks</h2>
+<p>B01 kept=header; body=body-value; hidden={hidden}.</p>
+<div class="listing-block">
+<pre class="highlight"><code class="language-rust" data-lang="rust">////
+let text = "{kept}";
+////</code></pre>
+</div>
+<pre>//// literal passthrough ////</pre><p>/// Three slashes are literal text.</p>
+<p>//// Four slashes followed by text are literal text.</p>
+<p>B02 Final paragraph.</p>
+</section>

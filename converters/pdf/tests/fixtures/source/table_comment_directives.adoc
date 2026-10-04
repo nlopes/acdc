@@ -1,0 +1,156 @@
+= table-comment-directives(1)
+:doctype: manpage
+:revdate: 2026-10-04
+:manname: table-comment-directives
+:manpurpose: keep directives active in table buffers
+
+== Name
+
+table-comment-directives - keep directives active in table buffers
+
+== Synopsis
+
+T01 Plain table cell.
+
+[cols="1"]
+|===
+|
+////
+include::table_comment_visible.inc[]
+////
+|===
+
+T02 Literal table cell.
+
+[cols="1l"]
+|===
+|
+////
+include::table_comment_visible.inc[]
+////
+|===
+
+T03 AsciiDoc cell comment.
+
+[cols="1a"]
+|===
+|
+////
+include::table_comment_visible.inc[]
+footnote:[Hidden table note.] (((Hidden table term))) anchor:hidden-table[]
+////
+
+A03 Visible cell content.
+|===
+
+T04 Mixed cell styles.
+
+[cols="1,1l,1a"]
+|===
+|M04 Plain cell.
+////
+include::table_comment_visible.inc[]
+////
+
+|M04 Literal cell.
+////
+include::table_comment_visible.inc[]
+////
+
+|M04 AsciiDoc cell.
+
+////
+include::table_comment_visible.inc[]
+////
+
+M04 Visible content.
+|===
+
+T05 Nested table.
+
+[cols="1a"]
+|===
+|
+[cols="1l"]
+!===
+!
+////
+include::table_comment_visible.inc[]
+////
+!===
+
+////
+include::table_comment_visible.inc[]
+////
+
+N05 Visible outer cell content.
+|===
+
+T06 Listing control.
+
+[source]
+----
+////
+include::table_comment_visible.inc[]
+////
+----
+
+////
+include::missing-table-comment-file.adoc[]
+////
+
+T07 Visible after a real body comment.
+
+////
+|===
+include::another-missing-table-comment-file.adoc[]
+////
+
+T08 Visible after a commented table fence.
+
+T09 Included literal cell.
+
+[cols="1l"]
+|===
+|
+include::table_comment_cell.asciidoc[]
+|===
+
+T10 Included plain cell with selected lines.
+
+[cols="1"]
+|===
+|
+include::table_comment_cell.asciidoc[lines=1..5]
+|===
+
+T11 Included AsciiDoc cell comment.
+
+[cols="1a"]
+|===
+|
+include::table_comment_cell.asciidoc[]
+
+A11 Visible after the included comment.
+|===
+
+T12 Included listing content.
+
+[source]
+----
+include::table_comment_cell.asciidoc[]
+----
+
+T13 Table fences across source files.
+
+include::table_comment_open.asciidoc[]
+////
+include::table_comment_visible.inc[]
+////
+include::table_comment_close.asciidoc[]
+
+////
+include::missing-after-included-table-close.adoc[]
+////
+
+T13 Visible after the included table fences.

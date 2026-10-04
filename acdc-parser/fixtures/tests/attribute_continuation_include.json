@@ -26,17 +26,33 @@
       },
       {
         "line": 1,
-        "col": 12,
-        "file": [
-          "attribute_continuation_source.inc"
-        ]
+        "col": 21
       }
     ]
   },
-  "attributes": {
-    "included": "\\"
-  },
+  "attributes": {},
   "blocks": [
+    {
+      "name": "included",
+      "type": "attribute",
+      "value": "\\",
+      "location": [
+        {
+          "line": 1,
+          "col": 1,
+          "file": [
+            "attribute_continuation_source.inc"
+          ]
+        },
+        {
+          "line": 1,
+          "col": 12,
+          "file": [
+            "attribute_continuation_source.inc"
+          ]
+        }
+      ]
+    },
     {
       "name": "paragraph",
       "type": "block",

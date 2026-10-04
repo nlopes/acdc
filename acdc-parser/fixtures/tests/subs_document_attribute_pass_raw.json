@@ -25,8 +25,8 @@
         "col": 1
       },
       {
-        "line": 9,
-        "col": 11
+        "line": 7,
+        "col": 24
       }
     ]
   },
@@ -34,11 +34,26 @@
     "alias": "<em>café</em> & {name}",
     "link": "https://example.org[Site]",
     "mixed": "<safe> <em>café</em> & {name} & end",
-    "name": "Late",
+    "name": "Early",
     "quotes": "*Strong*",
     "raw": "<em>café</em> & {name}"
   },
   "blocks": [
+    {
+      "name": "name",
+      "type": "attribute",
+      "value": "Late",
+      "location": [
+        {
+          "line": 9,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 11
+        }
+      ]
+    },
     {
       "name": "paragraph",
       "type": "block",

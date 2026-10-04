@@ -1,0 +1,48 @@
+= comment-directives(1)
+:doctype: manpage
+:revdate: 2026-10-04
+:manname: comment-directives
+:manpurpose: check inactive directives
+:kept: original
+////
+:kept: changed \
+continued hidden value
+include::this-file-must-not-exist.adoc[]
+ifdef::hidden[]
+ifeval::[malformed expression]
+endif::[]
+endif::[]
+:hidden: yes
+////
+
+== Name
+
+comment-directives - check inactive directives
+
+== Checks
+
+D01 kept={kept}; hidden={hidden}.
+
+ifdef::hidden[]
+D02 Wrong conditional branch.
+endif::[]
+ifndef::hidden[]
+D03 Correct conditional branch.
+endif::[]
+
+/////
+////
+:hidden: still hidden
+include::another-missing-file.adoc[]
+//////
+/////
+
+D04 After different-length delimiters: {kept}.
+
+////
+endif::[]
+\include::escaped-missing-file.adoc[]
+:unused: value \
+////
+
+D05 After an apparent attribute continuation: {kept}.

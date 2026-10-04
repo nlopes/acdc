@@ -1,0 +1,107 @@
+<div class="sect1">
+<h2 id="_name">Name</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>table-comment-contexts - preserve outer comment boundaries around tables</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_synopsis">Synopsis</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>C01 Listing-looking text in a literal cell.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><div class="literal"><pre>////
+VISIBLE TABLE INCLUDE
+////
+----</pre></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>C01 After the table.</p>
+</div>
+<div class="paragraph">
+<p>C02 Passthrough-looking text in a literal cell.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><div class="literal"><pre>++++
+////
+VISIBLE TABLE INCLUDE
+////</pre></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>C02 After the table.</p>
+</div>
+<div class="paragraph">
+<p>C03 CSV cell.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><div class="literal"><pre>////
+VISIBLE TABLE INCLUDE
+////</pre></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>C03 After the table.</p>
+</div>
+<div class="paragraph">
+<p>C04 DSV cells.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><div class="literal"><pre>////</pre></div></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><div class="literal"><pre>VISIBLE TABLE INCLUDE</pre></div></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><div class="literal"><pre>////</pre></div></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>C04 After the table.</p>
+</div>
+<div class="paragraph">
+<p>C05 Table fence in a listing.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>|===
+////
+VISIBLE TABLE INCLUDE</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>C05 After the listing.</p>
+</div>
+<div class="paragraph">
+<p>C06 After an excluded table fence.</p>
+</div>
+</div>
+</div>

@@ -25,15 +25,28 @@
         "col": 1
       },
       {
-        "line": 3,
-        "col": 16
+        "line": 1,
+        "col": 15
       }
     ]
   },
-  "attributes": {
-    "leveloffset": "+1"
-  },
+  "attributes": {},
   "blocks": [
+    {
+      "name": "leveloffset",
+      "type": "attribute",
+      "value": "+1",
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 3,
+          "col": 16
+        }
+      ]
+    },
     {
       "name": "section",
       "type": "block",
@@ -151,7 +164,7 @@
                 },
                 {
                   "line": 13,
-                  "col": 15
+                  "col": 14
                 }
               ]
             }

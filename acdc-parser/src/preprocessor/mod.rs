@@ -186,12 +186,13 @@ fn is_escaped_directive(line: &str) -> bool {
     })
 }
 
-/// Caller authority and recursion state shared by one include-processing chain.
+/// Caller authority, recursion and block state shared by one include-processing chain.
 #[derive(Debug, Clone, Copy)]
 pub(super) struct IncludeContext {
     allows_uri_read: bool,
     depth: usize,
     max_depth: usize,
+    block_context: comment::BlockContext,
 }
 
 impl IncludeContext {
@@ -206,6 +207,7 @@ impl IncludeContext {
             allows_uri_read: options.document_attributes.contains_key("allow-uri-read"),
             depth: 0,
             max_depth,
+            block_context: comment::BlockContext::default(),
         }
     }
 
@@ -758,20 +760,23 @@ impl Preprocessor {
     /// mutates attributes to evaluate conditional directives, which already
     /// force the rebuild.
     ///
-    /// Directive detection is unconditional: an `include::` inside a `----`
-    /// block is still processed by `process_inner` (matching asciidoctor,
-    /// exercised by `include_with_indent.adoc`), so those lines must not be
-    /// skipped. The verbatim tracking in the scanner below is only for the
-    /// comment decision — comments inside verbatim blocks are kept.
-    fn try_pass_through(text: &str, setext: bool) -> bool {
+    /// Comment-block contents bypass preprocessing. Outside those blocks,
+    /// directives remain active even inside a listing or passthrough block,
+    /// matching asciidoctor. Verbatim tracking keeps slash delimiters and
+    /// line comments inside those blocks literal.
+    fn try_pass_through(&self, text: &str, setext: bool) -> bool {
         // Dropping an adjacent line comment is the one rewrite that can't be
         // spotted with a simple per-line check: whether a `//` line is dropped
         // depends on the previous line and on being outside a verbatim block.
         // Run the same `CommentScanner` that `process_inner` uses, and return
         // false only on an actual drop — so documents whose comments are all
         // kept (standalone, inside verbatim, tag directives) still pass through.
-        let mut scanner = CommentScanner::new(setext);
+        let mut scanner = CommentScanner::new(setext, self.include_context.block_context);
         for line in text.lines() {
+            if scanner.preserves_comment_line(line) {
+                scanner.record(line);
+                continue;
+            }
             // `process_inner` unescapes escaped directives.
             if is_escaped_directive(line) {
                 return false;
@@ -791,7 +796,7 @@ impl Preprocessor {
             {
                 return false;
             }
-            if scanner.at_verbatim_delimiter(line) {
+            if scanner.at_table_delimiter(line) || scanner.at_verbatim_delimiter(line) {
                 scanner.record(line);
                 continue;
             }
@@ -1177,6 +1182,7 @@ impl Preprocessor {
         ctx: &DirectiveContext<'_>,
         options: &mut Options,
         out: &mut PreprocessorState<'input>,
+        scanner: &mut CommentScanner,
     ) -> Result<(), Error> {
         if is_escaped_directive(line) {
             out.note_source_line(ctx.input_line);
@@ -1204,8 +1210,12 @@ impl Preprocessor {
                 ctx.current_offset,
                 ctx.source_origin,
                 options,
-                self.include_context,
+                IncludeContext {
+                    block_context: scanner.block_context(),
+                    ..self.include_context
+                },
             )? {
+                scanner.record_expansion(&include_result.content);
                 let document_attributes = include_result.document_attributes.take();
                 Self::handle_include_result(include_result, out, ctx.input_line);
                 if let Some(document_attributes) = document_attributes {
@@ -1237,7 +1247,7 @@ impl Preprocessor {
         // output. Return the normalized text directly, preserving any borrow from
         // the caller's input so that downstream parsing can be zero-copy.
         if front_matter.is_none()
-            && Self::try_pass_through(&normalized, setext)
+            && self.try_pass_through(&normalized, setext)
             && !self.nested_attributes_must_propagate(&normalized)
         {
             return Ok(PreprocessorResult {
@@ -1277,7 +1287,7 @@ impl Preprocessor {
             .then(|| skim_front_matter(normalized.lines()))
             .flatten();
         if front_matter.is_none()
-            && Self::try_pass_through(&normalized, setext)
+            && self.try_pass_through(&normalized, setext)
             && !self.nested_attributes_must_propagate(&normalized)
         {
             let source_ranges = {
@@ -1352,8 +1362,8 @@ impl Preprocessor {
         // Tracks verbatim-block and previous-line context so adjacent line
         // comments can be dropped (matching asciidoctor's reader). See
         // `comment::CommentScanner`.
-        let mut scanner = CommentScanner::new(setext);
-        let mut conditional_stack = Vec::new();
+        let mut scanner = CommentScanner::new(setext, self.include_context.block_context);
+        let mut conditional_stack: Vec<ConditionalFrame<'_>> = Vec::new();
         let captured_front_matter = consume_front_matter(
             &mut lines,
             &mut line_number,
@@ -1367,6 +1377,16 @@ impl Preprocessor {
         }
 
         while let Some(line) = lines.next() {
+            // Keep raw comment lines and their source coordinates before
+            // considering directives or folding attribute continuations.
+            if scanner.preserves_comment_line(line) {
+                if conditional_stack.last().is_none_or(|frame| frame.active) {
+                    out.push_source_line(line, line_number);
+                    scanner.record(line);
+                }
+                line_number += 1;
+                continue;
+            }
             let conditional_consumed = {
                 let origin = out.origin_of_line(line_number);
                 let ctx = DirectiveContext {
@@ -1417,7 +1437,9 @@ impl Preprocessor {
             } else if line.starts_with(':') {
                 attribute::parse_line(options, line.trim())?;
             }
-            if scanner.at_verbatim_delimiter(line) {
+            // Only emitted lines establish table/verbatim context; fences in
+            // excluded conditionals cannot affect the following content.
+            if scanner.at_table_delimiter(line) || scanner.at_verbatim_delimiter(line) {
                 out.push_source_line(line, line_number);
             } else if line.starts_with("//") {
                 if scanner.drops(line) {
@@ -1437,7 +1459,7 @@ impl Preprocessor {
                     current_offset: origin.offset,
                     source_origin,
                 };
-                self.process_directive_line(line, &ctx, options, &mut out)?;
+                self.process_directive_line(line, &ctx, options, &mut out, &mut scanner)?;
             } else {
                 out.push_source_line(line, line_number);
             }
@@ -1903,6 +1925,153 @@ visible
 endif::inner[]";
         let result = Preprocessor::process(input, &options, Rc::default())?;
         assert_eq!(result.text, ":inner:\nvisible");
+        Ok(())
+    }
+
+    #[test]
+    fn block_comments_bypass_directives_on_fast_and_slow_paths() -> Result<(), Error> {
+        let comment = "////\ninclude::missing-comment-file.adoc[]\nifeval::[invalid]\n:kept: changed \\\ncontinued\n\\include::escaped-missing-file.adoc[]\n////";
+        let input = format!("= T\n:kept: original\n{comment}");
+        let fast = Preprocessor::process(&input, &Options::default(), Rc::default())?;
+        assert!(matches!(&fast.text, Cow::Borrowed(_)));
+        assert_eq!(fast.text, input);
+        let input = format!("{input}\n\nifdef::kept[]\nVisible\nendif::[]");
+        let slow = Preprocessor::process(&input, &Options::default(), Rc::default())?;
+        assert!(slow.text.contains(comment));
+        assert!(slow.text.ends_with("Visible"));
+        assert!(slow.included_files.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn block_comments_respect_outer_conditional_exclusion() -> Result<(), Error> {
+        let input = "ifdef::missing[]\n////\ninclude::missing-comment-file.adoc[]\nifdef::nested[]\nignored\nendif::[]\n////\nHidden\nendif::[]\nVisible";
+        let result = Preprocessor::process(input, &Options::default(), Rc::default())?;
+        assert_eq!(result.text, "Visible");
+        Ok(())
+    }
+
+    #[test]
+    fn block_comment_delimiters_stay_literal_in_verbatim_blocks() -> Result<(), Error> {
+        let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/preprocessor");
+        let options = Options::builder().with_base_dir(fixtures).build()?;
+        for delimiter in ["----", "....", "++++", "```"] {
+            let input = format!(
+                "{delimiter}\n////\ninclude::header_comment_visible.inc[]\n////\n{delimiter}"
+            );
+            let result = Preprocessor::process(&input, &options, Rc::default())?;
+            assert!(
+                result.text.contains("////\nIncluded content\n////"),
+                "{delimiter}: {}",
+                result.text
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn table_comment_delimiters_keep_directives_active_on_both_paths() -> Result<(), Error> {
+        let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/preprocessor");
+        let options = Options::builder().with_base_dir(fixtures).build()?;
+        let comment = "////\ninclude::missing-comment-file.adoc[]\n////";
+        for delimiter in ["|===", "!===", ",===", ":==="] {
+            // An unmatched listing marker is literal cell text; it must not
+            // leave the outer scanner in a verbatim block after the table.
+            let input =
+                format!("{delimiter}\ncell\n////\nCell text\n////\n----\n{delimiter}\n\n{comment}");
+            let fast = Preprocessor::process(&input, &options, Rc::default())?;
+            assert!(matches!(&fast.text, Cow::Borrowed(_)), "{delimiter}");
+            assert_eq!(fast.text, input);
+
+            let input = input.replace("Cell text", "include::header_comment_visible.inc[]");
+            let slow = Preprocessor::process(&input, &options, Rc::default())?;
+            assert!(matches!(&slow.text, Cow::Owned(_)), "{delimiter}");
+            assert_eq!(
+                slow.text,
+                input.replace("include::header_comment_visible.inc[]", "Included content"),
+                "{delimiter}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn table_comment_context_ignores_excluded_and_verbatim_fences() -> Result<(), Error> {
+        let comment = "////\ninclude::missing-comment-file.adoc[]\n////\nVisible";
+        for prefix in [
+            "ifdef::missing[]\n|===\nendif::[]",
+            "----\n|===\n////\n----",
+            "....\n|===\n////\n....",
+            "++++\n|===\n////\n++++",
+            "```\n|===\n////\n```",
+            "|=== literal text",
+        ] {
+            let input = format!("{prefix}\n\n{comment}");
+            let result = Preprocessor::process(&input, &Options::default(), Rc::default())?;
+            assert!(result.text.ends_with(comment), "{prefix}: {}", result.text);
+            assert!(result.included_files.is_empty());
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn table_comment_context_keeps_outer_fence_through_nested_tables() -> Result<(), Error> {
+        let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/preprocessor");
+        let options = Options::builder().with_base_dir(fixtures).build()?;
+        let input = "|===\na|\n!===\nl!\n////\ninclude::header_comment_visible.inc[]\n////\n!===\n|====\n////\ninclude::header_comment_visible.inc[]\n////\n|===\n\n////\ninclude::missing-comment-file.adoc[]\n////\nVisible";
+        let result = Preprocessor::process(input, &options, Rc::default())?;
+        assert_eq!(result.text.matches("Included content").count(), 2);
+        assert!(result.text.ends_with("////\nVisible"));
+        Ok(())
+    }
+
+    #[test]
+    fn includes_inherit_table_and_verbatim_comment_context() -> Result<(), Error> {
+        let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/tests");
+        let options = Options::builder().with_base_dir(fixtures).build()?;
+        for delimiter in ["|===", "----", "....", "++++", "```"] {
+            for selection in ["", "lines=1..5"] {
+                let input = format!(
+                    "{delimiter}\ninclude::table_comment_cell.asciidoc[{selection}]\n{delimiter}\n\n////\ninclude::missing-comment-file.adoc[]\n////"
+                );
+                let result = Preprocessor::process(&input, &options, Rc::default())?;
+                assert!(
+                    result.text.contains("////\nVISIBLE TABLE INCLUDE\n////"),
+                    "{delimiter} / {selection}: {}",
+                    result.text
+                );
+                assert!(
+                    result
+                        .text
+                        .ends_with("include::missing-comment-file.adoc[]\n////")
+                );
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn included_table_fences_update_the_callers_comment_context() -> Result<(), Error> {
+        let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/tests");
+        let options = Options::builder().with_base_dir(fixtures).build()?;
+        let input = "include::table_comment_open.asciidoc[]\n////\ninclude::table_comment_visible.inc[]\n////\ninclude::table_comment_close.asciidoc[]\n\n////\ninclude::missing-comment-file.adoc[]\n////\nVisible";
+        let result = Preprocessor::process(input, &options, Rc::default())?;
+        assert!(
+            result
+                .text
+                .contains("////\nVISIBLE TABLE INCLUDE\n////\n|===")
+        );
+        assert!(
+            result
+                .text
+                .ends_with("include::missing-comment-file.adoc[]\n////\nVisible")
+        );
+        let input = "include::table_comment_cell.asciidoc[lines=1]\ninclude::missing-comment-file.adoc[]\n////\nVisible";
+        let result = Preprocessor::process(input, &options, Rc::default())?;
+        assert_eq!(
+            result.text,
+            "////\ninclude::missing-comment-file.adoc[]\n////\nVisible"
+        );
         Ok(())
     }
 

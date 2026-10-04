@@ -1,0 +1,115 @@
+'\" t
+.\"     Title: table-comment-contexts
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-04
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "TABLE\-COMMENT\-CONTEXTS" "1" "2026-10-04" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+table\-comment\-contexts \- preserve outer comment boundaries around tables
+.SH "SYNOPSIS"
+.sp
+C01 Listing\-looking text in a literal cell.
+.TS
+allbox tab(:);
+ltx.
+T{
+.nf
+////
+VISIBLE TABLE INCLUDE
+////
+\-\-\-\-
+.fi
+T}
+.TE
+.sp
+C01 After the table.
+.sp
+C02 Passthrough\-looking text in a literal cell.
+.TS
+allbox tab(:);
+ltx.
+T{
+.nf
+++++
+////
+VISIBLE TABLE INCLUDE
+////
+.fi
+T}
+.TE
+.sp
+C02 After the table.
+.sp
+C03 CSV cell.
+.TS
+allbox tab(:);
+ltx.
+T{
+.nf
+////
+VISIBLE TABLE INCLUDE
+////
+.fi
+T}
+.TE
+.sp
+C03 After the table.
+.sp
+C04 DSV cells.
+.TS
+allbox tab(:);
+ltx
+ltx
+ltx.
+T{
+.nf
+////
+.fi
+T}
+T{
+.nf
+VISIBLE TABLE INCLUDE
+.fi
+T}
+T{
+.nf
+////
+.fi
+T}
+.TE
+.sp
+C04 After the table.
+.sp
+C05 Table fence in a listing.
+.EX
+|===
+////
+VISIBLE TABLE INCLUDE
+.EE
+.sp
+C05 After the listing.
+.sp
+C06 After an excluded table fence.

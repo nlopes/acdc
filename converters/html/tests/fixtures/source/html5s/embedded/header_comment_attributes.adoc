@@ -1,0 +1,54 @@
+////
+:hidden-before: hidden
+:source-highlighter: syntect
+////
+
+////
+////
+
+= header-comments(1)
+////
+:hidden-author: hidden
+:author: Wrong Author
+////
+Correct Author
+////
+:hidden-revision: hidden
+:revnumber: 99
+////
+v1.0, 2026-10-04
+//
+:doctype: manpage
+:kept: original
+:manname: header-comments
+:manpurpose: check comment isolation
+////
+:kept: changed
+:manname: wrong-name
+:manpurpose: wrong purpose
+:hidden-header: hidden
+////
+:active-header: active
+
+== Name
+
+header-comments - check comment isolation
+
+== Checks
+
+C01 kept={kept}; header={active-header}; author={author}; revision={revnumber}.
+
+C02 {hidden-before} {hidden-author} {hidden-revision} {hidden-header}.
+
+////
+:kept!:
+:hidden-body: hidden
+footnote:[Hidden note.] (((Hidden index))) anchor:hidden[]
+////
+
+C03 kept={kept}; body={hidden-body}.
+
+[source,rust]
+----
+fn main() {}
+----
