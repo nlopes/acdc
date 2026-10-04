@@ -1,0 +1,23 @@
+= Setext title registration
+
+.Ignored metadata footnote:[Ignored heading metadata note.] ((Ignored heading metadata term))
+Heading footnote:[Heading note.]
+-------------------------------
+
+[#target]
+.Title footnote:named[Named title note.] ((Named term))
+Paragraph.
+
+.Anonymous footnote:[Anonymous title note.]
+Paragraph.
+
+.Malformed footnote:[Malformed underline note.]
+Not a heading
+~~
+
+Body footnote:[Body note.] and reused footnote:named[].
+
+[discrete]
+=== Discrete heading footnote:[Discrete note.]
+
+After footnote:[After note.].

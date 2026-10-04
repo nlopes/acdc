@@ -1,0 +1,82 @@
+'\" t
+.\"     Title: title-macros
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-04
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "TITLE\-MACROS" "1" "2026-10-04" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+title\-macros \- verify title macro registration
+.SH "SYNOPSIS"
+.sp
+\fBNamed title [1] Named title term\fP
+.br
+Named paragraph.
+.sp
+\fBAnonymous title [2] Anonymous title term\fP
+.br
+Anonymous paragraph.
+.sp
+Body [3] and reused [1]\&.
+.sp
+\fBRepeated title [1]\fP
+.br
+Repeated paragraph.
+.sp
+\fBReferenced title [1]\fP
+.br
+Reference paragraph.
+.sp
+\fBÉva title \c
+.URL "https://example.org/title" "Title link" "\c"
+ \fP
+.br
+Unicode paragraph.
+.sp
+\fBAttribute title [4]\fP
+.br
+Attribute paragraph.
+.sp
+See Named title [1] Named title term, Anonymous title [2] Anonymous title term, and Title anchor\&.
+.SH "INDEX"
+.SS "A"
+.RS 4
+Anonymous title term
+.br
+.RE
+.SS "N"
+.RS 4
+Named title term
+.br
+.RE
+.SH "NOTES"
+.IP [1] 4
+Named title note.
+.IP [2] 4
+Anonymous title note with Note term\&.
+.IP [3] 4
+Body note.
+.IP [4] 4
+Metadata attribute note.

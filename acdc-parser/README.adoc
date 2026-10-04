@@ -178,6 +178,24 @@ acdc follows SDR-5 and protects the complete escaped reference before inline for
 Thus `{_name_\}` produces literal `{_name_}` in acdc; Asciidoctor applies italics to `name` and retains the closing backslash in ordinary prose.
 With only attribute substitutions enabled, both processors preserve the complete name and remove the escape.
 
+== Footnotes in titles
+
+Footnotes in block titles register once, keeping consecutive numbers and the
+first body of a named note. Titles use the attribute values after all metadata
+entries for that block have been applied, including entries after the title line.
+When several dot-title lines precede a block, only the last title contributes
+footnotes or index terms. A dot-title before a section or discrete heading is
+unused; the heading's own text supplies its title.
+
+acdc also keeps heading footnotes in source order. Asciidoctor's
+https://docs.asciidoctor.org/asciidoc/latest/macros/footnote/#footnotes-in-headings[documented heading limitation]
+can produce repeated or out-of-order numbers. It can also register notes from
+unused titles, leaving return links without targets. Asciidoctor 2.0.26 also
+produces duplicate HTML note numbers when a later block-title note contains an
+attribute reference. acdc retains its parsed
+content and valid targets under the selected SDR-5 separation of parsing and
+conversion; SDR-5 does not prescribe these exact numbering rules.
+
 == Parser options
 
 * **Safe mode** - `Safe`, `Secure`, `Server`, `Unsafe`

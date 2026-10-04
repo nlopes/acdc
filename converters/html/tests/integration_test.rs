@@ -2777,3 +2777,31 @@ fn asciidoc_table_paragraphs_keep_unique_link_targets() -> Result<(), Error> {
     }
     Ok(())
 }
+
+#[test]
+fn title_footnotes_keep_unique_link_targets() -> Result<(), Error> {
+    for name in ["title_macro_registration", "title_macro_contexts"] {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join(format!("tests/fixtures/source/html/embedded/{name}.adoc"));
+        for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+            for embedded in [true, false] {
+                let output = render_fixture(&path, variant, embedded)?;
+                check_link_structure(&output, name)?;
+            }
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn heading_and_title_footnotes_keep_unique_link_targets() -> Result<(), Error> {
+    let source = "= T\n:toc:\n\n.Unused footnote:[Unused note.]\n== Heading footnote:[Heading note.]\n\n.Title footnote:named[Title note.]\n[#target]\nParagraph.\n\n[discrete]\n=== Discrete footnote:[Discrete note.]\n\nBody footnote:[Body note.], footnote:named[], and <<target>>.\n";
+    let parsed = parse(source, &ParserOptions::default())?;
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        for embedded in [true, false] {
+            let output = render_fixture_document(parsed.document(), variant, embedded)?;
+            check_link_structure(&output, "heading_and_title_macro_registration")?;
+        }
+    }
+    Ok(())
+}

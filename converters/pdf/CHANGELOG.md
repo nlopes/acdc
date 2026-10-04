@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Cross-references and TOC copies of titles containing footnotes display the
+  existing note number without creating another PDF footnote or duplicate named
+  label. Titled paragraphs with named notes can now compile when referenced.
+
 - Enabled replacements render dashes and contractions across visible index labels
   in prose and code, including empty anchor targets, without moving following
   links. `prefixindexterm2:[--]tail` displays `prefix—tail`; unlike Asciidoctor

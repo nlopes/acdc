@@ -12,6 +12,35 @@ use acdc_converters_pdf::{PdfOptions, Processor};
 type Error = Box<dyn std::error::Error>;
 
 #[test]
+fn title_footnote_copies_keep_one_body_and_native_numbering() -> Result<(), Error> {
+    for toc in ["", ":toc:\n"] {
+        let source = format!(
+            "= Notes\n{toc}\n[[heading,Heading]]\n== Heading footnote:headingnote[Heading note.]\n\n.Titled footnote:paragraph[Paragraph note.]\n[#target]\nParagraph.\n\n.Anonymous footnote:[Anonymous note.]\n[#anonymous]\nParagraph.\n\nBody footnote:[Body note.] and reused footnote:paragraph[].\n\nSee <<heading>>, <<target>>, and <<anonymous>>.\n"
+        );
+        let pdf = render_input(&source)?;
+        let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+        let text = pdf
+            .extract_text(&pages)?
+            .split_whitespace()
+            .collect::<String>();
+        for note in [
+            "Headingnote.",
+            "Paragraphnote.",
+            "Anonymousnote.",
+            "Bodynote.",
+        ] {
+            assert_eq!(text.matches(note).count(), 1, "{toc}: {text}");
+        }
+        assert!(text.contains("4Bodynote."), "{toc}: {text}");
+        let targets = named_destinations(&pdf)?;
+        for target in ["heading", "target", "anonymous"] {
+            assert!(targets.contains_key(target), "missing {target}");
+        }
+    }
+    Ok(())
+}
+
+#[test]
 fn plain_table_paragraph_linebreaks_keep_pdf_text_positions() -> Result<(), Error> {
     let actual = render_input(
         "= Table\n\n[cols=\"1\"]\n|===\n|Before.\n////\nInside.\n////\nAfter.\n\nSecond.\n|===\n",

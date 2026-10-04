@@ -57,6 +57,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Footnotes in block titles register once, retain their first definition and
+  source locations, and keep consecutive numbering and valid HTML return links.
+  This also applies with legacy Setext headings enabled. Replaced dot-titles and
+  unused dot-titles before headings contribute no footnotes or index terms;
+  Asciidoctor can retain notes from those unused titles. Block-title notes with
+  attribute references retain source-order numbering instead of Asciidoctor
+  2.0.26's duplicate HTML numbers.
+
 - Normal table cells preserve contiguous paragraph text across block-looking
   delimiters, lists, headings, and metadata lines. Only blank lines separate
   their paragraphs; inline formatting and macros remain enabled, matching

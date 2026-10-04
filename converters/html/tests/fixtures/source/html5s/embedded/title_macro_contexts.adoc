@@ -1,0 +1,56 @@
+= title-contexts(1)
+:doctype: manpage
+:revdate: 2026-10-04
+:manname: title-contexts
+:manpurpose: verify title macros in nested blocks
+:acdc-index:
+
+== Name
+
+title-contexts - verify title macros in nested blocks
+
+== Synopsis
+
+.Source title footnote:source[Source title note.]
+[source,rust]
+fn main() {}
+
+.Open title footnote:[Open block title note.]
+--
+.Nested title footnote:[Nested title note with ((Nested note term)).]
+Nested paragraph.
+--
+
+.List title footnote:[List title note.]
+* List item.
++
+.Attached title footnote:[Attached title note.]
+Attached paragraph.
+
+.Descriptions footnote:[Description title note.]
+Term:: Description.
+
+[cols="1a"]
+|===
+|.Cell title footnote:cell[Cell title note.]
+[#cell-target]
+Cell paragraph.
+
+|Reused cell note footnote:cell[] and next footnote:[Next cell note.].
+|===
+
+[cols="1"]
+|===
+|.Ordinary cell text footnote:[Ordinary cell note.]
+[example]
+Ordinary cell paragraph.
+|===
+
+:heading-kind: discrete
+[#{heading-kind}-target,{heading-kind}]
+=== Floating heading footnote:[Floating heading note.]
+
+Outside footnote:[Final body note.], <<cell-target>>, and footnote:source[].
+
+[index]
+== Index

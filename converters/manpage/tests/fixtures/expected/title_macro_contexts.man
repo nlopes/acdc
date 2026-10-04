@@ -1,0 +1,121 @@
+'\" t
+.\"     Title: title-contexts
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-04
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "TITLE\-CONTEXTS" "1" "2026-10-04" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+title\-contexts \- verify title macros in nested blocks
+.SH "SYNOPSIS"
+.sp
+\fBSource title [1]\fP
+.br
+.if n .RS 4
+.nf
+.fam C
+fn main() {}
+.fam
+.fi
+.if n .RE
+.sp
+\fBOpen title [2]\fP
+.br
+.sp
+\fBNested title [3]\fP
+.br
+Nested paragraph.
+.sp
+\fBList title [4]\fP
+.RS 0
+.IP \(bu 2
+List item.
+.RS 2
+.sp
+\fBAttached title [5]\fP
+.br
+Attached paragraph.
+.RE
+.RE
+.sp
+\fBDescriptions [6]\fP
+.RS 0
+.TP
+\fBTerm\fP
+Description.
+.RE
+.TS
+allbox tab(:);
+ltx
+ltx.
+T{
+.sp
+\fBCell title [7]\fP
+.br
+Cell paragraph.
+
+T}
+T{
+.sp
+Reused cell note [7] and next [8]\&.
+
+T}
+.TE
+.TS
+allbox tab(:);
+ltx.
+T{
+\&.Ordinary cell text [9]
+[example]
+Ordinary cell paragraph.
+T}
+.TE
+.SS "Floating heading [10]"
+.sp
+Outside [11], Cell title [7], and [1]\&.
+.SH "INDEX"
+.SH "NOTES"
+.IP [1] 4
+Source title note.
+.IP [2] 4
+Open block title note.
+.IP [3] 4
+Nested title note with Nested note term\&.
+.IP [4] 4
+List title note.
+.IP [5] 4
+Attached title note.
+.IP [6] 4
+Description title note.
+.IP [7] 4
+Cell title note.
+.IP [8] 4
+Next cell note.
+.IP [9] 4
+Ordinary cell note.
+.IP [10] 4
+Floating heading note.
+.IP [11] 4
+Final body note.

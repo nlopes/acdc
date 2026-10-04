@@ -3895,8 +3895,12 @@ peg::parser! {
             }
         }
 
+        // Recognize heading syntax before metadata can register title macros.
+        rule atx_heading_match()
+        = (block_metadata_line_match() eol()*)* ("=" / "#")*<1,6> whitespace()
+
         rule discrete_header(offset: usize) -> Result<Block<'input>, Error>
-        = block_metadata:(bm:block_metadata(offset, None) {?
+        = &atx_heading_match() block_metadata:(bm:heading_metadata(offset, None) {?
             let bm = bm.map_err(|e| {
                 tracing::error!(?e, "error parsing block metadata in discrete_header");
                 "block metadata parse error"
@@ -3953,7 +3957,8 @@ peg::parser! {
         }
 
         pub(crate) rule section(offset: usize, parent_section_level: Option<SectionLevel>, direct_parent_section_kind: Option<SectionKind>) -> Result<Block<'input>, Error>
-        = check_section_blocks() block_metadata:(bm:block_metadata(offset, parent_section_level) {?
+        = check_section_blocks() &atx_heading_match()
+        block_metadata:(bm:heading_metadata(offset, parent_section_level) {?
             bm.map_err(|e| {
                 tracing::error!(?e, "error parsing block metadata in section");
                 "block metadata parse error"
@@ -4084,12 +4089,18 @@ peg::parser! {
             Ok(level)
         }
 
+        rule setext_section_match(parent_section_level: Option<SectionLevel>)
+        = (block_metadata_line_match() eol()*)*
+          title:$([^'\n']+) eol()
+          setext_section_level(title.trim().chars().count(), parent_section_level)
+
         /// Parse a setext-style section (title followed by underline).
         /// Excludes description list items (e.g., `term:: content`) which would otherwise
         /// match as setext titles.
         pub(crate) rule section_setext(offset: usize, parent_section_level: Option<SectionLevel>, direct_parent_section_kind: Option<SectionKind>) -> Result<Block<'input>, Error>
         = check_section_blocks() !check_line_is_description_list(offset)
-        block_metadata:(bm:block_metadata(offset, parent_section_level) {?
+        &setext_section_match(parent_section_level)
+        block_metadata:(bm:heading_metadata(offset, parent_section_level) {?
             bm.map_err(|e| {
                 tracing::error!(?e, "error parsing block metadata in section_setext");
                 "block metadata parse error"
@@ -4138,39 +4149,33 @@ peg::parser! {
         }
 
         rule block_metadata(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<BlockParsingMetadata<'input>, Error>
-        = metadata:block_metadata_with_attributes(offset, parent_section_level, true) { metadata }
+        = metadata:block_metadata_with_title(offset, parent_section_level, true) { metadata }
 
-        rule document_attributes_allowed(allow: bool)
-        = {? if allow { Ok(()) } else { Err("document attributes are not allowed in plain cells") } }
+        // Headings display their own text, so ignore macros in preceding dot-titles.
+        rule heading_metadata(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<BlockParsingMetadata<'input>, Error>
+        = metadata:block_metadata_with_title(offset, parent_section_level, false) { metadata }
 
-        rule block_metadata_with_attributes(offset: usize, parent_section_level: Option<SectionLevel>, allow_document_attributes: bool) -> Result<BlockParsingMetadata<'input>, Error>
+        rule block_metadata_with_title(offset: usize, parent_section_level: Option<SectionLevel>, parse_title: bool) -> Result<BlockParsingMetadata<'input>, Error>
         = meta_start:position!() lines:(line:(
-            anchor:anchor() { Ok::<BlockMetadataLine<'input>, Error>(BlockMetadataLine::Anchor(anchor)) }
-            / attr:attributes_line() { Ok::<BlockMetadataLine<'input>, Error>(BlockMetadataLine::Attributes((attr.0, Box::new(attr.1)))) }
-            / document_attributes_allowed(allow_document_attributes) doc_attr:document_attribute_line(offset) { Ok::<BlockMetadataLine<'input>, Error>(BlockMetadataLine::DocumentAttribute(doc_attr.0, doc_attr.1)) }
-            / title:title_line(offset) { title.map(BlockMetadataLine::Title) }
+            anchor:anchor() { BlockMetadataLine::Anchor(anchor) }
+            / attr:attributes_line() { BlockMetadataLine::Attributes((attr.0, Box::new(attr.1))) }
+            / doc_attr:document_attribute_line(offset) { BlockMetadataLine::DocumentAttribute(doc_attr.0, doc_attr.1) }
+            / title_line()
         ) end:position!() eol()* { (line, end) })*
         {
             let mut metadata = BlockMetadata::default();
             let mut discrete = false;
-            let mut title = Title::default();
+            let mut title_source = None;
             let meta_end = lines.last().map_or(meta_start, |(_, end)| *end);
 
             for (line, _) in lines {
-                // Skip errors from title parsing (e.g., empty titles like "." + newline)
-                let Ok(value) = line else {
-                    state.add_generic_warning(format!("failed to parse block metadata line, skipping: {line:?}"));
-                    continue
-                };
-                match value {
+                match line {
                     BlockMetadataLine::Anchor(value) => push_metadata_anchor(&mut metadata, value),
                     BlockMetadataLine::Attributes((attr_discrete, attr_metadata)) => {
                         discrete = attr_discrete;
                         merge_attribute_metadata(&mut metadata, *attr_metadata);
                     },
                     BlockMetadataLine::DocumentAttribute(declaration, location) => {
-                        // Set the document attribute immediately so it's available for
-                        // subsequent attribute references (e.g., in title lines)
                         if let Some(event) = state.apply_document_attribute(
                             &declaration,
                             false,
@@ -4179,11 +4184,26 @@ peg::parser! {
                             metadata.push_document_attribute(event);
                         }
                     },
-                    BlockMetadataLine::Title(inner) => {
-                        title = inner;
+                    BlockMetadataLine::Title { source, start, end } => {
+                        title_source = Some((source, start, end));
                     }
                 }
             }
+            // Titles use the completed metadata attributes, including entries
+            // after the title line. Only the last authored title is displayed.
+            let title = if let Some((source, start, end)) = title_source.filter(|_| parse_title) {
+                match process_inlines(
+                    state, &BlockParsingMetadata::default(), start, end, offset, source,
+                ) {
+                    Ok((title, _)) => title.into(),
+                    Err(error) => {
+                        state.add_generic_warning(format!("failed to parse block title, skipping: {error:?}"));
+                        Title::default()
+                    }
+                }
+            } else {
+                Title::default()
+            };
             if meta_start != meta_end {
                 metadata.location = Some(state.create_block_location(meta_start, meta_end, offset));
             }
@@ -4206,16 +4226,11 @@ peg::parser! {
         rule title_line_match()
         = period() ![' ' | '\t' | '\n' | '\r' | '.'] [^'\n']+ (eol() / ![_])
 
-        // A title line can be a simple title or a section title
-        //
-        // A title line is a line that starts with a period (.) followed by a non-whitespace character
-        rule title_line(offset: usize) -> Result<Title<'input>, Error>
+        rule title_line() -> BlockMetadataLine<'input>
         = period() start:position!() title:$(![' ' | '\t' | '\n' | '\r' | '.'] [^'\n']*) end:position!() eol()
         {
             tracing::debug!(?title, ?start, ?end, "Found title line in block metadata");
-            let block_metadata = BlockParsingMetadata::default();
-            let (title, _) = process_inlines(state, &block_metadata, start, end, offset, title)?;
-            Ok(title.into())
+            BlockMetadataLine::Title { source: title, start, end }
         }
 
         // A document attribute line in block metadata context

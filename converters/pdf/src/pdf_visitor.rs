@@ -3861,7 +3861,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     ) -> Result<(), Error> {
         match inline_macro {
             InlineMacro::Footnote(footnote) => {
-                if let Some(id) = footnote.id.filter(|_| footnote.content.is_empty()) {
+                if self.anchors.suspended {
+                    // Copied titles display the parsed marker without defining
+                    // another native footnote or duplicating the original label.
+                    let _ = write!(self.writer, "#super[{}]", footnote.number);
+                } else if let Some(id) = footnote.id.filter(|_| footnote.content.is_empty()) {
                     // Typst label references reuse the definition's counter value
                     // without advancing the footnote counter.
                     let _ = write!(self.writer, "#footnote(<{}>)", encode_footnote_label(id));

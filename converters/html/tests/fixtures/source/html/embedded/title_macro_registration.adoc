@@ -1,0 +1,45 @@
+= title-macros(1)
+:doctype: manpage
+:revdate: 2026-10-04
+:manname: title-macros
+:manpurpose: verify title macro registration
+:title-value: Header attribute note.
+:acdc-index:
+
+== Name
+
+title-macros - verify title macro registration
+
+== Synopsis
+
+.Named title footnote:named[Named title note.] ((Named title term))
+[#named-target]
+Named paragraph.
+
+[#anonymous-target]
+.Anonymous title footnote:[Anonymous title note with ((Note term)).] ((Anonymous title term))
+Anonymous paragraph.
+
+Body footnote:[Body note.] and reused footnote:named[].
+
+.Repeated title footnote:named[Named title note.]
+Repeated paragraph.
+
+.Referenced title footnote:named[]
+Reference paragraph.
+
+.Éva title link:https://example.org/title[Title link] anchor:title-anchor[Title anchor]
+Unicode paragraph.
+
+.Discarded title footnote:[Ignored replaced note.] ((Ignored replaced term))
+.Attribute title footnote:attribute[{title-value}]
+:title-value: Metadata attribute note.
+[#attribute-target]
+Attribute paragraph.
+
+See <<named-target>>, <<anonymous-target>>, and <<title-anchor>>.
+
+[index]
+== Index
+
+.Trailing footnote:[Ignored trailing note.] ((Ignored trailing term))

@@ -25,7 +25,11 @@ pub(crate) enum MacroAttributeContext {
 pub(crate) enum BlockMetadataLine<'input> {
     Anchor(Anchor<'input>),
     Attributes((bool, Box<BlockMetadata<'input>>)),
-    Title(Title<'input>),
+    Title {
+        source: &'input str,
+        start: usize,
+        end: usize,
+    },
     DocumentAttribute(AttributeDeclaration<'input>, Location),
 }
 
