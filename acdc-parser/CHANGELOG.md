@@ -57,6 +57,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Author and revision lines are recognized across intervening header attribute
+  entries and comments, matching Asciidoctor. Each entry is applied once in
+  source order, and later entries can reference already parsed author metadata.
+  Blank lines still end the header, and explicit author fields and caller
+  overrides retain their precedence.
+
 - `////` comments before and within document headers no longer assign hidden
   attributes or replace author and revision information. Their contents remain
   raw without evaluating includes, conditionals or attribute

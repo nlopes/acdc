@@ -678,6 +678,17 @@ impl<'a> DocumentAttributes<'a> {
         }
     }
 
+    /// Refresh derived metadata without replacing caller overrides or document assignments.
+    pub(crate) fn set_derived_text(&mut self, name: AttributeName<'a>, value: Cow<'a, str>) {
+        match self.entry(&name) {
+            Some(entry) if entry.state.origin == AttributeOrigin::Processor => {
+                self.set_text(name, value);
+            }
+            None => self.insert_text(name, value),
+            Some(_) => {}
+        }
+    }
+
     #[cfg(test)]
     pub(crate) fn insert(
         &mut self,

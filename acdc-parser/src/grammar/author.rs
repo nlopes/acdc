@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use bumpalo::Bump;
 
-use crate::{Author, DocumentAttributes, Header};
+use crate::{AttributeName, Author, DocumentAttributes, Header};
 
 use super::{ParserState, document::document_parser};
 
@@ -26,35 +26,100 @@ fn build_author_full_name(author: &Author) -> String {
 /// When no author line is present, populates `header.authors` from `:author:` and `:email:`
 /// document attributes.
 ///
-/// Always sets the derived document attributes (`author`, `authors`, `firstname`,
-/// `lastname`, `authorinitials`, `email`, `authorcount`, etc.) from whatever authors are
-/// present, so `{author}` references work in the document body.
+/// Refresh derived name fields when an explicit author changes, retaining
+/// independently assigned fields and defaults when the author stays unchanged.
 pub(crate) fn derive_author_attrs<'a>(
     arena: &'a Bump,
     header: &mut Header<'a>,
     attrs: &mut DocumentAttributes<'a>,
 ) {
-    ingest_author_attribute(arena, header, attrs);
-    if header.authors.is_empty() {
-        return;
-    }
-    set_aggregate_author_attrs(header, attrs);
-    set_per_author_attrs(header, attrs);
+    let author_changed = ingest_author_attribute(arena, header, attrs);
+    set_author_attrs(&header.authors, attrs, author_changed);
 }
 
-/// If `:author:` is set as a document attribute, parse it and overwrite
-/// `header.authors`. Matches asciidoctor: the attribute wins over any
-/// author line already in the header.
+/// Make implicit author metadata available to subsequent header entries.
+pub(crate) fn register_author_attrs<'a>(
+    authors: &[Author<'a>],
+    attrs: &mut DocumentAttributes<'a>,
+) {
+    set_author_attrs(authors, attrs, false);
+}
+
+fn set_author_attrs<'a>(authors: &[Author<'a>], attrs: &mut DocumentAttributes<'a>, refresh: bool) {
+    if authors.is_empty() {
+        return;
+    }
+    let all_names: Vec<String> = authors.iter().map(build_author_full_name).collect();
+    attrs.set_text("authorcount".into(), authors.len().to_string().into());
+    // First registration retains existing defaults. Rebuilding an overridden
+    // author refreshes derived name fields while preserving explicit fields.
+    let mut assign = |name: AttributeName<'a>, value: Cow<'a, str>| {
+        if refresh {
+            attrs.set_derived_text(name, value);
+        } else {
+            attrs.insert_text(name, value);
+        }
+    };
+    assign("authors".into(), all_names.join(", ").into());
+    for (i, author) in authors.iter().enumerate() {
+        let suffix = if i == 0 {
+            String::new()
+        } else {
+            format!("_{}", i + 1)
+        };
+        assign(
+            format!("author{suffix}").into(),
+            build_author_full_name(author).into(),
+        );
+        assign(
+            format!("firstname{suffix}").into(),
+            Cow::Borrowed(author.first_name),
+        );
+        if let Some(middle) = author.middle_name {
+            assign(format!("middlename{suffix}").into(), Cow::Borrowed(middle));
+        }
+        assign(
+            format!("lastname{suffix}").into(),
+            Cow::Borrowed(author.last_name),
+        );
+        assign(
+            format!("authorinitials{suffix}").into(),
+            Cow::Borrowed(author.initials),
+        );
+        if let Some(email) = author.email {
+            assign(format!("email{suffix}").into(), Cow::Borrowed(email));
+        }
+    }
+}
+
+/// Apply the effective author and email attributes to `header.authors`.
+///
+/// Return whether the author names were rebuilt. An unchanged first author
+/// retains the complete author list.
 fn ingest_author_attribute<'a>(
     arena: &'a Bump,
     header: &mut Header<'a>,
     attrs: &DocumentAttributes<'a>,
-) {
+) -> bool {
     let Some(author) = attrs.text("author").map(crate::strip_quotes) else {
-        return;
+        return false;
     };
     if author.is_empty() {
-        return;
+        return false;
+    }
+    // An unchanged implicit first author must not replace the complete list.
+    if header
+        .authors
+        .first()
+        .is_some_and(|first| build_author_full_name(first) == author)
+    {
+        if let Some(first) = header.authors.first_mut() {
+            let email = attrs.text("email").map(crate::strip_quotes);
+            if first.email != email {
+                first.email = email.map(|value| &*arena.alloc_str(value));
+            }
+        }
+        return false;
     }
     // Parse the `:author:` value in a scratch arena. The returned authors
     // borrow from that arena (which drops at end-of-scope), so re-intern
@@ -63,7 +128,7 @@ fn ingest_author_attribute<'a>(
     let scratch = Bump::new();
     let mut temp_state = ParserState::new(author, &scratch);
     let Ok(parsed) = document_parser::authors(author, &mut temp_state) else {
-        return;
+        return false;
     };
     // `arena.alloc_str` returns `&mut str`; reborrow to `&str` to match the
     // `Option<&'a str>` field type.
@@ -85,52 +150,5 @@ fn ingest_author_attribute<'a>(
         first.email = Some(arena.alloc_str(email));
     }
     header.authors = authors;
-}
-
-/// Set `authors` (comma-joined full names) and `authorcount` from the
-/// current header authors.
-fn set_aggregate_author_attrs<'a>(header: &Header<'a>, attrs: &mut DocumentAttributes<'a>) {
-    let all_names: Vec<String> = header.authors.iter().map(build_author_full_name).collect();
-    attrs.insert_text("authors".into(), all_names.join(", ").into());
-    // `authorcount` has a default of "0" (so `{authorcount}` resolves to 0 for
-    // author-less documents); `set` overrides that default with the real count.
-    attrs.set_text(
-        "authorcount".into(),
-        header.authors.len().to_string().into(),
-    );
-}
-
-/// Set the per-author attribute family (`author`, `firstname`, `lastname`,
-/// `authorinitials`, `email`, plus `_2`-suffixed variants for subsequent
-/// authors) so `{firstname_2}` references work in the document body.
-fn set_per_author_attrs<'a>(header: &Header<'a>, attrs: &mut DocumentAttributes<'a>) {
-    for (i, author) in header.authors.iter().enumerate() {
-        let suffix = if i == 0 {
-            String::new()
-        } else {
-            format!("_{}", i + 1)
-        };
-        attrs.insert_text(
-            format!("author{suffix}").into(),
-            build_author_full_name(author).into(),
-        );
-        attrs.insert_text(
-            format!("firstname{suffix}").into(),
-            Cow::Borrowed(author.first_name),
-        );
-        if let Some(middle) = author.middle_name {
-            attrs.insert_text(format!("middlename{suffix}").into(), Cow::Borrowed(middle));
-        }
-        attrs.insert_text(
-            format!("lastname{suffix}").into(),
-            Cow::Borrowed(author.last_name),
-        );
-        attrs.insert_text(
-            format!("authorinitials{suffix}").into(),
-            Cow::Borrowed(author.initials),
-        );
-        if let Some(email) = author.email {
-            attrs.insert_text(format!("email{suffix}").into(), Cow::Borrowed(email));
-        }
-    }
+    true
 }

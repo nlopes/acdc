@@ -1,0 +1,48 @@
+'\" t
+.\"     Title: header-metadata-attributes
+.\"    Author: Alice Smith
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-04
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "HEADER\-METADATA\-ATTRIBUTES" "1" "2026-10-04" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+header\-metadata\-attributes \- check interleaved header attributes
+.SH "SYNOPSIS"
+.sp
+H01 author=Alice Smith; email=\c
+.MTO "updated\(atexample.org" "" "\c"
+; revision=2.5.
+.sp
+H02 writer=Later Writer; captured=Alice Smith; firstname=Alice.
+.sp
+H03 captured\-revision=2.5; remark=Reviewed by Alice Smith.
+.sp
+H04 captured\-email=\c
+.MTO "alice\(atexample.org" "" "\c"
+\&.
+.SH "AUTHOR"
+.sp
+\fBAlice Smith\fP \c
+.MTO "updated\(atexample.org" "" ""

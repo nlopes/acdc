@@ -1,0 +1,20 @@
+= header-metadata-no-author(1)
+:chain: root
+////
+:chain: hidden
+////
+:chain: {chain}-next
+:doctype: manpage
+:revdate: 2026-10-04
+:manname: header-metadata-no-author
+:manpurpose: keep attribute-only metadata independent
+
+== Name
+
+header-metadata-no-author - keep attribute-only metadata independent
+
+== Synopsis
+
+H11 chain={chain}; authorcount={authorcount}.
+
+H12 author={author}; revision={revnumber}.

@@ -1,0 +1,37 @@
+= header-metadata-attributes(1)
+:writer: Alice
+:release: 1.0
+// Attributes and comments keep the author slot open.
+////
+:writer: Hidden Writer
+////
+Alice Smith <alice@example.org>
+:writer: Later Writer
+:release: 2.5
+:captured-author: {author}
+:captured-firstname: {firstname}
+:captured-email: {email}
+:email: updated@example.org
+////
+
+:release: 99
+////
+v{release}, 2026-10-04: Reviewed by {captured-author}
+:captured-revision: {revnumber}
+:doctype: manpage
+:manname: header-metadata-attributes
+:manpurpose: check interleaved header attributes
+
+== Name
+
+header-metadata-attributes - check interleaved header attributes
+
+== Synopsis
+
+H01 author={author}; email={email}; revision={revnumber}.
+
+H02 writer={writer}; captured={captured-author}; firstname={captured-firstname}.
+
+H03 captured-revision={captured-revision}; remark={revremark}.
+
+H04 captured-email={captured-email}.

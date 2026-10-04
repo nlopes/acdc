@@ -1,0 +1,41 @@
+'\" t
+.\"     Title: header-metadata-boundaries
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-04
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "HEADER\-METADATA\-BOUNDARIES" "1" "2026-10-04" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.sp
+Correct Author
+v1.0, 2026\-10\-04
+.SH "NAME"
+header\-metadata\-boundaries \- stop metadata at a blank line
+.SH "SYNOPSIS"
+.sp
+H21 kept=header; authorcount=0.
+.sp
+H22 author={author}; revision={revnumber}.
+.sp
+H23 kept=body.

@@ -1,0 +1,23 @@
+:doctype: manpage
+:revdate: 2026-10-04
+:manname: header-metadata-boundaries
+:manpurpose: stop metadata at a blank line
+= header-metadata-boundaries(1)
+:kept: header
+
+Correct Author
+v1.0, 2026-10-04
+
+== Name
+
+header-metadata-boundaries - stop metadata at a blank line
+
+== Synopsis
+
+H21 kept={kept}; authorcount={authorcount}.
+
+H22 author={author}; revision={revnumber}.
+
+:kept: body
+
+H23 kept={kept}.

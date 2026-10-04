@@ -24,7 +24,7 @@ use crate::{
     document_attribute::{AttributeDeclaration, RawAttributeValue},
     grammar::{
         ParserState,
-        author::derive_author_attrs,
+        author::{derive_author_attrs, register_author_attrs},
         doctype::{is_book_doctype, is_manpage_doctype},
         inline_preprocessing,
         inline_preprocessor::InlinePreprocessorParserState,
@@ -3381,20 +3381,17 @@ peg::parser! {
             / { BlockMetadata::default() }
 
         pub(crate) rule title_authors() -> (Title<'input>, Option<Subtitle<'input>>, Vec<Author<'input>>)
-        // Comments between the title and the author line are skipped (matching
-        // `asciidoctor`). The first non-comment line is the author line only when it is
-        // not an attribute entry (`:name:`). An attribute entry means there is no author
-        // and it belongs to the header body.
-        = title_and_subtitle:document_title() eol() (header_comment() eol())* !document_attribute_match() !comment() authors:authors_and_revision() &(eol()+ / ![_])
+        // Attribute entries and comments keep each metadata slot open. Consume
+        // them outside optional metadata parsing so backtracking cannot assign
+        // an entry twice; a blank line still ends the header.
+        = title_and_subtitle:document_title()
+          (eol() (document_attribute() / header_comment()))*
+          authors:(eol() authors:authors_and_revision() { authors })?
+          &(eol() / ![_])
         {
             let (title, subtitle) = title_and_subtitle;
             tracing::debug!(?title, ?subtitle, ?authors, "Found title and authors in the document header.");
-            (title, subtitle, authors)
-        }
-        / title_and_subtitle:document_title() &(eol() / ![_]) {
-            let (title, subtitle) = title_and_subtitle;
-            tracing::debug!(?title, ?subtitle, "Found title in the document header without authors.");
-            (title, subtitle, vec![])
+            (title, subtitle, authors.unwrap_or_default())
         }
 
         pub(crate) rule document_title() -> (Title<'input>, Option<Subtitle<'input>>)
@@ -3522,8 +3519,15 @@ peg::parser! {
         rule document_title_token() = "=" / "#"
 
         rule authors_and_revision() -> Vec<Author<'input>>
+        = authors:author_line()
+          (eol() (document_attribute() / header_comment()))*
+          (eol() revision_pre_substitution())?
+          { authors }
+
+        rule author_line() -> Vec<Author<'input>>
             // Capture the author line, substitute any attribute references, then parse
-            = start:position!() author_line:$([^'\n']+) end:position!() (eol() (header_comment() eol())* revision_pre_substitution())? {?
+            = !document_attribute_match() !comment()
+              start:position!() author_line:$([^'\n']+) end:position!() {?
                 let substituted_cow = substitute(author_line.trim(), HEADER, &state.document_attributes);
                 // Intern any owned substitution result so the downstream
                 // `authors()` parse can yield `Author<'input>` that outlives
@@ -3542,9 +3546,9 @@ peg::parser! {
                 // line; when it doesn't parse as structured "firstname [middle] [last]
                 // [<email>]" authors (e.g. it contains parentheses, commas, or an
                 // "Author:" prefix), the whole line becomes a single author's full name.
-                if let Ok(authors) = document_parser::authors(substituted, &mut temp_state) {
+                let authors = if let Ok(authors) = document_parser::authors(substituted, &mut temp_state) {
                     tracing::debug!(?authors, "Parsed authors from line");
-                    Ok(authors)
+                    authors
                 } else {
                     tracing::debug!(?substituted, "Author line did not parse structurally; using whole line as a single author");
                     let location = state.create_error_source_location(state.create_location(start, end));
@@ -3552,8 +3556,12 @@ peg::parser! {
                         WarningKind::NonStandardAuthorLine { line: substituted.to_string() },
                         Some(location),
                     ));
-                    Ok(vec![Author::new(state.arena, substituted, None, None)])
-                }
+                    vec![Author::new(state.arena, substituted, None, None)]
+                };
+                // Following entries may reference author metadata, but cannot
+                // change the substitutions already applied to this author line.
+                register_author_attrs(&authors, Rc::make_mut(&mut state.document_attributes));
+                Ok(authors)
             }
 
         pub(crate) rule authors() -> Vec<Author<'input>>
