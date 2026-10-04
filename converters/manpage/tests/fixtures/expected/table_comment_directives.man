@@ -37,7 +37,8 @@ allbox tab(:);
 ltx.
 T{
 ////
-VISIBLE TABLE INCLUDE////
+VISIBLE TABLE INCLUDE
+////
 T}
 .TE
 .sp
@@ -58,7 +59,11 @@ T03 AsciiDoc cell comment.
 .TS
 allbox tab(:);
 ltx.
+T{
+.sp
 A03 Visible cell content.
+
+T}
 .TE
 .sp
 T04 Mixed cell styles.
@@ -66,8 +71,10 @@ T04 Mixed cell styles.
 allbox tab(:);
 ltx ltx ltx.
 T{
-M04 Plain cell.////
-VISIBLE TABLE INCLUDE////
+M04 Plain cell.
+////
+VISIBLE TABLE INCLUDE
+////
 T}:T{
 .nf
 M04 Literal cell.
@@ -75,7 +82,13 @@ M04 Literal cell.
 VISIBLE TABLE INCLUDE
 ////
 .fi
-T}:M04 AsciiDoc cell.M04 Visible content.
+T}:T{
+.sp
+M04 AsciiDoc cell.
+.sp
+M04 Visible content.
+
+T}
 .TE
 .sp
 T05 Nested table.
@@ -94,7 +107,9 @@ VISIBLE TABLE INCLUDE
 .fi
 T}
 .TE
+.sp
 N05 Visible outer cell content.
+
 T}
 .TE
 .sp
@@ -128,7 +143,8 @@ allbox tab(:);
 ltx.
 T{
 ////
-VISIBLE TABLE INCLUDE////
+VISIBLE TABLE INCLUDE
+////
 T}
 .TE
 .sp
@@ -136,7 +152,11 @@ T11 Included AsciiDoc cell comment.
 .TS
 allbox tab(:);
 ltx.
+T{
+.sp
 A11 Visible after the included comment.
+
+T}
 .TE
 .sp
 T12 Included listing content.

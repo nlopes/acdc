@@ -1,0 +1,121 @@
+<div class="sect1">
+<h2 id="_name">Name</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>table-plain-paragraphs - preserve plain cell paragraph boundaries</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_synopsis">Synopsis</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">P01 Before.
+////
+P01 Inside.
+////
+P01 After.</p><p class="tableblock">P01 Second paragraph.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">P02 Before.
+----
+P02 Listing-looking text.
+----
+[source]
+P02 After.
+* P02 List-looking text.
+== P02 Heading-looking text.
+image::example.png[Example]
+P02 End.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">[comment]
+P03 Visible paragraph.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">NOTE: P04 Ordinary paragraph text.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">.P05 Block-looking title
+P05 Ordinary paragraph text.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">P06 Before.
+====
+P06 Example-looking text.
+====
+&#8230;&#8203;.
+P06 Literal-looking text.
+&#8230;&#8203;.
+<em>__</em>
+P06 Quote-looking text.
+<em>__</em>&thinsp;&mdash;&thinsp;P06 Open-looking text.&thinsp;&mdash;&thinsp;P06 End.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">P07 Before.
+P07 After.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">P08 Before.</p><p class="tableblock">  P08 Indented paragraph.</p></td>
+</tr>
+</tbody>
+</table>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 25%;">
+<col style="width: 25%;">
+<col style="width: 25%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>S09 Before.
+////
+S09 Inside.
+////
+S09 After.</strong></p><p class="tableblock"><strong>S09 Second paragraph.</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><em>E10 Before.
+----
+E10 Inside.
+----
+E10 After.</em></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>M11 Before.
+&#8230;&#8203;.
+M11 Inside.
+&#8230;&#8203;.
+M11 After.</code></p></td>
+<th class="tableblock halign-left valign-top"><p class="tableblock">H12 Before.
+<em>__</em>
+H12 Inside.
+<em>__</em>
+H12 After.</p></th>
+</tr>
+</tbody>
+</table>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 50%;">
+<col style="width: 50%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><div class="literal"><pre>L13 Before.
+////
+L13 Visible.
+////
+
+L13 After.</pre></div></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A14 Before.</p><p class="tableblock">A14 After.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>P15 Outside.</p>
+</div>
+</div>
+</div>

@@ -1,0 +1,149 @@
+'\" t
+.\"     Title: table-plain-paragraphs
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-04
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "TABLE\-PLAIN\-PARAGRAPHS" "1" "2026-10-04" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+table\-plain\-paragraphs \- preserve plain cell paragraph boundaries
+.SH "SYNOPSIS"
+.TS
+allbox tab(:);
+ltx
+ltx
+ltx
+ltx
+ltx
+ltx
+ltx
+ltx.
+T{
+P01 Before.
+////
+P01 Inside.
+////
+P01 After.
+.sp
+P01 Second paragraph.
+T}
+T{
+P02 Before.
+\-\-\-\-
+P02 Listing\-looking text.
+\-\-\-\-
+[source]
+P02 After.
+* P02 List\-looking text.
+== P02 Heading\-looking text.
+image::example.png[Example]
+P02 End.
+T}
+T{
+[comment]
+P03 Visible paragraph.
+T}
+T{
+NOTE: P04 Ordinary paragraph text.
+T}
+T{
+\&.P05 Block\-looking title
+P05 Ordinary paragraph text.
+T}
+T{
+P06 Before.
+====
+P06 Example\-looking text.
+====
+\&.\|.\|..
+P06 Literal\-looking text.
+\&.\|.\|..
+\fI__\fP
+P06 Quote\-looking text.
+\fI__\fP \(em P06 Open\-looking text. \(em P06 End.
+T}
+T{
+P07 Before.
+P07 After.
+T}
+T{
+P08 Before.
+.sp
+ P08 Indented paragraph.
+T}
+.TE
+.TS
+allbox tab(:);
+ltx ltx ltx ltx.
+T{
+\fBS09 Before.
+////
+S09 Inside.
+////
+S09 After.
+.sp
+S09 Second paragraph.\fP
+T}:T{
+\fIE10 Before.
+\-\-\-\-
+E10 Inside.
+\-\-\-\-
+E10 After.\fP
+T}:T{
+\f(CRM11 Before.
+\&.\|.\|..
+M11 Inside.
+\&.\|.\|..
+M11 After.\fP
+T}:T{
+H12 Before.
+\fI__\fP
+H12 Inside.
+\fI__\fP
+H12 After.
+T}
+.TE
+.TS
+allbox tab(:);
+ltx ltx.
+T{
+.nf
+L13 Before.
+////
+L13 Visible.
+////
+
+L13 After.
+.fi
+T}:T{
+.sp
+A14 Before.
+.sp
+A14 After.
+
+T}
+.TE
+.sp
+P15 Outside.

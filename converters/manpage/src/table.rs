@@ -459,13 +459,23 @@ fn format_cell_with_inlines<'a>(
     let style = effective_style(cell, column_index, columns);
     let scoped = style == ColumnStyle::AsciiDoc;
     let mut render = |traversal: &mut TraversalContext<'a>| {
-        cell.content.iter().try_for_each(|block| {
-            if let acdc_parser::Block::Paragraph(para) = block {
-                cell_visitor.visit_inline_nodes(traversal, &para.content)
-            } else {
-                traversal.visit_block(&mut cell_visitor, block)
-            }
-        })
+        cell.content
+            .iter()
+            .enumerate()
+            .try_for_each(|(index, block)| {
+                if let acdc_parser::Block::Paragraph(para) = block
+                    && !scoped
+                {
+                    // tbl needs an explicit break between normal cell paragraphs;
+                    // concatenating inline output would join their boundary words.
+                    if index > 0 {
+                        cell_visitor.writer_mut().write_all(b"\n.sp\n")?;
+                    }
+                    cell_visitor.visit_inline_nodes(traversal, &para.content)
+                } else {
+                    traversal.visit_block(&mut cell_visitor, block)
+                }
+            })
     };
     if scoped {
         traversal.with_table_cell(cell, render)

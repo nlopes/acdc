@@ -1,0 +1,92 @@
+'\" t
+.\"     Title: table-plain-inline-content
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-04
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "TABLE\-PLAIN\-INLINE\-CONTENT" "1" "2026-10-04" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+table\-plain\-inline\-content \- keep inline content and cell boundaries
+.SH "SYNOPSIS"
+.TS
+allbox tab(:);
+ltx ltx
+ltx ltx
+ltx ltx.
+T{
+I01 Hello World: \fBbold\fP, \fIitalic\fP, \f(CRcode\fP\&.
+////
+I01 \c
+.URL "https://example.org/table" "Visit" "\c"
+\&.
+////
+.sp
+I01 Second paragraph with [1]\&.
+T}:T{
+.sp
+A02 Before.
+.sp
+A02 Second paragraph.
+
+T}
+T{
+[role=example]
+I03 Visible metadata\-looking text.
+:value: cell
+I03 value=outer.
+T}:T{
+.sp
+A04 Paragraph with \c
+.URL "https://example.org/nested" "Nested" "\c"
+\&.
+.sp
+A04 Second paragraph.
+
+T}
+T{
+I05 Before.
+
+I05 Target and Plain cell term\&.
+.sp
+I05 After.
+T}:T{
+.sp
+A06 Before.
+.RS 0
+.IP \(bu 2
+A06 List item.
+.IP \(bu 2
+A06 Other item.
+.RE
+.sp
+A06 After.
+
+T}
+.TE
+.sp
+I07 Outside value=outer; Target\&.
+.SH "NOTES"
+.IP [1] 4
+Plain cell note.

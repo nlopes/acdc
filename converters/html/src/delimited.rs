@@ -400,13 +400,11 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             // Handle tables
             DelimitedBlockType::DelimitedTable(t) => {
                 let processor = self.processor.clone();
-                let options = self.render_options.clone();
                 crate::table::render_table(
                     traversal,
                     t,
                     self,
                     &processor,
-                    &options,
                     &block.metadata,
                     &block.title,
                 )?;

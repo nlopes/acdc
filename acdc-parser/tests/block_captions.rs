@@ -167,7 +167,7 @@ fn a_list_continuation_block_takes_a_caption() -> Result<(), Error> {
 }
 
 #[test]
-fn table_cells_are_numbered_header_then_rows_then_footer() -> Result<(), Error> {
+fn table_headers_do_not_consume_body_and_footer_caption_numbers() -> Result<(), Error> {
     let parsed = parse(
         "= T\n\n[cols=\"1a\",options=\"header,footer\"]\n|===\n|.In header\n[example]\none\n\n|.In body\n[example]\ntwo\n\n|.In footer\n[example]\nthree\n|===\n",
         &Options::default(),
@@ -181,6 +181,14 @@ fn table_cells_are_numbered_header_then_rows_then_footer() -> Result<(), Error> 
     };
 
     let mut seen = Vec::new();
+    let header = table.header.as_ref().ok_or("expected a header row")?;
+    assert!(
+        header
+            .columns
+            .iter()
+            .flat_map(|column| &column.content)
+            .all(|block| matches!(block, Block::Paragraph(_)) && caption(block).is_none())
+    );
     for row in table
         .header
         .iter()
@@ -196,7 +204,7 @@ fn table_cells_are_numbered_header_then_rows_then_footer() -> Result<(), Error> 
         }
     }
     // Source order: the footer sits last in the source even though it renders above the body.
-    assert_eq!(seen, vec![1, 2, 3]);
+    assert_eq!(seen, vec![1, 2]);
     Ok(())
 }
 
@@ -592,7 +600,7 @@ fn caption_labels_come_from_api_supplied_attributes() -> Result<(), Error> {
 /// the highest one.
 #[test]
 fn every_container_is_read_back() -> Result<(), Error> {
-    let containers: [(&str, &str); 14] = [
+    let containers: [(&str, &str); 13] = [
         ("top level", "= T\n\n.T\n[example]\none\n"),
         ("section", "= T\n\n== Section\n\n.T\n[example]\none\n"),
         (
@@ -619,10 +627,6 @@ fn every_container_is_read_back() -> Result<(), Error> {
         ("open block", "= T\n\n--\n.T\n[example]\none\n--\n"),
         ("sidebar block", "= T\n\n****\n.T\n[example]\none\n****\n"),
         ("quote block", "= T\n\n____\n.T\n[example]\none\n____\n"),
-        (
-            "table header cell",
-            "= T\n\n[cols=\"1a\",options=\"header,footer\"]\n|===\n|.T\n[example]\none\n\n|body\n\n|footer\n|===\n",
-        ),
         (
             "table body cell",
             "= T\n\n[cols=\"1a\",options=\"header,footer\"]\n|===\n|header\n\n|.T\n[example]\none\n\n|footer\n|===\n",
@@ -656,7 +660,7 @@ fn every_container_is_read_back() -> Result<(), Error> {
 /// so that this test does not repeat the traversal it is checking.
 #[test]
 fn every_container_is_numbered() -> Result<(), Error> {
-    const EXAMPLES_IN_SOURCE: u32 = 14;
+    const EXAMPLES_IN_SOURCE: u32 = 13;
     const LISTINGS_IN_SOURCE: u32 = 2;
 
     let source = "\
@@ -768,5 +772,46 @@ footer
         LISTINGS_IN_SOURCE,
         "a container is missing from `renumber_captions` in model/caption.rs"
     );
+    Ok(())
+}
+
+#[test]
+fn caller_built_header_blocks_are_read_back_and_renumbered() -> Result<(), Error> {
+    let parsed = parse(
+        "[cols=\"1\",options=header]\n|===\n|Header\n|Body\n|===\n",
+        &Options::default(),
+    )?;
+    let mut document = Document::default();
+    document.blocks = parsed.document().blocks.clone();
+    let Some(Block::DelimitedBlock(delimited)) = document.blocks.first_mut() else {
+        return Err("expected a table".into());
+    };
+    let DelimitedBlockType::DelimitedTable(table) = &mut delimited.inner else {
+        return Err("expected table content".into());
+    };
+    let block = table
+        .header
+        .as_mut()
+        .and_then(|row| row.columns.first_mut())
+        .and_then(|column| column.content.first_mut())
+        .ok_or("expected header content")?;
+    let Block::Paragraph(paragraph) = block else {
+        return Err("expected a header paragraph".into());
+    };
+    // Parsing keeps headers inline, but callers can supply captioned header blocks.
+    paragraph.title = vec![InlineNode::PlainText(Plain {
+        content: "Caller title",
+        location: Location::default(),
+        escaped: false,
+    })]
+    .into();
+    paragraph.metadata.caption = Some(Caption::Numbered {
+        kind: CaptionKind::Example,
+        label: "Example".into(),
+        number: NonZeroU32::new(77),
+    });
+    assert_eq!(document.highest_caption_number(CaptionKind::Example), 77);
+    document.renumber_captions();
+    assert_eq!(document.highest_caption_number(CaptionKind::Example), 1);
     Ok(())
 }

@@ -1,0 +1,51 @@
+= table-plain-inline-content(1)
+:doctype: manpage
+:revdate: 2026-10-04
+:manname: table-plain-inline-content
+:manpurpose: keep inline content and cell boundaries
+:name: World
+:value: outer
+
+== Name
+
+table-plain-inline-content - keep inline content and cell boundaries
+
+== Synopsis
+
+[cols="1,1a"]
+|===
+|I01 Hello {name}: *bold*, _italic_, `code`.
+////
+I01 https://example.org/table[Visit].
+////
+
+I01 Second paragraph with footnote:[Plain cell note.].
+
+|A02 Before.
+
+A02 Second paragraph.
+
+|[role=example]
+I03 Visible metadata-looking text.
+:value: cell
+I03 value={value}.
+
+|A04 Paragraph with link:https://example.org/nested[Nested].
+
+A04 Second paragraph.
+
+|I05 Before.
+[[plain-cell-target]]
+I05 Target and ((Plain cell term)).
+
+I05 After.
+
+|A06 Before.
+
+* A06 List item.
+* A06 Other item.
+
+A06 After.
+|===
+
+I07 Outside value={value}; <<plain-cell-target,Target>>.

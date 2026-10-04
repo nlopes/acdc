@@ -1,11 +1,12 @@
-use acdc_converters_core::visitor::WritableVisitor;
-use acdc_converters_core::{TraversalContext, table::calculate_column_widths};
+use acdc_converters_core::{
+    TraversalContext, table::calculate_column_widths, visitor::WritableVisitor,
+};
 use acdc_parser::{
     Block, BlockMetadata, CaptionKind, ColumnFormat, ColumnStyle, HorizontalAlignment, InlineNode,
     Table, TableColumn, TableFrame, TableGrid, TablePresentation, TableStripes, VerticalAlignment,
 };
 
-use crate::{Error, HtmlVariant, Processor, RenderOptions, inlines::escape_pcdata};
+use crate::{Error, HtmlVariant, Processor, inlines::escape_pcdata};
 
 /// Convert horizontal alignment to CSS class name
 fn halign_class(halign: HorizontalAlignment) -> &'static str {
@@ -104,22 +105,37 @@ fn inline_nodes_blank(content: &[InlineNode]) -> bool {
 /// * `visitor` - The HTML visitor
 /// * `wrap_paragraph` - Whether paragraphs get `<p class="tableblock">` wrappers
 /// * `style` - Optional cell style (Strong, Emphasis, Monospace, Literal, Header, `AsciiDoc`)
+/// * `header` - Whether to flatten paragraph boundaries into header text
 fn render_cell_content<'a, V>(
     traversal: &mut TraversalContext<'a>,
     column: &'a acdc_parser::TableColumn<'a>,
     visitor: &mut V,
-    _processor: &Processor<'_>,
-    _options: &RenderOptions,
     wrap_paragraph: bool,
     style: Option<ColumnStyle>,
+    header: bool,
 ) -> Result<(), Error>
 where
     V: WritableVisitor<'a, Error = Error>,
 {
     let scoped = style == Some(ColumnStyle::AsciiDoc);
+    // Bare cell text is sufficient for one paragraph. Multiple blocks need
+    // paragraph boundaries even when the variant omits table paragraph classes.
+    let has_multiple_blocks = column
+        .content
+        .iter()
+        .filter(|block| !matches!(block, Block::Comment(_) | Block::DocumentAttribute(_)))
+        .take(2)
+        .count()
+        == 2;
+    let needs_paragraphs = wrap_paragraph || (has_multiple_blocks && !header);
     let mut render = |traversal: &mut TraversalContext<'a>| {
-        for block in &column.content {
+        for (index, block) in column.content.iter().enumerate() {
             if let Block::Paragraph(para) = block {
+                // Header cells use one text flow, but source paragraph breaks
+                // must still separate words when the browser collapses whitespace.
+                if header && index > 0 {
+                    writeln!(visitor.writer_mut())?;
+                }
                 if style == Some(ColumnStyle::Literal) {
                     let writer = visitor.writer_mut();
                     write!(writer, "<div class=\"literal\"><pre>")?;
@@ -133,14 +149,19 @@ where
                     }
                     let writer = visitor.writer_mut();
                     write!(writer, "</pre></div>")?;
-                } else if wrap_paragraph {
+                } else if needs_paragraphs {
                     // A blank body cell (empty or only `{empty}`) renders as an
                     // empty <td> with no <p class="tableblock"> wrapper.
                     if inline_nodes_blank(&para.content) {
                         continue;
                     }
                     let writer = visitor.writer_mut();
-                    write!(writer, "<p class=\"tableblock\">")?;
+                    let open = if wrap_paragraph {
+                        "<p class=\"tableblock\">"
+                    } else {
+                        "<p>"
+                    };
+                    write!(writer, "{open}")?;
                     let _ = writer;
 
                     render_styled_content(traversal, visitor, &para.content, style)?;
@@ -350,7 +371,6 @@ fn render_body_cell<'a, V>(
     columns: &[ColumnFormat],
     visitor: &mut V,
     processor: &Processor<'_>,
-    options: &RenderOptions,
 ) -> Result<(), Error>
 where
     V: WritableVisitor<'a, Error = Error>,
@@ -375,9 +395,7 @@ where
         "<{tag} class=\"{cell_class_prefix}{halign} {valign}\"{span_attrs}>"
     )?;
     let _ = writer;
-    render_cell_content(
-        traversal, cell, visitor, processor, options, !semantic, style,
-    )?;
+    render_cell_content(traversal, cell, visitor, !semantic, style, false)?;
     let writer = visitor.writer_mut();
     writeln!(writer, "</{tag}>")?;
     Ok(())
@@ -390,7 +408,6 @@ pub(crate) fn render_table<'a, V>(
     table: &'a Table<'a>,
     visitor: &mut V,
     processor: &Processor<'_>,
-    options: &RenderOptions,
     metadata: &BlockMetadata,
     title: &[InlineNode],
 ) -> Result<(), Error>
@@ -473,7 +490,7 @@ where
                 "<th class=\"{cell_class_prefix}{halign} {valign}\"{span_attrs}>"
             )?;
             let _ = writer;
-            render_cell_content(traversal, cell, visitor, processor, options, false, None)?;
+            render_cell_content(traversal, cell, visitor, false, None, true)?;
             let writer = visitor.writer_mut();
             writeln!(writer, "</th>")?;
         }
@@ -498,7 +515,6 @@ where
                 &table.columns,
                 visitor,
                 processor,
-                options,
             )?;
         }
         let writer = visitor.writer_mut();
@@ -524,9 +540,7 @@ where
                 "<td class=\"{cell_class_prefix}{halign} {valign}\"{span_attrs}>"
             )?;
             let _ = writer;
-            render_cell_content(
-                traversal, cell, visitor, processor, options, !semantic, style,
-            )?;
+            render_cell_content(traversal, cell, visitor, !semantic, style, false)?;
             let writer = visitor.writer_mut();
             writeln!(writer, "</td>")?;
         }

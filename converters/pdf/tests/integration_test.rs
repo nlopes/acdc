@@ -12,6 +12,25 @@ use acdc_converters_pdf::{PdfOptions, Processor};
 type Error = Box<dyn std::error::Error>;
 
 #[test]
+fn plain_table_paragraph_linebreaks_keep_pdf_text_positions() -> Result<(), Error> {
+    let actual = render_input(
+        "= Table\n\n[cols=\"1\"]\n|===\n|Before.\n////\nInside.\n////\nAfter.\n\nSecond.\n|===\n",
+    )?;
+    let control = render_input(
+        "= Table\n\n[cols=\"1\"]\n|===\n|Before. //// Inside. //// After.\n\nSecond.\n|===\n",
+    )?;
+    for text in ["Before. //// Inside. //// After.", "Second."] {
+        let actual = text_origin(&actual, 1, text)?;
+        let control = text_origin(&control, 1, text)?;
+        assert!(
+            (actual.0 - control.0).abs() < 0.01 && (actual.1 - control.1).abs() < 0.01,
+            "{text}: {actual:?}, expected {control:?}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
 #[cfg(feature = "pre-spec-subs")]
 fn code_typography_preserves_escapes_and_pdf_navigation() -> Result<(), Error> {
     let actual = render_input(

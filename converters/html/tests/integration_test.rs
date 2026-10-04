@@ -2732,3 +2732,32 @@ mod toc_footnote {
         Ok(())
     }
 }
+#[test]
+fn table_paragraphs_keep_boundaries_in_both_variants() -> Result<(), Error> {
+    let source = "= Table\n\n[cols=\"1,1a\"]\n|===\n|Before.\n////\nInside.\n////\nAfter.\n\nSecond.\n|First nested.\n\nSecond nested.\n|===\n";
+    let parsed = acdc_parser::parse(source, &acdc_parser::Options::default())?;
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        let output = render_fixture_document(parsed.document(), variant, true)?;
+        assert!(!output.contains("After.Second."), "{output}");
+        assert!(!output.contains("First nested.Second nested."), "{output}");
+        assert!(output.contains("After.</p>"), "{output}");
+        assert!(output.contains("Second.</p>"), "{output}");
+        assert!(output.contains("First nested.</p>"), "{output}");
+        assert!(output.contains("Second nested.</p>"), "{output}");
+    }
+    let parsed = acdc_parser::parse(
+        "[cols=\"1a\"]\n|===\n|\n:value: cell\n\nSingle.\n|===\n",
+        &acdc_parser::Options::default(),
+    )?;
+    let output = render_fixture_document(parsed.document(), HtmlVariant::Semantic, true)?;
+    assert!(output.contains(">Single.</td>"), "{output}");
+    let parsed = acdc_parser::parse(
+        "[cols=\"1\",options=header]\n|===\n|First.\n\nSecond.\n|Body.\n|===\n",
+        &acdc_parser::Options::default(),
+    )?;
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        let output = render_fixture_document(parsed.document(), variant, true)?;
+        assert!(output.contains(">First.\nSecond.</th>"), "{output}");
+    }
+    Ok(())
+}

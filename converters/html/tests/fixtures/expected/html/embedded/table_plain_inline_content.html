@@ -1,0 +1,59 @@
+<div class="sect1">
+<h2 id="_name">Name</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>table-plain-inline-content - keep inline content and cell boundaries</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_synopsis">Synopsis</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 50%;">
+<col style="width: 50%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">I01 Hello World: <strong>bold</strong>, <em>italic</em>, <code>code</code>.
+////
+I01 <a href="https://example.org/table">Visit</a>.
+////</p><p class="tableblock">I01 Second paragraph with <sup class="footnote">[<a id="_footnoteref_1" class="footnote" href="#_footnotedef_1" title="View footnote.">1</a>]</sup>.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A02 Before.</p><p class="tableblock">A02 Second paragraph.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">[role=example]
+I03 Visible metadata-looking text.
+:value: cell
+I03 value=outer.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A04 Paragraph with <a href="https://example.org/nested">Nested</a>.</p><p class="tableblock">A04 Second paragraph.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">I05 Before.
+<a id="plain-cell-target"></a>
+I05 Target and Plain cell term.</p><p class="tableblock">I05 After.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A06 Before.</p><div class="ulist">
+<ul>
+<li>
+<p>A06 List item.</p>
+</li>
+<li>
+<p>A06 Other item.</p>
+</li>
+</ul>
+</div>
+<p class="tableblock">A06 After.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>I07 Outside value=outer; <a href="#plain-cell-target">Target</a>.</p>
+</div>
+</div>
+</div>
+<div id="footnotes">
+<hr>
+<div class="footnote" id="_footnotedef_1">
+<a href="#_footnoteref_1">1</a>. Plain cell note.</div>
+</div>

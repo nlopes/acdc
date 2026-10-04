@@ -51,7 +51,17 @@ C06 \fB{name}\fP
 .TS
 allbox tab(:);
 ltx ltx.
-C07 {name}C08 {name}:C09 {name}
+T{
+.sp
+C07 {name}
+.sp
+C08 {name}
+
+T}:T{
+.sp
+C09 {name}
+
+T}
 .TE
 .sp
 C10 {name}

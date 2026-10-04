@@ -1,0 +1,53 @@
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>table-plain-inline-content - keep inline content and cell boundaries</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_synopsis">Synopsis</h2>
+<div class="table-block">
+<table class="frame-all grid-all stretch">
+<colgroup>
+<col style="width: 50%;">
+<col style="width: 50%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="halign-left valign-top"><p>I01 Hello World: <strong>bold</strong>, <em>italic</em>, <code>code</code>.
+////
+I01 <a href="https://example.org/table">Visit</a>.
+////</p><p>I01 Second paragraph with <sup class="footnote-ref" id="_footnoteref_1">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup>.</p></td>
+<td class="halign-left valign-top"><p>A02 Before.</p><p>A02 Second paragraph.</p></td>
+</tr>
+<tr>
+<td class="halign-left valign-top">[role=example]
+I03 Visible metadata-looking text.
+:value: cell
+I03 value=outer.</td>
+<td class="halign-left valign-top"><p>A04 Paragraph with <a href="https://example.org/nested">Nested</a>.</p><p>A04 Second paragraph.</p></td>
+</tr>
+<tr>
+<td class="halign-left valign-top"><p>I05 Before.
+<a id="plain-cell-target"></a>
+I05 Target and Plain cell term.</p><p>I05 After.</p></td>
+<td class="halign-left valign-top"><p>A06 Before.</p><div class="ulist">
+<ul>
+<li>
+A06 List item.</li>
+<li>
+A06 Other item.</li>
+</ul>
+</div>
+<p>A06 After.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>I07 Outside value=outer; <a href="#plain-cell-target">Target</a>.</p>
+</section>
+<section class="footnotes" aria-label="Footnotes" role="doc-endnotes">
+<hr>
+<ol class="footnotes">
+<li class="footnote" id="_footnote_1" role="doc-endnote">
+Plain cell note. <a class="footnote-backref" href="#_footnoteref_1" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+</ol>
+</section>

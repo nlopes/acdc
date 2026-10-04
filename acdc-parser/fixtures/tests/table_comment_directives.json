@@ -183,47 +183,10 @@
                           {
                             "name": "text",
                             "type": "string",
-                            "value": "////\nVISIBLE TABLE INCLUDE",
+                            "value": "////\nVISIBLE TABLE INCLUDE\n////",
                             "location": [
                               {
                                 "line": 18,
-                                "col": 1
-                              },
-                              {
-                                "line": 18,
-                                "col": 21,
-                                "file": [
-                                  "table_comment_visible.inc"
-                                ]
-                              }
-                            ]
-                          }
-                        ],
-                        "location": [
-                          {
-                            "line": 18,
-                            "col": 1
-                          },
-                          {
-                            "line": 18,
-                            "col": 21,
-                            "file": [
-                              "table_comment_visible.inc"
-                            ]
-                          }
-                        ]
-                      },
-                      {
-                        "name": "paragraph",
-                        "type": "block",
-                        "inlines": [
-                          {
-                            "name": "text",
-                            "type": "string",
-                            "value": "////",
-                            "location": [
-                              {
-                                "line": 20,
                                 "col": 1
                               },
                               {
@@ -235,7 +198,7 @@
                         ],
                         "location": [
                           {
-                            "line": 20,
+                            "line": 18,
                             "col": 1
                           },
                           {
@@ -589,79 +552,11 @@
                           {
                             "name": "text",
                             "type": "string",
-                            "value": "M04 Plain cell.",
+                            "value": "M04 Plain cell.\n////\nVISIBLE TABLE INCLUDE\n////",
                             "location": [
                               {
                                 "line": 50,
                                 "col": 2
-                              },
-                              {
-                                "line": 50,
-                                "col": 16
-                              }
-                            ]
-                          }
-                        ],
-                        "location": [
-                          {
-                            "line": 50,
-                            "col": 2
-                          },
-                          {
-                            "line": 50,
-                            "col": 16
-                          }
-                        ]
-                      },
-                      {
-                        "name": "paragraph",
-                        "type": "block",
-                        "inlines": [
-                          {
-                            "name": "text",
-                            "type": "string",
-                            "value": "////\nVISIBLE TABLE INCLUDE",
-                            "location": [
-                              {
-                                "line": 51,
-                                "col": 1
-                              },
-                              {
-                                "line": 51,
-                                "col": 21,
-                                "file": [
-                                  "table_comment_visible.inc"
-                                ]
-                              }
-                            ]
-                          }
-                        ],
-                        "location": [
-                          {
-                            "line": 51,
-                            "col": 1
-                          },
-                          {
-                            "line": 51,
-                            "col": 21,
-                            "file": [
-                              "table_comment_visible.inc"
-                            ]
-                          }
-                        ]
-                      },
-                      {
-                        "name": "paragraph",
-                        "type": "block",
-                        "inlines": [
-                          {
-                            "name": "text",
-                            "type": "string",
-                            "value": "////",
-                            "location": [
-                              {
-                                "line": 53,
-                                "col": 1
                               },
                               {
                                 "line": 53,
@@ -672,8 +567,8 @@
                         ],
                         "location": [
                           {
-                            "line": 53,
-                            "col": 1
+                            "line": 50,
+                            "col": 2
                           },
                           {
                             "line": 53,
@@ -1469,55 +1364,10 @@
                           {
                             "name": "text",
                             "type": "string",
-                            "value": "////\nVISIBLE TABLE INCLUDE",
+                            "value": "////\nVISIBLE TABLE INCLUDE\n////",
                             "location": [
                               {
                                 "line": 1,
-                                "col": 1,
-                                "file": [
-                                  "table_comment_cell.asciidoc"
-                                ]
-                              },
-                              {
-                                "line": 1,
-                                "col": 21,
-                                "file": [
-                                  "table_comment_cell.asciidoc",
-                                  "table_comment_visible.inc"
-                                ]
-                              }
-                            ]
-                          }
-                        ],
-                        "location": [
-                          {
-                            "line": 1,
-                            "col": 1,
-                            "file": [
-                              "table_comment_cell.asciidoc"
-                            ]
-                          },
-                          {
-                            "line": 1,
-                            "col": 21,
-                            "file": [
-                              "table_comment_cell.asciidoc",
-                              "table_comment_visible.inc"
-                            ]
-                          }
-                        ]
-                      },
-                      {
-                        "name": "paragraph",
-                        "type": "block",
-                        "inlines": [
-                          {
-                            "name": "text",
-                            "type": "string",
-                            "value": "////",
-                            "location": [
-                              {
-                                "line": 5,
                                 "col": 1,
                                 "file": [
                                   "table_comment_cell.asciidoc"
@@ -1535,7 +1385,7 @@
                         ],
                         "location": [
                           {
-                            "line": 5,
+                            "line": 1,
                             "col": 1,
                             "file": [
                               "table_comment_cell.asciidoc"

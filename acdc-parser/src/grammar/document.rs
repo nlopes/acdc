@@ -2726,13 +2726,7 @@ fn parse_table_block_impl<'input>(
                 {
                     spec.style = Some(col_format.style);
                 }
-                let parsed = parse_table_cell(
-                    cell_content,
-                    state,
-                    cell.content_start,
-                    block_metadata.parent_section_level,
-                    &spec,
-                )?;
+                let parsed = parse_table_cell(cell_content, state, cell.content_start, &spec)?;
                 columns.push(parsed);
             }
         }
@@ -3734,18 +3728,33 @@ peg::parser! {
         rule normalize_nested_header(header: Vec<Result<Block<'input>, Error>>, initial_attributes: &mut Vec<(crate::AttributeName<'input>, crate::DocumentAttributeAssignment<'input>)>) -> Result<Vec<Block<'input>>, Error>
         = { crate::grammar::table::normalize_nested_header(state, header, initial_attributes) }
 
-        /// Blocks for table cells without `AsciiDoc` style - excludes block types that require full parsing.
-        /// Table cells use a simplified block parser that excludes sections, document attributes,
-        /// and block types like lists, delimited blocks, toc, page breaks, and markdown blockquotes.
-        pub(crate) rule blocks_for_table_cell(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Vec<Block<'input>>, Error>
+        /// Parse normal cell paragraphs; only blank lines separate them.
+        pub(crate) rule blocks_for_table_cell(offset: usize) -> Result<Vec<Block<'input>>, Error>
         = eol()*
         blocks:(
-            comment_line_block(offset) /
-            block_generic_for_table_cell(offset, parent_section_level)
+            start:position!()
+            content:$((!(eol()*<2,> / eol()* ![_]) [_])+)
+            end:position!()
+            eol()*
+            {
+                // Block-looking lines are text in normal cells. Keep inline
+                // substitutions without invoking document block recognition.
+                let (content, _) = process_inlines(
+                    state,
+                    &BlockParsingMetadata::default(),
+                    start,
+                    end,
+                    offset,
+                    content,
+                )?;
+                Ok(Block::Paragraph(Paragraph::new(
+                    content,
+                    state.create_block_location(start, end, offset),
+                )))
+            }
         )*
         {
-            let blocks = blocks.into_iter().collect::<Result<Vec<_>, Error>>()?;
-            Ok(order_document_attribute_events(blocks))
+            blocks.into_iter().collect()
         }
 
         pub(crate) rule block(offset: usize, parent_section_level: Option<SectionLevel>, direct_parent_section_kind: Option<SectionKind>) -> Result<Block<'input>, Error>
@@ -4329,33 +4338,6 @@ peg::parser! {
             / list:list_with_continuation(start, offset, &block_metadata, false) { list }
             / quoted_paragraph:quoted_paragraph(start, offset, &block_metadata) { quoted_paragraph }
             / markdown_blockquote:markdown_blockquote(start, offset, &block_metadata) { markdown_blockquote }
-            / paragraph:paragraph(start, offset, &block_metadata) { paragraph }
-        ) {
-            let mut block = block?;
-            assign_block_caption(state, &mut block);
-            Ok(block)
-        }
-
-        /// Block parsing for table cells without `AsciiDoc` style - excludes block types that require full parsing.
-        /// Only `a` (`AsciiDoc`) style cells should have full block parsing.
-        /// Excluded: delimited_block, list, toc, page_break, markdown_blockquote
-        rule block_generic_for_table_cell(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block<'input>, Error>
-        = eol()*
-        start:position!()
-        block_metadata:(bm:block_metadata_with_attributes(offset, parent_section_level, false) {?
-            bm.map_err(|e| {
-                tracing::error!(?e, "error parsing block metadata in block_generic_for_table_cell");
-                "block metadata parse error"
-            })
-        })
-        block:(
-            // NOTE: delimited_block is intentionally excluded - only valid with 'a' cell style
-            image:image(start, offset, &block_metadata) { image }
-            / audio:audio(start, offset, &block_metadata) { audio }
-            / video:video(start, offset, &block_metadata) { video }
-            / thematic_break:thematic_break(start, offset, &block_metadata) { thematic_break }
-            / quoted_paragraph:quoted_paragraph(start, offset, &block_metadata) { quoted_paragraph }
-            // NOTE: toc, page_break, list, markdown_blockquote are excluded - only valid with 'a' cell style
             / paragraph:paragraph(start, offset, &block_metadata) { paragraph }
         ) {
             let mut block = block?;

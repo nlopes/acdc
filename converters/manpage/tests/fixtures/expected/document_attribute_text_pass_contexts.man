@@ -47,7 +47,17 @@ T05 <tag> & {name}
 .TS
 allbox tab(:);
 ltx ltx.
-T06 <tag> & {name}T07 <tag> & {name}:T08 <tag> & {name}
+T{
+.sp
+T06 <tag> & {name}
+.sp
+T07 <tag> & {name}
+
+T}:T{
+.sp
+T08 <tag> & {name}
+
+T}
 .TE
 .sp
 T09 <tag> & {name}

@@ -1,7 +1,7 @@
 #set document(
-  title: "table-comment-directives(1)",
+  title: "table-plain-inline-content(1)",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[table-comment-directives(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[table-plain-inline-content(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -73,80 +73,41 @@
 #set page(numbering: "1")
 #counter(page).update(1)
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("table-comment-directives(1)")]
+#text(size: 22pt, weight: "bold")[#text("table-plain-inline-content(1)")]
 ]
 #v(1em)
 
 #heading(level: 1)[#text("Name")] <id-5f6e616d65>
 
-#text("table-comment-directives - keep directives active in table buffers")
+#text("table-plain-inline-content - keep inline content and cell boundaries")
 
 #heading(level: 1)[#text("Synopsis")] <id-5f73796e6f70736973>
 
-#text("T01 Plain table cell.")
+#table(columns: (1fr, 1fr), align: (left + top, left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("I01 Hello World: ")#strong[#text("bold")]#text(", ")#emph[#text("italic")]#text(", ")#raw("code")#text(". //// I01 ")#link("https://example.org/table")[#text("Visit")]#text(". ////")
 
-#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("//// VISIBLE TABLE INCLUDE ////")
+#text("I01 Second paragraph with ")#counter(footnote).update(0)#footnote[#text("Plain cell note.")]#text(".")
 
-])
+], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("A02 Before.")
 
-#text("T02 Literal table cell.")
+#text("A02 Second paragraph.")
 
-#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#raw(block: false, "////\nVISIBLE TABLE INCLUDE\n////")])
+], table.cell(x: 0, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("[role=example] I03 Visible metadata-looking text. :value: cell I03 value=outer.")
 
-#text("T03 AsciiDoc cell comment.")
+], table.cell(x: 1, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("A04 Paragraph with ")#link("https://example.org/nested")[#text("Nested")]#text(".")
 
-#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("A03 Visible cell content.")
+#text("A04 Second paragraph.")
 
-])
+], table.cell(x: 0, y: 2, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("I05 Before. ")#metadata(none)<id-706c61696e2d63656c6c2d746172676574>#text(" I05 Target and ")#metadata(none)<__indexterm-1>#text("Plain cell term")#text(".")
 
-#text("T04 Mixed cell styles.")
+#text("I05 After.")
 
-#table(columns: (1fr, 1fr, 1fr), align: (left + top, left + top, left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("M04 Plain cell. //// VISIBLE TABLE INCLUDE ////")
+], table.cell(x: 1, y: 2, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("A06 Before.")
 
-], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#raw(block: false, "M04 Literal cell.\n////\nVISIBLE TABLE INCLUDE\n////")], table.cell(x: 2, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("M04 AsciiDoc cell.")
+  - #text("A06 List item.")
+  - #text("A06 Other item.")
 
-#text("M04 Visible content.")
-
-])
-
-#text("T05 Nested table.")
-
-#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#raw(block: false, "////\nVISIBLE TABLE INCLUDE\n////")])
-
-#text("N05 Visible outer cell content.")
+#text("A06 After.")
 
 ])
 
-#text("T06 Listing control.")
-
-#raw(block: true, "////\nVISIBLE TABLE INCLUDE\n////")
-
-#text("T07 Visible after a real body comment.")
-
-#text("T08 Visible after a commented table fence.")
-
-#text("T09 Included literal cell.")
-
-#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#raw(block: false, "////\nVISIBLE TABLE INCLUDE\n////")])
-
-#text("T10 Included plain cell with selected lines.")
-
-#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("//// VISIBLE TABLE INCLUDE ////")
-
-])
-
-#text("T11 Included AsciiDoc cell comment.")
-
-#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("A11 Visible after the included comment.")
-
-])
-
-#text("T12 Included listing content.")
-
-#raw(block: true, "////\nVISIBLE TABLE INCLUDE\n////")
-
-#text("T13 Table fences across source files.")
-
-#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#raw(block: false, "////\nVISIBLE TABLE INCLUDE\n////")])
-
-#text("T13 Visible after the included table fences.")
+#text("I07 Outside value=outer; ")#context link(query(<id-706c61696e2d63656c6c2d746172676574>).first().location())[#text("Target")]#text(".")

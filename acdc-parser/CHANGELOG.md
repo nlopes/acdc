@@ -57,6 +57,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Normal table cells preserve contiguous paragraph text across block-looking
+  delimiters, lists, headings, and metadata lines. Only blank lines separate
+  their paragraphs; inline formatting and macros remain enabled, matching
+  Asciidoctor. Full block parsing remains limited to `a` cells, and literal
+  cells keep their existing behavior.
+
 - Author and revision lines are recognized across intervening header attribute
   entries and comments, matching Asciidoctor. Each entry is applied once in
   source order, and later entries can reference already parsed author metadata.

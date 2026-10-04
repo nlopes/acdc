@@ -39,7 +39,9 @@ Before OuterTerm\&.
 allbox tab(:);
 ltx.
 T{
-Cell CellTerm\&..SH "CELL INDEX"
+.sp
+Cell CellTerm\&.
+.SH "CELL INDEX"
 .SS "C"
 .RS 4
 CellTerm

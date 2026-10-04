@@ -49,9 +49,13 @@ Order: pass:q,c[*Escaped*] / pass:m,c[https://example.org[Escaped site]]\&. Part
 allbox tab(:);
 ltx ltx.
 T{
+.sp
 Cell: \fBEarly\fP / \fBBold\fP / \fBEarly\fP / [5]\&.
+
 T}:T{
+.sp
 Other: Late / \fBBody\fP\&.
+
 T}
 .TE
 .sp

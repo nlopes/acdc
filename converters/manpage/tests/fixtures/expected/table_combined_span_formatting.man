@@ -114,7 +114,9 @@ allbox tab(:);
 rdx s ltx
 ^ ^ ltx.
 T{
-Paragraph in a combined cell..RS 0
+.sp
+Paragraph in a combined cell.
+.RS 0
 .IP \(bu 2
 Nested item one
 .IP \(bu 2

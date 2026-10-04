@@ -1,0 +1,114 @@
+= table-plain-paragraphs(1)
+:doctype: manpage
+:revdate: 2026-10-04
+:manname: table-plain-paragraphs
+:manpurpose: preserve plain cell paragraph boundaries
+
+== Name
+
+table-plain-paragraphs - preserve plain cell paragraph boundaries
+
+== Synopsis
+
+[cols="1"]
+|===
+|P01 Before.
+////
+P01 Inside.
+////
+P01 After.
+
+P01 Second paragraph.
+
+|P02 Before.
+----
+P02 Listing-looking text.
+----
+[source]
+P02 After.
+* P02 List-looking text.
+== P02 Heading-looking text.
+image::example.png[Example]
+P02 End.
+
+|[comment]
+P03 Visible paragraph.
+
+|NOTE: P04 Ordinary paragraph text.
+
+|.P05 Block-looking title
+P05 Ordinary paragraph text.
+
+|P06 Before.
+====
+P06 Example-looking text.
+====
+....
+P06 Literal-looking text.
+....
+____
+P06 Quote-looking text.
+____
+--
+P06 Open-looking text.
+--
+P06 End.
+
+|P07 Before.
+// P07 Comment-looking text.
+P07 After.
+
+|P08 Before.
+
+  P08 Indented paragraph.
+|===
+
+[cols="1s,1e,1m,1h"]
+|===
+|S09 Before.
+////
+S09 Inside.
+////
+S09 After.
+
+S09 Second paragraph.
+|E10 Before.
+----
+E10 Inside.
+----
+E10 After.
+|M11 Before.
+....
+M11 Inside.
+....
+M11 After.
+|H12 Before.
+____
+H12 Inside.
+____
+H12 After.
+|===
+
+[cols="1l,1a"]
+|===
+|L13 Before.
+////
+L13 Visible.
+////
+
+L13 After.
+a|
+A14 Before.
+
+////
+A14 Hidden.
+////
+
+A14 After.
+|===
+
+P15 Outside.
+
+////
+P15 Hidden outside comment.
+////

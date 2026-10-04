@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Table-cell paragraphs retain their boundaries instead of joining adjacent
+  words. AsciiDoc (`a`) cells also keep paragraph breaks before following lists
+  and sections, matching Asciidoctor's block separation.
+
 - Literal apostrophes retain their straight glyph in prose, code, index labels,
   headings, and link text instead of displaying as curly quotes in groff.
   Enabled replacements still render contractions such as `Sam's` as `Sam’s`;

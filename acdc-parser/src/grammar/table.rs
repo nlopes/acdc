@@ -3,7 +3,6 @@ use std::rc::Rc;
 use crate::{
     AttributeName, Block, ColumnStyle, DocumentAttribute, DocumentAttributeAssignment, Error,
     InlineNode, Paragraph, TableColumn, Verbatim, blocks::table::CellSpecifier,
-    model::SectionLevel,
 };
 
 use super::{
@@ -15,7 +14,6 @@ pub(crate) fn parse_table_cell<'a>(
     content: &'a str,
     state: &mut ParserState<'a>,
     cell_start_offset: usize,
-    parent_section_level: Option<SectionLevel>,
     spec: &CellSpecifier,
 ) -> Result<TableColumn<'a>, Error> {
     // Literal cells keep their source text intact. Unlike listing blocks, they
@@ -79,12 +77,7 @@ pub(crate) fn parse_table_cell<'a>(
         state.pending_callouts = outer_pending_callouts;
         result
     } else {
-        document_parser::blocks_for_table_cell(
-            content,
-            state,
-            cell_start_offset,
-            parent_section_level,
-        )
+        document_parser::blocks_for_table_cell(content, state, cell_start_offset)
     }
     .unwrap_or_else(|error| {
         adjust_and_log_parse_error(

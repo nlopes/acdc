@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Table cells keep paragraph boundaries in HTML5s instead of joining adjacent
+  words. Cells with multiple rendered blocks retain paragraph wrappers;
+  single-paragraph cells keep their existing layout. Header cells keep separating
+  whitespace without adding paragraph wrappers, matching Asciidoctor's header flow.
+
 - HTML fixture tests now check plain code output when the `highlighting` feature
   is disabled, alongside the existing highlighted expectations. CI covers both
   modes with `pre-spec-subs` enabled and disabled. Rendered output is unchanged.
