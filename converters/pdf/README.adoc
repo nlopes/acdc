@@ -315,6 +315,25 @@ The CLI flags map to fields on `PdfOptions` for library callers.
 Only directories supplied through `font_dirs` are searched.
 The converter does not discover fonts from the working directory or source tree.
 
+IBM Plex Math is bundled as a symbol fallback, including the double arrows
+`⇒`, `⇐` and `⇔`. Fonts must contain the glyphs used in the document.
+Missing glyphs produce a converter warning that identifies the affected text and Unicode code points,
+once per distinct text cluster after font fallback. PDF text extraction can
+return the original characters even when their glyphs are missing; it does not
+prove that they are visible.
+acdc reports missing glyphs even where Asciidoctor PDF silently emits a
+replacement glyph. Default symbol coverage also differs between the bundled
+fonts; for example, acdc supplies `⇔` without configuring a fallback theme.
+
+For CJK text, supply fonts that cover the required language with `--font-dir`.
+For a specific family order, configure the theme's `body_font`, `heading_font`
+and `mono_font` fallback lists. Asciidoctor PDF's default fonts also lack many
+CJK glyphs; its `default-with-font-fallbacks` theme provides broader coverage,
+but does not cover every language.
+
+Literal backticks and spacing acute accents retain their positions instead of
+attaching to the preceding letter. Combining accents remain enabled.
+
 With the default `pre-spec-subs` feature, block-level `subs=` controls PDF text substitutions in the same way as the other compatible converters.
 In particular, `subs=-replacements` suppresses typography replacements and `subs=+replacements` enables them in literal/listing content.
 

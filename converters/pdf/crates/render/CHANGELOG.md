@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Warn when text has no glyph after font fallback, once per distinct text
+  cluster, including the Unicode code points needed from an additional font.
 - Consumers can identify source-language names and tags supported by Typst.
 - Initial Typst-backed PDF renderer with bundled fallback fonts, optional
   runtime font directories, on-demand resolved image embedding, and non-fatal

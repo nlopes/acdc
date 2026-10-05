@@ -6,10 +6,43 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use acdc_converters_core::{Converter, Diagnostics, Options as ConverterOptions, WarningSource};
+use acdc_converters_core::{
+    Converter, Diagnostics, Options as ConverterOptions, Warning, WarningSource,
+};
 use acdc_converters_pdf::{PdfOptions, Processor};
 
 type Error = Box<dyn std::error::Error>;
+
+#[test]
+fn spacing_accents_keep_pdf_positions_and_font_diagnostics() -> Result<(), Error> {
+    let source = include_str!("fixtures/source/pdf_glyph_coverage.adoc");
+    let parsed = parse(source, &Options::default())?;
+    let (pdf, warnings) = render_document_with_warnings(parsed.document())?;
+    assert_missing_glyph_codes(&warnings, &["U+4E2D", "U+65E5", "U+D55C"]);
+    let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+    let text = pdf.extract_text(&pages)?;
+    for expected in ["tick", "literal", "title", "cell", "`", "´"] {
+        assert!(text.contains(expected), "missing {expected:?}: {text}");
+    }
+    let before = text_origin(&pdf, 1, "G01 A")?;
+    let grave = text_origin(&pdf, 1, "`")?;
+    let after = text_origin(&pdf, 1, "tick")?;
+    assert!((before.1 - grave.1).abs() < 0.01, "{before:?} {grave:?}");
+    assert!((after.1 - grave.1).abs() < 0.01, "{after:?} {grave:?}");
+    assert!(
+        before.0 < grave.0 && grave.0 < after.0,
+        "{before:?} {grave:?} {after:?}"
+    );
+    for arrow in "⇒⇐⇔→←↔".chars() {
+        assert!(text.contains(arrow), "missing {arrow}: {text}");
+    }
+    assert!(
+        external_link_rects(&pdf, 1)?
+            .iter()
+            .any(|(uri, _)| uri == "https://example.org")
+    );
+    Ok(())
+}
 
 #[test]
 fn incomplete_links_omit_pdf_annotations_for_unfinished_targets() -> Result<(), Error> {
@@ -1843,7 +1876,12 @@ fn verbatim_cross_references_reach_the_target_page() -> Result<(), Error> {
 #[cfg(feature = "pre-spec-subs")]
 #[test]
 fn verbatim_link_ids_and_wrapped_links_compile() -> Result<(), Error> {
-    let pdf = render_input(include_str!("fixtures/source/subs_verbatim_links.adoc"))?;
+    let parsed = parse(
+        include_str!("fixtures/source/subs_verbatim_links.adoc"),
+        &Options::default(),
+    )?;
+    let (pdf, warnings) = render_document_with_warnings(parsed.document())?;
+    assert_missing_glyph_codes(&warnings, &["U+65E5", "U+672C", "U+8A9E"]);
     let text = pdf
         .extract_text(&pdf.get_pages().keys().copied().collect::<Vec<_>>())?
         .split_whitespace()
@@ -1859,9 +1897,12 @@ fn verbatim_link_ids_and_wrapped_links_compile() -> Result<(), Error> {
         !pdf.get_page_annotations(*pdf.get_pages().get(&1).ok_or("missing page")?)?
             .is_empty()
     );
-    let pdf = render_input(include_str!(
-        "fixtures/source/subs_verbatim_links_highlighting.adoc"
-    ))?;
+    let parsed = parse(
+        include_str!("fixtures/source/subs_verbatim_links_highlighting.adoc"),
+        &Options::default(),
+    )?;
+    let (pdf, warnings) = render_document_with_warnings(parsed.document())?;
+    assert_missing_glyph_codes(&warnings, &["U+65E5", "U+672C", "U+8A9E"]);
     let page = *pdf.get_pages().get(&1).ok_or("missing page")?;
     let mut tops = Vec::new();
     for annotation in pdf.get_page_annotations(page)? {
@@ -1895,6 +1936,14 @@ fn render_parsed(parsed: &ParseResult) -> Result<PdfDocument, Error> {
 }
 
 fn render_document(document: &Document<'_>) -> Result<PdfDocument, Error> {
+    let (pdf, warnings) = render_document_with_warnings(document)?;
+    assert!(warnings.is_empty(), "{warnings:?}");
+    Ok(pdf)
+}
+
+fn render_document_with_warnings(
+    document: &Document<'_>,
+) -> Result<(PdfDocument, Vec<Warning>), Error> {
     let processor = Processor::new(
         ConverterOptions::default(),
         Options::builder().with_attributes(document.attributes.clone().into_inputs()),
@@ -1904,8 +1953,22 @@ fn render_document(document: &Document<'_>) -> Result<PdfDocument, Error> {
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
     let mut output = Vec::new();
     processor.write_to(document, &mut output, None, None, &mut diagnostics)?;
-    assert!(warnings.is_empty(), "{warnings:?}");
-    Ok(PdfDocument::load_mem(&output)?)
+    Ok((PdfDocument::load_mem(&output)?, warnings))
+}
+
+fn assert_missing_glyph_codes(warnings: &[Warning], codes: &[&str]) {
+    assert_eq!(warnings.len(), codes.len(), "{warnings:?}");
+    for code in codes {
+        assert_eq!(
+            warnings
+                .iter()
+                .filter(|warning| warning.message.contains("missing glyph")
+                    && warning.message.contains(code))
+                .count(),
+            1,
+            "{warnings:?}"
+        );
+    }
 }
 
 #[test]

@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Bundle IBM Plex Math as a symbol fallback, so double arrows such as `⇒`,
+  `⇐` and `⇔` render without an external font directory. CJK fonts remain
+  caller supplied.
 - Bundled italic and bold-italic monospace fonts preserve emphasis in code
   blocks when quote substitutions are enabled.
 - Themes can control the page-header alignment, title size and weight, logo

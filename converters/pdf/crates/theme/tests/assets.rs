@@ -16,6 +16,7 @@ const EXPECTED_FACES: &[(&str, u16, bool)] = &[
     ("IBM Plex Mono", 700, false),
     ("IBM Plex Mono", 700, true),
     ("Noto Color Emoji", 400, false),
+    ("IBM Plex Math", 400, false),
 ];
 
 #[test]
@@ -27,6 +28,21 @@ fn bundled_fonts_have_the_expected_metadata() -> Result<(), Box<dyn std::error::
         assert_eq!(font_family(&face).as_deref(), Some(family));
         assert_eq!(face.weight().to_number(), weight);
         assert_eq!(face.is_italic(), italic);
+    }
+    Ok(())
+}
+
+#[test]
+fn bundled_fonts_cover_typography_arrows() -> Result<(), ttf_parser::FaceParsingError> {
+    let fonts = embedded_fonts()
+        .iter()
+        .map(|bytes| Face::parse(bytes, 0))
+        .collect::<Result<Vec<_>, _>>()?;
+    for ch in "⇒⇐⇔→←↔".chars() {
+        assert!(
+            fonts.iter().any(|font| font.glyph_index(ch).is_some()),
+            "missing {ch}"
+        );
     }
     Ok(())
 }

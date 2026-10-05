@@ -171,6 +171,9 @@ fn write_text(out: &mut String, theme: &Theme, options: &EmitOptions) {
     let _ = writeln!(out, "#set block(spacing: {}pt)", typst_block_spacing(theme));
     // pulldown already emitted curly quotes/dashes; don't let Typst re-process.
     out.push_str("#set smartquote(enabled: false)\n");
+    // Spacing accents must not attach to the preceding letter. IBM Plex Serif
+    // applies mark positioning to these glyphs as well as combining accents.
+    out.push_str("#show regex(\"[`´]\"): set text(features: (\"mark\": 0))\n");
 
     let _ = writeln!(
         out,

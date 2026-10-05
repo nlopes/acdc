@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Literal backticks and spacing acute accents keep their positions in PDF text,
+  matching Asciidoctor PDF. Real combining accents remain enabled.
 - Verse paragraphs and delimited verse blocks retain inline formatting, links,
   footnotes, anchors, index terms, and default typography while preserving line
   breaks and indentation. References to targets defined in verse now compile.
@@ -269,6 +271,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Bundle a symbol fallback for double arrows such as `⇒`, `⇐` and `⇔`,
+  including arrows produced by text substitutions. CJK fonts remain user
+  supplied through `--font-dir`.
+- Warn once per distinct text cluster when the available fonts cannot render
+  it, including its Unicode code points. Supply additional fonts with
+  `--font-dir`; extractable PDF text alone does not prove that glyphs rendered.
 - Title-based shorthand cross-references now link to the matching generated or
   explicit section destination, including when the reference supplies custom
   text.

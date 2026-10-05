@@ -66,7 +66,7 @@ impl NamedDestination {
 pub struct Rendered {
     /// The PDF file contents.
     pub pdf: Vec<u8>,
-    /// Non-fatal Typst compilation warnings, if any.
+    /// Non-fatal compilation and missing-glyph warnings, if any.
     pub warnings: Vec<String>,
 }
 
@@ -165,6 +165,33 @@ mod tests {
             return Err(std::io::Error::other("render unexpectedly succeeded").into());
         };
         assert!(matches!(err, Error::Compile(_)));
+        Ok(())
+    }
+
+    #[test]
+    fn missing_glyphs_warn_once_after_shaping_nested_content()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let markup = concat!(
+            "#set text(font: \"IBM Plex Serif\")\n",
+            "中 #box[中] #strong[中] #pagebreak() #table([日], [中])",
+        );
+        let rendered = render_pdf(markup, &ImageMap::new(), &RenderConfig::default())?;
+        assert_eq!(
+            rendered.warnings,
+            [
+                "missing glyph for \"中\" (U+4E2D); add a font that supports this text",
+                "missing glyph for \"日\" (U+65E5); add a font that supports this text",
+            ]
+        );
+        assert!(rendered.pdf.starts_with(b"%PDF-"));
+        Ok(())
+    }
+
+    #[test]
+    fn supported_accents_and_emoji_do_not_warn() -> Result<(), Box<dyn std::error::Error>> {
+        let markup = "#set text(font: \"IBM Plex Serif\")\né q̀ ⇒ ⇐ ⇔ → ← ↔ 😀";
+        let rendered = render_pdf(markup, &ImageMap::new(), &RenderConfig::default())?;
+        assert!(rendered.warnings.is_empty(), "{:?}", rendered.warnings);
         Ok(())
     }
 

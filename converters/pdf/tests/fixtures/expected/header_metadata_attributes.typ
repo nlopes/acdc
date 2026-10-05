@@ -7,6 +7,7 @@
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
 #set smartquote(enabled: false)
+#show regex("[`´]"): set text(features: ("mark": 0))
 #show heading: set text(font: ("IBM Plex Serif", "Noto Color Emoji"), weight: 700, fill: rgb("#000000"))
 #show heading.where(level: 1): set text(size: 24pt)
 #show heading.where(level: 2): set text(size: 18pt)

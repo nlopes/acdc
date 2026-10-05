@@ -9,7 +9,7 @@ const FONT_EXTENSIONS: &[&str] = &["ttf", "otf", "ttc", "otc"];
 
 /// Parsed bundled fonts are process-wide. `Font` clones share their parsed
 /// representation and `Bytes::new` can directly retain a static asset slice, so
-/// subsequent renders neither copy nor reparse the 27 MB bundle.
+/// subsequent renders neither copy nor reparse the bundle.
 static BUNDLED_FONTS: OnceLock<Vec<Font>> = OnceLock::new();
 
 /// Collect all fonts to register with the engine: every font found in the

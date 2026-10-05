@@ -1,13 +1,15 @@
+use std::collections::BTreeSet;
+
 use acdc_pdf_images::ImageMap;
-use typst::{comemo::Track, introspection::Introspector, text::Font};
+use typst::{comemo::Track, introspection::Introspector, layout::FrameItem, text::Font};
 use typst_as_lib::TypstEngine;
 use typst_layout::PagedDocument;
 use typst_pdf::{PdfOptions, pdf, pdf_in_bundle};
 
-use crate::resolver::ImageFileResolver;
 use crate::{
     NamedDestination,
     error::{Error, format_diagnostics},
+    resolver::ImageFileResolver,
 };
 
 /// Build a Typst engine for `markup` with `fonts` and `assets` registered,
@@ -18,8 +20,8 @@ use crate::{
 /// this crate after ownership passes to Typst. The bundled syntax-highlight
 /// theme is small and stays in memory.
 ///
-/// Compilation warnings are returned alongside the document so the caller can
-/// surface them without failing the build.
+/// Compilation and missing-glyph warnings are returned alongside the document
+/// so the caller can surface them without failing the build.
 pub(crate) fn render(
     markup: String,
     fonts: Vec<Font>,
@@ -37,8 +39,9 @@ pub(crate) fn render(
         .build();
 
     let result = engine.compile::<PagedDocument>();
-    let warnings = collect_warnings(&result.warnings);
+    let mut warnings = collect_warnings(&result.warnings);
     let document = result.output?;
+    warnings.extend(missing_glyph_warnings(&document));
     let pdf_options = PdfOptions {
         tagged: true,
         ..PdfOptions::default()
@@ -67,6 +70,48 @@ pub(crate) fn render(
     }
     .map_err(|diagnostics| Error::Pdf(format_diagnostics(&diagnostics)))?;
     Ok((pdf, warnings))
+}
+
+fn missing_glyph_warnings(document: &PagedDocument) -> Vec<String> {
+    let mut missing = BTreeSet::new();
+    let mut frames = document
+        .pages()
+        .iter()
+        .map(|page| &page.frame)
+        .collect::<Vec<_>>();
+    while let Some(frame) = frames.pop() {
+        for (_, item) in frame.items() {
+            match item {
+                FrameItem::Group(group) => frames.push(&group.frame),
+                FrameItem::Text(text) => {
+                    // Inspect shaped output after font fallback. A PDF can retain
+                    // extractable text while drawing the missing-glyph box.
+                    for glyph in &text.glyphs {
+                        if glyph.id == 0
+                            && let Some(source) = text.text.get(glyph.range())
+                        {
+                            missing.insert(source);
+                        }
+                    }
+                }
+                FrameItem::Shape(..)
+                | FrameItem::Image(..)
+                | FrameItem::Link(..)
+                | FrameItem::Tag(_) => {}
+            }
+        }
+    }
+    missing
+        .into_iter()
+        .map(|text| {
+            let codes = text
+                .chars()
+                .map(|ch| format!("U+{:04X}", u32::from(ch)))
+                .collect::<Vec<_>>()
+                .join(" ");
+            format!("missing glyph for {text:?} ({codes}); add a font that supports this text")
+        })
+        .collect()
 }
 
 fn collect_warnings(warnings: &[typst::diag::SourceDiagnostic]) -> Vec<String> {

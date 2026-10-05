@@ -1,0 +1,37 @@
+= pdf-glyphs(1)
+:doctype: manpage
+:manmanual: PDF glyph checks
+:mansource: acdc
+:revdate: 2026-10-05
+
+== Name
+pdf-glyphs - literal punctuation and font coverage
+
+== Description
+
+G01 A`tick`B a´x +`literal`+.
+
+G02 *A`tick`B a´x* _A`tick`B a´x_.
+
+G03 Combining q̀ q́ and precomposed à é stay accented.
+
+G04 Literal ⇒ ⇐ ⇔ → ← ↔.
+
+G11 Replacements => <= -> <-.
+
+G05 Missing 中 日 한.
+
+G06 link:https://example.org[+`label`+ ⇒] footnote:note[+`note`+].
+
+[source,text]
+----
+G07 A`tick`B a´x q̀ q́ ⇒ ⇐ ⇔
+----
+
+== G08 +`title`+
+
+[cols="1,1"]
+|===
+|G09 +`cell`+ ⇒
+|G10 中 日 한
+|===

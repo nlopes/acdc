@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Literal backticks and spacing acute accents no longer attach to the preceding
+  letter in IBM Plex Serif. Combining accents remain enabled.
+
 ### Changed
 
 - Generated page headers and footers use the configured theme alignment,
