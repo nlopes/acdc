@@ -1,0 +1,216 @@
+'\" t
+.\"     Title: named-index
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-05
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "NAMED\-INDEX" "1" "2026-10-05" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+named\-index \- keep complete macros in index labels
+.SH "SYNOPSIS"
+.sp
+Destination.
+.sp
+N01 Before \c
+.URL "https://example.org/url" "Link" "\c"
+ after end.
+.sp
+N02 Before \c
+.URL "https://example.org/link" "Link" "\c"
+ after end.
+.sp
+N03 Before \c
+.MTO "user\(atexample.org" "Mail" "\c"
+ after end.
+.sp
+N04 Before Target after end.
+.sp
+N05 Before [1] after end. Reuse [1]\&.
+.sp
+N06 Before [literal after] end.
+.sp
+N07 Before [literal] after end.
+.sp
+N08 Before \c
+.URL "https://example.org/incomplete" "" "\c"
+[Link end.
+.sp
+N09 Before \c
+.URL "https://example.org/escaped" "" "\c"
+[Link] after end.
+.sp
+N10 Before https://example.org/inactive[Link] after end.
+.sp
+N11  end.
+.sp
+N12 Before  after end. See Inner\&.
+.sp
+N13 Before [\fBSave\fP] after end.
+.sp
+N14 Before \fBCtrl+C\fP after end.
+.sp
+N15 Before \fBFile\fP \(ra \fBOpen\fP \(ra \fBRecent\fP after end.
+.sp
+N16 Before Target] text after end.
+.sp
+N17 Before \c
+.URL "https://example.org/format" "\fBBold\fP" "\c"
+ after end.
+.sp
+N18 Before \c
+.URL "https://outer.example" "Outer" " \c"
+\c
+.MTO "inner\(atexample.org" "Inner" "\c"
+ \c
+.URL "https://outer.example" "tail" "\c"
+ after end.
+.sp
+N19 Before indexterm2:[Nested after] end.
+.sp
+N20 Before [1] after end.
+.sp
+N21 Before \c
+.URL "https://example.org/unicode" "café" "\c"
+ after end.
+.sp
+N22 Before \c
+.URL "https://example.org/bracket" "Bracket] label" "\c"
+ after end.
+.sp
+N23 Before \c
+.URL "https://example.org/multiline" "Multiline label" "\c"
+ after end.
+.sp
+N24 Before \c
+.URL "https://one.example" "One" "\c"
+ and \c
+.URL "https://two.example" "Two" "\c"
+ after end.
+.sp
+N25 Before \fBProtected\fP after end.
+.sp
+N26  end.
+.sp
+N27 indexterm2:[Before \c
+.URL "https://example.org/outer\-escape" "Link" "\c"
+ after] end.
+.sp
+N28 Before unknown:[Literal after] end.
+.sp
+N29 Before \c
+.URL "https://example.org/quoted" "Label, comma" "\c"
+ after end.
+.sp
+N30 First \c
+.URL "https://example.org/adjacent" "Link" "\c"
+Second\&.
+.SH "INDEX"
+.SS "B"
+.RS 4
+Before <<target,Target] text>> after
+.br
+Before \fBCtrl+C\fP after
+.br
+Before \fBFile\fP \(ra \fBOpen\fP \(ra \fBRecent\fP after
+.br
+Before \fBProtected\fP after
+.br
+Before [\fBSave\fP] after
+.br
+Before [literal
+.br
+Before [literal] after
+.br
+Before \ehttps://example.org/inactive[Link] after
+.br
+Before anchor:inner[Ref] after
+.br
+Before footnote:one[Only note.] after
+.br
+Before footnote:one[] after
+.br
+Before https://example.org/bracket[Bracket] label] after
+.br
+Before https://example.org/escaped[Link] after
+.br
+Before https://example.org/format[\fBBold\fP] after
+.br
+Before https://example.org/incomplete[Link
+.br
+Before https://example.org/multiline[Multiline label] after
+.br
+Before https://example.org/quoted["Label, comma",role=term] after
+.br
+Before https://example.org/unicode[café] after
+.br
+Before https://example.org/url[Link] after
+.br
+Before https://one.example[One] and https://two.example[Two] after
+.br
+Before https://outer.example[Outer mailto:inner@example.org[Inner] tail] after
+.br
+Before indexterm2:[Nested
+.br
+Before link:https://example.org/link[Link] after
+.br
+Before mailto:user@example.org[Mail] after
+.br
+Before unknown:[Literal
+.br
+Before xref:target[Target] after
+.br
+.RE
+.SS "C"
+.RS 4
+Category
+.br
+.RS 4
+https://example.org/comma[Link, label]
+.br
+.RS 4
+Tail
+.br
+.RE
+https://example.org/unquoted[Link
+.br
+.RS 4
+label]
+.br
+.RE
+.RE
+.RE
+.SS "F"
+.RS 4
+First https://example.org/adjacent[Link]
+.br
+.RE
+.SS "S"
+.RS 4
+Second
+.br
+.RE
+.SH "NOTES"
+.IP [1] 4
+Only note.

@@ -204,6 +204,19 @@ fn document_attribute_pass_raw_tags_remain_nested_under_highlighting() -> Result
 }
 
 #[test]
+fn named_index_delimiters_keep_links_separate_and_targets_valid() -> Result<(), Error> {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/source/html/embedded/named_index_delimiters.adoc");
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        let output = render_fixture(&path, variant, true)?;
+        check_link_structure(&output, "named_index_delimiters")?;
+        assert!(output.contains("href=\"https://outer.example\""));
+        assert!(output.contains("href=\"mailto:inner@example.org\""));
+    }
+    Ok(())
+}
+
+#[test]
 fn link_formatting_boundaries_keep_tags_nested_and_targets_valid() -> Result<(), Error> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/source/html/embedded/link_formatting_boundaries.adoc");

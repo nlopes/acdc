@@ -1,0 +1,77 @@
+= named-index(1)
+:doctype: manpage
+:revdate: 2026-10-05
+:acdc-index:
+:experimental:
+
+== Name
+named-index - keep complete macros in index labels
+
+== Synopsis
+
+[[target]]
+Destination.
+
+N01 indexterm2:[Before https://example.org/url[Link] after] end.
+
+N02 indexterm2:[Before link:https://example.org/link[Link] after] end.
+
+N03 indexterm2:[Before mailto:user@example.org[Mail] after] end.
+
+N04 indexterm2:[Before xref:target[Target] after] end.
+
+N05 indexterm2:[Before footnote:one[Only note.] after] end. Reuse footnote:one[].
+
+N06 indexterm2:[Before [literal] after] end.
+
+N07 indexterm2:[Before [literal\] after] end.
+
+N08 indexterm2:[Before https://example.org/incomplete[Link] end.
+
+N09 indexterm2:[Before https://example.org/escaped[Link\] after] end.
+
+N10 indexterm2:[Before \https://example.org/inactive[Link] after] end.
+
+N11 indexterm:[Category,"https://example.org/comma[Link, label]",Tail] end.
+
+N12 indexterm2:[Before anchor:inner[Ref] after] end. See <<inner,Inner>>.
+
+N13 indexterm2:[Before btn:[Save] after] end.
+
+N14 indexterm2:[Before kbd:[Ctrl+C] after] end.
+
+N15 indexterm2:[Before menu:File[Open > Recent] after] end.
+
+N16 indexterm2:[Before <<target,Target] text>> after] end.
+
+N17 indexterm2:[Before https://example.org/format[*Bold*] after] end.
+
+N18 indexterm2:[Before https://outer.example[Outer mailto:inner@example.org[Inner] tail] after] end.
+
+N19 indexterm2:[Before indexterm2:[Nested] after] end.
+
+N20 indexterm2:[Before footnote:one[] after] end.
+
+N21 indexterm2:[Before https://example.org/unicode[café] after] end.
+
+N22 indexterm2:[Before https://example.org/bracket[Bracket\] label] after] end.
+
+N23 indexterm2:[Before https://example.org/multiline[Multiline
+label] after] end.
+
+N24 indexterm2:[Before https://one.example[One] and https://two.example[Two] after] end.
+
+N25 indexterm2:[Before pass:q[*Protected*] after] end.
+
+N26 indexterm:[Category,https://example.org/unquoted[Link, label],Tail] end.
+
+N27 \indexterm2:[Before https://example.org/outer-escape[Link] after] end.
+
+N28 indexterm2:[Before unknown:[Literal] after] end.
+
+N29 indexterm2:[Before https://example.org/quoted["Label, comma",role=term] after] end.
+
+N30 indexterm2:[First https://example.org/adjacent[Link]]indexterm2:[Second].
+
+[index]
+== Index

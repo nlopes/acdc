@@ -1,0 +1,138 @@
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>named-index - keep complete macros in index labels</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_synopsis">Synopsis</h2>
+<p id="target">Destination.</p>
+<p>N01 <a id="_indexterm_0"></a>Before <a href="https://example.org/url">Link</a> after end.</p>
+<p>N02 <a id="_indexterm_1"></a>Before <a href="https://example.org/link">Link</a> after end.</p>
+<p>N03 <a id="_indexterm_2"></a>Before <a href="mailto:user@example.org">Mail</a> after end.</p>
+<p>N04 <a id="_indexterm_3"></a>Before <a href="#target">Target</a> after end.</p>
+<p>N05 <a id="_indexterm_4"></a>Before <sup class="footnote-ref" id="_footnoteref_1">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup> after end. Reuse <sup class="footnote-ref">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup>.</p>
+<p>N06 <a id="_indexterm_5"></a>Before [literal after] end.</p>
+<p>N07 <a id="_indexterm_6"></a>Before [literal] after end.</p>
+<p>N08 <a id="_indexterm_7"></a>Before <a href="https://example.org/incomplete" class="bare">https://example.org/incomplete</a>[Link end.</p>
+<p>N09 <a id="_indexterm_8"></a>Before <a href="https://example.org/escaped" class="bare">https://example.org/escaped</a>[Link] after end.</p>
+<p>N10 <a id="_indexterm_9"></a>Before https://example.org/inactive[Link] after end.</p>
+<p>N11 <a id="_indexterm_10"></a> end.</p>
+<p>N12 <a id="_indexterm_11"></a>Before <a id="inner"></a> after end. See <a href="#inner">Inner</a>.</p>
+<p>N13 <a id="_indexterm_12"></a>Before <kbd class="button"><samp>Save</samp></kbd> after end.</p>
+<p>N14 <a id="_indexterm_13"></a>Before <kbd class="keyseq"><kbd class="key">Ctrl</kbd>+<kbd class="key">C</kbd></kbd> after end.</p>
+<p>N15 <a id="_indexterm_14"></a>Before <kbd class="menuseq"><kbd class="menu"><samp>File</samp></kbd>&#160;<span class="caret">&#8250;</span>&#32;<kbd class="menu"><samp>Open</samp></kbd>&#160;<span class="caret">&#8250;</span>&#32;<kbd class="menu"><samp>Recent</samp></kbd></kbd> after end.</p>
+<p>N16 <a id="_indexterm_15"></a>Before <a href="#target">Target] text</a> after end.</p>
+<p>N17 <a id="_indexterm_16"></a>Before <a href="https://example.org/format"><strong>Bold</strong></a> after end.</p>
+<p>N18 <a id="_indexterm_17"></a>Before <a href="https://outer.example">Outer </a><a href="mailto:inner@example.org">Inner</a><a href="https://outer.example"> tail</a> after end.</p>
+<p>N19 <a id="_indexterm_18"></a>Before indexterm2:[Nested after] end.</p>
+<p>N20 <a id="_indexterm_19"></a>Before <sup class="footnote-ref">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup> after end.</p>
+<p>N21 <a id="_indexterm_20"></a>Before <a href="https://example.org/unicode">café</a> after end.</p>
+<p>N22 <a id="_indexterm_21"></a>Before <a href="https://example.org/bracket">Bracket] label</a> after end.</p>
+<p>N23 <a id="_indexterm_22"></a>Before <a href="https://example.org/multiline">Multiline label</a> after end.</p>
+<p>N24 <a id="_indexterm_23"></a>Before <a href="https://one.example">One</a> and <a href="https://two.example">Two</a> after end.</p>
+<p>N25 <a id="_indexterm_24"></a>Before <strong>Protected</strong> after end.</p>
+<p>N26 <a id="_indexterm_25"></a> end.</p>
+<p>N27 indexterm2:[Before <a href="https://example.org/outer-escape">Link</a> after] end.</p>
+<p>N28 <a id="_indexterm_26"></a>Before unknown:[Literal after] end.</p>
+<p>N29 <a id="_indexterm_27"></a>Before <a href="https://example.org/quoted" class="term">Label, comma</a> after end.</p>
+<p>N30 <a id="_indexterm_28"></a>First <a href="https://example.org/adjacent">Link</a><a id="_indexterm_29"></a>Second.</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_index">Index</h2>
+<h3 class="indexletter">B</h3>
+<dl class="indexterms">
+<dt>Before &lt;&lt;target,Target] text&gt;&gt; after
+ <a href="#_indexterm_15">Synopsis</a></dt>
+<dt>Before <kbd class="keyseq"><kbd class="key">Ctrl</kbd>+<kbd class="key">C</kbd></kbd> after
+ <a href="#_indexterm_13">Synopsis</a></dt>
+<dt>Before <kbd class="menuseq"><kbd class="menu"><samp>File</samp></kbd>&#160;<span class="caret">&#8250;</span>&#32;<kbd class="menu"><samp>Open</samp></kbd>&#160;<span class="caret">&#8250;</span>&#32;<kbd class="menu"><samp>Recent</samp></kbd></kbd> after
+ <a href="#_indexterm_14">Synopsis</a></dt>
+<dt>Before <strong>Protected</strong> after
+ <a href="#_indexterm_24">Synopsis</a></dt>
+<dt>Before <kbd class="button"><samp>Save</samp></kbd> after
+ <a href="#_indexterm_12">Synopsis</a></dt>
+<dt>Before [literal
+ <a href="#_indexterm_5">Synopsis</a></dt>
+<dt>Before [literal] after
+ <a href="#_indexterm_6">Synopsis</a></dt>
+<dt>Before \https://example.org/inactive[Link] after
+ <a href="#_indexterm_9">Synopsis</a></dt>
+<dt>Before anchor:inner[Ref] after
+ <a href="#_indexterm_11">Synopsis</a></dt>
+<dt>Before footnote:one[Only note.] after
+ <a href="#_indexterm_4">Synopsis</a></dt>
+<dt>Before footnote:one[] after
+ <a href="#_indexterm_19">Synopsis</a></dt>
+<dt>Before https://example.org/bracket[Bracket] label] after
+ <a href="#_indexterm_21">Synopsis</a></dt>
+<dt>Before https://example.org/escaped[Link] after
+ <a href="#_indexterm_8">Synopsis</a></dt>
+<dt>Before https://example.org/format[<strong>Bold</strong>] after
+ <a href="#_indexterm_16">Synopsis</a></dt>
+<dt>Before https://example.org/incomplete[Link
+ <a href="#_indexterm_7">Synopsis</a></dt>
+<dt>Before https://example.org/multiline[Multiline label] after
+ <a href="#_indexterm_22">Synopsis</a></dt>
+<dt>Before https://example.org/quoted["Label, comma",role=term] after
+ <a href="#_indexterm_27">Synopsis</a></dt>
+<dt>Before https://example.org/unicode[café] after
+ <a href="#_indexterm_20">Synopsis</a></dt>
+<dt>Before https://example.org/url[Link] after
+ <a href="#_indexterm_0">Synopsis</a></dt>
+<dt>Before https://one.example[One] and https://two.example[Two] after
+ <a href="#_indexterm_23">Synopsis</a></dt>
+<dt>Before https://outer.example[Outer mailto:inner@example.org[Inner] tail] after
+ <a href="#_indexterm_17">Synopsis</a></dt>
+<dt>Before indexterm2:[Nested
+ <a href="#_indexterm_18">Synopsis</a></dt>
+<dt>Before link:https://example.org/link[Link] after
+ <a href="#_indexterm_1">Synopsis</a></dt>
+<dt>Before mailto:user@example.org[Mail] after
+ <a href="#_indexterm_2">Synopsis</a></dt>
+<dt>Before unknown:[Literal
+ <a href="#_indexterm_26">Synopsis</a></dt>
+<dt>Before xref:target[Target] after
+ <a href="#_indexterm_3">Synopsis</a></dt>
+</dl>
+<h3 class="indexletter">C</h3>
+<dl class="indexterms">
+<dt>Category
+</dt>
+<dd>
+<dl class="indexterms-secondary">
+<dt>https://example.org/comma[Link, label]
+</dt>
+<dd>
+<dl class="indexterms-tertiary">
+<dt>Tail
+ <a href="#_indexterm_10">Synopsis</a></dt>
+</dl>
+</dd>
+<dt>https://example.org/unquoted[Link
+</dt>
+<dd>
+<dl class="indexterms-tertiary">
+<dt>label]
+ <a href="#_indexterm_25">Synopsis</a></dt>
+</dl>
+</dd>
+</dl>
+</dd>
+</dl>
+<h3 class="indexletter">F</h3>
+<dl class="indexterms">
+<dt>First https://example.org/adjacent[Link]
+ <a href="#_indexterm_28">Synopsis</a></dt>
+</dl>
+<h3 class="indexletter">S</h3>
+<dl class="indexterms">
+<dt>Second
+ <a href="#_indexterm_29">Synopsis</a></dt>
+</dl>
+</section>
+<section class="footnotes" aria-label="Footnotes" role="doc-endnotes">
+<hr>
+<ol class="footnotes">
+<li class="footnote" id="_footnote_1" role="doc-endnote">
+Only note. <a class="footnote-backref" href="#_footnoteref_1" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+</ol>
+</section>

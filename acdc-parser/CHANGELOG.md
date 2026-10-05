@@ -57,6 +57,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Named index terms retain complete nested macro labels. For example,
+  `indexterm2:[Before https://example.org[Link] after]` keeps the link and the
+  following text inside the index term. Unlike Asciidoctor, an inner closing
+  bracket does not truncate the term or pull following text into the child macro.
+  Anchors and cross-references inside visible terms are also resolved correctly.
+  Literal brackets, comma-separated index levels, and incomplete labels retain
+  their existing rules.
+
 - Constrained formatting around links keeps complete URL, `link:`, `mailto:`
   and cross-reference labels, including nested formatting and macros. Formatting
   markers inside labels no longer close an outer span. Unlike Asciidoctor's

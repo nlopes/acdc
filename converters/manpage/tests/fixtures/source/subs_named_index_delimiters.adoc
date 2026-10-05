@@ -1,0 +1,49 @@
+= named-index-subs(1)
+:doctype: manpage
+:revdate: 2026-10-05
+:source-highlighter: rouge
+:acdc-index:
+:label: https://example.org/attribute[Expanded]
+
+== Name
+named-index-subs - keep index delimiters with enabled substitutions
+
+== Synopsis
+
+[source,text,subs="+macros"]
+----
+S01 indexterm2:[Before https://example.org/code[Link] after] end.
+S02 indexterm2:[Before footnote:code[Code note.] after] end.
+S03 indexterm:[Code,"link:https://example.org/hidden[Hidden, label]",Tail] end.
+----
+
+[source,text,subs="+quotes,+macros"]
+----
+S04 indexterm2:[Before https://example.org/format[*Bold*] after] end.
+----
+
+[source,text]
+----
+S05 indexterm2:[Before https://example.org/disabled[Literal] after] end.
+----
+
+[subs="none"]
+S06 indexterm2:[Before https://example.org/none[Literal] after] end.
+
+[subs="macros,quotes"]
+S07 indexterm2:[Before https://example.org/reordered[*Bold*] after] end.
+
+[subs="attributes,macros"]
+S08 indexterm2:[Before {label} after] end.
+
+[subs="macros,attributes"]
+S09 indexterm2:[Before {label} after] end.
+
+S10 pass:m[indexterm2:[Before https://example.org/pass[Link\] after\]] end.
+
+S11 indexterm2:[Before pass:q[*Protected*] after] end.
+
+After footnote:code[].
+
+[index]
+== Index

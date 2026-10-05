@@ -1,0 +1,1816 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "named-index-subs(1)",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 21
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 6,
+        "col": 47
+      }
+    ]
+  },
+  "attributes": {
+    "acdc-index": true,
+    "doctype": "manpage",
+    "label": "https://example.org/attribute[Expanded]",
+    "manname": "named-index-subs",
+    "manname-title": "Name",
+    "manpurpose": "keep index delimiters with enabled substitutions",
+    "mantitle": "named-index-subs",
+    "manvolnum": "1",
+    "revdate": "2026-10-05",
+    "source-highlighter": "rouge"
+  },
+  "blocks": [
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Name",
+          "location": [
+            {
+              "line": 8,
+              "col": 4
+            },
+            {
+              "line": 8,
+              "col": 7
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "named-index-subs - keep index delimiters with enabled substitutions",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 1
+                },
+                {
+                  "line": 9,
+                  "col": 67
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 9,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 67
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 8,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 67
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Synopsis",
+          "location": [
+            {
+              "line": 11,
+              "col": 4
+            },
+            {
+              "line": 11,
+              "col": 11
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "listing",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "----",
+          "metadata": {
+            "attributes": {
+              "language": "text"
+            },
+            "style": "source",
+            "substitutions": [
+              "+macros"
+            ]
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "S01 ",
+              "location": [
+                {
+                  "line": 15,
+                  "col": 1
+                },
+                {
+                  "line": 15,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "indexterm",
+              "type": "inline",
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Before ",
+                  "location": [
+                    {
+                      "line": 15,
+                      "col": 17
+                    },
+                    {
+                      "line": 15,
+                      "col": 23
+                    }
+                  ]
+                },
+                {
+                  "name": "ref",
+                  "type": "inline",
+                  "variant": "link",
+                  "target": {
+                    "type": "url",
+                    "value": "https://example.org/code"
+                  },
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Link",
+                      "location": [
+                        {
+                          "line": 15,
+                          "col": 49
+                        },
+                        {
+                          "line": 15,
+                          "col": 52
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 15,
+                      "col": 24
+                    },
+                    {
+                      "line": 15,
+                      "col": 53
+                    }
+                  ],
+                  "attributes": {}
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": " after",
+                  "location": [
+                    {
+                      "line": 15,
+                      "col": 54
+                    },
+                    {
+                      "line": 15,
+                      "col": 59
+                    }
+                  ]
+                }
+              ],
+              "catalog": {
+                "kind": {
+                  "Flow": [
+                    {
+                      "name": "raw",
+                      "type": "string",
+                      "value": "Before https://example.org/code[Link] after",
+                      "location": [
+                        {
+                          "line": 15,
+                          "col": 17
+                        },
+                        {
+                          "line": 15,
+                          "col": 59
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "location": [
+                  {
+                    "line": 15,
+                    "col": 5
+                  },
+                  {
+                    "line": 15,
+                    "col": 60
+                  }
+                ]
+              },
+              "visible": true,
+              "location": [
+                {
+                  "line": 15,
+                  "col": 5
+                },
+                {
+                  "line": 15,
+                  "col": 60
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " end.\nS02 ",
+              "location": [
+                {
+                  "line": 15,
+                  "col": 61
+                },
+                {
+                  "line": 16,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "indexterm",
+              "type": "inline",
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Before ",
+                  "location": [
+                    {
+                      "line": 16,
+                      "col": 17
+                    },
+                    {
+                      "line": 16,
+                      "col": 23
+                    }
+                  ]
+                },
+                {
+                  "name": "footnote",
+                  "type": "inline",
+                  "id": "code",
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Code note.",
+                      "location": [
+                        {
+                          "line": 16,
+                          "col": 38
+                        },
+                        {
+                          "line": 16,
+                          "col": 47
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 16,
+                      "col": 24
+                    },
+                    {
+                      "line": 16,
+                      "col": 48
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": " after",
+                  "location": [
+                    {
+                      "line": 16,
+                      "col": 49
+                    },
+                    {
+                      "line": 16,
+                      "col": 54
+                    }
+                  ]
+                }
+              ],
+              "catalog": {
+                "kind": {
+                  "Flow": [
+                    {
+                      "name": "raw",
+                      "type": "string",
+                      "value": "Before footnote:code[Code note.] after",
+                      "location": [
+                        {
+                          "line": 16,
+                          "col": 17
+                        },
+                        {
+                          "line": 16,
+                          "col": 54
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "location": [
+                  {
+                    "line": 16,
+                    "col": 5
+                  },
+                  {
+                    "line": 16,
+                    "col": 55
+                  }
+                ]
+              },
+              "visible": true,
+              "location": [
+                {
+                  "line": 16,
+                  "col": 5
+                },
+                {
+                  "line": 16,
+                  "col": 55
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " end.\nS03 ",
+              "location": [
+                {
+                  "line": 16,
+                  "col": 56
+                },
+                {
+                  "line": 17,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "indexterm",
+              "type": "inline",
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Code",
+                  "location": [
+                    {
+                      "line": 17,
+                      "col": 16
+                    },
+                    {
+                      "line": 17,
+                      "col": 19
+                    }
+                  ]
+                }
+              ],
+              "secondary": [
+                {
+                  "name": "ref",
+                  "type": "inline",
+                  "variant": "link",
+                  "target": {
+                    "type": "url",
+                    "value": "https://example.org/hidden"
+                  },
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Hidden, label",
+                      "location": [
+                        {
+                          "line": 17,
+                          "col": 54
+                        },
+                        {
+                          "line": 17,
+                          "col": 66
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 17,
+                      "col": 22
+                    },
+                    {
+                      "line": 17,
+                      "col": 67
+                    }
+                  ],
+                  "attributes": {}
+                }
+              ],
+              "tertiary": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Tail",
+                  "location": [
+                    {
+                      "line": 17,
+                      "col": 70
+                    },
+                    {
+                      "line": 17,
+                      "col": 73
+                    }
+                  ]
+                }
+              ],
+              "catalog": {
+                "kind": {
+                  "Concealed": {
+                    "term": [
+                      {
+                        "name": "raw",
+                        "type": "string",
+                        "value": "Code",
+                        "location": [
+                          {
+                            "line": 17,
+                            "col": 16
+                          },
+                          {
+                            "line": 17,
+                            "col": 19
+                          }
+                        ]
+                      }
+                    ],
+                    "secondary": [
+                      {
+                        "name": "raw",
+                        "type": "string",
+                        "value": "link:https://example.org/hidden[Hidden, label]",
+                        "location": [
+                          {
+                            "line": 17,
+                            "col": 22
+                          },
+                          {
+                            "line": 17,
+                            "col": 67
+                          }
+                        ]
+                      }
+                    ],
+                    "tertiary": [
+                      {
+                        "name": "raw",
+                        "type": "string",
+                        "value": "Tail",
+                        "location": [
+                          {
+                            "line": 17,
+                            "col": 70
+                          },
+                          {
+                            "line": 17,
+                            "col": 73
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                },
+                "location": [
+                  {
+                    "line": 17,
+                    "col": 5
+                  },
+                  {
+                    "line": 17,
+                    "col": 74
+                  }
+                ]
+              },
+              "visible": false,
+              "location": [
+                {
+                  "line": 17,
+                  "col": 5
+                },
+                {
+                  "line": 17,
+                  "col": 74
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " end.",
+              "location": [
+                {
+                  "line": 17,
+                  "col": 75
+                },
+                {
+                  "line": 17,
+                  "col": 79
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 13,
+              "col": 1
+            },
+            {
+              "line": 18,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "listing",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "----",
+          "metadata": {
+            "attributes": {
+              "language": "text"
+            },
+            "style": "source",
+            "substitutions": [
+              "+quotes",
+              "+macros"
+            ]
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "S04 ",
+              "location": [
+                {
+                  "line": 22,
+                  "col": 1
+                },
+                {
+                  "line": 22,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "indexterm",
+              "type": "inline",
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Before ",
+                  "location": [
+                    {
+                      "line": 22,
+                      "col": 17
+                    },
+                    {
+                      "line": 22,
+                      "col": 23
+                    }
+                  ]
+                },
+                {
+                  "name": "ref",
+                  "type": "inline",
+                  "variant": "link",
+                  "target": {
+                    "type": "url",
+                    "value": "https://example.org/format"
+                  },
+                  "inlines": [
+                    {
+                      "name": "span",
+                      "type": "inline",
+                      "variant": "strong",
+                      "form": "constrained",
+                      "inlines": [
+                        {
+                          "name": "text",
+                          "type": "string",
+                          "value": "Bold",
+                          "location": [
+                            {
+                              "line": 22,
+                              "col": 52
+                            },
+                            {
+                              "line": 22,
+                              "col": 55
+                            }
+                          ]
+                        }
+                      ],
+                      "location": [
+                        {
+                          "line": 22,
+                          "col": 51
+                        },
+                        {
+                          "line": 22,
+                          "col": 56
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 22,
+                      "col": 24
+                    },
+                    {
+                      "line": 22,
+                      "col": 57
+                    }
+                  ],
+                  "attributes": {}
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": " after",
+                  "location": [
+                    {
+                      "line": 22,
+                      "col": 58
+                    },
+                    {
+                      "line": 22,
+                      "col": 63
+                    }
+                  ]
+                }
+              ],
+              "catalog": {
+                "kind": {
+                  "Flow": [
+                    {
+                      "name": "raw",
+                      "type": "string",
+                      "value": "Before https://example.org/format[",
+                      "location": [
+                        {
+                          "line": 22,
+                          "col": 17
+                        },
+                        {
+                          "line": 22,
+                          "col": 50
+                        }
+                      ]
+                    },
+                    {
+                      "name": "span",
+                      "type": "inline",
+                      "variant": "strong",
+                      "form": "constrained",
+                      "inlines": [
+                        {
+                          "name": "raw",
+                          "type": "string",
+                          "value": "Bold",
+                          "location": [
+                            {
+                              "line": 22,
+                              "col": 52
+                            },
+                            {
+                              "line": 22,
+                              "col": 55
+                            }
+                          ]
+                        }
+                      ],
+                      "location": [
+                        {
+                          "line": 22,
+                          "col": 51
+                        },
+                        {
+                          "line": 22,
+                          "col": 56
+                        }
+                      ]
+                    },
+                    {
+                      "name": "raw",
+                      "type": "string",
+                      "value": "] after",
+                      "location": [
+                        {
+                          "line": 22,
+                          "col": 57
+                        },
+                        {
+                          "line": 22,
+                          "col": 63
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "location": [
+                  {
+                    "line": 22,
+                    "col": 5
+                  },
+                  {
+                    "line": 22,
+                    "col": 64
+                  }
+                ]
+              },
+              "visible": true,
+              "location": [
+                {
+                  "line": 22,
+                  "col": 5
+                },
+                {
+                  "line": 22,
+                  "col": 64
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " end.",
+              "location": [
+                {
+                  "line": 22,
+                  "col": 65
+                },
+                {
+                  "line": 22,
+                  "col": 69
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 20,
+              "col": 1
+            },
+            {
+              "line": 23,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "listing",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "----",
+          "metadata": {
+            "attributes": {
+              "language": "text"
+            },
+            "style": "source"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "S05 indexterm2:[Before https://example.org/disabled[Literal] after] end.",
+              "location": [
+                {
+                  "line": 27,
+                  "col": 1
+                },
+                {
+                  "line": 27,
+                  "col": 72
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 25,
+              "col": 1
+            },
+            {
+              "line": 28,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "S06 indexterm2:[Before https://example.org/none[Literal] after] end.",
+              "location": [
+                {
+                  "line": 31,
+                  "col": 1
+                },
+                {
+                  "line": 31,
+                  "col": 68
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": []
+          },
+          "location": [
+            {
+              "line": 30,
+              "col": 1
+            },
+            {
+              "line": 31,
+              "col": 68
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "S07 ",
+              "location": [
+                {
+                  "line": 34,
+                  "col": 1
+                },
+                {
+                  "line": 34,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "indexterm",
+              "type": "inline",
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Before ",
+                  "location": [
+                    {
+                      "line": 34,
+                      "col": 17
+                    },
+                    {
+                      "line": 34,
+                      "col": 23
+                    }
+                  ]
+                },
+                {
+                  "name": "ref",
+                  "type": "inline",
+                  "variant": "link",
+                  "target": {
+                    "type": "url",
+                    "value": "https://example.org/reordered"
+                  },
+                  "inlines": [
+                    {
+                      "name": "span",
+                      "type": "inline",
+                      "variant": "strong",
+                      "form": "constrained",
+                      "inlines": [
+                        {
+                          "name": "text",
+                          "type": "string",
+                          "value": "Bold",
+                          "location": [
+                            {
+                              "line": 34,
+                              "col": 55
+                            },
+                            {
+                              "line": 34,
+                              "col": 58
+                            }
+                          ]
+                        }
+                      ],
+                      "location": [
+                        {
+                          "line": 34,
+                          "col": 54
+                        },
+                        {
+                          "line": 34,
+                          "col": 59
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 34,
+                      "col": 24
+                    },
+                    {
+                      "line": 34,
+                      "col": 60
+                    }
+                  ],
+                  "attributes": {}
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": " after",
+                  "location": [
+                    {
+                      "line": 34,
+                      "col": 61
+                    },
+                    {
+                      "line": 34,
+                      "col": 66
+                    }
+                  ]
+                }
+              ],
+              "catalog": {
+                "kind": {
+                  "Flow": [
+                    {
+                      "name": "raw",
+                      "type": "string",
+                      "value": "Before https://example.org/reordered[*Bold*] after",
+                      "location": [
+                        {
+                          "line": 34,
+                          "col": 17
+                        },
+                        {
+                          "line": 34,
+                          "col": 66
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "location": [
+                  {
+                    "line": 34,
+                    "col": 5
+                  },
+                  {
+                    "line": 34,
+                    "col": 67
+                  }
+                ]
+              },
+              "visible": true,
+              "location": [
+                {
+                  "line": 34,
+                  "col": 5
+                },
+                {
+                  "line": 34,
+                  "col": 67
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " end.",
+              "location": [
+                {
+                  "line": 34,
+                  "col": 68
+                },
+                {
+                  "line": 34,
+                  "col": 72
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "macros",
+              "quotes"
+            ]
+          },
+          "location": [
+            {
+              "line": 33,
+              "col": 1
+            },
+            {
+              "line": 34,
+              "col": 72
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "S08 ",
+              "location": [
+                {
+                  "line": 37,
+                  "col": 1
+                },
+                {
+                  "line": 37,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "indexterm",
+              "type": "inline",
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Before ",
+                  "location": [
+                    {
+                      "line": 37,
+                      "col": 17
+                    },
+                    {
+                      "line": 37,
+                      "col": 23
+                    }
+                  ]
+                },
+                {
+                  "name": "ref",
+                  "type": "inline",
+                  "variant": "link",
+                  "target": {
+                    "type": "url",
+                    "value": "https://example.org/attribute"
+                  },
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Expanded",
+                      "location": [
+                        {
+                          "line": 37,
+                          "col": 24
+                        },
+                        {
+                          "line": 37,
+                          "col": 30
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 37,
+                      "col": 24
+                    },
+                    {
+                      "line": 37,
+                      "col": 30
+                    }
+                  ],
+                  "attributes": {}
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": " after",
+                  "location": [
+                    {
+                      "line": 37,
+                      "col": 31
+                    },
+                    {
+                      "line": 37,
+                      "col": 36
+                    }
+                  ]
+                }
+              ],
+              "catalog": {
+                "kind": {
+                  "Flow": [
+                    {
+                      "name": "raw",
+                      "type": "string",
+                      "value": "Before https://example.org/attribute[Expanded] after",
+                      "location": [
+                        {
+                          "line": 37,
+                          "col": 17
+                        },
+                        {
+                          "line": 37,
+                          "col": 36
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "location": [
+                  {
+                    "line": 37,
+                    "col": 5
+                  },
+                  {
+                    "line": 37,
+                    "col": 37
+                  }
+                ]
+              },
+              "visible": true,
+              "location": [
+                {
+                  "line": 37,
+                  "col": 5
+                },
+                {
+                  "line": 37,
+                  "col": 37
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " end.",
+              "location": [
+                {
+                  "line": 37,
+                  "col": 38
+                },
+                {
+                  "line": 37,
+                  "col": 42
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "attributes",
+              "macros"
+            ]
+          },
+          "location": [
+            {
+              "line": 36,
+              "col": 1
+            },
+            {
+              "line": 37,
+              "col": 42
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "S09 ",
+              "location": [
+                {
+                  "line": 40,
+                  "col": 1
+                },
+                {
+                  "line": 40,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "indexterm",
+              "type": "inline",
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Before https://example.org/attribute[Expanded] after",
+                  "location": [
+                    {
+                      "line": 40,
+                      "col": 17
+                    },
+                    {
+                      "line": 40,
+                      "col": 36
+                    }
+                  ]
+                }
+              ],
+              "catalog": {
+                "kind": {
+                  "Flow": [
+                    {
+                      "name": "raw",
+                      "type": "string",
+                      "value": "Before {label} after",
+                      "location": [
+                        {
+                          "line": 40,
+                          "col": 17
+                        },
+                        {
+                          "line": 40,
+                          "col": 36
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "location": [
+                  {
+                    "line": 40,
+                    "col": 5
+                  },
+                  {
+                    "line": 40,
+                    "col": 37
+                  }
+                ]
+              },
+              "visible": true,
+              "location": [
+                {
+                  "line": 40,
+                  "col": 5
+                },
+                {
+                  "line": 40,
+                  "col": 37
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " end.",
+              "location": [
+                {
+                  "line": 40,
+                  "col": 38
+                },
+                {
+                  "line": 40,
+                  "col": 42
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "macros",
+              "attributes"
+            ]
+          },
+          "location": [
+            {
+              "line": 39,
+              "col": 1
+            },
+            {
+              "line": 40,
+              "col": 42
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "S10 ",
+              "location": [
+                {
+                  "line": 42,
+                  "col": 1
+                },
+                {
+                  "line": 42,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "indexterm",
+              "type": "inline",
+              "term": [
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "Before ",
+                  "location": [
+                    {
+                      "line": 42,
+                      "col": 24
+                    },
+                    {
+                      "line": 42,
+                      "col": 30
+                    }
+                  ]
+                },
+                {
+                  "name": "ref",
+                  "type": "inline",
+                  "variant": "link",
+                  "target": {
+                    "type": "url",
+                    "value": "https://example.org/pass"
+                  },
+                  "inlines": [
+                    {
+                      "name": "raw",
+                      "type": "string",
+                      "value": "Link",
+                      "location": [
+                        {
+                          "line": 42,
+                          "col": 56
+                        },
+                        {
+                          "line": 42,
+                          "col": 59
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 42,
+                      "col": 31
+                    },
+                    {
+                      "line": 42,
+                      "col": 61
+                    }
+                  ],
+                  "attributes": {}
+                },
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": " after",
+                  "location": [
+                    {
+                      "line": 42,
+                      "col": 62
+                    },
+                    {
+                      "line": 42,
+                      "col": 67
+                    }
+                  ]
+                }
+              ],
+              "catalog": {
+                "kind": {
+                  "Flow": [
+                    {
+                      "name": "raw",
+                      "type": "string",
+                      "value": "Before https://example.org/pass[Link",
+                      "location": [
+                        {
+                          "line": 42,
+                          "col": 24
+                        },
+                        {
+                          "line": 42,
+                          "col": 59
+                        }
+                      ]
+                    },
+                    {
+                      "name": "raw",
+                      "type": "string",
+                      "value": "]",
+                      "location": [
+                        {
+                          "line": 42,
+                          "col": 60
+                        },
+                        {
+                          "line": 42,
+                          "col": 61
+                        }
+                      ]
+                    },
+                    {
+                      "name": "raw",
+                      "type": "string",
+                      "value": " after",
+                      "location": [
+                        {
+                          "line": 42,
+                          "col": 62
+                        },
+                        {
+                          "line": 42,
+                          "col": 67
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "location": [
+                  {
+                    "line": 42,
+                    "col": 12
+                  },
+                  {
+                    "line": 42,
+                    "col": 69
+                  }
+                ]
+              },
+              "visible": true,
+              "location": [
+                {
+                  "line": 42,
+                  "col": 12
+                },
+                {
+                  "line": 42,
+                  "col": 69
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " end.",
+              "location": [
+                {
+                  "line": 42,
+                  "col": 71
+                },
+                {
+                  "line": 42,
+                  "col": 75
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 42,
+              "col": 1
+            },
+            {
+              "line": 42,
+              "col": 75
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "S11 ",
+              "location": [
+                {
+                  "line": 44,
+                  "col": 1
+                },
+                {
+                  "line": 44,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "indexterm",
+              "type": "inline",
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Before ",
+                  "location": [
+                    {
+                      "line": 44,
+                      "col": 17
+                    },
+                    {
+                      "line": 44,
+                      "col": 23
+                    }
+                  ]
+                },
+                {
+                  "name": "span",
+                  "type": "inline",
+                  "variant": "strong",
+                  "form": "constrained",
+                  "inlines": [
+                    {
+                      "name": "raw",
+                      "type": "string",
+                      "value": "Protected",
+                      "location": [
+                        {
+                          "line": 44,
+                          "col": 32
+                        },
+                        {
+                          "line": 44,
+                          "col": 40
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 44,
+                      "col": 31
+                    },
+                    {
+                      "line": 44,
+                      "col": 41
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": " after",
+                  "location": [
+                    {
+                      "line": 44,
+                      "col": 43
+                    },
+                    {
+                      "line": 44,
+                      "col": 48
+                    }
+                  ]
+                }
+              ],
+              "visible": true,
+              "location": [
+                {
+                  "line": 44,
+                  "col": 5
+                },
+                {
+                  "line": 44,
+                  "col": 49
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " end.",
+              "location": [
+                {
+                  "line": 44,
+                  "col": 50
+                },
+                {
+                  "line": 44,
+                  "col": 54
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 44,
+              "col": 1
+            },
+            {
+              "line": 44,
+              "col": 54
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "After ",
+              "location": [
+                {
+                  "line": 46,
+                  "col": 1
+                },
+                {
+                  "line": 46,
+                  "col": 6
+                }
+              ]
+            },
+            {
+              "name": "footnote",
+              "type": "inline",
+              "id": "code",
+              "inlines": [],
+              "location": [
+                {
+                  "line": 46,
+                  "col": 7
+                },
+                {
+                  "line": 46,
+                  "col": 21
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 46,
+                  "col": 22
+                },
+                {
+                  "line": 46,
+                  "col": 22
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 46,
+              "col": 1
+            },
+            {
+              "line": 46,
+              "col": 22
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 11,
+          "col": 1
+        },
+        {
+          "line": 46,
+          "col": 22
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Index",
+          "location": [
+            {
+              "line": 49,
+              "col": 4
+            },
+            {
+              "line": 49,
+              "col": 8
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "metadata": {
+        "style": "index"
+      },
+      "location": [
+        {
+          "line": 48,
+          "col": 1
+        },
+        {
+          "line": 49,
+          "col": 8
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 49,
+      "col": 8
+    }
+  ]
+}

@@ -2111,6 +2111,11 @@ fn collect_inline_references<'a>(
             InlineNode::Macro(InlineMacro::Footnote(footnote)) => {
                 collect_inline_references(state, &footnote.content, refs, xrefs);
             }
+            InlineNode::Macro(InlineMacro::IndexTerm(term)) if term.is_visible() => {
+                // Only the displayed label owns document targets; the catalog
+                // copy and concealed labels must not register them again.
+                collect_inline_references(state, term.term(), refs, xrefs);
+            }
             InlineNode::Macro(InlineMacro::Link(link)) => collect_link_references(
                 state,
                 &link.attributes,

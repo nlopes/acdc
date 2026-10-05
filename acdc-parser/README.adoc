@@ -167,6 +167,32 @@ cannot consume spaces, escapes, or dash halves from another profile. For example
 `prefix indexterm2:[pass:r[--]] tail` retains `--`; Asciidoctor converts the
 isolated passthrough to a spaced em dash before inserting it.
 
+== Nested macros in index labels
+
+Named index terms keep complete nested macros inside the label:
+
+[source,asciidoc]
+----
+indexterm2:[Before https://example.org[Link] after]
+indexterm:[Category,"https://example.org[Link, label]",Tail]
+----
+
+The first term displays `Before Link after`, with only `Link` linked. The second
+keeps all three concealed index levels. Commas still separate levels, so quote
+the whole level when a nested macro contains a comma. Registration-time catalog
+text retains its existing substitution rules; recognizing delimiters does not
+register nested notes or anchors a second time.
+
+This deliberately differs from Asciidoctor, which can close the index term at
+the child's closing bracket and then absorb following text into the child.
+acdc uses complete source delimiters under its selected SDR-5 separation of
+parsing and conversion; SDR-5 does not prescribe this exact ownership policy.
+Literal brackets and nested index terms do not establish a child boundary.
+If protecting a child leaves no closing bracket for the outer term, acdc keeps
+the legacy delimiter interpretation. Escaping a child's closing bracket still
+follows the existing literal-bracket rules; use complete unescaped child macros
+for nesting.
+
 == Formatting across link labels
 
 Constrained bold, italic, monospace and highlight spans keep complete links

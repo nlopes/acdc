@@ -1809,11 +1809,19 @@ peg::parser! {
         }
 
         rule index_term_macro_content() -> IndexTermSegment<'input>
-        = "[" start:position!() content:$(("\\]" / !index_term_macro_close() [_])*) index_term_macro_close() {?
+        = "[" start:position!() content:index_term_macro_body() {?
             index_content_present(state, start, content)
                 .then_some(IndexTermSegment { text: content, start })
                 .ok_or("empty index term")
         }
+
+        // Complete child macros own their delimiters. If no outer close remains,
+        // preserve the legacy interpretation, including escaped child brackets.
+        // Index terms themselves stay disabled inside an index label.
+        rule index_term_macro_body() -> &'input str
+        = content:$(("\\]" / formatting_link_match() / bracket_label_macro_match()
+            / !index_term_macro_close() [_])*) index_term_macro_close() { content }
+        / content:$(("\\]" / !index_term_macro_close() [_])*) index_term_macro_close() { content }
 
         rule index_term_macro_close() = start:position!() "]" check_index_token(start, 1)
 
@@ -2439,10 +2447,11 @@ peg::parser! {
 
         rule cross_reference_macro_text_part()
         = "\\]"
-        / protected_cross_reference_text_macro()
+        / &['i'] check_macros() check_index_terms() index_term_match()
+        / bracket_label_macro_match()
         / !"]" [_]
 
-        rule protected_cross_reference_text_macro()
+        rule bracket_label_macro_match()
         = &['p'] inline_pass_match()
         / check_macros() (
             &['[' | 'a'] inline_anchor_match()
@@ -2451,8 +2460,7 @@ peg::parser! {
             / &['f'] footnote_match() {}
             / &['f' | 'h'] url_macro_match()
             / &['i'] (
-                (check_index_terms() index_term_match())
-                / inline_image_match()
+                inline_image_match()
                 / inline_icon_match()
                 / url_macro_match()
             )

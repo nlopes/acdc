@@ -12,6 +12,20 @@ use acdc_converters_pdf::{PdfOptions, Processor};
 type Error = Box<dyn std::error::Error>;
 
 #[test]
+fn named_index_delimiters_keep_pdf_annotations_and_one_note() -> Result<(), Error> {
+    let source = "= Index labels\n\nindexterm2:[Before https://example.org[Link] footnote:one[Only note.] anchor:inner[] after].\n\nReuse footnote:one[] and <<inner,Inner>>.\n\n<<<\n\n[index]\n== Index\n";
+    let parsed = parse(source, &Options::default())?;
+    assert_eq!(parsed.document().footnotes.len(), 1);
+    let pdf = render_parsed(&parsed)?;
+    assert_eq!(pdf.extract_text(&[1])?.matches("Only note.").count(), 1);
+    let links = external_link_rects(&pdf, 1)?;
+    assert!(links.iter().any(|(uri, _)| uri == "https://example.org"));
+    assert!(named_destinations(&pdf)?.contains_key("inner"));
+    assert!(internal_link_pages(&pdf, 2)?.contains(&1));
+    Ok(())
+}
+
+#[test]
 fn link_formatting_boundaries_keep_pdf_links_and_one_note() -> Result<(), Error> {
     let source = "= Links\n\n*Before https://outer.example[*Bold mailto:inner@example.org[Inner] footnote:one[Only note.] tail* after] end*.\n\nReuse footnote:one[].\n";
     let parsed = parse(source, &Options::default())?;

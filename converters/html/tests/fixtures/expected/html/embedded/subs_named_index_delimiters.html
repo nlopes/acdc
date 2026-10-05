@@ -1,0 +1,97 @@
+<div class="sect1">
+<h2 id="_name">Name</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>named-index-subs - keep index delimiters with enabled substitutions</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_synopsis">Synopsis</h2>
+<div class="sectionbody">
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text"><span style="color:#323232;">S01 <a id="_indexterm_0"></a>Before <a href="https://example.org/code">Link</a> after end.
+</span><span style="color:#323232;">S02 <a id="_indexterm_1"></a>Before <sup class="footnote" id="_footnote_code">[<a id="_footnoteref_1" class="footnote" href="#_footnotedef_1" title="View footnote.">1</a>]</sup> after end.
+<a id="_indexterm_2"></a></span><span style="color:#323232;">S03  end.</span></code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text"><span style="color:#323232;">S04 <a id="_indexterm_3"></a>Before <a href="https://example.org/format"><strong>Bold</strong></a> after end.</span></code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text"><span style="color:#323232;">S05 indexterm2:[Before https://example.org/disabled[Literal] after] end.</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>S06 indexterm2:[Before https://example.org/none[Literal] after] end.</p>
+</div>
+<div class="paragraph">
+<p>S07 <a id="_indexterm_4"></a>Before <a href="https://example.org/reordered"><strong>Bold</strong></a> after end.</p>
+</div>
+<div class="paragraph">
+<p>S08 <a id="_indexterm_5"></a>Before <a href="https://example.org/attribute">Expanded</a> after end.</p>
+</div>
+<div class="paragraph">
+<p>S09 <a id="_indexterm_6"></a>Before https://example.org/attribute[Expanded] after end.</p>
+</div>
+<div class="paragraph">
+<p>S10 <a id="_indexterm_7"></a>Before <a href="https://example.org/pass">Link</a> after end.</p>
+</div>
+<div class="paragraph">
+<p>S11 <a id="_indexterm_8"></a>Before <strong>Protected</strong> after end.</p>
+</div>
+<div class="paragraph">
+<p>After <sup class="footnoteref">[<a class="footnote" href="#_footnotedef_1" title="View footnote.">1</a>]</sup>.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_index">Index</h2>
+<div class="sectionbody">
+<h3 class="indexletter">B</h3>
+<dl class="indexterms">
+<dt>Before <strong>Protected</strong> after
+ <a href="#_indexterm_8">Synopsis</a></dt>
+<dt>Before footnote:code[Code note.] after
+ <a href="#_indexterm_1">Synopsis</a></dt>
+<dt>Before https://example.org/attribute[Expanded] after
+ <a href="#_indexterm_5">Synopsis</a></dt>
+<dt>Before https://example.org/code[Link] after
+ <a href="#_indexterm_0">Synopsis</a></dt>
+<dt>Before https://example.org/format[<strong>Bold</strong>] after
+ <a href="#_indexterm_3">Synopsis</a></dt>
+<dt>Before https://example.org/pass[Link] after
+ <a href="#_indexterm_7">Synopsis</a></dt>
+<dt>Before https://example.org/reordered[*Bold*] after
+ <a href="#_indexterm_4">Synopsis</a></dt>
+<dt>Before {label} after
+ <a href="#_indexterm_6">Synopsis</a></dt>
+</dl>
+<h3 class="indexletter">C</h3>
+<dl class="indexterms">
+<dt>Code
+</dt>
+<dd>
+<dl class="indexterms-secondary">
+<dt>link:https://example.org/hidden[Hidden, label]
+</dt>
+<dd>
+<dl class="indexterms-tertiary">
+<dt>Tail
+ <a href="#_indexterm_2">Synopsis</a></dt>
+</dl>
+</dd>
+</dl>
+</dd>
+</dl>
+</div>
+</div>
+<div id="footnotes">
+<hr>
+<div class="footnote" id="_footnotedef_1">
+<a href="#_footnoteref_1">1</a>. Code note.</div>
+</div>
