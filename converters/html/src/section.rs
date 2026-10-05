@@ -6,7 +6,7 @@ use acdc_converters_core::{
         appendix_number_prefix, book_chapter_signifier, effective_section_level,
         part_number_prefix, section_number_prefix,
     },
-    visitor::{Visitor, WritableVisitor},
+    visitor::WritableVisitor,
 };
 use acdc_parser::{DiscreteHeader, Section, SectionKind};
 
@@ -93,7 +93,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             }
         }
 
-        self.visit_inline_nodes(traversal, &section.title)?;
+        self.visit_title(traversal, &section.title)?;
         writeln!(self.writer, "</h{heading_level}>")?;
 
         // sect1 (or appendix demoted to sect1) gets a sectionbody wrapper in standard mode
@@ -133,10 +133,10 @@ fn string_attribute<'a>(attributes: &'a TraversalContext<'_>, name: &str) -> Opt
     attributes.get(name).and_then(|value| value.text())
 }
 
-pub(crate) fn visit_discrete_header<'a, V: WritableVisitor<'a, Error = Error>>(
+pub(crate) fn visit_discrete_header<'a, W: Write>(
     traversal: &mut TraversalContext<'a>,
     header: &DiscreteHeader,
-    visitor: &mut V,
+    visitor: &mut HtmlVisitor<'a, '_, W>,
 ) -> Result<(), Error> {
     let level = header.level + 1; // Level 1 = h2
     let id = Section::generate_id_string(&header.metadata, &header.title);
@@ -156,7 +156,7 @@ pub(crate) fn visit_discrete_header<'a, V: WritableVisitor<'a, Error = Error>>(
         write!(w, "<h{level} id=\"{id}\">")?;
     }
     let _ = w;
-    visitor.visit_inline_nodes(traversal, &header.title)?;
+    visitor.visit_title(traversal, &header.title)?;
     w = visitor.writer_mut();
     writeln!(w, "</h{level}>")?;
     Ok(())

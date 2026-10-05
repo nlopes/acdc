@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Titles use normal substitutions independently of their block's `subs=`
+  settings, matching Asciidoctor PDF. This restores typography such as `(C)` →
+  `©` above literal, listing and verse content, including inside table cells.
+  Title footnotes also retain their typography when body substitutions are
+  disabled; body settings and inline passthroughs remain in effect.
+
 - Cross-references and TOC copies of titles containing footnotes display the
   existing note number without creating another PDF footnote or duplicate named
   label. Titled paragraphs with named notes can now compile when referenced.

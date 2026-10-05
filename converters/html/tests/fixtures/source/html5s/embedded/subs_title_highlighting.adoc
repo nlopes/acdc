@@ -1,0 +1,30 @@
+= title-code(1)
+:doctype: manpage
+:revdate: 2026-10-05
+:source-highlighter: rouge
+
+== Name
+
+title-code - titles above highlighted code
+
+== Synopsis
+
+.H01 Default title *bold* (C) and \*literal*
+[source,rust]
+----
+let default = "(C)";
+----
+
+.H02 Disabled title (R) and pass:[(TM)]
+[source,rust,subs="-replacements"]
+----
+let disabled = "(R)";
+----
+
+.H03 Enabled title (TM)
+[source,rust,subs="+replacements"]
+----
+let enabled = "(TM)";
+----
+
+H04 Following prose (C).

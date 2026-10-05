@@ -259,6 +259,20 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
         }
     }
 
+    pub(crate) fn visit_title(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        title: &[InlineNode],
+    ) -> Result<(), Error> {
+        // Titles use normal substitutions, including above a verbatim or subs=none body.
+        let previous_subs = std::mem::replace(&mut self.current_subs, NORMAL.to_vec());
+        let previous_verbatim = std::mem::replace(&mut self.render_options.inlines_verbatim, false);
+        let result = self.visit_inline_nodes(traversal, title);
+        self.render_options.inlines_verbatim = previous_verbatim;
+        self.current_subs = previous_subs;
+        result
+    }
+
     pub(crate) fn render_captioned_title_with_wrapper(
         &mut self,
         traversal: &mut TraversalContext<'a>,
@@ -852,10 +866,10 @@ impl<'a, W: Write> Visitor<'a> for HtmlVisitor<'a, '_, W> {
         }
         if !header.title.is_empty() {
             write!(self.writer, "<h1>")?;
-            self.visit_inline_nodes(traversal, &header.title)?;
+            self.visit_title(traversal, &header.title)?;
             if let Some(subtitle) = &header.subtitle {
                 write!(self.writer, ": ")?;
-                self.visit_inline_nodes(traversal, subtitle)?;
+                self.visit_title(traversal, subtitle)?;
             }
             writeln!(self.writer, "</h1>")?;
             // Output details div if there are authors or revision info
@@ -1244,5 +1258,21 @@ impl<'a, W: Write> Visitor<'a> for HtmlVisitor<'a, '_, W> {
 impl<'a, W: Write> WritableVisitor<'a> for HtmlVisitor<'a, '_, W> {
     fn writer_mut(&mut self) -> &mut dyn Write {
         &mut self.writer
+    }
+
+    fn render_title_with_wrapper(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        title: &[InlineNode],
+        prefix: &str,
+        suffix: &str,
+    ) -> Result<(), Error> {
+        if title.is_empty() {
+            return Ok(());
+        }
+        write!(self.writer, "{prefix}")?;
+        self.visit_title(traversal, title)?;
+        write!(self.writer, "{suffix}")?;
+        Ok(())
     }
 }

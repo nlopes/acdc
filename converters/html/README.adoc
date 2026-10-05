@@ -587,6 +587,11 @@ Verbatim blocks (listing, literal) support the `subs` attribute:
 - `subs=+attributes` - enable attribute expansion
 - `subs=+replacements` - enable typography (arrows, dashes, ellipsis)
 
+Titles use normal substitutions independently of the block body, matching
+Asciidoctor. For example, `.Title (C)` renders as `Title ©` even when the body
+uses `subs="none"`. This also applies above code and inside AsciiDoc table
+cells. Use an inline passthrough such as `pass:[(C)]` to keep title text literal.
+
 Enabled typography also applies before syntax highlighting, retaining token colors
 and enabled links. Formatting backslashes such as `\*literal\*` remain literal
 when quote substitutions are disabled. Raw passthroughs use their own substitution

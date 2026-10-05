@@ -1,0 +1,78 @@
+= title-subs(1)
+:doctype: manpage
+:revdate: 2026-10-05
+:value: expanded
+:replacement: pass:r[(C)]
+:literal: pass:[(R)]
+
+== Name
+
+title-subs - independent title substitutions
+
+== Synopsis
+
+.N01 Listing *title* {value} (C)
+[listing]
+N01 body (C) *bold* {value}.
+
+.N02 Literal _title_ (R)
+[literal]
+N02 body (R) _italic_.
+
+.N03 Source title (TM)
+[source,text]
+----
+N03 body (TM).
+----
+
+.N04 Literal block title (C)
+....
+N04 body (C).
+....
+
+.N05 Verse title (R)
+[verse,Poet,Work]
+N05 first (R).
+N05 second.
+
+.N06 Verse block title (TM)
+[verse,Poet,Work]
+____
+N06 first (TM).
+N06 second.
+____
+
+.N07 Escaped \(C) \*literal* and pass:[(R)]
+----
+N07 body (C).
+----
+
+.N08 Attribute title {replacement} and {literal}
+----
+N08 body (C).
+----
+
+.N09 Outer title (C)
+--
+.N10 Nested listing title (R)
+----
+N10 body (R).
+----
+
+N09 following normal (C).
+--
+
+[cols="1a"]
+|===
+|.N11 Cell listing title (C)
+----
+N11 body (C).
+----
+
+|.N12 Cell verse title (R)
+[verse]
+N12 first (R).
+N12 second.
+|===
+
+N13 Following prose (C).

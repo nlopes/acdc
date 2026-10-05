@@ -786,10 +786,19 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         traversal: &mut TraversalContext<'a>,
         title: &Title<'_>,
     ) -> Result<(), Error> {
-        if !title.is_empty() {
-            self.write_inlines(traversal, title.as_ref())?;
+        if title.is_empty() {
+            return Ok(());
         }
-        Ok(())
+        // A title keeps normal substitutions independently of its block's body.
+        #[cfg(feature = "pre-spec-subs")]
+        let previous_subs = self
+            .processor
+            .current_subs
+            .replace(effective_subs_flags(None, false));
+        let result = self.write_inlines(traversal, title.as_ref());
+        #[cfg(feature = "pre-spec-subs")]
+        self.processor.current_subs.set(previous_subs);
+        result
     }
 
     fn write_title_copy(
@@ -1263,8 +1272,8 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         Ok(())
     }
 
-    /// Write a paragraph's title and content under the paragraph's effective
-    /// substitutions.
+    /// Write a paragraph's title with normal substitutions and its content with
+    /// the paragraph's effective substitutions.
     ///
     /// `write_title` is false for the synthetic paragraph inside a simple
     /// admonition, whose title the admonition wrapper already wrote.

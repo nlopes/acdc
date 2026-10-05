@@ -1,6 +1,6 @@
 use std::{fmt::Write as _, io::Write};
 
-use acdc_converters_core::{TraversalContext, media::resolve_target, visitor::Visitor};
+use acdc_converters_core::{TraversalContext, media::resolve_target};
 use acdc_parser::{AttributeValue, Audio};
 
 use crate::{Error, HtmlVariant, HtmlVisitor, build_class, inlines::escape_href, write_id};
@@ -22,7 +22,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
         if !audio.title.is_empty() {
             write!(self.writer, "<div class=\"title\">")?;
-            self.visit_inline_nodes(traversal, &audio.title)?;
+            self.visit_title(traversal, &audio.title)?;
             writeln!(self.writer, "</div>")?;
         }
 
@@ -123,7 +123,7 @@ fn visit_audio_semantic<'a, W: Write>(
 
     if has_title {
         write!(visitor.writer, "<figcaption>")?;
-        visitor.visit_inline_nodes(traversal, &audio.title)?;
+        visitor.visit_title(traversal, &audio.title)?;
         writeln!(visitor.writer, "</figcaption>")?;
     }
 

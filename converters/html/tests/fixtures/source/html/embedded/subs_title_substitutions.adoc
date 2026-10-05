@@ -1,0 +1,106 @@
+= title-subs(1)
+:doctype: manpage
+:revdate: 2026-10-05
+:value: expanded
+
+== Name
+
+title-subs - independent title substitutions
+
+== Synopsis
+
+.S01 Quote *title* {value} (C)
+[quote,Writer,Work,subs="none"]
+S01 body *bold* {value} (C).
+
+.S02 Verse _title_ {value} (R)
+[verse,Poet,Work,subs="none"]
+S02 first _italic_ {value} (R).
+S02 second.
+
+.S03 Ordinary title (TM)
+[subs="-replacements"]
+S03 body (TM).
+
+.S04 Listing title (C) <tag> & text
+[listing,subs="none"]
+S04 body (C).
+
+.S05 Literal title (R)
+[literal,subs="none"]
+S05 body (R).
+
+.S06 Source title (TM)
+[source,text,subs="none"]
+----
+S06 body (TM).
+----
+
+.S07 Title (C) with literal pass:[(R)] and \(TM)
+[subs="attributes"]
+S07 body {value} (C) *bold*.
+
+.S08 Title (R)
+[subs="replacements,specialchars"]
+S08 body (C) *bold*.
+
+.S09 Abstract title (C)
+[abstract,subs="none"]
+S09 body (C).
+
+.S10 Disclosure title (R)
+[example%collapsible,subs="none"]
+S10 body (R).
+
+[cols="1a"]
+|===
+|.S11 Cell title (C)
+[quote,subs="none"]
+S11 body (C).
+
+|.S12 Cell title (R)
+[verse,subs="none"]
+S12 first (R).
+S12 second.
+|===
+
+* List item.
++
+.S13 Attached title (C)
+[subs="none"]
+S13 body (C).
+
+.S14 Outer title (C)
+--
+.S15 Inner title (R)
+[subs="none"]
+S15 body (R).
+
+S14 following normal (C).
+--
+
+.S16 Title link:https://example.org/title[Link (C)] footnote:shared[Title note (R).]
+[subs="none"]
+S16 literal footnote:[Inactive note.] and (C).
+
+S17 Reused footnote:shared[] and following normal (C).
+
+.S18 Compound title (C)
+[subs="none"]
+--
+.S19 Note title (R)
+NOTE: S19 note body (C).
+
+.S20 Audio title (TM)
+audio::sample.ogg[]
+
+.S21 Video title (C)
+video::sample.mp4[]
+
+[discrete]
+=== S22 Discrete title (R)
+
+S22 normal body (C).
+--
+
+S23 Final normal prose (C).

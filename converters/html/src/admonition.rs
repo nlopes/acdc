@@ -71,7 +71,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         writeln!(self.writer, "<td class=\"content\">")?;
         if !admon.title.is_empty() {
             write!(self.writer, "<div class=\"title\">")?;
-            self.visit_inline_nodes(traversal, &admon.title)?;
+            self.visit_title(traversal, &admon.title)?;
             writeln!(self.writer, "</div>")?;
         }
 
@@ -107,9 +107,9 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 }
 
 /// Render an admonition block in semantic HTML5 mode.
-fn visit_admonition_semantic<'a, V: WritableVisitor<'a, Error = Error>>(
+fn visit_admonition_semantic<'a, W: Write>(
     traversal: &mut TraversalContext<'a>,
-    visitor: &mut V,
+    visitor: &mut HtmlVisitor<'a, '_, W>,
     admon: &'a Admonition<'a>,
     caption: &str,
     font_icons: bool,
@@ -152,7 +152,7 @@ fn visit_admonition_semantic<'a, V: WritableVisitor<'a, Error = Error>>(
         if !admon.title.is_empty() {
             write!(writer, "<h6 class=\"block-title\">")?;
             let _ = writer;
-            visitor.visit_inline_nodes(traversal, &admon.title)?;
+            visitor.visit_title(traversal, &admon.title)?;
             writer = visitor.writer_mut();
             writeln!(writer, "</h6>")?;
         }
@@ -169,7 +169,7 @@ fn visit_admonition_semantic<'a, V: WritableVisitor<'a, Error = Error>>(
             "<h6 class=\"block-title\"><span class=\"title-label\">{caption}: </span>"
         )?;
         let _ = writer;
-        visitor.visit_inline_nodes(traversal, &admon.title)?;
+        visitor.visit_title(traversal, &admon.title)?;
         writer = visitor.writer_mut();
         writeln!(writer, "</h6>")?;
     }

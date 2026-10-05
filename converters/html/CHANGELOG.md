@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Titles use normal substitutions independently of their block's `subs=`
+  settings in both HTML variants. For example, `.Title (C)` displays `Title ©`
+  above a literal body with `subs="none"`, matching Asciidoctor. Titles above
+  code also handle formatting escapes normally, while inline passthroughs retain
+  their own substitution settings.
+
 - AsciiDoc (`a`) table cells render paragraph titles, captions, IDs, roles, quote
   attributions, verse layout, and literal/source styles. Per-paragraph
   substitutions and code highlighting are honored, matching the same blocks

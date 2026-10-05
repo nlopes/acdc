@@ -318,6 +318,12 @@ The converter does not discover fonts from the working directory or source tree.
 With the default `pre-spec-subs` feature, block-level `subs=` controls PDF text substitutions in the same way as the other compatible converters.
 In particular, `subs=-replacements` suppresses typography replacements and `subs=+replacements` enables them in literal/listing content.
 
+Titles use normal substitutions independently of the block body, matching
+Asciidoctor PDF. For example, `.Title (C)` renders as `Title ©` even when the
+body uses `subs="none"`, including on verse, literal and listing blocks and
+inside AsciiDoc table cells. An inline passthrough such as `pass:[(C)]` keeps
+that part of the title literal.
+
 == Asset access and safe mode
 
 Local document images are resolved relative to the source document.

@@ -1,8 +1,6 @@
 use std::io::Write;
 
-use acdc_converters_core::{
-    TraversalContext, media::resolve_target, video::TryUrl, visitor::Visitor,
-};
+use acdc_converters_core::{TraversalContext, media::resolve_target, video::TryUrl};
 use acdc_parser::{AttributeValue, Video};
 
 use crate::{Error, HtmlVariant, HtmlVisitor, build_class, inlines::escape_href, write_id};
@@ -24,7 +22,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
         if !video.title.is_empty() {
             write!(self.writer, "<div class=\"title\">")?;
-            self.visit_inline_nodes(traversal, &video.title)?;
+            self.visit_title(traversal, &video.title)?;
             writeln!(self.writer, "</div>")?;
         }
 
@@ -178,7 +176,7 @@ fn visit_video_semantic<'a, W: Write>(
 
     if has_title {
         write!(visitor.writer, "<figcaption>")?;
-        visitor.visit_inline_nodes(traversal, &video.title)?;
+        visitor.visit_title(traversal, &video.title)?;
         writeln!(visitor.writer, "</figcaption>")?;
     }
 

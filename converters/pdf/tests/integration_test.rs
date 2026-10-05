@@ -12,6 +12,30 @@ use acdc_converters_pdf::{PdfOptions, Processor};
 type Error = Box<dyn std::error::Error>;
 
 #[test]
+#[cfg(feature = "pre-spec-subs")]
+fn title_substitutions_keep_pdf_links_and_footnotes() -> Result<(), Error> {
+    let source = "= Titles\n\n.Title link:https://example.org/title[Link (C)] footnote:note[Note (R).]\n[#target]\n[subs=\"none\"]\nBody (C) footnote:[Inactive note.].\n\nReuse footnote:note[] and see <<target,Target>>.\n";
+    let parsed = parse(source, &Options::default())?;
+    assert_eq!(parsed.document().footnotes.len(), 1);
+    let pdf = render_parsed(&parsed)?;
+    let text = pdf.extract_text(&[1])?;
+    assert!(text.contains("Link ©"), "{text}");
+    assert!(
+        text.contains("Body (C) footnote:[Inactive note.]."),
+        "{text}"
+    );
+    assert_eq!(text.matches("Note ®.").count(), 1, "{text}");
+    let links = external_link_rects(&pdf, 1)?;
+    let [(uri, _)] = links.as_slice() else {
+        return Err("expected one title link annotation".into());
+    };
+    assert_eq!(uri, "https://example.org/title");
+    let targets = named_destinations(&pdf)?;
+    assert!(targets.contains_key("target"));
+    Ok(())
+}
+
+#[test]
 fn title_footnote_copies_keep_one_body_and_native_numbering() -> Result<(), Error> {
     for toc in ["", ":toc:\n"] {
         let source = format!(

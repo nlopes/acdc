@@ -33,8 +33,6 @@ fn render_entries<'a, W: Write>(
     base_index: usize,
     parts_at_current_level: bool,
 ) -> Result<(), Error> {
-    use acdc_converters_core::visitor::Visitor;
-
     if current_level > config.max_level {
         return Ok(());
     }
@@ -100,7 +98,7 @@ fn render_entries<'a, W: Write>(
         // Enable TOC mode to render inline nodes without nested links
         let was_toc_mode = visitor.render_options.toc_mode;
         visitor.render_options.toc_mode = true;
-        visitor.visit_inline_nodes(traversal, &entry.title)?;
+        visitor.visit_title(traversal, &entry.title)?;
         visitor.render_options.toc_mode = was_toc_mode;
 
         writeln!(visitor.writer_mut(), "</a>")?;
