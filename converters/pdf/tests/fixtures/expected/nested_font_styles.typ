@@ -1,7 +1,7 @@
 #set document(
-  title: "mono-boundaries(1)",
+  title: "nested-fonts(1)",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[mono-boundaries(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[nested-fonts(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -74,114 +74,46 @@
 #set page(numbering: "1")
 #counter(page).update(1)
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("mono-boundaries(1)")]
+#text(size: 22pt, weight: "bold")[#text("nested-fonts(1)")]
 ]
 #v(1em)
 
 #heading(level: 1)[#text("Name")] <id-5f6e616d65>
 
-#text("mono-boundaries - adjacent inline formatting")
+#text("nested-fonts - combined PDF font styles")
 
 #heading(level: 1)[#text("Description")] <id-5f6465736372697074696f6e>
 
-#text("P01 ")#raw("Code")#strong[#text("End")]#text(".")
+#strong[#text("BoldLeft ")#emph[#text("BothOne")]#text(" BoldRight")]#text(" PlainEnd.")
 
-#text("P02 ")#raw("Code")#strong[#text("End")]#text(".")
+#emph[#text("ItalicLeft ")#strong[#text("BothTwo")]#text(" ItalicRight")]#text(" PlainEnd.")
 
-#text("P03 `Code`")#emph[#text("End")]#text(".")
+#raw("MonoLeft ")#strong[#raw("MonoBold")]#raw(" ")#emph[#raw("MonoItalic")]#raw(" ")#strong[#emph[#raw("MonoBoth")]]#raw(" MonoRight")#text(" PlainEnd.")
 
-#text("P04 `Code`")#emph[#text("End")]#text(".")
+#strong[#text("BoldOuter ")#raw("MonoInBold")#text(" BoldTail")]#text(" PlainEnd.")
 
-#text("P05 ")#raw("Code")#highlight[#text("End")]#text(".")
+#emph[#text("ItalicOuter ")#raw("MonoInItalic")#text(" ItalicTail")]#text(" PlainEnd.")
 
-#text("P06 ")#raw("Code")#highlight[#text("End")]#text(".")
+#strong[#text("BoldWide ")#emph[#text("BothWide")]#text(" BoldWideTail")]#text(" PlainEnd.")
 
-#text("P07 ")#raw("Code")#sub[#text("End")]#text(".")
+#strong[#text("BoldLink ")#link("https://example.org")[#emph[#text("LinkBoth")]]#text(" BoldLinkTail")]#text(" PlainEnd.")
 
-#text("P08 ")#raw("Code")#super[#text("End")]#text(".")
+#raw("MonoLink ")#strong[#emph[#link("https://example.org/code")[#raw("CodeLinkBoth")]]]#raw(" MonoLinkTail")#text(" PlainEnd.")
 
-#text("P09 ")#strong[#text("Start")]#raw("Code")#text(".")
+#raw("MonoTarget ")#metadata(none)<id-7374796c6564>#strong[#raw("BoldTarget ")]#strong[#emph[#raw("BothTarget")]]#strong[#raw(" TargetTail")]#raw(" MonoTargetTail")#text(" PlainEnd.")
 
-#text("P10 ")#strong[#text("Start")]#raw("Code")#text(".")
+#raw("Empty ")#metadata(none)<id-656d707479>#raw("after")#text(" PlainEnd.")
 
-#text("P11 ")#emph[#text("Start")]#text("`Code`.")
+#raw("Literal . # <tag> {text} \\path")#text(" PlainEnd.")
 
-#text("P12 ")#highlight[#text("Start")]#raw("Code")#text(".")
+#text("Footnote ")#counter(footnote).update(0)#footnote[#strong[#text("NoteBold ")#emph[#text("NoteBoth")]#text(" NoteTail")]]<id-666f6f746e6f74653a6e6f7465>#text(".")
 
-#text("P13 ")#raw("Code``Next")#text(".")
+#heading(level: 1)[#text("Heading ")#emph[#text("HeadingBoth")]#text(" ")#raw("HeadingCode")] <id-5f68656164696e675f68656164696e67626f74685f68656164696e67636f6465>
 
-#text("P14 `Code`word.")
+#table(columns: (1fr, 1fr), align: (left + top, left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#strong[#text("CellBold ")#emph[#text("CellBoth")]#text(" CellTail")]
 
-#text("P15 word`Code`.")
+], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#emph[#text("CellItalic ")#strong[#text("CellReverse")]#text(" CellEnd")]
 
-#text("P16 ` Code`")#strong[#text("End")]#text(".")
+])
 
-#text("P17 `Code `")#strong[#text("End")]#text(".")
-
-#text("P18 `Code")#text("’")#text(".")
-
-#text("P19 ")#raw("Code")#text("*")#text("End*.")
-
-#text("P20 ")#raw("Code")#text(":End.")
-
-#text("P21 ")#raw("Code")#text("😀.")
-
-#text("P22 é`Code`.")
-
-#text("P23 `Code`é.")
-
-#text("P24 `Code`")#emph[#text("suffix")]#text(".")
-
-#text("P25 `Code`_suffix.")
-
-#text("P26 ")#raw("Code")#text("*suffix.")
-
-#text("P27 ")#strong[#text("Start ")#raw("Code")]#text(".")
-
-#text("P28 ")#emph[#text("Start `Code`")]#text(".")
-
-#text("P29 ")#highlight[#text("Start ")#raw("Code")]#text(".")
-
-#text("P30 ")#strong[#raw("Bold")]#raw("")#strong[#text("End")]#text(".")
-
-#text("P31 ")#raw("")#strong[#text("End")]#text(".")
-
-#text("P32 ")#metadata(none)<id-656d7074792d746172676574>#raw("")#strong[#text("End")]#text(".")
-
-#text("P33 ")#link("https://example.org")[#raw("Site")]#raw("")#strong[#text("End")]#text(".")
-
-#text("P34 ")#text(fill: rgb("#bf0000"))[#raw("Code")]#strong[#text("End")]#text(".")
-
-#text("P35 ")#strong[#text("Start")]#text(fill: rgb("#bf0000"))[#raw("Code")]#text(".")
-
-#text("P36 ")#raw("Code")#text(" ")#strong[#text("End")]#text(".")
-
-#text("P37 ")#raw("Code")#strong[#text("End")]#text(".")
-
-#text("P38 ")#text("`")#text("Code`")#strong[#text("End")]#text(".")
-
-#text("P39 ")#text("`Code`**End**")#text(".")
-
-#text("P40 ")#raw("Code")#text(" ")#strong[#text("End")]#text(".")
-
-#text("P41 ")#raw("Code")#text("#suffix.")
-
-#text("P42 `Code`")#emph[#text("End")]#strong[#text("Tail")]#text(".")
-
-#text("P43 ")#raw("Code")#strong[#text("End")]#raw("Next")#text(".")
-
-#text("P44 ")#raw("Code")#text("\\End.")
-
-#text("P45 ")#raw("Code")#text("=End.")
-
-#text("P46 ")#raw("Code")#text("%End.")
-
-#text("P47 prefix;`Code`")#strong[#text("End")]#text(".")
-
-#text("P48 prefix}`Code`")#strong[#text("End")]#text(".")
-
-#text("P49 prefix:`Code`")#strong[#text("End")]#text(".")
-
-#text("P50 ")#text("<del>&amp;*bold*&amp;</del>")#text(".")
-
-#text("P51 `Code`\"End.")
+#text("See ")#context link(query(<id-7374796c6564>).first().location())[#text("Styled")]#text(", ")#context link(query(<id-656d707479>).first().location())[#text("Empty")]#text(".")

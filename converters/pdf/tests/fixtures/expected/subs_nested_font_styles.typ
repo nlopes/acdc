@@ -1,7 +1,7 @@
 #set document(
-  title: "mono-boundaries(1)",
+  title: "nested-font-subs(1)",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[mono-boundaries(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[nested-font-subs(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -74,114 +74,57 @@
 #set page(numbering: "1")
 #counter(page).update(1)
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("mono-boundaries(1)")]
+#text(size: 22pt, weight: "bold")[#text("nested-font-subs(1)")]
 ]
 #v(1em)
 
 #heading(level: 1)[#text("Name")] <id-5f6e616d65>
 
-#text("mono-boundaries - adjacent inline formatting")
+#text("nested-font-subs - combined styles with substitutions")
 
 #heading(level: 1)[#text("Description")] <id-5f6465736372697074696f6e>
 
-#text("P01 ")#raw("Code")#strong[#text("End")]#text(".")
+#raw("Before ")#strong[#raw("AttributeBold ")]#strong[#emph[#raw("AttributeBoth")]]#raw(" after")#text(".")
 
-#text("P02 ")#raw("Code")#strong[#text("End")]#text(".")
+#{
+  // Slice highlighted text without discarding its syntax styles.
+  let code-slice(body, start, end) = {
+    if body.has("text") {
+      let size = body.text.len()
+      (text(body.text.slice(calc.min(start, size), calc.min(end, size))), size)
+    } else if body.has("children") {
+      let offset = 0
+      let parts = []
+      for child in body.children {
+        let (part, size) = code-slice(child, calc.max(0, start - offset), calc.max(0, end - offset))
+        parts += part
+        offset += size
+      }
+      (parts, offset)
+    } else if body.has("child") {
+      let (child, size) = code-slice(body.child, start, end)
+      (body.func()(child, body.styles), size)
+    } else {
+      ([], 0)
+    }
+  }
+  let links = (
+    ((10, 19, body => [#strong[#body]]), (19, 27, body => [#strong[#emph[#body]]]), (27, 36, body => [#strong[#body]]), ),
+    ((10, 21, body => [#emph[#body]]), (21, 32, body => [#emph[#strong[#body]]]), (32, 43, body => [#emph[#body]]), ),
+  )
+  let code-links(line) = {
+    let start = 0
+    let body = []
+    for (from, to, make-link) in links.at(line.number - 1, default: ()) {
+      body += code-slice(line.body, start, from).first()
+      body += make-link(code-slice(line.body, from, to).first())
+      start = to
+    }
+    body + code-slice(line.body, start, line.text.len()).first()
+  }
+  show raw.line: line => code-links(line)
+  raw(block: true, "CodePlain CodeBold CodeBoth CodeTail CodeEnd.\nCodePlain CodeItalic CodeReverse ItalicTail CodeEnd.")
+}
+#text("Literal `Mono *Bold _Italic_*`.")
 
-#text("P03 `Code`")#emph[#text("End")]#text(".")
-
-#text("P04 `Code`")#emph[#text("End")]#text(".")
-
-#text("P05 ")#raw("Code")#highlight[#text("End")]#text(".")
-
-#text("P06 ")#raw("Code")#highlight[#text("End")]#text(".")
-
-#text("P07 ")#raw("Code")#sub[#text("End")]#text(".")
-
-#text("P08 ")#raw("Code")#super[#text("End")]#text(".")
-
-#text("P09 ")#strong[#text("Start")]#raw("Code")#text(".")
-
-#text("P10 ")#strong[#text("Start")]#raw("Code")#text(".")
-
-#text("P11 ")#emph[#text("Start")]#text("`Code`.")
-
-#text("P12 ")#highlight[#text("Start")]#raw("Code")#text(".")
-
-#text("P13 ")#raw("Code``Next")#text(".")
-
-#text("P14 `Code`word.")
-
-#text("P15 word`Code`.")
-
-#text("P16 ` Code`")#strong[#text("End")]#text(".")
-
-#text("P17 `Code `")#strong[#text("End")]#text(".")
-
-#text("P18 `Code")#text("’")#text(".")
-
-#text("P19 ")#raw("Code")#text("*")#text("End*.")
-
-#text("P20 ")#raw("Code")#text(":End.")
-
-#text("P21 ")#raw("Code")#text("😀.")
-
-#text("P22 é`Code`.")
-
-#text("P23 `Code`é.")
-
-#text("P24 `Code`")#emph[#text("suffix")]#text(".")
-
-#text("P25 `Code`_suffix.")
-
-#text("P26 ")#raw("Code")#text("*suffix.")
-
-#text("P27 ")#strong[#text("Start ")#raw("Code")]#text(".")
-
-#text("P28 ")#emph[#text("Start `Code`")]#text(".")
-
-#text("P29 ")#highlight[#text("Start ")#raw("Code")]#text(".")
-
-#text("P30 ")#strong[#raw("Bold")]#raw("")#strong[#text("End")]#text(".")
-
-#text("P31 ")#raw("")#strong[#text("End")]#text(".")
-
-#text("P32 ")#metadata(none)<id-656d7074792d746172676574>#raw("")#strong[#text("End")]#text(".")
-
-#text("P33 ")#link("https://example.org")[#raw("Site")]#raw("")#strong[#text("End")]#text(".")
-
-#text("P34 ")#text(fill: rgb("#bf0000"))[#raw("Code")]#strong[#text("End")]#text(".")
-
-#text("P35 ")#strong[#text("Start")]#text(fill: rgb("#bf0000"))[#raw("Code")]#text(".")
-
-#text("P36 ")#raw("Code")#text(" ")#strong[#text("End")]#text(".")
-
-#text("P37 ")#raw("Code")#strong[#text("End")]#text(".")
-
-#text("P38 ")#text("`")#text("Code`")#strong[#text("End")]#text(".")
-
-#text("P39 ")#text("`Code`**End**")#text(".")
-
-#text("P40 ")#raw("Code")#text(" ")#strong[#text("End")]#text(".")
-
-#text("P41 ")#raw("Code")#text("#suffix.")
-
-#text("P42 `Code`")#emph[#text("End")]#strong[#text("Tail")]#text(".")
-
-#text("P43 ")#raw("Code")#strong[#text("End")]#raw("Next")#text(".")
-
-#text("P44 ")#raw("Code")#text("\\End.")
-
-#text("P45 ")#raw("Code")#text("=End.")
-
-#text("P46 ")#raw("Code")#text("%End.")
-
-#text("P47 prefix;`Code`")#strong[#text("End")]#text(".")
-
-#text("P48 prefix}`Code`")#strong[#text("End")]#text(".")
-
-#text("P49 prefix:`Code`")#strong[#text("End")]#text(".")
-
-#text("P50 ")#text("<del>&amp;*bold*&amp;</del>")#text(".")
-
-#text("P51 `Code`\"End.")
+#raw(block: true, "Literal *Bold _Italic_*.")

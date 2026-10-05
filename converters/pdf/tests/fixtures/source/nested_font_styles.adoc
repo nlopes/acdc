@@ -1,0 +1,45 @@
+= nested-fonts(1)
+:doctype: manpage
+:manmanual: PDF font checks
+:mansource: acdc
+:revdate: 2026-10-05
+:blank:
+
+== Name
+nested-fonts - combined PDF font styles
+
+== Description
+
+*BoldLeft _BothOne_ BoldRight* PlainEnd.
+
+_ItalicLeft *BothTwo* ItalicRight_ PlainEnd.
+
+`MonoLeft *MonoBold* _MonoItalic_ *_MonoBoth_* MonoRight` PlainEnd.
+
+*BoldOuter `MonoInBold` BoldTail* PlainEnd.
+
+_ItalicOuter `MonoInItalic` ItalicTail_ PlainEnd.
+
+**BoldWide __BothWide__ BoldWideTail** PlainEnd.
+
+*BoldLink link:https://example.org[_LinkBoth_] BoldLinkTail* PlainEnd.
+
+`MonoLink *link:https://example.org/code[_CodeLinkBoth_]* MonoLinkTail` PlainEnd.
+
+`MonoTarget [#styled]*BoldTarget _BothTarget_ TargetTail* MonoTargetTail` PlainEnd.
+
+`Empty [#empty]*{blank}* after` PlainEnd.
+
+`Literal . # <tag> {text} \path` PlainEnd.
+
+Footnote footnote:note[*NoteBold _NoteBoth_ NoteTail*].
+
+== Heading _HeadingBoth_ `HeadingCode`
+
+[cols="1,1"]
+|===
+|*CellBold _CellBoth_ CellTail*
+a|_CellItalic *CellReverse* CellEnd_
+|===
+
+See <<styled,Styled>>, <<empty,Empty>>.

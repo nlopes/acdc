@@ -104,7 +104,7 @@
 
 #text("P10 ")#metadata(none)<id-656d707479>#raw("")#text(".")
 
-#text("P11 ")#raw("Before ")#metadata(none)<id-6e65737465642d7370616e>#raw("Nested after")#text(".")
+#text("P11 ")#raw("Before ")#metadata(none)<id-6e65737465642d7370616e>#strong[#raw("Nested")]#raw(" after")#text(".")
 
 #text("P12 ")#raw("Before ")#metadata(none)<id-656d7074792d7370616e>#raw("after")#text(".")
 
@@ -128,7 +128,7 @@
 
 #text("P21 ")#raw(". # <tag> {text} \\path (C)")#text(".")
 
-#text("P22 ")#metadata(none)<id-6974616c6963>#raw("Italic ")#metadata(none)<id-6e65737465642d6d6f6e6f>#raw("Mono ")#metadata(none)<id-6d61726b>#raw("Marked ")#metadata(none)<id-7375706572>#raw("Sup ")#metadata(none)<id-737562>#raw("Sub ")#metadata(none)<id-646f75626c65>#raw("Double ")#metadata(none)<id-73696e676c65>#raw("Single")#text(".")
+#text("P22 ")#metadata(none)<id-6974616c6963>#emph[#raw("Italic")]#raw(" ")#metadata(none)<id-6e65737465642d6d6f6e6f>#raw("Mono ")#metadata(none)<id-6d61726b>#raw("Marked ")#metadata(none)<id-7375706572>#super[#raw("Sup")]#raw(" ")#metadata(none)<id-737562>#sub[#raw("Sub")]#raw(" ")#metadata(none)<id-646f75626c65>#raw("“Double” ")#metadata(none)<id-73696e676c65>#raw("‘Single’")#text(".")
 
 #pagebreak(weak: true)
 

@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Bundled bold italic serif and sans fonts preserve both styles when emphasis
+  and strong text are combined, including in headings and custom themes.
 - Bundle IBM Plex Math as a symbol fallback, so double arrows such as `⇒`,
   `⇐` and `⇔` render without an external font directory. CJK fonts remain
   caller supplied.

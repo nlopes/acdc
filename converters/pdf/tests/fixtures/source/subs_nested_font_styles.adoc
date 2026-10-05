@@ -1,0 +1,27 @@
+= nested-font-subs(1)
+:doctype: manpage
+:manmanual: PDF font checks
+:mansource: acdc
+:revdate: 2026-10-05
+:styled: pass:q[*AttributeBold _AttributeBoth_*]
+
+== Name
+nested-font-subs - combined styles with substitutions
+
+== Description
+
+`Before {styled} after`.
+
+[source,text,subs="+quotes"]
+----
+CodePlain *CodeBold _CodeBoth_ CodeTail* CodeEnd.
+CodePlain _CodeItalic *CodeReverse* ItalicTail_ CodeEnd.
+----
+
+[subs="-quotes"]
+Literal `Mono *Bold _Italic_*`.
+
+[source,text]
+----
+Literal *Bold _Italic_*.
+----

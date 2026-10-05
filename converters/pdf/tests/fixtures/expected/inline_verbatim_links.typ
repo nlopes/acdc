@@ -104,7 +104,7 @@
 
 #text("P10 ")#link("other.pdf#chapter")[#raw("other.pdf")]#raw("")#text(".")
 
-#text("P11 ")#metadata(none)<id-666f726d61747465642d6964>#link("https://example.org/formatted")[#raw("Bold and Italic")]#raw("")#text(".")
+#text("P11 ")#metadata(none)<id-666f726d61747465642d6964>#strong[#link("https://example.org/formatted")[#raw("Bold")]]#link("https://example.org/formatted")[#raw(" and ")]#emph[#link("https://example.org/formatted")[#raw("Italic")]]#raw("")#text(".")
 
 #text("P12 ")#link("https://example.org/outer")[#raw("Outer ")]#link("https://example.org/inner")[#raw("Inner")]#link("https://example.org/outer")[#raw(" tail")]#raw("")#text(".")
 

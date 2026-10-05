@@ -73,7 +73,7 @@
 #set page(numbering: "i")
 #set page(numbering: "1")
 #counter(page).update(1)
-#raw("OUTPUT <- INPUT xor enc_blk(enc_key, 1 @ SIV[126:32] @ binint(SIV[31:0]) + ctr) mod 232, 32,")
+#raw("OUTPUT <- INPUT xor enc_blk(enc_key, 1 @ SIV[126:32] @ binint(SIV[31:0]) + ctr) mod 2")#super[#raw("32")]#raw(", 32,")
 
 #raw("OUTPUT <- INPUT xor enc_blk(enc_key, 1 @ SIV[126:32] @ bin((int(SIV[31:0]) + ctr) mod 2^32^, 32)),")
 

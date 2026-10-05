@@ -897,7 +897,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         for ([(position, _), (end, _)], span) in positions.as_chunks::<2>().0.iter().zip(code.links)
         {
             let label = span.anchor.as_deref().and_then(|id| self.anchors.claim(id));
-            if label.is_some() || span.target.is_some() {
+            if label.is_some() || span.target.is_some() || !span.prefix.is_empty() {
                 let position = *position;
                 if start < position {
                     self.write_inline_verbatim_fragment(&code.source, start..position, &breaks);
@@ -906,8 +906,19 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     let _ = write!(self.writer, "#metadata(none)<{label}>");
                 }
                 start = position;
-                if let Some(target) = span.target.as_ref().filter(|_| position < *end) {
-                    self.write_inline_verbatim_link(target, &code.source, position..*end, &breaks)?;
+                if position < *end && (span.target.is_some() || !span.prefix.is_empty()) {
+                    self.writer.raw(&span.prefix);
+                    if let Some(target) = span.target.as_ref() {
+                        self.write_inline_verbatim_link(
+                            target,
+                            &code.source,
+                            position..*end,
+                            &breaks,
+                        )?;
+                    } else {
+                        self.write_inline_verbatim_fragment(&code.source, position..*end, &breaks);
+                    }
+                    self.writer.raw(&span.suffix);
                     start = *end;
                 }
             }
@@ -964,51 +975,26 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         );
     }
 
-    fn inline_verbatim_text(&self, nodes: &[InlineNode<'_>], extension: &str) -> CodeText {
+    fn inline_verbatim_text(&mut self, nodes: &[InlineNode<'_>], extension: &str) -> CodeText {
         let mut code = CodeText::default();
         let transform = InlineTextTransform::default().rendered_replacements(false);
         // Extract text without registering footnotes or index entries.
         for node in nodes {
-            let (id, children) = match node {
-                InlineNode::InlineAnchor(anchor) => (Some(anchor.id), None),
-                InlineNode::BoldText(text) => (text.id, Some(text.content.as_slice())),
-                InlineNode::ItalicText(text) => (text.id, Some(text.content.as_slice())),
-                InlineNode::MonospaceText(text) => (text.id, Some(text.content.as_slice())),
-                InlineNode::HighlightText(text) => (text.id, Some(text.content.as_slice())),
-                InlineNode::SubscriptText(text) => (text.id, Some(text.content.as_slice())),
-                InlineNode::SuperscriptText(text) => (text.id, Some(text.content.as_slice())),
-                InlineNode::CurvedQuotationText(text) => (text.id, Some(text.content.as_slice())),
-                InlineNode::CurvedApostropheText(text) => (text.id, Some(text.content.as_slice())),
-                InlineNode::Macro(InlineMacro::Link(link)) => (
-                    None,
-                    (!link.text.is_empty()).then_some(link.text.as_slice()),
-                ),
-                InlineNode::Macro(InlineMacro::Url(link)) => (
-                    None,
-                    (!link.text.is_empty()).then_some(link.text.as_slice()),
-                ),
-                InlineNode::Macro(InlineMacro::Mailto(link)) => (
-                    None,
-                    (!link.text.is_empty()).then_some(link.text.as_slice()),
-                ),
-                InlineNode::Macro(InlineMacro::CrossReference(link)) => (
-                    None,
-                    (!link.text.is_empty()).then_some(link.text.as_slice()),
-                ),
-                InlineNode::Macro(InlineMacro::IndexTerm(term)) if term.is_visible() => {
-                    (None, Some(term.term()))
-                }
-                InlineNode::PlainText(_)
-                | InlineNode::RawText(_)
-                | InlineNode::VerbatimText(_)
-                | InlineNode::StandaloneCurvedApostrophe(_)
-                | InlineNode::LineBreak(_)
-                | InlineNode::CalloutRef(_)
-                | InlineNode::Macro(_)
-                | _ => (None, None),
-            };
-            if let Some(link) = resolve_code_link(node, &self.processor.references, extension) {
-                let mut child = if let Some(children) = children {
+            if let InlineNode::InlineAnchor(anchor) = node {
+                code.links.push(CodeSpan {
+                    range: code.source.len()..code.source.len(),
+                    anchor: Some(anchor.id.to_owned()),
+                    ..CodeSpan::default()
+                });
+            } else if let Some(children) = code_inline_children(node) {
+                let child = self.inline_verbatim_text(children, extension);
+                code.append(self.format_code_text(node, child));
+            } else if let Some(link) =
+                resolve_code_link(node, &self.processor.references, extension)
+            {
+                let mut child = if let Some(children) =
+                    code_link_children(node).filter(|nodes| !nodes.is_empty())
+                {
                     self.inline_verbatim_text(children, extension)
                 } else {
                     CodeText {
@@ -1027,17 +1013,6 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     ..CodeSpan::default()
                 });
                 code.append(child);
-                continue;
-            }
-            if let Some(id) = id {
-                code.links.push(CodeSpan {
-                    range: code.source.len()..code.source.len(),
-                    anchor: Some(id.to_owned()),
-                    ..CodeSpan::default()
-                });
-            }
-            if let Some(children) = children {
-                code.append(self.inline_verbatim_text(children, extension));
             } else {
                 let _ = transform.write(&mut code.source, std::slice::from_ref(node));
             }

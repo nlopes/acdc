@@ -28,5 +28,7 @@ pub fn embedded_fonts() -> &'static [&'static [u8]] {
         face!("IBMPlexMono-BoldItalic.ttf"),
         face!("NotoColorEmoji.ttf"),
         face!("IBMPlexMath-Regular.ttf"),
+        face!("IBMPlexSerif-BoldItalic.ttf"),
+        face!("IBMPlexSans-BoldItalic.ttf"),
     ]
 }

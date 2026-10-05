@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Nested bold and italic text uses a combined font face in either nesting
+  order, matching Asciidoctor PDF. Backtick spans also retain nested formatting,
+  including inside link labels, while preserving links and anchor targets.
+  Text after a nested span returns to its enclosing style.
 - Literal backticks and spacing acute accents keep their positions in PDF text,
   matching Asciidoctor PDF. Real combining accents remain enabled.
 - Verse paragraphs and delimited verse blocks retain inline formatting, links,

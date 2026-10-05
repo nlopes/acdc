@@ -14,6 +14,184 @@ use acdc_converters_pdf::{PdfOptions, Processor};
 type Error = Box<dyn std::error::Error>;
 
 #[test]
+fn nested_styles_use_combined_pdf_fonts_and_restore_outer_styles() -> Result<(), Error> {
+    let source = include_str!("fixtures/source/nested_font_styles.adoc");
+    let parsed = parse(source, &Options::default())?;
+    let theme_dir = tempfile::tempdir()?;
+    let theme_path = theme_dir.path().join("sans.yaml");
+    std::fs::write(
+        &theme_path,
+        include_str!("../crates/theme/assets/theme/default.yaml")
+            .replace("IBM Plex Serif", "IBM Plex Sans"),
+    )?;
+    for (theme, family, regular) in [
+        (None, "IBMPlexSerif", "IBMPlexSerif-Regular"),
+        (Some(theme_path), "IBMPlexSans", "IBMPlexSans"),
+    ] {
+        let processor = Processor::new(ConverterOptions::default(), Options::builder())?
+            .with_pdf_options(PdfOptions {
+                theme,
+                ..PdfOptions::default()
+            });
+        let mut output = Vec::new();
+        let mut warnings = Vec::new();
+        let warning_source = WarningSource::new("pdf");
+        processor.write_to(
+            parsed.document(),
+            &mut output,
+            None,
+            None,
+            &mut Diagnostics::new(&warning_source, &mut warnings),
+        )?;
+        assert!(warnings.is_empty(), "{warnings:?}");
+        let pdf = PdfDocument::load_mem(&output)?;
+        let runs = pdf_text_fonts(&pdf)?;
+        for word in [
+            "BothOne",
+            "BothTwo",
+            "BothWide",
+            "LinkBoth",
+            "HeadingBoth",
+            "CellBoth",
+            "CellReverse",
+            "NoteBoth",
+        ] {
+            assert_text_font(&runs, word, &format!("{family}-BoldItalic"));
+        }
+        for word in [
+            "BoldRight",
+            "BoldTail",
+            "BoldWideTail",
+            "BoldLinkTail",
+            "CellTail",
+            "NoteTail",
+        ] {
+            assert_text_font(&runs, word, &format!("{family}-Bold"));
+        }
+        for word in ["ItalicRight", "ItalicTail", "CellEnd"] {
+            assert_text_font(&runs, word, &format!("{family}-Italic"));
+        }
+        assert_text_font(&runs, "PlainEnd", regular);
+        for word in ["MonoLeft", "MonoRight", "MonoLinkTail", "MonoTargetTail"] {
+            assert_text_font(&runs, word, "IBMPlexMono");
+        }
+        for word in [
+            "MonoBold",
+            "MonoInBold",
+            "BoldTarget",
+            "TargetTail",
+            "HeadingCode",
+        ] {
+            assert_text_font(&runs, word, "IBMPlexMono-Bold");
+        }
+        for word in ["MonoItalic", "MonoInItalic"] {
+            assert_text_font(&runs, word, "IBMPlexMono-Italic");
+        }
+        for word in ["MonoBoth", "CodeLinkBoth", "BothTarget"] {
+            assert_text_font(&runs, word, "IBMPlexMono-BoldItalic");
+        }
+        let destinations = named_destinations(&pdf)?;
+        for target in ["styled", "empty"] {
+            assert!(destinations.contains_key(target), "{target}");
+        }
+        let mut links = Vec::new();
+        for page in pdf.get_pages().keys() {
+            links.extend(external_link_rects(&pdf, *page)?);
+        }
+        for target in ["https://example.org", "https://example.org/code"] {
+            assert!(links.iter().any(|(uri, _)| uri == target), "{target}");
+        }
+    }
+    Ok(())
+}
+
+#[cfg(feature = "pre-spec-subs")]
+#[test]
+fn nested_styles_preserve_enabled_and_disabled_code_quotes() -> Result<(), Error> {
+    let pdf = render_input(include_str!("fixtures/source/subs_nested_font_styles.adoc"))?;
+    let runs = pdf_text_fonts(&pdf)?;
+    for word in ["AttributeBoth", "CodeBoth", "CodeReverse"] {
+        assert_text_font(&runs, word, "IBMPlexMono-BoldItalic");
+    }
+    assert_text_font(&runs, "CodeTail", "IBMPlexMono-Bold");
+    assert_text_font(&runs, "ItalicTail", "IBMPlexMono-Italic");
+    assert_text_font(&runs, "CodeEnd", "IBMPlexMono");
+    assert_text_font(&runs, "Literal *Bold _Italic_*.", "IBMPlexMono");
+    assert_text_font(&runs, "Mono *Bold _Italic_*", "IBMPlexSerif-Regular");
+    Ok(())
+}
+
+fn assert_text_font(runs: &[(String, String)], needle: &str, font: &str) {
+    let matches = runs
+        .iter()
+        .filter(|(text, _)| {
+            text.match_indices(needle).any(|(start, _)| {
+                text[..start]
+                    .chars()
+                    .next_back()
+                    .is_none_or(|ch| !ch.is_alphanumeric())
+                    && text[start + needle.len()..]
+                        .chars()
+                        .next()
+                        .is_none_or(|ch| !ch.is_alphanumeric())
+            })
+        })
+        .collect::<Vec<_>>();
+    assert!(!matches.is_empty(), "missing {needle:?}: {runs:?}");
+    for (text, actual) in matches {
+        assert!(
+            actual.ends_with(font),
+            "{text:?}: expected {font}, got {actual}"
+        );
+    }
+}
+
+fn pdf_text_fonts(pdf: &PdfDocument) -> Result<Vec<(String, String)>, Error> {
+    let mut runs = Vec::new();
+    for page in pdf.get_pages().values() {
+        let fonts = pdf
+            .get_page_fonts(*page)?
+            .into_iter()
+            .map(|(key, font)| {
+                Ok((
+                    key,
+                    (
+                        String::from_utf8(font.get(b"BaseFont")?.as_name()?.to_vec())?,
+                        font.get_font_encoding(pdf)?,
+                    ),
+                ))
+            })
+            .collect::<Result<HashMap<_, _>, Error>>()?;
+        let content = lopdf::content::Content::decode(&pdf.get_page_content(*page))?;
+        let mut font = None;
+        let mut saved_fonts = Vec::new();
+        for operation in content.operations {
+            match (operation.operator.as_str(), operation.operands.as_slice()) {
+                ("q", []) => saved_fonts.push(font),
+                ("Q", []) => font = saved_fonts.pop().ok_or("missing saved font")?,
+                ("Tf", [name, _]) => font = fonts.get(name.as_name()?),
+                ("Tj", [Object::String(bytes, _)]) => {
+                    let (name, encoding) = font.ok_or("missing font")?;
+                    runs.push((PdfDocument::decode_text(encoding, bytes)?, name.clone()));
+                }
+                ("TJ", [Object::Array(parts)]) => {
+                    let (name, encoding) = font.ok_or("missing font")?;
+                    let mut text = String::new();
+                    for part in parts {
+                        if let Object::String(bytes, _) = part {
+                            text.push_str(&PdfDocument::decode_text(encoding, bytes)?);
+                        }
+                    }
+                    runs.push((text, name.clone()));
+                }
+                _ => {}
+            }
+        }
+    }
+    Ok(runs)
+}
+
+#[test]
 fn spacing_accents_keep_pdf_positions_and_font_diagnostics() -> Result<(), Error> {
     let source = include_str!("fixtures/source/pdf_glyph_coverage.adoc");
     let parsed = parse(source, &Options::default())?;
