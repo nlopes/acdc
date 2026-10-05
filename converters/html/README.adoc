@@ -87,6 +87,9 @@ presentation as their delimited forms. Block IDs, first anchors, roles, titles,
 captions, and inline formatting remain available in both the standard and
 semantic backends, so cross-references can reach the rendered wrappers.
 
+Delimited quote blocks display their lead-in titles above the quoted content,
+including inside AsciiDoc table cells and attached list blocks.
+
 === Section Numbering
 
 Documents with `:sectnums:` render numbered section headings (e.g., "1. Introduction", "1.1. Overview"). Control numbering depth with `:sectnumlevels:` (default 3, max 5).

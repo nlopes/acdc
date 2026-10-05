@@ -18,6 +18,36 @@ mod support;
 
 type Error = Box<dyn StdError>;
 
+#[test]
+fn quote_titles_keep_macro_targets_once() -> Result<(), Error> {
+    let parsed = parse(
+        include_str!("fixtures/source/html/embedded/quote_block_titles.adoc"),
+        &ParserOptions::default(),
+    )?;
+    assert_eq!(parsed.document().footnotes.len(), 1);
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        let output = render_fixture_document(parsed.document(), variant, true)?;
+        let ids = output
+            .split(" id=\"")
+            .skip(1)
+            .filter_map(|part| part.split_once('"').map(|(id, _)| id))
+            .collect::<Vec<_>>();
+        assert_eq!(ids.len(), ids.iter().collect::<HashSet<_>>().len());
+        for target in ["quote-target", "title-target"] {
+            assert!(ids.contains(&target), "missing {target} in {variant:?}");
+        }
+        for target in output
+            .split("href=\"#")
+            .skip(1)
+            .filter_map(|part| part.split_once('"').map(|(id, _)| id))
+        {
+            assert!(ids.contains(&target), "unresolved {target} in {variant:?}");
+        }
+    }
+    assert_eq!(parsed.document().footnotes.len(), 1);
+    Ok(())
+}
+
 #[rstest::rstest]
 #[case::absent("= T\n\n", false, false)]
 #[case::named("= T\n:source-highlighter: syntect\n\n", true, false)]

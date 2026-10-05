@@ -1,0 +1,37 @@
+= quote-title-subs(1)
+:doctype: manpage
+:revdate: 2026-10-05
+:value: expanded
+
+== Name
+
+quote-title-subs - independent quote title substitutions
+
+== Synopsis
+
+.S01 *Title* {value} (C) <tag> & text
+[quote,Writer,Work,subs="none"]
+____
+S01 normal body (C).
+
+[subs="none"]
+S01 literal body *bold* {value} (C).
+____
+
+.S02 Title pass:[(R)] and \(C)
+[quote,subs="-replacements"]
+____
+S02 normal body (R).
+____
+
+[cols="1a"]
+|===
+|.S03 Cell *title* (TM)
+[quote,subs="none"]
+____
+[subs="none"]
+S03 literal body (TM).
+____
+|===
+
+S04 Following normal prose (C).

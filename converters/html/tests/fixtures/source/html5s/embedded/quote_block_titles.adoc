@@ -1,0 +1,80 @@
+= quote-titles(1)
+:doctype: manpage
+:revdate: 2026-10-05
+:value: expanded
+:acdc-index:
+
+== Name
+
+quote-titles - retain delimited quote titles
+
+== Synopsis
+
+.Q01 Plain title
+____
+Q01 first paragraph.
+
+Q01 second paragraph.
+____
+
+.Q02 *Bold* _italic_ {value} (C) <tag> & text
+[#quote-target.reviewed]
+[quote,Writer,Work]
+____
+Q02 body.
+____
+
+.Q03 No attribution
+[quote]
+____
+Q03 body.
+____
+
+[quote,Untitled writer]
+____
+Q04 untitled body.
+____
+
+.Q05 Prefix control
+[quote,Writer,Work,caption="Custom: "]
+____
+Q05 body.
+____
+
+.Q06 anchor:title-target[]Title link:https://example.org/title[Link] footnote:shared[Title note.] ((Title term))
+[quote]
+____
+Q06 body.
+____
+
+See <<quote-target>> and <<title-target,inline title target>>. Reuse footnote:shared[].
+
+[cols="1a"]
+|===
+|.Q07 Cell title
+[quote,Cell writer,Cell work]
+____
+Q07 cell body.
+____
+|===
+
+* List item.
++
+.Q08 Attached title
+[quote]
+____
+Q08 attached body.
+____
+
+--
+.Q09 Nested title
+[quote,Nested writer]
+____
+Q09 nested body.
+____
+--
+
+Q10 Following paragraph.
+
+[index]
+== Index

@@ -256,6 +256,12 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                         "quoteblock".to_string()
                     };
                     write_block_div_open(&mut self.writer, &block.metadata, &base_class)?;
+                    self.render_title_with_wrapper(
+                        traversal,
+                        &block.title,
+                        "<div class=\"title\">",
+                        "</div>\n",
+                    )?;
                     writeln!(self.writer, "<blockquote>")?;
                     for nested_block in blocks {
                         traversal.visit_block(self, nested_block)?;
