@@ -1,0 +1,78 @@
+'\" t
+.\"     Title: incomplete-link-subs
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-05
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "INCOMPLETE\-LINK\-SUBS" "1" "2026-10-05" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+incomplete\-link\-subs \- respect enabled link substitutions
+.SH "SYNOPSIS"
+.EX
+S01 link:https://unfinished.example[Unfinished \fBbold\fP and \c
+.URL "https://valid.example" "" "\c"
+\&.
+S02 link:https://unfinished.example[Unfinished \c
+.URL "https://inner.example" "Inner" "\c"
+
+S03 link:user@example.org
+S04 \c
+.URL "https://complete.example" "Complete" "\c"
+.EE
+.EX
+S05 link:https://unfinished.example[Unfinished
+.EE
+.sp
+S06 link:https://unfinished.example[Unfinished *bold* and https://other.example.
+.sp
+S07 link:https://unfinished.example[Late]
+.sp
+S08 \c
+.URL "https://complete.example" "Early" "\c"
+
+.sp
+S09 link:https://unfinished.example[Late]
+.sp
+S10 \c
+.URL "https://complete.example" "Early" "\c"
+
+.sp
+S11 \c
+.URL "https://attribute.example" "Complete" "\c"
+
+.sp
+S12 link:https://attribute.example[Unfinished
+.sp
+S13 link:https://unfinished.example[Unfinished
+.sp
+S14 \c
+.URL "https://complete.example" "Complete" "\c"
+
+.sp
+S15 link:https://unfinished.example[Late]
+.sp
+S16 \c
+.URL "https://complete.example" "Early" "\c"
+

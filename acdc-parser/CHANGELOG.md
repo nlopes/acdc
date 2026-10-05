@@ -57,6 +57,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Unfinished `link:` macros keep their targets as literal text instead of
+  creating fallback URL or email links, matching Asciidoctor. Brackets expanded
+  by attributes after the macro stage cannot complete the link. Formatting and
+  separate macros in the remaining text still work. Unlike Asciidoctor, a
+  complete nested macro keeps its closing bracket when the outer link is
+  unfinished; the paragraph now parses successfully.
+
 - Named index terms retain complete nested macro labels. For example,
   `indexterm2:[Before https://example.org[Link] after]` keeps the link and the
   following text inside the index term. Unlike Asciidoctor, an inner closing

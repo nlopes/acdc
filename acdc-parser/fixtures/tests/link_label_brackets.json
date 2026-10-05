@@ -1929,7 +1929,7 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Unfinished: link:",
+          "value": "Unfinished: ",
           "location": [
             {
               "line": 37,
@@ -1937,22 +1937,18 @@
             },
             {
               "line": 37,
-              "col": 17
+              "col": 12
             }
           ]
         },
         {
-          "name": "ref",
-          "type": "inline",
-          "variant": "autolink",
-          "target": {
-            "type": "url",
-            "value": "https://example.org"
-          },
+          "name": "text",
+          "type": "string",
+          "value": "link:https://example.org",
           "location": [
             {
               "line": 37,
-              "col": 18
+              "col": 13
             },
             {
               "line": 37,

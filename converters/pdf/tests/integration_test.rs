@@ -12,6 +12,37 @@ use acdc_converters_pdf::{PdfOptions, Processor};
 type Error = Box<dyn std::error::Error>;
 
 #[test]
+fn incomplete_links_omit_pdf_annotations_for_unfinished_targets() -> Result<(), Error> {
+    let pdf = render_input(include_str!("fixtures/source/incomplete_links.adoc"))?;
+    let mut targets = Vec::new();
+    for page in pdf.get_pages().keys() {
+        targets.extend(
+            external_link_rects(&pdf, *page)?
+                .into_iter()
+                .map(|(uri, _)| uri),
+        );
+    }
+    for target in [
+        "https://complete.example",
+        "https://inner.example",
+        "https://other.example",
+    ] {
+        assert!(targets.iter().any(|uri| uri == target), "{targets:?}");
+    }
+    assert!(
+        targets
+            .iter()
+            .all(|uri| !uri.contains("unfinished.example")),
+        "{targets:?}"
+    );
+    assert!(
+        !targets.iter().any(|uri| uri == "mailto:user@example.org"),
+        "{targets:?}"
+    );
+    Ok(())
+}
+
+#[test]
 fn named_index_delimiters_keep_pdf_annotations_and_one_note() -> Result<(), Error> {
     let source = "= Index labels\n\nindexterm2:[Before https://example.org[Link] footnote:one[Only note.] anchor:inner[] after].\n\nReuse footnote:one[] and <<inner,Inner>>.\n\n<<<\n\n[index]\n== Index\n";
     let parsed = parse(source, &Options::default())?;

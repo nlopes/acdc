@@ -73,9 +73,7 @@ Before \c
 .URL "https://example.org" "One \e\e\e] two" "\c"
 
 .sp
-Unfinished: link:\c
-.URL "https://example.org" "" "\c"
-[Label \e] tail.
+Unfinished: link:https://example.org[Label \e] tail.
 .sp
 Escaped: \e\c
 .URL "https://example.org" "One ] two" "\c"

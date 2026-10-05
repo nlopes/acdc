@@ -1161,6 +1161,7 @@ peg::parser! {
             / &['<'] node:cross_reference_shorthand() { node }
             / &['x'] node:cross_reference_macro() { node }
             / &['l'] node:link_macro() { node }
+            / &['l'] node:literal_link_target() { node }
             / &['m'] node:mailto_macro() { node }
             / &['h' | 'f'] node:url_macro() { node }
             / check_autolinks() node:inline_autolink() { node }
@@ -1169,6 +1170,7 @@ peg::parser! {
         rule verbatim_link_match()
         = cross_reference_shorthand_match() / cross_reference_macro_match()
         / link_macro_match() / mailto_macro_match() / url_macro_match()
+        / literal_link_target_match()
         / check_autolinks() inline_autolink_match()
 
         rule verbatim_index_term() -> InlineNode<'input>
@@ -1322,6 +1324,7 @@ peg::parser! {
             / check_macros() &['h' | 'f'] url_macro:url_macro() { url_macro }
             / check_macros() &['p'] pass:inline_pass() { pass }
             / check_macros() &['l'] link_macro:link_macro() { link_macro }
+            / check_macros() &['l'] target:literal_link_target() { target }
             // No byte guard: autolink matches bare URLs (`h`/`f` schemes) AND bare
             // emails (any ASCII alphanumeric), and `<url>` / `<email>`. The
             // upstream `plain_text_quick_safe` fast path already rejects most
@@ -2268,8 +2271,8 @@ peg::parser! {
 
         /// Parse a link target and its optional label or named attributes.
         rule link_macro() -> InlineNode<'input>
-        = "link:" target:link_macro_source() fragment:path_fragment()? "["
-        content_start:position!() content:link_macro_content() "]"
+        = "link:" target:link_macro_source() fragment:path_fragment()? open:position!() "["
+        content_start:position!() content:link_macro_content() close:position!() "]" check_link_brackets(open, close)
         {?
             tracing::debug!(?target, ?content, "Found link macro inline");
             let bm = BlockParsingMetadata {
@@ -2298,13 +2301,40 @@ peg::parser! {
             })))
         }
 
-        /// Match link macro without consuming - for use in negative lookaheads.
+        /// Recognize link syntax for escaping and inline lookahead.
         rule link_macro_match()
-        = "link:" link_macro_source() path_fragment()? "[" ("\\]" / !"]" [_])* "]"
+        = "link:" link_macro_source() path_fragment()? open:position!() "["
+          ("\\]" / !"]" [_])* close:position!() "]" check_link_brackets(open, close)
+
+        // Attribute values expanded after macros cannot complete a link's syntax.
+        rule check_link_brackets(open: usize, close: usize)
+        = {?
+            (macro_token_allowed(state, open, 1) && macro_token_allowed(state, close, 1))
+                .then_some(()).ok_or("link bracket introduced after macros")
+        }
 
         // Asciidoctor's URI pass removes this escape before the named link pass.
         rule link_macro_source() -> Source<'input>
         = ("\\" &("http://" / "https://" / "ftp://" / "irc://"))? target:source() { target }
+
+        // Complete links are tried first. An unfinished link target stays text,
+        // while its remaining label can still contain formatting and other links.
+        rule literal_link_target() -> InlineNode<'input>
+        = content:$(literal_link_target_match()) {
+            InlineNode::PlainText(Plain {
+                content,
+                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
+                escaped: false,
+            })
+        }
+
+        rule literal_link_target_match()
+        = "link:" ("\\"* url_macro_target_match()
+            / "mailto:" email_address()
+            / email_at_sign_ahead() email_address())
+        // Local targets need recovery only when lookahead accepts a closer that
+        // belongs to a nested macro. Other unfinished paths stay ordinary text.
+        / &link_macro_match() "link:" link_macro_source() path_fragment()?
 
         /// Parse cross-reference shorthand syntax: <<id>> or <<id,custom text>>
         rule cross_reference_shorthand() -> InlineNode<'input>
@@ -3290,6 +3320,7 @@ peg::parser! {
                     // a=anchor/asciimath, b=btn, f=footnote/ftp, h=http(s), i=image/icon/indexterm/irc,
                     // k=kbd, l=link/latexmath, m=menu/mailto, p=pass, s=stem, x=xref
                     / (check_macros() &['[' | '(' | '<' | 'a' | 'b' | 'f' | 'h' | 'i' | 'k' | 'l' | 'm' | 'p' | 's' | 'x'] (inline_anchor_match() / (check_index_terms() index_term_match()) / cross_reference_shorthand_match() / cross_reference_macro_match() / footnote_match() / inline_image_match() / inline_icon_match() / inline_stem_match() / inline_keyboard_match() / inline_button_match() / inline_menu_match() / mailto_macro_match() / url_macro_match() / inline_pass_match() / link_macro_match()))
+                    / (check_macros() &['l'] literal_link_target_match())
                     / (check_macros() check_autolinks() inline_autolink_match())
                     / (check_quotes() &['*' | '_' | '`' | '#' | '^' | '~' | '"' | '\'' | '['] (bold_text_unconstrained_match() / bold_text_constrained_match() / italic_text_unconstrained_match() / italic_text_constrained_match() / monospace_text_unconstrained_match() / monospace_text_constrained_match() / highlight_text_unconstrained_match() / highlight_text_constrained_match() / superscript_text_match() / subscript_text_match() / curved_quotation_text_match() / curved_apostrophe_text_match() / standalone_curved_apostrophe_match()))
                 ) [_]

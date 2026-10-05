@@ -1,7 +1,7 @@
 #set document(
-  title: "Passthrough brackets",
+  title: "incomplete-link-subs(1)",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Passthrough brackets]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[incomplete-link-subs(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -73,46 +73,77 @@
 #set page(numbering: "1")
 #counter(page).update(1)
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("Passthrough brackets")]
+#text(size: 22pt, weight: "bold")[#text("incomplete-link-subs(1)")]
 ]
 #v(1em)
 
-#text("Before ")#link("https://example.org")[#text("Label")]#text(" after.")
+#heading(level: 1)[#text("Name")] <id-5f6e616d65>
 
-#text("α ")#link("https://example.org")[#text("é")]#text(" / ")#link("https://example.net")[#text("東京")]#text(" ω.")
+#text("incomplete-link-subs - respect enabled link substitutions")
 
-#metadata(none)<id-746172676574>#text("Destination.")
+#heading(level: 1)[#text("Synopsis")] <id-5f73796e6f70736973>
 
-#text("See ")#context link(query(<id-746172676574>).first().location())[#text("Destination")]#text(" and ")#context link(query(<id-746172676574>).first().location())[#text("Reference")]#text(".")
+#{
+  // Slice highlighted text without discarding its syntax styles.
+  let code-slice(body, start, end) = {
+    if body.has("text") {
+      let size = body.text.len()
+      (text(body.text.slice(calc.min(start, size), calc.min(end, size))), size)
+    } else if body.has("children") {
+      let offset = 0
+      let parts = []
+      for child in body.children {
+        let (part, size) = code-slice(child, calc.max(0, start - offset), calc.max(0, end - offset))
+        parts += part
+        offset += size
+      }
+      (parts, offset)
+    } else if body.has("child") {
+      let (child, size) = code-slice(body.child, start, end)
+      (body.func()(child, body.styles), size)
+    } else {
+      ([], 0)
+    }
+  }
+  let links = (
+    ((47, 51, body => [#strong[#body]]), (56, 77, body => link("https://valid.example", body)), ),
+    ((47, 52, body => link("https://inner.example", body)), ),
+    (),
+    ((4, 12, body => link("https://complete.example", body)), ),
+  )
+  let code-links(line) = {
+    let start = 0
+    let body = []
+    for (from, to, make-link) in links.at(line.number - 1, default: ()) {
+      body += code-slice(line.body, start, from).first()
+      body += make-link(code-slice(line.body, from, to).first())
+      start = to
+    }
+    body + code-slice(line.body, start, line.text.len()).first()
+  }
+  show raw.line: line => code-links(line)
+  raw(block: true, "S01 link:https://unfinished.example[Unfinished bold and https://valid.example.\nS02 link:https://unfinished.example[Unfinished Inner\nS03 link:user@example.org\nS04 Complete")
+}
+#raw(block: true, "S05 link:https://unfinished.example[Unfinished")
 
-#text("Note ")#counter(footnote).update(0)#footnote[#text("Note body.")]<id-666f6f746e6f74653a6e6f7465>#text(".")
+#text("S06 link:https://unfinished.example[Unfinished *bold* and https://other.example.")
 
-#text("Reuse ")#footnote(<id-666f6f746e6f74653a6e6f7465>)#text(".")
+#text("S07 ")#text("link:https://unfinished.example")#text("[Late]")
 
-#text("Before ")#text("one")#text("]")#text("two")#text(" after ")#text("three")#text("]")#text("four")#text(".")
+#text("S08 ")#link("https://complete.example")[#text("Early")]
 
-#text("Before ")#strong[#text("one")#text("]")#text("two")]#text(" after.")
+#text("S09 ")#text("link:https://unfinished.example")#text("[Late]")
 
-#link("https://example.org")[#text("Expanded")]
+#text("S10 ")#link("https://complete.example")[#text("Early")]
 
-#link("https://example.org")[#text("Expanded")]
+#text("S11 ")#link("https://attribute.example")[#text("Complete")]
 
-#link("https://example.org")[#text("Label")]
+#text("S12 ")#text("link:https://attribute.example")#text("[Unfinished")
 
-#text("link:https://example.org")#text("[Label")#text("]")
+#text("S13 ")#text("link:https://unfinished.example")#text("[Unfinished")
 
-#text("one")#text("]")#text("two ")#metadata(none)<__indexterm-1>#text("Expanded term")
+#text("S14 ")#link("https://complete.example")[#text("Complete")]
 
-#link("https://example.org")[#text("One")]#text(" ")#link("https://example.net")[#text("Two")]
+#text("S15 ")#text("link:https://unfinished.example")#text("[Late")#text("]")
 
-#text("")#text(" ")#text("]")#text(" ")#link("https://example.org")[#text("https://example.org")]
-
-#text("Unescaped inner closing bracket: ")#text("link:https://example.org")#text("[Label")#text("].")
-
-#text("Unfinished passthrough: pass:m[")#text("link:https://example.org")#text("[Label\\] after.")
-
-#text("Escaped passthrough: ")#text("pass:m[link:https://example.org[Label\\]]")#text(".")
-
-#text("Macros disabled inside: ")#text("link:https://example.org[Label")#text("]")#text(".")
-
-#text("Backslashes: ")#text("one")#text("]")#text("two")#text(" ")#text("one\\")#text("]")#text("two")#text(" ")#text("one\\\\")#text("]")#text("two")#text(" ")#text("one\\\\\\")#text("]")#text("two")#text(".")
+#text("S16 ")#link("https://complete.example")[#text("Early")]

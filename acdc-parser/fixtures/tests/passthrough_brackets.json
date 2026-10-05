@@ -992,30 +992,11 @@
         {
           "name": "raw",
           "type": "string",
-          "value": "link:",
+          "value": "link:https://example.org",
           "location": [
             {
               "line": 28,
               "col": 10
-            },
-            {
-              "line": 28,
-              "col": 14
-            }
-          ]
-        },
-        {
-          "name": "ref",
-          "type": "inline",
-          "variant": "autolink",
-          "target": {
-            "type": "url",
-            "value": "https://example.org"
-          },
-          "location": [
-            {
-              "line": 28,
-              "col": 15
             },
             {
               "line": 28,
@@ -1381,30 +1362,11 @@
         {
           "name": "raw",
           "type": "string",
-          "value": "link:",
+          "value": "link:https://example.org",
           "location": [
             {
               "line": 37,
               "col": 41
-            },
-            {
-              "line": 37,
-              "col": 45
-            }
-          ]
-        },
-        {
-          "name": "ref",
-          "type": "inline",
-          "variant": "autolink",
-          "target": {
-            "type": "url",
-            "value": "https://example.org"
-          },
-          "location": [
-            {
-              "line": 37,
-              "col": 46
             },
             {
               "line": 37,
@@ -1461,7 +1423,7 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Unfinished passthrough: pass:m[link:",
+          "value": "Unfinished passthrough: pass:m[",
           "location": [
             {
               "line": 39,
@@ -1469,22 +1431,18 @@
             },
             {
               "line": 39,
-              "col": 36
+              "col": 31
             }
           ]
         },
         {
-          "name": "ref",
-          "type": "inline",
-          "variant": "autolink",
-          "target": {
-            "type": "url",
-            "value": "https://example.org"
-          },
+          "name": "text",
+          "type": "string",
+          "value": "link:https://example.org",
           "location": [
             {
               "line": 39,
-              "col": 37
+              "col": 32
             },
             {
               "line": 39,

@@ -1,7 +1,7 @@
 #set document(
-  title: "Passthrough brackets",
+  title: "incomplete-links(1)",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Passthrough brackets]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[incomplete-links(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -73,46 +73,78 @@
 #set page(numbering: "1")
 #counter(page).update(1)
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("Passthrough brackets")]
+#text(size: 22pt, weight: "bold")[#text("incomplete-links(1)")]
 ]
 #v(1em)
 
-#text("Before ")#link("https://example.org")[#text("Label")]#text(" after.")
+#heading(level: 1)[#text("Name")] <id-5f6e616d65>
 
-#text("α ")#link("https://example.org")[#text("é")]#text(" / ")#link("https://example.net")[#text("東京")]#text(" ω.")
+#text("incomplete-links - preserve unfinished links as text")
 
-#metadata(none)<id-746172676574>#text("Destination.")
+#heading(level: 1)[#text("Synopsis")] <id-5f73796e6f70736973>
 
-#text("See ")#context link(query(<id-746172676574>).first().location())[#text("Destination")]#text(" and ")#context link(query(<id-746172676574>).first().location())[#text("Reference")]#text(".")
+#text("L01 ")#text("link:https://unfinished.example")
 
-#text("Note ")#counter(footnote).update(0)#footnote[#text("Note body.")]<id-666f6f746e6f74653a6e6f7465>#text(".")
+#text("L02 ")#text("link:https://unfinished.example")#text("[Unfinished")
 
-#text("Reuse ")#footnote(<id-666f6f746e6f74653a6e6f7465>)#text(".")
+#text("L03 ")#text("link:https://unfinished.example")#text("[Escaped\\]")
 
-#text("Before ")#text("one")#text("]")#text("two")#text(" after ")#text("three")#text("]")#text("four")#text(".")
+#text("L04 ")#link("https://complete.example")[#text("Complete")]
 
-#text("Before ")#strong[#text("one")#text("]")#text("two")]#text(" after.")
+#text("L05 ")#link("https://bare.example")[#text("https://bare.example")]
 
-#link("https://example.org")[#text("Expanded")]
+#text("L06 link: ")#link("https://separate.example")[#text("Label")]
 
-#link("https://example.org")[#text("Expanded")]
+#text("L07 x")#text("link:https://unfinished.example")
 
-#link("https://example.org")[#text("Label")]
+#text("L08 Link:")#link("https://boundary.example")[#text("https://boundary.example")]
 
-#text("link:https://example.org")#text("[Label")#text("]")
+#text("L09 ")#text("link:http://unfinished.example")
 
-#text("one")#text("]")#text("two ")#metadata(none)<__indexterm-1>#text("Expanded term")
+#text("L10 ")#text("link:ftp://unfinished.example")
 
-#link("https://example.org")[#text("One")]#text(" ")#link("https://example.net")[#text("Two")]
+#text("L11 ")#text("link:irc://unfinished.example")
 
-#text("")#text(" ")#text("]")#text(" ")#link("https://example.org")[#text("https://example.org")]
+#text("L12 ")#text("link:mailto:user@example.org")
 
-#text("Unescaped inner closing bracket: ")#text("link:https://example.org")#text("[Label")#text("].")
+#text("L13 ")#text("link:user@example.org")
 
-#text("Unfinished passthrough: pass:m[")#text("link:https://example.org")#text("[Label\\] after.")
+#text("L14 \\")#text("link:https://unfinished.example")#text("[Unfinished")
 
-#text("Escaped passthrough: ")#text("pass:m[link:https://example.org[Label\\]]")#text(".")
+#text("L15 ")#text("link:\\https://unfinished.example")
 
-#text("Macros disabled inside: ")#text("link:https://example.org[Label")#text("]")#text(".")
+#text("L16 ")#link("https://suffix.example")[#text("path")]#text("suffix")
 
-#text("Backslashes: ")#text("one")#text("]")#text("two")#text(" ")#text("one\\")#text("]")#text("two")#text(" ")#text("one\\\\")#text("]")#text("two")#text(" ")#text("one\\\\\\")#text("]")#text("two")#text(".")
+#text("L17 ")#text("link:https://unfinished.example")#text("[Unfinished ")#link("https://inner.example")[#text("Inner")]
+
+#text("L18 ")#strong[#text("link:https://unfinished.example")]
+
+#text("L19 ")#text("link:https://unfinished.example")#text("[")#strong[#text("Bold")]#text(" text")
+
+#text("L20 ")#link("https://implicit.example")[#text("https://implicit.example")]#text("[Unfinished")
+
+#text("L21 ")#link("https://angle.example")[#text("https://angle.example")]
+
+#text("L22 link:")#link("https://angle.example")[#text("https://angle.example")]
+
+#text("L23 ")#text("link:https://user@unfinished.example")#text("[Unfinished")
+
+#text("L24 link:école.html[Unfinished")
+
+#text("L25 ")#text("link:manual.html")#text("[Unfinished ")#link("https://inner.example")[#text("Inner")]
+
+#text("L26 ")#text("link:https://unfinished.example")#text("[Unfinished")
+
+#text("L27 ")#text("link:https://unfinished.example")#text("[Unfinished still unfinished")
+
+#text("L28 ")#text("link:https://unfinished.example")#text("[Unfinished ")#strong[#text("bold")]#text(" and ")#link("https://other.example")[#text("https://other.example")]#text(".")
+
+#text("L29 ")#text("link:https://unfinished.example")#text("[Unfinished ")#link("mailto:inner@example.org")[#text("Mail")]#text(".")
+
+#text("L30 ")#text("link:https://unfinished.example")#text("[Unfinished ")#metadata(none)<__indexterm-1>#text("Term")#text(" ")#counter(footnote).update(0)#footnote[#text("Only note.")]<id-666f6f746e6f74653a6f6e65>
+
+#text("Reuse ")#footnote(<id-666f6f746e6f74653a6f6e65>)#text(".")
+
+#text("L31 ")#text("link:\\\\https://unfinished.example")#text("[Unfinished")
+
+#text("L32 \\\\")#text("link:https://unfinished.example")#text("[Unfinished")

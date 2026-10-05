@@ -33,9 +33,7 @@ Before \fBone]two\fP after.
 .URL "https://example.org" "Label" "\c"
 
 .sp
-link:\c
-.URL "https://example.org" "" "\c"
-[Label]
+link:https://example.org[Label]
 .sp
 one]two Expanded term
 .sp
@@ -50,13 +48,9 @@ one]two Expanded term
 .URL "https://example.org" "" "\c"
 
 .sp
-Unescaped inner closing bracket: link:\c
-.URL "https://example.org" "" "\c"
-[Label].
+Unescaped inner closing bracket: link:https://example.org[Label].
 .sp
-Unfinished passthrough: pass:m[link:\c
-.URL "https://example.org" "" "\c"
-[Label\e] after.
+Unfinished passthrough: pass:m[link:https://example.org[Label\e] after.
 .sp
 Escaped passthrough: pass:m[link:https://example.org[Label\e]]\&.
 .sp

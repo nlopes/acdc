@@ -1,0 +1,126 @@
+'\" t
+.\"     Title: incomplete-links
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-05
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "INCOMPLETE\-LINKS" "1" "2026-10-05" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+incomplete\-links \- preserve unfinished links as text
+.SH "SYNOPSIS"
+.sp
+L01 link:https://unfinished.example
+.sp
+L02 link:https://unfinished.example[Unfinished
+.sp
+L03 link:https://unfinished.example[Escaped\e]
+.sp
+L04 \c
+.URL "https://complete.example" "Complete" "\c"
+
+.sp
+L05 \c
+.URL "https://bare.example" "" "\c"
+
+.sp
+L06 link: \c
+.URL "https://separate.example" "Label" "\c"
+
+.sp
+L07 xlink:https://unfinished.example
+.sp
+L08 Link:\c
+.URL "https://boundary.example" "" "\c"
+
+.sp
+L09 link:http://unfinished.example
+.sp
+L10 link:ftp://unfinished.example
+.sp
+L11 link:irc://unfinished.example
+.sp
+L12 link:mailto:user@example.org
+.sp
+L13 link:user@example.org
+.sp
+L14 \elink:https://unfinished.example[Unfinished
+.sp
+L15 link:\ehttps://unfinished.example
+.sp
+L16 \c
+.URL "https://suffix.example" "path" "\c"
+suffix
+.sp
+L17 link:https://unfinished.example[Unfinished \c
+.URL "https://inner.example" "Inner" "\c"
+
+.sp
+L18 \fBlink:https://unfinished.example\fP
+.sp
+L19 link:https://unfinished.example[\fBBold\fP text
+.sp
+L20 \c
+.URL "https://implicit.example" "" "\c"
+[Unfinished
+.sp
+L21 \c
+.URL "https://angle.example" "" "\c"
+
+.sp
+L22 link:\c
+.URL "https://angle.example" "" "\c"
+
+.sp
+L23 link:https://user@unfinished.example[Unfinished
+.sp
+L24 link:école.html[Unfinished
+.sp
+L25 link:manual.html[Unfinished \c
+.URL "https://inner.example" "Inner" "\c"
+
+.sp
+L26 link:https://unfinished.example[Unfinished
+.sp
+L27 link:https://unfinished.example[Unfinished
+still unfinished
+.sp
+L28 link:https://unfinished.example[Unfinished \fBbold\fP and \c
+.URL "https://other.example" "" "\c"
+\&.
+.sp
+L29 link:https://unfinished.example[Unfinished \c
+.MTO "inner\(atexample.org" "Mail" "\c"
+\&.
+.sp
+L30 link:https://unfinished.example[Unfinished Term [1]
+.sp
+Reuse [1]\&.
+.sp
+L31 link:\e\ehttps://unfinished.example[Unfinished
+.sp
+L32 \e\elink:https://unfinished.example[Unfinished
+.SH "NOTES"
+.IP [1] 4
+Only note.

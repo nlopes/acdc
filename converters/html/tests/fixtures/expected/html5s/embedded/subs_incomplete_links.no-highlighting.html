@@ -1,0 +1,27 @@
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>incomplete-link-subs - respect enabled link substitutions</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_synopsis">Synopsis</h2>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text">S01 link:https://unfinished.example[Unfinished <strong>bold</strong> and <a href="https://valid.example" class="bare">https://valid.example</a>.
+S02 link:https://unfinished.example[Unfinished <a href="https://inner.example">Inner</a>
+S03 link:user@example.org
+S04 <a href="https://complete.example">Complete</a></code></pre>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text">S05 link:https://unfinished.example[Unfinished</code></pre>
+</div>
+<p>S06 link:https://unfinished.example[Unfinished *bold* and https://other.example.</p>
+<p>S07 link:https://unfinished.example[Late]</p>
+<p>S08 <a href="https://complete.example">Early</a></p>
+<p>S09 link:https://unfinished.example[Late]</p>
+<p>S10 <a href="https://complete.example">Early</a></p>
+<p>S11 <a href="https://attribute.example">Complete</a></p>
+<p>S12 link:https://attribute.example[Unfinished</p>
+<p>S13 link:https://unfinished.example[Unfinished</p>
+<p>S14 <a href="https://complete.example">Complete</a></p>
+<p>S15 link:https://unfinished.example[Late]</p>
+<p>S16 <a href="https://complete.example">Early</a></p>
+</section>

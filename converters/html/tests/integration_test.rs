@@ -204,6 +204,32 @@ fn document_attribute_pass_raw_tags_remain_nested_under_highlighting() -> Result
 }
 
 #[test]
+fn incomplete_links_keep_only_complete_targets_active() -> Result<(), Error> {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/source/html/embedded/incomplete_links.adoc");
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        let output = render_fixture(&path, variant, true)?;
+        check_link_structure(&output, "incomplete_links")?;
+        for target in [
+            "https://complete.example",
+            "https://inner.example",
+            "https://other.example",
+        ] {
+            assert!(output.contains(&format!("href=\"{target}\"")), "{target}");
+        }
+        for tag in output.split('<').filter(|part| part.starts_with("a ")) {
+            let attributes = tag.split_once('>').ok_or("unterminated anchor")?.0;
+            assert!(!attributes.contains("unfinished.example"), "{attributes}");
+            assert!(
+                !attributes.contains("mailto:user@example.org"),
+                "{attributes}"
+            );
+        }
+    }
+    Ok(())
+}
+
+#[test]
 fn named_index_delimiters_keep_links_separate_and_targets_valid() -> Result<(), Error> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/source/html/embedded/named_index_delimiters.adoc");

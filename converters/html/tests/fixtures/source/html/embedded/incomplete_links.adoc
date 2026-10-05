@@ -1,0 +1,75 @@
+= incomplete-links(1)
+:doctype: manpage
+:revdate: 2026-10-05
+
+== Name
+incomplete-links - preserve unfinished links as text
+
+== Synopsis
+
+L01 link:https://unfinished.example
+
+L02 link:https://unfinished.example[Unfinished
+
+L03 link:https://unfinished.example[Escaped\]
+
+L04 link:https://complete.example[Complete]
+
+L05 link:https://bare.example[]
+
+L06 link: https://separate.example[Label]
+
+L07 xlink:https://unfinished.example
+
+L08 Link:https://boundary.example
+
+L09 link:http://unfinished.example
+
+L10 link:ftp://unfinished.example
+
+L11 link:irc://unfinished.example
+
+L12 link:mailto:user@example.org
+
+L13 link:user@example.org
+
+L14 \link:https://unfinished.example[Unfinished
+
+L15 link:\https://unfinished.example
+
+L16 link:https://suffix.example[path]suffix
+
+L17 link:https://unfinished.example[Unfinished https://inner.example[Inner]
+
+L18 *link:https://unfinished.example*
+
+L19 link:https://unfinished.example[*Bold* text
+
+L20 https://implicit.example[Unfinished
+
+L21 <https://angle.example>
+
+L22 link:<https://angle.example>
+
+L23 link:https://user@unfinished.example[Unfinished
+
+L24 link:école.html[Unfinished
+
+L25 link:manual.html[Unfinished https://inner.example[Inner]
+
+L26 pass:m[link:https://unfinished.example[Unfinished]
+
+L27 link:https://unfinished.example[Unfinished
+still unfinished
+
+L28 link:https://unfinished.example[Unfinished *bold* and https://other.example.
+
+L29 link:https://unfinished.example[Unfinished mailto:inner@example.org[Mail].
+
+L30 link:https://unfinished.example[Unfinished ((Term)) footnote:one[Only note.]
+
+Reuse footnote:one[].
+
+L31 link:\\https://unfinished.example[Unfinished
+
+L32 \\link:https://unfinished.example[Unfinished

@@ -214,6 +214,20 @@ a nested inline tree and retains separate targets for nested links. This
 supports the selected SDR-5 separation of parsing and conversion; SDR-5 does
 not prescribe this exact delimiter-ownership policy.
 
+== Incomplete links
+
+An unfinished `link:` macro keeps its target as text. For example,
+`link:https://example.org[Unfinished` does not create a hyperlink, matching
+Asciidoctor. Complete `link:` macros still work, and the remaining text can
+contain formatting, footnotes and independent links. A bracket supplied by an
+attribute after the macro stage cannot complete the earlier link syntax.
+
+Complete nested macros own their closing brackets. In
+`link:https://outer.example[Before https://inner.example[Inner]`, the outer
+prefix stays literal and the inner link works. Asciidoctor instead uses that
+closing bracket for the outer link. acdc preserves a nested source structure
+under its chosen SDR-5 policy; SDR-5 does not prescribe this exact recovery rule.
+
 == Escaped attribute references
 
 When attribute substitutions are enabled, `\{name}`, `{name\}`, and `\{name\}` all produce the literal text `{name}`.

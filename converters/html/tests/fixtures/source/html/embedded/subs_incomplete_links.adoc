@@ -1,0 +1,52 @@
+= incomplete-link-subs(1)
+:doctype: manpage
+:revdate: 2026-10-05
+:source-highlighter: rouge
+:close: ]
+:open: [
+:target: https://attribute.example
+
+== Name
+incomplete-link-subs - respect enabled link substitutions
+
+== Synopsis
+
+[source,text,subs="+macros,+quotes"]
+----
+S01 link:https://unfinished.example[Unfinished *bold* and https://valid.example.
+S02 link:https://unfinished.example[Unfinished https://inner.example[Inner]
+S03 link:user@example.org
+S04 link:https://complete.example[Complete]
+----
+
+[source,text]
+----
+S05 link:https://unfinished.example[Unfinished
+----
+
+[subs="none"]
+S06 link:https://unfinished.example[Unfinished *bold* and https://other.example.
+
+[subs="macros,attributes"]
+S07 link:https://unfinished.example[Late{close}
+
+[subs="attributes,macros"]
+S08 link:https://complete.example[Early{close}
+
+[subs="macros,attributes"]
+S09 link:https://unfinished.example{open}Late]
+
+[subs="attributes,macros"]
+S10 link:https://complete.example{open}Early]
+
+S11 link:{target}[Complete]
+
+S12 link:{target}[Unfinished
+
+S13 pass:m[link:https://unfinished.example[Unfinished]
+
+S14 pass:m[link:https://complete.example[Complete\]]
+
+S15 pass:m,a[link:https://unfinished.example[Late{close}]
+
+S16 pass:a,m[link:https://complete.example[Early{close}]
