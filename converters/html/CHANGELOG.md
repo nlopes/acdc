@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- With `:acdc-index:`, catalog links to repeated terms in highlighted code
+  follow document order, including terms inside formatted and linked labels.
+  Enabling highlighting no longer makes the first catalog link jump to a later
+  occurrence. Targets stay next to their terms with line numbers and multiline
+  links, without creating nested HTML anchors. The optional HTML catalog remains
+  an acdc extension; Asciidoctor does not generate one.
+
 - Standard HTML retains titles above delimited quote blocks, matching
   Asciidoctor. Formatting, links, footnotes and inline targets in those titles
   remain available, including inside table cells and attached list blocks.

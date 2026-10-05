@@ -630,6 +630,97 @@ fn visible_index_typography_keeps_following_links_and_unique_targets() -> Result
     Ok(())
 }
 
+#[cfg(feature = "pre-spec-subs")]
+#[test]
+fn highlighted_index_catalog_follows_source_occurrences() -> Result<(), Error> {
+    let input = include_str!("fixtures/source/html/embedded/subs_index_occurrence_order.adoc");
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        for attrs in [
+            vec![],
+            vec![("highlight-css", AttributeValue::String("class".into()))],
+            vec![(
+                "highlight-style",
+                AttributeValue::String("missing-theme".into()),
+            )],
+            vec![("source-highlighter", AttributeValue::Bool(false))],
+        ] {
+            let output = convert_string_with_variant(input, &attrs, variant)?;
+            check_link_structure(&output, "subs_index_occurrence_order")?;
+            for (case, occurrence) in [
+                (0, 0),
+                (1, 1),
+                (2, 2),
+                (3, 3),
+                (4, 4),
+                (5, 5),
+                (6, 6),
+                (7, 7),
+                (8, 8),
+                (9, 9),
+                (10, 10),
+                (12, 13),
+                (13, 14),
+                (14, 15),
+                (15, 16),
+                (17, 18),
+            ] {
+                let marker = format!("C{case:02}");
+                let line = output
+                    .lines()
+                    .find(|line| line.contains(&marker))
+                    .ok_or("missing case line")?;
+                assert!(
+                    line.contains(&format!("id=\"_indexterm_{occurrence}\"")),
+                    "{variant:?} {attrs:?}: {line}"
+                );
+            }
+            let multiline = output
+                .lines()
+                .find(|line| line.contains("label "))
+                .ok_or("missing multiline label")?;
+            for occurrence in [11, 12] {
+                assert!(
+                    multiline.contains(&format!("id=\"_indexterm_{occurrence}\"")),
+                    "{variant:?} {attrs:?}: {multiline}"
+                );
+            }
+            let (_, catalog) = output
+                .split_once("<dt>Shared")
+                .ok_or("missing Shared catalog entry")?;
+            let (catalog, _) = catalog
+                .split_once("</dt>")
+                .ok_or("unterminated catalog entry")?;
+            let occurrences = catalog
+                .split("href=\"#_indexterm_")
+                .skip(1)
+                .map(|tail| {
+                    tail.split_once('"')
+                        .ok_or("unterminated catalog link")?
+                        .0
+                        .parse::<usize>()
+                        .map_err(Error::from)
+                })
+                .collect::<Result<Vec<_>, Error>>()?;
+            assert_eq!(
+                occurrences,
+                (0..19)
+                    .filter(|id| ![5, 17].contains(id))
+                    .collect::<Vec<_>>()
+            );
+            assert!(
+                !output.contains("_indexterm_19"),
+                "unexpected registration: {output}"
+            );
+
+            let mut attrs = attrs;
+            attrs.push(("acdc-index", AttributeValue::Bool(false)));
+            let disabled = convert_string_with_variant(input, &attrs, variant)?;
+            assert!(!disabled.contains("_indexterm_"), "{disabled}");
+        }
+    }
+    Ok(())
+}
+
 #[cfg(all(feature = "pre-spec-subs", feature = "highlighting"))]
 #[test]
 fn visible_index_typography_keeps_registration_labels_and_source_order() -> Result<(), Error> {
@@ -695,13 +786,23 @@ fn visible_index_typography_survives_missing_theme_fallback() -> Result<(), Erro
             )],
             variant,
         )?;
+        let mut fragments = output.split("<a id=\"_indexterm_");
+        let mut display = fragments.next().unwrap_or_default().to_owned();
+        for fragment in fragments {
+            display.push_str(
+                fragment
+                    .split_once("\"></a>")
+                    .ok_or("incomplete index anchor")?
+                    .1,
+            );
+        }
         for line in [
             "I04 Code © ® ™ After <a href=\"https://next.example/04\">Next04</a>",
             "I08 (C) Escaped After <a href=\"https://next.example/08\">Next08</a>",
             "I12 © Decoded After <a href=\"https://next.example/12\">Next12</a>",
             "I22 © Own enabled After <a href=\"https://next.example/22\">Next22</a>",
         ] {
-            assert!(output.contains(line), "{variant:?}: {output}");
+            assert!(display.contains(line), "{variant:?}: {output}");
         }
         assert!(
             output.contains("class=\"conum\" data-value=\"1\""),

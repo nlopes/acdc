@@ -924,7 +924,7 @@ fn capture_code_inlines<'a, W: std::io::Write>(
             });
             offset += label.len();
         } else {
-            offset += syntax::extract_text_and_callouts(
+            let text = syntax::extract_text_and_callouts(
                 std::slice::from_ref(node),
                 subs.contains(&Substitution::Replacements),
                 TextBoundaries::BOTH
@@ -933,8 +933,31 @@ fn capture_code_inlines<'a, W: std::io::Write>(
                 None,
                 None,
             )
-            .0
-            .len();
+            .0;
+            // Captured labels register their own terms during rendering. Register
+            // ordinary terms in the same pass, at their displayed byte offsets;
+            // inserting anchors after line decoration can target the line gutter
+            // or split a multiline link.
+            acdc_converters_core::index::visit_index_terms(
+                std::slice::from_ref(node),
+                &mut |term, term_offset| {
+                    if let Some(id) = visitor.register_indexterm(
+                        traversal,
+                        term,
+                        &RenderOptions::default(),
+                        subs,
+                    )? {
+                        let start = offset + term_offset;
+                        links.push(syntax::HighlightedLink {
+                            range: start..start,
+                            html: format!("<a id=\"{id}\"></a>"),
+                            outside_spans: false,
+                        });
+                    }
+                    Ok::<(), Error>(())
+                },
+            )?;
+            offset += text.len();
         }
     }
     Ok((labels, links))
@@ -1016,38 +1039,10 @@ fn render_highlighted_code<'a, W: std::io::Write>(
         capture_code_inlines(traversal, highlight_inlines, text_context, visitor, subs)?;
     let resolved = code_nodes_with_text(highlight_inlines, &labels);
     let highlight_inlines = &resolved;
-    let mut anchors = std::collections::BTreeMap::<usize, Vec<String>>::new();
-    let mut line = 0;
-    for node in highlight_inlines {
-        let text = acdc_converters_core::InlineTextTransform::default()
-            .line_break("\n")
-            .to_string(std::slice::from_ref(node));
-        acdc_converters_core::index::visit_index_terms(
-            std::slice::from_ref(node),
-            &mut |term, offset| {
-                if let Some(id) =
-                    visitor.register_indexterm(traversal, term, &RenderOptions::default(), subs)?
-                {
-                    anchors
-                        .entry(line + text.get(..offset).unwrap_or_default().matches('\n').count())
-                        .or_default()
-                        .push(id);
-                }
-                Ok::<(), Error>(())
-            },
-        )?;
-        line += text.matches('\n').count();
-    }
-    let mut highlighted = Vec::new();
-    let output: &mut dyn std::io::Write = if anchors.is_empty() {
-        &mut visitor.writer
-    } else {
-        &mut highlighted
-    };
     // Split-borrow writer and diagnostics so highlight_code can have both
     // without overlapping &mut self calls on the visitor.
     syntax::highlight_code(
-        output,
+        &mut visitor.writer,
         highlight_inlines,
         metadata,
         syntax::HighlightOptions {
@@ -1057,24 +1052,7 @@ fn render_highlighted_code<'a, W: std::io::Write>(
         &links,
         subs.contains(&Substitution::Replacements),
         Some(&mut visitor.diagnostics),
-    )?;
-    if !anchors.is_empty() {
-        for (line, html) in String::from_utf8_lossy(&highlighted)
-            .split_inclusive('\n')
-            .enumerate()
-        {
-            if let Some(ids) = anchors.remove(&line) {
-                for id in ids {
-                    write!(visitor.writer, "<a id=\"{id}\"></a>")?;
-                }
-            }
-            write!(visitor.writer, "{html}")?;
-        }
-        for id in anchors.into_values().flatten() {
-            write!(visitor.writer, "<a id=\"{id}\"></a>")?;
-        }
-    }
-    Ok(())
+    )
 }
 
 /// Render a `<pre>` (and optional `<code>`) element for listing/source content.

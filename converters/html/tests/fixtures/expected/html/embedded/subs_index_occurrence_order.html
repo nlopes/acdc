@@ -1,0 +1,84 @@
+<div class="sect1">
+<h2 id="_name">Name</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>index-order - index occurrence ordering</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_synopsis">Synopsis</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><strong>index-order</strong></p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_description">Description</h2>
+<div class="sectionbody">
+<div id="target" class="paragraph">
+<p>C00 <a id="_indexterm_0"></a>Shared prose before.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-rust" data-lang="rust"><span style="color:#0086b3;">C01</span><span style="color:#323232;"> <a id="_indexterm_1"></a>Shared root before.
+</span><span style="color:#0086b3;">C02</span><span style="color:#323232;"> <a href="https://example.org">Linked </a><a id="_indexterm_2"></a><a href="https://example.org">Shared</a> nested middle.
+</span><span style="color:#0086b3;">C03</span><span style="color:#323232;"> <a id="_indexterm_3"></a>Shared root after.
+</span><span style="color:#0086b3;">C04</span><span style="color:#323232;"> <strong>Bold <a id="_indexterm_4"></a>Shared</strong> formatted label.
+</span><span style="color:#0086b3;">C05</span><span style="color:#323232;"> <a id="_indexterm_5"></a> concealed root.
+</span><span style="color:#0086b3;">C06</span><span style="color:#323232;"> <a href="mailto:user@example.org">Mail </a><a id="_indexterm_6"></a><a href="mailto:user@example.org">Shared</a> email label.
+</span><span style="color:#0086b3;">C07</span><span style="color:#323232;"> <a id="_indexterm_7"></a>Shared after email.
+</span><span style="color:#0086b3;">C08</span><span style="color:#323232;"> <a href="#target">Target </a><a id="_indexterm_8"></a><a href="#target">Shared</a> cross</span><span style="font-weight:bold;color:#a71d5d;">-</span><span style="color:#323232;">reference label.
+</span><span style="color:#0086b3;">C09</span><span style="color:#323232;"> <a id="_indexterm_9"></a>Shared after cross</span><span style="font-weight:bold;color:#a71d5d;">-</span><span style="color:#323232;">reference.
+</span><span style="color:#0086b3;">C10 </span><span style="color:#323232;"><sup class="footnote" id="_footnote_note">[<a id="_footnoteref_1" class="footnote" href="#_footnotedef_1" title="View footnote.">1</a>]</sup></span><span style="color:#0086b3;"></span><span style="color:#323232;"> before <a id="_indexterm_10"></a>Shared.
+</span><span style="color:#0086b3;">C11</span><span style="color:#323232;"> <a href="https://example.org">Two-line
+label </a><a id="_indexterm_11"></a><a href="https://example.org">Shared</a></span><span style="font-weight:bold;color:#a71d5d;"></span><span style="color:#323232;"></span><span style="color:#323232;"> then <a id="_indexterm_12"></a>Shared.
+</span><span style="color:#0086b3;">C12</span><span style="color:#323232;"> <a id="_indexterm_13"></a>Shared </span><span style="background-color:#f5f5f5;font-weight:bold;color:#b52a1d;">final</span><span style="color:#323232;"> line.</span></code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-rust" data-lang="rust"><table class="linenotable"><tbody><tr><td class="linenos"><pre class="lineno">7
+8
+9</pre></td><td class="code"><pre><span style="color:#0086b3;">C13</span><span style="color:#323232;"> <a id="_indexterm_14"></a>Shared numbered root.</span>
+<span class="hll" style="display:block;background-color:rgba(245,245,245,1.000)"><span style="color:#323232;"></span><span style="color:#0086b3;">C14</span><span style="color:#323232;"> <a href="https://example.org">Numbered </a><a id="_indexterm_15"></a><a href="https://example.org">Shared</a> nested label.</span>
+</span><span style="color:#323232;"></span><span style="color:#0086b3;">C15</span><span style="color:#323232;"> <a id="_indexterm_16"></a>Shared after numbered label.</span></pre></td></tr></tbody></table></code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-rust" data-lang="rust"><a id="_indexterm_17"></a></code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-rust" data-lang="rust"><span style="color:#0086b3;">C16 </span><span style="color:#323232;">((Disabled)) https:</span><span style="font-style:italic;color:#969896;">//example.org[((Disabled))]</span></code></pre>
+</div>
+</div>
+<div style="page-break-after: always;"></div>
+<div class="paragraph">
+<p>C17 <a id="_indexterm_18"></a>Shared prose after. Reuse <sup class="footnoteref">[<a class="footnote" href="#_footnotedef_1" title="View footnote.">1</a>]</sup>.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_index">Index</h2>
+<div class="sectionbody">
+<h3 class="indexletter">H</h3>
+<dl class="indexterms">
+<dt>Hidden
+ <a href="#_indexterm_5">Description</a>, <a href="#_indexterm_17">Description (2)</a></dt>
+</dl>
+<h3 class="indexletter">S</h3>
+<dl class="indexterms">
+<dt>Shared
+ <a href="#_indexterm_0">Description</a>, <a href="#_indexterm_1">Description (2)</a>, <a href="#_indexterm_2">Description (3)</a>, <a href="#_indexterm_3">Description (4)</a>, <a href="#_indexterm_4">Description (5)</a>, <a href="#_indexterm_6">Description (6)</a>, <a href="#_indexterm_7">Description (7)</a>, <a href="#_indexterm_8">Description (8)</a>, <a href="#_indexterm_9">Description (9)</a>, <a href="#_indexterm_10">Description (10)</a>, <a href="#_indexterm_11">Description (11)</a>, <a href="#_indexterm_12">Description (12)</a>, <a href="#_indexterm_13">Description (13)</a>, <a href="#_indexterm_14">Description (14)</a>, <a href="#_indexterm_15">Description (15)</a>, <a href="#_indexterm_16">Description (16)</a>, <a href="#_indexterm_18">Description (17)</a></dt>
+</dl>
+</div>
+</div>
+<div id="footnotes">
+<hr>
+<div class="footnote" id="_footnotedef_1">
+<a href="#_footnoteref_1">1</a>. One note.</div>
+</div>

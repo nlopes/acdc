@@ -1,0 +1,59 @@
+= index-order(1)
+:doctype: manpage
+:revdate: 2026-10-05
+:acdc-index:
+:source-highlighter: syntect
+
+== Name
+
+index-order - index occurrence ordering
+
+== Synopsis
+
+*index-order*
+
+== Description
+
+[[target]]
+C00 ((Shared)) prose before.
+
+[source,rust,subs="+macros,+quotes,+replacements"]
+----
+C01 ((Shared)) root before.
+C02 https://example.org[Linked ((Shared))] nested middle.
+C03 ((Shared)) root after.
+C04 *Bold ((Shared))* formatted label.
+C05 (((Hidden))) concealed root.
+C06 mailto:user@example.org[Mail ((Shared))] email label.
+C07 ((Shared)) after email.
+C08 xref:target[Target ((Shared))] cross-reference label.
+C09 ((Shared)) after cross-reference.
+C10 footnote:note[One note.] before ((Shared)).
+C11 https://example.org[Two-line
+label ((Shared))] then ((Shared)).
+C12 ((Shared)) final line.
+----
+
+[source,rust,linenums,start=7,highlight="8",subs="+macros"]
+----
+C13 ((Shared)) numbered root.
+C14 https://example.org[Numbered ((Shared))] nested label.
+C15 ((Shared)) after numbered label.
+----
+
+[source,rust,subs="+macros"]
+----
+(((Hidden)))
+----
+
+[source,rust,subs="none"]
+----
+C16 ((Disabled)) https://example.org[((Disabled))]
+----
+
+<<<
+
+C17 ((Shared)) prose after. Reuse footnote:note[].
+
+[index]
+== Index
