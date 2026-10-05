@@ -165,6 +165,13 @@ enum TableTextKind {
     Literal,
 }
 
+#[derive(Clone, Copy, Default)]
+enum TextWhitespace {
+    #[default]
+    Collapse,
+    Preserve,
+}
+
 #[derive(Clone, Copy)]
 enum TableColumnTrack {
     Fraction(u32),
@@ -254,6 +261,7 @@ pub(crate) struct PdfVisitor<'a, 'd, 'm> {
     pub(crate) unordered_list_depth: usize,
     pub(crate) in_inline_span: bool,
     pre_wrap_depth: usize,
+    text_whitespace: TextWhitespace,
     pub(crate) in_article_abstract: bool,
     pub(crate) automatic_preamble_lead_state: AutomaticPreambleLeadState,
     table_cell_section_state: TableCellSectionState,
@@ -469,6 +477,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             unordered_list_depth: 0,
             in_inline_span: false,
             pre_wrap_depth: 0,
+            text_whitespace: TextWhitespace::Collapse,
             in_article_abstract: false,
             automatic_preamble_lead_state: AutomaticPreambleLeadState::Inactive,
             table_cell_section_state: TableCellSectionState::Outside,
@@ -1151,7 +1160,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     }
 
     pub(crate) fn normalize_prose_whitespace<'text>(&self, text: &'text str) -> Cow<'text, str> {
-        prose_whitespace(text, self.pre_wrap_depth > 0)
+        if matches!(self.text_whitespace, TextWhitespace::Preserve) {
+            Cow::Borrowed(text)
+        } else {
+            prose_whitespace(text, self.pre_wrap_depth > 0)
+        }
     }
 
     pub(crate) fn write_plain(&mut self, text: &str) {
@@ -1164,7 +1177,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         );
         #[cfg(not(feature = "pre-spec-subs"))]
         let text = Cow::Owned(Replacements::unicode().transform(text, self.text_boundaries));
-        let text = prose_whitespace(&text, self.pre_wrap_depth > 0);
+        let text = self.normalize_prose_whitespace(&text);
         self.write_text_expr(&acdc_converters_core::decode_numeric_char_refs(&text));
     }
 
@@ -1202,7 +1215,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             }
         }
 
-        let text = prose_whitespace(&text, self.pre_wrap_depth > 0);
+        let text = self.normalize_prose_whitespace(&text);
         if applied_special_chars {
             self.write_text_expr(&text);
         } else {
@@ -1287,10 +1300,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         #[cfg(feature = "pre-spec-subs")]
         let previous_subs = self.processor.current_subs.replace(effective_subs_flags(
             para.metadata.substitutions.as_ref(),
-            matches!(
-                para.metadata.style,
-                Some("verse" | "literal" | "listing" | "source")
-            ),
+            matches!(para.metadata.style, Some("literal" | "listing" | "source")),
         ));
 
         let result = (|| {
@@ -1462,13 +1472,18 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         Ok(())
     }
 
-    fn write_verse_content(&mut self, nodes: &[InlineNode<'_>]) {
-        let text = InlineTextTransform::default()
-            .line_break("\n")
-            .to_string(nodes);
+    fn write_verse_content(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        nodes: &[InlineNode<'_>],
+    ) -> Result<(), Error> {
         self.writer.raw("#verse[");
-        self.write_text_expr(&text);
+        // Verse has normal inline semantics, but its authored whitespace is layout.
+        let previous = replace(&mut self.text_whitespace, TextWhitespace::Preserve);
+        let result = self.write_inlines(traversal, nodes);
+        self.text_whitespace = previous;
         self.writer.raw("]");
+        result
     }
 
     /// Write verse content, which keeps its line breaks and stays proportional.
@@ -1478,7 +1493,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         nodes: &[InlineNode<'_>],
         metadata: &BlockMetadata<'_>,
     ) -> Result<(), Error> {
-        self.write_verse_content(nodes);
+        self.write_verse_content(traversal, nodes)?;
         self.writer.raw("\n\n");
         self.write_attribution(traversal, metadata)
     }
@@ -1504,8 +1519,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             }
             Some("verse") => {
                 self.write_aligned_paragraph_body(&para.metadata, |visitor| {
-                    visitor.write_verse_content(&para.content);
-                    Ok(())
+                    visitor.write_verse_content(traversal, &para.content)
                 })?;
                 self.write_attribution(traversal, &para.metadata)
             }

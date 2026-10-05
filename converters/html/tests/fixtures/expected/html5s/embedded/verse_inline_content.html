@@ -1,0 +1,94 @@
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>verse-content - preserve verse content and layout</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_description">Description</h2>
+<div class="verseblock">
+<div class="title">P01 Title &#169;</div>
+<pre class="content">P01 <strong>Bold</strong> <em>italic</em> expanded &#169; &#174; &#8482;.
+  P02 <strong>indented
+    formatting</strong> and <code>code</code>.
+P03 <a href="https://example.org/paragraph">Link &#169;</a> <sup class="footnote-ref" id="_footnoteref_1">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup>
+P04 (C) (R) <a id="paragraph-target"></a><a id="_indexterm_0"></a>Paragraph term.</pre>
+<div class="attribution">
+&#8212; Writer<br>
+<cite>Work</cite>
+</div>
+</div>
+<section class="verse-block">
+<h6 class="block-title">D01 Title &#169;</h6>
+<blockquote class="verse">
+<pre class="verse">D01 <strong>Bold</strong> <em>italic</em> expanded &#169; &#174; &#8482;.
+  D02 <strong>indented
+    formatting</strong> and <code>code</code>.
+
+D03 <a href="https://example.org/delimited">Link &#169;</a> <sup class="footnote-ref" id="_footnoteref_2">[<a href="#_footnote_2" title="View footnote 2" role="doc-noteref">2</a>]</sup>
+D04 (C) (R) <a id="delimited-target"></a><a id="_indexterm_1"></a>Delimited term.
+  D05 repeated  spaces.
+.D06 leading period.
+'D07 leading apostrophe.</pre>
+<footer>&#8212; Writer<br><cite>Work</cite></footer>
+</blockquote>
+</section>
+<div class="table-block">
+<table class="frame-all grid-all stretch">
+<caption class="title">Table 1. T01 Table</caption>
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="halign-left valign-top"><div class="verseblock">
+<pre class="content">T01 <strong>Cell</strong> &#169;.
+  T02 second line.</pre>
+</div>
+<div class="verse-block">
+<pre class="verse">T03 <strong>Cell block</strong> &#174;.
+  T04 second line.
+
+T05 final line.</pre>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="ulist">
+<ul>
+<li>
+Attached verse<div class="verse-block">
+<pre class="verse">L01 <strong>Attached</strong> &#8482;.
+  L02 second line.</pre>
+</div>
+</li>
+</ul>
+</div>
+<div class="verse-block">
+<pre class="verse"></pre>
+</div>
+<p>After &#169;. Reuse <sup class="footnote-ref">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup> and <sup class="footnote-ref">[<a href="#_footnote_2" title="View footnote 2" role="doc-noteref">2</a>]</sup>.
+See <a href="#paragraph-target">Paragraph</a> and <a href="#delimited-target">Delimited</a>.</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_index">Index</h2>
+<h3 class="indexletter">D</h3>
+<dl class="indexterms">
+<dt>Delimited term
+ <a href="#_indexterm_1">Description</a></dt>
+</dl>
+<h3 class="indexletter">P</h3>
+<dl class="indexterms">
+<dt>Paragraph term
+ <a href="#_indexterm_0">Description</a></dt>
+</dl>
+</section>
+<section class="footnotes" aria-label="Footnotes" role="doc-endnotes">
+<hr>
+<ol class="footnotes">
+<li class="footnote" id="_footnote_1" role="doc-endnote">
+Paragraph note &#174;. <a class="footnote-backref" href="#_footnoteref_1" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+<li class="footnote" id="_footnote_2" role="doc-endnote">
+Delimited note &#174;. <a class="footnote-backref" href="#_footnoteref_2" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+</ol>
+</section>

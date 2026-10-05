@@ -1,0 +1,69 @@
+= verse-content(1)
+:doctype: manpage
+:manmanual: Verse tests
+:mansource: acdc
+:revdate: 2026-10-05
+:value: expanded
+:acdc-index:
+
+== Name
+verse-content - preserve verse content and layout
+
+== Description
+
+.P01 Title (C)
+[verse,Writer,Work]
+P01 *Bold* _italic_ {value} (C) (R) (TM).
+  P02 *indented
+    formatting* and `code`.
+P03 link:https://example.org/paragraph[Link (C)] footnote:paragraph[Paragraph note (R).]
+P04 pass:[(C)] \(R) anchor:paragraph-target[]((Paragraph term)).
+
+.D01 Title (C)
+[verse,Writer,Work]
+____
+D01 *Bold* _italic_ {value} (C) (R) (TM).
+  D02 *indented
+    formatting* and `code`.
+
+D03 link:https://example.org/delimited[Link (C)] footnote:delimited[Delimited note (R).]
+D04 pass:[(C)] \(R) anchor:delimited-target[]((Delimited term)).
+  D05 repeated  spaces.
+.D06 leading period.
+'D07 leading apostrophe.
+____
+
+.T01 Table
+[cols="a"]
+|===
+|
+[verse]
+T01 *Cell* (C).
+  T02 second line.
+
+[verse]
+____
+T03 *Cell block* (R).
+  T04 second line.
+
+T05 final line.
+____
+|===
+
+* Attached verse
++
+[verse]
+____
+L01 *Attached* (TM).
+  L02 second line.
+____
+
+[verse]
+____
+____
+
+After (C). Reuse footnote:paragraph[] and footnote:delimited[].
+See <<paragraph-target,Paragraph>> and <<delimited-target,Delimited>>.
+
+[index]
+== Index

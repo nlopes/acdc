@@ -134,14 +134,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         block: &'a DelimitedBlock<'a>,
         inlines: &[acdc_parser::InlineNode],
     ) -> Result<(), Error> {
-        let w = self.writer_mut();
-        writeln!(w, ".nf")?;
-        let content = extract_verbatim_text(inlines);
-        let escaped = manify(&content, EscapeMode::Preserve);
-        for line in escaped.lines() {
-            writeln!(w, "{line}")?;
-        }
-        writeln!(w, ".fi")?;
+        self.render_verse_content(traversal, inlines, &block.metadata)?;
 
         self.render_attribution(
             traversal,

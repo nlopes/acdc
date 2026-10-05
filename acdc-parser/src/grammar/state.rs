@@ -190,6 +190,8 @@ bitflags! {
         const INDEX_LABEL = 1 << 8;
         /// Consume one closing-bracket escape for a named index macro's delimiter.
         const NAMED_INDEX_LABEL = 1 << 9;
+        /// Keep empty verse lines inside the same inline content.
+        const PRESERVE_BLANK_LINES = 1 << 10;
     }
 }
 

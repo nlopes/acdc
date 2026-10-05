@@ -217,6 +217,11 @@ fn inline_context(
     let mut rules = state.inline_ctx.rules;
     rules.set(InlineRules::AUTOLINKS, autolinks);
     rules.set(
+        InlineRules::PRESERVE_BLANK_LINES,
+        block_metadata.metadata.style == Some("verse")
+            || rules.contains(InlineRules::PRESERVE_BLANK_LINES),
+    );
+    rules.set(
         InlineRules::HARD_BREAKS,
         block_metadata.hardbreaks || rules.contains(InlineRules::HARD_BREAKS),
     );

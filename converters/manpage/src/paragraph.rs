@@ -10,13 +10,9 @@ use acdc_converters_core::{
     TraversalContext,
     visitor::{Visitor, WritableVisitor},
 };
-use acdc_parser::{BlockMetadata, Paragraph};
+use acdc_parser::{BlockMetadata, InlineNode, Paragraph};
 
-use crate::{
-    Error, ManpageVisitor,
-    document::extract_verbatim_text,
-    escape::{EscapeMode, manify},
-};
+use crate::{Error, ManpageVisitor, escape::EscapeMode};
 
 impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     /// Render a paragraph with its style-specific manpage layout.
@@ -27,15 +23,12 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     ) -> Result<(), Error> {
         #[cfg(feature = "pre-spec-subs")]
         {
-            // Resolve `[subs="…"]` once per paragraph so inline rendering knows
-            // whether to apply typography. Verse/literal/listing/source styles
-            // are verbatim contexts; everything else uses the NORMAL baseline.
+            // Resolve `[subs="…"]` for the paragraph so inline rendering knows
+            // whether to apply typography. Literal/listing/source styles use
+            // verbatim substitutions; verse keeps normal substitutions.
             // Snapshot/restore via the processor's shared cell so nested renders
             // (and sub-visitors that clone the processor) don't leak state.
-            let is_verbatim = matches!(
-                para.metadata.style,
-                Some("verse" | "literal" | "listing" | "source")
-            );
+            let is_verbatim = matches!(para.metadata.style, Some("literal" | "listing" | "source"));
             let previous_subs = self.processor.current_subs.replace(effective_subs_flags(
                 para.metadata.substitutions.as_ref(),
                 is_verbatim,
@@ -179,19 +172,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     ) -> Result<(), Error> {
         self.write_sp()?;
         self.render_captioned_title(traversal, &para.title, &para.metadata)?;
-        let w = self.writer_mut();
-
-        // Verse block - preserve line breaks
-        writeln!(w, ".nf")?;
-
-        // Extract and write content preserving whitespace
-        let content = extract_verbatim_text(&para.content);
-        let escaped = manify(&content, EscapeMode::Preserve);
-        for line in escaped.lines() {
-            writeln!(w, "{line}")?;
-        }
-
-        writeln!(w, ".fi")?;
+        self.render_verse_content(traversal, &para.content, &para.metadata)?;
 
         // Render attribution if present
         self.render_attribution(
@@ -201,6 +182,38 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             &[".in", ".ll"],
         )?;
 
+        Ok(())
+    }
+
+    /// Render verse inlines with their own substitutions and preserved whitespace.
+    pub(crate) fn render_verse_content(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        nodes: &[InlineNode<'_>],
+        metadata: &BlockMetadata<'_>,
+    ) -> Result<(), Error> {
+        #[cfg(feature = "pre-spec-subs")]
+        let previous_subs = self
+            .processor
+            .current_subs
+            .replace(effective_subs_flags(metadata.substitutions.as_ref(), false));
+        #[cfg(not(feature = "pre-spec-subs"))]
+        let _ = metadata;
+        let mut output = Vec::new();
+        let mut visitor = self.nested_visitor(&mut output);
+        visitor.text_escape_mode = EscapeMode::Preserve;
+        let result = visitor.visit_inline_nodes(traversal, nodes);
+        #[cfg(feature = "pre-spec-subs")]
+        visitor.processor.current_subs.set(previous_subs);
+        result?;
+        let w = self.writer_mut();
+        writeln!(w, ".nf")?;
+        w.write_all(&output)?;
+        // Put the closing request on its own line without adding an empty verse line.
+        if !output.is_empty() && !output.ends_with(b"\n") {
+            writeln!(w)?;
+        }
+        writeln!(w, ".fi")?;
         Ok(())
     }
 

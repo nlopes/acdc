@@ -1,7 +1,7 @@
 #set document(
-  title: "title-subs(1)",
+  title: "verse-content(1)",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[title-subs(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[verse-content(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -73,56 +73,89 @@
 #set page(numbering: "1")
 #counter(page).update(1)
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("title-subs(1)")]
+#text(size: 22pt, weight: "bold")[#text("verse-content(1)")]
 ]
 #v(1em)
 
 #heading(level: 1)[#text("Name")] <id-5f6e616d65>
 
-#text("title-subs - independent title substitutions")
+#text("verse-content - preserve verse content and layout")
 
-#heading(level: 1)[#text("Synopsis")] <id-5f73796e6f70736973>
+#heading(level: 1)[#text("Description")] <id-5f6465736372697074696f6e>
 
-#blocktitle[#text("N01 Listing ")#strong[#text("title")]#text(" expanded ©")]
-#raw(block: true, "N01 body (C) *bold* {value}.")
+#blocktitle[#text("P01 Title ©")]
+#verse[#text("P01 ")#strong[#text("Bold")]#text(" ")#emph[#text("italic")]#text(" expanded © ® ™.\n  P02 ")#strong[#text("indented\n    formatting")]#text(" and ")#raw("code")#text(".\nP03 ")#link("https://example.org/paragraph")[#text("Link ©")]#text(" ")#counter(footnote).update(0)#footnote[#text("Paragraph note ®.")]<id-666f6f746e6f74653a706172616772617068>#text("\nP04 ")#text("(C)")#text(" (R) ")#metadata(none)<id-7061726167726170682d746172676574>#metadata(none)<__indexterm-1>#text("Paragraph term")#text(".")]
 
-#blocktitle[#text("N02 Literal ")#emph[#text("title")]#text(" ®")]
-#raw(block: true, "N02 body (R) _italic_.")
+#attribution[#text("Writer")#text(", ")#text("Work")]
 
-#blocktitle[#text("N03 Source title ™")]
-#raw(block: true, "N03 body (TM).")
+#blocktitle[#text("D01 Title ©")]
+#verse[#text("D01 ")#strong[#text("Bold")]#text(" ")#emph[#text("italic")]#text(" expanded © ® ™.\n  D02 ")#strong[#text("indented\n    formatting")]#text(" and ")#raw("code")#text(".\n\nD03 ")#link("https://example.org/delimited")[#text("Link ©")]#text(" ")#counter(footnote).update(1)#footnote[#text("Delimited note ®.")]<id-666f6f746e6f74653a64656c696d69746564>#text("\nD04 ")#text("(C)")#text(" (R) ")#metadata(none)<id-64656c696d697465642d746172676574>#metadata(none)<__indexterm-2>#text("Delimited term")#text(".\n  D05 repeated  spaces.\n.D06 leading period.\n'D07 leading apostrophe.")]
 
-#blocktitle[#text("N04 Literal block title ©")]
-#raw(block: true, "N04 body (C).")
+#attribution[#text("Writer")#text(", ")#text("Work")]
 
-#blocktitle[#text("N05 Verse title ®")]
-#verse[#text("N05 first ®.\nN05 second.")]
+#block(sticky: true, above: 0pt, below: 0pt)[
+#blocktitle[#text("Table 1. ")#text("T01 Table")]
+]
+#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#verse[#text("T01 ")#strong[#text("Cell")]#text(" ©.\n  T02 second line.")]
 
-#attribution[#text("Poet")#text(", ")#text("Work")]
-
-#blocktitle[#text("N06 Verse block title ™")]
-#verse[#text("N06 first ™.\nN06 second.")]
-
-#attribution[#text("Poet")#text(", ")#text("Work")]
-
-#blocktitle[#text("N07 Escaped (C) ")#text("*")#text("literal* and ")#text("(R)")]
-#raw(block: true, "N07 body (C).")
-
-#blocktitle[#text("N08 Attribute title ")#text("©")#text(" and ®")]
-#raw(block: true, "N08 body (C).")
-
-#blocktitle[#text("N09 Outer title ©")]
-#blocktitle[#text("N10 Nested listing title ®")]
-#raw(block: true, "N10 body (R).")
-
-#text("N09 following normal ©.")
-
-#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#blocktitle[#text("N11 Cell listing title ©")]
-#raw(block: true, "N11 body (C).")
-
-], table.cell(x: 0, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#blocktitle[#text("N12 Cell verse title ®")]
-#verse[#text("N12 first ®.\nN12 second.")]
+#verse[#text("T03 ")#strong[#text("Cell block")]#text(" ®.\n  T04 second line.\n\nT05 final line.")]
 
 ])
 
-#text("N13 Following prose ©.")
+  - #block(width: 100%)[#text("Attached verse")
+
+#verse[#text("L01 ")#strong[#text("Attached")]#text(" ™.\n  L02 second line.")]
+
+  ]
+
+#verse[]
+
+#text("After ©. Reuse ")#footnote(<id-666f6f746e6f74653a706172616772617068>)#text(" and ")#footnote(<id-666f6f746e6f74653a64656c696d69746564>)#text(". See ")#context link(query(<id-7061726167726170682d746172676574>).first().location())[#text("Paragraph")]#text(" and ")#context link(query(<id-64656c696d697465642d746172676574>).first().location())[#text("Delimited")]#text(".")
+
+#heading(level: 1)[#text("Index")] <id-5f696e646578>
+
+#let _acdc_index_pages(targets, sequence) = context {
+  let occurrences = targets
+    .map(target => {
+      let location = query(target).last().location()
+      (location, counter(page).at(location).first())
+    })
+    .sorted(key: occurrence => occurrence.first().page())
+  if sequence == "page" or sequence == "range" {
+    occurrences = occurrences.dedup(key: occurrence => occurrence.last())
+  }
+  let linked = occurrence => link(
+    occurrence.first(),
+    counter(page).display(at: occurrence.first()),
+  )
+  let pages = if sequence == "range" {
+    let ranges = ()
+    for occurrence in occurrences {
+      if ranges.len() > 0 and occurrence.last() == ranges.last().last().last() + 1 {
+        let previous = ranges.pop()
+        ranges.push((previous.first(), occurrence))
+      } else {
+        ranges.push((occurrence, occurrence))
+      }
+    }
+    ranges.map(range => if range.first().last() == range.last().last() {
+      linked(range.first())
+    } else {
+      linked(range.first()) + [-] + linked(range.last())
+    })
+  } else {
+    occurrences.map(linked)
+  }
+  if pages.len() > 0 {
+    [, ] + pages.join[, ]
+  }
+}
+#columns(2, gutter: 12pt)[
+#text(weight: "bold")[#text("D")]
+#v(0.25em)
+#par(hanging-indent: 1em)[#text("Delimited term")#_acdc_index_pages((<__indexterm-2>,), "term")]
+#v(0.75em)
+#text(weight: "bold")[#text("P")]
+#v(0.25em)
+#par(hanging-indent: 1em)[#text("Paragraph term")#_acdc_index_pages((<__indexterm-1>,), "term")]
+]

@@ -1,0 +1,80 @@
+'\" t
+.\"     Title: verse-subs
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-05
+.\"    Manual: Verse tests
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "VERSE\-SUBS" "1" "2026-10-05" "acdc" "Verse tests"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+verse\-subs \- explicit verse substitutions
+.SH "DESCRIPTION"
+.sp
+.nr acdc-title-font \n[.f]
+\fBS01 Normal title \(co\f[\n[acdc-title-font]]
+.br
+.rr acdc-title-font
+.nf
+S01 *Bold* {value} (C) link:https://example.org/inactive[Inactive].
+  S02 literal indent.
+.fi
+.sp
+.nr acdc-title-font \n[.f]
+\fBS03 Normal title \(co\f[\n[acdc-title-font]]
+.br
+.rr acdc-title-font
+.nf
+S03 *Bold* {value} (C) footnote:[Inactive].
+  S04 literal indent.
+
+S05 final line.
+.fi
+.sp
+.nf
+S06 \fBBold\fP expanded (C).
+  S07 \c
+.URL "https://example.org/control" "Control (R)" "\c"
+\&.
+.fi
+.nf
+S08 \fBBold\fP expanded (C).
+  S09 \(tm and (R)\&.
+.fi
+.nf
+S10 \fBBold\fP {value} (C).
+  S11 \fIitalic\fP footnote:[Inactive].
+.fi
+.nf
+S12 *Bold* {value} \(co.
+  S13 \(rg footnote:[Inactive].
+.fi
+.nf
+S14 \fBBold\fP expanded \(co (R)\&.
+  S15 hard break
+.br
+    S16 after break.
+.fi
+.sp
+After \(co, \fBbold\fP, and ordinary
+wrapped prose.

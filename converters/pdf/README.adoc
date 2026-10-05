@@ -324,6 +324,11 @@ body uses `subs="none"`, including on verse, literal and listing blocks and
 inside AsciiDoc table cells. An inline passthrough such as `pass:[(C)]` keeps
 that part of the title literal.
 
+Verse paragraphs and delimited verse blocks use normal inline substitutions
+while preserving authored line breaks and indentation. Formatting, links,
+footnotes, anchors and index terms remain active; body `subs=` settings and
+inline passthroughs can disable the corresponding substitutions.
+
 == Asset access and safe mode
 
 Local document images are resolved relative to the source document.

@@ -747,7 +747,7 @@ fn pass_inner<'input>(
     }
 }
 
-/// Parse a `____` quote block body as nested blocks, or preserve verse text.
+/// Parse a `____` quote body as blocks, or a verse body as inline content.
 fn quote_inner<'input>(
     state: &mut ParserState<'input>,
     block_metadata: &BlockParsingMetadata<'input>,
@@ -757,15 +757,15 @@ fn quote_inner<'input>(
     metadata.move_positional_attributes_to_attributes();
 
     if metadata.style == Some("verse") {
-        let content_location =
-            state.create_block_location(p.content_start, p.content_end, p.offset);
-        Ok(DelimitedBlockType::DelimitedVerse(vec![
-            InlineNode::PlainText(Plain {
-                content: p.content,
-                location: content_location,
-                escaped: false,
-            }),
-        ]))
+        let (inlines, _) = process_inlines(
+            state,
+            block_metadata,
+            p.content_start,
+            p.content_end,
+            p.offset,
+            p.content,
+        )?;
+        Ok(DelimitedBlockType::DelimitedVerse(inlines))
     } else if metadata.style.is_some() {
         // A styled (non-verse) quote always parses its body, even when empty.
         let blocks = document_parser::blocks(

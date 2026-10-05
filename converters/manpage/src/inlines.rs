@@ -372,7 +372,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             content.to_mut().pop();
         }
         let content = apply_text_case(content, self.text_case);
-        let escaped = manify(&content, EscapeMode::Normalize);
+        let escaped = manify(&content, self.text_escape_mode);
         let w = self.writer_mut();
         if let Some(restored) = restore_em_dash_line_prefixes(&content, &escaped) {
             write!(w, "{restored}")?;
@@ -416,7 +416,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
                     &decoded
                 };
                 let content = apply_text_case(Cow::Borrowed(content), self.text_case);
-                let escaped = manify(&content, EscapeMode::Normalize);
+                let escaped = manify(&content, self.text_escape_mode);
                 let w = self.writer_mut();
                 write!(w, "{escaped}")?;
             }

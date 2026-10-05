@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Verse paragraphs and delimited verse blocks retain inline formatting, links,
+  footnotes, anchors, index terms, and default typography while preserving line
+  breaks and indentation. References to targets defined in verse now compile.
+  Body `subs=` settings and inline passthroughs keep their requested behavior.
+
 - Titles use normal substitutions independently of their block's `subs=`
   settings, matching Asciidoctor PDF. This restores typography such as `(C)` →
   `©` above literal, listing and verse content, including inside table cells.

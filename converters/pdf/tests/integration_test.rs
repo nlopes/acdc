@@ -11,6 +11,42 @@ use acdc_converters_pdf::{PdfOptions, Processor};
 
 type Error = Box<dyn std::error::Error>;
 
+#[rstest::rstest]
+fn verse_keeps_pdf_line_positions_and_macro_targets(
+    #[values(false, true)] delimited: bool,
+) -> Result<(), Error> {
+    let fence = if delimited { "____\n" } else { "" };
+    let stanza = if delimited { "\n" } else { "" };
+    let source = format!(
+        "= Verse\n\n[verse]\n{fence}First (C).\n  anchor:verse-target[]Second (TM).\n{stanza}Third (R). link:https://example.org/verse[Link] footnote:note[Verse note.]\n{fence}\nAfter <<verse-target,Target>> and footnote:note[].\n"
+    );
+    let parsed = parse(&source, &Options::default())?;
+    assert_eq!(parsed.document().footnotes.len(), 1);
+    let pdf = render_parsed(&parsed)?;
+    let text = pdf.extract_text(&[1])?;
+    for content in ["First ©.", "Second ™.", "Third ®."] {
+        assert!(text.contains(content), "{text}");
+    }
+    assert_eq!(text.matches("Verse note.").count(), 1, "{text}");
+    let first = text_origin(&pdf, 1, "First ©.")?;
+    let second = text_origin(&pdf, 1, "Second ™.")?;
+    let third = text_origin(&pdf, 1, "Third ®. ")?;
+    assert!(second.0 > first.0 + 2.0, "{first:?} {second:?}");
+    assert!((third.0 - first.0).abs() < 0.01, "{first:?} {third:?}");
+    assert!(first.1 > second.1 && second.1 > third.1);
+    if delimited {
+        assert!(second.1 - third.1 > 1.8 * (first.1 - second.1));
+    }
+    let links = external_link_rects(&pdf, 1)?;
+    assert!(
+        links
+            .iter()
+            .any(|(uri, _)| uri == "https://example.org/verse")
+    );
+    assert!(named_destinations(&pdf)?.contains_key("verse-target"));
+    Ok(())
+}
+
 #[test]
 #[cfg(feature = "pre-spec-subs")]
 fn title_substitutions_keep_pdf_links_and_footnotes() -> Result<(), Error> {

@@ -1,7 +1,7 @@
 #set document(
-  title: "title-subs(1)",
+  title: "verse-subs(1)",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[title-subs(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[verse-subs(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -73,56 +73,30 @@
 #set page(numbering: "1")
 #counter(page).update(1)
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("title-subs(1)")]
+#text(size: 22pt, weight: "bold")[#text("verse-subs(1)")]
 ]
 #v(1em)
 
 #heading(level: 1)[#text("Name")] <id-5f6e616d65>
 
-#text("title-subs - independent title substitutions")
+#text("verse-subs - explicit verse substitutions")
 
-#heading(level: 1)[#text("Synopsis")] <id-5f73796e6f70736973>
+#heading(level: 1)[#text("Description")] <id-5f6465736372697074696f6e>
 
-#blocktitle[#text("N01 Listing ")#strong[#text("title")]#text(" expanded ©")]
-#raw(block: true, "N01 body (C) *bold* {value}.")
+#blocktitle[#text("S01 Normal title ©")]
+#verse[#text("S01 *Bold* {value} (C) link:https://example.org/inactive[Inactive].\n  S02 literal indent.")]
 
-#blocktitle[#text("N02 Literal ")#emph[#text("title")]#text(" ®")]
-#raw(block: true, "N02 body (R) _italic_.")
+#blocktitle[#text("S03 Normal title ©")]
+#verse[#text("S03 *Bold* {value} (C) footnote:[Inactive].\n  S04 literal indent.\n\nS05 final line.")]
 
-#blocktitle[#text("N03 Source title ™")]
-#raw(block: true, "N03 body (TM).")
+#verse[#text("S06 ")#strong[#text("Bold")]#text(" expanded (C).\n  S07 ")#link("https://example.org/control")[#text("Control (R)")]#text(".")]
 
-#blocktitle[#text("N04 Literal block title ©")]
-#raw(block: true, "N04 body (C).")
+#verse[#text("S08 ")#strong[#text("Bold")]#text(" expanded (C).\n  S09 ")#text("™")#text(" and ")#text("(R)")#text(".")]
 
-#blocktitle[#text("N05 Verse title ®")]
-#verse[#text("N05 first ®.\nN05 second.")]
+#verse[#text("S10 ")#strong[#text("Bold")]#text(" {value} (C).\n  S11 ")#emph[#text("italic")]#text(" footnote:[Inactive].")]
 
-#attribution[#text("Poet")#text(", ")#text("Work")]
+#verse[#text("S12 *Bold* {value} ©.\n  S13 ® footnote:[Inactive].")]
 
-#blocktitle[#text("N06 Verse block title ™")]
-#verse[#text("N06 first ™.\nN06 second.")]
+#verse[#text("S14 ")#strong[#text("Bold")]#text(" expanded © ")#text("(R)")#text(".\n  S15 hard break")#linebreak()#text("    S16 after break.")]
 
-#attribution[#text("Poet")#text(", ")#text("Work")]
-
-#blocktitle[#text("N07 Escaped (C) ")#text("*")#text("literal* and ")#text("(R)")]
-#raw(block: true, "N07 body (C).")
-
-#blocktitle[#text("N08 Attribute title ")#text("©")#text(" and ®")]
-#raw(block: true, "N08 body (C).")
-
-#blocktitle[#text("N09 Outer title ©")]
-#blocktitle[#text("N10 Nested listing title ®")]
-#raw(block: true, "N10 body (R).")
-
-#text("N09 following normal ©.")
-
-#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#blocktitle[#text("N11 Cell listing title ©")]
-#raw(block: true, "N11 body (C).")
-
-], table.cell(x: 0, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#blocktitle[#text("N12 Cell verse title ®")]
-#verse[#text("N12 first ®.\nN12 second.")]
-
-])
-
-#text("N13 Following prose ©.")
+#text("After ©, ")#strong[#text("bold")]#text(", and ordinary wrapped prose.")

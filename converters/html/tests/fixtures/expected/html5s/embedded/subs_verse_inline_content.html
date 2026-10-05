@@ -1,0 +1,42 @@
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>verse-subs - explicit verse substitutions</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_description">Description</h2>
+<div class="verseblock">
+<div class="title">S01 Normal title &#169;</div>
+<pre class="content">S01 *Bold* {value} (C) link:https://example.org/inactive[Inactive].
+  S02 literal indent.</pre>
+</div>
+<section class="verse-block">
+<h6 class="block-title">S03 Normal title &#169;</h6>
+<pre class="verse">S03 *Bold* {value} (C) footnote:[Inactive].
+  S04 literal indent.
+
+S05 final line.</pre>
+</section>
+<div class="verseblock">
+<pre class="content">S06 <strong>Bold</strong> expanded (C).
+  S07 <a href="https://example.org/control">Control (R)</a>.</pre>
+</div>
+<div class="verse-block">
+<pre class="verse">S08 <strong>Bold</strong> expanded (C).
+  S09 &#8482; and (R).</pre>
+</div>
+<div class="verse-block">
+<pre class="verse">S10 <strong>Bold</strong> {value} (C).
+  S11 <em>italic</em> footnote:[Inactive].</pre>
+</div>
+<div class="verse-block">
+<pre class="verse">S12 *Bold* {value} &#169;.
+  S13 &#174; footnote:[Inactive].</pre>
+</div>
+<div class="verse-block">
+<pre class="verse">S14 <strong>Bold</strong> expanded &#169; (R).
+  S15 hard break<br>
+    S16 after break.</pre>
+</div>
+<p>After &#169;, <strong>bold</strong>, and ordinary
+    wrapped prose.</p>
+</section>

@@ -57,6 +57,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Delimited verse blocks parse formatting, attributes, links, footnotes, and
+  index terms with normal substitutions, like verse paragraphs and Asciidoctor.
+  Explicit `subs=` settings remain effective when `pre-spec-subs` is enabled.
+
 - Footnotes in block titles register once, retain their first definition and
   source locations, and keep consecutive numbering and valid HTML return links.
   This also applies with legacy Setext headings enabled. Replaced dot-titles and

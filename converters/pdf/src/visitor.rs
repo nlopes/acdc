@@ -335,7 +335,6 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
                 DelimitedBlockType::DelimitedListing(_)
                     | DelimitedBlockType::DelimitedLiteral(_)
                     | DelimitedBlockType::DelimitedPass(_)
-                    | DelimitedBlockType::DelimitedVerse(_)
             ),
         ));
 

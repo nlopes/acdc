@@ -1,0 +1,130 @@
+'\" t
+.\"     Title: verse-content
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-05
+.\"    Manual: Verse tests
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "VERSE\-CONTENT" "1" "2026-10-05" "acdc" "Verse tests"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+verse\-content \- preserve verse content and layout
+.SH "DESCRIPTION"
+.sp
+.nr acdc-title-font \n[.f]
+\fBP01 Title \(co\f[\n[acdc-title-font]]
+.br
+.rr acdc-title-font
+.nf
+P01 \fBBold\fP \fIitalic\fP expanded \(co \(rg \(tm.
+  P02 \fBindented
+    formatting\fP and \f(CRcode\fP\&.
+P03 \c
+.URL "https://example.org/paragraph" "Link \(co" "\c"
+ [1]
+P04 (C) (R) Paragraph term\&.
+.fi
+.br
+.in +.5i
+.ll -.5i
+Work \(em Writer
+.in
+.ll
+.sp
+.nr acdc-title-font \n[.f]
+\fBD01 Title \(co\f[\n[acdc-title-font]]
+.br
+.rr acdc-title-font
+.nf
+D01 \fBBold\fP \fIitalic\fP expanded \(co \(rg \(tm.
+  D02 \fBindented
+    formatting\fP and \f(CRcode\fP\&.
+
+D03 \c
+.URL "https://example.org/delimited" "Link \(co" "\c"
+ [2]
+D04 (C) (R) Delimited term\&.
+  D05 repeated  spaces.
+\&.D06 leading period.
+\(aqD07 leading apostrophe.
+.fi
+.br
+.in +.5i
+.ll -.5i
+Work \(em Writer
+.in
+.ll
+.sp
+.nr acdc-title-font \n[.f]
+\fBTable 1. T01 Table\f[\n[acdc-title-font]]
+.br
+.rr acdc-title-font
+.TS
+allbox tab(:);
+ltx.
+T{
+.sp
+.nf
+T01 \fBCell\fP \(co.
+  T02 second line.
+.fi
+.nf
+T03 \fBCell block\fP \(rg.
+  T04 second line.
+
+T05 final line.
+.fi
+
+T}
+.TE
+.RS 0
+.IP \(bu 2
+Attached verse
+.RS 2
+.nf
+L01 \fBAttached\fP \(tm.
+  L02 second line.
+.fi
+.RE
+.RE
+.nf
+.fi
+.sp
+After \(co. Reuse [1] and [2]\&.
+See Paragraph and Delimited\&.
+.SH "INDEX"
+.SS "D"
+.RS 4
+Delimited term
+.br
+.RE
+.SS "P"
+.RS 4
+Paragraph term
+.br
+.RE
+.SH "NOTES"
+.IP [1] 4
+Paragraph note \(rg.
+.IP [2] 4
+Delimited note \(rg.

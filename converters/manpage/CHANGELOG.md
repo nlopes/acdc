@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Verse paragraphs and delimited verse blocks retain inline formatting, links,
+  footnotes, index terms, and default typography while preserving line breaks
+  and indentation. Body `subs=` settings and inline passthroughs remain effective.
+  As with other links, acdc preserves following text and note markers that
+  Asciidoctor's roff link commands can discard.
+
 - Quote and verse paragraphs retain their authored titles, formatting, macros,
   and custom captions, including inside AsciiDoc table cells. Titles use normal
   substitutions independently of the body's `subs=` settings, matching

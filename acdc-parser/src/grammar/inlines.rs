@@ -1260,7 +1260,7 @@ peg::parser! {
             / (
                 !(
                     profiled_attribute_match()
-                    / eol()*<2,>
+                    / paragraph_break()
                     / ![_]
                     / &['\\'] escaped_syntax_match()
                     / check_quotes() &['*' | '_' | '`' | '#' | '^' | '~' | '"' | '\'' | '['] (
@@ -3269,7 +3269,7 @@ peg::parser! {
                 !(
                     // Attribute expansion can create an internal empty line. Let
                     // plain text absorb it when post replacements cannot handle it.
-                    check_post_replacements() eol()*<2,>
+                    check_post_replacements() paragraph_break()
                     / profiled_attribute_match()
                     / check_hardbreaks() line_break_eol()
                     / ![_]
@@ -3764,6 +3764,16 @@ peg::parser! {
             }
 
         rule digits() = ['0'..='9']+
+
+        // Verse stanzas share one inline body; an empty line is not a block boundary.
+        rule paragraph_break()
+        = eol()*<2,> {?
+            if state.inline_ctx.rules.contains(InlineRules::PRESERVE_BLANK_LINES) {
+                Err("verse preserves empty lines")
+            } else {
+                Ok(())
+            }
+        }
 
         rule whitespace() = quiet!{ " " / "\t" }
         rule eol() = quiet!{ "\n" }

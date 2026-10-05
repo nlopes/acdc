@@ -54,6 +54,7 @@ pub struct ManpageVisitor<'a, 'd, W: Write> {
     pub(crate) text_boundaries: TextBoundaries,
     /// Text casing applied while preserving inline markup.
     pub(crate) text_case: TextCase,
+    pub(crate) text_escape_mode: EscapeMode,
     /// Buffer the current label so nested links can be emitted as separate commands.
     pub(crate) link_label: Option<LinkLabel>,
     /// Title of the first level-1 section for name-section validation.
@@ -77,6 +78,7 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
             index_collection: IndexCollection::Enabled,
             text_boundaries: TextBoundaries::BOTH,
             text_case: TextCase::Preserve,
+            text_escape_mode: EscapeMode::Normalize,
             link_label: None,
             first_section_title: None,
             second_section_title: None,
@@ -100,7 +102,7 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
     /// Create a visitor that renders into `writer` with this visitor's inline
     /// context.
     ///
-    /// Copied text retains its casing and index-registration policy, but has
+    /// Copied text retains its casing, whitespace and index-registration policy, but has
     /// its own output and link-label state.
     pub(crate) fn nested_visitor<'w, W2: Write>(
         &mut self,
@@ -109,6 +111,7 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
         let processor = self.processor;
         let mut visitor = ManpageVisitor::new(writer, processor, self.diagnostics.reborrow());
         visitor.text_case = self.text_case;
+        visitor.text_escape_mode = self.text_escape_mode;
         visitor.index_collection = self.index_collection;
         visitor
     }
@@ -470,6 +473,7 @@ impl<'a, W: Write> Visitor<'a> for ManpageVisitor<'a, '_, W> {
                     .with_ordinary_replacements(replacements)
                     .for_inline(nodes, i);
                 if after_hard_break
+                    && !matches!(self.text_escape_mode, EscapeMode::Preserve)
                     && matches!(node, InlineNode::PlainText(_) | InlineNode::RawText(_))
                 {
                     self.strip_next_leading_space = true;
