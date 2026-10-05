@@ -1,0 +1,36 @@
+= code-font-scopes(1)
+:doctype: manpage
+:revdate: 2026-10-05
+
+== Name
+
+code-font-scopes - fonts in code and passthroughs
+
+== Synopsis
+
+*B00*
+
+== Description
+
+[source,text,subs="+quotes,+macros"]
+----
+M01 *B01 _I01_ B02* M02.
+M03 *B03 https://example.org[_I02_ B04] B05* M04.
+M05 _I03 *B06* I04_ M06.
+----
+
+R01 after code.
+
+pass:q[*B07 _I05_ B08*] R02.
+
+*B09 pass:q[_I06_] B10* R03.
+
+.B11 _I07_ B12
+[subs="none"]
+R04 *literal* _literal_.
+
+R05 after disabled substitutions.
+
+[verse,Writer]
+R06 *B13 _I08_ B14* R07.
+R08 next verse line.

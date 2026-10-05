@@ -31,7 +31,7 @@
 attribute\-values \- attribute substitution order
 .SH "SYNOPSIS"
 .sp
-\fBattribute\-values\fP
+\fBattribute\-values\fR
 .SH "DESCRIPTION"
 .sp
 S01 indexterm2:[Early] and xref:target[Early]\&.
@@ -48,6 +48,6 @@ S05 \eLate code and \eLate code\&.
 .sp
 S06 FirstSecond and [].
 .sp
-S07 Before \fB\fP after.
+S07 Before \fB\fR after.
 .sp
 Target paragraph.

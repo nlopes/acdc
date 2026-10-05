@@ -15,7 +15,7 @@ S07 [1]
 .sp
 S08 indexterm2:[No substitutions \e] text].
 .sp
-S09 indexterm2:[\fBLate\fP \(em \e] text]\&.
+S09 indexterm2:[\fBLate\fR \(em \e] text]\&.
 .sp
 S10 [2]\&.
 .sp

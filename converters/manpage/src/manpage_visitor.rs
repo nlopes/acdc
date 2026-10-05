@@ -57,6 +57,8 @@ pub struct ManpageVisitor<'a, 'd, W: Write> {
     pub(crate) text_escape_mode: EscapeMode,
     /// Buffer the current label so nested links can be emitted as separate commands.
     pub(crate) link_label: Option<LinkLabel>,
+    /// Font selected by the enclosing generated formatting scope.
+    pub(crate) current_font: &'static str,
     /// Title of the first level-1 section for name-section validation.
     first_section_title: Option<String>,
     /// Title of the second level-1 section (for SYNOPSIS validation).
@@ -80,6 +82,7 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
             text_case: TextCase::Preserve,
             text_escape_mode: EscapeMode::Normalize,
             link_label: None,
+            current_font: "\\fR",
             first_section_title: None,
             second_section_title: None,
         }
@@ -113,6 +116,7 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
         visitor.text_case = self.text_case;
         visitor.text_escape_mode = self.text_escape_mode;
         visitor.index_collection = self.index_collection;
+        visitor.current_font = self.current_font;
         visitor
     }
 
@@ -155,9 +159,6 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
             return Ok(());
         }
 
-        // Inline formatting changes roff's previous font, so save the enclosing font.
-        writeln!(self.writer_mut(), ".nr acdc-title-font \\n[.f]")?;
-        write!(self.writer_mut(), "\\fB")?;
         let prefix = match metadata.caption.as_ref() {
             Some(Caption::Numbered {
                 label,
@@ -167,26 +168,27 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
             Some(Caption::Custom(prefix)) => Some(prefix.to_string()),
             Some(_) | None => None,
         };
-        if let Some(prefix) = prefix {
-            write!(
-                self.writer_mut(),
-                "{}",
-                manify(&prefix, EscapeMode::Normalize)
-            )?;
-        }
-        // A title uses normal substitutions even when its block's body disables them.
-        #[cfg(feature = "pre-spec-subs")]
-        let previous_subs = self
-            .processor
-            .current_subs
-            .replace(effective_subs_flags(None, false));
-        let result = self.visit_inline_nodes(traversal, title);
-        #[cfg(feature = "pre-spec-subs")]
-        self.processor.current_subs.set(previous_subs);
-        result?;
-        writeln!(self.writer_mut(), "\\f[\\n[acdc-title-font]]")?;
+        self.render_font("\\fB", false, |visitor| {
+            if let Some(prefix) = prefix {
+                write!(
+                    visitor.writer_mut(),
+                    "{}",
+                    manify(&prefix, EscapeMode::Normalize)
+                )?;
+            }
+            // A title uses normal substitutions even when its block's body disables them.
+            #[cfg(feature = "pre-spec-subs")]
+            let previous_subs = visitor
+                .processor
+                .current_subs
+                .replace(effective_subs_flags(None, false));
+            let result = visitor.visit_inline_nodes(traversal, title);
+            #[cfg(feature = "pre-spec-subs")]
+            visitor.processor.current_subs.set(previous_subs);
+            result
+        })?;
+        writeln!(self.writer_mut())?;
         writeln!(self.writer_mut(), ".br")?;
-        writeln!(self.writer_mut(), ".rr acdc-title-font")?;
         Ok(())
     }
 }
@@ -440,9 +442,10 @@ impl<'a, W: Write> Visitor<'a> for ManpageVisitor<'a, '_, W> {
     ) -> Result<(), Self::Error> {
         // Discrete headers are rendered as bold text, not as sections
         self.write_sp()?;
-        write!(self.writer, "\\fB")?;
-        self.visit_inline_nodes(traversal, &header.title)?;
-        writeln!(self.writer, "\\fP")?;
+        self.render_font("\\fB", false, |visitor| {
+            visitor.visit_inline_nodes(traversal, &header.title)
+        })?;
+        writeln!(self.writer)?;
         Ok(())
     }
 

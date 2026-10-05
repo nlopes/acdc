@@ -50,7 +50,7 @@ P07 \e*literal\e* \e_literal\e_ \e`literal\e` \e#literal\e#\&.
 .sp
 P08 (C) (R) (TM) ... word\-\-word\&.
 .sp
-P09 \fB\(co\fP \fIword\(emword\fP\&.
+P09 \fB\(co\fR \fIword\(emword\fR\&.
 .sp
 P10 <tag> \(co &\&.
 .sp
@@ -61,14 +61,14 @@ P12 word \(em word \-\-\&.
 P13 \-\-word and word\-\-\&.
 .sp
 P14 \c
-.URL "https://example.org" "" "\c"
+.URL "https://example.org" "" "\fR\c"
 [\(co]\&.
 .sp
-P15 \f(CR\(co \(rg \(tm\fP\&.
+P15 \f(CR\(co \(rg \(tm\fR\&.
 .sp
-P16 \f(CR(C) (R) (TM) ... word\-\-word\fP\&.
+P16 \f(CR(C) (R) (TM) ... word\-\-word\fR\&.
 .sp
-P17 \f(CR\(co \(rg \(tm\fP\&.
+P17 \f(CR\(co \(rg \(tm\fR\&.
 .sp
 P18 \(co \(rg \(tm\&.
 .RS 0

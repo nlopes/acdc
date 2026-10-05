@@ -1,31 +1,31 @@
 .sp
 \c
-.URL "https://example.org" "One ] two" "\c"
+.URL "https://example.org" "One ] two" "\fR\c"
 
 .sp
 \c
-.URL "https://example.org" "\fBOne ] two\fP" "\c"
+.URL "https://example.org" "\fBOne ] two\fR" "\fR\c"
 
 .sp
 \c
-.URL "https://example.org" "Expanded ] tail" "\c"
+.URL "https://example.org" "Expanded ] tail" "\fR\c"
 
 .sp
 \c
-.URL "https://example.org" "Expanded ] tail" "\c"
+.URL "https://example.org" "Expanded ] tail" "\fR\c"
 
 .sp
 \c
-.URL "https://example.org" "One ] two" "\c"
+.URL "https://example.org" "One ] two" "\fR\c"
 
 .sp
 link:https://example.org[Literal \e] text]
 .EX
 let label = \c
-.URL "https://example.org" "One ] two" "\c"
+.URL "https://example.org" "One ] two" "\fR\c"
 ;
 let mail = \c
-.MTO "test\(atexample.org" "Mail ] label" "\c"
+.MTO "test\(atexample.org" "Mail ] label" "\fR\c"
 ;
 .EE
 .EX

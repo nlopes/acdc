@@ -32,7 +32,7 @@ header\-metadata\-attributes \- check interleaved header attributes
 .SH "SYNOPSIS"
 .sp
 H01 author=Alice Smith; email=\c
-.MTO "updated\(atexample.org" "" "\c"
+.MTO "updated\(atexample.org" "" "\fR\c"
 ; revision=2.5.
 .sp
 H02 writer=Later Writer; captured=Alice Smith; firstname=Alice.
@@ -40,7 +40,7 @@ H02 writer=Later Writer; captured=Alice Smith; firstname=Alice.
 H03 captured\-revision=2.5; remark=Reviewed by Alice Smith.
 .sp
 H04 captured\-email=\c
-.MTO "alice\(atexample.org" "" "\c"
+.MTO "alice\(atexample.org" "" "\fR\c"
 \&.
 .SH "AUTHOR"
 .sp

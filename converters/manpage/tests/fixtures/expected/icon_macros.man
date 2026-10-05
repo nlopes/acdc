@@ -31,7 +31,7 @@
 icon\-test \- test icon macro rendering
 .SH "SYNOPSIS"
 .sp
-\fBicon\-test\fP
+\fBicon\-test\fR
 .SH "DESCRIPTION"
 .sp
 Here is a star [star] in text.

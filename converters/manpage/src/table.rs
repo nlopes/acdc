@@ -320,6 +320,7 @@ fn render_grid_row<'a>(
                         cell,
                         column_index,
                         columns,
+                        grid_row.is_header,
                         processor,
                         traversal,
                         diagnostics,
@@ -450,32 +451,54 @@ fn format_cell_with_inlines<'a>(
     cell: &'a TableColumn<'a>,
     column_index: usize,
     columns: &[ColumnFormat],
+    is_header: bool,
     processor: &Processor<'a>,
     traversal: &mut TraversalContext<'a>,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Result<String, Error> {
     let mut buf = Vec::new();
     let mut cell_visitor = ManpageVisitor::new(&mut buf, processor, diagnostics.reborrow());
+    if is_header {
+        // tbl selects bold for the header before it renders the cell's inlines.
+        cell_visitor.current_font = "\\fB";
+    }
     let style = effective_style(cell, column_index, columns);
     let scoped = style == ColumnStyle::AsciiDoc;
+    let font = match style {
+        ColumnStyle::Strong => Some("\\fB"),
+        ColumnStyle::Emphasis => Some("\\fI"),
+        ColumnStyle::Monospace => Some("\\f(CR"),
+        ColumnStyle::AsciiDoc
+        | ColumnStyle::Default
+        | ColumnStyle::Header
+        | ColumnStyle::Literal
+        | _ => None,
+    };
     let mut render = |traversal: &mut TraversalContext<'a>| {
-        cell.content
-            .iter()
-            .enumerate()
-            .try_for_each(|(index, block)| {
-                if let acdc_parser::Block::Paragraph(para) = block
-                    && !scoped
-                {
-                    // tbl needs an explicit break between normal cell paragraphs;
-                    // concatenating inline output would join their boundary words.
-                    if index > 0 {
-                        cell_visitor.writer_mut().write_all(b"\n.sp\n")?;
+        let mut content = |visitor: &mut ManpageVisitor<'a, '_, _>| {
+            cell.content
+                .iter()
+                .enumerate()
+                .try_for_each(|(index, block)| {
+                    if let acdc_parser::Block::Paragraph(para) = block
+                        && !scoped
+                    {
+                        // tbl needs an explicit break between normal cell paragraphs;
+                        // concatenating inline output would join their boundary words.
+                        if index > 0 {
+                            visitor.writer_mut().write_all(b"\n.sp\n")?;
+                        }
+                        visitor.visit_inline_nodes(traversal, &para.content)
+                    } else {
+                        traversal.visit_block(visitor, block)
                     }
-                    cell_visitor.visit_inline_nodes(traversal, &para.content)
-                } else {
-                    traversal.visit_block(&mut cell_visitor, block)
-                }
-            })
+                })
+        };
+        if let Some(font) = font {
+            cell_visitor.render_font(font, false, content)
+        } else {
+            content(&mut cell_visitor)
+        }
     };
     if scoped {
         traversal.with_table_cell(cell, render)
@@ -485,9 +508,6 @@ fn format_cell_with_inlines<'a>(
 
     let text = String::from_utf8_lossy(&buf).into_owned();
     let text = match style {
-        ColumnStyle::Strong => format!("\\fB{text}\\fP"),
-        ColumnStyle::Emphasis => format!("\\fI{text}\\fP"),
-        ColumnStyle::Monospace => format!("\\f(CR{text}\\fP"),
         ColumnStyle::Literal => format!(".nf\n{text}\n.fi"),
         ColumnStyle::AsciiDoc | ColumnStyle::Default | ColumnStyle::Header | _ => text,
     };

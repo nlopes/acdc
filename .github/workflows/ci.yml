@@ -127,6 +127,10 @@ jobs:
           version: 0.16.0
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@nextest
+      - name: Install manpage test renderers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y groff mandoc
       - name: Run converter tests
         run: cargo nextest run -p acdc-converters-core -p acdc-converters-html -p acdc-converters-manpage -p acdc-converters-terminal -p acdc-converters-markdown --all-features --verbose
       - name: Run HTML tests - substitutions without highlighting

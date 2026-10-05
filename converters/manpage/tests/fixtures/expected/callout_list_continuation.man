@@ -31,7 +31,7 @@
 callout\-list\-continuation \- verify attached callout content
 .SH "SYNOPSIS"
 .sp
-\fBcallout\-list\-continuation\fP
+\fBcallout\-list\-continuation\fR
 .SH "DESCRIPTION"
 .EX
 first \fB(1)\fP
@@ -39,7 +39,7 @@ second \fB(2)\fP
 .EE
 .RS 0
 .IP \fB(1)\fP 4
-First \fBexplanation\fP\&.
+First \fBexplanation\fR\&.
 .RS 0
 .sp
 Attached paragraph.

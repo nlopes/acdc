@@ -31,19 +31,19 @@
 opening\-bounds \- constrained opening punctuation
 .SH "DESCRIPTION"
 .sp
-P01 =\fBBold\fP =\fIItalic\fP =\f(CRCode\fP =\fBMark\fP\&.
+P01 =\fBBold\fR =\fIItalic\fR =\f(CRCode\fR =\fBMark\fR\&.
 .sp
-P02 %\fBBold\fP %\fIItalic\fP %\f(CRCode\fP %\fBMark\fP\&.
+P02 %\fBBold\fR %\fIItalic\fR %\f(CRCode\fR %\fBMark\fR\&.
 .sp
-P03 $\fBBold\fP $\fIItalic\fP $\f(CRCode\fP $\fBMark\fP\&.
+P03 $\fBBold\fR $\fIItalic\fR $\f(CRCode\fR $\fBMark\fR\&.
 .sp
-P04 @\fBBold\fP @\fIItalic\fP @\f(CRCode\fP @\fBMark\fP\&.
+P04 @\fBBold\fR @\fIItalic\fR @\f(CRCode\fR @\fBMark\fR\&.
 .sp
-P05 <\fBBold\fP <\fIItalic\fP <\f(CRCode\fP <\fBMark\fP\&.
+P05 <\fBBold\fR <\fIItalic\fR <\f(CRCode\fR <\fBMark\fR\&.
 .sp
-P06 >\fBBold\fP >\fIItalic\fP >\f(CRCode\fP >\fBMark\fP\&.
+P06 >\fBBold\fR >\fIItalic\fR >\f(CRCode\fR >\fBMark\fR\&.
 .sp
-P07 &\fBBold\fP &\fIItalic\fP &\f(CRCode\fP &#Mark#.
+P07 &\fBBold\fR &\fIItalic\fR &\f(CRCode\fR &#Mark#.
 .sp
 P08 :*Bold* :_Italic_ :`Code` :#Mark#.
 .sp
@@ -61,21 +61,21 @@ P14 café*Bold* café_Italic_ café`Code` café#Mark#.
 .sp
 P15 日*Bold* 日_Italic_ 日`Code` 日#Mark#.
 .sp
-P16 «\fBBold\fP» «\fIItalic\fP» «\f(CRCode\fP» «\fBMark\fP».
+P16 «\fBBold\fR» «\fIItalic\fR» «\f(CRCode\fR» «\fBMark\fR».
 .sp
 P17 =*Bold* =_Italic_ =`Code` =#Mark#.
 .sp
 P18 &amp;*Bold* &#42;_Italic_ &#x2a;`Code` &gt;#Mark#.
 .sp
-P19 :\fBBold\fP ;\fIItalic\fP }\f(CRCode\fP _\fBMark\fP\&.
+P19 :\fBBold\fR ;\fIItalic\fR }\f(CRCode\fR _\fBMark\fR\&.
 .sp
-P20 [\fBBold\fP] (\fBBold\fP) {\fBBold\fP} /\fBBold\fP/ |\fBBold\fP|.
+P20 [\fBBold\fR] (\fBBold\fR) {\fBBold\fR} /\fBBold\fR/ |\fBBold\fR|.
 .sp
-P21 <del>\fBBold\fP</del> <del>\fIItalic\fP</del> <del>\f(CRCode\fP</del> <del>\fBMark\fP</del>.
+P21 <del>\fBBold\fR</del> <del>\fIItalic\fR</del> <del>\f(CRCode\fR</del> <del>\fBMark\fR</del>.
 .sp
-P22 \(rA\fBBold\fP\&.
+P22 \(rA\fBBold\fR\&.
 .sp
-P23 =\fBBold\fP =\f(CRCode\fP\&.
+P23 =\fBBold\fR =\f(CRCode\fR\&.
 .sp
 P24 =* leading* =_ trailing _ =` trailing ` =# leading#.
 .sp
@@ -87,7 +87,7 @@ P27 _`Code`.
 .sp
 P28 _#Mark#.
 .sp
-P29 =\f(CRCode\fP\fBEnd\fP\&.
+P29 =\f(CRCode\fR\fBEnd\fR\&.
 .sp
 P30 =_Italic_1.
 .sp

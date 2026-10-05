@@ -1,12 +1,12 @@
 .sp
 Before \c
-.URL "https://example.org" "Label" "\c"
+.URL "https://example.org" "Label" "\fR\c"
  after.
 .sp
 α \c
-.URL "https://example.org" "é" "\c"
+.URL "https://example.org" "é" "\fR\c"
  / \c
-.URL "https://example.net" "東京" "\c"
+.URL "https://example.net" "東京" "\fR\c"
  ω.
 .sp
 Destination.
@@ -19,18 +19,18 @@ Reuse [1]\&.
 .sp
 Before one]two after three]four\&.
 .sp
-Before \fBone]two\fP after.
+Before \fBone]two\fR after.
 .sp
 \c
-.URL "https://example.org" "Expanded" "\c"
+.URL "https://example.org" "Expanded" "\fR\c"
 
 .sp
 \c
-.URL "https://example.org" "Expanded" "\c"
+.URL "https://example.org" "Expanded" "\fR\c"
 
 .sp
 \c
-.URL "https://example.org" "Label" "\c"
+.URL "https://example.org" "Label" "\fR\c"
 
 .sp
 link:https://example.org[Label]
@@ -38,14 +38,14 @@ link:https://example.org[Label]
 one]two Expanded term
 .sp
 \c
-.URL "https://example.org" "One" "\c"
+.URL "https://example.org" "One" "\fR\c"
 
 \c
-.URL "https://example.net" "Two" "\c"
+.URL "https://example.net" "Two" "\fR\c"
 
 .sp
  ] \c
-.URL "https://example.org" "" "\c"
+.URL "https://example.org" "" "\fR\c"
 
 .sp
 Unescaped inner closing bracket: link:https://example.org[Label].

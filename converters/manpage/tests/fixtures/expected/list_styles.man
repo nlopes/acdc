@@ -85,31 +85,31 @@ Explicit four
 .RE
 .RS 0
 .sp
-\fBCPU\fP \(en Central processor
+\fBCPU\fR \(en Central processor
 .sp
-\fBRAM\fP \(en Working memory
+\fBRAM\fR \(en Working memory
 .RE
 .RS 0
 .TP
-\fBQ: What is acdc?\fP
+\fBQ: What is acdc?\fR
 \fBA:\fP An AsciiDoc converter.
 .TP
-\fBQ: What does it preserve?\fP
+\fBQ: What does it preserve?\fR
 \fBA:\fP Document meaning.
 .RE
 .RS 0
 .TP
-\fB1. First term\fP
+\fB1. First term\fR
 First definition
 .TP
-\fB2. Second term\fP
+\fB2. Second term\fR
 Second definition
 .RE
 .RS 0
 .TP
-\fB\(bu Alpha term\fP
+\fB\(bu Alpha term\fR
 Alpha definition
 .TP
-\fB\(bu Beta term\fP
+\fB\(bu Beta term\fR
 Beta definition
 .RE

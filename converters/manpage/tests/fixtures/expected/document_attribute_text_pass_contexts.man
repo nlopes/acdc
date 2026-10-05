@@ -33,13 +33,13 @@ attribute\-text\-contexts \- text\-only attribute contexts
 .sp
 T01 <tag> & {name} | Early
 .sp
-T02 \fB<tag> & {name}\fP | \fI<tag> & {name}\fP | \f(CR<tag> & {name}\fP
+T02 \fB<tag> & {name}\fR | \fI<tag> & {name}\fR | \f(CR<tag> & {name}\fR
 .sp
 T03 \c
-.URL "https://example.org" "<tag> & {name}" "\c"
+.URL "https://example.org" "<tag> & {name}" "\fR\c"
 
 .sp
-\fBT04 <tag> & {name}\fP
+\fBT04 <tag> & {name}\fR
 .RS 0
 .IP \(bu 2
 T05 <tag> & {name}

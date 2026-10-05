@@ -31,7 +31,7 @@
 stem\-test \- test stem/math rendering
 .SH "SYNOPSIS"
 .sp
-\fBstem\-test\fP
+\fBstem\-test\fR
 .SH "DESCRIPTION"
 .sp
 An inline formula: x^2 + y^2 = z^2\&.

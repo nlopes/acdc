@@ -34,49 +34,49 @@ sections\-inline\-roles \- verify section and inline presentation
 sections\-inline\-roles
 .SH "DESCRIPTION"
 .sp
-See Hidden \fBSection\fP and Visible Child\&.
+See Hidden \fBSection\fR and Visible Child\&.
 .sp
 The hidden section body remains visible.
 .sp
-\fBVisible Child\fP
+\fBVisible Child\fR
 .sp
 The child body remains visible.
 .SS "Link display"
 .sp
 Before: \c
-.URL "https://before.example/path" "" "\c"
+.URL "https://before.example/path" "" "\fR\c"
  and \c
-.URL "https://before.example/linked" "" "\c"
+.URL "https://before.example/linked" "" "\fR\c"
 \&.
 .sp
 Hidden schemes: \c
-.URL "https://hidden.example/path" "hidden.example/path" "\c"
+.URL "https://hidden.example/path" "hidden.example/path" "\fR\c"
 , \c
-.URL "https://hidden.example/linked" "hidden.example/linked" "\c"
+.URL "https://hidden.example/linked" "hidden.example/linked" "\fR\c"
 , and \c
-.URL "https://hidden.example/auto" "hidden.example/auto" "\c"
+.URL "https://hidden.example/auto" "hidden.example/auto" "\fR\c"
 \&.
 .sp
 Explicit text: \c
-.URL "https://hidden.example/label" "visible label" "\c"
+.URL "https://hidden.example/label" "visible label" "\fR\c"
 \&.
 .sp
 After: \c
-.URL "https://after.example/path" "" "\c"
+.URL "https://after.example/path" "" "\fR\c"
 \&.
 .SS "Link roles"
 .sp
 Roles: \c
-.URL "https://example.com/underline" "\fIunderlined\fP" "\c"
+.URL "https://example.com/underline" "\fIunderlined\fR" "\fR\c"
 , \c
-.URL "https://example.com/deleted" "[deleted: removed]" "\c"
+.URL "https://example.com/deleted" "[deleted: removed]" "\fR\c"
 , \c
-.URL "https://example.com/large" "\s+1large\s-1" "\c"
+.URL "https://example.com/large" "\s+1large\s-1" "\fR\c"
 , \c
-.MTO "person\(atexample.com" "\s-1small\s+1" "\c"
+.MTO "person\(atexample.com" "\s-1small\s+1" "\fR\c"
 , and \c
-.URL "https://example.com/combined" "\fI[deleted: combined]\fP" "\c"
+.URL "https://example.com/combined" "\fI[deleted: combined]\fR" "\fR\c"
 \&.
 .SS "Inline roles"
 .sp
-Roles: \fBhighlighted\fP, targeted, \fIunderlined\fP, [deleted: removed], \s+1large\s-1, \s-1small\s+1, \fIsubtitle\fP, [overlined: overlined], custom, and \fI[deleted: combined]\fP\&.
+Roles: \fBhighlighted\fR, targeted, \fIunderlined\fR, [deleted: removed], \s+1large\s-1, \s-1small\s+1, \fIsubtitle\fR, [overlined: overlined], custom, and \fI[deleted: combined]\fR\&.

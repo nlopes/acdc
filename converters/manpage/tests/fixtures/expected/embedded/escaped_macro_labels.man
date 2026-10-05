@@ -18,18 +18,18 @@ E08 anchor:target[Anchor \e] text]
 .sp
 E09 indexterm2:[Open \e[ text]
 .sp
-E10 indexterm2:[\fBBold\fP \(em Attribute \e] text]
+E10 indexterm2:[\fBBold\fR \(em Attribute \e] text]
 .sp
 E11 indexterm2:[Repeated \e\e\e] term]
 .sp
 E12 Ordinary \e] and \e[ and \e\e] text.
 .sp
-E13 ((Nested \fBbold\fP \e] term))
+E13 ((Nested \fBbold\fR \e] term))
 .sp
 E14 Active ] term
 .sp
 E15 \c
-.URL "https://example.org" "Active ] label" "\c"
+.URL "https://example.org" "Active ] label" "\fR\c"
 
 .sp
 E16 [1] [2]
@@ -37,11 +37,11 @@ E16 [1] [2]
 E17 Short active \e] term
 .sp
 E18 \c
-.URL "https://example.org" "Repeated \e] label" "\c"
+.URL "https://example.org" "Repeated \e] label" "\fR\c"
 
 .sp
 E19 \c
-.URL "https://example.org" "Nested active ] term" "\c"
+.URL "https://example.org" "Nested active ] term" "\fR\c"
 
 .sp
 E20 [[escaped\-target]] and <<escaped\-target>>\&.

@@ -31,14 +31,12 @@
 video\-audio\-test \- test static media fallbacks
 .SH "SYNOPSIS"
 .sp
-\fBvideo\-audio\-test\fP
+\fBvideo\-audio\-test\fR
 .SH "DESCRIPTION"
 .SS "Video"
 .sp
-.nr acdc-title-font \n[.f]
-\fBA tutorial video\f[\n[acdc-title-font]]
+\fBA tutorial video\fR
 .br
-.rr acdc-title-font
 .URL "media%20assets/video.mp4" "[Video source 1/2: A tutorial video]" ""
 .br
 .URL "media%20assets/video.webm" "[Video source 2/2: A tutorial video]" ""
@@ -52,10 +50,8 @@ video\-audio\-test \- test static media fallbacks
 .URL "media%20assets/orphan\-cover.jpg" "[Poster: orphan\-cover.jpg]" ""
 .SS "Audio"
 .sp
-.nr acdc-title-font \n[.f]
-\fBA podcast episode\f[\n[acdc-title-font]]
+\fBA podcast episode\fR
 .br
-.rr acdc-title-font
 .URL "media%20assets/podcast.mp3#t=2,4" "[Audio: A podcast episode]" ""
 .sp
 .URL "media%20assets/standalone.ogg" "[Audio: standalone.ogg]" ""

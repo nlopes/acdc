@@ -8,7 +8,7 @@ let beta = 2;
 let gamma = 3;
 .EE
 .EX
-before \fBtext\fP after
+before \fBtext\fR after
 .EE
 .sp
 A note [1] after the listing.

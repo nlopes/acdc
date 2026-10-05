@@ -211,7 +211,7 @@ Single\-quoted formatting.
 .RE
 .RS 5
 .ll -.10i
-\f(CRApollo\fP \(em Margaret \fBHamilton\fP
+\f(CRApollo\fR \(em Margaret \fBHamilton\fR
 .RE
 .ll
 .RS 4
@@ -239,9 +239,9 @@ Single\-quoted macros.
 .RS 5
 .ll -.10i
 \c
-.URL "https://example.org" "Linked Work" "\c"
+.URL "https://example.org" "Linked Work" "\fR\c"
  \(em \c
-.URL "https://example.com" "Linked Author" "\c"
+.URL "https://example.com" "Linked Author" "\fR\c"
 
 .RE
 .ll
@@ -251,7 +251,7 @@ Named substitutions.
 .RE
 .RS 5
 .ll -.10i
-\f(CRNamed Work\fP \(em Named \fBAuthor\fP
+\f(CRNamed Work\fR \(em Named \fBAuthor\fR
 .RE
 .ll
 .RS 3
@@ -263,7 +263,7 @@ Styled quote paragraph.
 .ll
 .RS 5
 .ll -.10i
-\f(CRParagraph Work\fP \(em Paragraph \fBAuthor\fP
+\f(CRParagraph Work\fR \(em Paragraph \fBAuthor\fR
 .RE
 .ll
 .RS 3
@@ -280,7 +280,7 @@ Styled verse paragraph.
 .br
 .in +.5i
 .ll -.5i
-\f(CRParagraph Poem\fP \(em Paragraph \fBPoet\fP
+\f(CRParagraph Poem\fR \(em Paragraph \fBPoet\fR
 .in
 .ll
 .nf
@@ -289,7 +289,7 @@ Delimited verse block.
 .br
 .in +.5i
 .ll -.5i
-\f(CRBlock Poem\fP \(em Block \fBPoet\fP
+\f(CRBlock Poem\fR \(em Block \fBPoet\fR
 .in
 .ll
 .RS 4

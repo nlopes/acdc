@@ -1,32 +1,32 @@
 .sp
 \c
-.URL "https://example.org" "One \(dqquote\(dq two" "\c"
+.URL "https://example.org" "One \(dqquote\(dq two" "\fR\c"
 
 .sp
 \c
-.URL "https://example.org" "Expanded \(dqquote\(dq" "\c"
+.URL "https://example.org" "Expanded \(dqquote\(dq" "\fR\c"
 
 .sp
 \c
-.URL "https://example.org" "Expanded \(dqquote\(dq" "\c"
+.URL "https://example.org" "Expanded \(dqquote\(dq" "\fR\c"
 
 .sp
 \c
-.URL "https://example.org" "\fBBold \(dqquote\(dq label\fP" "\c"
+.URL "https://example.org" "\fBBold \(dqquote\(dq label\fR" "\fR\c"
 
 .EX
 \c
-.URL "https://example.org" "One \(dqquote\(dq two" "\c"
+.URL "https://example.org" "One \(dqquote\(dq two" "\fR\c"
 
 \c
-.URL "https://example.net" "One \(dqquote\(dq two" "\c"
+.URL "https://example.net" "One \(dqquote\(dq two" "\fR\c"
 
 \c
-.MTO "test\(atexample.org" "One \(dqquote\(dq two" "\c"
+.MTO "test\(atexample.org" "One \(dqquote\(dq two" "\fR\c"
 .EE
 .sp
 \c
-.URL "https://example.org" "One \(dqquote\(dq ] two" "\c"
+.URL "https://example.org" "One \(dqquote\(dq ] two" "\fR\c"
 
 .sp
 link:https://example.org["One \e"quote\e" two",role=green]
@@ -35,33 +35,33 @@ link:https://example.org["One \e"quote\e" two",role=green]
 .EE
 .sp
 \c
-.URL "https://example.org" "Label One \(dqquote\(dq [1] tail" "\c"
+.URL "https://example.org" "Label One \(dqquote\(dq [1] tail" "\fR\c"
 
 .sp
 Reuse [1]\&.
 .sp
 \c
-.URL "https://example.org" "One \(dqquote\(dq" "\c"
+.URL "https://example.org" "One \(dqquote\(dq" "\fR\c"
 
 .sp
 \c
-.URL "https://example.org" "One \e\(dqquote\e\(dq" "\c"
+.URL "https://example.org" "One \e\(dqquote\e\(dq" "\fR\c"
 
 .sp
 \c
-.URL "https://example.org" "One" "\c"
+.URL "https://example.org" "One" "\fR\c"
 
 .sp
 \c
-.URL "https://example.org" "\(dqOne\(dq" "\c"
+.URL "https://example.org" "\(dqOne\(dq" "\fR\c"
 
 .sp
 \c
-.URL "https://example.org" "a=b" "\c"
+.URL "https://example.org" "a=b" "\fR\c"
 
 .sp
 \c
-.URL "https://example.org" "\(dqa=b\(dq" "\c"
+.URL "https://example.org" "\(dqa=b\(dq" "\fR\c"
 
 .SH "INDEX"
 .SS "O"

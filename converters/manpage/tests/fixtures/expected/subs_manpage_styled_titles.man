@@ -31,10 +31,8 @@
 title\-subs \- separate title and body substitutions
 .SH "SYNOPSIS"
 .sp
-.nr acdc-title-font \n[.f]
-\fBQ01 Title \fBbold\fP expanded \(co\f[\n[acdc-title-font]]
+\fBQ01 Title \fBbold\fB expanded \(co\fR
 .br
-.rr acdc-title-font
 .RS 3
 .ll -.6i
 .sp
@@ -48,10 +46,8 @@ Book \(em Writer
 .RE
 .ll
 .sp
-.nr acdc-title-font \n[.f]
-\fBV01 Title \fIitalic\fP expanded \(rg\f[\n[acdc-title-font]]
+\fBV01 Title \fIitalic\fB expanded \(rg\fR
 .br
-.rr acdc-title-font
 .nf
 V01 first *bold* {value} (C).
 V01 second.
@@ -63,10 +59,8 @@ Poem \(em Poet
 .in
 .ll
 .sp
-.nr acdc-title-font \n[.f]
-\fBQ02 Title \(co with literal (R)\f[\n[acdc-title-font]]
+\fBQ02 Title \(co with literal (R)\fR
 .br
-.rr acdc-title-font
 .RS 3
 .ll -.6i
 .sp
@@ -75,10 +69,8 @@ Q02 body (C).
 .RE
 .ll
 .sp
-.nr acdc-title-font \n[.f]
-\fBV02 Title \(rg with literal (C)\f[\n[acdc-title-font]]
+\fBV02 Title \(rg with literal (C)\fR
 .br
-.rr acdc-title-font
 .nf
 V02 body (R).
 .fi
@@ -88,10 +80,8 @@ ltx
 ltx.
 T{
 .sp
-.nr acdc-title-font \n[.f]
-\fBQ03 Cell title \(co\f[\n[acdc-title-font]]
+\fBQ03 Cell title \(co\fR
 .br
-.rr acdc-title-font
 .RS 3
 .ll -.6i
 .sp
@@ -103,10 +93,8 @@ Q03 cell body (C).
 T}
 T{
 .sp
-.nr acdc-title-font \n[.f]
-\fBV03 Cell title \(rg\f[\n[acdc-title-font]]
+\fBV03 Cell title \(rg\fR
 .br
-.rr acdc-title-font
 .nf
 V03 cell body (R).
 .fi
@@ -114,10 +102,8 @@ V03 cell body (R).
 T}
 .TE
 .sp
-.nr acdc-title-font \n[.f]
-\fBC01 Listing title \(co\f[\n[acdc-title-font]]
+\fBC01 Listing title \(co\fR
 .br
-.rr acdc-title-font
 .if n .RS 4
 .nf
 .fam C
@@ -126,10 +112,8 @@ C01 listing body (C).
 .fi
 .if n .RE
 .sp
-.nr acdc-title-font \n[.f]
-\fBC02 Literal title \(rg\f[\n[acdc-title-font]]
+\fBC02 Literal title \(rg\fR
 .br
-.rr acdc-title-font
 .if n .RS 4
 .nf
 .fam C
@@ -138,10 +122,8 @@ C02 literal body (R).
 .fi
 .if n .RE
 .sp
-.nr acdc-title-font \n[.f]
-\fBC03 Ordinary title \(co\f[\n[acdc-title-font]]
+\fBC03 Ordinary title \(co\fR
 .br
-.rr acdc-title-font
 C03 ordinary body (C).
 .sp
 Following prose \(co.

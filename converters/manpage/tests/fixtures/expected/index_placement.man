@@ -33,10 +33,8 @@ index\-demo \- demonstrate index placement
 .sp
 An Alpha and another Alpha\&. Hidden occurrence.
 .sp
-.nr acdc-title-font \n[.f]
-\fBTable 1. Cell terms\f[\n[acdc-title-font]]
+\fBTable 1. Cell terms\fR
 .br
-.rr acdc-title-font
 .TS
 allbox tab(:);
 ltx.
@@ -75,6 +73,6 @@ A Zulu appears after the index.
 .SH "REFERENCES"
 .RS 0
 .TP
-\fB[ref]\fP
+\fB[ref]\fR
  Reference material.
 .RE

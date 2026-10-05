@@ -31,7 +31,7 @@
 attribute\-values \- literal backslashes and continuations
 .SH "SYNOPSIS"
 .sp
-\fBattribute\-values\fP
+\fBattribute\-values\fR
 .SH "DESCRIPTION"
 .sp
 A01 Single [\e].

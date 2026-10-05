@@ -34,17 +34,17 @@ verbatim\-nested \- nested formatting in code
 See Formatted, Empty, and Last\&.
 .bp
 .EX
-C01 \fBBold \fIItalic\fP \c
-.URL "https://example.org" "Nested \fIlink\fP" "\c"
- [1] Visible  end\fP\&.
+C01 \fBBold \fIItalic\fB \c
+.URL "https://example.org" "\fBNested \fIlink\fB" "\fB\c"
+ [1] Visible  end\fR\&.
 C02 \c
-.URL "https://example.org/outer" "\fBOuter\fP \fItail\fP" "\c"
+.URL "https://example.org/outer" "\fBOuter\fR \fItail\fR" "\fR\c"
  [1]
 C03 \fBMultiline first
-  second\fP after.
-C04 \fBA long bold span that crosses the normal code wrap boundary and contains \fInested emphasis\fP before it ends with a final marker.\fP \fB(1)\fP
-C05 Before \fB\fP after.
-\fB\fP
+  second\fR after.
+C04 \fBA long bold span that crosses the normal code wrap boundary and contains \fInested emphasis\fB before it ends with a final marker.\fR \fB(1)\fP
+C05 Before \fB\fR after.
+\fB\fR
 .EE
 .RS 0
 .IP \fB(1)\fP 4

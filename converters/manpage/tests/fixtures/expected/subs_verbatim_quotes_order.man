@@ -31,21 +31,21 @@
 verbatim\-order \- quote and attribute substitutions without macros
 .SH "DESCRIPTION"
 .EX
-A01 Before \fB\fP and \fBexpanded\fP after. *introduced*
+A01 Before \fB\fR and \fBexpanded\fR after. *introduced*
   link:https://example.org[Literal] & <tag>
 .EE
 .EX
-A02 Before \fB* after. *introduced\fP
+A02 Before \fB* after. *introduced\fR
 .EE
 .nf
-A03 Before \fI\fP and \fIexpanded\fP after.
+A03 Before \fI\fR and \fIexpanded\fR after.
   second  line
 .fi
 .sp
 .if n .RS 4
 .nf
 .fam C
-A04 Before \fB\fP and \fBexpanded\fP after.
+A04 Before \fB\fR and \fBexpanded\fR after.
 .fam
 .fi
 .if n .RE
@@ -53,7 +53,7 @@ A04 Before \fB\fP and \fBexpanded\fP after.
 .if n .RS 4
 .nf
 .fam C
-A05 Before \fB\fP and \fBexpanded\fP after.
+A05 Before \fB\fR and \fBexpanded\fR after.
 .fam
 .fi
 .if n .RE
@@ -61,16 +61,16 @@ A05 Before \fB\fP and \fBexpanded\fP after.
 .if n .RS 4
 .nf
 .fam C
-A06 Before \fB\fP and \fBexpanded\fP after.
+A06 Before \fB\fR and \fBexpanded\fR after.
   second  line
 .fam
 .fi
 .if n .RE
 .EX
-A07 Before \fB\fP and \fBexpanded\fP after.
+A07 Before \fB\fR and \fBexpanded\fR after.
 .EE
 .EX
-A08 Keep \fB{word}\fP and link:https://example.org[Literal].
+A08 Keep \fB{word}\fR and link:https://example.org[Literal].
 .EE
 .EX
 A09 Keep *expanded* and *introduced*.
@@ -82,14 +82,14 @@ A10 Keep *{word}* and {markup}.
 A11 Default *{word}* and {markup}.
 .EE
 .EX
-A12 Keep \fB{word}\fP and \fBbold\fP\&.
+A12 Keep \fB{word}\fR and \fBbold\fR\&.
 .EE
 .sp
 .if n .RS 4
 .nf
 .fam C
 A13 \fBFirst
-  second\fP after.
+  second\fR after.
 .fam
 .fi
 .if n .RE

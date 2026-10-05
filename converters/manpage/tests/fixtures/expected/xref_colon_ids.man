@@ -31,7 +31,7 @@
 colon\-xrefs \- colon\-containing local targets
 .SH "SYNOPSIS"
 .sp
-\fBcolon\-xrefs\fP
+\fBcolon\-xrefs\fR
 .SH "DESCRIPTION"
 .sp
 C01 Leading colon and Leading label and Leading macro and Leading fragment\&.

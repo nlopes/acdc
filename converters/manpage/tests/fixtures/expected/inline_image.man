@@ -31,7 +31,7 @@
 inline\-image\-test \- test image fallbacks
 .SH "SYNOPSIS"
 .sp
-\fBinline\-image\-test\fP
+\fBinline\-image\-test\fR
 .SH "DESCRIPTION"
 .sp
 An inline image: [Company Logo]\&.
@@ -39,23 +39,19 @@ An inline image: [Company Logo]\&.
 An inline image without alt text: [icon]\&.
 .sp
 A linked inline image: \c
-.URL "https://example.com/status" "[Build status]" "\c"
+.URL "https://example.com/status" "[Build status]" "\fR\c"
 \&.
 .sp
 A linked inline image without alt text: \c
-.URL "https://example.com/release" "[release badge]" "\c"
+.URL "https://example.com/release" "[release badge]" "\fR\c"
 \&.
 .sp
-.nr acdc-title-font \n[.f]
-\fBFigure 1. A block image\f[\n[acdc-title-font]]
+\fBFigure 1. A block image\fR
 .br
-.rr acdc-title-font
 [Sunset photo]
 .sp
 [untitled]
 .sp
-.nr acdc-title-font \n[.f]
-\fBFigure 2. A linked block image\f[\n[acdc-title-font]]
+\fBFigure 2. A linked block image\fR
 .br
-.rr acdc-title-font
 .URL "https://example.com/architecture" "[System architecture]" ""

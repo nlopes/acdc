@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Nested bold, italic, monospace, and role formatting restores the enclosing
+  font in prose, links, titles, lists, table cells, and enabled code substitutions.
+  Text after `*Bold _italic_ tail*.` stays roman instead of becoming italic.
+  This deliberately differs from Asciidoctor's leaking manpage font changes;
+  both groff and mandoc retain the corrected scopes.
+
 - Verse paragraphs and delimited verse blocks retain inline formatting, links,
   footnotes, index terms, and default typography while preserving line breaks
   and indentation. Body `subs=` settings and inline passthroughs remain effective.

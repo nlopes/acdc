@@ -31,27 +31,27 @@
 comprehensive\-test \- exercise all manpage converter features
 .SH "SYNOPSIS"
 .sp
-\fBcomprehensive\-test\fP [\fB\-v\fP|\fB\-\-verbose\fP] [\fB\-o\fP \fIFILE\fP] \fIINPUT\fP\&.\|.\|.
+\fBcomprehensive\-test\fR [\fB\-v\fR|\fB\-\-verbose\fR] [\fB\-o\fR \fIFILE\fR] \fIINPUT\fR\&.\|.\|.
 .SH "DESCRIPTION"
 .sp
 This is the main description paragraph.
 .SS "Basic Formatting"
 .sp
-This tests \fBbold\fP, \fIitalic\fP, \f(CRmonospace\fP, \fBhighlight\fP, ^(superscript), _(subscript),
-and \fIunderlined\fP text. Also curved \f(CR`double quotes\(aq\(aq and `single apostrophe\(cqs\fP text.
+This tests \fBbold\fR, \fIitalic\fR, \f(CRmonospace\fR, \fBhighlight\fR, ^(superscript), _(subscript),
+and \fIunderlined\fR text. Also curved \f(CR`double quotes\(aq\(aq and `single apostrophe\(cqs\fR text.
 .SS "Links and Cross References"
 .sp
 Visit \c
-.URL "https://example.com" "" "\c"
+.URL "https://example.com" "" "\fR\c"
  for more info.
 Email \c
-.MTO "user\(atexample.com" "" "\c"
+.MTO "user\(atexample.com" "" "\fR\c"
  for support.
 See \c
-.URL "https://example.com" "Example Site" "\c"
+.URL "https://example.com" "Example Site" "\fR\c"
  for details.
 Also see \c
-.MTO "admin\(atexample.com" "the admin" "\c"
+.MTO "admin\(atexample.com" "the admin" "\fR\c"
 \&.
 Cross\-reference to OTHER SECTION\&.
 Man page style reference: git(1).
@@ -63,28 +63,28 @@ And a reference back.[2]
 .SH "OPTIONS"
 .RS 0
 .TP
-\fB\fB\-v\fP, \fB\-\-verbose\fP\fP
+\fB\fB\-v\fB, \fB\-\-verbose\fB\fR
 Increase verbosity level.
 .TP
-\fB\fB\-o\fP \fIFILE\fP\fP
-Write output to \fIFILE\fP instead of stdout.
+\fB\fB\-o\fB \fIFILE\fB\fR
+Write output to \fIFILE\fR instead of stdout.
 .RS 0
 .sp
-If \fIFILE\fP exists, it will be overwritten.
+If \fIFILE\fR exists, it will be overwritten.
 .RE
 .TP
-\fB\fB\-q\fP\fP
+\fB\fB\-q\fB\fR
 Quiet mode.
 .RE
 .SH "LISTS"
 .SS "Unordered List"
 .sp
-\fBA titled list\fP
+\fBA titled list\fR
 .RS 0
 .IP \(bu 2
 Item one
 .IP \(bu 2
-Item two with \fBbold\fP
+Item two with \fBbold\fR
 .RS 2
 .RS 4
 .IP \(bu 2
@@ -125,14 +125,14 @@ Regular item (no checkbox)
 .SS "Description List"
 .RS 0
 .TP
-\fBterm one\fP
+\fBterm one\fR
 Definition of term one.
 .TP
-\fBterm two\fP
+\fBterm two\fR
 Multi\-line definition for term two.
 .TP
-\fBterm with \fBformatting\fP\fP
-A \fIstyled\fP definition.
+\fBterm with \fBformatting\fB\fR
+A \fIstyled\fR definition.
 .RE
 .SS "Callout List"
 .EX
@@ -148,10 +148,8 @@ Prints world to stdout
 .SH "BLOCKS"
 .SS "Code Block"
 .sp
-.nr acdc-title-font \n[.f]
-\fBExample script\f[\n[acdc-title-font]]
+\fBExample script\fR
 .br
-.rr acdc-title-font
 .EX
 #!/bin/bash
 set \-euo pipefail
@@ -175,10 +173,8 @@ On Simplicity \(em Albert Einstein
 .ll
 .SS "Example Block"
 .sp
-.nr acdc-title-font \n[.f]
-\fBExample 1. Example title\f[\n[acdc-title-font]]
+\fBExample 1. Example title\fR
 .br
-.rr acdc-title-font
 .RS 4
 .sp
 This is an example block.
@@ -242,10 +238,8 @@ This is important.
 .RE
 .SH "TABLES"
 .sp
-.nr acdc-title-font \n[.f]
-\fBTable 1. Simple table\f[\n[acdc-title-font]]
+\fBTable 1. Simple table\fR
 .br
-.rr acdc-title-font
 .TS
 allbox tab(:);
 ltBx ltBx ltBx
@@ -253,7 +247,7 @@ ltx ltx ltx
 ltx ltx ltx.
 Name:Description:Status
 Alpha:T{
-First item with \fBbold\fP
+First item with \fBbold\fR
 T}:Active
 Beta:Second item:Inactive
 .TE
@@ -265,7 +259,7 @@ Thematic break below:
 * * *
 .ce 0
 .sp
-\fBNot a Real Section\fP
+\fBNot a Real Section\fR
 .sp
 This paragraph follows a discrete header.
 .SS "Inline Macros"
@@ -277,19 +271,19 @@ Button: [\fBOK\fP]
 Menu: \fBFile\fP \(ra \fBSave As...\fP
 .SS "Deep Nesting"
 .sp
-\fBLevel 3 Section\fP
+\fBLevel 3 Section\fR
 .sp
 This is a level 3 section.
 .sp
-\fBLevel 4 Section\fP
+\fBLevel 4 Section\fR
 .sp
 This is a level 4 section.
 .SH "SEE ALSO"
 .sp
-\fBother\-tool\fP(1), \fBrelated\-cmd\fP(5)
+\fBother\-tool\fR(1), \fBrelated\-cmd\fR(5)
 .SH "NOTES"
 .IP [1] 4
-First footnote content with \fBbold\fP\&.
+First footnote content with \fBbold\fR\&.
 .IP [2] 4
 Named footnote content.
 .SH "AUTHORS"

@@ -1,0 +1,65 @@
+'\" t
+.\"     Title: code-font-scopes
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-05
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "CODE\-FONT\-SCOPES" "1" "2026-10-05" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+code\-font\-scopes \- fonts in code and passthroughs
+.SH "SYNOPSIS"
+.sp
+\fBB00\fR
+.SH "DESCRIPTION"
+.EX
+M01 \fBB01 \fII01\fB B02\fR M02.
+M03 \fBB03 \c
+.URL "https://example.org" "\fB\fII02\fB B04" "\fB\c"
+ B05\fR M04.
+M05 \fII03 \fBB06\fI I04\fR M06.
+.EE
+.sp
+R01 after code.
+.sp
+\fBB07 \fII05\fB B08\fR R02.
+.sp
+\fBB09 \fII06\fB B10\fR R03.
+.sp
+\fBB11 \fII07\fB B12\fR
+.br
+R04 *literal* _literal_.
+.sp
+R05 after disabled substitutions.
+.sp
+.nf
+R06 \fBB13 \fII08\fB B14\fR R07.
+R08 next verse line.
+.fi
+.br
+.in +.5i
+.ll -.5i
+\(em Writer
+.in
+.ll

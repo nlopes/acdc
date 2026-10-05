@@ -31,20 +31,20 @@
 passthrough\-xrefs \- verify passthrough references
 .SH "SYNOPSIS"
 .sp
-\fBpassthrough\-xrefs\fP
+\fBpassthrough\-xrefs\fR
 .SH "DESCRIPTION"
 .sp
-See Passthrough \fBTitle\fP, Custom Label, [untitled], [missing], and Explicit \fBText\fP\&.
+See Passthrough \fBTitle\fR, Custom Label, [untitled], [missing], and Explicit \fBText\fR\&.
 titled-body
 labeled-body
 untitled-body
 labelled-markup-body
 .sp
-A label keeps its own formatting: A \f(CRcode\fP label\&.
+A label keeps its own formatting: A \f(CRcode\fR label\&.
 .sp
 A reference to a level\-1 section reads as its heading, link text included:
 SEE ALSO WITH \c
-.URL "https://example.com" "A LINK" "\c"
+.URL "https://example.com" "A LINK" "\fR\c"
 \&.
 .sp
 A reference inside reference text falls back to its id: SEE [recursive] AGAIN\&.

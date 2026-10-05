@@ -31,52 +31,50 @@
 opening\-contexts \- constrained punctuation in substitution contexts
 .SH "DESCRIPTION"
 .sp
-P01 <del>\fBbold \fIitalic\fP\fP</del>\&.
+P01 <del>\fBbold \fIitalic\fB\fR</del>\&.
 .sp
-P02 <del>\fIitalic *bold*\fP</del>\&.
+P02 <del>\fIitalic *bold*\fR</del>\&.
 .sp
-P03 <del>\f(CRCode\fP</del> <del>\fBMark\fP</del>\&.
+P03 <del>\f(CRCode\fR</del> <del>\fBMark\fR</del>\&.
 .sp
-P04 &\fBBold\fP <\fIItalic\fP >\f(CRCode\fP =\fBMark\fP\&.
+P04 &\fBBold\fR <\fIItalic\fR >\f(CRCode\fR =\fBMark\fR\&.
 .sp
-P05 >\fBBold\fP <\fIItalic\fP &\f(CRCode\fP\&.
+P05 >\fBBold\fR <\fIItalic\fR &\f(CRCode\fR\&.
 .sp
-P06 >\fBBold\fP <\fIItalic\fP &\f(CRCode\fP\&.
+P06 >\fBBold\fR <\fIItalic\fR &\f(CRCode\fR\&.
 .sp
-P07 <del>\fBBold\fP</del> <del>*literal*</del>\&.
+P07 <del>\fBBold\fR</del> <del>*literal*</del>\&.
 .sp
 P08 =*literal* >_literal_ &`literal`.
 .sp
-P09 >\fBBold\fP <\fIItalic\fP &\f(CRCode\fP\&.
+P09 >\fBBold\fR <\fIItalic\fR &\f(CRCode\fR\&.
 .sp
-P10 >\fBBold\fP <\fIItalic\fP &\f(CRCode\fP\&.
+P10 >\fBBold\fR <\fIItalic\fR &\f(CRCode\fR\&.
 .EX
-P11 >\fBBold\fP =\fIItalic\fP &\f(CRCode\fP\&.
+P11 >\fBBold\fR =\fIItalic\fR &\f(CRCode\fR\&.
 .EE
 .sp
 .if n .RS 4
 .nf
 .fam C
-P12 >\fBBold\fP =\fIItalic\fP &\f(CRCode\fP\&.
+P12 >\fBBold\fR =\fIItalic\fR &\f(CRCode\fR\&.
 .fam
 .fi
 .if n .RE
 .RS 0
 .IP \(bu 2
-P13 =\fBBold\fP >\fIItalic\fP &\f(CRCode\fP\&.
+P13 =\fBBold\fR >\fIItalic\fR &\f(CRCode\fR\&.
 .RE
 .TS
 allbox tab(:);
 ltx.
 T{
-P14 =\fBBold\fP >\fIItalic\fP &\f(CRCode\fP\&.
+P14 =\fBBold\fR >\fIItalic\fR &\f(CRCode\fR\&.
 T}
 .TE
 .sp
-.nr acdc-title-font \n[.f]
-\fBP15 >\fBBold\fP =\fIItalic\fP &\f(CRCode\fP\&.\f[\n[acdc-title-font]]
+\fBP15 >\fBBold\fB =\fIItalic\fB &\f(CRCode\fB\&.\fR
 .br
-.rr acdc-title-font
 paragraph.
 .SS "P16 >Bold =Italic &Code."
 .sp

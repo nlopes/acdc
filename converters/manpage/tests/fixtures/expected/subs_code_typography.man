@@ -31,7 +31,7 @@
 code\-typography \- typography enabled in code
 .SH "SYNOPSIS"
 .sp
-\fBcode\-typography\fP
+\fBcode\-typography\fR
 .SH "DESCRIPTION"
 .EX
 C01 \(co \(rg \(tm .\|.\|. don\(cqt word\(emword \(-> \(<- \(rA \(lA
@@ -44,10 +44,10 @@ C03 \e*bold\e* \e_italic\e_ \e`code\e` \e#mark\e# \e^up\e^ \e~down\e~
 C04 \(co (R) (TM) \(rg
 C05 \e*raw\e* \e\-> \(co (C)
 C06 \(co \c
-.URL "https://example.org/type" "Next \(rg" "\c"
+.URL "https://example.org/type" "Next \(rg" "\fR\c"
  \(tm
 C07 \e*literal\e* \c
-.URL "https://example.org/escape" "\e*label\e* \e^up\e^ \e__down__" "\c"
+.URL "https://example.org/escape" "\e*label\e* \e^up\e^ \e__down__" "\fR\c"
  \(co
 C08 \(co Target \(rg \(tm
 C09 \(co Term \(rg \(tm
@@ -56,11 +56,11 @@ C09 \(co Term \(rg \(tm
 C10 \(rg (C) \(tm
 .EE
 .EX
-C11 \fB\(co\fP \fI\(rg\fP \f(CR\(tm\fP
+C11 \fB\(co\fR \fI\(rg\fR \f(CR\(tm\fR
 C12 *literal* \(co
 .EE
 .EX
-C13 \fB(C)\fP *literal*
+C13 \fB(C)\fR *literal*
 .EE
 .EX
 C14 (C) \e*literal\e* pass:r[(R)]
@@ -78,7 +78,7 @@ C15 \(co (R) \e*literal\e* word\(emword
 .nf
 .fam C
 C16 \(co (R) \c
-.URL "https://example.org/literal" "Literal \(tm" "\c"
+.URL "https://example.org/literal" "Literal \(tm" "\fR\c"
 .fam
 .fi
 .if n .RE
@@ -100,15 +100,15 @@ Second callout.
 XML callout.
 .RE
 .EX
-C20 \fB\(co\fP(R)\c
-.URL "https://example.org/mixed" "Next \(tm" "\c"
+C20 \fB\(co\fR(R)\c
+.URL "https://example.org/mixed" "Next \(tm" "\fR\c"
 \&.\|.\|.
-C21 \(em \fBmiddle\fP \(em
+C21 \(em \fBmiddle\fR \(em
 .EE
 .EX
 C22 \-\- \(co \&... \(rg
 C23 \(co\c
-.URL "https://example.org/after" "After" "\c"
+.URL "https://example.org/after" "After" "\fR\c"
 .EE
 .sp
 See code and raw\&.

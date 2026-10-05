@@ -31,21 +31,21 @@
 empty\-quote\-subs \- quote and attribute substitution order
 .SH "DESCRIPTION"
 .sp
-S01 Before \fB\fP and \fB\fP after.
+S01 Before \fB\fR and \fB\fR after.
 .sp
-S02 Before \fB and \fP** after.
+S02 Before \fB and \fR** after.
 .sp
-S03 Before \fB{blank}\fP after.
+S03 Before \fB{blank}\fR after.
 .sp
 S04 Before ** after.
 .sp
-S05 Before \fB\fI\fP\fP and \fB\fP after.
+S05 Before \fB\fI\fB\fR and \fB\fR after.
 .sp
-S06 Before \fBintroduced\fP after.
+S06 Before \fBintroduced\fR after.
 .sp
 S07 Before *introduced* after.
 .EX
-S08 Before \fB\fP and \fI\fP after.
+S08 Before \fB\fR and \fI\fR after.
 .EE
 .EX
 S09 Before ** and __ after.

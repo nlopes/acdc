@@ -31,7 +31,7 @@
 colon\-subs \- colon target substitutions
 .SH "SYNOPSIS"
 .sp
-\fBcolon\-subs\fP
+\fBcolon\-subs\fR
 .SH "DESCRIPTION"
 .sp
 S01 Late attribute and Written\&.

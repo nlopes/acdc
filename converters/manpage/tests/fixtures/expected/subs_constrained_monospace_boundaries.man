@@ -33,48 +33,48 @@ mono\-contexts \- adjacent code and substitution contexts
 .sp
 P01 `Code`**End**.
 .sp
-P02 \f(CRanchor:literal[]\fP\fBEnd\fP\&.
+P02 \f(CRanchor:literal[]\fR\fBEnd\fR\&.
 .sp
-P03 \f(CR\fP\fBEnd\fP\&.
+P03 \f(CR\fR\fBEnd\fR\&.
 .sp
-P04 \f(CR\fP\fBEnd\fP\&.
+P04 \f(CR\fR\fBEnd\fR\&.
 .sp
-P05 \f(CRValue\fP\fBEnd\fP\&.
+P05 \f(CRValue\fR\fBEnd\fR\&.
 .sp
 P06 \f(CR\c
-.URL "https://example.org/context" "Site" "\c"
-\fP\fBEnd\fP\&.
+.URL "https://example.org/context" "\f(CRSite" "\f(CR\c"
+\fR\fBEnd\fR\&.
 .sp
-P07 [.red\f(CRcafé\fP\fBFin\fP].
+P07 [.red\f(CRcafé\fR\fBFin\fR].
 .EX
-P08 \f(CRCode\fP\fBEnd\fP\&.
+P08 \f(CRCode\fR\fBEnd\fR\&.
 .EE
 .sp
 .if n .RS 4
 .nf
 .fam C
-P09 \f(CRCode\fP\fBEnd\fP\&.
+P09 \f(CRCode\fR\fBEnd\fR\&.
 .fam
 .fi
 .if n .RE
 .sp
-P10 \f(CRCode\fP \fBEnd\fP\&.
+P10 \f(CRCode\fR \fBEnd\fR\&.
 .RS 0
 .IP \(bu 2
-P11 \f(CRCode\fP\fBEnd\fP\&.
+P11 \f(CRCode\fR\fBEnd\fR\&.
 .RE
 .TS
 allbox tab(:);
 ltx.
 T{
-P12 \f(CRCode\fP\fBEnd\fP\&.
+P12 \f(CRCode\fR\fBEnd\fR\&.
 T}
 .TE
 .sp
-P13 \f(CRCode\fP\fBEnd\fP\&.
+P13 \f(CRCode\fR\fBEnd\fR\&.
 .sp
-P14 \fBBefore \f(CRCode\fP after\fP\&.
+P14 \fBBefore \f(CRCode\fB after\fR\&.
 .sp
-P15 \f(CRCode\fP\fBEnd\fP\f(CRNext\fP\fBTail\fP\&.
+P15 \f(CRCode\fR\fBEnd\fR\f(CRNext\fR\fBTail\fR\&.
 .sp
-P16 \f(CR\fP \fBEnd\fP\&.
+P16 \f(CR\fR \fBEnd\fR\&.

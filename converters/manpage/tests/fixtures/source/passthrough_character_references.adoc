@@ -1,5 +1,6 @@
 = char-refs(1)
 :doctype: manpage
+:revdate: 2026-10-02
 
 == NAME
 

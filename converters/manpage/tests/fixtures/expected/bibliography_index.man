@@ -47,10 +47,10 @@ Named relationship: \&.
 .SH "REFERENCES"
 .RS 0
 .TP
-\fB[ref-one]\fP
+\fB[ref-one]\fR
  First reference.
 .TP
-\fB[Custom label]\fP
+\fB[Custom label]\fR
  Second reference.
 .RE
 .SH "INDEX"
@@ -84,7 +84,7 @@ Web
 .RE
 .SS "S"
 .RS 4
-Shockwave (see \fBStandards\fP)
+Shockwave (see \fBStandards\fR)
 .br
 Standards
 .br

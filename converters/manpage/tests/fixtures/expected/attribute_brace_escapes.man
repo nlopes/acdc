@@ -51,12 +51,12 @@ E09 \e{bad name} / {bad name\e} / \e{bad name\e}.
 .sp
 E10 \e{} / {\e} / {unfinished\e.
 .sp
-E11 \fB{value} and {value} and {value}\fP\&.
+E11 \fB{value} and {value} and {value}\fR\&.
 .sp
-E12 \f(CR{value}\fP / \f(CR{value}\fP / \f(CR{value}\fP\&.
+E12 \f(CR{value}\fR / \f(CR{value}\fR / \f(CR{value}\fR\&.
 .sp
 E13 \c
-.URL "https://example.org" "{value} / {value} / {value}" "\c"
+.URL "https://example.org" "{value} / {value} / {value}" "\fR\c"
 \&.
 .sp
 E14 [1]\&.

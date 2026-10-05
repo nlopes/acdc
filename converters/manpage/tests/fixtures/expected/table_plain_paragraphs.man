@@ -80,9 +80,9 @@ P06 Example\-looking text.
 \&.\|.\|..
 P06 Literal\-looking text.
 \&.\|.\|..
-\fI__\fP
+\fI__\fR
 P06 Quote\-looking text.
-\fI__\fP \(em P06 Open\-looking text. \(em P06 End.
+\fI__\fR \(em P06 Open\-looking text. \(em P06 End.
 T}
 T{
 P07 Before.
@@ -104,24 +104,24 @@ S09 Inside.
 ////
 S09 After.
 .sp
-S09 Second paragraph.\fP
+S09 Second paragraph.\fR
 T}:T{
 \fIE10 Before.
 \-\-\-\-
 E10 Inside.
 \-\-\-\-
-E10 After.\fP
+E10 After.\fR
 T}:T{
 \f(CRM11 Before.
 \&.\|.\|..
 M11 Inside.
 \&.\|.\|..
-M11 After.\fP
+M11 After.\fR
 T}:T{
 H12 Before.
-\fI__\fP
+\fI__\fR
 H12 Inside.
-\fI__\fP
+\fI__\fR
 H12 After.
 T}
 .TE

@@ -31,7 +31,7 @@
 index\-parentheses \- complete index labels
 .SH "SYNOPSIS"
 .sp
-\fBindex\-parentheses\fP
+\fBindex\-parentheses\fR
 .SH "DESCRIPTION"
 .sp
 S01 Term (R) after.
@@ -41,41 +41,41 @@ S02 Term \(rg after.
 S03 Term \(rg after.
 .EX
 S04 Code (R) after \c
-.URL "https://example.org/04" "Next04" "\c"
+.URL "https://example.org/04" "Next04" "\fR\c"
 .EE
 .EX
 S05 Code \(rg after \c
-.URL "https://example.org/05" "Next05" "\c"
+.URL "https://example.org/05" "Next05" "\fR\c"
 
 S06 fn((x)) tail after \c
-.URL "https://example.org/06" "Next06" "\c"
+.URL "https://example.org/06" "Next06" "\fR\c"
 
 S07 Code \(rg) after \c
-.URL "https://example.org/07" "Next07" "\c"
+.URL "https://example.org/07" "Next07" "\fR\c"
 .EE
 .EX
 S08 Late \(rg after \c
-.URL "https://example.org/08" "Next08" "\c"
+.URL "https://example.org/08" "Next08" "\fR\c"
 
 S09 (R) Escaped after \c
-.URL "https://example.org/09" "Next09" "\c"
+.URL "https://example.org/09" "Next09" "\fR\c"
 
 S10 (R) Literal after \c
-.URL "https://example.org/10" "Next10" "\c"
+.URL "https://example.org/10" "Next10" "\fR\c"
 .EE
 .EX
 S11 Attribute \(rg after \c
-.URL "https://example.org/11" "Next11" "\c"
+.URL "https://example.org/11" "Next11" "\fR\c"
 .EE
 .EX
 S12 Late attribute \(rg after \c
-.URL "https://example.org/12" "Next12" "\c"
+.URL "https://example.org/12" "Next12" "\fR\c"
 
 S13 Late close ) after \c
-.URL "https://example.org/13" "Next13" "\c"
+.URL "https://example.org/13" "Next13" "\fR\c"
 
 S14 Late open (literal after \c
-.URL "https://example.org/14" "Next14" "\c"
+.URL "https://example.org/14" "Next14" "\fR\c"
 .EE
 .EX
 S15 ((Disabled macro \(rg)) after.

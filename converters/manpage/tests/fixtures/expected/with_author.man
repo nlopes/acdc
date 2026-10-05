@@ -31,7 +31,7 @@
 sample\-command \- A sample command
 .SH "SYNOPSIS"
 .sp
-\fBsample\-command\fP [\fIOPTIONS\fP]
+\fBsample\-command\fR [\fIOPTIONS\fR]
 .SH "DESCRIPTION"
 .sp
 This is a sample command.

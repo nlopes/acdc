@@ -323,10 +323,15 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
                 return Ok(());
             }
         };
-        write!(self.writer_mut(), "{prefix}")?;
-        self.write_verbatim_nodes(traversal, content, None)?;
-        write!(self.writer_mut(), "{suffix}")?;
-        Ok(())
+        let render = |visitor: &mut Self| visitor.write_verbatim_nodes(traversal, content, None);
+        if matches!(
+            node,
+            InlineNode::BoldText(_) | InlineNode::ItalicText(_) | InlineNode::MonospaceText(_)
+        ) {
+            self.render_font(prefix, false, render)
+        } else {
+            self.render_affixed(prefix, suffix, false, render)
+        }
     }
 }
 

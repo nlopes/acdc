@@ -34,7 +34,7 @@ footnote\-stages \- apply substitutions around footnotes
 Early [1] [2]
 .EE
 .EX
-Late [3] footnote:attribute[Attribute \fBbody\fP Early.]
+Late [3] footnote:attribute[Attribute \fBbody\fR Early.]
 .EE
 .EX
 Changed early [1]
@@ -55,6 +55,6 @@ Attribute *body* Early.
 .IP [3] 4
 Late {name} *literal* (C).
 .IP [4] 4
-\(co. \fBBold\fP
+\(co. \fBBold\fR
 .IP [5] 4
 Last note.

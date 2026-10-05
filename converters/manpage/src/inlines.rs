@@ -40,18 +40,27 @@ enum RoleDefault {
     Highlight,
 }
 
-fn role_affixes(role: Option<&str>, default: RoleDefault) -> (String, String) {
+fn font_affixes(font: &'static str, current: &mut &'static str) -> (&'static str, &'static str) {
+    let previous = std::mem::replace(current, font);
+    (font, previous)
+}
+
+fn role_affixes(
+    role: Option<&str>,
+    default: RoleDefault,
+    font: &mut &'static str,
+) -> (String, String) {
     let mut prefix = String::new();
     let mut closings = Vec::new();
 
     for role in role.into_iter().flat_map(str::split_whitespace) {
         let (opening, closing) = match role {
-            "underline" | "subtitle" => ("\\fI", "\\fP"),
+            "underline" | "subtitle" => font_affixes("\\fI", font),
             "line-through" => ("[deleted: ", "]"),
             "overline" => ("[overlined: ", "]"),
             "big" => ("\\s+1", "\\s-1"),
             "small" => ("\\s-1", "\\s+1"),
-            "highlight" => ("\\fB", "\\fP"),
+            "highlight" => font_affixes("\\fB", font),
             _ => continue,
         };
         prefix.push_str(opening);
@@ -59,8 +68,9 @@ fn role_affixes(role: Option<&str>, default: RoleDefault) -> (String, String) {
     }
 
     if prefix.is_empty() && role.is_none() && matches!(default, RoleDefault::Highlight) {
-        prefix.push_str("\\fB");
-        closings.push("\\fP");
+        let (opening, closing) = font_affixes("\\fB", font);
+        prefix.push_str(opening);
+        closings.push(closing);
     }
 
     let suffix = closings.into_iter().rev().collect();
@@ -225,12 +235,16 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
                 // Boundary spaces separate split commands, outside their visible labels.
                 let leading = if label.split { leading } else { "" };
                 let trailing = if finish { "" } else { &body[trimmed.len()..] };
+                let font = self.current_font;
+                // A split label must carry its active span into the link macro.
+                let prefix = if font == "\\fR" { "" } else { font };
                 let text = escape_rendered_roff_macro_argument(trimmed);
                 let trailing = escape_rendered_roff_macro_argument(trailing);
                 // Continue after the command; only authored spaces separate inline nodes.
+                // The portable link macro also changes fonts, so restore our scope.
                 writeln!(
                     self.writer,
-                    "{leading}\\c\n.{} \"{}\" \"{text}\" \"{trailing}\\c\"",
+                    "{leading}\\c\n.{} \"{}\" \"{prefix}{text}\" \"{font}{trailing}\\c\"",
                     label.command, label.target
                 )?;
             } else if label.split && !finish {
@@ -275,9 +289,11 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         label: &str,
     ) -> Result<(), Error> {
         self.flush_link_label(false)?;
+        let font = self.current_font;
+        let prefix = if font == "\\fR" { "" } else { font };
         writeln!(
             self.writer,
-            "\\c\n.{command} \"{target}\" \"{label}\" \"\\c\""
+            "\\c\n.{command} \"{target}\" \"{prefix}{label}\" \"{font}\\c\""
         )?;
         self.strip_next_leading_space = false;
         Ok(())
@@ -296,11 +312,35 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
                 "Use an HTML-capable backend when exact role styling is required.",
             );
         }
-        let (prefix, suffix) = role_affixes(role, default);
-        self.render_affixed(&prefix, &suffix, split, content)
+        let previous = self.current_font;
+        let mut font = previous;
+        let (prefix, suffix) = role_affixes(role, default, &mut font);
+        let result = self.render_affixed(&prefix, &suffix, split, |visitor| {
+            visitor.current_font = font;
+            content(visitor)
+        });
+        self.current_font = previous;
+        result
     }
 
-    fn render_affixed(
+    pub(crate) fn render_font(
+        &mut self,
+        font: &'static str,
+        split: bool,
+        content: impl FnOnce(&mut Self) -> Result<(), Error>,
+    ) -> Result<(), Error> {
+        // Nested changes overwrite roff's single previous-font slot. Restore
+        // the enclosing font explicitly; mandoc cannot use groff's saved registers.
+        let previous = self.current_font;
+        let result = self.render_affixed(font, previous, split, |visitor| {
+            visitor.current_font = font;
+            content(visitor)
+        });
+        self.current_font = previous;
+        result
+    }
+
+    pub(crate) fn render_affixed(
         &mut self,
         prefix: &str,
         suffix: &str,
@@ -333,6 +373,18 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     ) -> Result<(), Error> {
         let split = self.link_label.is_some() && text.iter().any(contains_link);
         self.render_affixed(prefix, suffix, split, |visitor| {
+            visitor.visit_inline_nodes(traversal, text)
+        })
+    }
+
+    fn render_font_inlines(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        text: &[InlineNode<'_>],
+        font: &'static str,
+    ) -> Result<(), Error> {
+        let split = self.link_label.is_some() && text.iter().any(contains_link);
+        self.render_font(font, split, |visitor| {
             visitor.visit_inline_nodes(traversal, text)
         })
     }
@@ -430,15 +482,15 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             }
 
             InlineNode::BoldText(bold) => {
-                self.render_formatted_inlines(traversal, &bold.content, "\\fB", "\\fP")?;
+                self.render_font_inlines(traversal, &bold.content, "\\fB")?;
             }
 
             InlineNode::ItalicText(italic) => {
-                self.render_formatted_inlines(traversal, &italic.content, "\\fI", "\\fP")?;
+                self.render_font_inlines(traversal, &italic.content, "\\fI")?;
             }
 
             InlineNode::MonospaceText(mono) => {
-                self.render_formatted_inlines(traversal, &mono.content, "\\f(CR", "\\fP")?;
+                self.render_font_inlines(traversal, &mono.content, "\\f(CR")?;
             }
 
             InlineNode::HighlightText(highlight) => {
@@ -513,7 +565,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         let target = link.target.to_string();
         let role = role_from_attributes(&link.attributes);
         self.with_link_label(escape_roff_macro_argument(&target), false, |visitor| {
-            let styled = !role_affixes(role.as_deref(), RoleDefault::Plain)
+            let styled = !role_affixes(role.as_deref(), RoleDefault::Plain, &mut "\\fR")
                 .0
                 .is_empty();
             if !link.text.is_empty() || link.hides_uri_scheme() || styled {
@@ -538,7 +590,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         let email = escape_roff_macro_argument(mailto_fallback(&destination)).replace('@', "\\(at");
         let role = role_from_attributes(&mailto.attributes);
         self.with_link_label(email, true, |visitor| {
-            let styled = !role_affixes(role.as_deref(), RoleDefault::Plain)
+            let styled = !role_affixes(role.as_deref(), RoleDefault::Plain, &mut "\\fR")
                 .0
                 .is_empty();
             if !mailto.text.is_empty() || styled || destination != target {
@@ -617,7 +669,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
                 let target = url.target.to_string();
                 let role = role_from_attributes(&url.attributes);
                 self.with_link_label(escape_roff_macro_argument(&target), false, |visitor| {
-                    let styled = !role_affixes(role.as_deref(), RoleDefault::Plain)
+                    let styled = !role_affixes(role.as_deref(), RoleDefault::Plain, &mut "\\fR")
                         .0
                         .is_empty();
                     if !url.text.is_empty() || url.hides_uri_scheme() || styled {
@@ -715,10 +767,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
                     let separator = manify(", ", EscapeMode::Normalize);
                     write!(self.writer_mut(), "{prefix}{separator}")?;
                 }
-                write!(self.writer_mut(), "\\fI")?;
-                self.visit_inline_nodes(traversal, inlines)?;
-                write!(self.writer_mut(), "\\fP")?;
-                Ok(())
+                self.render_font_inlines(traversal, inlines, "\\fI")
             }
             XrefDisplay::Fallback(text)
             | XrefDisplay::Unresolved(text)

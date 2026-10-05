@@ -31,7 +31,7 @@
 mylib \- a library function reference
 .SH "SYNOPSIS"
 .sp
-\fB#include <mylib.h>\fP
+\fB#include <mylib.h>\fR
 .SH "DESCRIPTION"
 .sp
 This tests volume number 3 (library calls).

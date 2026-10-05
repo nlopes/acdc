@@ -28,7 +28,7 @@ Generates roff/troff format compatible with:
 - `.IP`, `.TP` - Indented and tagged paragraphs for lists
 - `.EX`/`.EE` - Example blocks (literal/listing content)
 - `.TS`/`.TE` - Table start/end (tbl preprocessor)
-- `\fB`, `\fI`, `\fP` - Bold, italic, previous font
+- `\fB`, `\fI`, `\fR`, `\f(CR`, `\fP` - Bold, italic, roman, monospace, previous font
 
 == Viewing Output
 
@@ -70,6 +70,8 @@ The manpage converter:
 - Escapes special roff characters in prose, UI labels, STEM fallback text, and
   link and media arguments. Explicit passthrough blocks remain unescaped so
   they can contain backend-native roff.
+  Keep raw font changes and their text within the same passthrough; parsed
+  formatting restores its enclosing AsciiDoc font, not arbitrary raw roff state.
 - Disables hyphenation (`.nh`) for consistent formatting
 - Uses left-alignment only (`.ad l`) as is standard for manpages
 - Includes the tbl preprocessor directive (`'\" t`) when tables are present
@@ -125,6 +127,12 @@ The manpage converter:
 
 The `acdc` manpage converter aims for compatibility with Asciidoctor's manpage backend, but some features may differ:
 
+- Nested formatting restores its enclosing font. In `*Bold _italic_ tail*.`,
+  `tail` is bold and the final period is roman; Asciidoctor can leave the period
+  and following paragraphs italic. The same rule applies to roles, link
+  labels, titles, list terms, tables and enabled code formatting. Inner styles
+  replace the outer font while active; bold plus italic is not combined into a
+  separate font. This is a converter correction, independent of SDR-5.
 - Portable `tbl` has no row background fills or true floating tables. Row
   stripes render without shading, and floats or right alignment fall back to
   non-wrapping left alignment with structured warnings. Content can expand a
@@ -138,3 +146,10 @@ The `acdc` manpage converter aims for compatibility with Asciidoctor's manpage b
   roles, acdc preserves their backend-neutral meaning with portable roff
   fallbacks.
 - Custom macro extensions not supported
+
+== Testing
+
+The rendered-font integration tests require `groff` and `mandoc` on `PATH`.
+Install both packages on Linux; on macOS, install groff and use the system
+mandoc. CI installs both. The tests check groff's font selections and mandoc's
+terminal emphasis, in addition to the roff snapshots.

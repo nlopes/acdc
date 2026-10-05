@@ -1,6 +1,6 @@
 .SH "SYNOPSIS"
 .sp
-\fBembedded\-media\-test\fP
+\fBembedded\-media\-test\fR
 .SH "DESCRIPTION"
 .sp
 An inline image: [Logo]\&.

@@ -1,5 +1,5 @@
 .sp
-See Target \fBlabel\fP, [empty], Expanded label, Bullet label, Term label, Cell label, and Note label\&.
+See Target \fBlabel\fR, [empty], Expanded label, Bullet label, Term label, Cell label, and Note label\&.
 .sp
 Destination text.
 .sp
@@ -12,7 +12,7 @@ List item.
 .RE
 .RS 0
 .TP
-\fBTerm\fP
+\fBTerm\fR
 Description.
 .RE
 .TS
@@ -26,11 +26,11 @@ Text [1]\&.
 Before after\&.
 .sp
 \c
-.URL "https://example.org" "Before after" "\c"
+.URL "https://example.org" "Before after" "\fR\c"
 \&.
 .sp
 See Inner label and URL label\&.
 .sp
 Adjacent anchors.
 .sp
-See First, Second, and Target \fBlabel\fP\&.
+See First, Second, and Target \fBlabel\fR\&.

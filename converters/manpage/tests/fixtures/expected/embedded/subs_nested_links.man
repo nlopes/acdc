@@ -1,35 +1,35 @@
 .EX
 \c
-.URL "https://code.example" "Before" " \c"
+.URL "https://code.example" "Before" "\fR \c"
 \c
-.MTO "code\(atexample.org" "Inner" "\c"
+.MTO "code\(atexample.org" "Inner" "\fR\c"
  \c
-.URL "https://code.example" "after" "\c"
+.URL "https://code.example" "after" "\fR\c"
 
 \c
-.URL "https://code.example" "Before" " \c"
+.URL "https://code.example" "Before" "\fR \c"
 \c
-.MTO "code\(atexample.org" "\e\(dqQuoted\e\(dq" "\c"
+.MTO "code\(atexample.org" "\e\(dqQuoted\e\(dq" "\fR\c"
  \c
-.URL "https://code.example" "after" "\c"
+.URL "https://code.example" "after" "\fR\c"
 .EE
 .nf
 \c
-.URL "https://literal.example" "Before" " \c"
+.URL "https://literal.example" "Before" "\fR \c"
 \c
-.URL "https://inner.example" "Inner" "\c"
+.URL "https://inner.example" "Inner" "\fR\c"
  \c
-.URL "https://literal.example" "after" "\c"
+.URL "https://literal.example" "after" "\fR\c"
 .fi
 .sp
 link:https://disabled.example[Before mailto:disabled@example.org[Inner] after]
 .sp
 \c
-.URL "https://pass.example" "Before" " \c"
+.URL "https://pass.example" "Before" "\fR \c"
 \c
-.MTO "pass\(atexample.org" "Inner" "\c"
+.MTO "pass\(atexample.org" "Inner" "\fR\c"
  \c
-.URL "https://pass.example" "after" "\c"
+.URL "https://pass.example" "after" "\fR\c"
 
 .EX
 link:https://disabled.example[Before mailto:disabled@example.org[Inner] after]

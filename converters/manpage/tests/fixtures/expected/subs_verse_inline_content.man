@@ -31,19 +31,15 @@
 verse\-subs \- explicit verse substitutions
 .SH "DESCRIPTION"
 .sp
-.nr acdc-title-font \n[.f]
-\fBS01 Normal title \(co\f[\n[acdc-title-font]]
+\fBS01 Normal title \(co\fR
 .br
-.rr acdc-title-font
 .nf
 S01 *Bold* {value} (C) link:https://example.org/inactive[Inactive].
   S02 literal indent.
 .fi
 .sp
-.nr acdc-title-font \n[.f]
-\fBS03 Normal title \(co\f[\n[acdc-title-font]]
+\fBS03 Normal title \(co\fR
 .br
-.rr acdc-title-font
 .nf
 S03 *Bold* {value} (C) footnote:[Inactive].
   S04 literal indent.
@@ -52,29 +48,29 @@ S05 final line.
 .fi
 .sp
 .nf
-S06 \fBBold\fP expanded (C).
+S06 \fBBold\fR expanded (C).
   S07 \c
-.URL "https://example.org/control" "Control (R)" "\c"
+.URL "https://example.org/control" "Control (R)" "\fR\c"
 \&.
 .fi
 .nf
-S08 \fBBold\fP expanded (C).
+S08 \fBBold\fR expanded (C).
   S09 \(tm and (R)\&.
 .fi
 .nf
-S10 \fBBold\fP {value} (C).
-  S11 \fIitalic\fP footnote:[Inactive].
+S10 \fBBold\fR {value} (C).
+  S11 \fIitalic\fR footnote:[Inactive].
 .fi
 .nf
 S12 *Bold* {value} \(co.
   S13 \(rg footnote:[Inactive].
 .fi
 .nf
-S14 \fBBold\fP expanded \(co (R)\&.
+S14 \fBBold\fR expanded \(co (R)\&.
   S15 hard break
 .br
     S16 after break.
 .fi
 .sp
-After \(co, \fBbold\fP, and ordinary
+After \(co, \fBbold\fR, and ordinary
 wrapped prose.

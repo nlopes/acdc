@@ -32,49 +32,49 @@ link\-formatting\-subs \- control formatting at link boundaries
 .SH "DESCRIPTION"
 .EX
 S01 \fBBefore \c
-.URL "https://outer.example" "Before" " \c"
+.URL "https://outer.example" "\fBBefore" "\fB \c"
 \fB\c
-.URL "https://outer.example" "bold" " \c"
+.URL "https://outer.example" "\fBbold" "\fB \c"
 \c
-.MTO "inner\(atexample.org" "Inner" "\c"
+.MTO "inner\(atexample.org" "\fBInner" "\fB\c"
  \c
-.URL "https://outer.example" "tail" "\c"
-\fP \c
-.URL "https://outer.example" "after" "\c"
- end\fP\&.
+.URL "https://outer.example" "\fBtail" "\fB\c"
+\fB \c
+.URL "https://outer.example" "\fBafter" "\fB\c"
+ end\fR\&.
 S02 \fIBefore \c
-.URL "https://example.org/italic" "\fIItalic\fP after" "\c"
- end\fP\&.
+.URL "https://example.org/italic" "\fI\fIItalic\fI after" "\fI\c"
+ end\fR\&.
 S03 \fBBefore \c
-.URL "https://example.org/note" "\fBNote [1] Code term\fP after" "\c"
- end\fP\&.
+.URL "https://example.org/note" "\fB\fBNote [1] Code term\fB after" "\fB\c"
+ end\fR\&.
 .EE
 .EX
-S04 \fBBefore https://example.org/disabled[*Literal\fP after] end*.
+S04 \fBBefore https://example.org/disabled[*Literal\fR after] end*.
 .EE
 .EX
 S05 *Before \c
-.URL "https://example.org/quotes\-off" "*Literal* after" "\c"
+.URL "https://example.org/quotes\-off" "*Literal* after" "\fR\c"
  end*.
 .EE
 .sp
 S06 *Before https://example.org/none[*Literal* after] end*.
 .sp
-S07 \fBBefore https://example.org/only\-quotes[*Literal\fP after] end*.
+S07 \fBBefore https://example.org/only\-quotes[*Literal\fR after] end*.
 .sp
 S08 \fBBefore \c
-.URL "https://example.org/reordered" "\fBBold\fP after" "\c"
- end\fP\&.
+.URL "https://example.org/reordered" "\fB\fBBold\fB after" "\fB\c"
+ end\fR\&.
 .sp
 S09 \fBBefore \c
-.URL "https://example.org/pass" "" "\c"
-[*Bold\fP after end*].
+.URL "https://example.org/pass" "\fB" "\fB\c"
+[*Bold\fR after end*].
 .sp
 S10 \fBBefore \c
-.URL "https://example.org/profile" "\fBBold\fP after" "\c"
- end\fP\&.
+.URL "https://example.org/profile" "\fB\fBBold\fB after" "\fB\c"
+ end\fR\&.
 .sp
-After \fBnormal\fP text and [1]\&.
+After \fBnormal\fR text and [1]\&.
 .SH "INDEX"
 .SS "C"
 .RS 4

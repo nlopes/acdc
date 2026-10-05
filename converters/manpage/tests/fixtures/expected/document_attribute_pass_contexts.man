@@ -32,21 +32,21 @@ attribute\-contexts \- passthrough attribute contexts
 .SH "DESCRIPTION"
 .sp
 C01 {name} | *Strong* | \c
-.URL "https://example.org" "Site" "\c"
+.URL "https://example.org" "Site" "\fR\c"
 
 .sp
-C02 \fB{name}\fP | \fI{name}\fP | \f(CR{name}\fP | \fBpass:[Nested]\fP
+C02 \fB{name}\fR | \fI{name}\fR | \f(CR{name}\fR | \fBpass:[Nested]\fR
 .sp
 C03 \c
-.URL "https://example.net" "{name}" "\c"
+.URL "https://example.net" "{name}" "\fR\c"
 
 .sp
-\fBC04 {name}\fP
+\fBC04 {name}\fR
 .RS 0
 .IP \(bu 2
 C05 {name}
 .IP \(bu 2
-C06 \fB{name}\fP
+C06 \fB{name}\fR
 .RE
 .TS
 allbox tab(:);

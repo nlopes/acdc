@@ -185,7 +185,7 @@ Separate after numbered item.
 .RE
 .RS 0
 .TP
-\fBTerm\fP
+\fBTerm\fR
 Parent description.
 .RE
 .RS 0

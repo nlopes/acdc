@@ -31,57 +31,57 @@
 nested\-code\-links \- nested code links remain valid roff
 .SH "SYNOPSIS"
 .sp
-\fBnested\-code\-links\fP
+\fBnested\-code\-links\fR
 .SH "DESCRIPTION"
 .EX
 N01 \c
-.URL "https://outer.example" "Before" " \c"
+.URL "https://outer.example" "Before" "\fR \c"
 \c
-.MTO "test\(atexample.org" "Inner" "\c"
+.MTO "test\(atexample.org" "Inner" "\fR\c"
  \c
-.URL "https://outer.example" "after" "\c"
+.URL "https://outer.example" "after" "\fR\c"
 \&.
 N02 \c
-.MTO "first\(atexample.org" "First" "\c"
+.MTO "first\(atexample.org" "First" "\fR\c"
 \c
-.MTO "second\(atexample.org" "Second" "\c"
+.MTO "second\(atexample.org" "Second" "\fR\c"
 \&.
 N03 \fBBefore \c
-.URL "https://outer.example" "Before" " \c"
+.URL "https://outer.example" "\fBBefore" "\fB \c"
 \fB\c
-.URL "https://outer.example" "bold" " \c"
+.URL "https://outer.example" "\fBbold" "\fB \c"
 \c
-.MTO "test\(atexample.org" "Inner" "\c"
+.MTO "test\(atexample.org" "\fBInner" "\fB\c"
  \c
-.URL "https://outer.example" "tail" "\c"
-\fP \c
-.URL "https://outer.example" "after" "\c"
- end\fP\&.
+.URL "https://outer.example" "\fBtail" "\fB\c"
+\fB \c
+.URL "https://outer.example" "\fBafter" "\fB\c"
+ end\fR\&.
 N04 \c
-.URL "https://outer.example" "Before [1] after" "\c"
+.URL "https://outer.example" "Before [1] after" "\fR\c"
 \&.
 N05 \c
-.URL "https://outer.example" "Before Term and  after" "\c"
+.URL "https://outer.example" "Before Term and  after" "\fR\c"
 \&.
 N06 Before \c
-.MTO "index\(atexample.org" "Indexed" "\c"
+.MTO "index\(atexample.org" "Indexed" "\fR\c"
  after\&.
 N07 \c
-.URL "https://example.org" "Label" "\c"
+.URL "https://example.org" "Label" "\fR\c"
 \&.
 N08 \c
-.URL "https://example.org" "Label" "\c"
+.URL "https://example.org" "Label" "\fR\c"
 &amp;suffix.
 N09 \fBBefore \c
-.URL "https://example.org" "Multiline" "\c"
+.URL "https://example.org" "\fBMultiline" "\fB\c"
 
-  after\fP\&.
+  after\fR\&.
 N10 \c
-.URL "https://outer.example" "Before" " \c"
+.URL "https://outer.example" "Before" "\fR \c"
 \c
-.URL "https://image.example" "[Picture]" "\c"
+.URL "https://image.example" "[Picture]" "\fR\c"
  \c
-.URL "https://outer.example" "after" "\c"
+.URL "https://outer.example" "after" "\fR\c"
 \&.
 .EE
 .sp
@@ -105,5 +105,5 @@ Term
 .SH "NOTES"
 .IP [1] 4
 Note with \c
-.URL "https://note.example" "Note" "\c"
+.URL "https://note.example" "Note" "\fR\c"
 \&.

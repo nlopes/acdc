@@ -136,6 +136,8 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         {
             let mut visitor = self.nested_visitor(&mut output);
             visitor.index_collection = IndexCollection::Disabled;
+            // Catalog labels render outside the term's original formatting scope.
+            visitor.current_font = "\\fR";
             visitor.visit_inline_nodes(traversal, inlines)?;
         }
         Ok(IndexTermLabel {

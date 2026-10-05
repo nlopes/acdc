@@ -1,0 +1,148 @@
+'\" t
+.\"     Title: font-scopes
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-05
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "FONT\-SCOPES" "1" "2026-10-05" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+font\-scopes \- nested font restoration
+.SH "SYNOPSIS"
+.sp
+\fBB00\fR
+.SH "DESCRIPTION"
+.sp
+\fBB01 \fII01\fB B02\fR R01.
+.sp
+R02 plain paragraph.
+.sp
+\fII02 \fBB03\fI I03\fR R03.
+.sp
+\f(CRM01 \fBB04\f(CR M02\fR R04.
+.sp
+\fBB05 \fII04 \f(CRM03\fI I05\fB B06\fR R05.
+.sp
+\fBB07 \c
+.URL "https://example.org" "\fB\fII06\fB B08" "\fB\c"
+ B09\fR R06.
+.sp
+\fII07 \c
+.MTO "user\(atexample.org" "\fI\fBB10\fI I08" "\fI\c"
+ I09\fR R07.
+.sp
+Target paragraph.
+.sp
+\fBB11 \fII10\fB B12 B13\fR R08.
+.sp
+\fII11 \fBB14\fI I12\fR R09.
+.sp
+\fI[deleted: \fBB15 \fII13\fB B16\fI]\fR R10.
+.sp
+\fBB17 [\fBB18\fP] B19 \fBB20\fP B21 \fBB22\fP \(ra \fBB23\fP B24\fR R11.
+.sp
+\fBB25 \fII14\fB B26\fR
+.br
+.RS 3
+.ll -.6i
+.sp
+R12 quote body.
+.br
+.RE
+.ll
+.sp
+\fBB27 \fII15\fB B28\fR
+.RS 0
+.IP \(bu 2
+R13 list item.
+.RE
+.RS 0
+.TP
+\fBB29 \fII16\fB B30\fR
+R14 description.
+.RE
+.RS 0
+.sp
+\fBB31 \fII17\fB B32\fR \(en R15 horizontal description.
+.RE
+.RS 0
+.TP
+\fBQ: B33 \fII18\fB B34\fR
+\fBA:\fP R16 answer.
+.RE
+.sp
+\fBB35 \fII19\fB B36\fR
+.sp
+R17 after discrete title.
+.TS
+allbox tab(:);
+ltBx ltBx ltBx
+ltx ltx ltx.
+T{
+B37 \fII20\fB B38
+T}:T{
+B39 \fII21\fB B40
+T}:T{
+B41 \fII22\fB B42
+T}
+T{
+\fBB43 \fII23\fB B44\fR
+T}:T{
+\fII24 \fBB45\fI I25\fR
+T}:T{
+\f(CRM04 \fBB46\f(CR M05\fR
+T}
+.TE
+.sp
+R18 after table.
+.sp
+R19 \fBB47 \fII26\fB B48\fR R20 R21.
+.sp
+[1] R22.
+.sp
+\fB\c
+.URL "https://outer.example" "\fBB49" "\fB \c"
+\c
+.URL "https://inner.example" "\fB\fII27\fB" "\fB\c"
+ \c
+.URL "https://outer.example" "\fBB50" "\fB\c"
+\fR R23.
+.sp
+\fBB51 \efII28\efB B52\fR R24.
+.sp
+\fBB53  B54\fR R25.
+.SH "INDEX"
+.SS "I"
+.RS 4
+\fII29\fR R26
+.br
+.RE
+.SS "R"
+.RS 4
+R19 \fBB47 \fII26\fB B48\fR R20
+.br
+.RE
+.SH "NOTES"
+.IP [1] 4
+FN01 \fBFB01 \fIFI01\fB FB02\fR FN02.

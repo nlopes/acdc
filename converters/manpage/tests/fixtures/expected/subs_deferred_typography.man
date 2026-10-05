@@ -62,11 +62,11 @@ P07 (C) (R) (TM) ... word\-\-word \(co \(rg \(tm
 .sp
 P08 \(co .\|.\|. don\(cqt word\(emword and (C).
 .EX
-P09 \fB(C)\fP \fB(R)\fP
+P09 \fB(C)\fR \fB(R)\fR
 .EE
 .EX
 P10 \(co \(rg \(tm\c
-.URL "https://example.org/code" "Next" "\c"
+.URL "https://example.org/code" "Next" "\fR\c"
 .EE
 .EX
 P11 \(co .\|.\|. don\(cqt word\(em\&word

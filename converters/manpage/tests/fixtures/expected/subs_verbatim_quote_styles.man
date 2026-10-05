@@ -31,22 +31,22 @@
 verbatim\-styles \- formatting in verbatim blocks
 .SH "DESCRIPTION"
 .EX
-B01 \fBBold\fP \fIItalic\fP \f(CRMono\fP Mark Super Sub
-B02 \fB\fINested\fP\fP Under Strike
-B03 \fBtwo  spaces\fP and \fBfirst
-  second\fP after.
-B04 \fBexpanded\fP \fB\fP link:https://example.org[Literal]
+B01 \fBBold\fR \fIItalic\fR \f(CRMono\fR Mark Super Sub
+B02 \fB\fINested\fB\fR Under Strike
+B03 \fBtwo  spaces\fR and \fBfirst
+  second\fR after.
+B04 \fBexpanded\fR \fB\fR link:https://example.org[Literal]
 .EE
 .EX
-B05 \fBBold\fP \fIItalic\fP \fBexpanded\fP \fB\fP \c
-.URL "https://example.org" "Live" "\c"
+B05 \fBBold\fR \fIItalic\fR \fBexpanded\fR \fB\fR \c
+.URL "https://example.org" "Live" "\fR\c"
 .EE
 .nf
-B06 \fBBold\fP \fIItalic\fP \(lqCurved\(rq \(oqSingle\(cq
-B07 *literal* \fBdouble\fP \fIdouble\fP é*literal*é
+B06 \fBBold\fR \fIItalic\fR \(lqCurved\(rq \(oqSingle\(cq
+B07 *literal* \fBdouble\fR \fIdouble\fR é*literal*é
 .fi
 .EX
-B08 \fBBold\fP expanded \fB(1)\fP
+B08 \fBBold\fR expanded \fB(1)\fP
 .EE
 .RS 0
 .IP \fB(1)\fP 4

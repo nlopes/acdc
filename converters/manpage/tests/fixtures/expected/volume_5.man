@@ -31,7 +31,7 @@
 myconfig \- configuration file format
 .SH "SYNOPSIS"
 .sp
-\fB/etc/myconfig.conf\fP
+\fB/etc/myconfig.conf\fR
 .SH "DESCRIPTION"
 .sp
 This tests volume number 5 (file formats).

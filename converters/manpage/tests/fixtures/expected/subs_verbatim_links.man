@@ -31,69 +31,69 @@
 verbatim\-links \- enabled code links retain destinations
 .SH "SYNOPSIS"
 .sp
-\fBverbatim\-links\fP
+\fBverbatim\-links\fR
 .SH "DESCRIPTION"
 .EX
 C01 \c
-.URL "https://example.org" "Label" "\c"
+.URL "https://example.org" "Label" "\fR\c"
 \&.
   C02 \c
-.URL "https://example.org" "Indented" "\c"
+.URL "https://example.org" "Indented" "\fR\c"
   tail.
 C03 (\c
-.URL "https://example.org" "Joined" "\c"
+.URL "https://example.org" "Joined" "\fR\c"
 )suffix.
 C04 \c
-.URL "https://example.org" "" "\c"
+.URL "https://example.org" "" "\fR\c"
 \&.
 C05 \c
-.URL "https://example.org" "" "\c"
+.URL "https://example.org" "" "\fR\c"
  and \c
-.MTO "test\(atexample.org" "" "\c"
+.MTO "test\(atexample.org" "" "\fR\c"
 \&.
 C06 \c
-.MTO "test\(atexample.org?subject=Subject&body=Body" "Mail" "\c"
+.MTO "test\(atexample.org?subject=Subject&body=Body" "Mail" "\fR\c"
 !
 C07 \c
-.MTO "test\(atexample.org" "" "\c"
+.MTO "test\(atexample.org" "" "\fR\c"
 \&.
 C08 Local and External\&.
 C09 TARGET and Missing\&.
 C10 \c
-.URL "https://example.org" "A \(dqquote\(dq and \epath" "\c"
+.URL "https://example.org" "A \(dqquote\(dq and \epath" "\fR\c"
 \etail.
 C11 \c
-.URL "https://example.org" "Label" "\c"
+.URL "https://example.org" "Label" "\fR\c"
 
 \&.SH literal\-control\-line
 \(aqliteral\-control\-line
 C12 \c
-.URL "https://example.org" "Label" "\c"
+.URL "https://example.org" "Label" "\fR\c"
 \&.
 C13 \c
-.URL "https://example.org" "Pass link" "\c"
+.URL "https://example.org" "Pass link" "\fR\c"
  link:https://literal.example[Literal].
 C14 \c
-.URL "https://example.org" "{blank}" "\c"
+.URL "https://example.org" "{blank}" "\fR\c"
  café.
 .EE
 .EX
 C15 \fBBefore  \c
-.URL "https://example.org" "Bold" "\c"
-  after\fP\&.
+.URL "https://example.org" "\fBBold" "\fB\c"
+  after\fR\&.
 C16 \fIBefore \c
-.MTO "test\(atexample.org" "Italic" "\c"
- after\fP\&.
+.MTO "test\(atexample.org" "\fIItalic" "\fI\c"
+ after\fR\&.
 C17 \f(CRBefore \c
-.URL "https://example.org" "Mono" "\c"
- after\fP\&.
+.URL "https://example.org" "\f(CRMono" "\f(CR\c"
+ after\fR\&.
 .EE
 .nf
   C18 \c
-.URL "https://example.org" "Literal" "\c"
+.URL "https://example.org" "Literal" "\fR\c"
   after.
         C19 \c
-.MTO "test\(atexample.org" "Tabbed" "\c"
+.MTO "test\(atexample.org" "Tabbed" "\fR\c"
 suffix.
 .fi
 .sp
@@ -101,7 +101,7 @@ suffix.
 .nf
 .fam C
 C20 \c
-.URL "https://example.org" "Source paragraph" "\c"
+.URL "https://example.org" "Source paragraph" "\fR\c"
 \&.
 .fam
 .fi
@@ -111,7 +111,7 @@ C20 \c
 .nf
 .fam C
 C21 \c
-.URL "https://example.org" "Listing paragraph" "\c"
+.URL "https://example.org" "Listing paragraph" "\fR\c"
 \&.
 .fam
 .fi
@@ -121,7 +121,7 @@ C21 \c
 .nf
 .fam C
 C22 \c
-.MTO "test\(atexample.org" "Literal paragraph" "\c"
+.MTO "test\(atexample.org" "Literal paragraph" "\fR\c"
 \&.
 .fam
 .fi
@@ -131,12 +131,12 @@ C23 https://example.org[Disabled] mailto:test@example.org[Disabled].
 .EE
 .EX
 C24 \c
-.URL "https://example.org" "Expanded" "\c"
- \fBExpanded\fP\&.
+.URL "https://example.org" "Expanded" "\fR\c"
+ \fBExpanded\fR\&.
 .EE
 .EX
 C25 \c
-.URL "https://example.org" "Callout" "\c"
+.URL "https://example.org" "Callout" "\fR\c"
  \fB(1)\fP
 .EE
 .RS 0
@@ -145,12 +145,12 @@ Callout body.
 .RE
 .EX
 C26 \c
-.URL "https://example.org" "(C)" "\c"
+.URL "https://example.org" "(C)" "\fR\c"
  (C).
 .EE
 .EX
 C27 \c
-.URL "https://example.org" "\(co" "\c"
+.URL "https://example.org" "\(co" "\fR\c"
 \&.
 .EE
 .sp
@@ -158,14 +158,14 @@ C27 \c
 .nf
 .fam C
 C28 \c
-.URL "https://example.org" "\(co" "\c"
+.URL "https://example.org" "\(co" "\fR\c"
 \&.
 .fam
 .fi
 .if n .RE
 .EX
 C29 <value>\c
-.URL "https://example.org" "XML" "\c"
+.URL "https://example.org" "XML" "\fR\c"
 </value> \fB(1)\fP
 .EE
 .RS 0

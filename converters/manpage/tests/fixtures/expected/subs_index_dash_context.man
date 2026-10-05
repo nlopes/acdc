@@ -31,7 +31,7 @@
 index\-dash\-context \- neighboring index text
 .SH "SYNOPSIS"
 .sp
-\fBindex\-dash\-context\fP
+\fBindex\-dash\-context\fR
 .SH "DESCRIPTION"
 .sp
 S01 prefix\(emtail
@@ -47,82 +47,82 @@ S05 prefix\(emtail
 S06 prefix\-\-tail
 .EX
 S07 prefix\(emtail \c
-.URL "https://next.example/07" "Next07" "\c"
+.URL "https://next.example/07" "Next07" "\fR\c"
 
 S08 prefix\(emtail \c
-.URL "https://next.example/08" "Next08" "\c"
+.URL "https://next.example/08" "Next08" "\fR\c"
 
 S09 prefix\(emtail \c
-.URL "https://next.example/09" "Next09" "\c"
+.URL "https://next.example/09" "Next09" "\fR\c"
 
 S10 prefix\(emtail \c
-.URL "https://next.example/10" "Next10" "\c"
+.URL "https://next.example/10" "Next10" "\fR\c"
 
 S11 prefix\(emtail \c
-.URL "https://next.example/11" "Next11" "\c"
+.URL "https://next.example/11" "Next11" "\fR\c"
 
 S12 prefixbegin\(emendtail \c
-.URL "https://next.example/12" "Next12" "\c"
+.URL "https://next.example/12" "Next12" "\fR\c"
 
 S13 pré\(emété \c
-.URL "https://next.example/13" "Next13" "\c"
+.URL "https://next.example/13" "Next13" "\fR\c"
 
 S14 word_\(em_tail \c
-.URL "https://next.example/14" "Next14" "\c"
+.URL "https://next.example/14" "Next14" "\fR\c"
 
 S15 prefix\-\-tail \c
-.URL "https://next.example/15" "Next15" "\c"
+.URL "https://next.example/15" "Next15" "\fR\c"
 
 S16 prefix\-\-\-tail \c
-.URL "https://next.example/16" "Next16" "\c"
+.URL "https://next.example/16" "Next16" "\fR\c"
 
 S17 prefix\-\-\-tail \c
-.URL "https://next.example/17" "Next17" "\c"
+.URL "https://next.example/17" "Next17" "\fR\c"
 
 S18 prefix\-\-\-tail \c
-.URL "https://next.example/18" "Next18" "\c"
+.URL "https://next.example/18" "Next18" "\fR\c"
 
 S19 prefix\-\- \c
-.URL "https://next.example/19" "Next19" "\c"
+.URL "https://next.example/19" "Next19" "\fR\c"
 
 S20 \-\-tail \c
-.URL "https://next.example/20" "Next20" "\c"
+.URL "https://next.example/20" "Next20" "\fR\c"
 
 S21 prefix.\-\-tail \c
-.URL "https://next.example/21" "Next21" "\c"
+.URL "https://next.example/21" "Next21" "\fR\c"
 
 S22 prefix\-\-\&.tail \c
-.URL "https://next.example/22" "Next22" "\c"
+.URL "https://next.example/22" "Next22" "\fR\c"
 
 S23 prefix \(em tail \c
-.URL "https://next.example/23" "Next23" "\c"
+.URL "https://next.example/23" "Next23" "\fR\c"
 
 S24 prefix\-\-tail \c
-.URL "https://next.example/24" "Next24" "\c"
+.URL "https://next.example/24" "Next24" "\fR\c"
 
 S25 prefix\(em\&tail \c
-.URL "https://next.example/25" "Next25" "\c"
+.URL "https://next.example/25" "Next25" "\fR\c"
 
 S26 prefix\-\-tail \c
-.URL "https://next.example/26" "Next26" "\c"
+.URL "https://next.example/26" "Next26" "\fR\c"
 
 S31 prefix\-\-\c
-.URL "https://next.example/31" "Tail31" "\c"
+.URL "https://next.example/31" "Tail31" "\fR\c"
 
 S32 \c
-.URL "https://next.example/32" "Prefix32" "\c"
+.URL "https://next.example/32" "Prefix32" "\fR\c"
 \-\-tail
 .EE
 .EX
 S27 prefix\(emtail \c
-.URL "https://next.example/27" "Next27" "\c"
+.URL "https://next.example/27" "Next27" "\fR\c"
 .EE
 .EX
 S28 prefix\-\-tail \c
-.URL "https://next.example/28" "Next28" "\c"
+.URL "https://next.example/28" "Next28" "\fR\c"
 
 S29 prefix\(em\&tail \c
-.URL "https://next.example/29" "Next29" "\c"
+.URL "https://next.example/29" "Next29" "\fR\c"
 .EE
 .EX
 S30 prefixindexterm2:[\-\-]tail
@@ -135,67 +135,67 @@ prefix\-\-
 .EE
 .EX
 S33 prefix\(emtail \c
-.URL "https://next.example/33" "Next33" "\c"
+.URL "https://next.example/33" "Next33" "\fR\c"
 
 S34 prefix\(emtail \c
-.URL "https://next.example/34" "Next34" "\c"
+.URL "https://next.example/34" "Next34" "\fR\c"
 
 S35 prefix\(emtail \c
-.URL "https://next.example/35" "Next35" "\c"
+.URL "https://next.example/35" "Next35" "\fR\c"
 
 S36 prefix \(em tail \c
-.URL "https://next.example/36" "Next36" "\c"
+.URL "https://next.example/36" "Next36" "\fR\c"
 
 S37 prefix \(em tail \c
-.URL "https://next.example/37" "Next37" "\c"
+.URL "https://next.example/37" "Next37" "\fR\c"
 
 S38 prefix  \(em  tail \c
-.URL "https://next.example/38" "Next38" "\c"
+.URL "https://next.example/38" "Next38" "\fR\c"
 
 S39 Sam\(cqs \c
-.URL "https://next.example/39" "Next39" "\c"
+.URL "https://next.example/39" "Next39" "\fR\c"
 
 S40 Sam\(cqs \c
-.URL "https://next.example/40" "Next40" "\c"
+.URL "https://next.example/40" "Next40" "\fR\c"
 
 S41 Sam\(cqs \c
-.URL "https://next.example/41" "Next41" "\c"
+.URL "https://next.example/41" "Next41" "\fR\c"
 
 S42 pré\(cqété \c
-.URL "https://next.example/42" "Next42" "\c"
+.URL "https://next.example/42" "Next42" "\fR\c"
 
 S43 3\(aq4 \c
-.URL "https://next.example/43" "Next43" "\c"
+.URL "https://next.example/43" "Next43" "\fR\c"
 
 S44 _\(aqs \c
-.URL "https://next.example/44" "Next44" "\c"
+.URL "https://next.example/44" "Next44" "\fR\c"
 
 S45 Sam\(aqs \c
-.URL "https://next.example/45" "Next45" "\c"
+.URL "https://next.example/45" "Next45" "\fR\c"
 
 S46 Sam\(cqs \c
-.URL "https://next.example/46" "Next46" "\c"
+.URL "https://next.example/46" "Next46" "\fR\c"
 
 S47 Sam\(cqs \c
-.URL "https://next.example/47" "Next47" "\c"
+.URL "https://next.example/47" "Next47" "\fR\c"
 
 S48 prefix\-\-tail \c
-.URL "https://next.example/48" "Next48" "\c"
+.URL "https://next.example/48" "Next48" "\fR\c"
 
 S49 prefix \-\- tail \c
-.URL "https://next.example/49" "Next49" "\c"
+.URL "https://next.example/49" "Next49" "\fR\c"
 
 S50 prefix \-\- tail \c
-.URL "https://next.example/50" "Next50" "\c"
+.URL "https://next.example/50" "Next50" "\fR\c"
 
 S51 prefix \-\- tail \c
-.URL "https://next.example/51" "Next51" "\c"
+.URL "https://next.example/51" "Next51" "\fR\c"
 
 S52 prefix \(em \-\- \(em tail \c
-.URL "https://next.example/52" "Next52" "\c"
+.URL "https://next.example/52" "Next52" "\fR\c"
 
 S53 prefix \(em  \(em tail \c
-.URL "https://next.example/53" "Next53" "\c"
+.URL "https://next.example/53" "Next53" "\fR\c"
 .EE
 .sp
 S54 prefix \(em tail
@@ -217,7 +217,7 @@ S61 prefix\(emtail
 S62 prefix\-\-tail
 .EX
 S63 prefix\(em\&tail \c
-.URL "https://next.example/63" "Next63" "\c"
+.URL "https://next.example/63" "Next63" "\fR\c"
 .EE
 .SH "INDEX"
 .SS "@"

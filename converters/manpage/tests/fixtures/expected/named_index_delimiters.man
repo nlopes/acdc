@@ -34,15 +34,15 @@ named\-index \- keep complete macros in index labels
 Destination.
 .sp
 N01 Before \c
-.URL "https://example.org/url" "Link" "\c"
+.URL "https://example.org/url" "Link" "\fR\c"
  after end.
 .sp
 N02 Before \c
-.URL "https://example.org/link" "Link" "\c"
+.URL "https://example.org/link" "Link" "\fR\c"
  after end.
 .sp
 N03 Before \c
-.MTO "user\(atexample.org" "Mail" "\c"
+.MTO "user\(atexample.org" "Mail" "\fR\c"
  after end.
 .sp
 N04 Before Target after end.
@@ -54,11 +54,11 @@ N06 Before [literal after] end.
 N07 Before [literal] after end.
 .sp
 N08 Before \c
-.URL "https://example.org/incomplete" "" "\c"
+.URL "https://example.org/incomplete" "" "\fR\c"
 [Link end.
 .sp
 N09 Before \c
-.URL "https://example.org/escaped" "" "\c"
+.URL "https://example.org/escaped" "" "\fR\c"
 [Link] after end.
 .sp
 N10 Before https://example.org/inactive[Link] after end.
@@ -76,15 +76,15 @@ N15 Before \fBFile\fP \(ra \fBOpen\fP \(ra \fBRecent\fP after end.
 N16 Before Target] text after end.
 .sp
 N17 Before \c
-.URL "https://example.org/format" "\fBBold\fP" "\c"
+.URL "https://example.org/format" "\fBBold\fR" "\fR\c"
  after end.
 .sp
 N18 Before \c
-.URL "https://outer.example" "Outer" " \c"
+.URL "https://outer.example" "Outer" "\fR \c"
 \c
-.MTO "inner\(atexample.org" "Inner" "\c"
+.MTO "inner\(atexample.org" "Inner" "\fR\c"
  \c
-.URL "https://outer.example" "tail" "\c"
+.URL "https://outer.example" "tail" "\fR\c"
  after end.
 .sp
 N19 Before indexterm2:[Nested after] end.
@@ -92,39 +92,39 @@ N19 Before indexterm2:[Nested after] end.
 N20 Before [1] after end.
 .sp
 N21 Before \c
-.URL "https://example.org/unicode" "café" "\c"
+.URL "https://example.org/unicode" "café" "\fR\c"
  after end.
 .sp
 N22 Before \c
-.URL "https://example.org/bracket" "Bracket] label" "\c"
+.URL "https://example.org/bracket" "Bracket] label" "\fR\c"
  after end.
 .sp
 N23 Before \c
-.URL "https://example.org/multiline" "Multiline label" "\c"
+.URL "https://example.org/multiline" "Multiline label" "\fR\c"
  after end.
 .sp
 N24 Before \c
-.URL "https://one.example" "One" "\c"
+.URL "https://one.example" "One" "\fR\c"
  and \c
-.URL "https://two.example" "Two" "\c"
+.URL "https://two.example" "Two" "\fR\c"
  after end.
 .sp
-N25 Before \fBProtected\fP after end.
+N25 Before \fBProtected\fR after end.
 .sp
 N26  end.
 .sp
 N27 indexterm2:[Before \c
-.URL "https://example.org/outer\-escape" "Link" "\c"
+.URL "https://example.org/outer\-escape" "Link" "\fR\c"
  after] end.
 .sp
 N28 Before unknown:[Literal after] end.
 .sp
 N29 Before \c
-.URL "https://example.org/quoted" "Label, comma" "\c"
+.URL "https://example.org/quoted" "Label, comma" "\fR\c"
  after end.
 .sp
 N30 First \c
-.URL "https://example.org/adjacent" "Link" "\c"
+.URL "https://example.org/adjacent" "Link" "\fR\c"
 Second\&.
 .SH "INDEX"
 .SS "B"
@@ -135,7 +135,7 @@ Before \fBCtrl+C\fP after
 .br
 Before \fBFile\fP \(ra \fBOpen\fP \(ra \fBRecent\fP after
 .br
-Before \fBProtected\fP after
+Before \fBProtected\fR after
 .br
 Before [\fBSave\fP] after
 .br
@@ -155,7 +155,7 @@ Before https://example.org/bracket[Bracket] label] after
 .br
 Before https://example.org/escaped[Link] after
 .br
-Before https://example.org/format[\fBBold\fP] after
+Before https://example.org/format[\fBBold\fR] after
 .br
 Before https://example.org/incomplete[Link
 .br

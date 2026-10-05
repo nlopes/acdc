@@ -32,115 +32,115 @@ nested\-link\-punctuation \- preserve split label boundaries
 .SH "DESCRIPTION"
 .sp
 N01 \c
-.URL "https://outer.example" "Before" " \c"
+.URL "https://outer.example" "Before" "\fR \c"
 \c
-.MTO "test\(atexample.org" "Inner" "\c"
+.MTO "test\(atexample.org" "Inner" "\fR\c"
  \c
-.URL "https://outer.example" "after" "\c"
+.URL "https://outer.example" "after" "\fR\c"
 \&.
 .sp
 N02 \c
-.URL "https://outer.example" "Before" " \c"
+.URL "https://outer.example" "Before" "\fR \c"
 \c
-.MTO "test\(atexample.org" "Inner" "\c"
+.MTO "test\(atexample.org" "Inner" "\fR\c"
 \c
-.URL "https://outer.example" ",after" "\c"
+.URL "https://outer.example" ",after" "\fR\c"
 \&.
 .sp
 N03 \c
-.URL "https://outer.example" "Before" " \c"
+.URL "https://outer.example" "Before" "\fR \c"
 \fB\c
-.URL "https://outer.example" "bold" " \c"
+.URL "https://outer.example" "\fBbold" "\fB \c"
 \c
-.MTO "test\(atexample.org" "Inner" "\c"
+.MTO "test\(atexample.org" "\fBInner" "\fB\c"
  \c
-.URL "https://outer.example" "end" "\c"
-\fP \c
-.URL "https://outer.example" "after" "\c"
+.URL "https://outer.example" "\fBend" "\fB\c"
+\fR \c
+.URL "https://outer.example" "after" "\fR\c"
 \&.
 .sp
 N04 \c
-.MTO "test\(atexample.org" "Inner" "\c"
+.MTO "test\(atexample.org" "Inner" "\fR\c"
  \c
-.URL "https://outer.example" "after" "\c"
+.URL "https://outer.example" "after" "\fR\c"
 \&.
 .sp
 N05 \c
-.MTO "test\(atexample.org" "Inner" "\c"
+.MTO "test\(atexample.org" "Inner" "\fR\c"
 \&.
 .sp
 N06 \c
-.MTO "first\(atexample.org" "First" "\c"
+.MTO "first\(atexample.org" "First" "\fR\c"
  \c
-.MTO "second\(atexample.org" "Second" "\c"
+.MTO "second\(atexample.org" "Second" "\fR\c"
 \&.
 .sp
 N07 \c
-.MTO "first\(atexample.org" "First" "\c"
+.MTO "first\(atexample.org" "First" "\fR\c"
 \c
-.MTO "second\(atexample.org" "Second" "\c"
+.MTO "second\(atexample.org" "Second" "\fR\c"
 \&.
 .sp
 N08 \fB\c
-.URL "https://outer.example" "Before" " \c"
+.URL "https://outer.example" "\fBBefore" "\fB \c"
 \c
-.MTO "test\(atexample.org" "Inner" "\c"
+.MTO "test\(atexample.org" "\fBInner" "\fB\c"
  \c
-.URL "https://outer.example" "after" "\c"
-\&.\fP
+.URL "https://outer.example" "\fBafter" "\fB\c"
+\&.\fR
 .sp
 N09 \c
-.URL "https://outer.example" "Before" " \c"
+.URL "https://outer.example" "Before" "\fR \c"
 \c
-.MTO "test\(atexample.org" "Inner" "\c"
+.MTO "test\(atexample.org" "Inner" "\fR\c"
  \c
-.URL "https://outer.example" "after" "\c"
+.URL "https://outer.example" "after" "\fR\c"
 \&.
 .sp
 N10 \c
-.URL "https://outer.example" "Before [1]" " \c"
+.URL "https://outer.example" "Before [1]" "\fR \c"
 \c
-.MTO "test\(atexample.org" "Inner" "\c"
+.MTO "test\(atexample.org" "Inner" "\fR\c"
  \c
-.URL "https://outer.example" "after" "\c"
+.URL "https://outer.example" "after" "\fR\c"
 \&.
 .sp
 N11 \c
-.URL "https://outer.example" "Before" " \c"
+.URL "https://outer.example" "Before" "\fR \c"
 \fB\c
-.URL "https://outer.example" "bold Term" " \c"
+.URL "https://outer.example" "\fBbold Term" "\fB \c"
 \c
-.MTO "test\(atexample.org" "Inner" "\c"
-\fP  \c
-.URL "https://outer.example" "after" "\c"
+.MTO "test\(atexample.org" "\fBInner" "\fB\c"
+\fR  \c
+.URL "https://outer.example" "after" "\fR\c"
 \&.
 .sp
 N12 \c
-.URL "https://outer.example" "Before" " \c"
+.URL "https://outer.example" "Before" "\fR \c"
 \c
-.URL "https://image.example" "[Picture]" "\c"
+.URL "https://image.example" "[Picture]" "\fR\c"
  \c
-.URL "https://outer.example" "after" "\c"
+.URL "https://outer.example" "after" "\fR\c"
 \&.
 .sp
 N13 \c
-.URL "https://outer.example" "Début" " \c"
+.URL "https://outer.example" "Début" "\fR \c"
 \c
-.MTO "test\(atexample.org" "Été" "\c"
+.MTO "test\(atexample.org" "Été" "\fR\c"
  \c
-.URL "https://outer.example" "fin" "\c"
+.URL "https://outer.example" "fin" "\fR\c"
 \&.
 .sp
 N14 \c
-.URL "https://outer.example" "Before" " \c"
+.URL "https://outer.example" "Before" "\fR \c"
 \c
-.MTO "test\(atexample.org" "Inner" "\c"
+.MTO "test\(atexample.org" "Inner" "\fR\c"
 
 \c
-.URL "https://outer.example" "after" "\c"
+.URL "https://outer.example" "after" "\fR\c"
 \&.
 .SH "NOTES"
 .IP [1] 4
 Note with \c
-.URL "https://note.example" "Note" "\c"
+.URL "https://note.example" "Note" "\fR\c"
 \&.

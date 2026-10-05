@@ -38,21 +38,21 @@ L02 link:https://unfinished.example[Unfinished
 L03 link:https://unfinished.example[Escaped\e]
 .sp
 L04 \c
-.URL "https://complete.example" "Complete" "\c"
+.URL "https://complete.example" "Complete" "\fR\c"
 
 .sp
 L05 \c
-.URL "https://bare.example" "" "\c"
+.URL "https://bare.example" "" "\fR\c"
 
 .sp
 L06 link: \c
-.URL "https://separate.example" "Label" "\c"
+.URL "https://separate.example" "Label" "\fR\c"
 
 .sp
 L07 xlink:https://unfinished.example
 .sp
 L08 Link:\c
-.URL "https://boundary.example" "" "\c"
+.URL "https://boundary.example" "" "\fR\c"
 
 .sp
 L09 link:http://unfinished.example
@@ -70,27 +70,27 @@ L14 \elink:https://unfinished.example[Unfinished
 L15 link:\ehttps://unfinished.example
 .sp
 L16 \c
-.URL "https://suffix.example" "path" "\c"
+.URL "https://suffix.example" "path" "\fR\c"
 suffix
 .sp
 L17 link:https://unfinished.example[Unfinished \c
-.URL "https://inner.example" "Inner" "\c"
+.URL "https://inner.example" "Inner" "\fR\c"
 
 .sp
-L18 \fBlink:https://unfinished.example\fP
+L18 \fBlink:https://unfinished.example\fR
 .sp
-L19 link:https://unfinished.example[\fBBold\fP text
+L19 link:https://unfinished.example[\fBBold\fR text
 .sp
 L20 \c
-.URL "https://implicit.example" "" "\c"
+.URL "https://implicit.example" "" "\fR\c"
 [Unfinished
 .sp
 L21 \c
-.URL "https://angle.example" "" "\c"
+.URL "https://angle.example" "" "\fR\c"
 
 .sp
 L22 link:\c
-.URL "https://angle.example" "" "\c"
+.URL "https://angle.example" "" "\fR\c"
 
 .sp
 L23 link:https://user@unfinished.example[Unfinished
@@ -98,7 +98,7 @@ L23 link:https://user@unfinished.example[Unfinished
 L24 link:école.html[Unfinished
 .sp
 L25 link:manual.html[Unfinished \c
-.URL "https://inner.example" "Inner" "\c"
+.URL "https://inner.example" "Inner" "\fR\c"
 
 .sp
 L26 link:https://unfinished.example[Unfinished
@@ -106,12 +106,12 @@ L26 link:https://unfinished.example[Unfinished
 L27 link:https://unfinished.example[Unfinished
 still unfinished
 .sp
-L28 link:https://unfinished.example[Unfinished \fBbold\fP and \c
-.URL "https://other.example" "" "\c"
+L28 link:https://unfinished.example[Unfinished \fBbold\fR and \c
+.URL "https://other.example" "" "\fR\c"
 \&.
 .sp
 L29 link:https://unfinished.example[Unfinished \c
-.MTO "inner\(atexample.org" "Mail" "\c"
+.MTO "inner\(atexample.org" "Mail" "\fR\c"
 \&.
 .sp
 L30 link:https://unfinished.example[Unfinished Term [1]

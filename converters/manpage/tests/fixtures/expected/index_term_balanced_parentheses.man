@@ -31,7 +31,7 @@
 index\-parentheses \- complete index labels
 .SH "SYNOPSIS"
 .sp
-\fBindex\-parentheses\fP
+\fBindex\-parentheses\fR
 .SH "DESCRIPTION"
 .sp
 P01 Term \(rg after.
@@ -83,7 +83,7 @@ P23 First (one) and (two) after.
 P24 Before ((literal)) after end.
 .sp
 P25 \c
-.URL "https://example.org" "Linked \(rg label" "\c"
+.URL "https://example.org" "Linked \(rg label" "\fR\c"
  after.
 .sp
 P26 ((Unclosed (label)

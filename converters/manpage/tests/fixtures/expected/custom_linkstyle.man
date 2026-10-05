@@ -31,9 +31,9 @@
 linkstyle\-test \- test custom link style
 .SH "SYNOPSIS"
 .sp
-\fBlinkstyle\-test\fP
+\fBlinkstyle\-test\fR
 .SH "DESCRIPTION"
 .sp
 Visit \c
-.URL "https://example.com" "" "\c"
+.URL "https://example.com" "" "\fR\c"
  for details.

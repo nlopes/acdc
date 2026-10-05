@@ -1,39 +1,39 @@
 .SH "DESCRIPTION"
 .sp
-Default: CHAPTER \fBBOLD\fP; UNNUMBERED CHAPTER; APPENDIX\&.
+Default: CHAPTER \fBBOLD\fR; UNNUMBERED CHAPTER; APPENDIX\&.
 .sp
-Basic: CHAPTER \fBBOLD\fP; UNNUMBERED CHAPTER; \fIAppendix\fP\&.
+Basic: CHAPTER \fBBOLD\fR; UNNUMBERED CHAPTER; \fIAppendix\fR\&.
 .sp
 Short: Section 3; UNNUMBERED CHAPTER; Appendix A\&.
 .sp
-Full: Section 3, \(lqChapter \fBbold\fP\(rq; UNNUMBERED CHAPTER; Appendix A, \fIAppendix\fP\&.
+Full: Section 3, \(lqChapter \fBbold\fR\(rq; UNNUMBERED CHAPTER; Appendix A, \fIAppendix\fR\&.
 .sp
-Fallback: CHAPTER \fBBOLD\fP; CHAPTER \fBBOLD\fP\&.
+Fallback: CHAPTER \fBBOLD\fR; CHAPTER \fBBOLD\fR\&.
 .sp
-Explicit: Custom \fBlabel\fP; Reference \fBlabel\fP\&.
+Explicit: Custom \fBlabel\fR; Reference \fBlabel\fR\&.
 .sp
-Document basic: CHAPTER \fBBOLD\fP; UNNUMBERED CHAPTER; \fIAppendix\fP; Ordinary section; Reference \fBlabel\fP\&.
+Document basic: CHAPTER \fBBOLD\fR; UNNUMBERED CHAPTER; \fIAppendix\fR; Ordinary section; Reference \fBlabel\fR\&.
 .sp
 Document note.[1]
 .sp
-Script: ^(CHAPTER \fBBOLD\fP)\&.
+Script: ^(CHAPTER \fBBOLD\fR)\&.
 .TS
 allbox tab(:);
 ltx ltx.
 Table:T{
-CHAPTER \fBBOLD\fP
+CHAPTER \fBBOLD\fR
 T}
 .TE
 .sp
-Document short: UNNUMBERED CHAPTER; CHAPTER \fBBOLD\fP\&.
+Document short: UNNUMBERED CHAPTER; CHAPTER \fBBOLD\fR\&.
 .sp
-Document full: UNNUMBERED CHAPTER; Section 3, \(lqChapter \fBbold\fP\(rq; \fIAppendix\fP\&.
+Document full: UNNUMBERED CHAPTER; Section 3, \(lqChapter \fBbold\fR\(rq; \fIAppendix\fR\&.
 .sp
-Unset: CHAPTER \fBBOLD\fP; UNNUMBERED CHAPTER; APPENDIX\&.
+Unset: CHAPTER \fBBOLD\fR; UNNUMBERED CHAPTER; APPENDIX\&.
 .sp
-Empty: CHAPTER \fBBOLD\fP; UNNUMBERED CHAPTER; \fIAppendix\fP\&.
+Empty: CHAPTER \fBBOLD\fR; UNNUMBERED CHAPTER; \fIAppendix\fR\&.
 .sp
-Unknown: CHAPTER \fBBOLD\fP; UNNUMBERED CHAPTER; \fIAppendix\fP\&.
+Unknown: CHAPTER \fBBOLD\fR; UNNUMBERED CHAPTER; \fIAppendix\fR\&.
 .SH "CHAPTER BOLD"
 .SS "Ordinary section"
 .SH "UNNUMBERED CHAPTER"

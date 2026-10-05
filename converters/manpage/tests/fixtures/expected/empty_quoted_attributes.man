@@ -31,59 +31,59 @@
 empty\-quotes \- formatting around empty attribute references
 .SH "DESCRIPTION"
 .sp
-Q01 Before \fB\fP after.
+Q01 Before \fB\fR after.
 .sp
-Q02 Before \fI\fP after.
+Q02 Before \fI\fR after.
 .sp
-Q03 Before \f(CR\fP after.
+Q03 Before \f(CR\fR after.
 .sp
-Q04 Before \fB\fP after.
+Q04 Before \fB\fR after.
 .sp
 Q05 Before  after.
 .sp
 Q06 Before  after.
 .sp
-Q07 Before \fB\fP after.
+Q07 Before \fB\fR after.
 .sp
-Q08 Before \fI\fP after.
+Q08 Before \fI\fR after.
 .sp
-Q09 Before \f(CR\fP after.
+Q09 Before \f(CR\fR after.
 .sp
-Q10 Before \fB\fP after.
+Q10 Before \fB\fR after.
 .sp
-Q11 Before \fB\fI\fP\fP after.
+Q11 Before \fB\fI\fB\fR after.
 .sp
-Q12 Before \fI**\fP after.
+Q12 Before \fI**\fR after.
 .sp
-Q13 Before \fB\fP after.
+Q13 Before \fB\fR after.
 .sp
-Q14 Before \fB\fP after.
+Q14 Before \fB\fR after.
 .sp
 Q15 Before \(lq\(rq and \(oq\(cq after.
 .sp
-Q16 Before \fB\fP and \fI\fP after.
+Q16 Before \fB\fR and \fI\fR after.
 .sp
-Q17 Before \fBtext\fP and \fBtext\fP after.
+Q17 Before \fBtext\fR and \fBtext\fR after.
 .sp
 Q18 Before **, __, ##, ^^ and ~~ after.
 .sp
-Q19 Before ** and \fB{missing}\fP after.
+Q19 Before ** and \fB{missing}\fR after.
 .sp
 Q20 Before *introduced* after.
 .sp
 Q21 Before \c
-.URL "https://example.com" "\fB\fP" "\c"
+.URL "https://example.com" "\fB\fR" "\fR\c"
  after.
 .sp
-Q22 Before x\fB\fPy and x**y after.
+Q22 Before x\fB\fRy and x**y after.
 .sp
 Q23 Before é** and **é after.
 .sp
-Q24 Before \fB\fI\fP\fP after.
+Q24 Before \fB\fI\fB\fR after.
 .sp
-Q25 Before \fB\fP and \fBtext\fP after.
+Q25 Before \fB\fR and \fBtext\fR after.
 .sp
-Q26 Before \fB**\fP after.
+Q26 Before \fB**\fR after.
 .sp
 Q27 See Empty target\&.
 .sp

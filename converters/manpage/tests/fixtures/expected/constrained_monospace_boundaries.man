@@ -31,106 +31,106 @@
 mono\-boundaries \- adjacent inline formatting
 .SH "DESCRIPTION"
 .sp
-P01 \f(CRCode\fP\fBEnd\fP\&.
+P01 \f(CRCode\fR\fBEnd\fR\&.
 .sp
-P02 \f(CRCode\fP\fBEnd\fP\&.
+P02 \f(CRCode\fR\fBEnd\fR\&.
 .sp
-P03 `Code`\fIEnd\fP\&.
+P03 `Code`\fIEnd\fR\&.
 .sp
-P04 `Code`\fIEnd\fP\&.
+P04 `Code`\fIEnd\fR\&.
 .sp
-P05 \f(CRCode\fP\fBEnd\fP\&.
+P05 \f(CRCode\fR\fBEnd\fR\&.
 .sp
-P06 \f(CRCode\fP\fBEnd\fP\&.
+P06 \f(CRCode\fR\fBEnd\fR\&.
 .sp
-P07 \f(CRCode\fP_(End)\&.
+P07 \f(CRCode\fR_(End)\&.
 .sp
-P08 \f(CRCode\fP^(End)\&.
+P08 \f(CRCode\fR^(End)\&.
 .sp
-P09 \fBStart\fP\f(CRCode\fP\&.
+P09 \fBStart\fR\f(CRCode\fR\&.
 .sp
-P10 \fBStart\fP\f(CRCode\fP\&.
+P10 \fBStart\fR\f(CRCode\fR\&.
 .sp
-P11 \fIStart\fP`Code`.
+P11 \fIStart\fR`Code`.
 .sp
-P12 \fBStart\fP\f(CRCode\fP\&.
+P12 \fBStart\fR\f(CRCode\fR\&.
 .sp
-P13 \f(CRCode``Next\fP\&.
+P13 \f(CRCode``Next\fR\&.
 .sp
 P14 `Code`word.
 .sp
 P15 word`Code`.
 .sp
-P16 ` Code`\fBEnd\fP\&.
+P16 ` Code`\fBEnd\fR\&.
 .sp
-P17 `Code `\fBEnd\fP\&.
+P17 `Code `\fBEnd\fR\&.
 .sp
 P18 `Code\(cq\&.
 .sp
-P19 \f(CRCode\fP*End*.
+P19 \f(CRCode\fR*End*.
 .sp
-P20 \f(CRCode\fP:End.
+P20 \f(CRCode\fR:End.
 .sp
-P21 \f(CRCode\fP😀.
+P21 \f(CRCode\fR😀.
 .sp
 P22 é`Code`.
 .sp
 P23 `Code`é.
 .sp
-P24 `Code`\fIsuffix\fP\&.
+P24 `Code`\fIsuffix\fR\&.
 .sp
 P25 `Code`_suffix.
 .sp
-P26 \f(CRCode\fP*suffix.
+P26 \f(CRCode\fR*suffix.
 .sp
-P27 \fBStart \f(CRCode\fP\fP\&.
+P27 \fBStart \f(CRCode\fB\fR\&.
 .sp
-P28 \fIStart `Code`\fP\&.
+P28 \fIStart `Code`\fR\&.
 .sp
-P29 \fBStart \f(CRCode\fP\fP\&.
+P29 \fBStart \f(CRCode\fB\fR\&.
 .sp
-P30 \f(CR\fBBold\fP\fP\fBEnd\fP\&.
+P30 \f(CR\fBBold\f(CR\fR\fBEnd\fR\&.
 .sp
-P31 \f(CR\fP\fBEnd\fP\&.
+P31 \f(CR\fR\fBEnd\fR\&.
 .sp
-P32 \f(CR\fP\fBEnd\fP\&.
+P32 \f(CR\fR\fBEnd\fR\&.
 .sp
 P33 \f(CR\c
-.URL "https://example.org" "Site" "\c"
-\fP\fBEnd\fP\&.
+.URL "https://example.org" "\f(CRSite" "\f(CR\c"
+\fR\fBEnd\fR\&.
 .sp
-P34 \f(CRCode\fP\fBEnd\fP\&.
+P34 \f(CRCode\fR\fBEnd\fR\&.
 .sp
-P35 \fBStart\fP\f(CRCode\fP\&.
+P35 \fBStart\fR\f(CRCode\fR\&.
 .sp
-P36 \f(CRCode\fP \fBEnd\fP\&.
+P36 \f(CRCode\fR \fBEnd\fR\&.
 .sp
-P37 \f(CRCode\fP\fBEnd\fP\&.
+P37 \f(CRCode\fR\fBEnd\fR\&.
 .sp
-P38 `Code`\fBEnd\fP\&.
+P38 `Code`\fBEnd\fR\&.
 .sp
 P39 `Code`**End**\&.
 .sp
-P40 \f(CRCode\fP
-\fBEnd\fP\&.
+P40 \f(CRCode\fR
+\fBEnd\fR\&.
 .sp
-P41 \f(CRCode\fP#suffix.
+P41 \f(CRCode\fR#suffix.
 .sp
-P42 `Code`\fIEnd\fP\fBTail\fP\&.
+P42 `Code`\fIEnd\fR\fBTail\fR\&.
 .sp
-P43 \f(CRCode\fP\fBEnd\fP\f(CRNext\fP\&.
+P43 \f(CRCode\fR\fBEnd\fR\f(CRNext\fR\&.
 .sp
-P44 \f(CRCode\fP\eEnd.
+P44 \f(CRCode\fR\eEnd.
 .sp
-P45 \f(CRCode\fP=End.
+P45 \f(CRCode\fR=End.
 .sp
-P46 \f(CRCode\fP%End.
+P46 \f(CRCode\fR%End.
 .sp
-P47 prefix;`Code`\fBEnd\fP\&.
+P47 prefix;`Code`\fBEnd\fR\&.
 .sp
-P48 prefix}`Code`\fBEnd\fP\&.
+P48 prefix}`Code`\fBEnd\fR\&.
 .sp
-P49 prefix:`Code`\fBEnd\fP\&.
+P49 prefix:`Code`\fBEnd\fR\&.
 .sp
 P50 <del>&amp;*bold*&amp;</del>\&.
 .sp

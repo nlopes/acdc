@@ -1,6 +1,6 @@
 .RS 0
 .TP
-\fBOperation\fP
+\fBOperation\fR
 .RE
 .EX
 let rs1_val = X(rs1);

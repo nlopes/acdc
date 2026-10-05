@@ -28,7 +28,13 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         title: &[InlineNode],
         render_items: impl FnOnce(&mut Self, &mut TraversalContext<'a>) -> Result<(), Error>,
     ) -> Result<(), Error> {
-        self.render_title_with_wrapper(traversal, title, ".sp\n\\fB", "\\fP\n")?;
+        if !title.is_empty() {
+            self.write_sp()?;
+            self.render_font("\\fB", false, |visitor| {
+                visitor.visit_inline_nodes(traversal, title)
+            })?;
+            writeln!(self.writer_mut())?;
+        }
 
         let rs_indent = if self.list_depth > 0 { 4 } else { 0 };
         writeln!(self.writer_mut(), ".RS {rs_indent}")?;
@@ -203,15 +209,17 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
                 }
 
                 writeln!(visitor.writer_mut(), ".TP")?;
-                write!(visitor.writer_mut(), "\\fB")?;
-                if let Some(label) = anchor.bibliography_label() {
-                    write!(visitor.writer_mut(), "[")?;
-                    visitor.visit_inline_nodes(traversal, label)?;
-                    write!(visitor.writer_mut(), "]")?;
-                } else {
-                    write!(visitor.writer_mut(), "[{}]", anchor.id)?;
-                }
-                writeln!(visitor.writer_mut(), "\\fP")?;
+                visitor.render_font("\\fB", false, |visitor| {
+                    if let Some(label) = anchor.bibliography_label() {
+                        write!(visitor.writer_mut(), "[")?;
+                        visitor.visit_inline_nodes(traversal, label)?;
+                        write!(visitor.writer_mut(), "]")?;
+                    } else {
+                        write!(visitor.writer_mut(), "[{}]", anchor.id)?;
+                    }
+                    Ok(())
+                })?;
+                writeln!(visitor.writer_mut())?;
                 visitor.render_list_item_content(traversal, content, &item.blocks, 0)?;
             }
             Ok(())
@@ -260,12 +268,13 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         marker: Option<&str>,
     ) -> Result<(), Error> {
         writeln!(self.writer_mut(), ".TP")?;
-        write!(self.writer_mut(), "\\fB")?;
-        if let Some(marker) = marker {
-            write!(self.writer_mut(), "{marker}")?;
-        }
-        self.visit_inline_nodes(traversal, &item.term)?;
-        writeln!(self.writer_mut(), "\\fP")?;
+        self.render_font("\\fB", false, |visitor| {
+            if let Some(marker) = marker {
+                write!(visitor.writer_mut(), "{marker}")?;
+            }
+            visitor.visit_inline_nodes(traversal, &item.term)
+        })?;
+        writeln!(self.writer_mut())?;
         self.render_description_content(traversal, item, None)
     }
 
@@ -275,9 +284,9 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         item: &'a DescriptionListItem<'a>,
     ) -> Result<(), Error> {
         writeln!(self.writer_mut(), ".sp")?;
-        write!(self.writer_mut(), "\\fB")?;
-        self.visit_inline_nodes(traversal, &item.term)?;
-        write!(self.writer_mut(), "\\fP")?;
+        self.render_font("\\fB", false, |visitor| {
+            visitor.visit_inline_nodes(traversal, &item.term)
+        })?;
         if !item.principal_text.is_empty() {
             write!(self.writer_mut(), " \\(en ")?;
             self.visit_inline_nodes(traversal, &item.principal_text)?;
@@ -292,9 +301,11 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         item: &'a DescriptionListItem<'a>,
     ) -> Result<(), Error> {
         writeln!(self.writer_mut(), ".TP")?;
-        write!(self.writer_mut(), "\\fBQ: ")?;
-        self.visit_inline_nodes(traversal, &item.term)?;
-        writeln!(self.writer_mut(), "\\fP")?;
+        self.render_font("\\fB", false, |visitor| {
+            write!(visitor.writer_mut(), "Q: ")?;
+            visitor.visit_inline_nodes(traversal, &item.term)
+        })?;
+        writeln!(self.writer_mut())?;
         self.render_description_content(traversal, item, Some("\\fBA:\\fP "))
     }
 

@@ -31,49 +31,45 @@
 table\-combined\-span\-formatting \- test combined table span formatting
 .SH "SYNOPSIS"
 .sp
-\fBtable\-combined\-span\-formatting\fP
+\fBtable\-combined\-span\-formatting\fR
 .SH "DESCRIPTION"
 .SS "Column defaults"
 .sp
-.nr acdc-title-font \n[.f]
-\fBTable 1. Defaults follow source cells\f[\n[acdc-title-font]]
+\fBTable 1. Defaults follow source cells\fR
 .br
-.rr acdc-title-font
 .TS
 allbox tab(:);
 cx s cx
 ^ ^ cx
 rdx ltx cx.
 T{
-\fICombined \fBbold\fP Ada\fP
+\fICombined \fBbold\fI Ada\fR
 T}:T{
-\fIFirst companion \fBbold\fP Ada\fP
+\fIFirst companion \fBbold\fI Ada\fR
 T}
 \^:\^:T{
-\fBSecond companion \fIitalic\fP Ada\fP
+\fBSecond companion \fIitalic\fB Ada\fR
 T}
 T{
-\fBFirst \fBbold\fP\fP
+\fBFirst \fBbold\fB\fR
 T}:T{
-\fISecond \fBbold\fP\fP
+\fISecond \fBbold\fI\fR
 T}:T{
-Third \fIitalic\fP
+Third \fIitalic\fR
 T}
 .TE
 .sp
-.nr acdc-title-font \n[.f]
-\fBTable 2. Duplicates use each column\f[\n[acdc-title-font]]
+\fBTable 2. Duplicates use each column\fR
 .br
-.rr acdc-title-font
 .TS
 allbox tab(:);
 rdx ltx cx.
 T{
-\fBRepeated \fBbold\fP Ada\fP
+\fBRepeated \fBbold\fB Ada\fR
 T}:T{
-\fIRepeated \fBbold\fP Ada\fP
+\fIRepeated \fBbold\fI Ada\fR
 T}:T{
-Repeated \fBbold\fP Ada
+Repeated \fBbold\fR Ada
 T}
 .TE
 .SS "Explicit span formats"
@@ -90,15 +86,15 @@ ctx s ltx
 rx s ltx
 ^ ^ ltx.
 T{
-\fBStrong \fIitalic\fP\fP
+\fBStrong \fIitalic\fB\fR
 T}:Beside strong
 \^:\^:Below strong
 T{
-\fIEmphasis \fBbold\fP\fP
+\fIEmphasis \fBbold\fI\fR
 T}:Beside emphasis
 \^:\^:Below emphasis
 T{
-Header \fIitalic\fP
+Header \fIitalic\fR
 T}:Beside header
 \^:\^:Below header
 T{
@@ -108,7 +104,7 @@ Literal *bold* {span\-name}
 T}:Beside literal
 \^:\^:Below literal
 T{
-\f(CRMonospace \fBbold\fP Ada\fP
+\f(CRMonospace \fBbold\f(CR Ada\fR
 T}:Beside monospace
 \^:\^:Below monospace
 .TE

@@ -32,26 +32,26 @@ description\-list\-topology \- verify nested description lists
 .SH "DESCRIPTION"
 .RS 0
 .TP
-\fBRoot one\fP
+\fBRoot one\fR
 Root one description.
 .RS 0
 .RS 4
 .TP
-\fBChild one\fP
+\fBChild one\fR
 Child one description.
 .RS 0
 .RS 4
 .TP
-\fBGrandchild one\fP
+\fBGrandchild one\fR
 Grandchild one description.
 .RE
 .RE
 .TP
-\fBChild two\fP
+\fBChild two\fR
 Child two description.
 .RE
 .RE
 .TP
-\fBRoot two\fP
+\fBRoot two\fR
 Root two description.
 .RE

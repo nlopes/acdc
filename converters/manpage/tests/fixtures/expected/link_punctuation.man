@@ -32,148 +32,148 @@ link\-punctuation \- preserve inline link boundaries
 .SH "DESCRIPTION"
 .sp
 P01 \c
-.URL "https://example.org" "Label" "\c"
+.URL "https://example.org" "Label" "\fR\c"
 \&.
 .sp
 P02 \c
-.URL "https://example.org" "Label" "\c"
+.URL "https://example.org" "Label" "\fR\c"
 , next.
 .sp
 P03 (\c
-.URL "https://example.org" "" "\c"
+.URL "https://example.org" "" "\fR\c"
 ).
 .sp
 P04 \c
-.MTO "test\(atexample.org" "Mail" "\c"
+.MTO "test\(atexample.org" "Mail" "\fR\c"
 !
 .sp
 P05 \c
-.MTO "test\(atexample.org" "" "\c"
+.MTO "test\(atexample.org" "" "\fR\c"
 \&.
 .sp
 P06 \c
-.URL "https://example.org" "Label" "\c"
+.URL "https://example.org" "Label" "\fR\c"
 ,;:!?
 .sp
 P07 \c
-.URL "https://example.org" "Label" "\c"
+.URL "https://example.org" "Label" "\fR\c"
 suffix.
 .sp
 P08 \c
-.URL "https://example.org" "Label" "\c"
- \fBbold\fP\&.
+.URL "https://example.org" "Label" "\fR\c"
+ \fBbold\fR\&.
 .sp
 P09 \c
-.URL "https://example.org" "Label" "\c"
-\fBbold\fP\&.
+.URL "https://example.org" "Label" "\fR\c"
+\fBbold\fR\&.
 .sp
 P10 \c
-.URL "https://example.org" "Label" "\c"
+.URL "https://example.org" "Label" "\fR\c"
 \&.
 .sp
 P11 \c
-.URL "https://example.org" "Label" "\c"
+.URL "https://example.org" "Label" "\fR\c"
 \&.
 .sp
 P12 \c
-.URL "https://example.org" "Label" "\c"
+.URL "https://example.org" "Label" "\fR\c"
 [1]\&.
 .sp
 P13 \c
-.URL "https://example.org" "Label" "\c"
+.URL "https://example.org" "Label" "\fR\c"
 \&.
 .sp
 P14 \c
-.URL "https://example.org" "Label" "\c"
+.URL "https://example.org" "Label" "\fR\c"
 \&.
 .sp
 P15 \c
-.URL "https://example.org" "Label" "\c"
+.URL "https://example.org" "Label" "\fR\c"
 »
 .sp
 P16 \c
-.URL "https://example.org" "Label" "\c"
+.URL "https://example.org" "Label" "\fR\c"
 \ next.
 .sp
 P17 \c
-.URL "https://example.org" "Label" "\c"
+.URL "https://example.org" "Label" "\fR\c"
 
 next line.
 .sp
 P18 \c
-.URL "https://example.org" "Label" "\c"
+.URL "https://example.org" "Label" "\fR\c"
 
 .br
 next line.
 .sp
 P19 \fB\c
-.URL "https://example.org" "Label" "\c"
-\&.\fP
+.URL "https://example.org" "\fBLabel" "\fB\c"
+\&.\fR
 .sp
 P20 \c
-.URL "manual.txt" "Manual" "\c"
+.URL "manual.txt" "Manual" "\fR\c"
 \&.
 .sp
 P21 \c
-.URL "https://example.org" "" "\c"
+.URL "https://example.org" "" "\fR\c"
 \&.
 .sp
 P22 \c
-.URL "https://example.org" "A \(dqquote\(dq and \epath" "\c"
+.URL "https://example.org" "A \(dqquote\(dq and \epath" "\fR\c"
 \etail.
 .sp
 P23 \c
-.URL "https://example.org" "Label" "\c"
+.URL "https://example.org" "Label" "\fR\c"
 \c
-.URL "https://second.example" "Second" "\c"
+.URL "https://second.example" "Second" "\fR\c"
 \&.
 .sp
 P24 \c
-.URL "https://example.org" "Label" "\c"
+.URL "https://example.org" "Label" "\fR\c"
  \c
-.URL "https://second.example" "Second" "\c"
+.URL "https://second.example" "Second" "\fR\c"
 \&.
 .sp
 P25 \c
-.MTO "test\(atexample.org" "Mail" "\c"
+.MTO "test\(atexample.org" "Mail" "\fR\c"
 \(co.
 .sp
 P26 \c
-.MTO "test\(atexample.org" "Mail" "\c"
+.MTO "test\(atexample.org" "Mail" "\fR\c"
 Word\&.
 .sp
 P27 \c
-.MTO "test\(atexample.org" "Mail" "\c"
+.MTO "test\(atexample.org" "Mail" "\fR\c"
  (C)\&.
 .sp
 P28 \c
-.URL "https://example.org" "Label" "\c"
+.URL "https://example.org" "Label" "\fR\c"
 
 .sp
 Next paragraph.
 .sp
 P29 \c
-.URL "https://example.org" "Label" "\c"
- \fIitalic\fP and \f(CRcode\fP\&.
+.URL "https://example.org" "Label" "\fR\c"
+ \fIitalic\fR and \f(CRcode\fR\&.
 .sp
 P30 \c
-.MTO "test\(atexample.org" "Mail" "\c"
+.MTO "test\(atexample.org" "Mail" "\fR\c"
 ! More.
 .sp
 P31 \c
-.MTO "test\(atexample.org" "Mail" "\c"
+.MTO "test\(atexample.org" "Mail" "\fR\c"
 [1]\&.
 .sp
 P32 \c
-.URL "https://example.org" "\fIQuoted label\fP" "\c"
+.URL "https://example.org" "\fIQuoted label\fR" "\fR\c"
 \&.
 .sp
 P33 (\c
-.URL "https://example.org" "" "\c"
+.URL "https://example.org" "" "\fR\c"
 )after.
 .sp
 P34 \c
-.URL "https://example.org" "Label" "\c"
+.URL "https://example.org" "Label" "\fR\c"
 \&.
 .SH "NOTES"
 .IP [1] 4

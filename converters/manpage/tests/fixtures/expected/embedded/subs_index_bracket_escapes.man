@@ -11,12 +11,12 @@ Expanded \e] term
 .EX
 Code \e] term
 \c
-.URL "https://example.org" "Code link ] term" "\c"
+.URL "https://example.org" "Code link ] term" "\fR\c"
 .EE
 .sp
 Pass ] term
 .sp
-\fBLate \e] bold\fP
+\fBLate \e] bold\fR
 .sp
 Pass repeated \e] term
 .sp
@@ -25,7 +25,7 @@ Expanded ] term
 Expanded \e] term
 .sp
 \c
-.URL "https://example.org" "Linked Expanded \e] term" "\c"
+.URL "https://example.org" "Linked Expanded \e] term" "\fR\c"
 
 .SH "INDEX"
 .SS "@"

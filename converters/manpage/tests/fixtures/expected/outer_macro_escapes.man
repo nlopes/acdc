@@ -31,7 +31,7 @@
 macro\-escapes \- outer macro escapes
 .SH "SYNOPSIS"
 .sp
-\fBmacro\-escapes\fP
+\fBmacro\-escapes\fR
 .SH "DESCRIPTION"
 .sp
 E01 indexterm2:[One] and \eindexterm2:[Two] and \e\eindexterm2:[Three]\&.
@@ -51,17 +51,17 @@ E07 \efootnote:[Incomplete
 E08 \eanchor:unused[Incomplete
 .sp
 E09 \e\c
-.URL "https://example.org" "One" "\c"
+.URL "https://example.org" "One" "\fR\c"
  and \e\e\c
-.URL "https://example.org" "Two" "\c"
+.URL "https://example.org" "Two" "\fR\c"
  and \e\e\e\c
-.URL "https://example.org" "Three" "\c"
+.URL "https://example.org" "Three" "\fR\c"
 \&.
 .sp
 E10 https://example.org[One] and \e\ehttps://example.org[Two] and \e\e\ehttps://example.org[Three]\&.
 .sp
 E11 \c
-.URL "https://example.org" "Label" "\c"
+.URL "https://example.org" "Label" "\fR\c"
  and link:manual.html[File] and link:mailto:user@example.org[Mail]\&.
 .sp
 E12 mailto:user@example.org[One] and \emailto:user@example.org[Two]\&.
@@ -80,7 +80,7 @@ E18 \efootnote:[Incomplete \e] label
 .sp
 E19 \eunknown:[Text] and \eword[Text] and \e((Incomplete.
 .sp
-E20 indexterm2:[\fBBold\fP] and \eindexterm2:[\fBBold\fP]\&.
+E20 indexterm2:[\fBBold\fR] and \eindexterm2:[\fBBold\fR]\&.
 .sp
 E21 Active and Active and [1]\&.
 .sp

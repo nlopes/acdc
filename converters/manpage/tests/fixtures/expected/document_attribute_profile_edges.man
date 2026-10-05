@@ -31,12 +31,12 @@
 profile\-edges \- retained attribute profile edge cases
 .SH "DESCRIPTION"
 .sp
-before prefix \fBÉva\fP / \fIItalic\fP suffix after / *Literal* / \fBÉva\fP / https://example.org[Protected] before \fBÉva\fP / \fIItalic\fP after / {bold} / https://example.org[Literal] / \fBÉva\fP / https://example.org[Literal] / \fBÉva\fP\&.
+before prefix \fBÉva\fR / \fIItalic\fR suffix after / *Literal* / \fBÉva\fR / https://example.org[Protected] before \fBÉva\fR / \fIItalic\fR after / {bold} / https://example.org[Literal] / \fBÉva\fR / https://example.org[Literal] / \fBÉva\fR\&.
 .sp
- / \fB{missing}\fP / \fB{name}\fP / \fBEarly\fP\&.
+ / \fB{missing}\fR / \fB{name}\fR / \fBEarly\fR\&.
 .sp
 \c
-.URL "https://example.org" "Site" "\c"
+.URL "https://example.org" "Site" "\fR\c"
  / [1] / [2] / [3] / [3] / [3]\&.
 .sp
 pass:q,c[*Escaped*] / pass:a,c[{bold}] / pass:typo[*Unknown*]\&.

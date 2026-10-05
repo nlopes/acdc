@@ -31,24 +31,24 @@
 prepared\-code \- formatted attributes in code
 .SH "SYNOPSIS"
 .sp
-\fBprepared\-code\fP
+\fBprepared\-code\fR
 .SH "DESCRIPTION"
 .EX
-Formatting: \fBBold\fP / \fBEarly\fP / \fBEarly\fP \(co / \c
-.URL "https://example.org" "Site" "\c"
+Formatting: \fBBold\fR / \fBEarly\fR / \fBEarly\fR \(co / \c
+.URL "https://example.org" "Site" "\fR\c"
 
 Literal references: {bold} / {bold}
 .EE
 .EX
-Escaped: \fBBold\fP / \fBEarly\fP / \fBEarly\fP \(co / \c
-.URL "https://example.org" "Site" "\c"
+Escaped: \fBBold\fR / \fBEarly\fR / \fBEarly\fR \(co / \c
+.URL "https://example.org" "Site" "\fR\c"
 .EE
 .EX
-Macros: \fBBold\fP / [1] / [1] / Term
+Macros: \fBBold\fR / [1] / [1] / Term
 .EE
 .EX
-// Highlighted: \fBBold\fP / [1] / \c
-.URL "https://example.org" "Site" "\c"
+// Highlighted: \fBBold\fR / [1] / \c
+.URL "https://example.org" "Site" "\fR\c"
  / Term
 .EE
 .SH "INDEX"

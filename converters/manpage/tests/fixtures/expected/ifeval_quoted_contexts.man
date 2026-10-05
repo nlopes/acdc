@@ -52,6 +52,6 @@ C08 A conditional list item remains a list.
 C09 A conditional listing remains a listing.
 .EE
 .sp
-C10 \fBFormatting\fP remains available in included content.
+C10 \fBFormatting\fR remains available in included content.
 .sp
 C11 Final content keeps its original source location.

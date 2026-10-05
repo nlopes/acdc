@@ -32,14 +32,14 @@ named\-index\-subs \- keep index delimiters with enabled substitutions
 .SH "SYNOPSIS"
 .EX
 S01 Before \c
-.URL "https://example.org/code" "Link" "\c"
+.URL "https://example.org/code" "Link" "\fR\c"
  after end.
 S02 Before [1] after end.
 S03  end.
 .EE
 .EX
 S04 Before \c
-.URL "https://example.org/format" "\fBBold\fP" "\c"
+.URL "https://example.org/format" "\fBBold\fR" "\fR\c"
  after end.
 .EE
 .EX
@@ -49,26 +49,26 @@ S05 indexterm2:[Before https://example.org/disabled[Literal] after] end.
 S06 indexterm2:[Before https://example.org/none[Literal] after] end.
 .sp
 S07 Before \c
-.URL "https://example.org/reordered" "\fBBold\fP" "\c"
+.URL "https://example.org/reordered" "\fBBold\fR" "\fR\c"
  after end.
 .sp
 S08 Before \c
-.URL "https://example.org/attribute" "Expanded" "\c"
+.URL "https://example.org/attribute" "Expanded" "\fR\c"
  after end.
 .sp
 S09 Before https://example.org/attribute[Expanded] after end.
 .sp
 S10 Before \c
-.URL "https://example.org/pass" "Link" "\c"
+.URL "https://example.org/pass" "Link" "\fR\c"
  after end.
 .sp
-S11 Before \fBProtected\fP after end.
+S11 Before \fBProtected\fR after end.
 .sp
 After [1]\&.
 .SH "INDEX"
 .SS "B"
 .RS 4
-Before \fBProtected\fP after
+Before \fBProtected\fR after
 .br
 Before footnote:code[Code note.] after
 .br
@@ -76,7 +76,7 @@ Before https://example.org/attribute[Expanded] after
 .br
 Before https://example.org/code[Link] after
 .br
-Before https://example.org/format[\fBBold\fP] after
+Before https://example.org/format[\fBBold\fR] after
 .br
 Before https://example.org/pass[Link] after
 .br

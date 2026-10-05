@@ -31,27 +31,27 @@
 inline\-spacing \- preserve spaces around inline formatting
 .SH "DESCRIPTION"
 .sp
-Copyright \fBBold\fP and \(co.
+Copyright \fBBold\fR and \(co.
 .sp
-Registered \fIItalic\fP and \(rg.
+Registered \fIItalic\fR and \(rg.
 .sp
-Trademark \f(CRCode\fP and \(tm.
+Trademark \f(CRCode\fR and \(tm.
 .sp
-Hyphen \fBBold\fP \- dash.
+Hyphen \fBBold\fR \- dash.
 .sp
-Backslash \fBBold\fP path\eto\efile.
+Backslash \fBBold\fR path\eto\efile.
 .sp
-Quotes \fBBold\fP \(lqquoted\(rq\&.
+Quotes \fBBold\fR \(lqquoted\(rq\&.
 .sp
-Ellipsis \fBBold\fP .\|.\|. end.
+Ellipsis \fBBold\fR .\|.\|. end.
 .sp
-Nested \fBBold \fIItalic\fP\fP and \(co.
+Nested \fBBold \fIItalic\fB\fR and \(co.
 .sp
-Raw \fBBold\fP and \(co.
+Raw \fBBold\fR and \(co.
 .sp
-Adjacent \fBBold\fP\(co.
+Adjacent \fBBold\fR\(co.
 .sp
-Multiple \fBBold\fP spaces and \(co.
+Multiple \fBBold\fR spaces and \(co.
 .sp
 Wrapped plain
 next line.
@@ -62,19 +62,19 @@ next \(co line.
 Wrapped indentation
 next line \- normalized.
 .sp
-Protected period \fBBold\fP
+Protected period \fBBold\fR
 \&.leading\-period
 .sp
-Protected apostrophe \fBBold\fP
+Protected apostrophe \fBBold\fR
 \(aqleading\-apostrophe
 .sp
-Hard break \fBBold\fP
+Hard break \fBBold\fR
 .br
 next \(co line.
 .sp
 Formatted hard break before
 .br
-\fBBold\fP and \(co.
+\fBBold\fR and \(co.
 .sp
 Marker hard break before
 .br
@@ -101,7 +101,7 @@ Visible index hard break before
 Visible and \(co.
 .sp
 Link \c
-.URL "https://example.org" "Example" "\c"
+.URL "https://example.org" "Example" "\fR\c"
  and \(co.
 .sp
 Note [2]
@@ -113,4 +113,4 @@ Reuse [2]\&.
 .IP [1] 4
 Break note.
 .IP [2] 4
-\fBBold\fP and \(co.
+\fBBold\fR and \(co.

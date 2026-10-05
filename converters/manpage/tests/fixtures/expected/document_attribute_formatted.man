@@ -31,18 +31,18 @@
 prepared\-attributes \- formatted document attributes
 .SH "SYNOPSIS"
 .sp
-\fBprepared\-attributes\fP
+\fBprepared\-attributes\fR
 .SH "DESCRIPTION"
 .sp
-Frozen: \fBEarly\fP / \fBEarly\fP / \fBEarly\fP \(co / \fBLate\fP\&.
+Frozen: \fBEarly\fR / \fBEarly\fR / \fBEarly\fR \(co / \fBLate\fR\&.
 .sp
-Alias: \fBBold\fP / \fBEarly\fP / [1] / \fBBody\fP / [2] / [3]\&.
+Alias: \fBBold\fR / \fBEarly\fR / [1] / \fBBody\fR / [2] / [3]\&.
 .sp
 Macros: \c
-.URL "https://example.org" "Site" "\c"
+.URL "https://example.org" "Site" "\fR\c"
  / Term / [4] / [4]\&.
 .sp
-Empty: ** / **\&. Escaped: \fB{name}\fP\&.
+Empty: ** / **\&. Escaped: \fB{name}\fR\&.
 .sp
 Order: pass:q,c[*Escaped*] / pass:m,c[https://example.org[Escaped site]]\&. Partial: prefix pass:q[*Literal*].
 .TS
@@ -50,16 +50,16 @@ allbox tab(:);
 ltx ltx.
 T{
 .sp
-Cell: \fBEarly\fP / \fBBold\fP / \fBEarly\fP / [5]\&.
+Cell: \fBEarly\fR / \fBBold\fR / \fBEarly\fR / [5]\&.
 
 T}:T{
 .sp
-Other: Late / \fBBody\fP\&.
+Other: Late / \fBBody\fR\&.
 
 T}
 .TE
 .sp
-Unset: {bold} / \fBBold\fP / \fBEarly\fP / [6]\&.
+Unset: {bold} / \fBBold\fR / \fBEarly\fR / [6]\&.
 .SH "INDEX"
 .SS "T"
 .RS 4

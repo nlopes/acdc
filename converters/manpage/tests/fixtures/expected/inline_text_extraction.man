@@ -31,22 +31,18 @@
 inline\-text \- verify plain inline text extraction
 .SH "SYNOPSIS"
 .sp
-\fBinline\-text\fP
+\fBinline\-text\fR
 .SH "DESCRIPTION"
 .sp
-.nr acdc-title-font \n[.f]
-\fBExample 1. Target \fBTitle\fP\f[\n[acdc-title-font]]
+\fBExample 1. Target \fBTitle\fB\fR
 .br
-.rr acdc-title-font
 .RS 4
 .sp
 Target body.
 .RE
 .sp
-.nr acdc-title-font \n[.f]
-\fBExample 2. Ignored title\f[\n[acdc-title-font]]
+\fBExample 2. Ignored title\fR
 .br
-.rr acdc-title-font
 .RS 4
 .sp
 Labelled body.
@@ -58,12 +54,10 @@ Untitled body.
 .sp
 Before the recursive section: SEE [recursive] AGAIN\&.
 .sp
-.nr acdc-title-font \n[.f]
-\fBExample 3. Caption with Target \fBTitle\fP and \c
-.URL "https://example.com" "a link" "\c"
-\f[\n[acdc-title-font]]
+\fBExample 3. Caption with Target \fBTitle\fB and \c
+.URL "https://example.com" "\fBa link" "\fB\c"
+\fR
 .br
-.rr acdc-title-font
 .RS 4
 .sp
 Caption body.

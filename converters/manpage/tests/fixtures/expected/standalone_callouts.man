@@ -64,7 +64,7 @@ Alpha.
 .RS 0
 .RS 4
 .TP
-\fBTerm\fP
+\fBTerm\fR
 Child.
 .RE
 .RE
@@ -84,7 +84,7 @@ Beta.
 .RE
 .SS "Metadata"
 .sp
-\fBNotes\fP
+\fBNotes\fR
 .RS 0
 .IP \fB(1)\fP 4
 Alpha.

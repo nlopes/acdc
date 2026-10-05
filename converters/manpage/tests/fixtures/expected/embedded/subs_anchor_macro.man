@@ -38,4 +38,4 @@ literal text.
 .EX
 .EE
 .sp
-See Empty code, Before]after, Expanded label, Expanded label, \fBBold\fP label, Code label, Short label, Code only, Literal label, Styled label, and Styled literal\&.
+See Empty code, Before]after, Expanded label, Expanded label, \fBBold\fR label, Code label, Short label, Code only, Literal label, Styled label, and Styled literal\&.

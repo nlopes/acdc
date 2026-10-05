@@ -34,42 +34,32 @@ caption\-source\-order \- verify source\-position caption behavior
 caption\-source\-order
 .SH "DESCRIPTION"
 .sp
-.nr acdc-title-font \n[.f]
-\fBBefore Figure 1. Before figure\f[\n[acdc-title-font]]
+\fBBefore Figure 1. Before figure\fR
 .br
-.rr acdc-title-font
 [before]
 .sp
-.nr acdc-title-font \n[.f]
-\fBBefore Table 1. Before table\f[\n[acdc-title-font]]
+\fBBefore Table 1. Before table\fR
 .br
-.rr acdc-title-font
 .TS
 allbox tab(:);
 ltx.
 Before table cell
 .TE
 .sp
-.nr acdc-title-font \n[.f]
-\fBBefore Example 2. Before outer example\f[\n[acdc-title-font]]
+\fBBefore Example 2. Before outer example\fR
 .br
-.rr acdc-title-font
 .RS 4
 .sp
-.nr acdc-title-font \n[.f]
-\fBBefore Example 1. Before inner example\f[\n[acdc-title-font]]
+\fBBefore Example 1. Before inner example\fR
 .br
-.rr acdc-title-font
 .RS 4
 .sp
 Before inner example content.
 .RE
 .RE
 .sp
-.nr acdc-title-font \n[.f]
-\fBBefore Listing 1. Before listing paragraph\f[\n[acdc-title-font]]
+\fBBefore Listing 1. Before listing paragraph\fR
 .br
-.rr acdc-title-font
 .if n .RS 4
 .nf
 .fam C
@@ -78,167 +68,127 @@ let before = 1;
 .fi
 .if n .RE
 .sp
-.nr acdc-title-font \n[.f]
-\fBAfter Figure 2. After figure\f[\n[acdc-title-font]]
+\fBAfter Figure 2. After figure\fR
 .br
-.rr acdc-title-font
 [after]
 .sp
-.nr acdc-title-font \n[.f]
-\fBAfter Table 2. After table\f[\n[acdc-title-font]]
+\fBAfter Table 2. After table\fR
 .br
-.rr acdc-title-font
 .TS
 allbox tab(:);
 ltx.
 After table cell
 .TE
 .sp
-.nr acdc-title-font \n[.f]
-\fBAfter Example 3. After example\f[\n[acdc-title-font]]
+\fBAfter Example 3. After example\fR
 .br
-.rr acdc-title-font
 .RS 4
 .sp
 After example content.
 .RE
 .sp
-.nr acdc-title-font \n[.f]
-\fBAfter Listing 2. After listing block\f[\n[acdc-title-font]]
+\fBAfter Listing 2. After listing block\fR
 .br
-.rr acdc-title-font
 .EX
 let after = 2;
 .EE
 .sp
-.nr acdc-title-font \n[.f]
-\fBDisabled figure\f[\n[acdc-title-font]]
+\fBDisabled figure\fR
 .br
-.rr acdc-title-font
 [disabled]
 .sp
-.nr acdc-title-font \n[.f]
-\fBDisabled table\f[\n[acdc-title-font]]
+\fBDisabled table\fR
 .br
-.rr acdc-title-font
 .TS
 allbox tab(:);
 ltx.
 Disabled table cell
 .TE
 .sp
-.nr acdc-title-font \n[.f]
-\fBDisabled example\f[\n[acdc-title-font]]
+\fBDisabled example\fR
 .br
-.rr acdc-title-font
 .RS 4
 .sp
 Disabled example content.
 .RE
 .sp
-.nr acdc-title-font \n[.f]
-\fBDisabled listing\f[\n[acdc-title-font]]
+\fBDisabled listing\fR
 .br
-.rr acdc-title-font
 .EX
 disabled listing content
 .EE
 .sp
-.nr acdc-title-font \n[.f]
-\fBCustom Figure: Custom figure\f[\n[acdc-title-font]]
+\fBCustom Figure: Custom figure\fR
 .br
-.rr acdc-title-font
 [custom]
 .sp
-.nr acdc-title-font \n[.f]
-\fBCustom Table: Custom table\f[\n[acdc-title-font]]
+\fBCustom Table: Custom table\fR
 .br
-.rr acdc-title-font
 .TS
 allbox tab(:);
 ltx.
 Custom table cell
 .TE
 .sp
-.nr acdc-title-font \n[.f]
-\fBCustom Example: Custom example\f[\n[acdc-title-font]]
+\fBCustom Example: Custom example\fR
 .br
-.rr acdc-title-font
 .RS 4
 .sp
 Custom example content.
 .RE
 .sp
-.nr acdc-title-font \n[.f]
-\fBCustom Listing: Custom listing\f[\n[acdc-title-font]]
+\fBCustom Listing: Custom listing\fR
 .br
-.rr acdc-title-font
 .EX
 custom listing content
 .EE
 .sp
-.nr acdc-title-font \n[.f]
-\fBDocument:Document figure\f[\n[acdc-title-font]]
+\fBDocument:Document figure\fR
 .br
-.rr acdc-title-font
 [document]
 .sp
-.nr acdc-title-font \n[.f]
-\fBDocument:Document table\f[\n[acdc-title-font]]
+\fBDocument:Document table\fR
 .br
-.rr acdc-title-font
 .TS
 allbox tab(:);
 ltx.
 Document table cell
 .TE
 .sp
-.nr acdc-title-font \n[.f]
-\fBDocument:Document example\f[\n[acdc-title-font]]
+\fBDocument:Document example\fR
 .br
-.rr acdc-title-font
 .RS 4
 .sp
 Document example content.
 .RE
 .sp
-.nr acdc-title-font \n[.f]
-\fBDocument:Document listing\f[\n[acdc-title-font]]
+\fBDocument:Document listing\fR
 .br
-.rr acdc-title-font
 .EX
 document listing content
 .EE
 .sp
-.nr acdc-title-font \n[.f]
-\fBRestored Figure 3. Restored figure\f[\n[acdc-title-font]]
+\fBRestored Figure 3. Restored figure\fR
 .br
-.rr acdc-title-font
 [restored]
 .sp
-.nr acdc-title-font \n[.f]
-\fBRestored Table 3. Restored table\f[\n[acdc-title-font]]
+\fBRestored Table 3. Restored table\fR
 .br
-.rr acdc-title-font
 .TS
 allbox tab(:);
 ltx.
 Restored table cell
 .TE
 .sp
-.nr acdc-title-font \n[.f]
-\fBRestored Example 4. Restored example\f[\n[acdc-title-font]]
+\fBRestored Example 4. Restored example\fR
 .br
-.rr acdc-title-font
 .RS 4
 .sp
 Restored example content.
 .RE
 .sp
-.nr acdc-title-font \n[.f]
-\fBRestored Listing 3. Restored listing\f[\n[acdc-title-font]]
+\fBRestored Listing 3. Restored listing\fR
 .br
-.rr acdc-title-font
 .EX
 restored listing content
 .EE

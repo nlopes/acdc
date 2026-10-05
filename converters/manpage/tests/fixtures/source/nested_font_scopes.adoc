@@ -1,0 +1,83 @@
+= font-scopes(1)
+:doctype: manpage
+:revdate: 2026-10-05
+:experimental:
+
+== Name
+
+font-scopes - nested font restoration
+
+== Synopsis
+
+*B00*
+
+== Description
+
+*B01 _I01_ B02* R01.
+
+R02 plain paragraph.
+
+_I02 *B03* I03_ R03.
+
+`M01 *B04* M02` R04.
+
+*B05 _I04 `M03` I05_ B06* R05.
+
+*B07 https://example.org[_I06_ B08] B09* R06.
+
+_I07 mailto:user@example.org[*B10* I08] I09_ R07.
+
+[[target]]
+Target paragraph.
+
+*B11 xref:target[_I10_ B12] B13* R08.
+
+[.underline]#I11 *B14* I12# R09.
+
+[.underline.line-through.highlight]#B15 _I13_ B16# R10.
+
+*B17 btn:[B18] B19 kbd:[B20] B21 menu:B22[B23] B24* R11.
+
+.B25 _I14_ B26
+[quote]
+R12 quote body.
+
+.B27 _I15_ B28
+* R13 list item.
+
+B29 _I16_ B30:: R14 description.
+
+[horizontal]
+B31 _I17_ B32:: R15 horizontal description.
+
+[qanda]
+B33 _I18_ B34:: R16 answer.
+
+[discrete]
+=== B35 _I19_ B36
+
+R17 after discrete title.
+
+[cols="1,1,1",options=header]
+|===
+|B37 _I20_ B38 |B39 _I21_ B40 |B41 _I22_ B42
+
+s|B43 _I23_ B44
+e|I24 *B45* I25
+m|M04 *B46* M05
+|===
+
+R18 after table.
+
+((R19 *B47 _I26_ B48* R20)) R21.
+
+footnote:n[FN01 *FB01 _FI01_ FB02* FN02.] R22.
+
+link:https://outer.example[*B49 link:https://inner.example[_I27_] B50*] R23.
+
+*B51 pass:[\fII28\fB] B52* R24.
+
+*B53 indexterm:[_I29_ R26] B54* R25.
+
+[index]
+== Index

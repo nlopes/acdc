@@ -31,10 +31,8 @@
 styled\-titles \- preserve quote and verse titles
 .SH "SYNOPSIS"
 .sp
-.nr acdc-title-font \n[.f]
-\fBQ01 Quoted \fBtitle\fP \(co\f[\n[acdc-title-font]]
+\fBQ01 Quoted \fBtitle\fB \(co\fR
 .br
-.rr acdc-title-font
 .RS 3
 .ll -.6i
 .sp
@@ -48,10 +46,8 @@ Book \(em Writer
 .RE
 .ll
 .sp
-.nr acdc-title-font \n[.f]
-\fBV01 Verse \fItitle\fP \(rg\f[\n[acdc-title-font]]
+\fBV01 Verse \fItitle\fB \(rg\fR
 .br
-.rr acdc-title-font
 .nf
 V01 verse first.
 V01 verse second.
@@ -63,10 +59,8 @@ Poem \(em Poet
 .in
 .ll
 .sp
-.nr acdc-title-font \n[.f]
-\fBQ02 expanded with "quotes" and Éva\(cqs title\f[\n[acdc-title-font]]
+\fBQ02 expanded with "quotes" and Éva\(cqs title\fR
 .br
-.rr acdc-title-font
 .RS 3
 .ll -.6i
 .sp
@@ -75,21 +69,17 @@ Q02 quote without attribution.
 .RE
 .ll
 .sp
-.nr acdc-title-font \n[.f]
-\fBV02 A title without attribution\f[\n[acdc-title-font]]
+\fBV02 A title without attribution\fR
 .br
-.rr acdc-title-font
 .nf
 V02 verse first.
 V02 verse second.
 .fi
 .sp
-.nr acdc-title-font \n[.f]
 \fBQ03 Title \c
-.URL "https://example.org/title" "Title link" "\c"
- [1] Title term\f[\n[acdc-title-font]]
+.URL "https://example.org/title" "\fBTitle link" "\fB\c"
+ [1] Title term\fR
 .br
-.rr acdc-title-font
 .RS 3
 .ll -.6i
 .sp
@@ -98,10 +88,8 @@ Q03 quote body.
 .RE
 .ll
 .sp
-.nr acdc-title-font \n[.f]
-\fBV03 Title [1] and Verse term\f[\n[acdc-title-font]]
+\fBV03 Title [1] and Verse term\fR
 .br
-.rr acdc-title-font
 .nf
 V03 verse body.
 .fi
@@ -136,10 +124,8 @@ ltx
 ltx.
 T{
 .sp
-.nr acdc-title-font \n[.f]
-\fBQ05 Cell \fBtitle\fP \(co\f[\n[acdc-title-font]]
+\fBQ05 Cell \fBtitle\fB \(co\fR
 .br
-.rr acdc-title-font
 .RS 3
 .ll -.6i
 .sp
@@ -156,10 +142,8 @@ Cell book \(em Cell writer
 T}
 T{
 .sp
-.nr acdc-title-font \n[.f]
-\fBV05 Cell \fItitle\fP \(rg\f[\n[acdc-title-font]]
+\fBV05 Cell \fItitle\fB \(rg\fR
 .br
-.rr acdc-title-font
 .nf
 V05 cell verse first.
 V05 cell verse second.
@@ -190,10 +174,8 @@ T}
 List item.
 .RS 2
 .sp
-.nr acdc-title-font \n[.f]
-\fBQ07 Attached quote title\f[\n[acdc-title-font]]
+\fBQ07 Attached quote title\fR
 .br
-.rr acdc-title-font
 .RS 3
 .ll -.6i
 .sp
@@ -204,19 +186,15 @@ Q07 attached quote body.
 .RE
 .RE
 .sp
-.nr acdc-title-font \n[.f]
-\fBV07 Nested verse title\f[\n[acdc-title-font]]
+\fBV07 Nested verse title\fR
 .br
-.rr acdc-title-font
 .nf
 V07 nested verse first.
 V07 nested verse second.
 .fi
 .sp
-.nr acdc-title-font \n[.f]
-\fBQ08 Delimited quote control\f[\n[acdc-title-font]]
+\fBQ08 Delimited quote control\fR
 .br
-.rr acdc-title-font
 .RS 4
 .sp
 Q08 delimited quote body.
@@ -227,10 +205,8 @@ Q08 delimited quote body.
 .RE
 .ll
 .sp
-.nr acdc-title-font \n[.f]
-\fBV08 Delimited verse control\f[\n[acdc-title-font]]
+\fBV08 Delimited verse control\fR
 .br
-.rr acdc-title-font
 .nf
 V08 delimited verse first.
 V08 delimited verse second.

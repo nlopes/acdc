@@ -31,7 +31,7 @@
 styled_paragraphs \- test styled paragraph rendering
 .SH "SYNOPSIS"
 .sp
-\fBstyled_paragraphs\fP [\fIOPTIONS\fP]
+\fBstyled_paragraphs\fR [\fIOPTIONS\fR]
 .SH "QUOTE STYLE"
 .RS 3
 .ll -.6i

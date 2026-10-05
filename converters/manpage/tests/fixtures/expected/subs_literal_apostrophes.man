@@ -31,7 +31,7 @@
 literal\-apostrophes \- substitution controls for apostrophes
 .SH "SYNOPSIS"
 .sp
-\fBliteral\-apostrophes\fP
+\fBliteral\-apostrophes\fR
 .SH "DESCRIPTION"
 .sp
 S01 Sam\(aqs
@@ -47,11 +47,11 @@ S05 Sam\(cqs and Sam\(aqs
 S06 Sam\(aqs and Sam\(cqs
 .sp
 S07 \c
-.URL "https://next.example/plain" "Sam\(aqs" "\c"
+.URL "https://next.example/plain" "Sam\(aqs" "\fR\c"
 
 .sp
 S08 \c
-.URL "https://next.example/plain" "Sam\(aqs" "\c"
+.URL "https://next.example/plain" "Sam\(aqs" "\fR\c"
 
 .sp
 S09 3\(aq4 and _\(aqs
@@ -68,10 +68,10 @@ R05 Sam\(cqs
 R06 Sam\(aqs
 R07 Sam\(cqs
 R08 \c
-.URL "https://next.example/quote\(aqs" "3\(aq4" "\c"
+.URL "https://next.example/quote\(aqs" "3\(aq4" "\fR\c"
 
 R09 \c
-.URL "https://next.example/plain" "Sam\(aqs" "\c"
+.URL "https://next.example/plain" "Sam\(aqs" "\fR\c"
 
 \(aqline\-start request control
 .EE
@@ -81,7 +81,7 @@ D02 Sam\(aqs
 D03 Sam\(cqs
 D04 Sam\(aqs
 D05 \c
-.URL "https://next.example/plain" "Sam\(aqs" "\c"
+.URL "https://next.example/plain" "Sam\(aqs" "\fR\c"
 .EE
 .SH "INDEX"
 .SS "@"

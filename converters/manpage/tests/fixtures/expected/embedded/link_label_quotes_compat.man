@@ -1,16 +1,16 @@
 .sp
 \c
-.URL "https://example.org" "\(dqOne \e\(dqquote\e\(dq ] two\(dq,role=green" "\c"
+.URL "https://example.org" "\(dqOne \e\(dqquote\e\(dq ] two\(dq,role=green" "\fR\c"
 
 .sp
 \c
-.URL "https://example.org" "\(dqOne, two\(dq,role=green" "\c"
+.URL "https://example.org" "\(dqOne, two\(dq,role=green" "\fR\c"
 
 .sp
 \c
-.MTO "test\(atexample.org" "\(dqOne, two\(dq,role=green" "\c"
+.MTO "test\(atexample.org" "\(dqOne, two\(dq,role=green" "\fR\c"
 
 .sp
 \c
-.URL "https://example.org" "\(dqLiteral label\(dq" "\c"
+.URL "https://example.org" "\(dqLiteral label\(dq" "\fR\c"
 

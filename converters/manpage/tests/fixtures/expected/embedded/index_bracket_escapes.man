@@ -16,11 +16,11 @@ Named ] visible
 
 .sp
 \c
-.URL "https://example.org" "Linked ] term" "\c"
+.URL "https://example.org" "Linked ] term" "\fR\c"
 
 .sp
 \c
-.URL "https://example.org" "Quoted ] term" "\c"
+.URL "https://example.org" "Quoted ] term" "\fR\c"
 
 .sp
 Plain ] control
@@ -30,7 +30,7 @@ Named repeated \e] visible
 Named opening \e[ visible
 .sp
 \c
-.URL "https://example.org" "Nested named ] visible" "\c"
+.URL "https://example.org" "Nested named ] visible" "\fR\c"
 
 .sp
 
@@ -40,7 +40,7 @@ Alias \e] label
 
 .sp
 \c
-.URL "https://example.org" "Nested opening \e[ visible" "\c"
+.URL "https://example.org" "Nested opening \e[ visible" "\fR\c"
 
 .sp
 Escaped [[id]] anchor

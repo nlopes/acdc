@@ -31,7 +31,7 @@
 literal\-apostrophes \- straight and curly apostrophes
 .SH "SYNOPSIS"
 .sp
-\fBliteral\-apostrophes\fP
+\fBliteral\-apostrophes\fR
 .SH "DESCRIPTION"
 .sp
 P01 3\(aq4
@@ -58,22 +58,22 @@ P11 3\(aq4
 .sp
 P12 3\(aq4
 .sp
-P13 \fB3\(aq4\fP
+P13 \fB3\(aq4\fR
 .sp
-P14 \f(CR3\(aq4\fP
+P14 \f(CR3\(aq4\fR
 .sp
 P15 \(oqsingle\(cq Sam\(cqs
 .sp
 P16 \c
-.URL "https://next.example/quote\(aqs" "3\(aq4" "\c"
+.URL "https://next.example/quote\(aqs" "3\(aq4" "\fR\c"
 
 .sp
 P17 \c
-.URL "https://next.example/plain" "Sam\(aqs" "\c"
+.URL "https://next.example/plain" "Sam\(aqs" "\fR\c"
 
 .sp
 P18 \c
-.MTO "sam\(atexample.org" "Sam\(aqs mail" "\c"
+.MTO "sam\(atexample.org" "Sam\(aqs mail" "\fR\c"
 
 .sp
 P19 target
@@ -91,10 +91,8 @@ P23 heading control.
 .sp
 P24 subsection control.
 .sp
-.nr acdc-title-font \n[.f]
-\fBCode control\f[\n[acdc-title-font]]
+\fBCode control\fR
 .br
-.rr acdc-title-font
 .EX
 C01 3\(aq4
 C02 Sam\(aqs

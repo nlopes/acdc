@@ -4,27 +4,27 @@ Email links.
 .SH "DESCRIPTION"
 .sp
 \c
-.MTO "normal\(atexample.org?subject=Expanded%20subject&body=Caf%C3%A9%20%26%20tea" "Normal" "\c"
+.MTO "normal\(atexample.org?subject=Expanded%20subject&body=Caf%C3%A9%20%26%20tea" "Normal" "\fR\c"
 
 .sp
 \c
-.MTO "late\(atexample.org?subject=%7Bsubject%7D&body=%7Bbody%7D" "One, two" "\c"
+.MTO "late\(atexample.org?subject=%7Bsubject%7D&body=%7Bbody%7D" "One, two" "\fR\c"
 
 .sp
 \c
-.MTO "early\(atexample.org?subject=Expanded%20subject&body=Caf%C3%A9%20%26%20tea" "Early" "\c"
+.MTO "early\(atexample.org?subject=Expanded%20subject&body=Caf%C3%A9%20%26%20tea" "Early" "\fR\c"
 
 .EX
 \c
-.MTO "code\(atexample.org?subject=Subject%20text&body=Body%20text" "Code" "\c"
+.MTO "code\(atexample.org?subject=Subject%20text&body=Body%20text" "Code" "\fR\c"
 .EE
 .sp
 \c
-.MTO "label\(atexample.org" "One, two" "\c"
+.MTO "label\(atexample.org" "One, two" "\fR\c"
 
 .sp
 \c
-.MTO "pass\(atexample.org?subject=Subject&body=Body" "Pass" "\c"
+.MTO "pass\(atexample.org?subject=Subject&body=Body" "Pass" "\fR\c"
 
 .sp
 mailto:disabled@example.org[Disabled,Subject,Body]

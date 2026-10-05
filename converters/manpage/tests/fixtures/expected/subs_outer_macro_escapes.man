@@ -31,7 +31,7 @@
 macro\-escapes \- outer macro escapes
 .SH "SYNOPSIS"
 .sp
-\fBmacro\-escapes\fP
+\fBmacro\-escapes\fR
 .SH "DESCRIPTION"
 .sp
 S01 \eindexterm2:[Disabled] and \exref:target[Disabled] and \efootnote:[Disabled] and \eanchor:unused[Disabled].
@@ -46,7 +46,7 @@ S05 indexterm2:[Attribute] and xref:target[Attribute]\&.
 .EX
 S06 indexterm2:[One] \eindexterm2:[Two] xref:target[One] \exref:target[Two]
 S07 \e\c
-.URL "https://example.org" "Explicit" "\c"
+.URL "https://example.org" "Explicit" "\fR\c"
  https://example.org[Bare]
 S08 \efootnote:[Incomplete
 .EE

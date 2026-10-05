@@ -6,19 +6,19 @@ pass:a,m[link:https://example.org[Expanded\e]]
 pass:m[link:https://example.org[Label\e]]
 .sp
 \c
-.URL "https://example.org" "Expanded" "\c"
+.URL "https://example.org" "Expanded" "\fR\c"
 
 .sp
 See Code target\&.
 .EX
 Before \c
-.URL "https://example.org" "Code link" "\c"
+.URL "https://example.org" "Code link" "\fR\c"
  after.
 Destination.
 .EE
 .EX
 let value = \c
-.URL "https://example.org" "1" "\c"
+.URL "https://example.org" "1" "\fR\c"
 ;
 [1]
 .EE

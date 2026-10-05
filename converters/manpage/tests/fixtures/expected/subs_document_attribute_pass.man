@@ -47,7 +47,7 @@ A15 \(co
 .sp
 P01 Generated | {name} | Generated / {name} | pass:[Nested]
 .sp
-P02 \fB{name}\fP | \fIpass:[Nested]\fP | \f(CR{name}\fP
+P02 \fB{name}\fR | \fIpass:[Nested]\fR | \f(CR{name}\fR
 .sp
 P03 prefix pass:[Embedded] | \epass:[Escaped]
 .sp
@@ -57,7 +57,7 @@ P05 Before after.
 .sp
 P07 \(co
 .sp
-P08 \e{name} | \fB\e{name}\fP
+P08 \e{name} | \fB\e{name}\fR
 .EX
 A12 Body
 A13 Generated / {name}

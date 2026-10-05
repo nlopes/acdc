@@ -36,10 +36,10 @@ ltx ltx
 ltx ltx
 ltx ltx.
 T{
-I01 Hello World: \fBbold\fP, \fIitalic\fP, \f(CRcode\fP\&.
+I01 Hello World: \fBbold\fR, \fIitalic\fR, \f(CRcode\fR\&.
 ////
 I01 \c
-.URL "https://example.org/table" "Visit" "\c"
+.URL "https://example.org/table" "Visit" "\fR\c"
 \&.
 ////
 .sp
@@ -59,7 +59,7 @@ I03 value=outer.
 T}:T{
 .sp
 A04 Paragraph with \c
-.URL "https://example.org/nested" "Nested" "\c"
+.URL "https://example.org/nested" "Nested" "\fR\c"
 \&.
 .sp
 A04 Second paragraph.

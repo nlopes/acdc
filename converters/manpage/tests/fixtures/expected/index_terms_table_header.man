@@ -31,10 +31,8 @@
 index\-terms\-table\-header \- index terms in table headers
 .SH "DESCRIPTION"
 .sp
-.nr acdc-title-font \n[.f]
-\fBTable 1. Cataloged table\f[\n[acdc-title-font]]
+\fBTable 1. Cataloged table\fR
 .br
-.rr acdc-title-font
 .TS
 allbox expand tab(:);
 ltBw(15n) ltBw(45n)
@@ -42,7 +40,7 @@ ltw(15n) ltw(45n)
 ltw(15n) ltw(45n)
 ltw(15n) ltw(45n).
 Key  :T{
-Description with visible \fBheader\fP, shared term, and related material
+Description with visible \fBheader\fB, shared term, and related material
 T}
 1:The body contains \&.
 2:A second body row.
@@ -97,6 +95,6 @@ table title
 .RE
 .SS "V"
 .RS 4
-visible \fBheader\fP
+visible \fBheader\fR
 .br
 .RE

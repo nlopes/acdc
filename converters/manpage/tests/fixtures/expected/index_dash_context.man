@@ -31,7 +31,7 @@
 index\-dash\-context \- neighboring index text
 .SH "SYNOPSIS"
 .sp
-\fBindex\-dash\-context\fP
+\fBindex\-dash\-context\fR
 .SH "DESCRIPTION"
 .sp
 P01 prefix\(emtail
@@ -74,7 +74,7 @@ P19 prefix\-\-\&.tail
 .sp
 P20 prefix \(em tail
 .sp
-P21 prefix\-\-\fBbold\fP
+P21 prefix\-\-\fBbold\fR
 .sp
 P22 prefix\-\-tail
 .sp
@@ -83,19 +83,15 @@ P23 prefix\(emtail
 P24 prefix\-\-tail
 .sp
 P25 prefix\-\- \c
-.URL "https://next.example/prose" "Next" "\c"
+.URL "https://next.example/prose" "Next" "\fR\c"
 
 .sp
-.nr acdc-title-font \n[.f]
-\fBStandalone control\f[\n[acdc-title-font]]
+\fBStandalone control\fR
 .br
-.rr acdc-title-font
  \(em
 .sp
-.nr acdc-title-font \n[.f]
-\fBHidden standalone control\f[\n[acdc-title-font]]
+\fBHidden standalone control\fR
 .br
-.rr acdc-title-font
  \(em
 .sp
 P26 prefix\(emtail
@@ -136,20 +132,20 @@ P43 prefix \-\- tail
 .sp
 P44 prefix \-\- tail
 .sp
-P45 prefix \(em \fBBold\fP
+P45 prefix \(em \fBBold\fR
 .sp
-P46 prefix\-\fB\-\fPtail
+P46 prefix\-\fB\-\fRtail
 .sp
 P47 prefix \(em \-\- \(em tail
 .sp
 P48 prefix \(em  \(em tail
 .sp
 P49 prefix \(em \c
-.URL "https://next.example/spaced" "Spaced" "\c"
+.URL "https://next.example/spaced" "Spaced" "\fR\c"
 
 .sp
 P50 Sam\(cqs \c
-.URL "https://next.example/apostrophe" "Apostrophe" "\c"
+.URL "https://next.example/apostrophe" "Apostrophe" "\fR\c"
 
 .SH "INDEX"
 .SS "@"

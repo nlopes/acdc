@@ -31,7 +31,7 @@
 index\-terms\-test \- test index term rendering
 .SH "SYNOPSIS"
 .sp
-\fBindex\-terms\-test\fP
+\fBindex\-terms\-test\fR
 .SH "DESCRIPTION"
 .sp
 A cat is a domestic animal.
@@ -40,16 +40,16 @@ We also mention a dog in the text.
 .sp
 Concealed terms: visible text after concealed.
 .sp
-Formatted visible terms: bold \fBprimary\fP, italic \fIprimary\fP, and
-mono \f(CRprimary\fP\&.
+Formatted visible terms: bold \fBprimary\fR, italic \fIprimary\fR, and
+mono \f(CRprimary\fR\&.
 .sp
 Substituted visible terms: plain Ada, literal *attribute bold*, and
 linked \c
-.URL "https://example.com" "Ada" "\c"
+.URL "https://example.com" "Ada" "\fR\c"
 \&.
 .sp
 Direct link: direct \c
-.URL "https://example.com" "Ada" "\c"
+.URL "https://example.com" "Ada" "\fR\c"
 \&.
 .sp
-Late substitutions: late Ada and \fBattribute bold\fP\&.
+Late substitutions: late Ada and \fBattribute bold\fR\&.

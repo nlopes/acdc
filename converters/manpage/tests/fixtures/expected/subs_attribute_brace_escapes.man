@@ -45,8 +45,8 @@ C07 {value} / {value} / {value} / Expanded.
 C08 let template = "{value} / {value} / Expanded";
 .EE
 .EX
-C09 \fB{value}\fP / \c
-.URL "https://example.org" "{value}" "\c"
+C09 \fB{value}\fR / \c
+.URL "https://example.org" "{value}" "\fR\c"
 \&.
 .EE
 .EX
@@ -56,7 +56,7 @@ C10 \e{value} / {value\e} / \e{value\e} / {value}.
 C11 \e{value} / {value\e} / \e{value\e} / {value}.
 .EE
 .EX
-C12 \fB{value\e}\fP / \fB\e{value\e}\fP / \fB{value}\fP\&.
+C12 \fB{value\e}\fR / \fB\e{value\e}\fR / \fB{value}\fR\&.
 .EE
 .EX
 C13 {_value_} / {_value_} / {_value_}\&.

@@ -1,132 +1,130 @@
 .sp
 Before \c
-.URL "https://example.org" "\(dqLiteral label\(dq" "\c"
+.URL "https://example.org" "\(dqLiteral label\(dq" "\fR\c"
  and \c
-.URL "https://example.net" "\(aqLiteral label\(aq" "\c"
+.URL "https://example.net" "\(aqLiteral label\(aq" "\fR\c"
 \&.
 .sp
 \c
-.URL "https://example.org" "One \(dqquote\(dq ] two" "\c"
+.URL "https://example.org" "One \(dqquote\(dq ] two" "\fR\c"
 
 .sp
 \c
-.URL "https://example.org" "One \(dqquote\(dq two" "\c"
+.URL "https://example.org" "One \(dqquote\(dq two" "\fR\c"
 
 .sp
 \c
-.URL "guide.html" "One \(aqquote\(aq two" "\c"
+.URL "guide.html" "One \(aqquote\(aq two" "\fR\c"
 
 .sp
 \c
-.URL "https://example.org" "One \e\(aqquote\e\(aq two" "\c"
+.URL "https://example.org" "One \e\(aqquote\e\(aq two" "\fR\c"
 
 .sp
 \c
-.URL "https://example.org" "One \e\(dqquote\e\(dq two" "\c"
+.URL "https://example.org" "One \e\(dqquote\e\(dq two" "\fR\c"
 
 .sp
 \c
-.URL "https://example.org" "One \e\e\(dqquote\e\e\(dq two" "\c"
+.URL "https://example.org" "One \e\e\(dqquote\e\e\(dq two" "\fR\c"
 
 .sp
 \c
-.URL "https://example.org" "One \e\e\e\(dqquote\e\e\e\(dq two" "\c"
+.URL "https://example.org" "One \e\e\e\(dqquote\e\e\e\(dq two" "\fR\c"
 
 .sp
 \c
-.URL "https://example.org" "\(dqOne, two\(dq" "\c"
+.URL "https://example.org" "\(dqOne, two\(dq" "\fR\c"
 
 .sp
 \c
-.URL "https://example.org" "One, two" "\c"
+.URL "https://example.org" "One, two" "\fR\c"
 
 .sp
 \c
-.URL "https://example.org" "One" "\c"
+.URL "https://example.org" "One" "\fR\c"
 
 .sp
 \c
-.URL "https://example.org" "one=two" "\c"
+.URL "https://example.org" "one=two" "\fR\c"
  and \c
-.URL "https://example.org" "" "\c"
+.URL "https://example.org" "" "\fR\c"
 
 .sp
 \c
-.URL "https://example.org" "" "\c"
+.URL "https://example.org" "" "\fR\c"
  and \c
-.URL "https://example.org" "" "\c"
+.URL "https://example.org" "" "\fR\c"
 
 .sp
 \c
-.URL "https://example.org" "Spaced \(dqquote\(dq label" "\c"
+.URL "https://example.org" "Spaced \(dqquote\(dq label" "\fR\c"
 
 .sp
 α \c
-.URL "https://example.org" "é \(dqcafé\(dq fin" "\c"
+.URL "https://example.org" "é \(dqcafé\(dq fin" "\fR\c"
  ω.
 .sp
 \c
-.URL "https://example.org" "Line \(dqone\(dq two" "\c"
+.URL "https://example.org" "Line \(dqone\(dq two" "\fR\c"
 
 .sp
 \c
-.URL "https://example.org" "\fBBold \(dqquote\(dq label\fP and \fIitalic\fP" "\c"
+.URL "https://example.org" "\fBBold \(dqquote\(dq label\fR and \fIitalic\fR" "\fR\c"
 
 .sp
 \c
-.URL "https://example.org" "Expanded \(dqquote\(dq" "\c"
+.URL "https://example.org" "Expanded \(dqquote\(dq" "\fR\c"
 
 .sp
 \c
-.URL "https://example.org" "Window \(dqlabel\(dq" "\c"
+.URL "https://example.org" "Window \(dqlabel\(dq" "\fR\c"
 
 .sp
 \c
-.URL "https://example.org" "\(dqWindow label\(dq" "\c"
+.URL "https://example.org" "\(dqWindow label\(dq" "\fR\c"
  and \c
-.URL "https://example.org" "\(dqWindow label^\(dq" "\c"
+.URL "https://example.org" "\(dqWindow label^\(dq" "\fR\c"
 
 .sp
 \c
-.MTO "test\(atexample.org" "\(dqLiteral \e\(dqquote\e\(dq label\(dq" "\c"
+.MTO "test\(atexample.org" "\(dqLiteral \e\(dqquote\e\(dq label\(dq" "\fR\c"
 
 .sp
 \c
-.MTO "test\(atexample.org" "Parsed \(dqquote\(dq label" "\c"
+.MTO "test\(atexample.org" "Parsed \(dqquote\(dq label" "\fR\c"
 
 .sp
 \c
-.MTO "test\(atexample.org" "One, two" "\c"
+.MTO "test\(atexample.org" "One, two" "\fR\c"
  and \c
-.MTO "test\(atexample.org" "\(dqone=two\(dq" "\c"
+.MTO "test\(atexample.org" "\(dqone=two\(dq" "\fR\c"
 
 .sp
 \c
-.URL "https://example.org" "\(dqUnfinished" "\c"
+.URL "https://example.org" "\(dqUnfinished" "\fR\c"
  and \c
-.URL "https://example.org" "Label" "\c"
+.URL "https://example.org" "Label" "\fR\c"
 
 .sp
 \c
-.URL "https://example.org" "One \(dqquote\(dq [1] two" "\c"
+.URL "https://example.org" "One \(dqquote\(dq [1] two" "\fR\c"
 
 .sp
 Reuse [1]\&.
 .sp
 \c
-.URL "https://example.org" "One \(dqquote\(dq term two" "\c"
+.URL "https://example.org" "One \(dqquote\(dq term two" "\fR\c"
 
 .sp
 \c
-.URL "https://example.org" "One \(dqquote\(dq  two" "\c"
+.URL "https://example.org" "One \(dqquote\(dq  two" "\fR\c"
 
 .sp
 See Target\&.
 .sp
-.nr acdc-title-font \n[.f]
-\fBOne \e"quote\e" two\f[\n[acdc-title-font]]
+\fBOne \e"quote\e" two\fR
 .br
-.rr acdc-title-font
 Block title control.
 .sp
 Target.
@@ -134,13 +132,13 @@ Target.
 One \e"quote\e" two
 .sp
 \c
-.URL "https://example.org" "Label One \(dqquote\(dq [2] tail" "\c"
+.URL "https://example.org" "Label One \(dqquote\(dq [2] tail" "\fR\c"
 
 .sp
 Reuse [2]\&.
 .sp
 \c
-.URL "https://example.org" "[Linked image]" "\c"
+.URL "https://example.org" "[Linked image]" "\fR\c"
 
 .SH "INDEX"
 .SS "O"

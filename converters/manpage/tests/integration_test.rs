@@ -32,7 +32,7 @@ fn styled_titles_keep_substitutions_separate_from_the_body(
     processor.write_to(parsed.document(), &mut output, None, None, &mut diagnostics)?;
     let output = String::from_utf8(output)?;
     assert!(output.contains("Title \\(co"), "{style}: {output}");
-    assert!(output.contains("\\fBBold\\fP"), "{style}: {output}");
+    assert!(output.contains("\\fBBold\\fB"), "{style}: {output}");
     assert!(
         output.contains("Body (C) *Bold* footnote:[Inactive note.]."),
         "{style}: {output}"

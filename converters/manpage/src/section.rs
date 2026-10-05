@@ -59,10 +59,10 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             } else {
                 // Levels 3+ - no roff section macro exists; render as bold paragraph heading
                 writeln!(w, ".sp")?;
-                write!(w, "\\fB")?;
-                self.visit_inline_nodes(traversal, &section.title)?;
-                let w = self.writer_mut();
-                writeln!(w, "\\fP")?;
+                self.render_font("\\fB", false, |visitor| {
+                    visitor.visit_inline_nodes(traversal, &section.title)
+                })?;
+                writeln!(self.writer_mut())?;
             }
         }
 

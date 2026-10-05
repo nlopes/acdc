@@ -31,15 +31,15 @@
 incomplete\-link\-subs \- respect enabled link substitutions
 .SH "SYNOPSIS"
 .EX
-S01 link:https://unfinished.example[Unfinished \fBbold\fP and \c
-.URL "https://valid.example" "" "\c"
+S01 link:https://unfinished.example[Unfinished \fBbold\fR and \c
+.URL "https://valid.example" "" "\fR\c"
 \&.
 S02 link:https://unfinished.example[Unfinished \c
-.URL "https://inner.example" "Inner" "\c"
+.URL "https://inner.example" "Inner" "\fR\c"
 
 S03 link:user@example.org
 S04 \c
-.URL "https://complete.example" "Complete" "\c"
+.URL "https://complete.example" "Complete" "\fR\c"
 .EE
 .EX
 S05 link:https://unfinished.example[Unfinished
@@ -50,17 +50,17 @@ S06 link:https://unfinished.example[Unfinished *bold* and https://other.example.
 S07 link:https://unfinished.example[Late]
 .sp
 S08 \c
-.URL "https://complete.example" "Early" "\c"
+.URL "https://complete.example" "Early" "\fR\c"
 
 .sp
 S09 link:https://unfinished.example[Late]
 .sp
 S10 \c
-.URL "https://complete.example" "Early" "\c"
+.URL "https://complete.example" "Early" "\fR\c"
 
 .sp
 S11 \c
-.URL "https://attribute.example" "Complete" "\c"
+.URL "https://attribute.example" "Complete" "\fR\c"
 
 .sp
 S12 link:https://attribute.example[Unfinished
@@ -68,11 +68,11 @@ S12 link:https://attribute.example[Unfinished
 S13 link:https://unfinished.example[Unfinished
 .sp
 S14 \c
-.URL "https://complete.example" "Complete" "\c"
+.URL "https://complete.example" "Complete" "\fR\c"
 
 .sp
 S15 link:https://unfinished.example[Late]
 .sp
 S16 \c
-.URL "https://complete.example" "Early" "\c"
+.URL "https://complete.example" "Early" "\fR\c"
 
