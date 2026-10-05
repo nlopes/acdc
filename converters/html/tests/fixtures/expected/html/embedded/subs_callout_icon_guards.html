@@ -1,0 +1,99 @@
+<div class="sect1">
+<h2 id="_name">Name</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>callout-guard-subs - substitutions and guard removal</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_synopsis">Synopsis</h2>
+<div class="sectionbody">
+<div id="target" class="paragraph">
+<p>Target paragraph.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text"><span style="color:#323232;">S01 café © <a href="https://example.org">Link</a> </span><i class="conum" data-value="1"></i><b>(1)</b><span style="color:#323232;">
+</span><span style="color:#323232;">S02 <strong>Bold</strong> <em>Italic</em> </span><i class="conum" data-value="2"></i><b>(2)</b><span style="color:#323232;"></span><i class="conum" data-value="3"></i><b>(3)</b><span style="color:#323232;">
+</span><span style="color:#323232;">S03 <a id="_indexterm_0"></a>Indexed <a id="code-target"></a><a href="#target">Target</a> </span><i class="conum" data-value="4"></i><b>(4)</b><span style="color:#323232;">
+</span><span style="color:#323232;">S04 <sup class="footnote" id="_footnote_note">[<a id="_footnoteref_1" class="footnote" href="#_footnotedef_1" title="View footnote.">1</a>]</sup> </span><i class="conum" data-value="5"></i><b>(5)</b><span style="color:#323232;">
+</span><span style="color:#323232;">S05 </span><em>Raw</em><span style="color:#323232;"> </span><i class="conum" data-value="6"></i><b>(6)</b><span style="color:#323232;"></span></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Link and attributes.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Formatting.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>Adjacent marker.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>Index and cross-reference.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="5"></i><b>5</b></td>
+<td>Footnote before XML guard.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="6"></i><b>6</b></td>
+<td>Raw markup before guard.</td>
+</tr>
+</table>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-xml" data-lang="xml"><span style="color:#323232;">S06 &lt;</span><span style="color:#63a35c;">tag</span><span style="color:#323232;">/&gt; </span><span style="font-style:italic;color:#969896;">&lt;!--1--&gt;</span><span style="color:#323232;"> // &lt;</span><span style="background-color:#f5f5f5;font-weight:bold;color:#b52a1d;">2</span><span style="color:#323232;">&gt;</span></code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text"><span style="color:#323232;">S07 literal (C) // &lt;1&gt;</span></code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text"><span style="color:#323232;">S08 first </span><i class="conum" data-value="1"></i><b>(1)</b><span style="color:#323232;">
+</span><span style="color:#323232;">  S09 next </span><i class="conum" data-value="2"></i><b>(2)</b><span style="color:#323232;"></span></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Common indentation.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Remaining indentation.</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>See <a href="#code-target">Code</a>. Reuse <sup class="footnoteref">[<a class="footnote" href="#_footnotedef_1" title="View footnote.">1</a>]</sup>.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_index">Index</h2>
+<div class="sectionbody">
+<h3 class="indexletter">I</h3>
+<dl class="indexterms">
+<dt>Indexed
+ <a href="#_indexterm_0">Synopsis</a></dt>
+</dl>
+</div>
+</div>
+<div id="footnotes">
+<hr>
+<div class="footnote" id="_footnotedef_1">
+<a href="#_footnoteref_1">1</a>. One note.</div>
+</div>

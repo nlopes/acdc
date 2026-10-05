@@ -1,0 +1,55 @@
+= callout-guard-subs(1)
+:doctype: manpage
+:manmanual: Callout checks
+:mansource: acdc
+:revdate: 2026-10-05
+:source-highlighter: syntect
+:icons: font
+:acdc-index:
+:name: café
+
+== Name
+callout-guard-subs - substitutions and guard removal
+
+== Synopsis
+
+[[target]]
+Target paragraph.
+
+[source,text,subs="+macros,+quotes,+attributes,+replacements"]
+----
+S01 {name} (C) link:https://example.org[Link] // <1>
+S02 *Bold* _Italic_ # <2><3>
+S03 ((Indexed)) anchor:code-target[]xref:target[Target] ;; <4>
+S04 footnote:note[One note.] <!--5-->
+S05 pass:[<em>Raw</em>] // <6>
+----
+<1> Link and attributes.
+<2> Formatting.
+<3> Adjacent marker.
+<4> Index and cross-reference.
+<5> Footnote before XML guard.
+<6> Raw markup before guard.
+
+[source,xml,subs="-callouts"]
+----
+S06 <tag/> <!--1--> // <2>
+----
+
+[source,text,subs="specialcharacters"]
+----
+S07 literal (C) // <1>
+----
+
+[source,text,indent=0]
+----
+    S08 first // <1>
+      S09 next # <2>
+----
+<1> Common indentation.
+<2> Remaining indentation.
+
+See <<code-target,Code>>. Reuse footnote:note[].
+
+[index]
+== Index

@@ -398,7 +398,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             InlineNode::PlainText(p) => self.render_plain(p, options, subs),
             InlineNode::RawText(r) => self.render_raw(r),
             InlineNode::VerbatimText(v) => self.render_verbatim(traversal, v, options, subs),
-            InlineNode::CalloutRef(c) => self.render_callout_ref(c),
+            InlineNode::CalloutRef(c) => self.render_callout_ref(traversal, c),
             InlineNode::BoldText(b) => self.render_bold(traversal, b, options),
             InlineNode::ItalicText(i) => self.render_italic(traversal, i, options),
             InlineNode::HighlightText(h) => self.render_highlight(traversal, h, options),
@@ -582,18 +582,14 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         Ok(())
     }
 
-    fn render_callout_ref(&mut self, callout: &CalloutRef) -> Result<(), Error> {
-        let is_font_icons = self.processor.is_font_icons_mode();
-        let w = self.writer_mut();
-        if is_font_icons {
-            write!(
-                w,
-                "<i class=\"conum\" data-value=\"{0}\"></i><b>({0})</b>",
-                callout.number
-            )?;
-        } else {
-            write!(w, "<b class=\"conum\">({})</b>", callout.number)?;
-        }
+    fn render_callout_ref(
+        &mut self,
+        traversal: &TraversalContext<'_>,
+        callout: &CalloutRef,
+    ) -> Result<(), Error> {
+        let html =
+            crate::callouts::marker_html(callout.number, crate::callouts::font_icons(traversal));
+        self.writer_mut().write_all(html.as_bytes())?;
         Ok(())
     }
 

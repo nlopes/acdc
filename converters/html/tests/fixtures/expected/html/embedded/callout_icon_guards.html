@@ -1,0 +1,197 @@
+<div class="sect1">
+<h2 id="_name">Name</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>callout-guards - icon settings and comment guards</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_synopsis">Synopsis</h2>
+<div class="sectionbody">
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-rust" data-lang="rust"><table class="linenotable"><tbody><tr><td class="linenos"><pre class="lineno">10
+11
+12
+13
+14
+15
+16
+17</pre></td><td class="code"><pre><span class="hll" style="display:block;background-color:rgba(245,245,245,1.000)"><span style="color:#0086b3;">G01 </span><span style="color:#62a35c;">call</span><span style="color:#323232;">(); </span><i class="conum" data-value="1"></i><b>(1)</b><span style="color:#323232;"></span>
+</span><span class="hll" style="display:block;background-color:rgba(245,245,245,1.000)"><span style="color:#323232;"></span><span style="color:#0086b3;">G02 </span><span style="color:#62a35c;">call</span><span style="color:#323232;">(); </span><i class="conum" data-value="2"></i><b>(2)</b><span style="color:#323232;"></span>
+</span><span style="color:#323232;"></span><span style="color:#0086b3;">G03 </span><span style="color:#62a35c;">call</span><span style="color:#323232;">(); </span><i class="conum" data-value="3"></i><b>(3)</b><span style="color:#323232;"></span>
+<span style="color:#323232;"></span><span style="color:#0086b3;">G04 </span><span style="color:#62a35c;">call</span><span style="color:#323232;">(); </span><i class="conum" data-value="4"></i><b>(4)</b><span style="color:#323232;"></span>
+<span style="color:#323232;"></span><span style="color:#0086b3;">G05 </span><span style="color:#62a35c;">call</span><span style="color:#323232;">(); </span><span style="font-style:italic;color:#969896;">//  </span><i class="conum" data-value="5"></i><b>(5)</b><span style="font-style:italic;color:#969896;"></span>
+<span style="font-style:italic;color:#969896;"></span><span style="color:#0086b3;">G06 </span><span style="color:#62a35c;">call</span><span style="color:#323232;">();</span><i class="conum" data-value="6"></i><b>(6)</b><span style="color:#323232;"></span><i class="conum" data-value="7"></i><b>(7)</b><span style="color:#323232;"></span>
+<span style="color:#323232;"></span><span style="color:#0086b3;">G07 </span><i class="conum" data-value="8"></i><b>(8)</b><span style="color:#0086b3;"></span>
+<span style="color:#0086b3;"></span><span style="color:#323232;"></span><i class="conum" data-value="9"></i><b>(9)</b><span style="color:#323232;"></span></pre></td></tr></tbody></table></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Slash guard.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Hash guard in Rust.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>Semicolon guard in Rust.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>Dash guard in Rust.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="5"></i><b>5</b></td>
+<td>Two spaces preserve the guard.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="6"></i><b>6</b></td>
+<td>No space is added.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="7"></i><b>7</b></td>
+<td>Adjacent marker.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="8"></i><b>8</b></td>
+<td>Marker-only line after guard removal.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="9"></i><b>9</b></td>
+<td>Entire guard fragment disappears.</td>
+</tr>
+</table>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-xml" data-lang="xml"><span style="color:#323232;">G08 &lt;</span><span style="color:#63a35c;">tag</span><span style="color:#323232;">/&gt; </span><i class="conum" data-value="1"></i><b>(1)</b><span style="color:#323232;"></span><i class="conum" data-value="2"></i><b>(2)</b><span style="color:#323232;">
+</span><span style="color:#323232;">G09 &lt;</span><span style="color:#63a35c;">tag</span><span style="color:#323232;">/&gt;</span><i class="conum" data-value="3"></i><b>(3)</b><span style="color:#323232;"> </span><i class="conum" data-value="4"></i><b>(4)</b><span style="color:#323232;">
+</span><span style="color:#323232;">G10 &lt;</span><span style="color:#63a35c;">tag</span><span style="color:#323232;">/&gt; </span><span style="font-style:italic;color:#969896;">&lt;!-- ordinary --&gt; </span><i class="conum" data-value="5"></i><b>(5)</b><span style="font-style:italic;color:#969896;">
+</span><span style="color:#323232;">G11 &lt;</span><span style="color:#63a35c;">tag</span><span style="color:#323232;">/&gt; </span><span style="font-style:italic;color:#969896;">&lt;!--6--&gt;</span><span style="color:#323232;"> suffix
+</span><span style="color:#323232;">G12 &lt;</span><span style="color:#63a35c;">tag</span><span style="color:#323232;">/&gt; </span><span style="font-style:italic;color:#969896;">&lt;!--7--&gt;</span></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>First XML marker.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Adjacent XML marker.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>No space before XML guard.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>Authored space.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="5"></i><b>5</b></td>
+<td>Ordinary comments stay.</td>
+</tr>
+</table>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-erlang" data-lang="erlang"><span style="color:#323232;">G13 call(). </span><i class="conum" data-value="1"></i><b>(1)</b><span style="color:#323232;">
+</span><span style="color:#323232;">G14 call(). # </span><i class="conum" data-value="2"></i><b>(2)</b><span style="color:#323232;"></span></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Custom guard.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Default guard stays with a custom prefix.</td>
+</tr>
+</table>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-rust" data-lang="rust"><span style="color:#0086b3;">G15 </span><span style="color:#62a35c;">call</span><span style="color:#323232;">(); </span><span style="font-style:italic;color:#969896;">// </span><i class="conum" data-value="1"></i><b>(1)</b><span style="font-style:italic;color:#969896;"></span></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Explicitly disabled stripping.</td>
+</tr>
+</table>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text"><span style="color:#323232;">G16 café </span><i class="conum" data-value="1"></i><b>(1)</b><span style="color:#323232;">
+</span><span style="color:#323232;">G17 café </span><i class="conum" data-value="2"></i><b>(2)</b><span style="color:#323232;"></span></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Unicode custom prefix.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Automatic number without added spacing.</td>
+</tr>
+</table>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>G18 literal <i class="conum" data-value="1"></i><b>(1)</b>
+G19 literal <i class="conum" data-value="2"></i><b>(2)</b></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Literal slash guard.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Literal XML guard.</td>
+</tr>
+</table>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-rust" data-lang="rust"><span style="color:#0086b3;">G20 </span><span style="color:#62a35c;">call</span><span style="color:#323232;">(); </span><span style="font-style:italic;color:#969896;">// </span><b class="conum">(1)</b><span style="font-style:italic;color:#969896;">
+</span><span style="color:#0086b3;">G21 </span><span style="font-weight:bold;color:#a71d5d;">&lt;</span><span style="color:#323232;">tag</span><span style="font-weight:bold;color:#a71d5d;">/&gt; &lt;!--</span><b class="conum">(2)</b><span style="font-weight:bold;color:#a71d5d;">-</span><span style="color:#323232;">-&gt;</span></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<ol>
+<li><p>Text marker retains its guard.</p></li>
+<li><p>Text marker retains both XML guards.</p></li>
+</ol>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text"><span style="color:#323232;">G22 restored </span><i class="conum" data-value="1"></i><b>(1)</b><span style="color:#323232;"></span></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Font marker restored in the body.</td>
+</tr>
+</table>
+</div>
+</div>
+</div>

@@ -1,0 +1,53 @@
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>callout-guard-subs - substitutions and guard removal</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_synopsis">Synopsis</h2>
+<p id="target">Target paragraph.</p>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text"><span style="color:#323232;">S01 café © <a href="https://example.org">Link</a> </span><i class="conum" data-value="1"></i><b>(1)</b><span style="color:#323232;">
+</span><span style="color:#323232;">S02 <strong>Bold</strong> <em>Italic</em> </span><i class="conum" data-value="2"></i><b>(2)</b><span style="color:#323232;"></span><i class="conum" data-value="3"></i><b>(3)</b><span style="color:#323232;">
+</span><span style="color:#323232;">S03 <a id="_indexterm_0"></a>Indexed <a id="code-target"></a><a href="#target">Target</a> </span><i class="conum" data-value="4"></i><b>(4)</b><span style="color:#323232;">
+</span><span style="color:#323232;">S04 <sup class="footnote-ref" id="_footnoteref_1">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup> </span><i class="conum" data-value="5"></i><b>(5)</b><span style="color:#323232;">
+</span><span style="color:#323232;">S05 </span><em>Raw</em><span style="color:#323232;"> </span><i class="conum" data-value="6"></i><b>(6)</b><span style="color:#323232;"></span></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Link and attributes.</li>
+<li>Formatting.</li>
+<li>Adjacent marker.</li>
+<li>Index and cross-reference.</li>
+<li>Footnote before XML guard.</li>
+<li>Raw markup before guard.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-xml" data-lang="xml"><span style="color:#323232;">S06 &lt;</span><span style="color:#63a35c;">tag</span><span style="color:#323232;">/&gt; </span><span style="font-style:italic;color:#969896;">&lt;!--1--&gt;</span><span style="color:#323232;"> // &lt;</span><span style="background-color:#f5f5f5;font-weight:bold;color:#b52a1d;">2</span><span style="color:#323232;">&gt;</span></code></pre>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text"><span style="color:#323232;">S07 literal (C) // &lt;1&gt;</span></code></pre>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text"><span style="color:#323232;">S08 first </span><i class="conum" data-value="1"></i><b>(1)</b><span style="color:#323232;">
+</span><span style="color:#323232;">  S09 next </span><i class="conum" data-value="2"></i><b>(2)</b><span style="color:#323232;"></span></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Common indentation.</li>
+<li>Remaining indentation.</li>
+</ol>
+<p>See <a href="#code-target">Code</a>. Reuse <sup class="footnote-ref">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup>.</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_index">Index</h2>
+<h3 class="indexletter">I</h3>
+<dl class="indexterms">
+<dt>Indexed
+ <a href="#_indexterm_0">Synopsis</a></dt>
+</dl>
+</section>
+<section class="footnotes" aria-label="Footnotes" role="doc-endnotes">
+<hr>
+<ol class="footnotes">
+<li class="footnote" id="_footnote_1" role="doc-endnote">
+One note. <a class="footnote-backref" href="#_footnoteref_1" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+</ol>
+</section>

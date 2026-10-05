@@ -1,0 +1,86 @@
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>callout-guards - icon settings and comment guards</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_synopsis">Synopsis</h2>
+<div class="listing-block">
+<pre class="highlight"><code class="language-rust" data-lang="rust">G01 call(); <i class="conum" data-value="1"></i><b>(1)</b>
+G02 call(); <i class="conum" data-value="2"></i><b>(2)</b>
+G03 call(); <i class="conum" data-value="3"></i><b>(3)</b>
+G04 call(); <i class="conum" data-value="4"></i><b>(4)</b>
+G05 call(); //  <i class="conum" data-value="5"></i><b>(5)</b>
+G06 call();<i class="conum" data-value="6"></i><b>(6)</b><i class="conum" data-value="7"></i><b>(7)</b>
+G07 <i class="conum" data-value="8"></i><b>(8)</b>
+<i class="conum" data-value="9"></i><b>(9)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Slash guard.</li>
+<li>Hash guard in Rust.</li>
+<li>Semicolon guard in Rust.</li>
+<li>Dash guard in Rust.</li>
+<li>Two spaces preserve the guard.</li>
+<li>No space is added.</li>
+<li>Adjacent marker.</li>
+<li>Marker-only line after guard removal.</li>
+<li>Entire guard fragment disappears.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-xml" data-lang="xml">G08 &lt;tag/&gt; <i class="conum" data-value="1"></i><b>(1)</b><i class="conum" data-value="2"></i><b>(2)</b>
+G09 &lt;tag/&gt;<i class="conum" data-value="3"></i><b>(3)</b> <i class="conum" data-value="4"></i><b>(4)</b>
+G10 &lt;tag/&gt; &lt;!-- ordinary --&gt; <i class="conum" data-value="5"></i><b>(5)</b>
+G11 &lt;tag/&gt; &lt;!--6--&gt; suffix
+G12 &lt;tag/&gt; &lt;!--7--&gt;</code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>First XML marker.</li>
+<li>Adjacent XML marker.</li>
+<li>No space before XML guard.</li>
+<li>Authored space.</li>
+<li>Ordinary comments stay.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-erlang" data-lang="erlang">G13 call(). <i class="conum" data-value="1"></i><b>(1)</b>
+G14 call(). # <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Custom guard.</li>
+<li>Default guard stays with a custom prefix.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-rust" data-lang="rust">G15 call(); // <i class="conum" data-value="1"></i><b>(1)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Explicitly disabled stripping.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text">G16 café <i class="conum" data-value="1"></i><b>(1)</b>
+G17 café <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Unicode custom prefix.</li>
+<li>Automatic number without added spacing.</li>
+</ol>
+<div class="literal-block">
+<pre>G18 literal <i class="conum" data-value="1"></i><b>(1)</b>
+G19 literal <i class="conum" data-value="2"></i><b>(2)</b></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Literal slash guard.</li>
+<li>Literal XML guard.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-rust" data-lang="rust">G20 call(); // <b class="conum">(1)</b>
+G21 &lt;tag/&gt; &lt;!--<b class="conum">(2)</b>--&gt;</code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Text marker retains its guard.</li>
+<li>Text marker retains both XML guards.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text">G22 restored <i class="conum" data-value="1"></i><b>(1)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Font marker restored in the body.</li>
+</ol>
+</section>

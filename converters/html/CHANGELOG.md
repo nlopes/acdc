@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Callouts obey the active `icons=font` setting in plain and highlighted output,
+  including body-level changes. With `icons=font`, XML and common line-comment
+  guards are removed, and `line-comment` selects or disables a custom prefix.
+  Without font icons, guards remain visible, matching ordinary Asciidoctor HTML.
+  Authored spacing, marker positions and multiple markers remain intact;
+  Rouge may add spacing between markers instead.
 - With `:source-highlighter: syntect`, callouts retain their positions and
   authored spacing, including XML comment guards and multiple or repeated
   markers on one line. Marker-only lines retain line numbers and highlighting.

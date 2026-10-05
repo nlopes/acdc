@@ -14,7 +14,7 @@
 //! Code blocks may contain callout references (e.g., `<1>`, `<2>`) that need
 //! to be rendered as HTML elements, not as part of the highlighted code.
 //! We track callout positions during text extraction and inject the proper
-//! HTML (`<i class="conum" data-value="N"></i><b>(N)</b>`) after highlighting.
+//! marker HTML for the active icon setting after highlighting.
 
 #[cfg(feature = "highlighting")]
 use std::{
@@ -61,6 +61,7 @@ pub(crate) struct HighlightOptions<'a> {
     pub(crate) language: &'a str,
     pub(crate) theme_name: &'a str,
     pub(crate) mode: HighlightMode,
+    pub(crate) font_icons: bool,
     pub(crate) text_context: Option<&'a [InlineNode<'a>]>,
 }
 
@@ -89,6 +90,7 @@ pub(crate) fn highlight_code<W: Write + ?Sized>(
         language,
         theme_name,
         mode,
+        font_icons,
         text_context,
     } = options;
     let (code, callouts) = extract_text_and_callouts(
@@ -130,7 +132,7 @@ pub(crate) fn highlight_code<W: Write + ?Sized>(
         .into_iter()
         .map(|(offset, number)| HighlightedLink {
             range: offset..offset + 1,
-            html: format!("<i class=\"conum\" data-value=\"{number}\"></i><b>({number})</b>"),
+            html: crate::callouts::marker_html(number, font_icons),
             outside_spans: true,
         })
         .collect::<Vec<_>>();
@@ -528,6 +530,7 @@ mod tests {
                 language: "rust",
                 theme_name: DEFAULT_THEME_LIGHT,
                 mode: HighlightMode::Inline,
+                font_icons: true,
                 text_context: None,
             },
             &[],
@@ -567,6 +570,7 @@ mod tests {
                 language: "rust",
                 theme_name: DEFAULT_THEME_LIGHT,
                 mode: HighlightMode::Inline,
+                font_icons: true,
                 text_context: None,
             },
             &[],
@@ -598,6 +602,7 @@ mod tests {
                 language: "unknown_lang_xyz",
                 theme_name: DEFAULT_THEME_LIGHT,
                 mode: HighlightMode::Inline,
+                font_icons: true,
                 text_context: None,
             },
             &[],
@@ -631,6 +636,7 @@ mod tests {
                 language: "rust",
                 theme_name: DEFAULT_THEME_LIGHT,
                 mode: HighlightMode::Class,
+                font_icons: true,
                 text_context: None,
             },
             &[],
@@ -675,6 +681,7 @@ mod tests {
                 language: "rust",
                 theme_name: DEFAULT_THEME_LIGHT,
                 mode: HighlightMode::Class,
+                font_icons: true,
                 text_context: None,
             },
             &[],

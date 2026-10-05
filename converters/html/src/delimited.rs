@@ -2,7 +2,7 @@ use std::io::Write;
 
 use acdc_converters_core::{
     TraversalContext,
-    code::{default_line_comment, detect_language},
+    code::detect_language,
     visitor::{Visitor, WritableVisitor},
 };
 
@@ -448,56 +448,6 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     }
 }
 
-/// Strip comment guard prefix from a `VerbatimText` node's content.
-/// The guard is the comment prefix that appears before a callout marker.
-fn strip_callout_comment_guard(text: &str, comment_prefix: Option<&str>) -> String {
-    let Some(prefix) = comment_prefix else {
-        return text.to_string();
-    };
-
-    // The comment guard appears at the end of the line, just before the callout
-    // e.g., "let x = 1; // " -> "let x = 1; "
-    let trimmed = text.trim_end();
-    if let Some(stripped) = trimmed.strip_suffix(prefix) {
-        // Return the text without the comment prefix
-        stripped.trim_end().to_string() + " "
-    } else {
-        text.to_string()
-    }
-}
-
-/// Process inlines to strip comment guards from `VerbatimText` nodes that precede `CalloutRef` nodes.
-fn process_callout_guards<'a>(
-    inlines: &'a [InlineNode<'a>],
-    comment_prefix: Option<&str>,
-) -> Vec<InlineNode<'a>> {
-    let mut result = Vec::with_capacity(inlines.len());
-
-    for (i, node) in inlines.iter().enumerate() {
-        // Check if this VerbatimText is followed by a CalloutRef
-        let next_is_callout = inlines
-            .get(i + 1)
-            .is_some_and(|n| matches!(n, InlineNode::CalloutRef(_)));
-
-        if let InlineNode::VerbatimText(v) = node {
-            if next_is_callout {
-                // Strip the comment guard from this VerbatimText
-                let stripped_content = strip_callout_comment_guard(v.content, comment_prefix);
-                result.push(InlineNode::VerbatimText(acdc_parser::Verbatim {
-                    content: Box::leak(stripped_content.into_boxed_str()),
-                    location: v.location.clone(),
-                }));
-            } else {
-                result.push(node.clone());
-            }
-        } else {
-            result.push(node.clone());
-        }
-    }
-
-    result
-}
-
 impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     fn render_listing_code(
         &mut self,
@@ -515,8 +465,6 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 .flatten()
                 .map(str::to_owned)
         });
-        let comment_prefix = default_line_comment(language.as_deref());
-        let processed_inlines = process_callout_guards(inlines, comment_prefix);
         let source_indent =
             crate::source_indent::resolve(metadata, traversal, &mut self.diagnostics);
         #[cfg(feature = "pre-spec-subs")]
@@ -529,7 +477,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
         crate::render_pre_code(
             traversal,
-            &processed_inlines,
+            inlines,
             metadata,
             language.as_deref(),
             self,

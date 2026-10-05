@@ -21,6 +21,7 @@ use acdc_parser::{
 
 mod admonition;
 mod audio;
+mod callouts;
 mod constants;
 mod csp;
 mod delimited;
@@ -214,16 +215,6 @@ impl<'a> Processor<'a> {
             )
             .build()?;
         Ok(self)
-    }
-
-    /// Check if font icons mode is enabled (`:icons: font`).
-    #[must_use]
-    pub(crate) fn is_font_icons_mode(&self) -> bool {
-        self.parser_options
-            .document_attributes()
-            .get("icons")
-            .and_then(|value| value.text())
-            == Some("font")
     }
 
     /// Return the caption prefix for a titled block.
@@ -1068,6 +1059,8 @@ pub(crate) fn render_pre_code<'a, W: std::io::Write>(
     subs: &[Substitution],
     source_indent: Option<u16>,
 ) -> Result<(), Error> {
+    let guarded = callouts::strip_guards(inlines, metadata, callouts::font_icons(traversal));
+    let inlines = guarded.as_ref();
     let indentation = source_indent::IndentedSource::new(inlines, source_indent);
     let indented = indentation.as_ref().map(|source| source.inlines(inlines));
     let inlines = indented.as_deref().unwrap_or(inlines);
@@ -1107,6 +1100,7 @@ pub(crate) fn render_pre_code<'a, W: std::io::Write>(
                 language: lang,
                 theme_name: &theme_name,
                 mode,
+                font_icons: callouts::font_icons(traversal),
                 text_context: None,
             },
         )?;

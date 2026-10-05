@@ -1,0 +1,94 @@
+= callout-guards(1)
+:doctype: manpage
+:manmanual: Callout checks
+:mansource: acdc
+:revdate: 2026-10-05
+:source-highlighter: syntect
+:icons: font
+
+== Name
+callout-guards - icon settings and comment guards
+
+== Synopsis
+
+[source,rust,linenums,start=10,highlight="10,11"]
+----
+G01 call(); // <1>
+G02 call(); # <2>
+G03 call(); ;; <3>
+G04 call(); -- <4>
+G05 call(); //  <5>
+G06 call();//<6><7>
+G07 // <8>
+// <9>
+----
+<1> Slash guard.
+<2> Hash guard in Rust.
+<3> Semicolon guard in Rust.
+<4> Dash guard in Rust.
+<5> Two spaces preserve the guard.
+<6> No space is added.
+<7> Adjacent marker.
+<8> Marker-only line after guard removal.
+<9> Entire guard fragment disappears.
+
+[source,xml]
+----
+G08 <tag/> <!--1--><!--2-->
+G09 <tag/><!--3--> <!--4-->
+G10 <tag/> <!-- ordinary --> <!--5-->
+G11 <tag/> <!--6--> suffix
+G12 <tag/> \<!--7-->
+----
+<1> First XML marker.
+<2> Adjacent XML marker.
+<3> No space before XML guard.
+<4> Authored space.
+<5> Ordinary comments stay.
+
+[source,erlang,line-comment=%]
+----
+G13 call(). % <1>
+G14 call(). # <2>
+----
+<1> Custom guard.
+<2> Default guard stays with a custom prefix.
+
+[source,rust,line-comment=]
+----
+G15 call(); // <1>
+----
+<1> Explicitly disabled stripping.
+
+[source,text,line-comment="※"]
+----
+G16 café ※ <.>
+G17 café ※<.>
+----
+<.> Unicode custom prefix.
+<.> Automatic number without added spacing.
+
+....
+G18 literal // <1>
+G19 literal <!--2-->
+....
+<1> Literal slash guard.
+<2> Literal XML guard.
+
+:icons!:
+
+[source,rust]
+----
+G20 call(); // <1>
+G21 <tag/> <!--2-->
+----
+<1> Text marker retains its guard.
+<2> Text marker retains both XML guards.
+
+:icons: font
+
+[source,text]
+----
+G22 restored # <1>
+----
+<1> Font marker restored in the body.

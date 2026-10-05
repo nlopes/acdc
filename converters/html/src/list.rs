@@ -226,7 +226,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             "</div>\n",
         )?;
 
-        if self.processor.is_font_icons_mode() {
+        if crate::callouts::font_icons(traversal) {
             writeln!(self.writer, "<table>")?;
 
             for item in &list.items {

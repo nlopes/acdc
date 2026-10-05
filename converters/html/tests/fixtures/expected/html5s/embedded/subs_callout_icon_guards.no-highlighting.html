@@ -1,0 +1,53 @@
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>callout-guard-subs - substitutions and guard removal</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_synopsis">Synopsis</h2>
+<p id="target">Target paragraph.</p>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text">S01 café &#169; <a href="https://example.org">Link</a> <i class="conum" data-value="1"></i><b>(1)</b>
+S02 <strong>Bold</strong> <em>Italic</em> <i class="conum" data-value="2"></i><b>(2)</b><i class="conum" data-value="3"></i><b>(3)</b>
+S03 <a id="_indexterm_0"></a>Indexed <a id="code-target"></a><a href="#target">Target</a> <i class="conum" data-value="4"></i><b>(4)</b>
+S04 <sup class="footnote-ref" id="_footnoteref_1">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup> <i class="conum" data-value="5"></i><b>(5)</b>
+S05 <em>Raw</em> <i class="conum" data-value="6"></i><b>(6)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Link and attributes.</li>
+<li>Formatting.</li>
+<li>Adjacent marker.</li>
+<li>Index and cross-reference.</li>
+<li>Footnote before XML guard.</li>
+<li>Raw markup before guard.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-xml" data-lang="xml">S06 &lt;tag/&gt; &lt;!--1--&gt; // &lt;2&gt;</code></pre>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text">S07 literal (C) // &lt;1&gt;</code></pre>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text">S08 first <i class="conum" data-value="1"></i><b>(1)</b>
+  S09 next <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Common indentation.</li>
+<li>Remaining indentation.</li>
+</ol>
+<p>See <a href="#code-target">Code</a>. Reuse <sup class="footnote-ref">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup>.</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_index">Index</h2>
+<h3 class="indexletter">I</h3>
+<dl class="indexterms">
+<dt>Indexed
+ <a href="#_indexterm_0">Synopsis</a></dt>
+</dl>
+</section>
+<section class="footnotes" aria-label="Footnotes" role="doc-endnotes">
+<hr>
+<ol class="footnotes">
+<li class="footnote" id="_footnote_1" role="doc-endnote">
+One note. <a class="footnote-backref" href="#_footnoteref_1" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+</ol>
+</section>

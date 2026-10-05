@@ -13,6 +13,12 @@ impl<'a, W: Write> crate::HtmlVisitor<'a, '_, W> {
         metadata: &BlockMetadata<'_>,
     ) -> Result<(), crate::Error> {
         let width = resolve(metadata, traversal, &mut self.diagnostics);
+        let guarded = crate::callouts::strip_guards(
+            inlines,
+            metadata,
+            crate::callouts::font_icons(traversal),
+        );
+        let inlines = guarded.as_ref();
         let indentation = IndentedSource::new(inlines, width);
         let indented = indentation.as_ref().map(|source| source.inlines(inlines));
         self.visit_inline_nodes(traversal, indented.as_deref().unwrap_or(inlines))

@@ -113,6 +113,15 @@ Lines containing only markers still receive line numbers and line highlighting.
 This matches marker placement in ordinary Asciidoctor HTML. Token colors and
 callout icons remain separate.
 
+Callout font icons follow the active `icons=font` setting in plain and highlighted
+output, including body-level changes. With font icons, guards `//`, `#`, `--` and `;;`
+are removed immediately before a parsed marker, together with at most one
+following space. XML guards in `<!--1-->` are removed as well. Other spacing
+and ordinary comments stay intact. A block's `line-comment` attribute selects
+a custom prefix; `line-comment=""` disables line-prefix removal. Without font
+icons, guards remain visible. These rules match ordinary Asciidoctor HTML;
+Rouge may add spaces between markers, while acdc preserves authored spacing.
+
 Set `:highlight-css: class`, or pass `-a highlight-css=class`, to emit `syntax-*`
 token classes instead. Standalone output supplies the highlighting stylesheet;
 in embedded output, the containing page supplies it. Asciidoctor's Rouge
@@ -814,8 +823,9 @@ The HTML converter:
 
 While the HTML converter aims for compatibility with Asciidoctor, there are some known differences and limitations.
 
-- With `icons=font`, XML callout comment guards remain visible; Asciidoctor
-  removes them. This is a known compatibility gap in plain and highlighted output.
+- An explicit `line-comment` attribute disables XML-callout recognition in
+  Asciidoctor. acdc still parses XML markers in that case; this remains a
+  parser compatibility gap, independent of font-icon guard removal.
 - The `css-signature` attribute is not supported. Use a document ID instead (`[[my-id]]` above the title).
 - Syntax highlighting uses syntect with inline CSS styles rather than external highlight.js or Pygments. Language coverage may differ.
 - The `html5s` backend is inspired by Jakub Jirutka's https://github.com/jirutka/asciidoctor-html5s[asciidoctor-html5s] gem but is a separate implementation with its own output.

@@ -48,7 +48,9 @@ fn rendered_code_texts(output: &str) -> Result<Vec<String>, Error> {
 
 #[rstest::rstest]
 #[case("highlighted_callout_positions")]
+#[case("callout_icon_guards")]
 #[cfg_attr(feature = "pre-spec-subs", case("subs_highlighted_callout_positions"))]
+#[cfg_attr(feature = "pre-spec-subs", case("subs_callout_icon_guards"))]
 fn highlighted_callouts_preserve_plain_code_text_and_targets(
     #[case] stem: &str,
 ) -> Result<(), Error> {
@@ -77,7 +79,14 @@ fn highlighted_callouts_preserve_plain_code_text_and_targets(
                 plain_text,
                 "{stem} {variant:?} {settings:?}"
             );
-            if stem == "subs_highlighted_callout_positions" {
+            for marker in ["<i class=\"conum\"", "<b class=\"conum\">"] {
+                assert_eq!(
+                    output.matches(marker).count(),
+                    plain.matches(marker).count(),
+                    "{stem} {variant:?} {settings:?}: {marker}"
+                );
+            }
+            if stem.starts_with("subs_") {
                 check_link_structure(&output, stem)?;
             }
             if cfg!(feature = "highlighting") && stem == "highlighted_callout_positions" {
@@ -880,10 +889,7 @@ fn visible_index_typography_survives_missing_theme_fallback() -> Result<(), Erro
         ] {
             assert!(display.contains(line), "{variant:?}: {output}");
         }
-        assert!(
-            output.contains("class=\"conum\" data-value=\"1\""),
-            "{output}"
-        );
+        assert!(output.contains("<b class=\"conum\">(1)</b>"), "{output}");
     }
     Ok(())
 }
