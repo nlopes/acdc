@@ -1,0 +1,68 @@
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>callout-subs - substitutions beside callouts</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_synopsis">Synopsis</h2>
+<p>Callout substitution controls.</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_description">Description</h2>
+<p id="target">Target paragraph.</p>
+<div class="listing-block">
+<pre class="highlight"><code class="language-xml" data-lang="xml">&lt;tag&gt;S01 &#169; &amp; literal&lt;/tag&gt; &lt;!--<b class="conum">(1)</b>-&#8594; &lt;!--<b class="conum">(2)</b>-&#8594;</code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Replaced XML suffix.</li>
+<li>Second replaced suffix.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text">S02 é中 &#169; <a href="https://example.org">Link &amp; é中</a> <b class="conum">(1)</b> <b class="conum">(2)</b>
+S03 <strong>Bold &amp; é中</strong> <em>Italic</em> <b class="conum">(3)</b><b class="conum">(4)</b>
+S04 <em>raw &amp; é中</em> <b class="conum">(5)</b> <b class="conum">(6)</b>
+S05 <a id="_indexterm_0"></a>Index &amp; é中 <a id="code-target"></a><a href="#target">Target</a> <b class="conum">(7)</b> <b class="conum">(8)</b>
+S06 <sup class="footnote-ref" id="_footnoteref_1">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup> <b class="conum">(9)</b><b class="conum">(10)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>First link marker.</li>
+<li>Second link marker.</li>
+<li>First formatted marker.</li>
+<li>Second formatted marker.</li>
+<li>First raw marker.</li>
+<li>Second raw marker.</li>
+<li>First index marker.</li>
+<li>Second index marker.</li>
+<li>First footnote marker.</li>
+<li>Second footnote marker.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text">S07 <a href="https://example.org/multiline">First
+Second</a> <b class="conum">(1)</b><b class="conum">(2)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>First marker after a multiline link.</li>
+<li>Second marker after a multiline link.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-xml" data-lang="xml">&lt;tag&gt;S08&lt;/tag&gt; &lt;!--1--&gt; &lt;!--2--&gt;</code></pre>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text">S09 &lt;1&gt; &lt;2&gt; (C) https://example.org[Literal]</code></pre>
+</div>
+<p>See <a href="#code-target">code</a>. Reuse <sup class="footnote-ref">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup>.</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_index">Index</h2>
+<h3 class="indexletter">I</h3>
+<dl class="indexterms">
+<dt>Index &amp; é中
+ <a href="#_indexterm_0">Description</a></dt>
+</dl>
+</section>
+<section class="footnotes" aria-label="Footnotes" role="doc-endnotes">
+<hr>
+<ol class="footnotes">
+<li class="footnote" id="_footnote_1" role="doc-endnote">
+Note text. <a class="footnote-backref" href="#_footnoteref_1" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+</ol>
+</section>

@@ -1,0 +1,69 @@
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>callout-subs - substitutions beside callouts</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_synopsis">Synopsis</h2>
+<p>Callout substitution controls.</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_description">Description</h2>
+<p id="target">Target paragraph.</p>
+<div class="listing-block">
+<pre class="highlight"><code class="language-xml" data-lang="xml"><span style="color:#323232;">&lt;</span><span style="color:#63a35c;">tag</span><span style="color:#323232;">&gt;S01 © </span><span style="background-color:#f5f5f5;font-weight:bold;color:#b52a1d;">&amp;</span><span style="color:#323232;"> literal&lt;/</span><span style="color:#63a35c;">tag</span><span style="color:#323232;">&gt; </span><span style="font-style:italic;color:#969896;">&lt;!--</span><i class="conum" data-value="1"></i><b>(1)</b><span style="font-style:italic;color:#969896;">-→ &lt;!</span><span style="background-color:#f5f5f5;font-weight:bold;color:#b52a1d;">--</span><span style="font-style:italic;color:#969896;"></span><i class="conum" data-value="2"></i><b>(2)</b><span style="font-style:italic;color:#969896;">-→</span></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Replaced XML suffix.</li>
+<li>Second replaced suffix.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text"><span style="color:#323232;">S02 é中 © <a href="https://example.org">Link &amp; é中</a> </span><i class="conum" data-value="1"></i><b>(1)</b><span style="color:#323232;"> </span><i class="conum" data-value="2"></i><b>(2)</b><span style="color:#323232;">
+</span><span style="color:#323232;">S03 <strong>Bold &amp; é中</strong> <em>Italic</em> </span><i class="conum" data-value="3"></i><b>(3)</b><span style="color:#323232;"></span><i class="conum" data-value="4"></i><b>(4)</b><span style="color:#323232;">
+</span><span style="color:#323232;">S04 </span><em>raw &amp; é中</em><span style="color:#323232;"> </span><i class="conum" data-value="5"></i><b>(5)</b><span style="color:#323232;"> </span><i class="conum" data-value="6"></i><b>(6)</b><span style="color:#323232;">
+</span><span style="color:#323232;">S05 <a id="_indexterm_0"></a>Index &amp; é中 <a id="code-target"></a><a href="#target">Target</a> </span><i class="conum" data-value="7"></i><b>(7)</b><span style="color:#323232;"> </span><i class="conum" data-value="8"></i><b>(8)</b><span style="color:#323232;">
+</span><span style="color:#323232;">S06 <sup class="footnote-ref" id="_footnoteref_1">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup> </span><i class="conum" data-value="9"></i><b>(9)</b><span style="color:#323232;"></span><i class="conum" data-value="10"></i><b>(10)</b><span style="color:#323232;"></span></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>First link marker.</li>
+<li>Second link marker.</li>
+<li>First formatted marker.</li>
+<li>Second formatted marker.</li>
+<li>First raw marker.</li>
+<li>Second raw marker.</li>
+<li>First index marker.</li>
+<li>Second index marker.</li>
+<li>First footnote marker.</li>
+<li>Second footnote marker.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text"><table class="linenotable"><tbody><tr><td class="linenos"><pre class="lineno">10
+11</pre></td><td class="code"><pre><span class="hll" style="display:block;background-color:rgba(245,245,245,1.000)"><span style="color:#323232;">S07 <a href="https://example.org/multiline">First</a></span>
+</span><span class="hll" style="display:block;background-color:rgba(245,245,245,1.000)"><span style="color:#323232;"><a href="https://example.org/multiline">Second</a></span><span style="color:#323232;"> </span><i class="conum" data-value="1"></i><b>(1)</b><span style="color:#323232;"></span><i class="conum" data-value="2"></i><b>(2)</b><span style="color:#323232;"></span></span></pre></td></tr></tbody></table></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>First marker after a multiline link.</li>
+<li>Second marker after a multiline link.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-xml" data-lang="xml"><span style="color:#323232;">&lt;</span><span style="color:#63a35c;">tag</span><span style="color:#323232;">&gt;S08&lt;/</span><span style="color:#63a35c;">tag</span><span style="color:#323232;">&gt; </span><span style="font-style:italic;color:#969896;">&lt;!--1--&gt; &lt;!--2--&gt;</span></code></pre>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text"><span style="color:#323232;">S09 &lt;1&gt; &lt;2&gt; (C) https://example.org[Literal]</span></code></pre>
+</div>
+<p>See <a href="#code-target">code</a>. Reuse <sup class="footnote-ref">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup>.</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_index">Index</h2>
+<h3 class="indexletter">I</h3>
+<dl class="indexterms">
+<dt>Index &amp; é中
+ <a href="#_indexterm_0">Description</a></dt>
+</dl>
+</section>
+<section class="footnotes" aria-label="Footnotes" role="doc-endnotes">
+<hr>
+<ol class="footnotes">
+<li class="footnote" id="_footnote_1" role="doc-endnote">
+Note text. <a class="footnote-backref" href="#_footnoteref_1" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+</ol>
+</section>

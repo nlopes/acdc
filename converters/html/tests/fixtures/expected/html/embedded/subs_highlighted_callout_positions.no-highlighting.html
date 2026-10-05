@@ -1,0 +1,98 @@
+<div class="sect1">
+<h2 id="_name">Name</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>callout-subs - substitutions beside callouts</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_synopsis">Synopsis</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Callout substitution controls.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_description">Description</h2>
+<div class="sectionbody">
+<div id="target" class="paragraph">
+<p>Target paragraph.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-xml" data-lang="xml">&lt;tag&gt;S01 &#169; &amp; literal&lt;/tag&gt; &lt;!--<b class="conum">(1)</b>-&#8594; &lt;!--<b class="conum">(2)</b>-&#8594;</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<ol>
+<li><p>Replaced XML suffix.</p></li>
+<li><p>Second replaced suffix.</p></li>
+</ol>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text">S02 é中 &#169; <a href="https://example.org">Link &amp; é中</a> <b class="conum">(1)</b> <b class="conum">(2)</b>
+S03 <strong>Bold &amp; é中</strong> <em>Italic</em> <b class="conum">(3)</b><b class="conum">(4)</b>
+S04 <em>raw &amp; é中</em> <b class="conum">(5)</b> <b class="conum">(6)</b>
+S05 <a id="_indexterm_0"></a>Index &amp; é中 <a id="code-target"></a><a href="#target">Target</a> <b class="conum">(7)</b> <b class="conum">(8)</b>
+S06 <sup class="footnote" id="_footnote_note">[<a id="_footnoteref_1" class="footnote" href="#_footnotedef_1" title="View footnote.">1</a>]</sup> <b class="conum">(9)</b><b class="conum">(10)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<ol>
+<li><p>First link marker.</p></li>
+<li><p>Second link marker.</p></li>
+<li><p>First formatted marker.</p></li>
+<li><p>Second formatted marker.</p></li>
+<li><p>First raw marker.</p></li>
+<li><p>Second raw marker.</p></li>
+<li><p>First index marker.</p></li>
+<li><p>Second index marker.</p></li>
+<li><p>First footnote marker.</p></li>
+<li><p>Second footnote marker.</p></li>
+</ol>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text">S07 <a href="https://example.org/multiline">First
+Second</a> <b class="conum">(1)</b><b class="conum">(2)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<ol>
+<li><p>First marker after a multiline link.</p></li>
+<li><p>Second marker after a multiline link.</p></li>
+</ol>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-xml" data-lang="xml">&lt;tag&gt;S08&lt;/tag&gt; &lt;!--1--&gt; &lt;!--2--&gt;</code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text">S09 &lt;1&gt; &lt;2&gt; (C) https://example.org[Literal]</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>See <a href="#code-target">code</a>. Reuse <sup class="footnoteref">[<a class="footnote" href="#_footnotedef_1" title="View footnote.">1</a>]</sup>.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_index">Index</h2>
+<div class="sectionbody">
+<h3 class="indexletter">I</h3>
+<dl class="indexterms">
+<dt>Index &amp; é中
+ <a href="#_indexterm_0">Description</a></dt>
+</dl>
+</div>
+</div>
+<div id="footnotes">
+<hr>
+<div class="footnote" id="_footnotedef_1">
+<a href="#_footnoteref_1">1</a>. Note text.</div>
+</div>

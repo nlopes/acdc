@@ -1,0 +1,77 @@
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>callout-positions - preserve callout placement</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_synopsis">Synopsis</h2>
+<p>Callout position controls.</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_description">Description</h2>
+<div class="listing-block">
+<pre class="highlight"><code class="language-xml" data-lang="xml">&lt;tag&gt;C01 &amp; "é中"&lt;/tag&gt; &lt;!--<b class="conum">(1)</b>--&gt;
+&lt;tag&gt;C02&lt;/tag&gt;&lt;!--<b class="conum">(2)</b>--&gt;
+&lt;tag&gt;C03&lt;/tag&gt; &lt;!--<b class="conum">(3)</b>--&gt; &lt;!--<b class="conum">(4)</b>--&gt;
+&lt;tag&gt;C04&lt;/tag&gt; &lt;!--<b class="conum">(5)</b>--&gt;&lt;!--<b class="conum">(6)</b>--&gt;</code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>XML guard.</li>
+<li>No preceding space.</li>
+<li>First spaced guard.</li>
+<li>Second spaced guard.</li>
+<li>First adjacent guard.</li>
+<li>Second adjacent guard.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-rust" data-lang="rust">C05(); <b class="conum">(1)</b> <b class="conum">(2)</b>
+C06(); <b class="conum">(3)</b><b class="conum">(4)</b>
+C07(); <b class="conum">(5)</b> <b class="conum">(5)</b>
+C08();    <b class="conum">(6)</b>
+C09(); <b class="conum">(7)</b> <b class="conum">(8)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>First marker.</li>
+<li>Second marker.</li>
+<li>First adjacent marker.</li>
+<li>Second adjacent marker.</li>
+<li>Repeated marker.</li>
+<li>Authored spaces.</li>
+<li>First guarded marker.</li>
+<li>Second guarded marker.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-xml" data-lang="xml">&lt;tag&gt;C10&lt;/tag&gt; &lt;!--<b class="conum">(1)</b>--&gt;&lt;!--<b class="conum">(2)</b>--&gt;</code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>First automatic marker.</li>
+<li>Second automatic marker.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-xml" data-lang="xml">&lt;tag&gt;C11&lt;/tag&gt; &lt;!--1--&gt;
+&lt;tag&gt;C12&lt;/tag&gt; &lt;!--1--&gt; suffix
+&lt;tag&gt;C13&lt;/tag&gt; &lt;!-- ordinary comment --&gt;</code></pre>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code class="language-unknown-language" data-lang="unknown-language">C14 é中 &amp; "text" <b class="conum">(1)</b> <b class="conum">(2)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Unknown language.</li>
+<li>Last marker at EOF.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text"><b class="conum">(1)</b>
+C15
+<b class="conum">(2)</b><b class="conum">(3)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Marker-only first line.</li>
+<li>Marker-only last line.</li>
+<li>Adjacent final marker.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text"><b class="conum">(1)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Marker-only block.</li>
+</ol>
+</section>

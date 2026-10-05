@@ -1,0 +1,82 @@
+= callout-positions(1)
+:doctype: manpage
+:revdate: 2026-10-05
+:source-highlighter: syntect
+
+== Name
+
+callout-positions - preserve callout placement
+
+== Synopsis
+
+Callout position controls.
+
+== Description
+
+[source,xml]
+----
+<tag>C01 & "é中"</tag> <!--1-->
+<tag>C02</tag><!--2-->
+<tag>C03</tag> <!--3--> <!--4-->
+<tag>C04</tag> <!--5--><!--6-->
+----
+<1> XML guard.
+<2> No preceding space.
+<3> First spaced guard.
+<4> Second spaced guard.
+<5> First adjacent guard.
+<6> Second adjacent guard.
+
+[source,rust]
+----
+C05(); <1> <2>
+C06(); <3><4>
+C07(); <5> <5>
+C08();    <6>
+C09(); // <7> <8>
+----
+<1> First marker.
+<2> Second marker.
+<3> First adjacent marker.
+<4> Second adjacent marker.
+<5> Repeated marker.
+<6> Authored spaces.
+<7> First guarded marker.
+<8> Second guarded marker.
+
+[source,xml]
+----
+<tag>C10</tag> <!--.--><!--.-->
+----
+<.> First automatic marker.
+<.> Second automatic marker.
+
+[source,xml]
+----
+<tag>C11</tag> \<!--1-->
+<tag>C12</tag> <!--1--> suffix
+<tag>C13</tag> <!-- ordinary comment -->
+----
+
+[source,unknown-language]
+----
+C14 é中 & "text" <1> <2>
+----
+<1> Unknown language.
+<2> Last marker at EOF.
+
+[source,text,linenums,start=7,highlight="7,9"]
+----
+<1>
+C15
+<2><3>
+----
+<1> Marker-only first line.
+<2> Marker-only last line.
+<3> Adjacent final marker.
+
+[source,text,linenums,start=20,highlight=20]
+----
+<1>
+----
+<1> Marker-only block.

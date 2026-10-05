@@ -107,6 +107,12 @@ An absent or unset signifier keeps the number-only form.
 
 Source blocks with a language specified render with syntax highlighting (requires the `highlighting` feature flag). Uses syntect with inline CSS styles by default.
 
+Callouts keep their positions and authored spacing when highlighting is enabled,
+including multiple markers on one line and markers inside XML comment guards.
+Lines containing only markers still receive line numbers and line highlighting.
+This matches marker placement in ordinary Asciidoctor HTML. Token colors and
+callout icons remain separate.
+
 Set `:highlight-css: class`, or pass `-a highlight-css=class`, to emit `syntax-*`
 token classes instead. Standalone output supplies the highlighting stylesheet;
 in embedded output, the containing page supplies it. Asciidoctor's Rouge
@@ -808,6 +814,8 @@ The HTML converter:
 
 While the HTML converter aims for compatibility with Asciidoctor, there are some known differences and limitations.
 
+- With `icons=font`, XML callout comment guards remain visible; Asciidoctor
+  removes them. This is a known compatibility gap in plain and highlighted output.
 - The `css-signature` attribute is not supported. Use a document ID instead (`[[my-id]]` above the title).
 - Syntax highlighting uses syntect with inline CSS styles rather than external highlight.js or Pygments. Language coverage may differ.
 - The `html5s` backend is inspired by Jakub Jirutka's https://github.com/jirutka/asciidoctor-html5s[asciidoctor-html5s] gem but is a separate implementation with its own output.

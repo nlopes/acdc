@@ -1,0 +1,79 @@
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>callout-positions - preserve callout placement</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_synopsis">Synopsis</h2>
+<p>Callout position controls.</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_description">Description</h2>
+<div class="listing-block">
+<pre class="highlight"><code class="language-xml" data-lang="xml"><span style="color:#323232;">&lt;</span><span style="color:#63a35c;">tag</span><span style="color:#323232;">&gt;C01 </span><span style="background-color:#f5f5f5;font-weight:bold;color:#b52a1d;">&amp;</span><span style="color:#323232;"> &quot;é中&quot;&lt;/</span><span style="color:#63a35c;">tag</span><span style="color:#323232;">&gt; </span><span style="font-style:italic;color:#969896;">&lt;!--</span><i class="conum" data-value="1"></i><b>(1)</b><span style="font-style:italic;color:#969896;">--&gt;
+</span><span style="color:#323232;">&lt;</span><span style="color:#63a35c;">tag</span><span style="color:#323232;">&gt;C02&lt;/</span><span style="color:#63a35c;">tag</span><span style="color:#323232;">&gt;</span><span style="font-style:italic;color:#969896;">&lt;!--</span><i class="conum" data-value="2"></i><b>(2)</b><span style="font-style:italic;color:#969896;">--&gt;
+</span><span style="color:#323232;">&lt;</span><span style="color:#63a35c;">tag</span><span style="color:#323232;">&gt;C03&lt;/</span><span style="color:#63a35c;">tag</span><span style="color:#323232;">&gt; </span><span style="font-style:italic;color:#969896;">&lt;!--</span><i class="conum" data-value="3"></i><b>(3)</b><span style="font-style:italic;color:#969896;">--&gt; &lt;!--</span><i class="conum" data-value="4"></i><b>(4)</b><span style="font-style:italic;color:#969896;">--&gt;
+</span><span style="color:#323232;">&lt;</span><span style="color:#63a35c;">tag</span><span style="color:#323232;">&gt;C04&lt;/</span><span style="color:#63a35c;">tag</span><span style="color:#323232;">&gt; </span><span style="font-style:italic;color:#969896;">&lt;!--</span><i class="conum" data-value="5"></i><b>(5)</b><span style="font-style:italic;color:#969896;">--&gt;&lt;!--</span><i class="conum" data-value="6"></i><b>(6)</b><span style="font-style:italic;color:#969896;">--&gt;</span></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>XML guard.</li>
+<li>No preceding space.</li>
+<li>First spaced guard.</li>
+<li>Second spaced guard.</li>
+<li>First adjacent guard.</li>
+<li>Second adjacent guard.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-rust" data-lang="rust"><span style="color:#0086b3;">C05</span><span style="color:#323232;">(); </span><i class="conum" data-value="1"></i><b>(1)</b><span style="color:#323232;"> </span><i class="conum" data-value="2"></i><b>(2)</b><span style="color:#323232;">
+</span><span style="color:#0086b3;">C06</span><span style="color:#323232;">(); </span><i class="conum" data-value="3"></i><b>(3)</b><span style="color:#323232;"></span><i class="conum" data-value="4"></i><b>(4)</b><span style="color:#323232;">
+</span><span style="color:#0086b3;">C07</span><span style="color:#323232;">(); </span><i class="conum" data-value="5"></i><b>(5)</b><span style="color:#323232;"> </span><i class="conum" data-value="5"></i><b>(5)</b><span style="color:#323232;">
+</span><span style="color:#0086b3;">C08</span><span style="color:#323232;">();    </span><i class="conum" data-value="6"></i><b>(6)</b><span style="color:#323232;">
+</span><span style="color:#0086b3;">C09</span><span style="color:#323232;">(); </span><i class="conum" data-value="7"></i><b>(7)</b><span style="color:#323232;"> </span><i class="conum" data-value="8"></i><b>(8)</b><span style="color:#323232;"></span></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>First marker.</li>
+<li>Second marker.</li>
+<li>First adjacent marker.</li>
+<li>Second adjacent marker.</li>
+<li>Repeated marker.</li>
+<li>Authored spaces.</li>
+<li>First guarded marker.</li>
+<li>Second guarded marker.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-xml" data-lang="xml"><span style="color:#323232;">&lt;</span><span style="color:#63a35c;">tag</span><span style="color:#323232;">&gt;C10&lt;/</span><span style="color:#63a35c;">tag</span><span style="color:#323232;">&gt; </span><span style="font-style:italic;color:#969896;">&lt;!--</span><i class="conum" data-value="1"></i><b>(1)</b><span style="font-style:italic;color:#969896;">--&gt;&lt;!--</span><i class="conum" data-value="2"></i><b>(2)</b><span style="font-style:italic;color:#969896;">--&gt;</span></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>First automatic marker.</li>
+<li>Second automatic marker.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-xml" data-lang="xml"><span style="color:#323232;">&lt;</span><span style="color:#63a35c;">tag</span><span style="color:#323232;">&gt;C11&lt;/</span><span style="color:#63a35c;">tag</span><span style="color:#323232;">&gt; </span><span style="font-style:italic;color:#969896;">&lt;!--1--&gt;
+</span><span style="color:#323232;">&lt;</span><span style="color:#63a35c;">tag</span><span style="color:#323232;">&gt;C12&lt;/</span><span style="color:#63a35c;">tag</span><span style="color:#323232;">&gt; </span><span style="font-style:italic;color:#969896;">&lt;!--1--&gt;</span><span style="color:#323232;"> suffix
+</span><span style="color:#323232;">&lt;</span><span style="color:#63a35c;">tag</span><span style="color:#323232;">&gt;C13&lt;/</span><span style="color:#63a35c;">tag</span><span style="color:#323232;">&gt; </span><span style="font-style:italic;color:#969896;">&lt;!-- ordinary comment --&gt;</span></code></pre>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code class="language-unknown-language" data-lang="unknown-language"><span style="color:#323232;">C14 é中 &amp; &quot;text&quot; </span><i class="conum" data-value="1"></i><b>(1)</b><span style="color:#323232;"> </span><i class="conum" data-value="2"></i><b>(2)</b><span style="color:#323232;"></span></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Unknown language.</li>
+<li>Last marker at EOF.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text"><table class="linenotable"><tbody><tr><td class="linenos"><pre class="lineno">7
+8
+9</pre></td><td class="code"><pre><span class="hll" style="display:block;background-color:rgba(245,245,245,1.000)"><span style="color:#323232;"></span><i class="conum" data-value="1"></i><b>(1)</b><span style="color:#323232;"></span>
+</span><span style="color:#323232;"></span><span style="color:#323232;">C15</span>
+<span class="hll" style="display:block;background-color:rgba(245,245,245,1.000)"><span style="color:#323232;"></span><span style="color:#323232;"></span><i class="conum" data-value="2"></i><b>(2)</b><span style="color:#323232;"></span><i class="conum" data-value="3"></i><b>(3)</b><span style="color:#323232;"></span></span></pre></td></tr></tbody></table></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Marker-only first line.</li>
+<li>Marker-only last line.</li>
+<li>Adjacent final marker.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text"><table class="linenotable"><tbody><tr><td class="linenos"><pre class="lineno">20</pre></td><td class="code"><pre><span class="hll" style="display:block;background-color:rgba(245,245,245,1.000)"><span style="color:#323232;"></span><i class="conum" data-value="1"></i><b>(1)</b><span style="color:#323232;"></span></span></pre></td></tr></tbody></table></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Marker-only block.</li>
+</ol>
+</section>

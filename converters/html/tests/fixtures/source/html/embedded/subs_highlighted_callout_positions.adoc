@@ -1,0 +1,68 @@
+= callout-subs(1)
+:doctype: manpage
+:revdate: 2026-10-05
+:source-highlighter: syntect
+:acdc-index:
+:name: é中
+
+== Name
+
+callout-subs - substitutions beside callouts
+
+== Synopsis
+
+Callout substitution controls.
+
+== Description
+
+[[target]]
+Target paragraph.
+
+[source,xml,subs="+replacements"]
+----
+<tag>S01 (C) & literal</tag> <!--1--> <!--2-->
+----
+<1> Replaced XML suffix.
+<2> Second replaced suffix.
+
+[source,text,subs="+macros,+quotes,+attributes,+replacements"]
+----
+S02 {name} (C) https://example.org[Link & é中] <1> <2>
+S03 *Bold & é中* _Italic_ <3><4>
+S04 pass:[<em>raw &amp; é中</em>] <5> <6>
+S05 ((Index & é中)) anchor:code-target[]xref:target[Target] <7> <8>
+S06 footnote:note[Note text.] <9><10>
+----
+<1> First link marker.
+<2> Second link marker.
+<3> First formatted marker.
+<4> Second formatted marker.
+<5> First raw marker.
+<6> Second raw marker.
+<7> First index marker.
+<8> Second index marker.
+<9> First footnote marker.
+<10> Second footnote marker.
+
+[source,text,linenums,start=10,highlight="10,11",subs="+macros"]
+----
+S07 https://example.org/multiline[First
+Second] <1><2>
+----
+<1> First marker after a multiline link.
+<2> Second marker after a multiline link.
+
+[source,xml,subs="-callouts"]
+----
+<tag>S08</tag> <!--1--> <!--2-->
+----
+
+[source,text,subs="specialcharacters"]
+----
+S09 <1> <2> (C) https://example.org[Literal]
+----
+
+See <<code-target,code>>. Reuse footnote:note[].
+
+[index]
+== Index

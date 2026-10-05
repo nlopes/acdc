@@ -18,6 +18,82 @@ mod support;
 
 type Error = Box<dyn StdError>;
 
+fn rendered_code_texts(output: &str) -> Result<Vec<String>, Error> {
+    output
+        .split("<code")
+        .skip(1)
+        .map(|block| {
+            let (_, block) = block.split_once('>').ok_or("missing code opener")?;
+            let (block, _) = block.split_once("</code>").ok_or("missing code closer")?;
+            // Line gutters are presentation, not part of the source text.
+            let block = block
+                .split_once("<td class=\"code\"><pre>")
+                .map_or(block, |(_, code)| code);
+            let mut fragments = block.split('<');
+            let mut text = fragments.next().unwrap_or_default().to_owned();
+            for fragment in fragments {
+                let (_, content) = fragment.split_once('>').ok_or("unterminated HTML tag")?;
+                text.push_str(content);
+            }
+            let decoded = acdc_converters_core::decode_numeric_char_refs(&text)
+                .replace("&lt;", "<")
+                .replace("&gt;", ">")
+                .replace("&quot;", "\"")
+                .replace("&apos;", "'")
+                .replace("&amp;", "&");
+            Ok(decoded.trim_end_matches('\n').to_owned())
+        })
+        .collect()
+}
+
+#[rstest::rstest]
+#[case("highlighted_callout_positions")]
+#[cfg_attr(feature = "pre-spec-subs", case("subs_highlighted_callout_positions"))]
+fn highlighted_callouts_preserve_plain_code_text_and_targets(
+    #[case] stem: &str,
+) -> Result<(), Error> {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join(format!("tests/fixtures/source/html/embedded/{stem}.adoc"));
+    let source = read_to_string(path)?;
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        let plain = convert_string_with_variant(
+            &source,
+            &[("source-highlighter", AttributeValue::Bool(false))],
+            variant,
+        )?;
+        let plain_text = rendered_code_texts(&plain)?;
+        assert!(!plain_text.is_empty());
+        for settings in [
+            vec![],
+            vec![("highlight-css", AttributeValue::String("class".into()))],
+            vec![(
+                "highlight-style",
+                AttributeValue::String("missing-theme".into()),
+            )],
+        ] {
+            let output = convert_string_with_variant(&source, &settings, variant)?;
+            assert_eq!(
+                rendered_code_texts(&output)?,
+                plain_text,
+                "{stem} {variant:?} {settings:?}"
+            );
+            if stem == "subs_highlighted_callout_positions" {
+                check_link_structure(&output, stem)?;
+            }
+            if cfg!(feature = "highlighting") && stem == "highlighted_callout_positions" {
+                for numbers in ["7\n8\n9", "20"] {
+                    assert!(
+                        output.contains(&format!("<pre class=\"lineno\">{numbers}</pre>")),
+                        "{output}"
+                    );
+                }
+                assert_eq!(output.matches("class=\"hll\"").count(), 3, "{output}");
+            }
+        }
+    }
+    Ok(())
+}
+
 #[test]
 fn quote_titles_keep_macro_targets_once() -> Result<(), Error> {
     let parsed = parse(

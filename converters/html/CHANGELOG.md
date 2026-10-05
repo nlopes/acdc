@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- With `:source-highlighter: syntect`, callouts retain their positions and
+  authored spacing, including XML comment guards and multiple or repeated
+  markers on one line. Marker-only lines retain line numbers and highlighting.
+  Inline styles, `highlight-css=class`, and missing-theme fallback preserve
+  marker order like unhighlighted HTML and Asciidoctor's ordinary HTML output.
+
 - With `:acdc-index:`, catalog links to repeated terms in highlighted code
   follow document order, including terms inside formatted and linked labels.
   Enabling highlighting no longer makes the first catalog link jump to a later

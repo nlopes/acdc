@@ -18,7 +18,6 @@
 
 #[cfg(feature = "highlighting")]
 use std::{
-    collections::HashMap,
     fmt::Write as _,
     io::{Error as IoError, Write},
 };
@@ -75,7 +74,7 @@ const SYNTAX_CLASS_STYLE: syntect::html::ClassStyle =
 /// Highlight code, apply source-line decoration, and write HTML output.
 ///
 /// Callout references are preserved and rendered as proper HTML elements
-/// after the highlighted code on each line.
+/// at their displayed byte offsets, including multiple references on one line.
 #[cfg(feature = "highlighting")]
 pub(crate) fn highlight_code<W: Write + ?Sized>(
     writer: &mut W,
@@ -107,52 +106,39 @@ pub(crate) fn highlight_code<W: Write + ?Sized>(
         .unwrap_or_else(|| syntax_set.find_syntax_plain_text());
 
     let options = SourceLineOptions::resolve(metadata, &code);
-    if options.is_empty() && links.is_empty() {
+    if options.is_empty() && links.is_empty() && callouts.is_empty() {
         return match mode {
             HighlightMode::Inline => {
-                highlight_code_inline(writer, &code, &callouts, &syntax_set, syntax, theme_name)
+                highlight_code_inline(writer, &code, &syntax_set, syntax, theme_name)
             }
-            HighlightMode::Class => {
-                highlight_code_classed(writer, &code, &callouts, &syntax_set, syntax)
-            }
+            HighlightMode::Class => highlight_code_classed(writer, &code, &syntax_set, syntax),
         };
     }
 
     let mut highlighted = Vec::new();
-    let no_callouts = HashMap::new();
-    let highlight_callouts = if links.is_empty() {
-        &callouts
-    } else {
-        &no_callouts
-    };
     match mode {
-        HighlightMode::Inline => highlight_code_inline(
-            &mut highlighted,
-            &code,
-            highlight_callouts,
-            &syntax_set,
-            syntax,
-            theme_name,
-        ),
-        HighlightMode::Class => highlight_code_classed(
-            &mut highlighted,
-            &code,
-            highlight_callouts,
-            &syntax_set,
-            syntax,
-        ),
+        HighlightMode::Inline => {
+            highlight_code_inline(&mut highlighted, &code, &syntax_set, syntax, theme_name)
+        }
+        HighlightMode::Class => {
+            highlight_code_classed(&mut highlighted, &code, &syntax_set, syntax)
+        }
     }?;
 
     let highlighted = String::from_utf8_lossy(&highlighted);
-    let linked = insert_highlighted_links(&highlighted, links);
-    let linked = if links.is_empty() || callouts.is_empty() {
-        linked
-    } else {
-        match mode {
-            HighlightMode::Inline => insert_callouts_into_highlighted_html(&linked, &callouts),
-            HighlightMode::Class => insert_callouts_into_classed_html(&linked, &callouts),
-        }
-    };
+    let callouts = callouts
+        .into_iter()
+        .map(|(offset, number)| HighlightedLink {
+            range: offset..offset + 1,
+            html: format!("<i class=\"conum\" data-value=\"{number}\"></i><b>({number})</b>"),
+            outside_spans: true,
+        })
+        .collect::<Vec<_>>();
+    // Insert every fragment against the same text offsets: a rendered link or
+    // callout must not shift the offsets of the fragments that follow it.
+    let mut fragments = links.iter().chain(&callouts).collect::<Vec<_>>();
+    fragments.sort_by_key(|fragment| fragment.range.start);
+    let linked = insert_highlighted_links(&highlighted, &fragments);
     if options.is_empty() {
         writer.write_all(linked.as_bytes())?;
         return Ok(());
@@ -292,7 +278,6 @@ fn source_highlight_colour(theme_name: &str) -> String {
 fn highlight_code_inline<W: Write + ?Sized>(
     writer: &mut W,
     code: &str,
-    callouts: &HashMap<usize, usize>,
     syntax_set: &SyntaxSet,
     syntax: &syntect::parsing::SyntaxReference,
     theme_name: &str,
@@ -301,7 +286,7 @@ fn highlight_code_inline<W: Write + ?Sized>(
 
     let theme_set = ThemeSet::load_defaults();
     let Some(theme) = theme_set.themes.get(theme_name) else {
-        return write_escaped_code_with_callouts(writer, code, callouts);
+        return Ok(writer.write_all(html_escape(code).as_bytes())?);
     };
 
     let html = highlighted_html_for_string(code, syntax_set, syntax, theme)
@@ -311,12 +296,7 @@ fn highlight_code_inline<W: Write + ?Sized>(
     // since we already have our own <pre> wrapper. Extract just the inner content.
     let content = extract_inner_content(&html);
 
-    if callouts.is_empty() {
-        write!(writer, "{content}")?;
-    } else {
-        let output = insert_callouts_into_highlighted_html(content, callouts);
-        write!(writer, "{output}")?;
-    }
+    write!(writer, "{content}")?;
 
     Ok(())
 }
@@ -326,7 +306,6 @@ fn highlight_code_inline<W: Write + ?Sized>(
 fn highlight_code_classed<W: Write + ?Sized>(
     writer: &mut W,
     code: &str,
-    callouts: &HashMap<usize, usize>,
     syntax_set: &SyntaxSet,
     syntax: &syntect::parsing::SyntaxReference,
 ) -> Result<(), Error> {
@@ -341,12 +320,7 @@ fn highlight_code_classed<W: Write + ?Sized>(
     }
     let html = generator.finalize();
 
-    if callouts.is_empty() {
-        write!(writer, "{html}")?;
-    } else {
-        let output = insert_callouts_into_classed_html(&html, callouts);
-        write!(writer, "{output}")?;
-    }
+    write!(writer, "{html}")?;
 
     Ok(())
 }
@@ -382,54 +356,6 @@ fn extract_inner_content(html: &str) -> &str {
     content.strip_prefix('\n').unwrap_or(content)
 }
 
-/// Insert callout HTML at the appropriate line endings in inline-style highlighted code.
-#[cfg(feature = "highlighting")]
-fn insert_callouts_into_highlighted_html(html: &str, callouts: &HashMap<usize, usize>) -> String {
-    let mut result = String::with_capacity(html.len() + callouts.len() * 50);
-
-    for (i, line) in html.split('\n').enumerate() {
-        if i > 0 {
-            result.push('\n');
-        }
-
-        result.push_str(line);
-        if let Some(&callout_num) = callouts.get(&i) {
-            use std::fmt::Write;
-            let _ = write!(
-                result,
-                " <i class=\"conum\" data-value=\"{callout_num}\"></i><b>({callout_num})</b>"
-            );
-        }
-    }
-
-    result
-}
-
-/// Insert callout HTML into class-based highlighted code.
-///
-/// The class-based generator does NOT emit a leading newline, so line
-/// counting is straightforward.
-#[cfg(feature = "highlighting")]
-fn insert_callouts_into_classed_html(html: &str, callouts: &HashMap<usize, usize>) -> String {
-    let mut result = String::with_capacity(html.len() + callouts.len() * 50);
-
-    for (i, line) in html.split('\n').enumerate() {
-        if i > 0 {
-            result.push('\n');
-        }
-        result.push_str(line);
-        if let Some(&callout_num) = callouts.get(&i) {
-            use std::fmt::Write;
-            let _ = write!(
-                result,
-                " <i class=\"conum\" data-value=\"{callout_num}\"></i><b>({callout_num})</b>"
-            );
-        }
-    }
-
-    result
-}
-
 /// HTML-escape special characters.
 #[cfg(feature = "highlighting")]
 fn html_escape(s: &str) -> String {
@@ -439,40 +365,10 @@ fn html_escape(s: &str) -> String {
         .replace('"', "&quot;")
 }
 
-/// Write HTML-escaped code with callout markers.
-///
-/// This is the fallback when the requested highlighting theme is unavailable.
-#[cfg(feature = "highlighting")]
-fn write_escaped_code_with_callouts<W: Write + ?Sized>(
-    writer: &mut W,
-    code: &str,
-    callouts: &HashMap<usize, usize>,
-) -> Result<(), Error> {
-    if callouts.is_empty() {
-        let escaped = html_escape(code);
-        write!(writer, "{escaped}")?;
-    } else {
-        for (i, line) in code.split('\n').enumerate() {
-            if i > 0 {
-                writeln!(writer)?;
-            }
-            let escaped = html_escape(line);
-            write!(writer, "{escaped}")?;
-            if let Some(&callout_num) = callouts.get(&i) {
-                write!(
-                    writer,
-                    "<i class=\"conum\" data-value=\"{callout_num}\"></i><b>({callout_num})</b>"
-                )?;
-            }
-        }
-    }
-    Ok(())
-}
-
 /// Extract text content and callout positions from inline nodes for highlighting.
 ///
-/// Returns the code text (without callout markers) and a map of line numbers
-/// to callout numbers.
+/// Returns the code text with a space standing in for each callout, plus the
+/// placeholders' byte offsets and callout numbers in source order.
 /// Ordinary fragments and captured labels must already contain display text.
 /// Visible index labels retain their profiles and use `replacements` for
 /// ordinary label text.
@@ -483,45 +379,31 @@ pub(crate) fn extract_text_and_callouts(
     boundaries: TextBoundaries,
     text_context: Option<&[InlineNode]>,
     mut diagnostics: Option<&mut Diagnostics<'_>>,
-) -> (String, HashMap<usize, usize>) {
+) -> (String, Vec<(usize, usize)>) {
     let mut result = String::new();
-    let mut callouts: HashMap<usize, usize> = HashMap::new();
-    let mut current_line = 0;
+    let mut callouts = Vec::new();
     let text_context = text_context.unwrap_or(inlines);
 
     for (index, node) in inlines.iter().enumerate() {
         #[allow(clippy::match_same_arms)]
         match node {
             InlineNode::VerbatimText(verbatim) => {
-                for ch in verbatim.content.chars() {
-                    result.push(ch);
-                    if ch == '\n' {
-                        current_line += 1;
-                    }
-                }
+                result.push_str(verbatim.content);
             }
             InlineNode::RawText(raw) => {
-                for ch in raw.content.chars() {
-                    result.push(ch);
-                    if ch == '\n' {
-                        current_line += 1;
-                    }
-                }
+                result.push_str(raw.content);
             }
             InlineNode::PlainText(plain) => {
-                for ch in plain.content.chars() {
-                    result.push(ch);
-                    if ch == '\n' {
-                        current_line += 1;
-                    }
-                }
+                result.push_str(plain.content);
             }
             InlineNode::LineBreak(_) => {
                 result.push('\n');
-                current_line += 1;
             }
             InlineNode::CalloutRef(callout) => {
-                callouts.insert(current_line, callout.number);
+                callouts.push((result.len(), callout.number));
+                // Marker-only lines still need a line number/highlight. Replacing
+                // this space with the marker adds no rendered whitespace.
+                result.push(' ');
             }
             InlineNode::Macro(acdc_parser::InlineMacro::IndexTerm(term)) => {
                 if term.is_visible() {
@@ -538,7 +420,6 @@ pub(crate) fn extract_text_and_callouts(
                                 .for_inline(text_context, index),
                         )
                         .to_string(std::slice::from_ref(node));
-                    current_line += text.matches('\n').count();
                     result.push_str(&text);
                 }
             }
@@ -618,10 +499,8 @@ mod tests {
 
         let (text, callouts) =
             extract_text_and_callouts(&inlines, false, TextBoundaries::BOTH, None, None);
-        assert_eq!(text, "let x = 1; \nlet y = 2; \n");
-        assert_eq!(callouts.get(&0), Some(&1));
-        assert_eq!(callouts.get(&1), Some(&2));
-        assert_eq!(callouts.len(), 2);
+        assert_eq!(text, "let x = 1;  \nlet y = 2;  \n");
+        assert_eq!(callouts, [(11, 1), (24, 2)]);
     }
 
     #[test]
@@ -874,7 +753,26 @@ pub(crate) struct HighlightedLink {
 }
 
 #[cfg(feature = "highlighting")]
-fn insert_highlighted_links(html: &str, links: &[HighlightedLink]) -> String {
+impl HighlightedLink {
+    fn append_html(&self, output: &mut String, spans: &[&str]) {
+        // Raw tags can cross highlight runs; callouts must not inherit token
+        // colors. Close and reopen syntax spans around these fragments.
+        if self.outside_spans {
+            for _ in spans {
+                output.push_str("</span>");
+            }
+        }
+        output.push_str(&self.html);
+        if self.outside_spans {
+            for span in spans {
+                output.push_str(span);
+            }
+        }
+    }
+}
+
+#[cfg(feature = "highlighting")]
+fn insert_highlighted_links(html: &str, links: &[&HighlightedLink]) -> String {
     if links.is_empty() {
         return html.to_owned();
     }
@@ -902,26 +800,14 @@ fn insert_highlighted_links(html: &str, links: &[HighlightedLink]) -> String {
                 && link.range.is_empty()
                 && link.range.start == offset
             {
-                output.push_str(&link.html);
+                link.append_html(&mut output, &spans);
             }
         }
         let link = links.peek();
         if let Some(link) = link
             && link.range.start == offset
         {
-            // A raw opening/closing tag can cross highlight runs. Insert it
-            // outside the generated spans so the resulting HTML stays nested.
-            if link.outside_spans {
-                for _ in &spans {
-                    output.push_str("</span>");
-                }
-                output.push_str(&link.html);
-                for span in &spans {
-                    output.push_str(span);
-                }
-            } else {
-                output.push_str(&link.html);
-            }
+            link.append_html(&mut output, &spans);
         }
         let Some(character) = remaining.chars().next() else {
             break;
@@ -944,7 +830,7 @@ fn insert_highlighted_links(html: &str, links: &[HighlightedLink]) -> String {
     }
     for link in links {
         if link.range.is_empty() && link.range.start == offset {
-            output.push_str(&link.html);
+            link.append_html(&mut output, &spans);
         }
     }
     output
