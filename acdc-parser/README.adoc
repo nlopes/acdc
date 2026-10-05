@@ -167,6 +167,27 @@ cannot consume spaces, escapes, or dash halves from another profile. For example
 `prefix indexterm2:[pass:r[--]] tail` retains `--`; Asciidoctor converts the
 isolated passthrough to a spaced em dash before inserting it.
 
+== Formatting across link labels
+
+Constrained bold, italic, monospace and highlight spans keep complete links
+intact. A URL, `link:`, `mailto:` or cross-reference label owns its formatting
+markers independently of the surrounding span. For example:
+
+[source,asciidoc]
+----
+*Before https://example.org[*Bold* after] end*
+----
+
+The outer bold span includes the complete link and `end`; the label contains
+its own bold span. A missing outer closing marker stays literal. Disabled
+macros and unfinished links do not establish a label boundary.
+
+This deliberately differs from Asciidoctor's formatting-before-macros order,
+which can close a span inside a label and produce crossed HTML tags. acdc keeps
+a nested inline tree and retains separate targets for nested links. This
+supports the selected SDR-5 separation of parsing and conversion; SDR-5 does
+not prescribe this exact delimiter-ownership policy.
+
 == Escaped attribute references
 
 When attribute substitutions are enabled, `\{name}`, `{name\}`, and `\{name\}` all produce the literal text `{name}`.

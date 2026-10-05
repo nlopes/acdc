@@ -1,0 +1,160 @@
+'\" t
+.\"     Title: link-formatting
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-05
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "LINK\-FORMATTING" "1" "2026-10-05" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+link\-formatting \- preserve formatting and complete links
+.SH "DESCRIPTION"
+.sp
+L01 \fBBefore \c
+.URL "https://example.org/bold" "\fBBold\fP after" "\c"
+ end\fP\&.
+.sp
+L02 \fIBefore \c
+.URL "https://example.org/italic" "\fIItalic\fP after" "\c"
+ end\fP\&.
+.sp
+L03 \f(CRBefore \c
+.URL "https://example.org/code" "\f(CRCode\fP after" "\c"
+ end\fP\&.
+.sp
+L04 \fBBefore \c
+.URL "https://example.org/mark" "\fBMarked\fP after" "\c"
+ end\fP\&.
+.sp
+L05 \fBBefore \c
+.URL "manual.html" "\fBManual\fP after" "\c"
+ end\fP\&.
+.sp
+L06 \fIBefore \c
+.MTO "user\(atexample.org" "\fIMail\fP after" "\c"
+ end\fP\&.
+.sp
+L07 \fIBefore \fIReference\fP after end\fP\&.
+.sp
+L08 \fBBefore \fBReference\fP after end\fP\&.
+.sp
+L09 \fBBefore \c
+.URL "https://outer.example" "Before" " \c"
+\fB\c
+.URL "https://outer.example" "bold" " \c"
+\c
+.MTO "inner\(atexample.org" "Inner" "\c"
+ \c
+.URL "https://outer.example" "tail" "\c"
+\fP \c
+.URL "https://outer.example" "after" "\c"
+ end\fP\&.
+.sp
+L10 \fBBefore \c
+.URL "https://example.org/note" "\fBNote [1] Indexed\fP after" "\c"
+ end\fP\&. Reuse [1]\&.
+.sp
+L11 \fBBefore \c
+.URL "https://one.example" "\fBOne\fP" "\c"
+ and \c
+.URL "https://two.example" "\fBTwo\fP" "\c"
+ end\fP\&.
+.sp
+L12 \fBBefore \c
+.URL "https://example.org/bracket" "\fBBracket] text\fP after" "\c"
+ end\fP\&.
+.sp
+L13 \fBBefore https://escaped.example[*Literal* after] end\fP\&.
+.sp
+L14 \fBBefore \c
+.URL "https://example.org/quoted" "\fBQuoted\fP after" "\c"
+ end\fP\&.
+.sp
+L15 \fBBefore \c
+.URL "https://example.org/attribute" "*Expanded* after" "\c"
+ end\fP\&.
+.sp
+L16 \fI\c
+.URL "https://example.org/edge" "\fIEdge\fP" "\c"
+\fP\&.
+.sp
+L17 *Before \c
+.URL "https://example.org/unclosed" "Unclosed* after" "\c"
+\&.
+.sp
+L18 \fBBefore \c
+.URL "https://example.org/inner" "*Unclosed after" "\c"
+ end\fP\&.
+.sp
+L19 \fBBefore \c
+.URL "https://example.org/incomplete" "" "\c"
+[Incomplete\fP after.
+.sp
+L20 \fBÉva \c
+.URL "https://example.org/unicode" "\fBcafé\fP after" "\c"
+ τέλος\fP\&.
+.sp
+L21 \fBBefore \c
+.URL "https://example.org/escaped" "*Literal* after" "\c"
+ end\fP\&.
+.sp
+L22 \fBBefore \c
+.URL "https://example.org/multiline" "\fBMultiline label\fP after" "\c"
+ end\fP\&.
+.sp
+L23 \fBBefore \c
+.URL "https://example.org/query?pattern=*" "\fBQuery\fP after" "\c"
+ end\fP\&.
+.sp
+L24 \fBBefore \c
+.URL "https://example.org/role" "\fBRole\fP after" "\c"
+ end\fP\&.
+.sp
+L25 \fBBefore \c
+.URL "https://example.org/brackets" "Before [\fBnested\fP] after" "\c"
+ end\fP\&.
+.sp
+L26 \fBBefore \c
+.URL "https://example.org/control" "Plain" "\c"
+ end\fP\&.
+.sp
+L27 \c
+.URL "https://example.org/control\-label" "\fBBold\fP after" "\c"
+\&.
+.sp
+L28 \fBFirst\fP \c
+.URL "https://example.org/separate" "Label" "\c"
+ \fBSecond\fP\&.
+.SH "TARGET"
+.sp
+Target text.
+.SH "INDEX"
+.SS "I"
+.RS 4
+Indexed
+.br
+.RE
+.SH "NOTES"
+.IP [1] 4
+One note.

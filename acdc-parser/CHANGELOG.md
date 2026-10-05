@@ -57,6 +57,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Constrained formatting around links keeps complete URL, `link:`, `mailto:`
+  and cross-reference labels, including nested formatting and macros. Formatting
+  markers inside labels no longer close an outer span. Unlike Asciidoctor's
+  substitution order, acdc preserves a nested structure instead of crossing
+  formatting and link boundaries; unmatched outer markers remain literal.
+
 - Delimited verse blocks parse formatting, attributes, links, footnotes, and
   index terms with normal substitutions, like verse paragraphs and Asciidoctor.
   Explicit `subs=` settings remain effective when `pre-spec-subs` is enabled.

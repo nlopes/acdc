@@ -47,10 +47,16 @@ N02 \c
 .MTO "second\(atexample.org" "Second" "\c"
 \&.
 N03 \fBBefore \c
-.URL "https://outer.example" "" "\c"
-[Before *bold \c
+.URL "https://outer.example" "Before" " \c"
+\fB\c
+.URL "https://outer.example" "bold" " \c"
+\c
 .MTO "test\(atexample.org" "Inner" "\c"
- tail\fP after] end*.
+ \c
+.URL "https://outer.example" "tail" "\c"
+\fP \c
+.URL "https://outer.example" "after" "\c"
+ end\fP\&.
 N04 \c
 .URL "https://outer.example" "Before [1] after" "\c"
 \&.

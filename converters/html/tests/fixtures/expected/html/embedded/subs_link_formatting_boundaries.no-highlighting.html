@@ -1,0 +1,63 @@
+<div class="sect1">
+<h2 id="_name">Name</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>link-formatting-subs - control formatting at link boundaries</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_description">Description</h2>
+<div class="sectionbody">
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text">S01 <strong>Before <a href="https://outer.example">Before </a><strong><a href="https://outer.example">bold </a><a href="mailto:inner@example.org">Inner</a><a href="https://outer.example"> tail</a></strong><a href="https://outer.example"> after</a> end</strong>.
+S02 <em>Before <a href="https://example.org/italic"><em>Italic</em> after</a> end</em>.
+S03 <strong>Before <strong><a href="https://example.org/note">Note </a><sup class="footnote" id="_footnote_code">[<a id="_footnoteref_1" class="footnote" href="#_footnotedef_1" title="View footnote.">1</a>]</sup><a href="https://example.org/note"> </a><a id="_indexterm_0"></a><a href="https://example.org/note">Code term</a></strong><a href="https://example.org/note"> after</a> end</strong>.</code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text">S04 <strong>Before https://example.org/disabled[*Literal</strong> after] end*.</code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text">S05 *Before <a href="https://example.org/quotes-off">*Literal* after</a> end*.</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>S06 *Before https://example.org/none[*Literal* after] end*.</p>
+</div>
+<div class="paragraph">
+<p>S07 <strong>Before https://example.org/only-quotes[*Literal</strong> after] end*.</p>
+</div>
+<div class="paragraph">
+<p>S08 <strong>Before <a href="https://example.org/reordered"><strong>Bold</strong> after</a> end</strong>.</p>
+</div>
+<div class="paragraph">
+<p>S09 <strong>Before <a href="https://example.org/pass" class="bare">https://example.org/pass</a>[*Bold</strong> after end*].</p>
+</div>
+<div class="paragraph">
+<p>S10 <strong>Before <a href="https://example.org/profile"><strong>Bold</strong> after</a> end</strong>.</p>
+</div>
+<div class="paragraph">
+<p>After <strong>normal</strong> text and <sup class="footnoteref">[<a class="footnote" href="#_footnotedef_1" title="View footnote.">1</a>]</sup>.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_index">Index</h2>
+<div class="sectionbody">
+<h3 class="indexletter">C</h3>
+<dl class="indexterms">
+<dt>Code term
+ <a href="#_indexterm_0">Description</a></dt>
+</dl>
+</div>
+</div>
+<div id="footnotes">
+<hr>
+<div class="footnote" id="_footnotedef_1">
+<a href="#_footnoteref_1">1</a>. Code note.</div>
+</div>

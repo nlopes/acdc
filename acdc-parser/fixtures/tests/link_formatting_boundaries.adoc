@@ -1,0 +1,75 @@
+= link-formatting(1)
+:doctype: manpage
+:revdate: 2026-10-05
+:label: *Expanded*
+:acdc-index:
+
+== Name
+link-formatting - preserve formatting and complete links
+
+== Description
+
+L01 *Before https://example.org/bold[*Bold* after] end*.
+
+L02 _Before https://example.org/italic[_Italic_ after] end_.
+
+L03 `Before https://example.org/code[`Code` after] end`.
+
+L04 #Before https://example.org/mark[#Marked# after] end#.
+
+L05 *Before link:manual.html[*Manual* after] end*.
+
+L06 _Before mailto:user@example.org[_Mail_ after] end_.
+
+L07 _Before xref:target[_Reference_ after] end_.
+
+L08 *Before <<target,*Reference* after>> end*.
+
+L09 *Before https://outer.example[Before *bold mailto:inner@example.org[Inner] tail* after] end*.
+
+L10 *Before https://example.org/note[*Note footnote:one[One note.] ((Indexed))* after] end*. Reuse footnote:one[].
+
+L11 *Before https://one.example[*One*] and https://two.example[*Two*] end*.
+
+L12 *Before https://example.org/bracket[*Bracket\] text* after] end*.
+
+L13 *Before \https://escaped.example[*Literal* after] end*.
+
+L14 *Before https://example.org/quoted["*Quoted* after",role=label,title="A * B"] end*.
+
+L15 *Before https://example.org/attribute[{label} after] end*.
+
+L16 _https://example.org/edge[_Edge_]_.
+
+L17 *Before https://example.org/unclosed[Unclosed* after].
+
+L18 *Before https://example.org/inner[*Unclosed after] end*.
+
+L19 *Before https://example.org/incomplete[Incomplete* after.
+
+L20 *Éva https://example.org/unicode[*café* after] τέλος*.
+
+L21 *Before https://example.org/escaped[\*Literal\* after] end*.
+
+L22 *Before https://example.org/multiline[*Multiline
+label* after] end*.
+
+L23 *Before https://example.org/query?pattern=*[*Query* after] end*.
+
+L24 [outer]*Before https://example.org/role[[inner]*Role* after] end*.
+
+L25 *Before https://example.org/brackets[Before [*nested*] after] end*.
+
+L26 *Before https://example.org/control[Plain] end*.
+
+L27 https://example.org/control-label[*Bold* after].
+
+L28 *First* https://example.org/separate[Label] *Second*.
+
+[[target]]
+== Target
+
+Target text.
+
+[index]
+== Index

@@ -248,6 +248,10 @@ fn parse_processed_inlines<'a>(
 ) -> Result<Vec<InlineNode<'a>>, Error> {
     let inline_ctx = inline_context(state, block_metadata, autolinks);
     let mut inline_peg_state = ParserState::for_inline_parsing(text, state, inline_ctx);
+    if !autolinks {
+        // Link-label delimiters supply the boundaries, not the outer formatting mark.
+        inline_peg_state.outer_constrained_delimiter = None;
+    }
     if !processed.passthroughs.is_empty() {
         inline_peg_state.attribute_passthroughs = if processed
             .passthroughs

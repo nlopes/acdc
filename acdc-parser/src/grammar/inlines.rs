@@ -1906,10 +1906,12 @@ peg::parser! {
             })))
         }
 
-        /// Match URL macro without consuming - for use in negative lookaheads.
-        /// Inlines the url_path character class to avoid action-block processing.
+        /// Recognize URL macro syntax for escaping and inline lookahead.
         rule url_macro_match()
-        = ("https" / "http" / "ftp" / "irc") "://" ['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '.' | '_' | '~' | ':' | '/' | '?' | '#' | '@' | '!' | '$' | '&' | '\'' | '(' | ')' | '*' | '+' | ',' | ';' | '=' | '%' | '\\']+ "[" ("\\]" / !"]" [_])* "]"
+        = url_macro_target_match() "[" ("\\]" / !"]" [_])* "]"
+
+        rule url_macro_target_match()
+        = ("https" / "http" / "ftp" / "irc") "://" ['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '.' | '_' | '~' | ':' | '/' | '?' | '#' | '@' | '!' | '$' | '&' | '\'' | '(' | ')' | '*' | '+' | ',' | ';' | '=' | '%' | '\\']+
 
         /// Parse `mailto:` macros with attribute handling.
         ///
@@ -2522,15 +2524,34 @@ peg::parser! {
             }
         }
 
+        // A complete link owns its label's markers. Recognition has no catalog
+        // side effects; its content is parsed only after the outer span succeeds.
+        rule formatting_link_match()
+        = &['f' | 'h' | 'i' | 'l' | 'm' | 'x' | '<'] check_macros() (
+            (url_macro_target_match()
+                / "link:" link_macro_source() path_fragment()?
+                / "mailto:" email_address() ("?" url_path_char()*)?)
+                "[" link_macro_content_part()* "]"
+            / cross_reference_macro_match() / cross_reference_shorthand_match()
+        )
+
+        rule constrained_formatting_close(marker: char)
+        = c:[_] next:position!() &constrained_boundary_follow(marker) {?
+            (c == marker && (c != '`' || !matches!(state.input.as_bytes().get(next), Some(b'"' | b'\''))))
+                .then_some(()).ok_or("constrained formatting delimiter")
+        }
+
+        rule constrained_formatting_content(marker: char)
+        = empty_quote_content() &constrained_formatting_close(marker)
+        / ![' ' | '\t' | '\n'] (formatting_link_match() / [_])
+          (formatting_link_match() / !constrained_formatting_close(marker) [_])*
+
         rule bold_text_constrained() -> InlineNode<'input>
         = attrs:inline_attributes()?
         start:position!()
         content_start:position()
         "*"
-        content:$(
-            empty_quote_content() &"*"
-            / [^(' ' | '\t' | '\n')] [^'*']* ("*" !constrained_boundary_follow('*') [^'*']*)*
-        )
+        content:$constrained_formatting_content('*')
         close:position!() "*" check_quote_markers((start, 1), (close, 1))
         end:position!() &constrained_boundary_follow('*')
         {?
@@ -2586,10 +2607,7 @@ peg::parser! {
         = boundary_pos:position!()
         inline_attributes()?
         open:position!() "*"
-        (
-            empty_quote_content() &"*"
-            / [^(' ' | '\t' | '\n')] [^'*']* ("*" !constrained_boundary_follow('*') [^'*']*)*
-        )
+        constrained_formatting_content('*')
         close:position!() "*" check_quote_markers((open, 1), (close, 1))
         closing_pos:position!()
         constrained_boundary_follow('*')
@@ -2605,10 +2623,7 @@ peg::parser! {
         start:position!()
         content_start:position()
         "_"
-        content:$(
-            empty_quote_content() &"_"
-            / [^(' ' | '\t' | '\n')] [^'_']* ("_" !constrained_boundary_follow('_') [^'_']*)*
-        )
+        content:$constrained_formatting_content('_')
         close:position!() "_" check_quote_markers((start, 1), (close, 1))
         end:position!() &constrained_boundary_follow('_')
         {?
@@ -2662,10 +2677,7 @@ peg::parser! {
         = boundary_pos:position!()
         inline_attributes()?
         open:position!() "_"
-        (
-            empty_quote_content() &"_"
-            / [^(' ' | '\t' | '\n')] [^'_']* ("_" !constrained_boundary_follow('_') [^'_']*)*
-        )
+        constrained_formatting_content('_')
         close:position!() "_" check_quote_markers((open, 1), (close, 1))
         closing_pos:position!()
         constrained_boundary_follow('_')
@@ -2749,10 +2761,7 @@ peg::parser! {
         = !['"' | '\''] constrained_boundary_follow('`')
 
         rule constrained_monospace_content() -> &'input str
-        = content:$(
-            empty_quote_content() &"`"
-            / [^(' ' | '\t' | '\n')] [^'`']* ("`" !monospace_boundary_follow() [^'`']*)*
-        )
+        = content:$constrained_formatting_content('`')
         {?
             // Constrained code cannot end with whitespace. A later attribute
             // expansion can leave valid content empty.
@@ -2873,10 +2882,7 @@ peg::parser! {
         start:position!()
         content_start:position()
         "#"
-        content:$(
-            empty_quote_content() &"#"
-            / [^(' ' | '\t' | '\n')] [^'#']* ("#" !constrained_boundary_follow('#') [^'#']*)*
-        )
+        content:$constrained_formatting_content('#')
         close:position!() "#" check_quote_markers((start, 1), (close, 1))
         end:position!()
         &constrained_boundary_follow('#')
@@ -2932,10 +2938,7 @@ peg::parser! {
         = boundary_pos:position!()
         inline_attributes()?
         open:position!() "#"
-        (
-            empty_quote_content() &"#"
-            / [^(' ' | '\t' | '\n')] [^'#']* ("#" !constrained_boundary_follow('#') [^'#']*)*
-        )
+        constrained_formatting_content('#')
         close:position!() "#" check_quote_markers((open, 1), (close, 1))
         closing_pos:position!()
         constrained_boundary_follow('#')

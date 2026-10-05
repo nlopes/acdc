@@ -11,6 +11,26 @@ use acdc_converters_pdf::{PdfOptions, Processor};
 
 type Error = Box<dyn std::error::Error>;
 
+#[test]
+fn link_formatting_boundaries_keep_pdf_links_and_one_note() -> Result<(), Error> {
+    let source = "= Links\n\n*Before https://outer.example[*Bold mailto:inner@example.org[Inner] footnote:one[Only note.] tail* after] end*.\n\nReuse footnote:one[].\n";
+    let parsed = parse(source, &Options::default())?;
+    assert_eq!(parsed.document().footnotes.len(), 1);
+    let pdf = render_parsed(&parsed)?;
+    let text = pdf.extract_text(&[1])?;
+    assert_eq!(text.matches("Only note.").count(), 1, "{text}");
+    assert!(!text.contains('*'), "{text}");
+    assert!(!text.contains("https://outer.example"), "{text}");
+    let links = external_link_rects(&pdf, 1)?;
+    for target in ["https://outer.example", "mailto:inner@example.org"] {
+        assert!(
+            links.iter().any(|(uri, _)| uri == target),
+            "missing {target}: {links:?}"
+        );
+    }
+    Ok(())
+}
+
 #[rstest::rstest]
 fn verse_keeps_pdf_line_positions_and_macro_targets(
     #[values(false, true)] delimited: bool,

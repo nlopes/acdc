@@ -204,6 +204,35 @@ fn document_attribute_pass_raw_tags_remain_nested_under_highlighting() -> Result
 }
 
 #[test]
+fn link_formatting_boundaries_keep_tags_nested_and_targets_valid() -> Result<(), Error> {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/source/html/embedded/link_formatting_boundaries.adoc");
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        let output = render_fixture(&path, variant, true)?;
+        check_link_structure(&output, "link_formatting_boundaries")?;
+        let mut stack = Vec::new();
+        for part in output.split('<').skip(1) {
+            let tag = part.split_once('>').ok_or("unterminated tag")?.0;
+            let name = tag.split_whitespace().next().unwrap_or_default();
+            if matches!(
+                name.trim_start_matches('/'),
+                "a" | "strong" | "em" | "code" | "mark"
+            ) {
+                if let Some(closing) = name.strip_prefix('/') {
+                    assert_eq!(stack.pop(), Some(closing), "crossed tags: {output}");
+                } else {
+                    stack.push(name);
+                }
+            }
+        }
+        assert!(stack.is_empty(), "unclosed formatting: {output}");
+        assert!(output.contains("href=\"https://outer.example\""));
+        assert!(output.contains("href=\"mailto:inner@example.org\""));
+    }
+    Ok(())
+}
+
+#[test]
 fn nested_links_keep_separate_anchors_and_targets() -> Result<(), Error> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/source/html/embedded/nested_links.adoc");

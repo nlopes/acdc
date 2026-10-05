@@ -1,0 +1,121 @@
+<div class="sect1">
+<h2 id="_name">Name</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>link-formatting - preserve formatting and complete links</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_description">Description</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>L01 <strong>Before <a href="https://example.org/bold"><strong>Bold</strong> after</a> end</strong>.</p>
+</div>
+<div class="paragraph">
+<p>L02 <em>Before <a href="https://example.org/italic"><em>Italic</em> after</a> end</em>.</p>
+</div>
+<div class="paragraph">
+<p>L03 <code>Before <a href="https://example.org/code"><code>Code</code> after</a> end</code>.</p>
+</div>
+<div class="paragraph">
+<p>L04 <mark>Before <a href="https://example.org/mark"><mark>Marked</mark> after</a> end</mark>.</p>
+</div>
+<div class="paragraph">
+<p>L05 <strong>Before <a href="manual.html"><strong>Manual</strong> after</a> end</strong>.</p>
+</div>
+<div class="paragraph">
+<p>L06 <em>Before <a href="mailto:user@example.org"><em>Mail</em> after</a> end</em>.</p>
+</div>
+<div class="paragraph">
+<p>L07 <em>Before <a href="#target"><em>Reference</em> after</a> end</em>.</p>
+</div>
+<div class="paragraph">
+<p>L08 <strong>Before <a href="#target"><strong>Reference</strong> after</a> end</strong>.</p>
+</div>
+<div class="paragraph">
+<p>L09 <strong>Before <a href="https://outer.example">Before </a><strong><a href="https://outer.example">bold </a><a href="mailto:inner@example.org">Inner</a><a href="https://outer.example"> tail</a></strong><a href="https://outer.example"> after</a> end</strong>.</p>
+</div>
+<div class="paragraph">
+<p>L10 <strong>Before <strong><a href="https://example.org/note">Note </a><sup class="footnote" id="_footnote_one">[<a id="_footnoteref_1" class="footnote" href="#_footnotedef_1" title="View footnote.">1</a>]</sup><a href="https://example.org/note"> </a><a id="_indexterm_0"></a><a href="https://example.org/note">Indexed</a></strong><a href="https://example.org/note"> after</a> end</strong>. Reuse <sup class="footnoteref">[<a class="footnote" href="#_footnotedef_1" title="View footnote.">1</a>]</sup>.</p>
+</div>
+<div class="paragraph">
+<p>L11 <strong>Before <a href="https://one.example"><strong>One</strong></a> and <a href="https://two.example"><strong>Two</strong></a> end</strong>.</p>
+</div>
+<div class="paragraph">
+<p>L12 <strong>Before <a href="https://example.org/bracket"><strong>Bracket] text</strong> after</a> end</strong>.</p>
+</div>
+<div class="paragraph">
+<p>L13 <strong>Before https://escaped.example[*Literal* after] end</strong>.</p>
+</div>
+<div class="paragraph">
+<p>L14 <strong>Before <a href="https://example.org/quoted" class="label"><strong>Quoted</strong> after</a> end</strong>.</p>
+</div>
+<div class="paragraph">
+<p>L15 <strong>Before <a href="https://example.org/attribute">*Expanded* after</a> end</strong>.</p>
+</div>
+<div class="paragraph">
+<p>L16 <em><a href="https://example.org/edge"><em>Edge</em></a></em>.</p>
+</div>
+<div class="paragraph">
+<p>L17 *Before <a href="https://example.org/unclosed">Unclosed* after</a>.</p>
+</div>
+<div class="paragraph">
+<p>L18 <strong>Before <a href="https://example.org/inner">*Unclosed after</a> end</strong>.</p>
+</div>
+<div class="paragraph">
+<p>L19 <strong>Before <a href="https://example.org/incomplete" class="bare">https://example.org/incomplete</a>[Incomplete</strong> after.</p>
+</div>
+<div class="paragraph">
+<p>L20 <strong>Éva <a href="https://example.org/unicode"><strong>café</strong> after</a> τέλος</strong>.</p>
+</div>
+<div class="paragraph">
+<p>L21 <strong>Before <a href="https://example.org/escaped">*Literal* after</a> end</strong>.</p>
+</div>
+<div class="paragraph">
+<p>L22 <strong>Before <a href="https://example.org/multiline"><strong>Multiline
+label</strong> after</a> end</strong>.</p>
+</div>
+<div class="paragraph">
+<p>L23 <strong>Before <a href="https://example.org/query?pattern=*"><strong>Query</strong> after</a> end</strong>.</p>
+</div>
+<div class="paragraph">
+<p>L24 <strong class="outer">Before <a href="https://example.org/role"><strong class="inner">Role</strong> after</a> end</strong>.</p>
+</div>
+<div class="paragraph">
+<p>L25 <strong>Before <a href="https://example.org/brackets">Before [<strong>nested</strong>] after</a> end</strong>.</p>
+</div>
+<div class="paragraph">
+<p>L26 <strong>Before <a href="https://example.org/control">Plain</a> end</strong>.</p>
+</div>
+<div class="paragraph">
+<p>L27 <a href="https://example.org/control-label"><strong>Bold</strong> after</a>.</p>
+</div>
+<div class="paragraph">
+<p>L28 <strong>First</strong> <a href="https://example.org/separate">Label</a> <strong>Second</strong>.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="target">Target</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Target text.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_index">Index</h2>
+<div class="sectionbody">
+<h3 class="indexletter">I</h3>
+<dl class="indexterms">
+<dt>Indexed
+ <a href="#_indexterm_0">Description</a></dt>
+</dl>
+</div>
+</div>
+<div id="footnotes">
+<hr>
+<div class="footnote" id="_footnotedef_1">
+<a href="#_footnoteref_1">1</a>. One note.</div>
+</div>

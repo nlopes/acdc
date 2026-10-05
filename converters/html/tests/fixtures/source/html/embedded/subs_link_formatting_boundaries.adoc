@@ -1,0 +1,45 @@
+= link-formatting-subs(1)
+:doctype: manpage
+:revdate: 2026-10-05
+:source-highlighter: rouge
+:acdc-index:
+
+== Name
+link-formatting-subs - control formatting at link boundaries
+
+== Description
+
+[source,text,subs="+quotes,+macros"]
+----
+S01 *Before https://outer.example[Before *bold mailto:inner@example.org[Inner] tail* after] end*.
+S02 _Before https://example.org/italic[_Italic_ after] end_.
+S03 *Before https://example.org/note[*Note footnote:code[Code note.] ((Code term))* after] end*.
+----
+
+[source,text,subs="+quotes"]
+----
+S04 *Before https://example.org/disabled[*Literal* after] end*.
+----
+
+[source,text,subs="+macros"]
+----
+S05 *Before https://example.org/quotes-off[*Literal* after] end*.
+----
+
+[subs="none"]
+S06 *Before https://example.org/none[*Literal* after] end*.
+
+[subs="quotes"]
+S07 *Before https://example.org/only-quotes[*Literal* after] end*.
+
+[subs="macros,quotes"]
+S08 *Before https://example.org/reordered[*Bold* after] end*.
+
+S09 pass:q,m[*Before https://example.org/pass[*Bold* after] end*].
+
+S10 *Before https://example.org/profile[pass:q[*Bold*] after] end*.
+
+After *normal* text and footnote:code[].
+
+[index]
+== Index
