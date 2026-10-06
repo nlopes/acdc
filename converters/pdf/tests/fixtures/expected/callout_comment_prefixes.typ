@@ -1,7 +1,7 @@
 #set document(
-  title: "indented-callouts(1)",
+  title: "callout-prefixes(1)",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[indented-callouts(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[callout-prefixes(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -69,62 +69,128 @@
   text(weight: 700, body)
 }
 
+#let _acdc_autofit_code(source, body, language: none, extra-width: 0em) = layout(size => {
+  let available = calc.max(0pt, size.width - 20pt)
+  let decoration-width = measure(h(extra-width)).width
+  let widest = source.split("\n").map(line => {
+    let code = if language == none { raw(line) } else { raw(line, lang: language) }
+    measure(text(size: 1em, code)).width + decoration-width
+  }).fold(0pt, calc.max)
+  let scale = if widest > available { available / widest } else { 1.0 }
+  text(size: calc.max(0.7499999999999999, scale) * 1em, body)
+})
+
 #let _acdc_arabic_page_start = none
 #set page(numbering: "i")
 #set page(numbering: "1")
 #counter(page).update(1)
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("indented-callouts(1)")]
+#text(size: 22pt, weight: "bold")[#text("callout-prefixes(1)")]
 ]
 #v(1em)
 
 #heading(level: 1)[#text("Name")] <id-5f6e616d65>
 
-#text("indented-callouts - recognize callouts in literal paragraphs")
+#text("callout-prefixes - block comment prefixes")
 
 #heading(level: 1)[#text("Synopsis")] <id-5f73796e6f70736973>
 
-#raw(block: true, "I01 café (1)\nI02 xml (2)\nI03 repeated (1)(1)\nI04 escaped <3>\nI05 interior <4> suffix\nI06 escaped XML <!--5-->")
+#raw(block: true, "C01 custom (1)\nC02 other // (1)\nC03 adjacent (1)\nC04 double space %  (1)\nC05 repeated %(1)\nC06 escaped % <1>\nC07 adjacent markers (1)(2)\nC08 nontrailing % <1> (2)\nC09 bare marker (1)\nC10 trailing text % <1> tail")
 
 #grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
-[#text("(1)")], [#text("Ordinary and repeated markers.")],
-[#text("(2)")], [#text("XML marker.")],
+[#text("(1)")], [#text("First.")],
+[#text("(2)")], [#text("Second.")],
 )
 
-#raw(block: true, "I07 escaped only <1>\nI08 escaped XML only <!--2-->")
-
-#raw(block: true, "I09 automatic (1)\nI10 escaped <.>\nI11 automatic XML (2)")
+#raw(block: true, "C11 empty // (1)\nC12 empty -- (1)\nC13 empty # (1)\nC14 empty ;; (1)\nC15 empty XML <!--1-->")
 
 #grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
-[#text("(1)")], [#text("First automatic marker.")],
-[#text("(2)")], [#text("Second automatic marker.")],
+[#text("(1)")], [#text("Empty disables prefix removal.")],
 )
 
-#raw(block: true, "I12 custom (1)\nI13 XML stays <!--2-->")
+#raw(block: true, "C16 quoted empty // (1)")
 
 #grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
-[#text("(1)")], [#text("Custom prefix.")],
+[#text("(1)")], [#text("Quoted empty prefix.")],
 )
 
-#raw(block: true, " I14 indented (1)\nI15 unindented (2)")
+#raw(block: true, "C17 café (1)\nC18 unrelated % (1)")
 
 #grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
-[#text("(1)")], [#text("Mixed indentation retains the first space.")],
-[#text("(2)")], [#text("Unindented continuation.")],
+[#text("(1)")], [#text("Unicode prefix.")],
 )
 
-  - #block(width: 100%)[#text("Parent.")
-
-#raw(block: true, "I16 attached (1)")
+#raw(block: true, "C19 authored space (1)\nC20 optional extra space (1)\nC21 missing authored space //(1)")
 
 #grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
-[#text("(1)")], [#text("Attached literal marker.")],
+[#text("(1)")], [#text("Prefix with trailing space.")],
 )
 
-  ]
-
-#raw(block: true, " I17 explicit style (1)")
+#raw(block: true, "C22 literal pattern (1)\nC23 not a pattern abc (1)")
 
 #grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
-[#text("(1)")], [#text("Explicit style retains its indentation.")],
+[#text("(1)")], [#text("Regex characters are literal.")],
+)
+
+#raw(block: true, "C24 literal (1)")
+
+#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
+[#text("(1)")], [#text("Literal block.")],
+)
+
+#raw(block: true, "C25 literal paragraph (1)")
+
+#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
+[#text("(1)")], [#text("Literal paragraph.")],
+)
+
+#raw(block: true, "C26 source paragraph (1)")
+
+#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
+[#text("(1)")], [#text("Source paragraph.")],
+)
+
+#raw(block: true, "C27 fenced (1)")
+
+#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
+[#text("(1)")], [#text("Fenced source.")],
+)
+
+#raw(block: true, "C28 restored (1)\nC29 default XML (1)\nC30 default XML (1)")
+
+#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
+[#text("(1)")], [#text("Default behavior returns.")],
+)
+
+#raw(block: true, "C31 document attribute % (1)\nC32 document attribute (1)")
+
+#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
+[#text("(1)")], [#text("Only block attributes select the prefix.")],
+)
+
+#raw(block: true, "C33 no icons (1)")
+
+#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
+[#text("(1)")], [#text("PDF prefix removal does not depend on icons.")],
+)
+
+#raw(block: true, "C34 positional attribute (1)")
+
+#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
+[#text("(1)")], [#text("A positional word does not set the prefix.")],
+)
+
+#raw(block: true, "C35 tab %   (1)\nC36 nonbreaking space % (1)")
+
+#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
+[#text("(1)")], [#text("Only an ASCII space can follow the prefix.")],
+)
+
+#_acdc_autofit_code("C37 fitted (1)\nC38 numbered (1)")[
+#raw(block: true, "C37 fitted (1)\nC38 numbered (1)")
+
+]
+
+#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
+[#text("(1)")], [#text("Line options and fitted code keep the same prefix policy.")],
 )

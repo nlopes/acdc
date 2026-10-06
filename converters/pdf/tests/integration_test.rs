@@ -13,6 +13,65 @@ use acdc_converters_pdf::{PdfOptions, Processor};
 
 type Error = Box<dyn std::error::Error>;
 
+#[rstest::rstest]
+#[case::plain("")]
+#[case::highlighted(":source-highlighter: rouge\n")]
+#[cfg(feature = "pre-spec-subs")]
+fn callout_comment_prefixes_keep_pdf_link_and_anchor_positions(
+    #[case] highlighter: &str,
+) -> Result<(), Error> {
+    let source = format!(
+        "= Callout prefixes\n{highlighter}\n\
+         [source,ruby,line-comment=\"※\",subs=\"+macros\"]\n----\n\
+         First ※ <1>\n\
+         anchor:after[]link:https://example.org/after[After] // <2>\n\
+         ----\n<1> First.\n<2> Second.\n\nSee <<after>>.\n"
+    );
+    let control = source
+        .replace("First ※ <1>", "First <1>")
+        .replace("line-comment=\"※\"", "line-comment=\"\"");
+    let actual = render_input(&source)?;
+    let expected = render_input(&control)?;
+    let text = actual.extract_text(&[1])?;
+    assert_eq!(text, expected.extract_text(&[1])?);
+    // PDF text extraction inserts line breaks between separately styled glyph runs.
+    let glyphs: String = text.chars().filter(|ch| !ch.is_whitespace()).collect();
+    assert!(glyphs.contains("First(1)"), "{text}");
+    assert!(glyphs.contains("After//(2)"), "{text}");
+    assert_eq!(
+        external_link_rects(&actual, 1)?,
+        external_link_rects(&expected, 1)?
+    );
+    let actual_targets = named_destinations(&actual)?;
+    let expected_targets = named_destinations(&expected)?;
+    let actual_target = resolve_destination(
+        &actual,
+        &actual_targets,
+        actual_targets.get("after").ok_or("missing anchor")?,
+    )?
+    .as_array()?;
+    let expected_target = resolve_destination(
+        &expected,
+        &expected_targets,
+        expected_targets
+            .get("after")
+            .ok_or("missing control anchor")?,
+    )?
+    .as_array()?;
+    for index in [2, 3] {
+        let position = actual_target
+            .get(index)
+            .ok_or("missing anchor coordinate")?
+            .as_float()?;
+        let control_position = expected_target
+            .get(index)
+            .ok_or("missing control coordinate")?
+            .as_float()?;
+        assert!((position - control_position).abs() < 0.01);
+    }
+    Ok(())
+}
+
 #[test]
 fn nested_styles_use_combined_pdf_fonts_and_restore_outer_styles() -> Result<(), Error> {
     let source = include_str!("fixtures/source/nested_font_styles.adoc");

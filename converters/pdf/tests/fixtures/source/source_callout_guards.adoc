@@ -21,14 +21,14 @@ multiple(); // <7> <8>
 <7> First marker on one line
 <8> Second marker on one line
 
-.Custom prefix is not a PDF guard
+.Custom prefix replaces the default guards
 [source,rust,line-comment="%"]
 ----
 custom(); % <1>
 ordinary(); // <2>
 ----
-<1> Custom prefix remains
-<2> Standard guard is removed
+<1> Custom prefix is removed
+<2> Standard guard remains
 
 .Escaped markers
 [source,rust]

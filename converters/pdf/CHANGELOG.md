@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Code callouts honor block `line-comment` settings: custom prefixes are removed,
+  while an empty value preserves prefixes. This matches unhighlighted Asciidoctor
+  PDF and applies consistently with highlighting enabled, unlike its highlighted
+  source path. Prefixes may contain spaces or Unicode characters. acdc also
+  removes attribute-expanded prefixes, which Asciidoctor leaves visible.
+
 - Nested bold and italic text uses a combined font face in either nesting
   order, matching Asciidoctor PDF. Backtick spans also retain nested formatting,
   including inside link labels, while preserving links and anchor targets.

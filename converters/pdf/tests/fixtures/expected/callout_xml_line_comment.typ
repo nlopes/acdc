@@ -99,7 +99,7 @@
 [#text("(4)")], [#text("Escaped ordinary markers do not consume numbers.")],
 )
 
-#raw(block: true, "X09 <tag/> <!--1-->\nX10 <tag/> % (1)\nX11 <tag/> \\<!--2-->")
+#raw(block: true, "X09 <tag/> <!--1-->\nX10 <tag/> (1)\nX11 <tag/> \\<!--2-->")
 
 #grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
 [#text("(1)")], [#text("Custom prefix.")],
@@ -111,7 +111,7 @@
 [#text("(1)")], [#text("Quoted empty prefix.")],
 )
 
-#raw(block: true, "X14 café <!--1-->\nX15 café ※ (1)")
+#raw(block: true, "X14 café <!--1-->\nX15 café (1)")
 
 #grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
 [#text("(1)")], [#text("Unicode custom prefix.")],
@@ -123,7 +123,7 @@
 [#text("(1)")], [#text("Delimited literal.")],
 )
 
-#raw(block: true, "X18 literal paragraph <!--1-->\nX19 literal paragraph \\<!--2-->\nX20 literal paragraph % (1)")
+#raw(block: true, "X18 literal paragraph <!--1-->\nX19 literal paragraph \\<!--2-->\nX20 literal paragraph (1)")
 
 #grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
 [#text("(1)")], [#text("Literal paragraph.")],

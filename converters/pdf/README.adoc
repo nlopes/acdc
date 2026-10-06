@@ -97,8 +97,16 @@ callouts literal in acdc, matching Asciidoctor HTML, manpage, and unhighlighted 
 Asciidoctor PDF's highlighted source path ignores that setting and can turn the
 same XML text into callouts. acdc keeps recognition independent of highlighting.
 This follows acdc's chosen SDR-5 policy of separating parsing and conversion.
-Custom comment prefixes still remain visible in acdc PDF output; Asciidoctor PDF
-removes them without highlighting but also retains them with highlighting.
+PDF output removes the prefix selected by a block's `line-comment` attribute;
+an empty value preserves all prefixes. These settings apply with and without
+highlighting, matching unhighlighted Asciidoctor PDF. Its highlighted source
+path instead strips the default prefixes and ignores custom and empty values.
+One optional ASCII space may follow a prefix; spaces within the prefix remain
+part of the required match. Escaped markers and disabled callouts stay literal.
+
+Attribute-expanded prefixes are eligible for removal in acdc's parsed code,
+while Asciidoctor retains them because of its substitution order. Prefixes
+inside passthroughs or formatted spans remain part of those spans.
 
 acdc treats `[X]` as a checked list marker, alongside `[x]` and `[*]`.
 Asciidoctor PDF leaves `[X]` in the item text.

@@ -1661,7 +1661,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             indexes: index_positions,
             links,
             ..
-        } = self.code_text(traversal, nodes, tab_size)?;
+        } = self.code_text(traversal, nodes, metadata, tab_size)?;
         let autofit = has_autofit_option(metadata, traversal);
         let options = if Self::source_highlighting_enabled(traversal) {
             SourceLineOptions::resolve(metadata, &source)
@@ -1950,15 +1950,24 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         &mut self,
         traversal: &mut TraversalContext<'a>,
         nodes: &[InlineNode<'_>],
+        metadata: &BlockMetadata<'_>,
         tab_size: usize,
     ) -> Result<CodeText, Error> {
         let extension = code_output_extension(traversal).to_owned();
+        let line_comment = metadata.attributes.get_string("line-comment");
         let CodeText {
             source: mut text,
             indexes: mut positions,
             mut links,
             protected,
-        } = self.collect_code_text(traversal, nodes, &extension, false, TextBoundaries::BOTH)?;
+        } = self.collect_code_text(
+            traversal,
+            nodes,
+            &extension,
+            line_comment.as_deref(),
+            false,
+            TextBoundaries::BOTH,
+        )?;
         // Keep a final anchor-only line through raw code's trailing-line trimming.
         // Its placeholder is replaced with empty content, so it adds no glyph or space.
         let end = text.len();
@@ -2030,6 +2039,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         traversal: &mut TraversalContext<'a>,
         nodes: &[InlineNode<'_>],
         extension: &str,
+        line_comment: Option<&str>,
         suppress_indexes: bool,
         boundaries: TextBoundaries,
     ) -> Result<CodeText, Error> {
@@ -2071,6 +2081,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     traversal,
                     children,
                     extension,
+                    line_comment,
                     suppress_indexes
                         || matches!(node, InlineNode::Macro(InlineMacro::IndexTerm(_))),
                     boundaries,
@@ -2086,6 +2097,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                         traversal,
                         children,
                         extension,
+                        line_comment,
                         suppress_indexes,
                         boundaries,
                     )?
@@ -2119,7 +2131,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     {
                         content = content.strip_suffix("<!--").unwrap_or(content);
                     }
-                    content = strip_pdf_callout_guard(content);
+                    content = strip_pdf_callout_guard(content, line_comment);
                 }
                 code.source.push_str(content);
             } else if let InlineNode::CalloutRef(callout) = node {
@@ -4878,12 +4890,20 @@ fn is_xml_callout(nodes: &[InlineNode<'_>], index: usize) -> bool {
         })
 }
 
-fn strip_pdf_callout_guard(text: &str) -> &str {
+fn strip_pdf_callout_guard<'text>(text: &'text str, prefix: Option<&str>) -> &'text str {
     let before_guard = text.strip_suffix(' ').unwrap_or(text);
-    ["//", "#", "--", ";;"]
-        .iter()
-        .find_map(|guard| before_guard.strip_suffix(*guard))
-        .unwrap_or(text)
+    match prefix {
+        Some("") => text,
+        // A trailing space may belong to the prefix rather than its optional separator.
+        Some(prefix) => before_guard
+            .strip_suffix(prefix)
+            .or_else(|| text.strip_suffix(prefix))
+            .unwrap_or(text),
+        None => ["//", "#", "--", ";;"]
+            .iter()
+            .find_map(|guard| before_guard.strip_suffix(*guard))
+            .unwrap_or(text),
+    }
 }
 
 fn asciidoctor_foreground_colour(role: &str) -> Option<&'static str> {

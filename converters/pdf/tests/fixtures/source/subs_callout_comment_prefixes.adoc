@@ -1,0 +1,50 @@
+= callout-prefix-subs(1)
+:doctype: manpage
+:revdate: 2026-10-06
+:manmanual: Callout checks
+:mansource: acdc
+:icons: font
+:prefix: %
+
+== Name
+callout-prefix-subs - substitutions beside comment prefixes
+
+== Synopsis
+
+[source,ruby,line-comment=%,subs="+macros,+quotes,+attributes"]
+----
+S01 link:https://example.org/before[Before] % <1>
+S02 *Bold* % <1>
+S03 attribute {prefix} <1>
+S04 pass:[%] <1>
+S05 footnote:note[Note.] % <1>
+S06 code ((Index)) % <1>
+S07 anchor:target[]code % <1>
+----
+<1> Enabled substitutions and targets.
+
+[source,ruby,line-comment=,subs="+macros,+quotes"]
+----
+S08 *Bold* // <1>
+S09 link:https://example.org/empty[Empty] // <1>
+----
+<1> Empty setting preserves prefixes after formatted text.
+
+[source,ruby,line-comment=%,subs="-callouts"]
+----
+S10 disabled % <1>
+S11 disabled // <1>
+S12 disabled % \<1>
+----
+
+[source,ruby,line-comment=%,subs="+macros,+quotes"]
+----
+S13 pass:c[%] <1>
+S14 *percent %* <1>
+----
+<1> Protected and formatted prefixes retain ownership.
+
+See <<target>>, footnote:note[], and <<_index>>.
+
+[index]
+== Index

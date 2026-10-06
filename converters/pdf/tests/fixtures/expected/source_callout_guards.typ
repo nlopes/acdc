@@ -92,12 +92,12 @@
 [#text("(8)")], [#text("Second marker on one line")],
 )
 
-#blocktitle[#text("Custom prefix is not a PDF guard")]
-#raw(block: true, lang: "rust", "custom(); % (1)\nordinary(); (2)")
+#blocktitle[#text("Custom prefix replaces the default guards")]
+#raw(block: true, lang: "rust", "custom(); (1)\nordinary(); // (2)")
 
 #grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
-[#text("(1)")], [#text("Custom prefix remains")],
-[#text("(2)")], [#text("Standard guard is removed")],
+[#text("(1)")], [#text("Custom prefix is removed")],
+[#text("(2)")], [#text("Standard guard remains")],
 )
 
 #blocktitle[#text("Escaped markers")]

@@ -1,0 +1,135 @@
+= callout-prefixes(1)
+:doctype: manpage
+:revdate: 2026-10-06
+:manmanual: Callout checks
+:mansource: acdc
+:icons: font
+
+== Name
+callout-prefixes - block comment prefixes
+
+== Synopsis
+
+[source,ruby,line-comment=%]
+----
+C01 custom % <1>
+C02 other // <1>
+C03 adjacent %<1>
+C04 double space %  <1>
+C05 repeated %% <1>
+C06 escaped % \<1>
+C07 adjacent markers % <1><2>
+C08 nontrailing % <1> % <2>
+C09 bare marker <1>
+C10 trailing text % <1> tail
+----
+<1> First.
+<2> Second.
+
+[source,ruby,line-comment=]
+----
+C11 empty // <1>
+C12 empty -- <1>
+C13 empty # <1>
+C14 empty ;; <1>
+C15 empty XML <!--1-->
+----
+<1> Empty disables prefix removal.
+
+[source,ruby,line-comment=""]
+----
+C16 quoted empty // <1>
+----
+<1> Quoted empty prefix.
+
+[source,ruby,line-comment="※"]
+----
+C17 café ※ <1>
+C18 unrelated % <1>
+----
+<1> Unicode prefix.
+
+[source,ruby,line-comment="// "]
+----
+C19 authored space // <1>
+C20 optional extra space //  <1>
+C21 missing authored space //<1>
+----
+<1> Prefix with trailing space.
+
+[line-comment="a.*"]
+----
+C22 literal pattern a.* <1>
+C23 not a pattern abc <1>
+----
+<1> Regex characters are literal.
+
+[line-comment=%]
+....
+C24 literal % <1>
+....
+<1> Literal block.
+
+[literal,line-comment=%]
+C25 literal paragraph % <1>
+
+<1> Literal paragraph.
+
+//-
+
+[source,ruby,line-comment=%]
+C26 source paragraph % <1>
+
+<1> Source paragraph.
+
+[line-comment=%]
+```ruby
+C27 fenced % <1>
+```
+<1> Fenced source.
+
+[source,ruby]
+----
+C28 restored // <1>
+C29 default XML // <!--1-->
+C30 default XML <!--1-->
+----
+<1> Default behavior returns.
+
+:line-comment: %
+
+[source,ruby]
+----
+C31 document attribute % <1>
+C32 document attribute // <1>
+----
+<1> Only block attributes select the prefix.
+
+:line-comment!:
+:icons!:
+
+[source,ruby,line-comment=%]
+----
+C33 no icons % <1>
+----
+<1> PDF prefix removal does not depend on icons.
+
+[source,ruby,line-comment]
+----
+C34 positional attribute // <1>
+----
+<1> A positional word does not set the prefix.
+
+[source,ruby,line-comment=%]
+----
+C35 tab %	<1>
+C36 nonbreaking space % <1>
+----
+<1> Only an ASCII space can follow the prefix.
+
+[source%autofit,ruby,linenums,start=20,highlight=21,line-comment=%]
+----
+C37 fitted % <1>
+C38 numbered % <1>
+----
+<1> Line options and fitted code keep the same prefix policy.
