@@ -7,10 +7,7 @@ use std::{borrow::Cow, io::Write};
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::{SubsFlags, effective_subs_flags};
 use acdc_converters_core::{
-    InlineTextTransform, TraversalContext,
-    code::{default_line_comment, detect_language},
-    shows_block_title,
-    visitor::WritableVisitor,
+    InlineTextTransform, TraversalContext, shows_block_title, visitor::WritableVisitor,
 };
 use acdc_parser::{
     Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, InlineMacro, InlineNode,
@@ -44,7 +41,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             }
             DelimitedBlockType::DelimitedLiteral(inlines) => {
                 self.collect_index_terms_from_inlines(traversal, inlines)?;
-                let content = self.verbatim_content(traversal, inlines, &block.metadata, false)?;
+                let content = self.verbatim_content(traversal, inlines, &block.metadata)?;
                 self.render_literal_block(&content)
             }
             DelimitedBlockType::DelimitedExample(blocks)
@@ -151,7 +148,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         inlines: &[InlineNode<'_>],
         metadata: &BlockMetadata<'_>,
     ) -> Result<(), Error> {
-        let content = self.verbatim_content(traversal, inlines, metadata, true)?;
+        let content = self.verbatim_content(traversal, inlines, metadata)?;
         let w = self.writer_mut();
         writeln!(w, ".EX")?;
         for line in content.lines() {
@@ -177,7 +174,6 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         nodes: &[InlineNode<'_>],
         metadata: &BlockMetadata<'_>,
-        source_guards: bool,
     ) -> Result<String, Error> {
         // Link labels inherit the verbatim block's substitution settings.
         #[cfg(feature = "pre-spec-subs")]
@@ -189,8 +185,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         let mut visitor = self.nested_visitor(&mut output);
         // Block callers already collected terms; rendering link labels must not add them again.
         visitor.index_collection = IndexCollection::Disabled;
-        let result =
-            visitor.write_verbatim_nodes(traversal, nodes, source_guards.then_some(metadata));
+        let result = visitor.write_verbatim_nodes(traversal, nodes, Some(metadata));
         #[cfg(feature = "pre-spec-subs")]
         visitor.processor.current_subs.set(previous_subs);
         result?;
@@ -201,9 +196,10 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         &mut self,
         traversal: &mut TraversalContext<'a>,
         nodes: &[InlineNode<'_>],
-        source_metadata: Option<&BlockMetadata<'_>>,
+        metadata: Option<&BlockMetadata<'_>>,
     ) -> Result<(), Error> {
-        let comment_prefix = default_line_comment(source_metadata.and_then(detect_language));
+        let comment_prefix =
+            metadata.and_then(|metadata| metadata.attributes.get_string("line-comment"));
         let previous_boundaries = self.text_boundaries;
         #[cfg(feature = "pre-spec-subs")]
         let replacements = self
@@ -219,34 +215,28 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
                 self.text_boundaries = previous_boundaries
                     .with_ordinary_replacements(replacements)
                     .for_inline(nodes, index);
-                if source_metadata.is_some()
+                if metadata.is_some()
                     && let InlineNode::VerbatimText(verbatim) = node
                 {
-                    let mut content = Cow::Borrowed(verbatim.content);
+                    let mut content = verbatim.content;
                     if index
                         .checked_sub(1)
                         .is_some_and(|previous| is_xml_callout(nodes, previous))
                     {
-                        content =
-                            Cow::Owned(content.strip_prefix("-->").unwrap_or(&content).to_string());
+                        content = content.strip_prefix("-->").unwrap_or(content);
                     }
                     if index.checked_add(1).is_some_and(|next| {
                         matches!(nodes.get(next), Some(InlineNode::CalloutRef(_)))
                     }) {
-                        content = if index
+                        if index
                             .checked_add(1)
                             .is_some_and(|next| is_xml_callout(nodes, next))
                         {
-                            Cow::Owned(content.strip_suffix("<!--").unwrap_or(&content).to_string())
-                        } else {
-                            strip_callout_guard(content, comment_prefix)
-                        };
+                            content = content.strip_suffix("<!--").unwrap_or(content);
+                        }
+                        content = strip_callout_guard(content, comment_prefix.as_deref());
                     }
-                    self.write_verbatim_text(&content)?;
-                } else if source_metadata.is_some()
-                    && let InlineNode::CalloutRef(callout) = node
-                {
-                    write!(self.writer_mut(), "\\fB({})\\fP", callout.number)?;
+                    self.write_verbatim_text(content)?;
                 } else {
                     self.write_verbatim_node(traversal, node)?;
                 }
@@ -291,6 +281,10 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         let (prefix, content, suffix) = match node {
             InlineNode::PlainText(text) => return self.write_verbatim_text(text.content),
             InlineNode::VerbatimText(text) => return self.write_verbatim_text(text.content),
+            InlineNode::CalloutRef(callout) => {
+                write!(self.writer_mut(), "\\fB({})\\fP", callout.number)?;
+                return Ok(());
+            }
             InlineNode::BoldText(text) => ("\\fB", text.content.as_slice(), "\\fP"),
             InlineNode::ItalicText(text) => ("\\fI", text.content.as_slice(), "\\fP"),
             InlineNode::MonospaceText(text) => ("\\f(CR", text.content.as_slice(), "\\fP"),
@@ -311,7 +305,6 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             | InlineNode::LineBreak(_)
             | InlineNode::InlineAnchor(_)
             | InlineNode::Macro(_)
-            | InlineNode::CalloutRef(_)
             | _ => {
                 let text = InlineTextTransform::default()
                     .line_break("\n")
@@ -351,13 +344,19 @@ fn is_xml_callout(nodes: &[InlineNode<'_>], index: usize) -> bool {
         })
 }
 
-fn strip_callout_guard<'a>(text: Cow<'a, str>, comment_prefix: Option<&str>) -> Cow<'a, str> {
-    let Some(prefix) = comment_prefix else {
-        return text;
-    };
-    let trimmed = text.trim_end();
-    let Some(content) = trimmed.strip_suffix(prefix) else {
-        return text;
-    };
-    Cow::Owned(format!("{} ", content.trim_end()))
+fn strip_callout_guard<'text>(text: &'text str, prefix: Option<&str>) -> &'text str {
+    // Only one ASCII space can belong to a guard. Trimming more can erase a code newline.
+    let candidate = text.strip_suffix(' ').unwrap_or(text);
+    if let Some(prefix) = prefix {
+        if prefix.is_empty() {
+            text
+        } else {
+            candidate.strip_suffix(prefix).unwrap_or(text)
+        }
+    } else {
+        ["//", "#", "--", ";;"]
+            .into_iter()
+            .find_map(|prefix| candidate.strip_suffix(prefix))
+            .unwrap_or(text)
+    }
 }

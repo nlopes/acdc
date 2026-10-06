@@ -1,0 +1,127 @@
+= callout-guards(1)
+:doctype: manpage
+:revdate: 2026-10-06
+:manmanual: Callout checks
+:mansource: acdc
+
+== Name
+callout-guards - preserve callout spacing and literal blocks
+
+== Synopsis
+
+[source,rust]
+----
+G01 code // <1>
+G02 code # <2>
+G03 code ;; <3>
+G04 code -- <4>
+G05 code //  <5>
+G06 code//<6><7>
+G07 code  // <8>
+// <9>
+
+  // <10>
+G08 code //	<11>
+G09 code // \<12>
+G10 code // <13> suffix
+----
+<1> Slash prefix.
+<2> Hash prefix in Rust.
+<3> Semicolon prefix in Rust.
+<4> Dash prefix in Rust.
+<5> Two spaces retain the prefix.
+<6> No added space.
+<7> Adjacent marker.
+<8> Two authored spaces before the prefix.
+<9> Guard-only line stays separate.
+<10> Indentation and the preceding blank line stay.
+<11> A tab does not belong to the prefix.
+
+[source,xml]
+----
+G11 <tag/> <!--1--><!--2-->
+G12 <tag/><!--3--> <!--4-->
+G13 <tag/> <!-- ordinary --> <!--5-->
+G14 <tag/> <!--6--> suffix
+G15 <tag/> \<!--7-->
+----
+<1> XML marker.
+<2> Adjacent XML marker.
+<3> No added space before XML marker.
+<4> Authored space between markers.
+<5> Ordinary comments stay.
+
+[source,erlang,line-comment=%]
+----
+G16 code % <1>
+G17 code # <2>
+----
+<1> Custom prefix.
+<2> Custom prefix replaces the defaults.
+
+[source,rust,line-comment=]
+----
+G18 code // <1>
+----
+<1> Empty prefix disables stripping.
+
+[source,text,line-comment="※"]
+----
+G19 café ※ <.>
+G20 café ※<.>
+----
+<.> Unicode custom prefix.
+<.> Automatic numbering.
+
+....
+G21 literal // <1>
+G22 literal <!--2-->
+G23 literal<3><3>
+....
+<1> Literal slash prefix.
+<2> Literal XML marker.
+<3> Repeated literal marker.
+
+[literal,line-comment=%]
+G24 paragraph % <1>
+G25 paragraph # <2>
+
+<1> Literal paragraph custom prefix.
+<2> Default prefix stays.
+
+//-
+
+[literal]
+G26 literal paragraph # <1>
+G27 literal paragraph <!--2-->
+
+<1> Literal paragraph common prefix.
+<2> Literal paragraph XML marker.
+
+//-
+
+[listing,line-comment=]
+G28 listing -- <1>
+
+<1> Listing paragraph with empty prefix.
+
+//-
+
+[source,rust]
+G29 source # <1>
+
+<1> Source paragraph uses all default prefixes.
+
+:icons: font
+
+....
+G30 font # <1>
+....
+<1> Icons do not alter manpage callout rendering.
+
+:icons!:
+
+----
+G31 plain # <1>
+----
+<1> Body unsets retain manpage callout rendering.

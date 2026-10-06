@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Callouts in literal blocks and paragraphs render as bold `(N)` labels,
+  matching listing blocks. Comment prefixes no longer remove authored spaces
+  or join adjacent code lines. All verbatim blocks honor the common prefixes
+  `//`, `#`, `--`, and `;;`, a custom `line-comment` value, or an empty value
+  to retain prefixes, matching Asciidoctor's manpage output.
+
 - Nested bold, italic, monospace, and role formatting restores the enclosing
   font in prose, links, titles, lists, table cells, and enabled code substitutions.
   Text after `*Bold _italic_ tail*.` stays roman instead of becoming italic.

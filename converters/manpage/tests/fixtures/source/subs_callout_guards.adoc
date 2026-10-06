@@ -1,0 +1,72 @@
+= callout-guard-subs(1)
+:doctype: manpage
+:revdate: 2026-10-06
+:manmanual: Callout checks
+:mansource: acdc
+:name: café
+
+== Name
+callout-guard-subs - substitutions around callouts
+
+== Synopsis
+
+[[target]]
+Target paragraph.
+
+[source,text,subs="+macros,+quotes,+attributes,+replacements"]
+----
+S01 {name} (C) link:https://example.org[Link] // <1>
+S02 *Bold* _Italic_ # <2><3>
+S03 ((Indexed)) anchor:code-target[]xref:target[Target] ;; <4>
+S04 footnote:note[One note.] <!--5-->
+S05 pass:[raw //] <6>
+S06 code -- <7>
+----
+<1> Link, attributes and typography.
+<2> Formatting.
+<3> Adjacent marker.
+<4> Index and cross-reference.
+<5> Footnote before XML guard.
+<6> Raw prefix stays literal.
+<7> Enabled typography follows guard removal.
+
+[subs="+macros,+quotes,+attributes,+replacements"]
+....
+S07 {name} *Bold* link:https://example.org[Link] // <.>
+S08 footnote:note[] <!--2-->
+....
+<.> Literal substitutions.
+<.> Literal note and XML marker.
+
+[literal,subs="+quotes,+macros"]
+S09 *Bold* link:https://example.org[Link] // <1>
+
+<1> Literal paragraph substitutions.
+
+[source,xml,subs="-callouts"]
+----
+S10 <tag/> <!--1--> // <2>
+----
+
+[subs="-callouts"]
+....
+S11 literal // <1>
+....
+
+[source,text,subs="specialcharacters"]
+----
+S12 literal (C) // <1>
+----
+
+[source,text,subs="callouts"]
+----
+S13 plain // <1>
+----
+<1> Callouts without special-character substitution.
+
+[source,text,subs="+macros"]
+----
+S14 pass:[// <1>]
+----
+
+See <<code-target,Code>>. Reuse footnote:note[].

@@ -238,9 +238,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         self.collect_index_terms_from_inlines(traversal, &para.content)?;
         self.write_sp()?;
         self.render_captioned_title(traversal, &para.title, &para.metadata)?;
-        let source_guards = matches!(para.metadata.style, Some("source" | "listing"));
-        let content =
-            self.verbatim_content(traversal, &para.content, &para.metadata, source_guards)?;
+        let content = self.verbatim_content(traversal, &para.content, &para.metadata)?;
         let w = self.writer_mut();
         writeln!(w, ".if n .RS 4")?;
         writeln!(w, ".nf")?;

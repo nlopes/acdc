@@ -1,0 +1,110 @@
+'\" t
+.\"     Title: callout-guard-subs
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-06
+.\"    Manual: Callout checks
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "CALLOUT\-GUARD\-SUBS" "1" "2026-10-06" "acdc" "Callout checks"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+callout\-guard\-subs \- substitutions around callouts
+.SH "SYNOPSIS"
+.sp
+Target paragraph.
+.EX
+S01 café \(co \c
+.URL "https://example.org" "Link" "\fR\c"
+ \fB(1)\fP
+S02 \fBBold\fR \fIItalic\fR \fB(2)\fP\fB(3)\fP
+S03 Indexed Target \fB(4)\fP
+S04 [1] \fB(5)\fP
+S05 raw // \fB(6)\fP
+S06 code \fB(7)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+Link, attributes and typography.
+.IP \fB(2)\fP 4
+Formatting.
+.IP \fB(3)\fP 4
+Adjacent marker.
+.IP \fB(4)\fP 4
+Index and cross\-reference.
+.IP \fB(5)\fP 4
+Footnote before XML guard.
+.IP \fB(6)\fP 4
+Raw prefix stays literal.
+.IP \fB(7)\fP 4
+Enabled typography follows guard removal.
+.RE
+.nf
+S07 café \fBBold\fR \c
+.URL "https://example.org" "Link" "\fR\c"
+ \fB(1)\fP
+S08 [1] \fB(2)\fP
+.fi
+.RS 0
+.IP \fB(1)\fP 4
+Literal substitutions.
+.IP \fB(2)\fP 4
+Literal note and XML marker.
+.RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+S09 \fBBold\fR \c
+.URL "https://example.org" "Link" "\fR\c"
+ \fB(1)\fP
+.fam
+.fi
+.if n .RE
+.RS 0
+.IP \fB(1)\fP 4
+Literal paragraph substitutions.
+.RE
+.EX
+S10 <tag/> <!\-\-1\-\-> // <2>
+.EE
+.nf
+S11 literal // <1>
+.fi
+.EX
+S12 literal (C) // <1>
+.EE
+.EX
+S13 plain \fB(1)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+Callouts without special\-character substitution.
+.RE
+.EX
+S14 // <1>
+.EE
+.sp
+See Code\&. Reuse [1]\&.
+.SH "NOTES"
+.IP [1] 4
+One note.

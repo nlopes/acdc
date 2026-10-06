@@ -1,0 +1,198 @@
+'\" t
+.\"     Title: callout-guards
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-06
+.\"    Manual: Callout checks
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "CALLOUT\-GUARDS" "1" "2026-10-06" "acdc" "Callout checks"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+callout\-guards \- preserve callout spacing and literal blocks
+.SH "SYNOPSIS"
+.EX
+G01 code \fB(1)\fP
+G02 code \fB(2)\fP
+G03 code \fB(3)\fP
+G04 code \fB(4)\fP
+G05 code //  \fB(5)\fP
+G06 code\fB(6)\fP\fB(7)\fP
+G07 code  \fB(8)\fP
+\fB(9)\fP
+
+  \fB(10)\fP
+G08 code //        \fB(11)\fP
+G09 code // <12>
+G10 code // <13> suffix
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+Slash prefix.
+.IP \fB(2)\fP 4
+Hash prefix in Rust.
+.IP \fB(3)\fP 4
+Semicolon prefix in Rust.
+.IP \fB(4)\fP 4
+Dash prefix in Rust.
+.IP \fB(5)\fP 4
+Two spaces retain the prefix.
+.IP \fB(6)\fP 4
+No added space.
+.IP \fB(7)\fP 4
+Adjacent marker.
+.IP \fB(8)\fP 4
+Two authored spaces before the prefix.
+.IP \fB(9)\fP 4
+Guard\-only line stays separate.
+.IP \fB(10)\fP 4
+Indentation and the preceding blank line stay.
+.IP \fB(11)\fP 4
+A tab does not belong to the prefix.
+.RE
+.EX
+G11 <tag/> \fB(1)\fP\fB(2)\fP
+G12 <tag/>\fB(3)\fP \fB(4)\fP
+G13 <tag/> <!\-\- ordinary \-\-> \fB(5)\fP
+G14 <tag/> <!\-\-6\-\-> suffix
+G15 <tag/> <!\-\-7\-\->
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+XML marker.
+.IP \fB(2)\fP 4
+Adjacent XML marker.
+.IP \fB(3)\fP 4
+No added space before XML marker.
+.IP \fB(4)\fP 4
+Authored space between markers.
+.IP \fB(5)\fP 4
+Ordinary comments stay.
+.RE
+.EX
+G16 code \fB(1)\fP
+G17 code # \fB(2)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+Custom prefix.
+.IP \fB(2)\fP 4
+Custom prefix replaces the defaults.
+.RE
+.EX
+G18 code // \fB(1)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+Empty prefix disables stripping.
+.RE
+.EX
+G19 café \fB(1)\fP
+G20 café \fB(2)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+Unicode custom prefix.
+.IP \fB(2)\fP 4
+Automatic numbering.
+.RE
+.nf
+G21 literal \fB(1)\fP
+G22 literal \fB(2)\fP
+G23 literal\fB(3)\fP\fB(3)\fP
+.fi
+.RS 0
+.IP \fB(1)\fP 4
+Literal slash prefix.
+.IP \fB(2)\fP 4
+Literal XML marker.
+.IP \fB(3)\fP 4
+Repeated literal marker.
+.RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+G24 paragraph \fB(1)\fP
+G25 paragraph # \fB(2)\fP
+.fam
+.fi
+.if n .RE
+.RS 0
+.IP \fB(1)\fP 4
+Literal paragraph custom prefix.
+.IP \fB(2)\fP 4
+Default prefix stays.
+.RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+G26 literal paragraph \fB(1)\fP
+G27 literal paragraph \fB(2)\fP
+.fam
+.fi
+.if n .RE
+.RS 0
+.IP \fB(1)\fP 4
+Literal paragraph common prefix.
+.IP \fB(2)\fP 4
+Literal paragraph XML marker.
+.RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+G28 listing \-\- \fB(1)\fP
+.fam
+.fi
+.if n .RE
+.RS 0
+.IP \fB(1)\fP 4
+Listing paragraph with empty prefix.
+.RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+G29 source \fB(1)\fP
+.fam
+.fi
+.if n .RE
+.RS 0
+.IP \fB(1)\fP 4
+Source paragraph uses all default prefixes.
+.RE
+.nf
+G30 font \fB(1)\fP
+.fi
+.RS 0
+.IP \fB(1)\fP 4
+Icons do not alter manpage callout rendering.
+.RE
+.EX
+G31 plain \fB(1)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+Body unsets retain manpage callout rendering.
+.RE
