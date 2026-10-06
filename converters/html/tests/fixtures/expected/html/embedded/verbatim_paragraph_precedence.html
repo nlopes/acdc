@@ -1,0 +1,177 @@
+<div class="sect1">
+<h2 id="_name">Name</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>paragraph-precedence - retain explicit verbatim paragraphs</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_synopsis">Synopsis</h2>
+<div class="sectionbody">
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-python" data-lang="python">P01 code ;; <b class="conum">(1)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<ol>
+<li><p>Source marker.</p></li>
+</ol>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>P02 code:: <b class="conum">(1)</b></pre>
+</div>
+</div>
+<div class="colist arabic">
+<ol>
+<li><p>Listing marker.</p></li>
+</ol>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>P03 code::: <b class="conum">(1)</b></pre>
+</div>
+</div>
+<div class="colist arabic">
+<ol>
+<li><p>Literal marker.</p></li>
+</ol>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text">P04 first line <b class="conum">(1)</b>
+P05 continuation ;; <b class="conum">(2)</b>
+P06 following line <b class="conum">(3)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<ol>
+<li><p>First line.</p></li>
+<li><p>Continuation.</p></li>
+<li><p>Following line.</p></li>
+</ol>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text">* P07 bullet <b class="conum">(1)</b>
+. P08 ordered <b class="conum">(2)</b>
+P09 term:::: <b class="conum">(3)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<ol>
+<li><p>Bullet stays code.</p></li>
+<li><p>Number stays code.</p></li>
+<li><p>Term stays code.</p></li>
+</ol>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text">NOTE: P10 admonition <b class="conum">(1)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<ol>
+<li><p>Admonition stays code.</p></li>
+</ol>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text">P11 before <b class="conum">(1)</b>
+* P12 bullet <b class="conum">(2)</b>
+P13 after <b class="conum">(3)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<ol>
+<li><p>Before list-looking text.</p></li>
+<li><p>Bullet within source paragraph.</p></li>
+<li><p>After list-looking text.</p></li>
+</ol>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Parent.</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text">P14 attached ;; <b class="conum">(1)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<ol>
+<li><p>Attached source paragraph.</p></li>
+</ol>
+</div>
+</li>
+</ul>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">P15 ordinary</dt>
+<dd>
+<p>Still a description list.</p>
+</dd>
+</dl>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text">P16 opening <b class="conum">(1)</b>
+----
+[[apparent-id]]
+[.apparent-role]
+== Apparent heading
+image::missing.png[]
+----
+P17 closing <b class="conum">(2)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<ol>
+<li><p>Paragraph content starts before the apparent delimiters.</p></li>
+<li><p>Content stays together until the blank line.</p></li>
+</ol>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">Term</dt>
+<dd>
+<p>Parent description.</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text">P18 attached to description ;; <b class="conum">(1)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<ol>
+<li><p>Description-list continuation.</p></li>
+</ol>
+</div>
+</dd>
+</dl>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text">P19 real delimited source ;; <b class="conum">(1)</b>
+
+P20 real delimited source after blank <b class="conum">(2)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<ol>
+<li><p>Opening delimiter still selects a block.</p></li>
+<li><p>A delimited block keeps its blank lines.</p></li>
+</ol>
+</div>
+<div class="verseblock">
+<pre class="content">  P21 verse:: <strong>Bold</strong>
+  * P22 line, not a list.
+  NOTE: P23 ordinary verse text.</pre>
+</div>
+<div class="paragraph">
+<p>After the verse.</p>
+</div>
+</div>
+</div>

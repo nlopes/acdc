@@ -133,8 +133,6 @@ The `acdc` manpage converter aims for compatibility with Asciidoctor's manpage b
 - With `subs="callouts"`, acdc recognizes source callout markers even without
   special-character substitution; Asciidoctor leaves them literal. Disabled
   callouts and markers inside raw passthroughs remain literal in both.
-- `;;` in a `[source]` paragraph can trigger description-list parsing. This is
-  a parser gap; delimited blocks avoid it.
 - Nested formatting restores its enclosing font. In `*Bold _italic_ tail*.`,
   `tail` is bold and the final period is roman; Asciidoctor can leave the period
   and following paragraphs italic. The same rule applies to roles, link

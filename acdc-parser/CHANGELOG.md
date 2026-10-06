@@ -57,6 +57,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Paragraphs styled as `source`, `listing`, `literal`, or `verse` now retain
+  list-looking text and admonition prefixes instead of becoming lists or
+  admonitions, matching Asciidoctor. Content continues through apparent
+  headings, metadata, and delimiters until a blank line or list continuation.
+  Callouts and enabled inline substitutions still work; actual opening block
+  delimiters still select delimited blocks. Indented verse paragraphs retain
+  their formatting and authored indentation.
+
 - Indented literal paragraphs now recognize callouts, match their explanation
   lists, and display escaped markers without the backslash, as in Asciidoctor.
   Automatic numbering, XML markers, `line-comment`, and enabled `subs=`

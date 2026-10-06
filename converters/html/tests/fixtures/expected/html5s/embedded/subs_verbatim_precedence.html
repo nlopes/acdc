@@ -1,0 +1,47 @@
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>paragraph-subs - preserve substitutions in styled paragraphs</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_synopsis">Synopsis</h2>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text">S01 code;; <strong>bold</strong> expanded <a href="https://example.org">link</a> <b class="conum">(1)</b>
+S02 next:: <em>italic</em> &lt;!--<b class="conum">(2)</b>--&gt;</code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Enabled substitutions in the source paragraph.</li>
+<li>Formatted continuation.</li>
+</ol>
+<div class="literalblock">
+<div class="content">
+<pre>S03 literal;; &lt;1&gt;
+S04 literal:: \&lt;2&gt;</pre>
+</div>
+</div>
+<div class="listing-block">
+<pre>S05 listing;; {value} *literal* <1></pre>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text">S06 inactive:: footnote:unused[No note.] indexterm2:[No entry] <b class="conum">(1)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Default substitutions do not register these macros.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text">S07 active:: <sup class="footnote-ref" id="_footnoteref_1">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup> <b class="conum">(1)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>The note is registered exactly once.</li>
+</ol>
+<div class="verseblock">
+<pre class="content">S08 verse;; {value} *literal*</pre>
+</div>
+<p>Reuse <sup class="footnote-ref">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup>.</p>
+</section>
+<section class="footnotes" aria-label="Footnotes" role="doc-endnotes">
+<hr>
+<ol class="footnotes">
+<li class="footnote" id="_footnote_1" role="doc-endnote">
+One note. <a class="footnote-backref" href="#_footnoteref_1" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+</ol>
+</section>

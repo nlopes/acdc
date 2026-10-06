@@ -33,7 +33,7 @@ fn callout_processing_preserves_terminal_newlines() -> Result<(), Error> {
 
 #[test]
 fn explicit_verbatim_paragraph_styles_preserve_indentation() -> Result<(), Error> {
-    for style in ["source,rust", "listing", "literal"] {
+    for style in ["source,rust", "listing", "literal", "verse"] {
         let source = format!("[{style}]\n  indented\n");
         let parsed = parse(&source, &Options::default())?;
         let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.first() else {
@@ -43,6 +43,98 @@ fn explicit_verbatim_paragraph_styles_preserve_indentation() -> Result<(), Error
         assert_eq!(paragraph.metadata.style, style.split(',').next());
         assert_eq!(inline_text(&paragraph.content), "  indented");
     }
+    Ok(())
+}
+
+#[test]
+fn explicit_verbatim_styles_override_block_syntax() -> Result<(), Error> {
+    for style in ["source,text", "listing", "literal", "verse"] {
+        for content in [
+            "term;; value",
+            "term:: value",
+            "* bullet",
+            ". ordered",
+            "NOTE: ordinary text",
+            "image::missing.png[]",
+            "audio::missing.ogg[]",
+            "video::missing.mp4[]",
+            "toc::[]",
+            "<<<",
+            "'''",
+            "> quote",
+            "<1> marker",
+        ] {
+            let source = format!("[{style}]\n{content}\n");
+            let parsed = parse(&source, &Options::default())?;
+            let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+                return Err(format!("expected one styled paragraph for {source:?}").into());
+            };
+            assert_eq!(paragraph.metadata.style, style.split(',').next());
+            assert_eq!(inline_text(&paragraph.content), content, "{source:?}");
+            assert!(
+                parsed.warnings().is_empty(),
+                "{source:?}: {:?}",
+                parsed.warnings()
+            );
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn styled_paragraph_boundaries_preserve_source_and_macro_ownership() -> Result<(), Error> {
+    let content = "é first <1>\nterm;; footnote:[Inactive.]\n----\n[[inactive]]\n[.role]\n== Heading\n----\nlast <2>";
+    for ending in ["", "\n"] {
+        let source = format!(
+            "[#code]\n.Caption\n[source,text]\n{content}\n\n<1> First.\n<2> Last.\n\nAfter.{ending}"
+        );
+        let parsed = parse(&source, &Options::default())?;
+        assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
+        assert!(parsed.document().footnotes.is_empty());
+        let [
+            Block::Paragraph(paragraph),
+            Block::CalloutList(_),
+            Block::Paragraph(after),
+        ] = parsed.document().blocks.as_slice()
+        else {
+            return Err(
+                "expected a source paragraph, explanations, and following paragraph".into(),
+            );
+        };
+        assert_eq!(inline_text(&paragraph.content), content);
+        assert_eq!(inline_text(&after.content), "After.");
+        for node in &paragraph.content {
+            if let InlineNode::CalloutRef(callout) = node {
+                assert_eq!(
+                    parsed
+                        .source()
+                        .get(callout.location.absolute_start..=callout.location.absolute_end),
+                    Some(if callout.number == 1 { "<1>" } else { "<2>" })
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+#[cfg(feature = "pre-spec-subs")]
+#[test]
+fn styled_paragraph_precedence_registers_enabled_footnotes_once() -> Result<(), Error> {
+    let source = include_str!("../fixtures/tests/subs_verbatim_precedence.adoc");
+    let parsed = parse(source, &Options::default())?;
+    let [note] = parsed.document().footnotes.as_slice() else {
+        return Err("expected only the enabled footnote".into());
+    };
+    assert_eq!(
+        source.get(note.location.absolute_start..=note.location.absolute_end),
+        Some("footnote:used[One note.]")
+    );
+    assert!(
+        parsed
+            .warnings()
+            .iter()
+            .all(|warning| !warning.kind.to_string().starts_with("no callout"))
+    );
     Ok(())
 }
 

@@ -1,0 +1,2536 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "paragraph-precedence(1)",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 25
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 5,
+        "col": 16
+      }
+    ]
+  },
+  "attributes": {
+    "doctype": "manpage",
+    "manmanual": "Parser checks",
+    "manname": "paragraph-precedence",
+    "manname-title": "Name",
+    "manpurpose": "retain explicit verbatim paragraphs",
+    "mansource": "acdc",
+    "mantitle": "paragraph-precedence",
+    "manvolnum": "1",
+    "revdate": "2026-10-06"
+  },
+  "blocks": [
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Name",
+          "location": [
+            {
+              "line": 7,
+              "col": 4
+            },
+            {
+              "line": 7,
+              "col": 7
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "paragraph-precedence - retain explicit verbatim paragraphs",
+              "location": [
+                {
+                  "line": 8,
+                  "col": 1
+                },
+                {
+                  "line": 8,
+                  "col": 58
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 8,
+              "col": 1
+            },
+            {
+              "line": 8,
+              "col": 58
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 8,
+          "col": 58
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Synopsis",
+          "location": [
+            {
+              "line": 10,
+              "col": 4
+            },
+            {
+              "line": 10,
+              "col": 11
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "P01 code ;; ",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 1
+                },
+                {
+                  "line": 13,
+                  "col": 12
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "explicit",
+              "number": 1,
+              "location": [
+                {
+                  "line": 13,
+                  "col": 13
+                },
+                {
+                  "line": 13,
+                  "col": 15
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "attributes": {
+              "language": "python"
+            },
+            "style": "source"
+          },
+          "location": [
+            {
+              "line": 12,
+              "col": 1
+            },
+            {
+              "line": 13,
+              "col": 15
+            }
+          ]
+        },
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "callout",
+          "items": [
+            {
+              "name": "listItem",
+              "type": "block",
+              "callout": {
+                "name": "callout_reference",
+                "type": "inline",
+                "variant": "explicit",
+                "number": 1,
+                "location": [
+                  {
+                    "line": 15,
+                    "col": 1
+                  },
+                  {
+                    "line": 15,
+                    "col": 18
+                  }
+                ]
+              },
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Source marker.",
+                  "location": [
+                    {
+                      "line": 15,
+                      "col": 5
+                    },
+                    {
+                      "line": 15,
+                      "col": 18
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 15,
+                  "col": 1
+                },
+                {
+                  "line": 15,
+                  "col": 18
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 15,
+              "col": 1
+            },
+            {
+              "line": 15,
+              "col": 18
+            }
+          ]
+        },
+        {
+          "name": "comment",
+          "type": "block",
+          "content": "-",
+          "location": [
+            {
+              "line": 17,
+              "col": 1
+            },
+            {
+              "line": 17,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "P02 code:: ",
+              "location": [
+                {
+                  "line": 20,
+                  "col": 1
+                },
+                {
+                  "line": 20,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "explicit",
+              "number": 1,
+              "location": [
+                {
+                  "line": 20,
+                  "col": 12
+                },
+                {
+                  "line": 20,
+                  "col": 14
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "style": "listing"
+          },
+          "location": [
+            {
+              "line": 19,
+              "col": 1
+            },
+            {
+              "line": 20,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "callout",
+          "items": [
+            {
+              "name": "listItem",
+              "type": "block",
+              "callout": {
+                "name": "callout_reference",
+                "type": "inline",
+                "variant": "explicit",
+                "number": 1,
+                "location": [
+                  {
+                    "line": 22,
+                    "col": 1
+                  },
+                  {
+                    "line": 22,
+                    "col": 19
+                  }
+                ]
+              },
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Listing marker.",
+                  "location": [
+                    {
+                      "line": 22,
+                      "col": 5
+                    },
+                    {
+                      "line": 22,
+                      "col": 19
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 22,
+                  "col": 1
+                },
+                {
+                  "line": 22,
+                  "col": 19
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 22,
+              "col": 1
+            },
+            {
+              "line": 22,
+              "col": 19
+            }
+          ]
+        },
+        {
+          "name": "comment",
+          "type": "block",
+          "content": "-",
+          "location": [
+            {
+              "line": 24,
+              "col": 1
+            },
+            {
+              "line": 24,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "P03 code::: ",
+              "location": [
+                {
+                  "line": 27,
+                  "col": 1
+                },
+                {
+                  "line": 27,
+                  "col": 12
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "explicit",
+              "number": 1,
+              "location": [
+                {
+                  "line": 27,
+                  "col": 13
+                },
+                {
+                  "line": 27,
+                  "col": 15
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "style": "literal"
+          },
+          "location": [
+            {
+              "line": 26,
+              "col": 1
+            },
+            {
+              "line": 27,
+              "col": 15
+            }
+          ]
+        },
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "callout",
+          "items": [
+            {
+              "name": "listItem",
+              "type": "block",
+              "callout": {
+                "name": "callout_reference",
+                "type": "inline",
+                "variant": "explicit",
+                "number": 1,
+                "location": [
+                  {
+                    "line": 29,
+                    "col": 1
+                  },
+                  {
+                    "line": 29,
+                    "col": 19
+                  }
+                ]
+              },
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Literal marker.",
+                  "location": [
+                    {
+                      "line": 29,
+                      "col": 5
+                    },
+                    {
+                      "line": 29,
+                      "col": 19
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 29,
+                  "col": 1
+                },
+                {
+                  "line": 29,
+                  "col": 19
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 29,
+              "col": 1
+            },
+            {
+              "line": 29,
+              "col": 19
+            }
+          ]
+        },
+        {
+          "name": "comment",
+          "type": "block",
+          "content": "-",
+          "location": [
+            {
+              "line": 31,
+              "col": 1
+            },
+            {
+              "line": 31,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "P04 first line ",
+              "location": [
+                {
+                  "line": 34,
+                  "col": 1
+                },
+                {
+                  "line": 34,
+                  "col": 15
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "explicit",
+              "number": 1,
+              "location": [
+                {
+                  "line": 34,
+                  "col": 16
+                },
+                {
+                  "line": 34,
+                  "col": 18
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "\nP05 continuation ;; ",
+              "location": [
+                {
+                  "line": 34,
+                  "col": 19
+                },
+                {
+                  "line": 35,
+                  "col": 20
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "explicit",
+              "number": 2,
+              "location": [
+                {
+                  "line": 35,
+                  "col": 21
+                },
+                {
+                  "line": 35,
+                  "col": 23
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "\nP06 following line ",
+              "location": [
+                {
+                  "line": 35,
+                  "col": 24
+                },
+                {
+                  "line": 36,
+                  "col": 19
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "explicit",
+              "number": 3,
+              "location": [
+                {
+                  "line": 36,
+                  "col": 20
+                },
+                {
+                  "line": 36,
+                  "col": 22
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "attributes": {
+              "language": "text"
+            },
+            "style": "source"
+          },
+          "location": [
+            {
+              "line": 33,
+              "col": 1
+            },
+            {
+              "line": 36,
+              "col": 22
+            }
+          ]
+        },
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "callout",
+          "items": [
+            {
+              "name": "listItem",
+              "type": "block",
+              "callout": {
+                "name": "callout_reference",
+                "type": "inline",
+                "variant": "explicit",
+                "number": 1,
+                "location": [
+                  {
+                    "line": 38,
+                    "col": 1
+                  },
+                  {
+                    "line": 38,
+                    "col": 15
+                  }
+                ]
+              },
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "First line.",
+                  "location": [
+                    {
+                      "line": 38,
+                      "col": 5
+                    },
+                    {
+                      "line": 38,
+                      "col": 15
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 38,
+                  "col": 1
+                },
+                {
+                  "line": 38,
+                  "col": 15
+                }
+              ]
+            },
+            {
+              "name": "listItem",
+              "type": "block",
+              "callout": {
+                "name": "callout_reference",
+                "type": "inline",
+                "variant": "explicit",
+                "number": 2,
+                "location": [
+                  {
+                    "line": 39,
+                    "col": 1
+                  },
+                  {
+                    "line": 39,
+                    "col": 17
+                  }
+                ]
+              },
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Continuation.",
+                  "location": [
+                    {
+                      "line": 39,
+                      "col": 5
+                    },
+                    {
+                      "line": 39,
+                      "col": 17
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 39,
+                  "col": 1
+                },
+                {
+                  "line": 39,
+                  "col": 17
+                }
+              ]
+            },
+            {
+              "name": "listItem",
+              "type": "block",
+              "callout": {
+                "name": "callout_reference",
+                "type": "inline",
+                "variant": "explicit",
+                "number": 3,
+                "location": [
+                  {
+                    "line": 40,
+                    "col": 1
+                  },
+                  {
+                    "line": 40,
+                    "col": 19
+                  }
+                ]
+              },
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Following line.",
+                  "location": [
+                    {
+                      "line": 40,
+                      "col": 5
+                    },
+                    {
+                      "line": 40,
+                      "col": 19
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 40,
+                  "col": 1
+                },
+                {
+                  "line": 40,
+                  "col": 19
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 38,
+              "col": 1
+            },
+            {
+              "line": 40,
+              "col": 19
+            }
+          ]
+        },
+        {
+          "name": "comment",
+          "type": "block",
+          "content": "-",
+          "location": [
+            {
+              "line": 42,
+              "col": 1
+            },
+            {
+              "line": 42,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "* P07 bullet ",
+              "location": [
+                {
+                  "line": 45,
+                  "col": 1
+                },
+                {
+                  "line": 45,
+                  "col": 13
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "explicit",
+              "number": 1,
+              "location": [
+                {
+                  "line": 45,
+                  "col": 14
+                },
+                {
+                  "line": 45,
+                  "col": 16
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "\n. P08 ordered ",
+              "location": [
+                {
+                  "line": 45,
+                  "col": 17
+                },
+                {
+                  "line": 46,
+                  "col": 14
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "explicit",
+              "number": 2,
+              "location": [
+                {
+                  "line": 46,
+                  "col": 15
+                },
+                {
+                  "line": 46,
+                  "col": 17
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "\nP09 term:::: ",
+              "location": [
+                {
+                  "line": 46,
+                  "col": 18
+                },
+                {
+                  "line": 47,
+                  "col": 13
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "explicit",
+              "number": 3,
+              "location": [
+                {
+                  "line": 47,
+                  "col": 14
+                },
+                {
+                  "line": 47,
+                  "col": 16
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "attributes": {
+              "language": "text"
+            },
+            "style": "source"
+          },
+          "location": [
+            {
+              "line": 44,
+              "col": 1
+            },
+            {
+              "line": 47,
+              "col": 16
+            }
+          ]
+        },
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "callout",
+          "items": [
+            {
+              "name": "listItem",
+              "type": "block",
+              "callout": {
+                "name": "callout_reference",
+                "type": "inline",
+                "variant": "explicit",
+                "number": 1,
+                "location": [
+                  {
+                    "line": 49,
+                    "col": 1
+                  },
+                  {
+                    "line": 49,
+                    "col": 22
+                  }
+                ]
+              },
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Bullet stays code.",
+                  "location": [
+                    {
+                      "line": 49,
+                      "col": 5
+                    },
+                    {
+                      "line": 49,
+                      "col": 22
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 49,
+                  "col": 1
+                },
+                {
+                  "line": 49,
+                  "col": 22
+                }
+              ]
+            },
+            {
+              "name": "listItem",
+              "type": "block",
+              "callout": {
+                "name": "callout_reference",
+                "type": "inline",
+                "variant": "explicit",
+                "number": 2,
+                "location": [
+                  {
+                    "line": 50,
+                    "col": 1
+                  },
+                  {
+                    "line": 50,
+                    "col": 22
+                  }
+                ]
+              },
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Number stays code.",
+                  "location": [
+                    {
+                      "line": 50,
+                      "col": 5
+                    },
+                    {
+                      "line": 50,
+                      "col": 22
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 50,
+                  "col": 1
+                },
+                {
+                  "line": 50,
+                  "col": 22
+                }
+              ]
+            },
+            {
+              "name": "listItem",
+              "type": "block",
+              "callout": {
+                "name": "callout_reference",
+                "type": "inline",
+                "variant": "explicit",
+                "number": 3,
+                "location": [
+                  {
+                    "line": 51,
+                    "col": 1
+                  },
+                  {
+                    "line": 51,
+                    "col": 20
+                  }
+                ]
+              },
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Term stays code.",
+                  "location": [
+                    {
+                      "line": 51,
+                      "col": 5
+                    },
+                    {
+                      "line": 51,
+                      "col": 20
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 51,
+                  "col": 1
+                },
+                {
+                  "line": 51,
+                  "col": 20
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 49,
+              "col": 1
+            },
+            {
+              "line": 51,
+              "col": 20
+            }
+          ]
+        },
+        {
+          "name": "comment",
+          "type": "block",
+          "content": "-",
+          "location": [
+            {
+              "line": 53,
+              "col": 1
+            },
+            {
+              "line": 53,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "NOTE: P10 admonition ",
+              "location": [
+                {
+                  "line": 56,
+                  "col": 1
+                },
+                {
+                  "line": 56,
+                  "col": 21
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "explicit",
+              "number": 1,
+              "location": [
+                {
+                  "line": 56,
+                  "col": 22
+                },
+                {
+                  "line": 56,
+                  "col": 24
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "attributes": {
+              "language": "text"
+            },
+            "style": "source"
+          },
+          "location": [
+            {
+              "line": 55,
+              "col": 1
+            },
+            {
+              "line": 56,
+              "col": 24
+            }
+          ]
+        },
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "callout",
+          "items": [
+            {
+              "name": "listItem",
+              "type": "block",
+              "callout": {
+                "name": "callout_reference",
+                "type": "inline",
+                "variant": "explicit",
+                "number": 1,
+                "location": [
+                  {
+                    "line": 58,
+                    "col": 1
+                  },
+                  {
+                    "line": 58,
+                    "col": 26
+                  }
+                ]
+              },
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Admonition stays code.",
+                  "location": [
+                    {
+                      "line": 58,
+                      "col": 5
+                    },
+                    {
+                      "line": 58,
+                      "col": 26
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 58,
+                  "col": 1
+                },
+                {
+                  "line": 58,
+                  "col": 26
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 58,
+              "col": 1
+            },
+            {
+              "line": 58,
+              "col": 26
+            }
+          ]
+        },
+        {
+          "name": "comment",
+          "type": "block",
+          "content": "-",
+          "location": [
+            {
+              "line": 60,
+              "col": 1
+            },
+            {
+              "line": 60,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "P11 before ",
+              "location": [
+                {
+                  "line": 63,
+                  "col": 1
+                },
+                {
+                  "line": 63,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "explicit",
+              "number": 1,
+              "location": [
+                {
+                  "line": 63,
+                  "col": 12
+                },
+                {
+                  "line": 63,
+                  "col": 14
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "\n* P12 bullet ",
+              "location": [
+                {
+                  "line": 63,
+                  "col": 15
+                },
+                {
+                  "line": 64,
+                  "col": 13
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "explicit",
+              "number": 2,
+              "location": [
+                {
+                  "line": 64,
+                  "col": 14
+                },
+                {
+                  "line": 64,
+                  "col": 16
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "\nP13 after ",
+              "location": [
+                {
+                  "line": 64,
+                  "col": 17
+                },
+                {
+                  "line": 65,
+                  "col": 10
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "explicit",
+              "number": 3,
+              "location": [
+                {
+                  "line": 65,
+                  "col": 11
+                },
+                {
+                  "line": 65,
+                  "col": 13
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "attributes": {
+              "language": "text"
+            },
+            "style": "source"
+          },
+          "location": [
+            {
+              "line": 62,
+              "col": 1
+            },
+            {
+              "line": 65,
+              "col": 13
+            }
+          ]
+        },
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "callout",
+          "items": [
+            {
+              "name": "listItem",
+              "type": "block",
+              "callout": {
+                "name": "callout_reference",
+                "type": "inline",
+                "variant": "explicit",
+                "number": 1,
+                "location": [
+                  {
+                    "line": 67,
+                    "col": 1
+                  },
+                  {
+                    "line": 67,
+                    "col": 29
+                  }
+                ]
+              },
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Before list-looking text.",
+                  "location": [
+                    {
+                      "line": 67,
+                      "col": 5
+                    },
+                    {
+                      "line": 67,
+                      "col": 29
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 67,
+                  "col": 1
+                },
+                {
+                  "line": 67,
+                  "col": 29
+                }
+              ]
+            },
+            {
+              "name": "listItem",
+              "type": "block",
+              "callout": {
+                "name": "callout_reference",
+                "type": "inline",
+                "variant": "explicit",
+                "number": 2,
+                "location": [
+                  {
+                    "line": 68,
+                    "col": 1
+                  },
+                  {
+                    "line": 68,
+                    "col": 35
+                  }
+                ]
+              },
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Bullet within source paragraph.",
+                  "location": [
+                    {
+                      "line": 68,
+                      "col": 5
+                    },
+                    {
+                      "line": 68,
+                      "col": 35
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 68,
+                  "col": 1
+                },
+                {
+                  "line": 68,
+                  "col": 35
+                }
+              ]
+            },
+            {
+              "name": "listItem",
+              "type": "block",
+              "callout": {
+                "name": "callout_reference",
+                "type": "inline",
+                "variant": "explicit",
+                "number": 3,
+                "location": [
+                  {
+                    "line": 69,
+                    "col": 1
+                  },
+                  {
+                    "line": 69,
+                    "col": 28
+                  }
+                ]
+              },
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "After list-looking text.",
+                  "location": [
+                    {
+                      "line": 69,
+                      "col": 5
+                    },
+                    {
+                      "line": 69,
+                      "col": 28
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 69,
+                  "col": 1
+                },
+                {
+                  "line": 69,
+                  "col": 28
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 67,
+              "col": 1
+            },
+            {
+              "line": 69,
+              "col": 28
+            }
+          ]
+        },
+        {
+          "name": "comment",
+          "type": "block",
+          "content": "-",
+          "location": [
+            {
+              "line": 71,
+              "col": 1
+            },
+            {
+              "line": 71,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "unordered",
+          "marker": "*",
+          "items": [
+            {
+              "name": "listItem",
+              "type": "block",
+              "marker": "*",
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Parent.",
+                  "location": [
+                    {
+                      "line": 73,
+                      "col": 3
+                    },
+                    {
+                      "line": 73,
+                      "col": 9
+                    }
+                  ]
+                }
+              ],
+              "blocks": [
+                {
+                  "name": "paragraph",
+                  "type": "block",
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "P14 attached ;; ",
+                      "location": [
+                        {
+                          "line": 76,
+                          "col": 1
+                        },
+                        {
+                          "line": 76,
+                          "col": 16
+                        }
+                      ]
+                    },
+                    {
+                      "name": "callout_reference",
+                      "type": "inline",
+                      "variant": "explicit",
+                      "number": 1,
+                      "location": [
+                        {
+                          "line": 76,
+                          "col": 17
+                        },
+                        {
+                          "line": 76,
+                          "col": 19
+                        }
+                      ]
+                    }
+                  ],
+                  "metadata": {
+                    "attributes": {
+                      "language": "text"
+                    },
+                    "style": "source"
+                  },
+                  "location": [
+                    {
+                      "line": 75,
+                      "col": 1
+                    },
+                    {
+                      "line": 76,
+                      "col": 19
+                    }
+                  ]
+                },
+                {
+                  "name": "list",
+                  "type": "block",
+                  "variant": "callout",
+                  "items": [
+                    {
+                      "name": "listItem",
+                      "type": "block",
+                      "callout": {
+                        "name": "callout_reference",
+                        "type": "inline",
+                        "variant": "explicit",
+                        "number": 1,
+                        "location": [
+                          {
+                            "line": 78,
+                            "col": 1
+                          },
+                          {
+                            "line": 78,
+                            "col": 30
+                          }
+                        ]
+                      },
+                      "principal": [
+                        {
+                          "name": "text",
+                          "type": "string",
+                          "value": "Attached source paragraph.",
+                          "location": [
+                            {
+                              "line": 78,
+                              "col": 5
+                            },
+                            {
+                              "line": 78,
+                              "col": 30
+                            }
+                          ]
+                        }
+                      ],
+                      "location": [
+                        {
+                          "line": 78,
+                          "col": 1
+                        },
+                        {
+                          "line": 78,
+                          "col": 30
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 78,
+                      "col": 1
+                    },
+                    {
+                      "line": 78,
+                      "col": 30
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 73,
+                  "col": 1
+                },
+                {
+                  "line": 78,
+                  "col": 30
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 73,
+              "col": 1
+            },
+            {
+              "line": 78,
+              "col": 30
+            }
+          ]
+        },
+        {
+          "name": "comment",
+          "type": "block",
+          "content": "-",
+          "location": [
+            {
+              "line": 80,
+              "col": 1
+            },
+            {
+              "line": 80,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "dlist",
+          "type": "block",
+          "items": [
+            {
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "P15 ordinary",
+                  "location": [
+                    {
+                      "line": 82,
+                      "col": 1
+                    },
+                    {
+                      "line": 82,
+                      "col": 12
+                    }
+                  ]
+                }
+              ],
+              "delimiter": "::",
+              "principal_text": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Still a description list.",
+                  "location": [
+                    {
+                      "line": 82,
+                      "col": 16
+                    },
+                    {
+                      "line": 82,
+                      "col": 40
+                    }
+                  ]
+                }
+              ],
+              "description": [],
+              "location": [
+                {
+                  "line": 82,
+                  "col": 1
+                },
+                {
+                  "line": 82,
+                  "col": 41
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 82,
+              "col": 1
+            },
+            {
+              "line": 82,
+              "col": 41
+            }
+          ]
+        },
+        {
+          "name": "comment",
+          "type": "block",
+          "content": "-",
+          "location": [
+            {
+              "line": 84,
+              "col": 1
+            },
+            {
+              "line": 84,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "P16 opening ",
+              "location": [
+                {
+                  "line": 87,
+                  "col": 1
+                },
+                {
+                  "line": 87,
+                  "col": 12
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "explicit",
+              "number": 1,
+              "location": [
+                {
+                  "line": 87,
+                  "col": 13
+                },
+                {
+                  "line": 87,
+                  "col": 15
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "\n----\n[[apparent-id]]\n[.apparent-role]\n== Apparent heading\nimage::missing.png[]\n----\nP17 closing ",
+              "location": [
+                {
+                  "line": 87,
+                  "col": 16
+                },
+                {
+                  "line": 95,
+                  "col": 12
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "explicit",
+              "number": 2,
+              "location": [
+                {
+                  "line": 95,
+                  "col": 13
+                },
+                {
+                  "line": 95,
+                  "col": 15
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "attributes": {
+              "language": "text"
+            },
+            "style": "source"
+          },
+          "location": [
+            {
+              "line": 86,
+              "col": 1
+            },
+            {
+              "line": 95,
+              "col": 15
+            }
+          ]
+        },
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "callout",
+          "items": [
+            {
+              "name": "listItem",
+              "type": "block",
+              "callout": {
+                "name": "callout_reference",
+                "type": "inline",
+                "variant": "explicit",
+                "number": 1,
+                "location": [
+                  {
+                    "line": 96,
+                    "col": 1
+                  },
+                  {
+                    "line": 96,
+                    "col": 60
+                  }
+                ]
+              },
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Paragraph content starts before the apparent delimiters.",
+                  "location": [
+                    {
+                      "line": 97,
+                      "col": 5
+                    },
+                    {
+                      "line": 97,
+                      "col": 60
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 97,
+                  "col": 1
+                },
+                {
+                  "line": 97,
+                  "col": 60
+                }
+              ]
+            },
+            {
+              "name": "listItem",
+              "type": "block",
+              "callout": {
+                "name": "callout_reference",
+                "type": "inline",
+                "variant": "explicit",
+                "number": 2,
+                "location": [
+                  {
+                    "line": 97,
+                    "col": 1
+                  },
+                  {
+                    "line": 97,
+                    "col": 48
+                  }
+                ]
+              },
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Content stays together until the blank line.",
+                  "location": [
+                    {
+                      "line": 98,
+                      "col": 5
+                    },
+                    {
+                      "line": 98,
+                      "col": 48
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 98,
+                  "col": 1
+                },
+                {
+                  "line": 98,
+                  "col": 48
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 97,
+              "col": 1
+            },
+            {
+              "line": 98,
+              "col": 48
+            }
+          ]
+        },
+        {
+          "name": "comment",
+          "type": "block",
+          "content": "-",
+          "location": [
+            {
+              "line": 100,
+              "col": 1
+            },
+            {
+              "line": 100,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "dlist",
+          "type": "block",
+          "items": [
+            {
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Term",
+                  "location": [
+                    {
+                      "line": 102,
+                      "col": 1
+                    },
+                    {
+                      "line": 102,
+                      "col": 4
+                    }
+                  ]
+                }
+              ],
+              "delimiter": "::",
+              "principal_text": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Parent description.",
+                  "location": [
+                    {
+                      "line": 102,
+                      "col": 8
+                    },
+                    {
+                      "line": 102,
+                      "col": 26
+                    }
+                  ]
+                }
+              ],
+              "description": [
+                {
+                  "name": "paragraph",
+                  "type": "block",
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "P18 attached to description ;; ",
+                      "location": [
+                        {
+                          "line": 105,
+                          "col": 1
+                        },
+                        {
+                          "line": 105,
+                          "col": 31
+                        }
+                      ]
+                    },
+                    {
+                      "name": "callout_reference",
+                      "type": "inline",
+                      "variant": "explicit",
+                      "number": 1,
+                      "location": [
+                        {
+                          "line": 105,
+                          "col": 32
+                        },
+                        {
+                          "line": 105,
+                          "col": 34
+                        }
+                      ]
+                    }
+                  ],
+                  "metadata": {
+                    "attributes": {
+                      "language": "text"
+                    },
+                    "style": "source"
+                  },
+                  "location": [
+                    {
+                      "line": 104,
+                      "col": 1
+                    },
+                    {
+                      "line": 105,
+                      "col": 34
+                    }
+                  ]
+                },
+                {
+                  "name": "list",
+                  "type": "block",
+                  "variant": "callout",
+                  "items": [
+                    {
+                      "name": "listItem",
+                      "type": "block",
+                      "callout": {
+                        "name": "callout_reference",
+                        "type": "inline",
+                        "variant": "explicit",
+                        "number": 1,
+                        "location": [
+                          {
+                            "line": 106,
+                            "col": 1
+                          },
+                          {
+                            "line": 106,
+                            "col": 34
+                          }
+                        ]
+                      },
+                      "principal": [
+                        {
+                          "name": "text",
+                          "type": "string",
+                          "value": "Description-list continuation.",
+                          "location": [
+                            {
+                              "line": 107,
+                              "col": 5
+                            },
+                            {
+                              "line": 107,
+                              "col": 34
+                            }
+                          ]
+                        }
+                      ],
+                      "location": [
+                        {
+                          "line": 107,
+                          "col": 1
+                        },
+                        {
+                          "line": 107,
+                          "col": 34
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 107,
+                      "col": 1
+                    },
+                    {
+                      "line": 107,
+                      "col": 34
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 102,
+                  "col": 1
+                },
+                {
+                  "line": 107,
+                  "col": 34
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 102,
+              "col": 1
+            },
+            {
+              "line": 107,
+              "col": 34
+            }
+          ]
+        },
+        {
+          "name": "comment",
+          "type": "block",
+          "content": "-",
+          "location": [
+            {
+              "line": 109,
+              "col": 1
+            },
+            {
+              "line": 109,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "listing",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "----",
+          "metadata": {
+            "attributes": {
+              "language": "text"
+            },
+            "style": "source"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "P19 real delimited source ;; ",
+              "location": [
+                {
+                  "line": 113,
+                  "col": 1
+                },
+                {
+                  "line": 113,
+                  "col": 29
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "explicit",
+              "number": 1,
+              "location": [
+                {
+                  "line": 113,
+                  "col": 30
+                },
+                {
+                  "line": 113,
+                  "col": 32
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "\n\nP20 real delimited source after blank ",
+              "location": [
+                {
+                  "line": 113,
+                  "col": 33
+                },
+                {
+                  "line": 115,
+                  "col": 38
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "explicit",
+              "number": 2,
+              "location": [
+                {
+                  "line": 115,
+                  "col": 39
+                },
+                {
+                  "line": 115,
+                  "col": 41
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 111,
+              "col": 1
+            },
+            {
+              "line": 116,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "callout",
+          "items": [
+            {
+              "name": "listItem",
+              "type": "block",
+              "callout": {
+                "name": "callout_reference",
+                "type": "inline",
+                "variant": "explicit",
+                "number": 1,
+                "location": [
+                  {
+                    "line": 116,
+                    "col": 1
+                  },
+                  {
+                    "line": 116,
+                    "col": 44
+                  }
+                ]
+              },
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Opening delimiter still selects a block.",
+                  "location": [
+                    {
+                      "line": 117,
+                      "col": 5
+                    },
+                    {
+                      "line": 117,
+                      "col": 44
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 117,
+                  "col": 1
+                },
+                {
+                  "line": 117,
+                  "col": 44
+                }
+              ]
+            },
+            {
+              "name": "listItem",
+              "type": "block",
+              "callout": {
+                "name": "callout_reference",
+                "type": "inline",
+                "variant": "explicit",
+                "number": 2,
+                "location": [
+                  {
+                    "line": 117,
+                    "col": 1
+                  },
+                  {
+                    "line": 117,
+                    "col": 44
+                  }
+                ]
+              },
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "A delimited block keeps its blank lines.",
+                  "location": [
+                    {
+                      "line": 118,
+                      "col": 5
+                    },
+                    {
+                      "line": 118,
+                      "col": 44
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 118,
+                  "col": 1
+                },
+                {
+                  "line": 118,
+                  "col": 44
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 117,
+              "col": 1
+            },
+            {
+              "line": 118,
+              "col": 44
+            }
+          ]
+        },
+        {
+          "name": "comment",
+          "type": "block",
+          "content": "-",
+          "location": [
+            {
+              "line": 120,
+              "col": 1
+            },
+            {
+              "line": 120,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "  P21 verse:: ",
+              "location": [
+                {
+                  "line": 123,
+                  "col": 1
+                },
+                {
+                  "line": 123,
+                  "col": 14
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Bold",
+                  "location": [
+                    {
+                      "line": 123,
+                      "col": 16
+                    },
+                    {
+                      "line": 123,
+                      "col": 19
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 123,
+                  "col": 15
+                },
+                {
+                  "line": 123,
+                  "col": 20
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "\n  * P22 line, not a list.\n  NOTE: P23 ordinary verse text.",
+              "location": [
+                {
+                  "line": 123,
+                  "col": 21
+                },
+                {
+                  "line": 125,
+                  "col": 32
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "style": "verse"
+          },
+          "location": [
+            {
+              "line": 122,
+              "col": 1
+            },
+            {
+              "line": 125,
+              "col": 32
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "After the verse.",
+              "location": [
+                {
+                  "line": 127,
+                  "col": 1
+                },
+                {
+                  "line": 127,
+                  "col": 16
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 127,
+              "col": 1
+            },
+            {
+              "line": 127,
+              "col": 16
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 10,
+          "col": 1
+        },
+        {
+          "line": 127,
+          "col": 16
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 127,
+      "col": 16
+    }
+  ]
+}

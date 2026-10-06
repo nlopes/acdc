@@ -1,0 +1,48 @@
+= paragraph-subs(1)
+:doctype: manpage
+:revdate: 2026-10-06
+:manmanual: Parser checks
+:mansource: acdc
+:value: expanded
+
+== Name
+paragraph-subs - preserve substitutions in styled paragraphs
+
+== Synopsis
+
+[source,text,subs="+quotes,+attributes,+macros"]
+S01 code;; *bold* {value} https://example.org[link] <1>
+S02 next:: _italic_ <!--2-->
+
+<1> Enabled substitutions in the source paragraph.
+<2> Formatted continuation.
+
+//-
+
+[literal,subs=-callouts]
+S03 literal;; <1>
+S04 literal:: \<2>
+
+//-
+
+[listing,subs=none]
+S05 listing;; {value} *literal* <1>
+
+//-
+
+[source,text]
+S06 inactive:: footnote:unused[No note.] indexterm2:[No entry] <1>
+
+<1> Default substitutions do not register these macros.
+
+//-
+
+[source,text,subs=+macros]
+S07 active:: footnote:used[One note.] <1>
+
+<1> The note is registered exactly once.
+
+[verse,subs=none]
+S08 verse;; {value} *literal*
+
+Reuse footnote:used[].

@@ -112,6 +112,29 @@ The implementation here follows from:
 * [x] Line breaks (+)
 ====
 
+== Styled code and verse paragraphs
+
+The `source`, `listing`, `literal`, and `verse` styles take precedence over
+list, block macro, and admonition syntax. For example, this is a source
+paragraph, not a description list:
+
+[source,asciidoc]
+----
+[source,text]
+value;; literal text
+----
+
+Once the paragraph starts, a blank line or list continuation ends it.
+Apparent headings, block attributes, and delimiters inside its content stay
+text. A heading or opening delimiter on the first line still selects a
+section or delimited block, matching Asciidoctor. Each style retains its
+normal substitutions; verse can contain inline formatting.
+
+Known limitation: preprocessing can discard adjacent `//` lines inside these
+paragraphs, unlike Asciidoctor. For code containing these lines, use a
+delimited listing or literal block. This is a parser gap, not an intentional
+SDR-5 difference.
+
 == Conditional expressions
 
 The `ifeval` directive compares two values with `==`, `!=`, `<`, `<=`, `>`, or `>=`.

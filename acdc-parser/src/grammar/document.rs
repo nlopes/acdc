@@ -4293,6 +4293,7 @@ peg::parser! {
         })
         block:(
             delimited_block:delimited_block(start, offset, &block_metadata) { delimited_block }
+            / verbatim:styled_verbatim_paragraph(start, offset, &block_metadata) { verbatim }
             / image:image(start, offset, &block_metadata) { image }
             / audio:audio(start, offset, &block_metadata) { audio }
             / video:video(start, offset, &block_metadata) { video }
@@ -4332,6 +4333,7 @@ peg::parser! {
                 / comment_block(comment_start, offset, &block_metadata)
             ) { c }) { comment }
             / delimited_block:delimited_block(start, offset, &block_metadata) { delimited_block }
+            / verbatim:styled_verbatim_paragraph(start, offset, &block_metadata) { verbatim }
             / image:image(start, offset, &block_metadata) { image }
             / audio:audio(start, offset, &block_metadata) { audio }
             / video:video(start, offset, &block_metadata) { video }
@@ -6344,25 +6346,32 @@ peg::parser! {
             (author.trim().to_string(), author_start, None)
         }
 
-        rule paragraph_anchor_boundary(block_metadata: &BlockParsingMetadata<'input>)
-        = anchor_line_match() {?
-            if matches!(block_metadata.metadata.style, Some("source" | "listing" | "literal")) {
-                Err("anchor syntax is verbatim text")
-            } else {
-                Ok(())
-            }
-        }
+        // Explicit verbatim styles take precedence over list and macro syntax,
+        // but an opening block delimiter still selects a delimited block.
+        rule styled_verbatim_paragraph(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
+        = !normal_paragraph_style(block_metadata) block:paragraph(start, offset, block_metadata) { block }
+
+        // Once started, only a blank line, list continuation, or EOF ends this
+        // paragraph. Apparent headings, delimiters, and metadata are its content.
+        rule verbatim_paragraph_content() -> &'input str
+        = content:$((!(
+            eol()*<2,>
+            / eol()* ![_]
+            / eol() "+" whitespace()* (eol() / ![_])
+        ) [_])+) { content }
 
         rule paragraph(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
-        = admonition:admonition()?
+        = admonition:(normal_paragraph_style(block_metadata) value:admonition() { value })?
         content_start:position!()
-        content:$((
+        content:(
+          !normal_paragraph_style(block_metadata) text:verbatim_paragraph_content() { text }
+          / $((
             "[[" (!eol() [_])*
             / !(
             eol()*<2,>
             / eol()* ![_]
             / eol() &attributes_line()
-            / eol() &paragraph_anchor_boundary(block_metadata)
+            / eol() &anchor_line_match()
             / eol() example_delimiter()
             / eol() listing_delimiter()
             / eol() literal_delimiter()
@@ -6379,7 +6388,7 @@ peg::parser! {
             / eol() &("+" (whitespace() / eol() / ![_]))  // Stop at list continuation marker
             / eol()* &heading_boundary(offset)
             ) [_]
-        )+)
+        )+))
         {
             let is_styled_verbatim = matches!(
                 block_metadata.metadata.style,
@@ -6397,7 +6406,10 @@ peg::parser! {
             }
 
             // Indentation selects literal substitutions before ordinary inline processing.
-            if content.starts_with(' ') && !is_styled_verbatim {
+            if content.starts_with(' ')
+                && !is_styled_verbatim
+                && block_metadata.metadata.style != Some("verse")
+            {
                 return get_literal_paragraph(state, content, start, content_start, span_end, offset, block_metadata);
             }
 

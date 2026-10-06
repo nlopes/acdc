@@ -1,0 +1,127 @@
+= paragraph-precedence(1)
+:doctype: manpage
+:revdate: 2026-10-06
+:manmanual: Parser checks
+:mansource: acdc
+
+== Name
+paragraph-precedence - retain explicit verbatim paragraphs
+
+== Synopsis
+
+[source,python]
+P01 code ;; <1>
+
+<1> Source marker.
+
+//-
+
+[listing]
+P02 code:: <1>
+
+<1> Listing marker.
+
+//-
+
+[literal]
+P03 code::: <1>
+
+<1> Literal marker.
+
+//-
+
+[source,text]
+P04 first line <1>
+P05 continuation ;; <2>
+P06 following line <3>
+
+<1> First line.
+<2> Continuation.
+<3> Following line.
+
+//-
+
+[source,text]
+* P07 bullet <1>
+. P08 ordered <2>
+P09 term:::: <3>
+
+<1> Bullet stays code.
+<2> Number stays code.
+<3> Term stays code.
+
+//-
+
+[source,text]
+NOTE: P10 admonition <1>
+
+<1> Admonition stays code.
+
+//-
+
+[source,text]
+P11 before <1>
+* P12 bullet <2>
+P13 after <3>
+
+<1> Before list-looking text.
+<2> Bullet within source paragraph.
+<3> After list-looking text.
+
+//-
+
+* Parent.
++
+[source,text]
+P14 attached ;; <1>
++
+<1> Attached source paragraph.
+
+//-
+
+P15 ordinary:: Still a description list.
+
+//-
+
+[source,text]
+P16 opening <1>
+----
+[[apparent-id]]
+[.apparent-role]
+== Apparent heading
+image::missing.png[]
+----
+// Apparent comment
+P17 closing <2>
+
+<1> Paragraph content starts before the apparent delimiters.
+<2> Content stays together until the blank line.
+
+//-
+
+Term:: Parent description.
++
+[source,text]
+P18 attached to description ;; <1>
++
+<1> Description-list continuation.
+
+//-
+
+[source,text]
+----
+P19 real delimited source ;; <1>
+
+P20 real delimited source after blank <2>
+----
+<1> Opening delimiter still selects a block.
+<2> A delimited block keeps its blank lines.
+
+//-
+
+[verse]
+  P21 verse:: *Bold*
+  * P22 line, not a list.
+  NOTE: P23 ordinary verse text.
+
+After the verse.
