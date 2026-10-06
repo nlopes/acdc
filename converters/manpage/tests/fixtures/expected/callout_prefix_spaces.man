@@ -1,0 +1,115 @@
+'\" t
+.\"     Title: prefix-spaces
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-06
+.\"    Manual: Callout checks
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "PREFIX\-SPACES" "1" "2026-10-06" "acdc" "Callout checks"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+prefix\-spaces \- spaces within callout comment prefixes
+.SH "SYNOPSIS"
+.EX
+T01 required \fB(1)\fP
+T02 optional \fB(1)\fP
+T03 missing //\fB(1)\fP
+T04 excessive //   \fB(1)\fP
+T05 repeated // \fB(1)\fP
+T06 nontrailing // <1> tail
+T07 escaped // <1>
+T08 adjacent \fB(1)\fP\fB(2)\fP
+T09 unrelated # \fB(1)\fP
+T10 tab //         \fB(1)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+First.
+.IP \fB(2)\fP 4
+Second.
+.RE
+.EX
+T11 two required \fB(1)\fP
+T12 optional third \fB(1)\fP
+T13 missing second % \fB(1)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+Multiple required spaces.
+.RE
+.EX
+T14 Unicode \fB(1)\fP
+T15 missing Unicode space é\fB(1)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+Unicode prefix.
+.RE
+.nf
+T16 literal \fB(1)\fP
+.fi
+.RS 0
+.IP \fB(1)\fP 4
+Literal block.
+.RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+T17 paragraph \fB(1)\fP
+.fam
+.fi
+.if n .RE
+.RS 0
+.IP \fB(1)\fP 4
+Literal paragraph.
+.RE
+.EX
+T18 space only\fB(1)\fP
+T19 optional second\fB(1)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+A whitespace prefix differs from an empty prefix.
+.RE
+.EX
+T20 empty // \fB(1)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+Empty disables removal.
+.RE
+.EX
+T21 default \fB(1)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+Block settings do not leak.
+.RE
+.EX
+T22 no font icons \fB(1)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+HTML preserves guards without font icons; manpage removes them.
+.RE

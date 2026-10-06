@@ -1,0 +1,30 @@
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>prefix-spaces-subs - substituted content before comment prefixes</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_synopsis">Synopsis</h2>
+<div class="listing-block">
+<pre class="highlight"><code class="language-ruby" data-lang="ruby">S01 <a href="https://example.org/">Link</a> <i class="conum" data-value="1"></i><b>(1)</b>
+S02 <strong>Bold</strong> <i class="conum" data-value="1"></i><b>(1)</b>
+S03 <a id="target"></a>target <i class="conum" data-value="1"></i><b>(1)</b>
+S04 // <i class="conum" data-value="1"></i><b>(1)</b>
+S05 <strong>//</strong> <i class="conum" data-value="1"></i><b>(1)</b>
+S06 <sup class="footnote-ref" id="_footnoteref_1">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup> <i class="conum" data-value="1"></i><b>(1)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Parsed neighbors and protected prefixes.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-ruby" data-lang="ruby">S07 disabled // &lt;1&gt;
+S08 disabled // \&lt;1&gt;</code></pre>
+</div>
+<p>See <a href="#target">[target]</a>.</p>
+</section>
+<section class="footnotes" aria-label="Footnotes" role="doc-endnotes">
+<hr>
+<ol class="footnotes">
+<li class="footnote" id="_footnote_1" role="doc-endnote">
+Note. <a class="footnote-backref" href="#_footnoteref_1" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+</ol>
+</section>

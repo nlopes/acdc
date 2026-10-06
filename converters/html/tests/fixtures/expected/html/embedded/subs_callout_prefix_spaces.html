@@ -1,0 +1,45 @@
+<div class="sect1">
+<h2 id="_name">Name</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>prefix-spaces-subs - substituted content before comment prefixes</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_synopsis">Synopsis</h2>
+<div class="sectionbody">
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-ruby" data-lang="ruby">S01 <a href="https://example.org/">Link</a> <i class="conum" data-value="1"></i><b>(1)</b>
+S02 <strong>Bold</strong> <i class="conum" data-value="1"></i><b>(1)</b>
+S03 <a id="target"></a>target <i class="conum" data-value="1"></i><b>(1)</b>
+S04 // <i class="conum" data-value="1"></i><b>(1)</b>
+S05 <strong>//</strong> <i class="conum" data-value="1"></i><b>(1)</b>
+S06 <sup class="footnote" id="_footnote_note">[<a id="_footnoteref_1" class="footnote" href="#_footnotedef_1" title="View footnote.">1</a>]</sup> <i class="conum" data-value="1"></i><b>(1)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Parsed neighbors and protected prefixes.</td>
+</tr>
+</table>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-ruby" data-lang="ruby">S07 disabled // &lt;1&gt;
+S08 disabled // \&lt;1&gt;</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>See <a href="#target">[target]</a>.</p>
+</div>
+</div>
+</div>
+<div id="footnotes">
+<hr>
+<div class="footnote" id="_footnotedef_1">
+<a href="#_footnoteref_1">1</a>. Note.</div>
+</div>

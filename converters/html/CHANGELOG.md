@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- With `icons=font`, custom `line-comment` prefixes that end in spaces are
+  removed before callouts even without an extra separator space, matching
+  Asciidoctor. Plain and highlighted output follow the same rule.
+
 - Callouts obey the active `icons=font` setting in plain and highlighted output,
   including body-level changes. With `icons=font`, XML and common line-comment
   guards are removed, and `line-comment` selects or disables a custom prefix.

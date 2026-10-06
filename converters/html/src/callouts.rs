@@ -80,13 +80,16 @@ fn is_xml_callout(inlines: &[InlineNode<'_>], index: usize) -> bool {
 }
 
 fn strip_line_guard<'text>(text: &'text str, prefix: Option<&str>) -> &'text str {
-    // One optional ASCII space belongs to the guard. Other authored spacing stays.
+    // Try one optional ASCII space; the prefix itself may also end in spaces.
     let candidate = text.strip_suffix(' ').unwrap_or(text);
     if let Some(prefix) = prefix {
         if prefix.is_empty() {
             text
         } else {
-            candidate.strip_suffix(prefix).unwrap_or(text)
+            candidate
+                .strip_suffix(prefix)
+                .or_else(|| text.strip_suffix(prefix))
+                .unwrap_or(text)
         }
     } else {
         ["//", "#", "--", ";;"]

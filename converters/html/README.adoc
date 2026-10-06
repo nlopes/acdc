@@ -121,6 +121,8 @@ and ordinary comments stay intact. A block's `line-comment` attribute selects
 a custom prefix; `line-comment=""` disables line-prefix removal. Both settings
 leave XML-style markers literal while keeping ordinary `<1>` markers enabled,
 matching Asciidoctor. Without font icons, guards remain visible.
+Spaces within a custom prefix are required; the optional following space is
+separate. Thus `line-comment="// "` removes `// ` even without an extra space.
 These rules match ordinary Asciidoctor HTML;
 Rouge may add spaces between markers, while acdc preserves authored spacing.
 

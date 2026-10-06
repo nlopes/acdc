@@ -50,9 +50,11 @@ fn rendered_code_texts(output: &str) -> Result<Vec<String>, Error> {
 #[case("highlighted_callout_positions")]
 #[case("callout_icon_guards")]
 #[case("callout_xml_line_comment")]
+#[case("callout_prefix_spaces")]
 #[cfg_attr(feature = "pre-spec-subs", case("subs_highlighted_callout_positions"))]
 #[cfg_attr(feature = "pre-spec-subs", case("subs_callout_icon_guards"))]
 #[cfg_attr(feature = "pre-spec-subs", case("subs_callout_xml_line_comment"))]
+#[cfg_attr(feature = "pre-spec-subs", case("subs_callout_prefix_spaces"))]
 fn highlighted_callouts_preserve_plain_code_text_and_targets(
     #[case] stem: &str,
 ) -> Result<(), Error> {

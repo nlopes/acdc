@@ -1,0 +1,77 @@
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>prefix-spaces - spaces within callout comment prefixes</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_synopsis">Synopsis</h2>
+<div class="listing-block">
+<pre class="highlight"><code class="language-ruby" data-lang="ruby">T01 required <i class="conum" data-value="1"></i><b>(1)</b>
+T02 optional <i class="conum" data-value="1"></i><b>(1)</b>
+T03 missing //<i class="conum" data-value="1"></i><b>(1)</b>
+T04 excessive //   <i class="conum" data-value="1"></i><b>(1)</b>
+T05 repeated // <i class="conum" data-value="1"></i><b>(1)</b>
+T06 nontrailing // &lt;1&gt; tail
+T07 escaped // &lt;1&gt;
+T08 adjacent <i class="conum" data-value="1"></i><b>(1)</b><i class="conum" data-value="2"></i><b>(2)</b>
+T09 unrelated # <i class="conum" data-value="1"></i><b>(1)</b>
+T10 tab // 	<i class="conum" data-value="1"></i><b>(1)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>First.</li>
+<li>Second.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-ruby" data-lang="ruby">T11 two required <i class="conum" data-value="1"></i><b>(1)</b>
+T12 optional third <i class="conum" data-value="1"></i><b>(1)</b>
+T13 missing second % <i class="conum" data-value="1"></i><b>(1)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Multiple required spaces.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-ruby" data-lang="ruby">T14 Unicode <i class="conum" data-value="1"></i><b>(1)</b>
+T15 missing Unicode space é<i class="conum" data-value="1"></i><b>(1)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Unicode prefix.</li>
+</ol>
+<div class="literal-block">
+<pre>T16 literal <i class="conum" data-value="1"></i><b>(1)</b></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Literal block.</li>
+</ol>
+<div class="literalblock">
+<div class="content">
+<pre>T17 paragraph <i class="conum" data-value="1"></i><b>(1)</b></pre>
+</div>
+</div>
+<ol class="callout-list arabic">
+<li>Literal paragraph.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-ruby" data-lang="ruby">T18 space only<i class="conum" data-value="1"></i><b>(1)</b>
+T19 optional second<i class="conum" data-value="1"></i><b>(1)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>A whitespace prefix differs from an empty prefix.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-ruby" data-lang="ruby">T20 empty // <i class="conum" data-value="1"></i><b>(1)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Empty disables removal.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-ruby" data-lang="ruby">T21 default <i class="conum" data-value="1"></i><b>(1)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Block settings do not leak.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-ruby" data-lang="ruby">T22 no font icons // <b class="conum">(1)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>HTML preserves guards without font icons; manpage removes them.</li>
+</ol>
+</section>

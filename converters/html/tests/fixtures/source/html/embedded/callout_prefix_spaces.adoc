@@ -1,0 +1,80 @@
+= prefix-spaces(1)
+:doctype: manpage
+:revdate: 2026-10-06
+:manmanual: Callout checks
+:mansource: acdc
+:icons: font
+
+== Name
+prefix-spaces - spaces within callout comment prefixes
+
+== Synopsis
+
+[source,ruby,line-comment="// "]
+----
+T01 required // <1>
+T02 optional //  <1>
+T03 missing //<1>
+T04 excessive //   <1>
+T05 repeated // // <1>
+T06 nontrailing // <1> tail
+T07 escaped // \<1>
+T08 adjacent // <1><2>
+T09 unrelated # <1>
+T10 tab // 	<1>
+----
+<1> First.
+<2> Second.
+
+[source,ruby,line-comment="%  "]
+----
+T11 two required %  <1>
+T12 optional third %   <1>
+T13 missing second % <1>
+----
+<1> Multiple required spaces.
+
+[source,ruby,line-comment="é "]
+----
+T14 Unicode é <1>
+T15 missing Unicode space é<1>
+----
+<1> Unicode prefix.
+
+[line-comment="// "]
+....
+T16 literal // <1>
+....
+<1> Literal block.
+
+[literal,line-comment="// "]
+T17 paragraph // <1>
+
+<1> Literal paragraph.
+
+[source,ruby,line-comment=" "]
+----
+T18 space only <1>
+T19 optional second  <1>
+----
+<1> A whitespace prefix differs from an empty prefix.
+
+[source,ruby,line-comment=""]
+----
+T20 empty // <1>
+----
+<1> Empty disables removal.
+
+[source,ruby]
+----
+T21 default // <1>
+----
+<1> Block settings do not leak.
+
+:icons!:
+
+[source,ruby,line-comment="// "]
+----
+T22 no font icons // <1>
+----
+<1> HTML preserves guards without font icons; manpage removes them.

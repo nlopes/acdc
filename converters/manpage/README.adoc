@@ -121,6 +121,8 @@ The manpage converter:
   of source language or `icons`. The block's `line-comment` attribute selects a
   custom prefix; an empty value disables prefix removal. At most one ASCII
   space after a prefix is removed; other spaces and line breaks stay intact.
+  Spaces within a custom prefix are required and removed with it, so
+  `line-comment="// "` also matches when no extra separator follows.
 - Maps table frames and grids to portable `tbl` borders and rules. Proportional
   and percentage column widths become minimum-width hints; automatic columns
   and `%autowidth` remain content-determined. Explicit table widths, left or

@@ -1,0 +1,30 @@
+= prefix-spaces-subs(1)
+:doctype: manpage
+:revdate: 2026-10-06
+:manmanual: Callout checks
+:mansource: acdc
+:icons: font
+
+== Name
+prefix-spaces-subs - substituted content before comment prefixes
+
+== Synopsis
+
+[source,ruby,line-comment="// ",subs="+macros,+quotes"]
+----
+S01 link:https://example.org/[Link] // <1>
+S02 *Bold* // <1>
+S03 anchor:target[]target // <1>
+S04 pass:[// ]<1>
+S05 **//** <1>
+S06 footnote:note[Note.] // <1>
+----
+<1> Parsed neighbors and protected prefixes.
+
+[source,ruby,line-comment="// ",subs="-callouts"]
+----
+S07 disabled // <1>
+S08 disabled // \<1>
+----
+
+See <<target>>.

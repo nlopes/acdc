@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Custom `line-comment` prefixes that end in spaces are removed before callouts
+  even without an extra separator space, matching Asciidoctor. Required spaces
+  within the prefix remain distinct from the optional separator after it.
+
 - Callouts in literal blocks and paragraphs render as bold `(N)` labels,
   matching listing blocks. Comment prefixes no longer remove authored spaces
   or join adjacent code lines. All verbatim blocks honor the common prefixes
