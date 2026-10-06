@@ -1,0 +1,134 @@
+'\" t
+.\"     Title: indented-callouts
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-06
+.\"    Manual: Callout checks
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "INDENTED\-CALLOUTS" "1" "2026-10-06" "acdc" "Callout checks"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+indented\-callouts \- recognize callouts in literal paragraphs
+.SH "SYNOPSIS"
+.sp
+.if n .RS 4
+.nf
+.fam C
+I01 café \fB(1)\fP
+I02 xml \fB(2)\fP
+I03 repeated \fB(1)\fP\fB(1)\fP
+I04 escaped <3>
+I05 interior <4> suffix
+I06 escaped XML <!\-\-5\-\->
+.fam
+.fi
+.if n .RE
+.RS 0
+.IP \fB(1)\fP 4
+Ordinary and repeated markers.
+.IP \fB(2)\fP 4
+XML marker.
+.RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+I07 escaped only <1>
+I08 escaped XML only <!\-\-2\-\->
+.fam
+.fi
+.if n .RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+I09 automatic \fB(1)\fP
+I10 escaped <.>
+I11 automatic XML \fB(2)\fP
+.fam
+.fi
+.if n .RE
+.RS 0
+.IP \fB(1)\fP 4
+First automatic marker.
+.IP \fB(2)\fP 4
+Second automatic marker.
+.RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+I12 custom \fB(1)\fP
+I13 XML stays <!\-\-2\-\->
+.fam
+.fi
+.if n .RE
+.RS 0
+.IP \fB(1)\fP 4
+Custom prefix.
+.RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+ I14 indented \fB(1)\fP
+I15 unindented \fB(2)\fP
+.fam
+.fi
+.if n .RE
+.RS 0
+.IP \fB(1)\fP 4
+Mixed indentation retains the first space.
+.IP \fB(2)\fP 4
+Unindented continuation.
+.RE
+.RS 0
+.IP \(bu 2
+Parent.
+.RS 2
+.sp
+.if n .RS 4
+.nf
+.fam C
+I16 attached \fB(1)\fP
+.fam
+.fi
+.if n .RE
+.RS 4
+.IP \fB(1)\fP 4
+Attached literal marker.
+.RE
+.RE
+.RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+ I17 explicit style \fB(1)\fP
+.fam
+.fi
+.if n .RE
+.RS 0
+.IP \fB(1)\fP 4
+Explicit style retains its indentation.
+.RE

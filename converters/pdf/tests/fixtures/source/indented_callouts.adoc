@@ -1,0 +1,65 @@
+= indented-callouts(1)
+:doctype: manpage
+:revdate: 2026-10-06
+:manmanual: Callout checks
+:mansource: acdc
+
+== Name
+indented-callouts - recognize callouts in literal paragraphs
+
+== Synopsis
+
+ I01 café # <1>
+ I02 xml <!--2-->
+ I03 repeated <1><1>
+ I04 escaped \<3>
+ I05 interior <4> suffix
+ I06 escaped XML \<!--5-->
+
+<1> Ordinary and repeated markers.
+<2> XML marker.
+
+//-
+
+ I07 escaped only \<1>
+ I08 escaped XML only \<!--2-->
+
+//-
+
+ I09 automatic <.>
+ I10 escaped \<.>
+ I11 automatic XML <!--.-->
+
+<.> First automatic marker.
+<.> Second automatic marker.
+
+//-
+
+[line-comment=%]
+ I12 custom % <1>
+ I13 XML stays <!--2-->
+
+<1> Custom prefix.
+
+//-
+
+ I14 indented <1>
+I15 unindented <2>
+
+<1> Mixed indentation retains the first space.
+<2> Unindented continuation.
+
+//-
+
+* Parent.
++
+ I16 attached <1>
++
+<1> Attached literal marker.
+
+//-
+
+[literal]
+ I17 explicit style <1>
+
+<1> Explicit style retains its indentation.

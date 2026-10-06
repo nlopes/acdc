@@ -1,0 +1,37 @@
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>indented-callout-subs - honor literal paragraph substitutions</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_synopsis">Synopsis</h2>
+<div class="literalblock">
+<div class="content">
+<pre>S01 ordinary &lt;1&gt;
+S02 escaped \&lt;1&gt;
+S03 XML &lt;!--1--&gt;</pre>
+</div>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>S04 <1> & {word} *literal*</pre>
+</div>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>S05 <strong>bold</strong> expanded <a href="https://example.org">link</a> <b class="conum">(1)</b>
+S06 <em>italic</em> &lt;!--<b class="conum">(2)</b>--&gt;</pre>
+</div>
+</div>
+<ol class="callout-list arabic">
+<li>Enabled substitutions before the marker.</li>
+<li>Formatting with XML callout.</li>
+</ol>
+<div class="literalblock">
+<div class="content">
+<pre>S07 {word} *literal* <b class="conum">(1)</b></pre>
+</div>
+</div>
+<ol class="callout-list arabic">
+<li>Callouts without other substitutions.</li>
+</ol>
+</section>

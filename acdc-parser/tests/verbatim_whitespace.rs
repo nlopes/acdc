@@ -47,6 +47,111 @@ fn explicit_verbatim_paragraph_styles_preserve_indentation() -> Result<(), Error
 }
 
 #[test]
+fn indented_callouts_keep_source_spans_after_dedenting() -> Result<(), Error> {
+    for newline in ["\n", "\r\n"] {
+        for ending in ["", newline] {
+            for indent in ["", " "] {
+                let source = format!(
+                    ".Caption{newline} é <1>{newline}{indent}中 <!--2-->{newline}{newline}<1> First.{newline}<2> Second.{ending}"
+                );
+                let parsed = parse(&source, &Options::default())?;
+                assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
+                let [Block::Paragraph(paragraph), Block::CalloutList(_)] =
+                    parsed.document().blocks.as_slice()
+                else {
+                    return Err("expected a literal paragraph and callout list".into());
+                };
+                assert_eq!(paragraph.metadata.style, Some("literal"));
+                assert_eq!(
+                    inline_text(&paragraph.content),
+                    if indent.is_empty() {
+                        " é <1>\n中 <!--<2>-->"
+                    } else {
+                        "é <1>\n中 <!--<2>-->"
+                    },
+                    "{source:?}"
+                );
+                let callouts = paragraph
+                    .content
+                    .iter()
+                    .filter_map(|node| {
+                        if let InlineNode::CalloutRef(callout) = node {
+                            Some(callout)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                assert_eq!(callouts.len(), 2);
+                for (callout, (number, text, column)) in callouts
+                    .iter()
+                    .zip([(1, "<1>", 4), (2, "2", 7 + indent.len())])
+                {
+                    assert_eq!(callout.number, number);
+                    assert_eq!(
+                        parsed
+                            .source()
+                            .get(callout.location.absolute_start..=callout.location.absolute_end),
+                        Some(text),
+                        "{source:?}"
+                    );
+                    assert_eq!(callout.location.start.line, u32::try_from(number + 1)?);
+                    assert_eq!(callout.location.start.column, u32::try_from(column)?);
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn indented_callouts_do_not_register_escaped_or_disabled_xml_markers() -> Result<(), Error> {
+    for setting in ["", "[line-comment=]\n", "[line-comment=%]\n"] {
+        let source =
+            format!("{setting} é \\<.>\n xml <!--.-->\n next <.>\n\n<.> First.\n<.> Second.\n");
+        let parsed = parse(&source, &Options::default())?;
+        if setting.is_empty() {
+            assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
+        } else {
+            let [warning] = parsed.warnings() else {
+                return Err("expected one unmatched item warning".into());
+            };
+            assert_eq!(warning.kind.to_string(), "no callout found for <2>");
+            let location = &warning
+                .location
+                .as_ref()
+                .ok_or("missing location")?
+                .location;
+            assert_eq!(
+                source.get(location.absolute_start..=location.absolute_end),
+                Some("<.> Second.")
+            );
+        }
+    }
+    Ok(())
+}
+
+#[cfg(feature = "pre-spec-subs")]
+#[test]
+fn indented_callouts_respect_disabled_substitutions() -> Result<(), Error> {
+    for subs in ["-callouts", "none", "specialcharacters"] {
+        let source = format!("[subs={subs}]\n é \\<1>\n xml <!--1-->\n\n<1> Unmatched.\n");
+        let parsed = parse(&source, &Options::default())?;
+        let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.first() else {
+            return Err("expected a literal paragraph".into());
+        };
+        assert_eq!(inline_text(&paragraph.content), "é \\<1>\nxml <!--1-->");
+        assert!(
+            parsed
+                .warnings()
+                .iter()
+                .any(|warning| warning.kind.to_string() == "no callout found for <1>")
+        );
+    }
+    Ok(())
+}
+
+#[test]
 fn delimiter_scanning_preserves_unicode_and_nonclosing_runs() -> Result<(), Error> {
     for delimiter in ["----", "....", "```"] {
         let content = format!("é中 {delimiter} inside a line\n\n{delimiter}{delimiter}\nlast λ");

@@ -1,0 +1,98 @@
+<div class="sect1">
+<h2 id="_name">Name</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>indented-callouts - recognize callouts in literal paragraphs</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_synopsis">Synopsis</h2>
+<div class="sectionbody">
+<div class="literalblock">
+<div class="content">
+<pre>I01 café # <b class="conum">(1)</b>
+I02 xml &lt;!--<b class="conum">(2)</b>--&gt;
+I03 repeated <b class="conum">(1)</b><b class="conum">(1)</b>
+I04 escaped &lt;3&gt;
+I05 interior &lt;4&gt; suffix
+I06 escaped XML &lt;!--5--&gt;</pre>
+</div>
+</div>
+<div class="colist arabic">
+<ol>
+<li><p>Ordinary and repeated markers.</p></li>
+<li><p>XML marker.</p></li>
+</ol>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>I07 escaped only &lt;1&gt;
+I08 escaped XML only &lt;!--2--&gt;</pre>
+</div>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>I09 automatic <b class="conum">(1)</b>
+I10 escaped &lt;.&gt;
+I11 automatic XML &lt;!--<b class="conum">(2)</b>--&gt;</pre>
+</div>
+</div>
+<div class="colist arabic">
+<ol>
+<li><p>First automatic marker.</p></li>
+<li><p>Second automatic marker.</p></li>
+</ol>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>I12 custom % <b class="conum">(1)</b>
+I13 XML stays &lt;!--2--&gt;</pre>
+</div>
+</div>
+<div class="colist arabic">
+<ol>
+<li><p>Custom prefix.</p></li>
+</ol>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre> I14 indented <b class="conum">(1)</b>
+I15 unindented <b class="conum">(2)</b></pre>
+</div>
+</div>
+<div class="colist arabic">
+<ol>
+<li><p>Mixed indentation retains the first space.</p></li>
+<li><p>Unindented continuation.</p></li>
+</ol>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Parent.</p>
+<div class="literalblock">
+<div class="content">
+<pre>I16 attached <b class="conum">(1)</b></pre>
+</div>
+</div>
+<div class="colist arabic">
+<ol>
+<li><p>Attached literal marker.</p></li>
+</ol>
+</div>
+</li>
+</ul>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre> I17 explicit style <b class="conum">(1)</b></pre>
+</div>
+</div>
+<div class="colist arabic">
+<ol>
+<li><p>Explicit style retains its indentation.</p></li>
+</ol>
+</div>
+</div>
+</div>

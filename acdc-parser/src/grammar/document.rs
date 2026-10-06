@@ -29,7 +29,7 @@ use crate::{
         inline_preprocessing,
         inline_preprocessor::InlinePreprocessorParserState,
         inline_processing::{adjust_and_log_parse_error, process_inlines},
-        location_walk::walk_document_inline_nodes_mut,
+        location_walk::{walk_document_inline_nodes_mut, walk_inline_nodes_mut},
         manpage::{NameSectionAttributes, derive_manpage_header_attrs, derive_name_section_attrs},
         marked_text::MarkedText,
         revision::{IgnoredRevisionFields, RevisionInfo, process_revision_info},
@@ -45,8 +45,7 @@ use crate::{
 
 #[cfg(feature = "pre-spec-subs")]
 use crate::{
-    grammar::{inline_processing::process_verbatim_inlines, location_walk::walk_inline_nodes_mut},
-    model::substitution::parse_subs_attribute,
+    grammar::inline_processing::process_verbatim_inlines, model::substitution::parse_subs_attribute,
 };
 
 use super::{
@@ -612,7 +611,6 @@ fn verbatim_substitutions(metadata: &BlockParsingMetadata<'_>) -> SubstitutionPl
     SubstitutionPlan::from_substitutions(VERBATIM)
 }
 
-#[cfg(feature = "pre-spec-subs")]
 fn needs_verbatim_inlines(substitutions: SubstitutionPlan) -> bool {
     [
         Substitution::Quotes,
@@ -2182,77 +2180,62 @@ fn get_literal_paragraph<'input>(
     metadata.style = Some("literal");
     let location = state.create_block_location(start, end, offset);
 
-    // Strip leading space from each line ONLY if ALL lines consistently have leading space
-    // This matches asciidoctor's behavior
-    let all_lines_have_leading_space = content
-        .lines()
-        .all(|line| line.is_empty() || line.starts_with(' '));
-
-    let content_ref: &'input str = if all_lines_have_leading_space {
-        state.intern_join(
-            content
-                .lines()
-                .map(|line| line.strip_prefix(' ').unwrap_or(line)),
-            "\n",
-        )
-    } else {
-        content
-    };
-
-    tracing::debug!(
-        content = content_ref,
-        all_lines_have_leading_space,
-        "created literal paragraph"
+    let substitutions = verbatim_substitutions(block_metadata);
+    let (mut inlines, callouts) = resolve_verbatim_callouts(
+        state,
+        content,
+        state.create_block_location(content_start, end, offset),
+        substitutions.enabled(&Substitution::Callouts),
+        !metadata.attributes.contains_key("line-comment"),
     );
-    let inlines = vec![InlineNode::PlainText(Plain {
-        content: content_ref,
-        location: location.clone(),
-        escaped: false,
-    })];
-    #[cfg(feature = "pre-spec-subs")]
-    let inlines = if needs_verbatim_inlines(verbatim_substitutions(block_metadata)) {
-        let mut parsed = resolve_verbatim_inlines(
-            state,
-            block_metadata,
-            vec![InlineNode::VerbatimText(Verbatim {
-                content,
-                location: state.create_block_location(content_start, end, offset),
-            })],
-        )?;
-        if all_lines_have_leading_space {
-            for node in &mut parsed {
-                // Dedent nested formatted text too, while keeping original source locations.
-                walk_inline_nodes_mut(node, &mut |node| {
-                    let starts_line = node.location().start.column == 1;
-                    let content = if let InlineNode::VerbatimText(text) = node {
-                        &mut text.content
-                    } else if let InlineNode::PlainText(text) = node {
-                        &mut text.content
-                    } else {
-                        return;
-                    };
-                    let mut first = true;
-                    *content = state.intern_join(
-                        content.split_inclusive('\n').map(|line| {
-                            let strip = !first || starts_line;
-                            first = false;
-                            if strip {
-                                line.strip_prefix(' ').unwrap_or(line)
-                            } else {
-                                line
-                            }
-                        }),
-                        "",
-                    );
+    if callouts.is_empty() && !needs_verbatim_inlines(substitutions) {
+        // Keep the existing plain-text AST for paragraphs without structured inlines.
+        for node in &mut inlines {
+            if let InlineNode::VerbatimText(text) = node {
+                *node = InlineNode::PlainText(Plain {
+                    content: text.content,
+                    location: location.clone(),
+                    escaped: false,
                 });
             }
         }
-        parsed
     } else {
-        inlines
-    };
-    #[cfg(not(feature = "pre-spec-subs"))]
-    let _ = content_start;
+        inlines = resolve_verbatim_inlines(state, block_metadata, inlines)?;
+    }
+    state.pending_callouts.extend(callouts);
+
+    // Mixed indentation preserves all leading spaces, as in Asciidoctor.
+    let all_lines_have_leading_space = content
+        .lines()
+        .all(|line| line.is_empty() || line.starts_with(' '));
+    if all_lines_have_leading_space {
+        for node in &mut inlines {
+            // Parse before dedenting so callouts and nested formatting keep source locations.
+            walk_inline_nodes_mut(node, &mut |node| {
+                let starts_line = node.location().start.column == 1;
+                let content = if let InlineNode::VerbatimText(text) = node {
+                    &mut text.content
+                } else if let InlineNode::PlainText(text) = node {
+                    &mut text.content
+                } else {
+                    return;
+                };
+                let mut first = true;
+                *content = state.intern_join(
+                    content.split_inclusive('\n').map(|line| {
+                        let strip = !first || starts_line;
+                        first = false;
+                        if strip {
+                            line.strip_prefix(' ').unwrap_or(line)
+                        } else {
+                            line
+                        }
+                    }),
+                    "",
+                );
+            });
+        }
+    }
     Ok(Block::Paragraph(Paragraph {
         source_text: Some(content),
         content: inlines,
@@ -6413,16 +6396,8 @@ peg::parser! {
                 }));
             }
 
-            // Check if this is a literal paragraph BEFORE preprocessing
-            //
-            // Literal paragraphs start with a space and should not have inline
-            // preprocessing applied
-            if content.starts_with(' ')
-                && !matches!(
-                    block_metadata.metadata.style,
-                    Some("source" | "listing" | "literal")
-                )
-            {
+            // Indentation selects literal substitutions before ordinary inline processing.
+            if content.starts_with(' ') && !is_styled_verbatim {
                 return get_literal_paragraph(state, content, start, content_start, span_end, offset, block_metadata);
             }
 

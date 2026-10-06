@@ -116,9 +116,9 @@ The manpage converter:
   `[overlined: ...]`. Unknown and color roles retain their text without added
   formatting. These role fallbacks produce one structured warning per document.
 - Renders explicit and automatic callouts as bold `(N)` labels in listing and
-  literal blocks, styled verbatim paragraphs, and explanation lists. Removes
-  XML guards and the common prefixes `//`, `#`, `--`, and `;;`, regardless of
-  source language or `icons`. The block's `line-comment` attribute selects a
+  literal blocks, styled or indented verbatim paragraphs, and explanation lists.
+  Removes XML guards and the common prefixes `//`, `#`, `--`, and `;;`, regardless
+  of source language or `icons`. The block's `line-comment` attribute selects a
   custom prefix; an empty value disables prefix removal. At most one ASCII
   space after a prefix is removed; other spaces and line breaks stay intact.
 - Maps table frames and grids to portable `tbl` borders and rules. Proportional
@@ -133,9 +133,8 @@ The `acdc` manpage converter aims for compatibility with Asciidoctor's manpage b
 - With `subs="callouts"`, acdc recognizes source callout markers even without
   special-character substitution; Asciidoctor leaves them literal. Disabled
   callouts and markers inside raw passthroughs remain literal in both.
-- Indented literal paragraphs can leave callouts literal, and `;;` in a
-  `[source]` paragraph can trigger description-list parsing. These are parser
-  gaps; delimited blocks avoid them.
+- `;;` in a `[source]` paragraph can trigger description-list parsing. This is
+  a parser gap; delimited blocks avoid it.
 - Nested formatting restores its enclosing font. In `*Bold _italic_ tail*.`,
   `tail` is bold and the final period is roman; Asciidoctor can leave the period
   and following paragraphs italic. The same rule applies to roles, link

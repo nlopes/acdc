@@ -57,6 +57,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Indented literal paragraphs now recognize callouts, match their explanation
+  lists, and display escaped markers without the backslash, as in Asciidoctor.
+  Automatic numbering, XML markers, `line-comment`, and enabled `subs=`
+  settings follow the same rules as delimited literal blocks. Original marker
+  locations and the paragraph's indentation behavior are preserved. As with
+  other literal forms, acdc recognizes markers with `subs=callouts` alone;
+  Asciidoctor leaves those literal.
+
 - Blocks with an explicit `line-comment` value, including an empty value, keep
   XML-style callouts such as `<!--1-->` literal, matching Asciidoctor. These
   markers no longer consume automatic numbers or satisfy callout-list items;
