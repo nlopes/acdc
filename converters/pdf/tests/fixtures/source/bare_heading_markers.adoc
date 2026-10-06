@@ -1,0 +1,121 @@
+= bare-markers(1)
+:doctype: manpage
+:revdate: 2026-10-06
+:manmanual: Test Manual
+:mansource: acdc
+:blank:
+
+== Name
+
+bare-markers - bare heading marker boundaries
+
+== Description
+
+B01 ##Highlighted across
+##
+the next line.
+
+B02 Before.
+#
+After.
+
+B03 Before.
+##
+After.
+
+B04 Before.
+###
+After.
+
+B05 Before.
+######
+After.
+
+B06 Before.
+=
+After.
+
+B07 Before.
+==
+After.
+
+B08 Before.
+===
+After.
+
+B09 Before.
+==No separator
+After.
+
+[.bare-role#bare-target]
+B10 Before.
+##
+After.
+
+Term:: B11 ##Highlighted across
+##
+the next line.
+
+* B12 Before.
+##
+After.
+
+. B13 Before.
+##
+After.
+
+--
+B14 ##Highlighted across
+##
+the next line.
+--
+
+[quote]
+____
+B15 ##Highlighted across
+##
+the next line.
+____
+
+[cols="1a"]
+|===
+|B16 ##Highlighted across
+##
+the next line.
+|===
+
+.B17 Title footnote:[One note.]
+[#bare-metadata]
+##
+After the title.
+
+[discrete]
+##
+B18 Bare discrete marker.
+
+[discrete]
+=== Real discrete heading
+
+B19 Body after the discrete heading.
+
+[source,text]
+----
+B20 ##Literal code
+##
+on the next line.
+----
+
+=== Real section
+
+B21 Real section body.
+
+====
+B22 Example block body.
+====
+
+=== {blank}
+
+B23 Section whose title expands to empty.
+
+B24 Final bare marker:
+##

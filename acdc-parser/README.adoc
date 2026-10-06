@@ -241,6 +241,23 @@ a nested inline tree and retains separate targets for nested links. This
 supports the selected SDR-5 separation of parsing and conversion; SDR-5 does
 not prescribe this exact delimiter-ownership policy.
 
+== Heading marker boundaries
+
+Single-line heading markers need a space or tab followed by title text. A bare `##` line
+can close a multiline highlighted span, and `==` within a paragraph stays text.
+Trailing spaces or tabs do not turn a marker-only line into a heading.
+The same boundary check applies to document titles, sections, discrete headings,
+and list continuations. A title reference such as `== {blank}` still identifies
+a heading when its value later expands to empty. These rules match Asciidoctor.
+
+Longer hash runs still use the existing inline formatting rules. For example,
+`+######+` leaves two visible hashes in acdc and Asciidoctor's manpage backend;
+Asciidoctor's HTML and PDF backends consume them through successive formatting
+substitutions. That remaining inline-marker difference is separate from heading
+detection; SDR-5 does not require it. acdc's manpage converter also retains its
+bold fallback for highlighted text. Asciidoctor removes that style and leaves a
+paragraph break when the closing markers were alone on a line.
+
 == Constrained formatting whitespace
 
 Single bold, italic, highlight, and code markers cannot enclose content that

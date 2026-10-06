@@ -3420,7 +3420,7 @@ peg::parser! {
 
         /// ATX-style document title: `= Title` or `# Title`
         rule document_title_atx() -> (Title<'input>, Option<Subtitle<'input>>)
-        = document_title_token() whitespace() start:position!() title:$([^'\n']*) end:position!()
+        = &atx_heading_prefix() document_title_token() whitespace() start:position!() title:$([^'\n']*) end:position!()
         {?
             tracing::debug!(?title, "Processing ATX document title");
             let block_metadata = BlockParsingMetadata::default();
@@ -3921,9 +3921,14 @@ peg::parser! {
             }
         }
 
+        // Marker-only lines can close inline formatting. Require a separator and
+        // title before ending a paragraph or consuming heading metadata.
+        rule atx_heading_prefix()
+        = ("=" / "#")*<1,6> whitespace()+ !eol() &[_]
+
         // Recognize heading syntax before metadata can register title macros.
         rule atx_heading_match()
-        = (block_metadata_line_match() eol()*)* ("=" / "#")*<1,6> whitespace()
+        = (block_metadata_line_match() eol()*)* atx_heading_prefix()
 
         rule discrete_header(offset: usize) -> Result<Block<'input>, Error>
         = &atx_heading_match() block_metadata:(bm:heading_metadata(offset, None) {?
@@ -4300,7 +4305,7 @@ peg::parser! {
         = at_line_start(offset)
           (check_section_blocks() (attribute_or_anchor_line_match() eol()*)*
           / (attribute_or_anchor_line_match() eol()*)+)
-          at_line_start(offset) section_level(offset, None) (whitespace() / eol() / ![_])
+          at_line_start(offset) atx_heading_prefix()
 
         rule section_title(offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<(Title<'input>, &'input str), Error>
         = title:$([^'\n']*)
@@ -4922,7 +4927,7 @@ peg::parser! {
 
         // Helper rule to check if we're at the start of a section heading (lookahead)
         // This is used to terminate list continuations when a section follows
-        rule at_section_start() = (attribute_or_anchor_line_match() eol()*)* ("=" / "#")+ " "
+        rule at_section_start() = (attribute_or_anchor_line_match() eol()*)* atx_heading_prefix()
 
         // Helper rule to check if we're at an ordered list marker ahead (after newlines)
         rule at_ordered_marker_ahead() = eol()+ whitespace()* ordered_list_marker()

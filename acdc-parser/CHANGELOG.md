@@ -57,6 +57,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Marker-only lines such as `##` and `==` no longer interrupt paragraphs or
+  cause parsing errors. A bare `##` can close a multiline highlighted span;
+  headings still need a separator and title text, matching Asciidoctor.
+  Paragraph IDs and titles remain attached when followed by a bare marker.
+  Existing inline-marker differences remain: `######` displays two hashes in
+  acdc and Asciidoctor manpages, while Asciidoctor HTML/PDF consume the complete run.
+
 - Constrained bold, italic, highlight, and code spans reject ASCII whitespace
   at their source content edges, matching Asciidoctor. `*bold *` stays literal, while
   `*bold *; tail*` formats the complete content through the final marker.

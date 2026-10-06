@@ -1,0 +1,127 @@
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>bare-markers - bare heading marker boundaries</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_description">Description</h2>
+<p>B01 <mark>Highlighted across
+</mark>
+the next line.</p>
+<p>B02 Before.
+#
+After.</p>
+<p>B03 Before.
+##
+After.</p>
+<p>B04 Before.
+<mark>#</mark>
+After.</p>
+<p>B05 Before.
+<mark><mark>##</mark></mark>
+After.</p>
+<p>B06 Before.
+=
+After.</p>
+<p>B07 Before.
+==
+After.</p>
+<p>B08 Before.
+===
+After.</p>
+<p>B09 Before.
+==No separator
+After.</p>
+<p class="bare-role" id="bare-target">B10 Before.
+##
+After.</p>
+<div class="dlist">
+<dl>
+<dt>
+Term</dt>
+<dd>
+<p>B11 <mark>Highlighted across
+</mark>
+the next line.</p>
+<ul>
+<li>
+B12 Before.
+##
+After.<div class="olist arabic">
+<ol class="arabic">
+<li>
+B13 Before.
+##
+After.</li>
+</ol>
+</div>
+</li>
+</ul>
+</dd>
+</dl>
+</div>
+<div class="open-block">
+<div class="content">
+<p>B14 <mark>Highlighted across
+</mark>
+the next line.</p>
+</div>
+</div>
+<div class="quote-block">
+<blockquote>
+<p>B15 <mark>Highlighted across
+</mark>
+the next line.</p>
+</blockquote>
+</div>
+<div class="table-block">
+<table class="frame-all grid-all stretch">
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="halign-left valign-top"><p>B16 <mark>Highlighted across
+</mark>
+the next line.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="bare-metadata" class="paragraph">
+<h6 class="block-title">B17 Title <sup class="footnote-ref" id="_footnoteref_1">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup></h6>
+<p>##
+After the title.</p>
+</section>
+<p>##
+B18 Bare discrete marker.</p>
+<h3 id="_real_discrete_heading" class="discrete">Real discrete heading</h3>
+<p>B19 Body after the discrete heading.</p>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text">B20 ##Literal code
+##
+on the next line.</code></pre>
+</div>
+<section class="doc-section level-2">
+<h3 id="_real_section">Real section</h3>
+<p>B21 Real section body.</p>
+<div class="example-block">
+<div class="example">
+<p>B22 Example block body.</p>
+</div>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id=""></h3>
+<p>B23 Section whose title expands to empty.</p>
+<p>B24 Final bare marker:
+##</p>
+</section>
+</section>
+<section class="footnotes" aria-label="Footnotes" role="doc-endnotes">
+<hr>
+<ol class="footnotes">
+<li class="footnote" id="_footnote_1" role="doc-endnote">
+One note. <a class="footnote-backref" href="#_footnoteref_1" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+</ol>
+</section>
