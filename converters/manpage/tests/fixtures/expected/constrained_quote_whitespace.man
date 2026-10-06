@@ -1,0 +1,130 @@
+'\" t
+.\"     Title: Quote whitespace
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-06
+.\"    Manual: Test Manual
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "QUOTE WHITESPACE" "1" "2026-10-06" "acdc" "Test Manual"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+quote\-whitespace \- constrained formatting boundaries
+.SH "DESCRIPTION"
+.sp
+Q01 *bold *.
+.sp
+Q02 _italic _.
+.sp
+Q03 #mark #.
+.sp
+Q04 `code `.
+.sp
+Q05 *bold *.
+.sp
+Q06 *first
+*.
+.sp
+Q07 \fBbold *; tail\fR\&.
+.sp
+Q08 \fIitalic _; tail\fR\&.
+.sp
+Q09 \fBmark #; tail\fR\&.
+.sp
+Q10 \f(CRcode `; tail\fR\&.
+.sp
+Q11 \fBfirst
+*; tail\fR\&.
+.sp
+Q12 \fBbold \fR\&.
+.sp
+Q13 \fIitalic \fR\&.
+.sp
+Q14 \fBmark \fR\&.
+.sp
+Q15 \f(CRcode \fR\&.
+.sp
+Q16 \fBnonbreaking\ \fR\&.
+.sp
+Q17 \fBwide \fR\&.
+.sp
+Q18 \fB\ leading\fR\&.
+.sp
+Q19 \fB leading\fR\&.
+.sp
+Q20 [.red]*bold *.
+.sp
+Q21 \fBbold *; tail\fR\&.
+.sp
+Q22 \fBouter \fIinner _; tail\fB\fR\&.
+.sp
+Q23 \c
+.URL "https://example.org" "*label *" "\fR\c"
+\&.
+.sp
+Q24 \c
+.URL "https://example.org" "\fBlabel *; tail\fR" "\fR\c"
+\&.
+.sp
+Q25 [1]\&.
+.sp
+Q26 [2]\&.
+.sp
+Q27 *passed *\&.
+.sp
+Q28 \fBpassed *; tail\fR\&.
+.sp
+Q29 * leading*.
+.sp
+Q30 * leading*.
+.sp
+Q31 *
+leading*.
+.sp
+Q32 \fBfirst
+\fR\&.
+.sp
+Q33 \fIfirst
+\fR\&.
+.sp
+Q34 \fBfirst
+\fR\&.
+.sp
+Q35 \f(CRfirst
+\fR\&.
+.sp
+Q36 \fBOne sentence.
+\fR
+Another sentence.
+.sp
+Q37 \fIOne sentence.
+\fR
+Another sentence.
+.sp
+Q38 \f(CROne sentence.
+\fR
+Another sentence.
+.SH "NOTES"
+.IP [1] 4
+*note *
+.IP [2] 4
+\fBnote *; tail\fR

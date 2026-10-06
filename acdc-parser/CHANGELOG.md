@@ -57,6 +57,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Constrained bold, italic, highlight, and code spans reject ASCII whitespace
+  at their source content edges, matching Asciidoctor. `*bold *` stays literal, while
+  `*bold *; tail*` formats the complete content through the final marker.
+  This also applies to code with `subs="+quotes"`; doubled markers and
+  non-ASCII spaces retain their existing behavior. Later attribute expansion
+  can still introduce spaces into valid spans.
+- Doubled formatting markers now retain their full multiline spans, including
+  a newline before the closing pair, matching Asciidoctor.
+
 - `source`, `listing`, `literal`, and `verse` paragraphs now preserve `//`
   comments after their first content line, including callouts in code comments.
   Literal `////` lines no longer suppress include or conditional directives

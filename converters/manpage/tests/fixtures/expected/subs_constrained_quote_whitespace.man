@@ -1,0 +1,108 @@
+'\" t
+.\"     Title: Code quote whitespace
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-06
+.\"    Manual: Test Manual
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "CODE QUOTE WHITESPACE" "1" "2026-10-06" "acdc" "Test Manual"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+code\-quote\-whitespace \- enabled code formatting boundaries
+.SH "DESCRIPTION"
+.EX
+V01 *// *
+.EE
+.EX
+V02 _italic _
+.EE
+.EX
+V03 #mark #
+.EE
+.EX
+V04 `code `
+.EE
+.EX
+V05 \fBbold *; tail\fR
+V06 \fIitalic _; tail\fR
+V07 mark #; tail
+V08 \f(CRcode `; tail\fR
+.EE
+.EX
+V09 \fBfirst
+*; tail\fR
+.EE
+.sp
+.if n .RS 4
+.nf
+.fam C
+V10 *// *
+.fam
+.fi
+.if n .RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+V11 \fBbold *; tail\fR
+.fam
+.fi
+.if n .RE
+.EX
+V12 *bold *; tail*
+.EE
+.EX
+V13 \fB\fR \fI\fR  \f(CR\fR
+.EE
+.sp
+V14 \fBbold \fR \fIitalic \fR \fBmark \fR \f(CRcode \fR\&.
+.sp
+V15 \fB bold\fR \fI italic\fR \fB mark\fR \f(CR code\fR\&.
+.sp
+V16 \fBbold \fR \fIitalic \fR \fBmark \fR \f(CRcode \fR\&.
+.sp
+V17 \fB bold\fR \fI italic\fR \fB mark\fR \f(CR code\fR\&.
+.sp
+V18 *bold * _italic _ #mark # \f(CRcode \fR\&.
+.sp
+V19 * bold* _ italic_ # mark# \f(CR code\fR\&.
+.sp
+V20 *bold * _italic _ #mark # \f(CRcode \fR\&.
+.sp
+V21 * bold* _ italic_ # mark# \f(CR code\fR\&.
+.EX
+V22 \fBbold \fR \fIitalic \fR mark  \f(CRcode \fR
+.EE
+.EX
+V23 *bold * _italic _ #mark # \f(CRcode \fR
+.EE
+.EX
+V24 \fBfirst
+\fR\&.
+V25 \fIfirst
+\fR\&.
+V26 first
+\&.
+V27 \f(CRfirst
+\fR\&.
+.EE

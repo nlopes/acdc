@@ -1,0 +1,104 @@
+= Code quote whitespace(1)
+:doctype: manpage
+:manmanual: Test Manual
+:mansource: acdc
+:revdate: 2026-10-06
+:empty:
+
+== Name
+
+code-quote-whitespace - enabled code formatting boundaries
+
+== Description
+
+[source,text,subs="+quotes"]
+----
+V01 *// *
+----
+
+[source,text,subs="+quotes"]
+----
+V02 _italic _
+----
+
+[source,text,subs="+quotes"]
+----
+V03 #mark #
+----
+
+[source,text,subs="+quotes"]
+----
+V04 `code `
+----
+
+[source,text,subs="+quotes"]
+----
+V05 *bold *; tail*
+V06 _italic _; tail_
+V07 #mark #; tail#
+V08 `code `; tail`
+----
+
+[source,text,subs="+quotes"]
+----
+V09 *first
+*; tail*
+----
+
+[literal,subs="+quotes"]
+V10 *// *
+
+[listing,subs="+quotes"]
+V11 *bold *; tail*
+
+[source,text]
+----
+V12 *bold *; tail*
+----
+
+[source,text,subs="+quotes,+attributes"]
+----
+V13 *{empty}* _{empty}_ #{empty}# `{empty}`
+----
+
+V14 *bold{sp}* _italic{sp}_ #mark{sp}# `code{sp}`.
+
+V15 *{sp}bold* _{sp}italic_ #{sp}mark# `{sp}code`.
+
+V16 *bold {empty}* _italic {empty}_ #mark {empty}# `code {empty}`.
+
+V17 *{empty} bold* _{empty} italic_ #{empty} mark# `{empty} code`.
+
+[subs="attributes,quotes"]
+V18 *bold{sp}* _italic{sp}_ #mark{sp}# `code{sp}`.
+
+[subs="attributes,quotes"]
+V19 *{sp}bold* _{sp}italic_ #{sp}mark# `{sp}code`.
+
+[subs="attributes,quotes"]
+V20 *bold {empty}* _italic {empty}_ #mark {empty}# `code {empty}`.
+
+[subs="attributes,quotes"]
+V21 *{empty} bold* _{empty} italic_ #{empty} mark# `{empty} code`.
+
+[source,text,subs="+quotes,+attributes"]
+----
+V22 *bold{sp}* _italic{sp}_ #mark{sp}# `code{sp}`
+----
+
+[source,text,subs="attributes,quotes"]
+----
+V23 *bold{sp}* _italic{sp}_ #mark{sp}# `code{sp}`
+----
+
+[source,text,subs="+quotes"]
+----
+V24 **first
+**.
+V25 __first
+__.
+V26 ##first
+##.
+V27 ``first
+``.
+----

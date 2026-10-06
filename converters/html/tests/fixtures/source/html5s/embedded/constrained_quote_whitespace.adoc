@@ -1,0 +1,100 @@
+= Quote whitespace(1)
+:doctype: manpage
+:manmanual: Test Manual
+:mansource: acdc
+:revdate: 2026-10-06
+
+== Name
+
+quote-whitespace - constrained formatting boundaries
+
+== Description
+
+Q01 *bold *.
+
+Q02 _italic _.
+
+Q03 #mark #.
+
+Q04 `code `.
+
+Q05 *bold	*.
+
+Q06 *first
+*.
+
+Q07 *bold *; tail*.
+
+Q08 _italic _; tail_.
+
+Q09 #mark #; tail#.
+
+Q10 `code `; tail`.
+
+Q11 *first
+*; tail*.
+
+Q12 **bold **.
+
+Q13 __italic __.
+
+Q14 ##mark ##.
+
+Q15 ``code ``.
+
+Q16 *nonbreaking *.
+
+Q17 *wide *.
+
+Q18 * leading*.
+
+Q19 * leading*.
+
+Q20 [.red]*bold *.
+
+Q21 [.red]*bold *; tail*.
+
+Q22 *outer _inner _; tail_*.
+
+Q23 link:https://example.org[*label *].
+
+Q24 link:https://example.org[*label *; tail*].
+
+Q25 footnote:[*note *].
+
+Q26 footnote:[*note *; tail*].
+
+Q27 pass:q[*passed *].
+
+Q28 pass:q[*passed *; tail*].
+
+Q29 * leading*.
+
+Q30 *	leading*.
+
+Q31 *
+leading*.
+
+Q32 **first
+**.
+
+Q33 __first
+__.
+
+Q34 ##first
+##.
+
+Q35 ``first
+``.
+
+Q36 **One sentence.
+**
+Another sentence.
+
+Q37 __One sentence.
+__
+Another sentence.
+
+Q38 ``One sentence.
+``
+Another sentence.

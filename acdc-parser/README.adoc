@@ -241,6 +241,26 @@ a nested inline tree and retains separate targets for nested links. This
 supports the selected SDR-5 separation of parsing and conversion; SDR-5 does
 not prescribe this exact delimiter-ownership policy.
 
+== Constrained formatting whitespace
+
+Single bold, italic, highlight, and code markers cannot enclose content that
+starts or ends with ASCII whitespace. For example, `+*bold *+` stays literal,
+while `+*bold *; tail*+` formats `+bold *; tail+` through the final marker.
+The same rule applies when quotes are enabled in code with `subs="+quotes"`.
+Doubled markers permit whitespace at these edges, including newlines within
+the same inline scope. Non-ASCII spaces such as
+nonbreaking and em spaces remain valid with single markers, matching Asciidoctor.
+These are inline grammar rules, independent of the output backend and SDR-5's
+separation of parsing and conversion.
+
+The existing substitution order still applies: `+*bold{sp}*+` is valid when
+quotes run before the attribute expands to a space, as in ordinary prose.
+With `subs="attributes,quotes"`, the space exists first and emphasis markers remain literal.
+Backtick spans still have an earlier preprocessing path: attribute-first spaces
+and empty values can leave structured code where Asciidoctor retains literal
+backticks. This existing substitution-order gap remains separate from the
+source-whitespace rule; SDR-5 does not require that difference.
+
 == Incomplete links
 
 An unfinished `link:` macro keeps its target as text. For example,

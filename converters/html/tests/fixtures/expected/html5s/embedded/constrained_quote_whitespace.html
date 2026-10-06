@@ -1,0 +1,67 @@
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>quote-whitespace - constrained formatting boundaries</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_description">Description</h2>
+<p>Q01 *bold *.</p>
+<p>Q02 _italic _.</p>
+<p>Q03 #mark #.</p>
+<p>Q04 `code `.</p>
+<p>Q05 *bold	*.</p>
+<p>Q06 *first
+*.</p>
+<p>Q07 <strong>bold *; tail</strong>.</p>
+<p>Q08 <em>italic _; tail</em>.</p>
+<p>Q09 <mark>mark #; tail</mark>.</p>
+<p>Q10 <code>code `; tail</code>.</p>
+<p>Q11 <strong>first
+*; tail</strong>.</p>
+<p>Q12 <strong>bold </strong>.</p>
+<p>Q13 <em>italic </em>.</p>
+<p>Q14 <mark>mark </mark>.</p>
+<p>Q15 <code>code </code>.</p>
+<p>Q16 <strong>nonbreaking&#160;</strong>.</p>
+<p>Q17 <strong>wide </strong>.</p>
+<p>Q18 <strong>&#160;leading</strong>.</p>
+<p>Q19 <strong> leading</strong>.</p>
+<p>Q20 [.red]*bold *.</p>
+<p>Q21 <strong class="red">bold *; tail</strong>.</p>
+<p>Q22 <strong>outer <em>inner _; tail</em></strong>.</p>
+<p>Q23 <a href="https://example.org">*label *</a>.</p>
+<p>Q24 <a href="https://example.org"><strong>label *; tail</strong></a>.</p>
+<p>Q25 <sup class="footnote-ref" id="_footnoteref_1">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup>.</p>
+<p>Q26 <sup class="footnote-ref" id="_footnoteref_2">[<a href="#_footnote_2" title="View footnote 2" role="doc-noteref">2</a>]</sup>.</p>
+<p>Q27 *passed *.</p>
+<p>Q28 <strong>passed *; tail</strong>.</p>
+<p>Q29 * leading*.</p>
+<p>Q30 *	leading*.</p>
+<p>Q31 *
+leading*.</p>
+<p>Q32 <strong>first
+</strong>.</p>
+<p>Q33 <em>first
+</em>.</p>
+<p>Q34 <mark>first
+</mark>.</p>
+<p>Q35 <code>first
+</code>.</p>
+<p>Q36 <strong>One sentence.
+</strong>
+Another sentence.</p>
+<p>Q37 <em>One sentence.
+</em>
+Another sentence.</p>
+<p>Q38 <code>One sentence.
+</code>
+Another sentence.</p>
+</section>
+<section class="footnotes" aria-label="Footnotes" role="doc-endnotes">
+<hr>
+<ol class="footnotes">
+<li class="footnote" id="_footnote_1" role="doc-endnote">
+*note * <a class="footnote-backref" href="#_footnoteref_1" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+<li class="footnote" id="_footnote_2" role="doc-endnote">
+<strong>note *; tail</strong> <a class="footnote-backref" href="#_footnoteref_2" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+</ol>
+</section>

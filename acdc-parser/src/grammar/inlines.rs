@@ -2508,7 +2508,7 @@ peg::parser! {
         = "xref:" xref_target() "[" cross_reference_macro_text() "]"
 
         rule bold_text_unconstrained() -> InlineNode<'input>
-            = attrs:inline_attributes()? start:position!() "**" content_start:position!() content:$(empty_quote_content() &"**" / (!(eol() / ![_] / "**") [_])+) close:position!() "**" check_quote_markers((start, 2), (close, 2)) end:position!()
+            = attrs:inline_attributes()? start:position!() "**" content_start:position!() content:$(empty_quote_content() &"**" / (!"**" [_])+) close:position!() "**" check_quote_markers((start, 2), (close, 2)) end:position!()
         {?
             let role = attrs.as_ref().and_then(|(roles, _id)| {
                 if roles.is_empty() {
@@ -2539,7 +2539,7 @@ peg::parser! {
 
         /// Match unconstrained bold without consuming - for use in negative lookaheads.
         rule bold_text_unconstrained_match()
-        = inline_attributes()? open:position!() "**" (empty_quote_content() &"**" / (!(eol() / ![_] / "**") [_])+) close:position!() "**" check_quote_markers((open, 2), (close, 2))
+        = inline_attributes()? open:position!() "**" (empty_quote_content() &"**" / (!"**" [_])+) close:position!() "**" check_quote_markers((open, 2), (close, 2))
 
         /// A different non-word character or end of input closes constrained formatting.
         /// Formatting marks are punctuation too; an underscore remains a word
@@ -2573,15 +2573,28 @@ peg::parser! {
             / cross_reference_macro_match() / cross_reference_shorthand_match()
         )
 
+        rule constrained_formatting_edge(content_position: usize)
+        = edge:position!() {?
+            let whitespace = state.input.as_bytes().get(content_position)
+                .is_some_and(|byte| matches!(byte, b' ' | b'\t'..=b'\r'));
+            // Before attribute expansion, the edge was a reference rather than whitespace.
+            (!whitespace || (state.inline_ctx.substitutions.precedes(&Substitution::Quotes, &Substitution::Attributes)
+                && (byte_came_from_attribute(state, content_position)
+                    || state.empty_attribute_offsets.binary_search(&edge).is_ok())))
+                .then_some(()).ok_or("whitespace at constrained content edge")
+        }
+
+        // Reject invalid closers while scanning so a later marker can close the span.
         rule constrained_formatting_close(marker: char)
-        = c:[_] next:position!() &constrained_boundary_follow(marker) {?
+        = start:position!() constrained_formatting_edge(start.saturating_sub(1))
+        c:[_] next:position!() &constrained_boundary_follow(marker) {?
             (c == marker && (c != '`' || !matches!(state.input.as_bytes().get(next), Some(b'"' | b'\''))))
                 .then_some(()).ok_or("constrained formatting delimiter")
         }
 
         rule constrained_formatting_content(marker: char)
         = empty_quote_content() &constrained_formatting_close(marker)
-        / ![' ' | '\t' | '\n'] (formatting_link_match() / [_])
+        / start:position!() constrained_formatting_edge(start) (formatting_link_match() / [_])
           (formatting_link_match() / !constrained_formatting_close(marker) [_])*
 
         rule bold_text_constrained() -> InlineNode<'input>
@@ -2727,7 +2740,7 @@ peg::parser! {
         }
 
         rule italic_text_unconstrained() -> InlineNode<'input>
-            = attrs:inline_attributes()? start:position!() "__" content_start:position!() content:$(empty_quote_content() &"__" / (!(eol() / ![_] / "__") [_])+) close:position!() "__" check_quote_markers((start, 2), (close, 2)) end:position!()
+            = attrs:inline_attributes()? start:position!() "__" content_start:position!() content:$(empty_quote_content() &"__" / (!"__" [_])+) close:position!() "__" check_quote_markers((start, 2), (close, 2)) end:position!()
         {?
             let role = attrs.as_ref().and_then(|(roles, _id)| {
                 if roles.is_empty() {
@@ -2758,10 +2771,10 @@ peg::parser! {
 
         /// Match unconstrained italic without consuming - for use in negative lookaheads.
         rule italic_text_unconstrained_match()
-        = inline_attributes()? open:position!() "__" (empty_quote_content() &"__" / (!(eol() / ![_] / "__") [_])+) close:position!() "__" check_quote_markers((open, 2), (close, 2))
+        = inline_attributes()? open:position!() "__" (empty_quote_content() &"__" / (!"__" [_])+) close:position!() "__" check_quote_markers((open, 2), (close, 2))
 
         rule monospace_text_unconstrained() -> InlineNode<'input>
-            = attrs:inline_attributes()? start:position!() "``" content_start:position!() content:$(empty_quote_content() &"``" / (!(eol() / ![_] / "``") [_])+) close:position!() "``" check_quote_markers((start, 2), (close, 2)) end:position!()
+            = attrs:inline_attributes()? start:position!() "``" content_start:position!() content:$(empty_quote_content() &"``" / (!"``" [_])+) close:position!() "``" check_quote_markers((start, 2), (close, 2)) end:position!()
         {?
             let role = attrs.as_ref().and_then(|(roles, _id)| {
                 if roles.is_empty() {
@@ -2792,30 +2805,18 @@ peg::parser! {
 
         /// Match unconstrained monospace without consuming - for use in negative lookaheads.
         rule monospace_text_unconstrained_match()
-        = inline_attributes()? open:position!() "``" (empty_quote_content() &"``" / (!(eol() / ![_] / "``") [_])+) close:position!() "``" check_quote_markers((open, 2), (close, 2))
+        = inline_attributes()? open:position!() "``" (empty_quote_content() &"``" / (!"``" [_])+) close:position!() "``" check_quote_markers((open, 2), (close, 2))
 
         // Reserve backticks beside quotes for curved quotation syntax.
         rule monospace_boundary_follow()
         = !['"' | '\''] constrained_boundary_follow('`')
-
-        rule constrained_monospace_content() -> &'input str
-        = content:$constrained_formatting_content('`')
-        {?
-            // Constrained code cannot end with whitespace. A later attribute
-            // expansion can leave valid content empty.
-            if content.as_bytes().last().is_some_and(u8::is_ascii_whitespace) {
-                Err("constrained monospace must not end with whitespace")
-            } else {
-                Ok(content)
-            }
-        }
 
         rule monospace_text_constrained() -> InlineNode<'input>
         = attrs:inline_attributes()?
         start:position!()
         content_start:position()
         "`"
-        content:constrained_monospace_content()
+        content:$constrained_formatting_content('`')
         close:position!() "`" check_quote_markers((start, 1), (close, 1))
         end:position!()
         &monospace_boundary_follow()
@@ -2870,7 +2871,7 @@ peg::parser! {
         = boundary_pos:position!()
         inline_attributes()?
         open:position!() "`"
-        constrained_monospace_content()
+        constrained_formatting_content('`')
         close:position!() "`" check_quote_markers((open, 1), (close, 1))
         closing_pos:position!()
         monospace_boundary_follow()
@@ -2882,7 +2883,7 @@ peg::parser! {
         }
 
         rule highlight_text_unconstrained() -> InlineNode<'input>
-            = attrs:inline_attributes()? start:position!() "##" content_start:position!() content:$(empty_quote_content() &"##" / (!(eol() / ![_] / "##") [_])+) close:position!() "##" check_quote_markers((start, 2), (close, 2)) end:position!()
+            = attrs:inline_attributes()? start:position!() "##" content_start:position!() content:$(empty_quote_content() &"##" / (!"##" [_])+) close:position!() "##" check_quote_markers((start, 2), (close, 2)) end:position!()
         {?
             let role = attrs.as_ref().and_then(|(roles, _id)| {
                 if roles.is_empty() {
@@ -2913,7 +2914,7 @@ peg::parser! {
 
         /// Match unconstrained highlight without consuming - for use in negative lookaheads.
         rule highlight_text_unconstrained_match()
-        = inline_attributes()? open:position!() "##" (empty_quote_content() &"##" / (!(eol() / ![_] / "##") [_])+) close:position!() "##" check_quote_markers((open, 2), (close, 2))
+        = inline_attributes()? open:position!() "##" (empty_quote_content() &"##" / (!"##" [_])+) close:position!() "##" check_quote_markers((open, 2), (close, 2))
 
         rule highlight_text_constrained() -> InlineNode<'input>
         = attrs:inline_attributes()?
