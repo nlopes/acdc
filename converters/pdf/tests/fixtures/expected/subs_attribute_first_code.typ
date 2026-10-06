@@ -1,7 +1,7 @@
 #set document(
-  title: "mono-contexts(1)",
+  title: "Attribute first code(1)",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[mono-contexts(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Attribute first code(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -74,118 +74,90 @@
 #set page(numbering: "1")
 #counter(page).update(1)
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("mono-contexts(1)")]
+#text(size: 22pt, weight: "bold")[#text("Attribute first code(1)")]
 ]
 #v(1em)
 
 #heading(level: 1)[#text("Name")] <id-5f6e616d65>
 
-#text("mono-contexts - adjacent code and substitution contexts")
+#text("attribute-first-code - code formatting after attribute expansion")
 
 #heading(level: 1)[#text("Description")] <id-5f6465736372697074696f6e>
 
-#text("P01 `Code`**End**.")
+#text("C01 ``.")
 
-#text("P02 ")#raw("anchor:literal[]")#strong[#text("End")]#text(".")
+#text("C02 `code `.")
 
-#text("P03 ``")#strong[#text("End")]#text(".")
+#text("C03 ` code`.")
 
-#text("P04 ")#raw("")#strong[#text("End")]#text(".")
+#text("C04 `code `.")
 
-#text("P05 ")#raw("Value")#strong[#text("End")]#text(".")
+#text("C05 ` code`.")
 
-#text("P06 ")#link("https://example.org/context")[#raw("Site")]#raw("")#strong[#text("End")]#text(".")
+#text("C06 ")#raw("code `; tail")#text(".")
 
-#text("P07 ")#text("[.red")#raw("café")#strong[#text("Fin")]#text("].")
+#text("C07 ")#raw("")#text(" ")#raw("code ")#text(" ")#raw(" code")#text(".")
 
-#{
-  // Slice highlighted text without discarding its syntax styles.
-  let code-slice(body, start, end) = {
-    if body.has("text") {
-      let size = body.text.len()
-      (text(body.text.slice(calc.min(start, size), calc.min(end, size))), size)
-    } else if body.has("children") {
-      let offset = 0
-      let parts = []
-      for child in body.children {
-        let (part, size) = code-slice(child, calc.max(0, start - offset), calc.max(0, end - offset))
-        parts += part
-        offset += size
-      }
-      (parts, offset)
-    } else if body.has("child") {
-      let (child, size) = code-slice(body.child, start, end)
-      (body.func()(child, body.styles), size)
-    } else {
-      ([], 0)
-    }
-  }
-  let links = (
-    ((8, 11, body => [#strong[#body]]), ),
-  )
-  let code-links(line) = {
-    let start = 0
-    let body = []
-    for (from, to, make-link) in links.at(line.number - 1, default: ()) {
-      body += code-slice(line.body, start, from).first()
-      body += make-link(code-slice(line.body, from, to).first())
-      start = to
-    }
-    body + code-slice(line.body, start, line.text.len()).first()
-  }
-  show raw.line: line => code-links(line)
-  raw(block: true, "P08 CodeEnd.")
-}
-#{
-  // Slice highlighted text without discarding its syntax styles.
-  let code-slice(body, start, end) = {
-    if body.has("text") {
-      let size = body.text.len()
-      (text(body.text.slice(calc.min(start, size), calc.min(end, size))), size)
-    } else if body.has("children") {
-      let offset = 0
-      let parts = []
-      for child in body.children {
-        let (part, size) = code-slice(child, calc.max(0, start - offset), calc.max(0, end - offset))
-        parts += part
-        offset += size
-      }
-      (parts, offset)
-    } else if body.has("child") {
-      let (child, size) = code-slice(body.child, start, end)
-      (body.func()(child, body.styles), size)
-    } else {
-      ([], 0)
-    }
-  }
-  let links = (
-    ((8, 11, body => [#strong[#body]]), ),
-  )
-  let code-links(line) = {
-    let start = 0
-    let body = []
-    for (from, to, make-link) in links.at(line.number - 1, default: ()) {
-      body += code-slice(line.body, start, from).first()
-      body += make-link(code-slice(line.body, from, to).first())
-      start = to
-    }
-    body + code-slice(line.body, start, line.text.len()).first()
-  }
-  show raw.line: line => code-links(line)
-  raw(block: true, "P09 CodeEnd.")
-}
-#text("P10 ")#raw("Code")#text(" ")#strong[#text("End")]#text(".")
+#text("C08 ")#raw("``")#text(".")
 
-  - #text("P11 ")#raw("Code")#strong[#text("End")]#text(".")
+#text("C09 ")#raw("code ")#text(".")
 
-#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("P12 ")#raw("Code")#strong[#text("End")]#text(".")
+#raw(block: true, "C10 ``.")
 
-])
+#raw(block: true, "C11 `code `.")
 
-#text("P13 ")#metadata(none)<id-636f64652d6964>#text(fill: rgb("#bf0000"))[#raw("Code")]#strong[#text("End")]#text(".")
+#text("C12 ")#raw("café")#strong[#text("End")]#text(".")
 
-#text("P14 ")#strong[#text("Before ")#raw("Code")#text(" after")]#text(".")
+#text("C13 ")#strong[#text("``")]#text(".")
 
-#text("P15 ")#raw("Code")#strong[#text("End")]#raw("Next")#strong[#text("Tail")]#text(".")
+#text("C14 ")#strong[#raw("café")]#raw("")#text(".")
 
-#text("P16 `` ")#strong[#text("End")]#text(".")
+#text("C15 ")#raw("value")#text(".")
+
+#text("C16 ")#raw("café `; café")#strong[#text("End")]#text(".")
+
+#text("C17 ")#metadata(none)<id-6b657074>#raw("café")#text(".")
+
+#text("C18 [.token#literal]``.")
+
+#text("C19 ")#raw("{word}")#text(" and ")#raw("{word}")#text(".")
+
+#text("C20 ")#raw("{word}")#text(".")
+
+#text("C21 ")#raw("{word}")#text(".")
+
+#text("C22 ")#raw("{word}")#text(".")
+
+#text("C23 ")#link("https://example.org")[#raw("café")]#raw("")#text(".")
+
+#text("C24 ")#link("https://example.org")[#text("``")]#text(".")
+
+#text("C25 ")#metadata(none)<id-746172676574>#raw("[1]Term")#text(".")
+
+#text("C26 `café`.")
+
+#text("C27 ")#raw("{word}")#text(".")
+
+#text("C28 ")#raw("")#text(" ")#raw("code ")#text(" ")#raw(" code")#text(".")
+
+#raw(block: true, "C29 ``.")
+
+#text("C30 ")#raw("")#text(".")
+
+#text("C31 ``.")
+
+#text("C32 ")#raw("first `; tail")#text(".")
+
+#raw(block: true, "C33 ` code`.")
+
+#raw(block: true, "C34 café.")
+
+#text("C35 `code `.")
+
+#text("C36 `café`.")
+
+#text("C37 ")#raw("café ")#text(".")
+
+#text("C38 `")#text("{word}")#text(" `.")
+
+#text("C39 ` ")#strong[#text("bold")]#text("`.")

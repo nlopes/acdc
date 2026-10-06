@@ -51,6 +51,7 @@ pub(crate) struct InlinePreprocessorParserState<'a> {
     /// Whether attribute substitutions are enabled for this block.
     /// When `false`, `{attribute}` references are not expanded by the preprocessor.
     pub(crate) attributes_enabled: bool,
+    pub(crate) defer_monospace: bool,
     pub(crate) attribute_value_ranges: Vec<Range<usize>>,
 }
 
@@ -85,6 +86,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
             warnings: RefCell::new(Vec::new()),
             macros_enabled,
             attributes_enabled,
+            defer_monospace: true,
             attribute_value_ranges: Vec::new(),
         }
     }
@@ -707,7 +709,7 @@ parser!(
     pub(crate) grammar inline_preprocessing(document_attributes: &DocumentAttributes<'input>, state: &InlinePreprocessorParserState<'input>) for str {
 
         pub rule run() -> ProcessedContent<'input>
-            = content:inlines()+ {
+            = content:content() {
                 let mut source_map = take(&mut *state.source_map.borrow_mut());
                 // Mapping is not read during preprocessing, so sort once after all
                 // actions finish.
@@ -715,19 +717,21 @@ parser!(
                     .replacements
                     .sort_by_key(|replacement| replacement.absolute_start);
                 ProcessedContent {
-                    text: Cow::Owned(content.join("")),
+                    text: Cow::Owned(content),
                     passthroughs: take(&mut *state.passthroughs.borrow_mut()),
                     source_map,
                     attribute_substitutions: crate::model::substitution::SubstitutionPlan::default(),
                 }
             }
 
+        pub rule content() -> String
+            = parts:inlines()+ { parts.join("") }
+
         rule inlines() -> String = quiet!{
             inherited_attribute()
             /
             // We add kbd_macro here to avoid conflicts with passthroughs as kbd macros
             // also can have + signs on each side.
-            // We add monospace before passthrough to skip content inside backticks
             kbd_macro()
             / monospace()
             / escaped_passthrough()
@@ -759,14 +763,31 @@ parser!(
             text.into()
         }
 
-        // Match and skip monospace content (content inside backticks)
-        // This prevents the preprocessor from processing passthroughs inside monospace
+        // Keep default-order code content for its nested parse, including passthroughs.
+        // Earlier attributes must instead expand before the code boundary is checked.
         rule monospace() -> String
-            // Unconstrained (double backticks) or constrained (single backticks)
-            = text:$("``" (!"``" [_])+ "``" / "`" [^('`' | ' ' | '\t' | '\n')] [^'`']* "`") {
+            = text:$monospace_pattern() {?
                 tracing::debug!(text, "monospace matched");
-                state.advance(text);
-                text.into()
+                if state.defer_monospace {
+                    state.advance(text);
+                    return Ok(text.into());
+                }
+
+                let width = if text.starts_with("``") { 2 } else { 1 };
+                let inner = &text[width..text.len() - width];
+                let marker = &text[..width];
+                let end = state.get_offset() + text.len();
+                state.advance_by(width);
+                // Passthroughs use code-local boundaries: `+{name}+` must stay
+                // protected while ordinary references expand before quotes.
+                let saved_input = state.input.replace(inner);
+                let saved_start = state.substring_start_offset.replace(state.get_offset());
+                let result = inline_preprocessing::content(inner, document_attributes, state);
+                state.input.replace(saved_input);
+                state.substring_start_offset.set(saved_start);
+                state.current_offset.set(end);
+                result.map(|content| format!("{marker}{content}{marker}"))
+                    .map_err(|_| "could not preprocess code content")
             }
 
         rule kbd_macro() -> String
@@ -1089,9 +1110,8 @@ parser!(
 
         rule kbd_macro_pattern() = "kbd:[" (!"]" [_])* "]"
 
-        rule monospace_pattern() =
-            "``" (!"``" [_])+ "``" /
-            "`" [^('`' | ' ' | '\t' | '\n')] [^'`']* "`"
+        rule monospace_pattern()
+            = ("``" (!"``" [_])+ "``" / "`" [^('`' | ' ' | '\t' | '\n')] [^'`']* "`")
 
         // Simple pattern for unprocessed_text negative lookahead
         // Doesn't check boundaries - that's done in the full rules
@@ -1186,6 +1206,7 @@ mod tests {
             warnings: RefCell::new(Vec::new()),
             macros_enabled: true,
             attributes_enabled: true,
+            defer_monospace: true,
             attribute_value_ranges: Vec::new(),
         }
     }
@@ -1923,6 +1944,7 @@ mod tests {
             warnings: RefCell::new(Vec::new()),
             macros_enabled: false,
             attributes_enabled: true,
+            defer_monospace: true,
             attribute_value_ranges: Vec::new(),
         }
     }

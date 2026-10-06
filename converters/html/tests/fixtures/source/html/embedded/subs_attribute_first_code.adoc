@@ -1,0 +1,138 @@
+= Attribute first code(1)
+:doctype: manpage
+:manmanual: Test Manual
+:mansource: acdc
+:revdate: 2026-10-07
+:empty:
+:word: café
+:quoted: `value`
+:literal: pass:[{word}]
+
+== Name
+
+attribute-first-code - code formatting after attribute expansion
+
+== Description
+
+[subs="attributes,quotes"]
+C01 `{empty}`.
+
+[subs="attributes,quotes"]
+C02 `code{sp}`.
+
+[subs="attributes,quotes"]
+C03 `{sp}code`.
+
+[subs="attributes,quotes"]
+C04 `code {empty}`.
+
+[subs="attributes,quotes"]
+C05 `{empty} code`.
+
+[subs="attributes,quotes"]
+C06 `code{sp}`; tail`.
+
+C07 `{empty}` `code{sp}` `{sp}code`.
+
+[subs="attributes,quotes"]
+C08 ``{empty}``.
+
+[subs="attributes,quotes"]
+C09 ``code{sp}``.
+
+[source,text,subs="attributes,quotes"]
+----
+C10 `{empty}`.
+----
+
+[source,text,subs="attributes,quotes"]
+----
+C11 `code{sp}`.
+----
+
+[subs="attributes,quotes"]
+C12 `{word}`**End**.
+
+[subs="attributes,quotes"]
+C13 *`{empty}`*.
+
+[subs="attributes,quotes"]
+C14 `*{word}*`.
+
+[subs="attributes,quotes"]
+C15 `{quoted}`.
+
+[subs="attributes,quotes"]
+C16 `{word}{sp}`; café`**End**.
+
+[subs="attributes,quotes"]
+C17 [.token#kept]`{word}`.
+
+[subs="attributes,quotes"]
+C18 [.token#literal]`{empty}`.
+
+[subs="attributes,quotes"]
+C19 `\{word}` and `{word\}`.
+
+[subs="attributes,quotes"]
+C20 `{literal}`.
+
+[subs="attributes,quotes,macros"]
+C21 `pass:[{word}]`.
+
+[subs="attributes,quotes,macros"]
+C22 `+{word}+`.
+
+[subs="attributes,quotes,macros"]
+C23 `https://example.org[{word}]`.
+
+[subs="attributes,quotes,macros"]
+C24 https://example.org[`{empty}`].
+
+[subs="attributes,quotes,macros"]
+C25 `anchor:target[]footnote:[Only once.]indexterm2:[Term]`.
+
+[subs="attributes"]
+C26 `{word}`.
+
+[subs="quotes"]
+C27 `{word}`.
+
+[subs="quotes,attributes"]
+C28 `{empty}` `code{sp}` `{sp}code`.
+
+[source,text,subs="attributes,quotes"]
+----
+C29 ``{empty}``.
+----
+
+[subs="attributes,quotes"]
+C30 ``{sp}``.
+
+[subs="attributes,quotes"]
+C31 `{empty}{empty}`.
+
+[subs="attributes,quotes"]
+C32 `first{sp}`;
+tail`.
+
+[literal,subs="attributes,quotes"]
+C33 `{sp}code`.
+
+[listing,subs="attributes,quotes"]
+C34 `{word}`.
+
+[subs="-attributes,attributes+"]
+C35 `code{sp}`.
+
+[subs="-quotes"]
+C36 `{word}`.
+
+[subs="attributes,quotes"]
+C37 `{word}{nbsp}`.
+
+[subs="attributes,quotes"]
+C38 `\{word}{sp}`.
+
+[subs="attributes,quotes"]
+C39 `{sp}*bold*`.

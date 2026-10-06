@@ -8,7 +8,7 @@ use crate::{
         utf8_utils,
     },
     inline_preprocessing,
-    model::{BibliographyLabel, SourceRange, Substitution},
+    model::{BibliographyLabel, SourceRange, Substitution, substitution::SubstitutionPlan},
 };
 
 use super::{
@@ -101,8 +101,7 @@ pub(crate) fn preprocess_inline_content<'a>(
     end: usize,
     offset: usize,
     content: &'a str,
-    macros_enabled: bool,
-    attributes_enabled: bool,
+    substitutions: SubstitutionPlan,
 ) -> Result<(Location, ProcessedContent<'a>), Error> {
     // First, ensure the end position is on a valid UTF-8 boundary
     let mut adjusted_end = end + offset;
@@ -125,7 +124,7 @@ pub(crate) fn preprocess_inline_content<'a>(
     // The preprocessor only modifies content containing { (attribute/counter references),
     // + (constrained/unconstrained passthroughs), or pass: (macro passthroughs).
     let needs_preprocessing = content.as_bytes().iter().any(|&b| b == b'{' || b == b'+')
-        || (macros_enabled && content.contains("pass:"));
+        || (substitutions.enabled(&Substitution::Macros) && content.contains("pass:"));
 
     if !needs_preprocessing {
         // Hot path: no preprocessing trigger characters. Borrow directly from
@@ -147,9 +146,14 @@ pub(crate) fn preprocess_inline_content<'a>(
         state.line_map.clone(),
         state.input,
         state.arena,
-        macros_enabled,
-        attributes_enabled,
+        substitutions.enabled(&Substitution::Macros),
+        substitutions.enabled(&Substitution::Attributes),
     );
+    #[cfg(feature = "pre-spec-subs")]
+    {
+        inline_state.defer_monospace = !substitutions.enabled(&Substitution::Attributes)
+            || substitutions.precedes(&Substitution::Quotes, &Substitution::Attributes);
+    }
     inline_state.set_initial_position(&location, content_start + offset);
     inline_state
         .attribute_value_ranges
@@ -493,10 +497,7 @@ fn process_inline_content<'a>(
         end,
         offset,
         content,
-        block_metadata.substitutions.enabled(&Substitution::Macros),
-        block_metadata
-            .substitutions
-            .enabled(&Substitution::Attributes),
+        block_metadata.substitutions,
     )?;
     let source = processed_text_as_outer(&processed, state);
     // After preprocessing, attribute substitution may result in empty content
@@ -545,10 +546,7 @@ pub(crate) fn process_inlines_no_autolinks<'a>(
         end,
         offset,
         content,
-        block_metadata.substitutions.enabled(&Substitution::Macros),
-        block_metadata
-            .substitutions
-            .enabled(&Substitution::Attributes),
+        block_metadata.substitutions,
     )?;
     if processed.text.is_empty() {
         return Ok(Vec::new());

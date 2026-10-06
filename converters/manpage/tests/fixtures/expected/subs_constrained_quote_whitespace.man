@@ -83,18 +83,18 @@ V16 \fBbold \fR \fIitalic \fR \fBmark \fR \f(CRcode \fR\&.
 .sp
 V17 \fB bold\fR \fI italic\fR \fB mark\fR \f(CR code\fR\&.
 .sp
-V18 *bold * _italic _ #mark # \f(CRcode \fR\&.
+V18 *bold * _italic _ #mark # `code `.
 .sp
-V19 * bold* _ italic_ # mark# \f(CR code\fR\&.
+V19 * bold* _ italic_ # mark# ` code`.
 .sp
-V20 *bold * _italic _ #mark # \f(CRcode \fR\&.
+V20 *bold * _italic _ #mark # `code `.
 .sp
-V21 * bold* _ italic_ # mark# \f(CR code\fR\&.
+V21 * bold* _ italic_ # mark# ` code`.
 .EX
 V22 \fBbold \fR \fIitalic \fR mark  \f(CRcode \fR
 .EE
 .EX
-V23 *bold * _italic _ #mark # \f(CRcode \fR
+V23 *bold * _italic _ #mark # `code `
 .EE
 .EX
 V24 \fBfirst

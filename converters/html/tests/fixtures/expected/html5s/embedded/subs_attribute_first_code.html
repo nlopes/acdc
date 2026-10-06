@@ -1,0 +1,66 @@
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>attribute-first-code - code formatting after attribute expansion</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_description">Description</h2>
+<p>C01 ``.</p>
+<p>C02 `code `.</p>
+<p>C03 ` code`.</p>
+<p>C04 `code `.</p>
+<p>C05 ` code`.</p>
+<p>C06 <code>code `; tail</code>.</p>
+<p>C07 <code></code> <code>code </code> <code> code</code>.</p>
+<p>C08 <code>``</code>.</p>
+<p>C09 <code>code </code>.</p>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text">C10 ``.</code></pre>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text">C11 `code `.</code></pre>
+</div>
+<p>C12 <code>café</code><strong>End</strong>.</p>
+<p>C13 <strong>``</strong>.</p>
+<p>C14 <code><strong>café</strong></code>.</p>
+<p>C15 <code>value</code>.</p>
+<p>C16 <code>café `; café</code><strong>End</strong>.</p>
+<p>C17 <code id="kept" class="token">café</code>.</p>
+<p>C18 [.token#literal]``.</p>
+<p>C19 <code>{word}</code> and <code>{word}</code>.</p>
+<p>C20 <code>{word}</code>.</p>
+<p>C21 <code>{word}</code>.</p>
+<p>C22 <code>{word}</code>.</p>
+<p>C23 <code><a href="https://example.org">café</a></code>.</p>
+<p>C24 <a href="https://example.org">``</a>.</p>
+<p>C25 <code><a id="target"></a><sup class="footnote-ref" id="_footnoteref_1">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup>Term</code>.</p>
+<p>C26 `café`.</p>
+<p>C27 <code>{word}</code>.</p>
+<p>C28 <code></code> <code>code </code> <code> code</code>.</p>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text">C29 <code>``</code>.</code></pre>
+</div>
+<p>C30 <code></code>.</p>
+<p>C31 ``.</p>
+<p>C32 <code>first `;
+tail</code>.</p>
+<div class="literalblock">
+<div class="content">
+<pre>C33 ` code`.</pre>
+</div>
+</div>
+<div class="listing-block">
+<pre>C34 <code>café</code>.</pre>
+</div>
+<p>C35 `code `.</p>
+<p>C36 `café`.</p>
+<p>C37 <code>café </code>.</p>
+<p>C38 `{word} `.</p>
+<p>C39 ` <strong>bold</strong>`.</p>
+</section>
+<section class="footnotes" aria-label="Footnotes" role="doc-endnotes">
+<hr>
+<ol class="footnotes">
+<li class="footnote" id="_footnote_1" role="doc-endnote">
+Only once. <a class="footnote-backref" href="#_footnoteref_1" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+</ol>
+</section>

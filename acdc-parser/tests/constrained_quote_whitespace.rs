@@ -171,8 +171,8 @@ fn constrained_quotes_check_whitespace_before_later_attribute_expansion() -> Res
 
 #[cfg(feature = "pre-spec-subs")]
 #[test]
-fn constrained_emphasis_rejects_whitespace_from_earlier_attribute_expansion() -> Result<(), Error> {
-    for marker in ["*", "_", "#"] {
+fn constrained_quotes_reject_whitespace_from_earlier_attribute_expansion() -> Result<(), Error> {
+    for marker in ["*", "_", "#", "`"] {
         for content in ["café{sp}", "{sp}café", "café {empty}", "{empty} café"] {
             let source = format!(
                 "= Edges\n:empty:\n\n[subs=\"attributes,quotes\"]\nP {marker}{content}{marker}.\n"

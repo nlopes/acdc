@@ -224,13 +224,13 @@
 
 #text("V17 ")#strong[#text(" bold")]#text(" ")#emph[#text(" italic")]#text(" ")#highlight[#text(" mark")]#text(" ")#raw(" code")#text(".")
 
-#text("V18 *bold * _italic _ #mark # ")#raw("code ")#text(".")
+#text("V18 *bold * _italic _ #mark # `code `.")
 
-#text("V19 * bold* _ italic_ # mark# ")#raw(" code")#text(".")
+#text("V19 * bold* _ italic_ # mark# ` code`.")
 
-#text("V20 *bold * _italic _ #mark # ")#raw("code ")#text(".")
+#text("V20 *bold * _italic _ #mark # `code `.")
 
-#text("V21 * bold* _ italic_ # mark# ")#raw(" code")#text(".")
+#text("V21 * bold* _ italic_ # mark# ` code`.")
 
 #{
   // Slice highlighted text without discarding its syntax styles.
@@ -270,7 +270,7 @@
   show raw.line: line => code-links(line)
   raw(block: true, "V22 bold  italic  mark  code ")
 }
-#raw(block: true, "V23 *bold * _italic _ #mark # code ")
+#raw(block: true, "V23 *bold * _italic _ #mark # `code `")
 
 #{
   // Slice highlighted text without discarding its syntax styles.

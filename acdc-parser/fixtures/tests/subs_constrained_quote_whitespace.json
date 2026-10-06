@@ -1793,59 +1793,11 @@
             {
               "name": "text",
               "type": "string",
-              "value": "V18 *bold * _italic _ #mark # ",
+              "value": "V18 *bold * _italic _ #mark # `code `.",
               "location": [
                 {
                   "line": 73,
                   "col": 1
-                },
-                {
-                  "line": 73,
-                  "col": 39
-                }
-              ]
-            },
-            {
-              "name": "span",
-              "type": "inline",
-              "variant": "code",
-              "form": "constrained",
-              "inlines": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "code ",
-                  "location": [
-                    {
-                      "line": 73,
-                      "col": 41
-                    },
-                    {
-                      "line": 73,
-                      "col": 48
-                    }
-                  ]
-                }
-              ],
-              "location": [
-                {
-                  "line": 73,
-                  "col": 40
-                },
-                {
-                  "line": 73,
-                  "col": 49
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": ".",
-              "location": [
-                {
-                  "line": 73,
-                  "col": 50
                 },
                 {
                   "line": 73,
@@ -1878,59 +1830,11 @@
             {
               "name": "text",
               "type": "string",
-              "value": "V19 * bold* _ italic_ # mark# ",
+              "value": "V19 * bold* _ italic_ # mark# ` code`.",
               "location": [
                 {
                   "line": 76,
                   "col": 1
-                },
-                {
-                  "line": 76,
-                  "col": 39
-                }
-              ]
-            },
-            {
-              "name": "span",
-              "type": "inline",
-              "variant": "code",
-              "form": "constrained",
-              "inlines": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": " code",
-                  "location": [
-                    {
-                      "line": 76,
-                      "col": 41
-                    },
-                    {
-                      "line": 76,
-                      "col": 48
-                    }
-                  ]
-                }
-              ],
-              "location": [
-                {
-                  "line": 76,
-                  "col": 40
-                },
-                {
-                  "line": 76,
-                  "col": 49
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": ".",
-              "location": [
-                {
-                  "line": 76,
-                  "col": 50
                 },
                 {
                   "line": 76,
@@ -1963,59 +1867,11 @@
             {
               "name": "text",
               "type": "string",
-              "value": "V20 *bold * _italic _ #mark # ",
+              "value": "V20 *bold * _italic _ #mark # `code `.",
               "location": [
                 {
                   "line": 79,
                   "col": 1
-                },
-                {
-                  "line": 79,
-                  "col": 51
-                }
-              ]
-            },
-            {
-              "name": "span",
-              "type": "inline",
-              "variant": "code",
-              "form": "constrained",
-              "inlines": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "code ",
-                  "location": [
-                    {
-                      "line": 79,
-                      "col": 53
-                    },
-                    {
-                      "line": 79,
-                      "col": 57
-                    }
-                  ]
-                }
-              ],
-              "location": [
-                {
-                  "line": 79,
-                  "col": 52
-                },
-                {
-                  "line": 79,
-                  "col": 65
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": ".",
-              "location": [
-                {
-                  "line": 79,
-                  "col": 66
                 },
                 {
                   "line": 79,
@@ -2048,59 +1904,11 @@
             {
               "name": "text",
               "type": "string",
-              "value": "V21 * bold* _ italic_ # mark# ",
+              "value": "V21 * bold* _ italic_ # mark# ` code`.",
               "location": [
                 {
                   "line": 82,
                   "col": 1
-                },
-                {
-                  "line": 82,
-                  "col": 51
-                }
-              ]
-            },
-            {
-              "name": "span",
-              "type": "inline",
-              "variant": "code",
-              "form": "constrained",
-              "inlines": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": " code",
-                  "location": [
-                    {
-                      "line": 82,
-                      "col": 53
-                    },
-                    {
-                      "line": 82,
-                      "col": 64
-                    }
-                  ]
-                }
-              ],
-              "location": [
-                {
-                  "line": 82,
-                  "col": 52
-                },
-                {
-                  "line": 82,
-                  "col": 65
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": ".",
-              "location": [
-                {
-                  "line": 82,
-                  "col": 66
                 },
                 {
                   "line": 82,
@@ -2365,44 +2173,11 @@
             {
               "name": "text",
               "type": "string",
-              "value": "V23 *bold * _italic _ #mark # ",
+              "value": "V23 *bold * _italic _ #mark # `code `",
               "location": [
                 {
                   "line": 91,
                   "col": 1
-                },
-                {
-                  "line": 91,
-                  "col": 39
-                }
-              ]
-            },
-            {
-              "name": "span",
-              "type": "inline",
-              "variant": "code",
-              "form": "constrained",
-              "inlines": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "code ",
-                  "location": [
-                    {
-                      "line": 91,
-                      "col": 41
-                    },
-                    {
-                      "line": 91,
-                      "col": 48
-                    }
-                  ]
-                }
-              ],
-              "location": [
-                {
-                  "line": 91,
-                  "col": 40
                 },
                 {
                   "line": 91,

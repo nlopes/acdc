@@ -57,6 +57,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- With `subs="attributes,quotes"`, constrained backtick spans use the expanded content
+  to determine whether code formatting is valid, matching Asciidoctor. Empty
+  content and edge spaces keep their literal backticks; a later valid closing
+  marker can complete the span. With `subs="attributes"` or `subs="-quotes"`,
+  ordinary attribute references inside literal backticks now expand. Default
+  quotes-before-attributes behavior and protected passthrough content are unchanged.
+
 - Marker-only lines such as `##` and `==` no longer interrupt paragraphs or
   cause parsing errors. A bare `##` can close a multiline highlighted span;
   headings still need a separator and title text, matching Asciidoctor.

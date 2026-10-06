@@ -1,0 +1,133 @@
+'\" t
+.\"     Title: Attribute first code
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-07
+.\"    Manual: Test Manual
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "ATTRIBUTE FIRST CODE" "1" "2026-10-07" "acdc" "Test Manual"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+attribute\-first\-code \- code formatting after attribute expansion
+.SH "DESCRIPTION"
+.sp
+C01 ``.
+.sp
+C02 `code `.
+.sp
+C03 ` code`.
+.sp
+C04 `code `.
+.sp
+C05 ` code`.
+.sp
+C06 \f(CRcode `; tail\fR\&.
+.sp
+C07 \f(CR\fR \f(CRcode \fR \f(CR code\fR\&.
+.sp
+C08 \f(CR``\fR\&.
+.sp
+C09 \f(CRcode \fR\&.
+.EX
+C10 ``.
+.EE
+.EX
+C11 `code `.
+.EE
+.sp
+C12 \f(CRcafé\fR\fBEnd\fR\&.
+.sp
+C13 \fB``\fR\&.
+.sp
+C14 \f(CR\fBcafé\f(CR\fR\&.
+.sp
+C15 \f(CRvalue\fR\&.
+.sp
+C16 \f(CRcafé `; café\fR\fBEnd\fR\&.
+.sp
+C17 \f(CRcafé\fR\&.
+.sp
+C18 [.token#literal]``.
+.sp
+C19 \f(CR{word}\fR and \f(CR{word}\fR\&.
+.sp
+C20 \f(CR{word}\fR\&.
+.sp
+C21 \f(CR{word}\fR\&.
+.sp
+C22 \f(CR{word}\fR\&.
+.sp
+C23 \f(CR\c
+.URL "https://example.org" "\f(CRcafé" "\f(CR\c"
+\fR\&.
+.sp
+C24 \c
+.URL "https://example.org" "``" "\fR\c"
+\&.
+.sp
+C25 \f(CR[1]Term\fR\&.
+.sp
+C26 `café`.
+.sp
+C27 \f(CR{word}\fR\&.
+.sp
+C28 \f(CR\fR \f(CRcode \fR \f(CR code\fR\&.
+.EX
+C29 \f(CR``\fR\&.
+.EE
+.sp
+C30 \f(CR\fR\&.
+.sp
+C31 ``.
+.sp
+C32 \f(CRfirst `;
+tail\fR\&.
+.sp
+.if n .RS 4
+.nf
+.fam C
+C33 ` code`.
+.fam
+.fi
+.if n .RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+C34 \f(CRcafé\fR\&.
+.fam
+.fi
+.if n .RE
+.sp
+C35 `code `.
+.sp
+C36 `café`.
+.sp
+C37 \f(CRcafé\ \fR\&.
+.sp
+C38 `{word} `.
+.sp
+C39 ` \fBbold\fR`.
+.SH "NOTES"
+.IP [1] 4
+Only once.

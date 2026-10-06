@@ -272,11 +272,24 @@ separation of parsing and conversion.
 
 The existing substitution order still applies: `+*bold{sp}*+` is valid when
 quotes run before the attribute expands to a space, as in ordinary prose.
-With `subs="attributes,quotes"`, the space exists first and emphasis markers remain literal.
-Backtick spans still have an earlier preprocessing path: attribute-first spaces
-and empty values can leave structured code where Asciidoctor retains literal
-backticks. This existing substitution-order gap remains separate from the
-source-whitespace rule; SDR-5 does not require that difference.
+With `subs="attributes,quotes"`, the space exists first and the single formatting
+markers remain literal, including backticks. An empty value in `+`{empty}`+`
+likewise leaves two literal backticks. A later valid closer can still complete
+the code span. These rules match Asciidoctor and keep parsing independent of
+the output backend, as selected under SDR-5.
+
+With `subs="attributes"` or `subs="-quotes"`, ordinary references inside literal
+backticks still expand. When macros are enabled, this passthrough keeps `{word}`
+literal inside the code span:
+
+[source,asciidoc]
+----
+`pass:[{word}]`
+----
+
+The existing `attributes+` modifier does not move an already-enabled stage to
+the front, unlike Asciidoctor. Use an explicit list or
+`subs="-attributes,attributes+"` when attributes must run before quotes.
 
 == Incomplete links
 
