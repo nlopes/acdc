@@ -1,0 +1,48 @@
+= xml-callout-subs(1)
+:doctype: manpage
+:revdate: 2026-10-06
+:manmanual: Callout checks
+:mansource: acdc
+:icons: font
+:value: café
+
+== Name
+xml-callout-subs - substitutions and XML markers
+
+== Synopsis
+
+[source,xml,line-comment=,subs="+macros,+quotes,+attributes"]
+----
+S01 {value} *Bold* <!--1-->
+S02 link:https://example.org[Link] <!--.--> <.>
+S03 pass:c[<!--2-->] <.>
+S04 footnote:note[Note.] <!--.--> <.>
+----
+<.> XML remains literal after a link.
+<.> Protected XML does not consume a number.
+<.> Footnote before a callout.
+
+[source,xml,line-comment=,subs="-callouts"]
+----
+S05 disabled <!--1--> <1>
+S06 disabled \<!--2--> \<2>
+----
+
+[source,xml,subs="-callouts"]
+----
+S07 default disabled <!--1--> <1>
+----
+
+[literal,line-comment=,subs="+quotes"]
+S08 *Bold* <!--1-->
+S09 *Bold* <1>
+
+<1> Styled literal paragraph.
+
+[source,xml,subs="+macros"]
+----
+S10 restored <!--1-->
+----
+<1> Default recognition returns after disabled callouts.
+
+Reuse footnote:note[].

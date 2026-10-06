@@ -592,6 +592,7 @@ fn verbatim_inner<'input>(
         block_metadata
             .substitutions
             .enabled(&Substitution::Callouts),
+        !metadata.attributes.contains_key("line-comment"),
     );
     state.pending_callouts.extend(callouts);
     let inlines = resolve_verbatim_inlines(state, block_metadata, inlines)?;
@@ -6436,6 +6437,7 @@ peg::parser! {
                     block_metadata
                         .substitutions
                         .enabled(&Substitution::Callouts),
+                    !block_metadata.metadata.attributes.contains_key("line-comment"),
                 );
                 let content = if callouts.is_empty() {
                     let verbatim_metadata = BlockParsingMetadata {
@@ -6948,13 +6950,15 @@ peg::parser! {
 
 /// Splits trailing callout sequences into text and structured references with exact locations.
 ///
-/// Escaped markers remain literal and do not consume an automatic number. XML comment guards
-/// remain as adjacent text so each converter can apply its own presentation rule.
+/// Escaped markers remain literal and do not consume an automatic number. Recognized XML
+/// markers keep their guards as adjacent text for converter-specific presentation. An explicit
+/// block `line-comment` value selects ordinary markers only, even when the value is empty.
 fn resolve_verbatim_callouts<'a>(
     state: &ParserState<'a>,
     text: &str,
     base_location: Location,
     callouts_enabled: bool,
+    xml_callouts_enabled: bool,
 ) -> (Vec<InlineNode<'a>>, Vec<CalloutRef>) {
     let arena = state.arena;
     if !callouts_enabled {
@@ -6975,7 +6979,7 @@ fn resolve_verbatim_callouts<'a>(
         let line = raw_line.strip_suffix('\n').unwrap_or(raw_line);
         let line = line.strip_suffix('\r').unwrap_or(line);
 
-        if let Some(first) = first_trailing_callout_marker(line) {
+        if let Some(first) = first_trailing_callout_marker(line, xml_callouts_enabled) {
             segment.push(
                 &line[..first.source_start],
                 line_start,
@@ -7140,16 +7144,24 @@ struct ParsedCalloutMarker {
     xml: bool,
 }
 
-fn first_trailing_callout_marker(line: &str) -> Option<ParsedCalloutMarker> {
-    let mut marker = parse_callout_marker_ending_at(line, line.trim_end().len())?;
+fn first_trailing_callout_marker(
+    line: &str,
+    xml_callouts_enabled: bool,
+) -> Option<ParsedCalloutMarker> {
+    // Disabled XML markers end the trailing sequence; earlier ordinary markers stay literal too.
+    let parse = |end| {
+        parse_callout_marker_ending_at(line, end)
+            .filter(|marker| xml_callouts_enabled || !marker.xml)
+    };
+    let mut marker = parse(line.trim_end().len())?;
 
     loop {
-        let adjacent = parse_callout_marker_ending_at(line, marker.source_start);
+        let adjacent = parse(marker.source_start);
         let spaced = marker
             .source_start
             .checked_sub(1)
             .filter(|index| line.as_bytes().get(*index) == Some(&b' '))
-            .and_then(|end| parse_callout_marker_ending_at(line, end));
+            .and_then(parse);
         let Some(previous) = adjacent.or(spaced) else {
             break;
         };

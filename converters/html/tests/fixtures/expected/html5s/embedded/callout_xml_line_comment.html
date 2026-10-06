@@ -1,0 +1,107 @@
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>xml-callouts - XML callouts and custom prefixes</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_synopsis">Synopsis</h2>
+<div class="listing-block">
+<pre class="highlight"><code class="language-xml" data-lang="xml">X01 &lt;tag/&gt; <i class="conum" data-value="1"></i><b>(1)</b>
+X02 &lt;tag/&gt; &lt;!--2--&gt;</code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Default XML marker.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-xml" data-lang="xml">X03 &lt;tag/&gt; &lt;!--1--&gt;
+X04 &lt;tag/&gt; \&lt;!--2--&gt;
+X05 &lt;tag/&gt; &lt;!--.--&gt; <i class="conum" data-value="1"></i><b>(1)</b><i class="conum" data-value="2"></i><b>(2)</b>
+X06 &lt;tag/&gt; &lt;.&gt; &lt;!--.--&gt;
+X07 &lt;tag/&gt; <i class="conum" data-value="3"></i><b>(3)</b>
+X08 &lt;tag/&gt; &lt;!--.--&gt;&lt;.&gt; <i class="conum" data-value="4"></i><b>(4)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>First ordinary marker.</li>
+<li>Adjacent ordinary marker.</li>
+<li>XML markers do not consume numbers.</li>
+<li>Escaped ordinary markers do not consume numbers.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-xml" data-lang="xml">X09 &lt;tag/&gt; &lt;!--1--&gt;
+X10 &lt;tag/&gt; <i class="conum" data-value="1"></i><b>(1)</b>
+X11 &lt;tag/&gt; \&lt;!--2--&gt;</code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Custom prefix.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-xml" data-lang="xml">X12 &lt;tag/&gt; &lt;!--1--&gt;
+X13 &lt;tag/&gt; <i class="conum" data-value="1"></i><b>(1)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Quoted empty prefix.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-xml" data-lang="xml">X14 café &lt;!--1--&gt;
+X15 café <i class="conum" data-value="1"></i><b>(1)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Unicode custom prefix.</li>
+</ol>
+<div class="literal-block">
+<pre>X16 literal &lt;!--1--&gt;
+X17 literal <i class="conum" data-value="1"></i><b>(1)</b></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Delimited literal.</li>
+</ol>
+<div class="literalblock">
+<div class="content">
+<pre>X18 literal paragraph &lt;!--1--&gt;
+X19 literal paragraph \&lt;!--2--&gt;
+X20 literal paragraph <i class="conum" data-value="1"></i><b>(1)</b></pre>
+</div>
+</div>
+<ol class="callout-list arabic">
+<li>Literal paragraph.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-xml" data-lang="xml">X21 source paragraph &lt;!--1--&gt;
+X22 source paragraph <i class="conum" data-value="1"></i><b>(1)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Source paragraph.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-xml" data-lang="xml">X23 fenced &lt;!--1--&gt;
+X24 fenced <i class="conum" data-value="1"></i><b>(1)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Fenced source block.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-xml" data-lang="xml">X25 restored <i class="conum" data-value="1"></i><b>(1)</b><i class="conum" data-value="2"></i><b>(2)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Block settings do not leak.</li>
+<li>Adjacent XML marker.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-xml" data-lang="xml">X26 document attribute <i class="conum" data-value="1"></i><b>(1)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>A document attribute does not change block marker recognition.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-xml" data-lang="xml">X27 positional attribute <i class="conum" data-value="1"></i><b>(1)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>A positional word does not set a named prefix.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-xml" data-lang="xml">X28 no icons &lt;!--1--&gt;
+X29 no icons <b class="conum">(1)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Recognition is independent of icons.</li>
+</ol>
+</section>

@@ -49,8 +49,10 @@ fn rendered_code_texts(output: &str) -> Result<Vec<String>, Error> {
 #[rstest::rstest]
 #[case("highlighted_callout_positions")]
 #[case("callout_icon_guards")]
+#[case("callout_xml_line_comment")]
 #[cfg_attr(feature = "pre-spec-subs", case("subs_highlighted_callout_positions"))]
 #[cfg_attr(feature = "pre-spec-subs", case("subs_callout_icon_guards"))]
+#[cfg_attr(feature = "pre-spec-subs", case("subs_callout_xml_line_comment"))]
 fn highlighted_callouts_preserve_plain_code_text_and_targets(
     #[case] stem: &str,
 ) -> Result<(), Error> {
@@ -65,7 +67,7 @@ fn highlighted_callouts_preserve_plain_code_text_and_targets(
         )?;
         let plain_text = rendered_code_texts(&plain)?;
         assert!(!plain_text.is_empty());
-        for settings in [
+        for mut settings in [
             vec![],
             vec![("highlight-css", AttributeValue::String("class".into()))],
             vec![(
@@ -73,6 +75,10 @@ fn highlighted_callouts_preserve_plain_code_text_and_targets(
                 AttributeValue::String("missing-theme".into()),
             )],
         ] {
+            settings.push((
+                "source-highlighter",
+                AttributeValue::String("syntect".into()),
+            ));
             let output = convert_string_with_variant(&source, &settings, variant)?;
             assert_eq!(
                 rendered_code_texts(&output)?,

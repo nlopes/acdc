@@ -3,6 +3,33 @@ use acdc_parser::{Block, Options, parse};
 type Error = Box<dyn std::error::Error>;
 
 #[test]
+fn xml_callouts_with_explicit_line_comments_warn_at_unmatched_items() -> Result<(), Error> {
+    for prefix in ["", "\"\"", "%", "※"] {
+        for delimiter in ["----", "....", "```"] {
+            let source = format!(
+                "[source,xml,line-comment={prefix}]\n{delimiter}\né <!--1-->\n{delimiter}\n<1> Unmatched.\n"
+            );
+            let parsed = parse(&source, &Options::default())?;
+            let warnings = parsed.warnings();
+            assert_eq!(warnings.len(), 1, "{source}: {warnings:?}");
+            let warning = warnings.first().ok_or("missing unmatched warning")?;
+            assert_eq!(warning.kind.to_string(), "no callout found for <1>");
+            let location = &warning
+                .location
+                .as_ref()
+                .ok_or("missing warning location")?
+                .location;
+            assert_eq!(
+                source.get(location.absolute_start..=location.absolute_end),
+                Some("<1> Unmatched."),
+                "{source}"
+            );
+        }
+    }
+    Ok(())
+}
+
+#[test]
 fn standalone_callouts_warn_at_the_unmatched_items() -> Result<(), Error> {
     // Diagnostics and their source spans are not part of document snapshots.
     let source = "<1> First.\n<2> Second.\n";

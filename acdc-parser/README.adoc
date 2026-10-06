@@ -97,6 +97,7 @@ The implementation here follows from:
 ** [x] Concealed `(((term,secondary,tertiary)))`
 * [x] Callouts
 ** [x] Callout markers in source blocks (`<1>`, `<2>`, etc.)
+** [x] XML callouts (`<!--1-->`); an explicit block `line-comment` value, including an empty one, leaves these literal while keeping ordinary markers enabled
 ** [x] Callout lists
 * [x] Table of contents (`toc::[]` macro)
 * [x] Includes

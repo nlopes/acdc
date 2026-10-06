@@ -1,0 +1,115 @@
+= xml-callouts(1)
+:doctype: manpage
+:revdate: 2026-10-06
+:manmanual: Callout checks
+:mansource: acdc
+:icons: font
+
+== Name
+xml-callouts - XML callouts and custom prefixes
+
+== Synopsis
+
+[source,xml]
+----
+X01 <tag/> <!--1-->
+X02 <tag/> \<!--2-->
+----
+<1> Default XML marker.
+
+[source,xml,line-comment=]
+----
+X03 <tag/> <!--1-->
+X04 <tag/> \<!--2-->
+X05 <tag/> <!--.--> <.><.>
+X06 <tag/> <.> <!--.-->
+X07 <tag/> <.>
+X08 <tag/> <!--.-->\<.> <.>
+----
+<.> First ordinary marker.
+<.> Adjacent ordinary marker.
+<.> XML markers do not consume numbers.
+<.> Escaped ordinary markers do not consume numbers.
+
+[source,xml,line-comment=%]
+----
+X09 <tag/> <!--1-->
+X10 <tag/> % <1>
+X11 <tag/> \<!--2-->
+----
+<1> Custom prefix.
+
+[source,xml,line-comment=""]
+----
+X12 <tag/> <!--1-->
+X13 <tag/> <1>
+----
+<1> Quoted empty prefix.
+
+[source,xml,line-comment="※"]
+----
+X14 café <!--1-->
+X15 café ※ <1>
+----
+<1> Unicode custom prefix.
+
+[line-comment=]
+....
+X16 literal <!--1-->
+X17 literal <1>
+....
+<1> Delimited literal.
+
+[literal,line-comment=%]
+X18 literal paragraph <!--1-->
+X19 literal paragraph \<!--2-->
+X20 literal paragraph % <1>
+
+<1> Literal paragraph.
+
+//-
+
+[source,xml,line-comment=]
+X21 source paragraph <!--1-->
+X22 source paragraph <1>
+
+<1> Source paragraph.
+
+[line-comment=]
+```xml
+X23 fenced <!--1-->
+X24 fenced <1>
+```
+<1> Fenced source block.
+
+[source,xml]
+----
+X25 restored <!--.--><!--.-->
+----
+<.> Block settings do not leak.
+<.> Adjacent XML marker.
+
+:line-comment: %
+
+[source,xml]
+----
+X26 document attribute <!--1-->
+----
+<1> A document attribute does not change block marker recognition.
+
+:line-comment!:
+
+[source,xml,line-comment]
+----
+X27 positional attribute <!--1-->
+----
+<1> A positional word does not set a named prefix.
+
+:icons!:
+
+[source,xml,line-comment=]
+----
+X28 no icons <!--1-->
+X29 no icons <1>
+----
+<1> Recognition is independent of icons.

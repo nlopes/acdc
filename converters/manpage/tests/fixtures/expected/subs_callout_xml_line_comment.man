@@ -1,0 +1,80 @@
+'\" t
+.\"     Title: xml-callout-subs
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-06
+.\"    Manual: Callout checks
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "XML\-CALLOUT\-SUBS" "1" "2026-10-06" "acdc" "Callout checks"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+xml\-callout\-subs \- substitutions and XML markers
+.SH "SYNOPSIS"
+.EX
+S01 café \fBBold\fR <!\-\-1\-\->
+S02 \c
+.URL "https://example.org" "Link" "\fR\c"
+ <!\-\-.\-\-> \fB(1)\fP
+S03 <!\-\-2\-\-> \fB(2)\fP
+S04 [1] <!\-\-.\-\-> \fB(3)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+XML remains literal after a link.
+.IP \fB(2)\fP 4
+Protected XML does not consume a number.
+.IP \fB(3)\fP 4
+Footnote before a callout.
+.RE
+.EX
+S05 disabled <!\-\-1\-\-> <1>
+S06 disabled \e<!\-\-2\-\-> \e<2>
+.EE
+.EX
+S07 default disabled <!\-\-1\-\-> <1>
+.EE
+.sp
+.if n .RS 4
+.nf
+.fam C
+S08 \fBBold\fR <!\-\-1\-\->
+S09 \fBBold\fR \fB(1)\fP
+.fam
+.fi
+.if n .RE
+.RS 0
+.IP \fB(1)\fP 4
+Styled literal paragraph.
+.RE
+.EX
+S10 restored \fB(1)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+Default recognition returns after disabled callouts.
+.RE
+.sp
+Reuse [1]\&.
+.SH "NOTES"
+.IP [1] 4
+Note.

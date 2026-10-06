@@ -1,0 +1,157 @@
+'\" t
+.\"     Title: xml-callouts
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-06
+.\"    Manual: Callout checks
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "XML\-CALLOUTS" "1" "2026-10-06" "acdc" "Callout checks"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+xml\-callouts \- XML callouts and custom prefixes
+.SH "SYNOPSIS"
+.EX
+X01 <tag/> \fB(1)\fP
+X02 <tag/> <!\-\-2\-\->
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+Default XML marker.
+.RE
+.EX
+X03 <tag/> <!\-\-1\-\->
+X04 <tag/> \e<!\-\-2\-\->
+X05 <tag/> <!\-\-.\-\-> \fB(1)\fP\fB(2)\fP
+X06 <tag/> <.> <!\-\-.\-\->
+X07 <tag/> \fB(3)\fP
+X08 <tag/> <!\-\-.\-\-><.> \fB(4)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+First ordinary marker.
+.IP \fB(2)\fP 4
+Adjacent ordinary marker.
+.IP \fB(3)\fP 4
+XML markers do not consume numbers.
+.IP \fB(4)\fP 4
+Escaped ordinary markers do not consume numbers.
+.RE
+.EX
+X09 <tag/> <!\-\-1\-\->
+X10 <tag/> \fB(1)\fP
+X11 <tag/> \e<!\-\-2\-\->
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+Custom prefix.
+.RE
+.EX
+X12 <tag/> <!\-\-1\-\->
+X13 <tag/> \fB(1)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+Quoted empty prefix.
+.RE
+.EX
+X14 café <!\-\-1\-\->
+X15 café \fB(1)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+Unicode custom prefix.
+.RE
+.nf
+X16 literal <!\-\-1\-\->
+X17 literal \fB(1)\fP
+.fi
+.RS 0
+.IP \fB(1)\fP 4
+Delimited literal.
+.RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+X18 literal paragraph <!\-\-1\-\->
+X19 literal paragraph \e<!\-\-2\-\->
+X20 literal paragraph \fB(1)\fP
+.fam
+.fi
+.if n .RE
+.RS 0
+.IP \fB(1)\fP 4
+Literal paragraph.
+.RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+X21 source paragraph <!\-\-1\-\->
+X22 source paragraph \fB(1)\fP
+.fam
+.fi
+.if n .RE
+.RS 0
+.IP \fB(1)\fP 4
+Source paragraph.
+.RE
+.EX
+X23 fenced <!\-\-1\-\->
+X24 fenced \fB(1)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+Fenced source block.
+.RE
+.EX
+X25 restored \fB(1)\fP\fB(2)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+Block settings do not leak.
+.IP \fB(2)\fP 4
+Adjacent XML marker.
+.RE
+.EX
+X26 document attribute \fB(1)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+A document attribute does not change block marker recognition.
+.RE
+.EX
+X27 positional attribute \fB(1)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+A positional word does not set a named prefix.
+.RE
+.EX
+X28 no icons <!\-\-1\-\->
+X29 no icons \fB(1)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+Recognition is independent of icons.
+.RE

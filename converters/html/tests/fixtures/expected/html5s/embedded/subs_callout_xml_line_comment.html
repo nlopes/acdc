@@ -1,0 +1,48 @@
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>xml-callout-subs - substitutions and XML markers</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_synopsis">Synopsis</h2>
+<div class="listing-block">
+<pre class="highlight"><code class="language-xml" data-lang="xml">S01 café <strong>Bold</strong> &lt;!--1--&gt;
+S02 <a href="https://example.org">Link</a> &lt;!--.--&gt; <i class="conum" data-value="1"></i><b>(1)</b>
+S03 &lt;!--2--&gt; <i class="conum" data-value="2"></i><b>(2)</b>
+S04 <sup class="footnote-ref" id="_footnoteref_1">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup> &lt;!--.--&gt; <i class="conum" data-value="3"></i><b>(3)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>XML remains literal after a link.</li>
+<li>Protected XML does not consume a number.</li>
+<li>Footnote before a callout.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-xml" data-lang="xml">S05 disabled &lt;!--1--&gt; &lt;1&gt;
+S06 disabled \&lt;!--2--&gt; \&lt;2&gt;</code></pre>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code class="language-xml" data-lang="xml">S07 default disabled &lt;!--1--&gt; &lt;1&gt;</code></pre>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>S08 <strong>Bold</strong> &lt;!--1--&gt;
+S09 <strong>Bold</strong> <i class="conum" data-value="1"></i><b>(1)</b></pre>
+</div>
+</div>
+<ol class="callout-list arabic">
+<li>Styled literal paragraph.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-xml" data-lang="xml">S10 restored <i class="conum" data-value="1"></i><b>(1)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Default recognition returns after disabled callouts.</li>
+</ol>
+<p>Reuse <sup class="footnote-ref">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup>.</p>
+</section>
+<section class="footnotes" aria-label="Footnotes" role="doc-endnotes">
+<hr>
+<ol class="footnotes">
+<li class="footnote" id="_footnote_1" role="doc-endnote">
+Note. <a class="footnote-backref" href="#_footnoteref_1" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+</ol>
+</section>

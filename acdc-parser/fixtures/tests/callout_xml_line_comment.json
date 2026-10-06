@@ -1,0 +1,2138 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "xml-callouts(1)",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 17
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 6,
+        "col": 12
+      }
+    ]
+  },
+  "attributes": {
+    "doctype": "manpage",
+    "icons": "font",
+    "manmanual": "Callout checks",
+    "manname": "xml-callouts",
+    "manname-title": "Name",
+    "manpurpose": "XML callouts and custom prefixes",
+    "mansource": "acdc",
+    "mantitle": "xml-callouts",
+    "manvolnum": "1",
+    "revdate": "2026-10-06"
+  },
+  "blocks": [
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Name",
+          "location": [
+            {
+              "line": 8,
+              "col": 4
+            },
+            {
+              "line": 8,
+              "col": 7
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "xml-callouts - XML callouts and custom prefixes",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 1
+                },
+                {
+                  "line": 9,
+                  "col": 47
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 9,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 47
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 8,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 47
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Synopsis",
+          "location": [
+            {
+              "line": 11,
+              "col": 4
+            },
+            {
+              "line": 11,
+              "col": 11
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "listing",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "----",
+          "metadata": {
+            "attributes": {
+              "language": "xml"
+            },
+            "style": "source"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "X01 <tag/> <!--",
+              "location": [
+                {
+                  "line": 15,
+                  "col": 1
+                },
+                {
+                  "line": 15,
+                  "col": 15
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "explicit",
+              "number": 1,
+              "location": [
+                {
+                  "line": 15,
+                  "col": 16
+                },
+                {
+                  "line": 15,
+                  "col": 16
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "-->\nX02 <tag/> <!--2-->",
+              "location": [
+                {
+                  "line": 15,
+                  "col": 17
+                },
+                {
+                  "line": 16,
+                  "col": 20
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 13,
+              "col": 1
+            },
+            {
+              "line": 17,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "callout",
+          "items": [
+            {
+              "name": "listItem",
+              "type": "block",
+              "callout": {
+                "name": "callout_reference",
+                "type": "inline",
+                "variant": "explicit",
+                "number": 1,
+                "location": [
+                  {
+                    "line": 18,
+                    "col": 1
+                  },
+                  {
+                    "line": 18,
+                    "col": 23
+                  }
+                ]
+              },
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Default XML marker.",
+                  "location": [
+                    {
+                      "line": 18,
+                      "col": 5
+                    },
+                    {
+                      "line": 18,
+                      "col": 23
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 18,
+                  "col": 1
+                },
+                {
+                  "line": 18,
+                  "col": 23
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 18,
+              "col": 1
+            },
+            {
+              "line": 18,
+              "col": 23
+            }
+          ]
+        },
+        {
+          "name": "listing",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "----",
+          "metadata": {
+            "attributes": {
+              "language": "xml",
+              "line-comment": ""
+            },
+            "style": "source"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "X03 <tag/> <!--1-->\nX04 <tag/> \\<!--2-->\nX05 <tag/> <!--.--> ",
+              "location": [
+                {
+                  "line": 22,
+                  "col": 1
+                },
+                {
+                  "line": 24,
+                  "col": 20
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "auto",
+              "number": 1,
+              "location": [
+                {
+                  "line": 24,
+                  "col": 21
+                },
+                {
+                  "line": 24,
+                  "col": 23
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "auto",
+              "number": 2,
+              "location": [
+                {
+                  "line": 24,
+                  "col": 24
+                },
+                {
+                  "line": 24,
+                  "col": 26
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "\nX06 <tag/> <.> <!--.-->\nX07 <tag/> ",
+              "location": [
+                {
+                  "line": 24,
+                  "col": 27
+                },
+                {
+                  "line": 26,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "auto",
+              "number": 3,
+              "location": [
+                {
+                  "line": 26,
+                  "col": 12
+                },
+                {
+                  "line": 26,
+                  "col": 14
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "\nX08 <tag/> <!--.--><.> ",
+              "location": [
+                {
+                  "line": 26,
+                  "col": 15
+                },
+                {
+                  "line": 27,
+                  "col": 24
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "auto",
+              "number": 4,
+              "location": [
+                {
+                  "line": 27,
+                  "col": 25
+                },
+                {
+                  "line": 27,
+                  "col": 27
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 20,
+              "col": 1
+            },
+            {
+              "line": 28,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "callout",
+          "items": [
+            {
+              "name": "listItem",
+              "type": "block",
+              "callout": {
+                "name": "callout_reference",
+                "type": "inline",
+                "variant": "auto",
+                "number": 1,
+                "location": [
+                  {
+                    "line": 29,
+                    "col": 1
+                  },
+                  {
+                    "line": 29,
+                    "col": 26
+                  }
+                ]
+              },
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "First ordinary marker.",
+                  "location": [
+                    {
+                      "line": 29,
+                      "col": 5
+                    },
+                    {
+                      "line": 29,
+                      "col": 26
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 29,
+                  "col": 1
+                },
+                {
+                  "line": 29,
+                  "col": 26
+                }
+              ]
+            },
+            {
+              "name": "listItem",
+              "type": "block",
+              "callout": {
+                "name": "callout_reference",
+                "type": "inline",
+                "variant": "auto",
+                "number": 2,
+                "location": [
+                  {
+                    "line": 30,
+                    "col": 1
+                  },
+                  {
+                    "line": 30,
+                    "col": 29
+                  }
+                ]
+              },
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Adjacent ordinary marker.",
+                  "location": [
+                    {
+                      "line": 30,
+                      "col": 5
+                    },
+                    {
+                      "line": 30,
+                      "col": 29
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 30,
+                  "col": 1
+                },
+                {
+                  "line": 30,
+                  "col": 29
+                }
+              ]
+            },
+            {
+              "name": "listItem",
+              "type": "block",
+              "callout": {
+                "name": "callout_reference",
+                "type": "inline",
+                "variant": "auto",
+                "number": 3,
+                "location": [
+                  {
+                    "line": 31,
+                    "col": 1
+                  },
+                  {
+                    "line": 31,
+                    "col": 39
+                  }
+                ]
+              },
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "XML markers do not consume numbers.",
+                  "location": [
+                    {
+                      "line": 31,
+                      "col": 5
+                    },
+                    {
+                      "line": 31,
+                      "col": 39
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 31,
+                  "col": 1
+                },
+                {
+                  "line": 31,
+                  "col": 39
+                }
+              ]
+            },
+            {
+              "name": "listItem",
+              "type": "block",
+              "callout": {
+                "name": "callout_reference",
+                "type": "inline",
+                "variant": "auto",
+                "number": 4,
+                "location": [
+                  {
+                    "line": 32,
+                    "col": 1
+                  },
+                  {
+                    "line": 32,
+                    "col": 52
+                  }
+                ]
+              },
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Escaped ordinary markers do not consume numbers.",
+                  "location": [
+                    {
+                      "line": 32,
+                      "col": 5
+                    },
+                    {
+                      "line": 32,
+                      "col": 52
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 32,
+                  "col": 1
+                },
+                {
+                  "line": 32,
+                  "col": 52
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 29,
+              "col": 1
+            },
+            {
+              "line": 32,
+              "col": 52
+            }
+          ]
+        },
+        {
+          "name": "listing",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "----",
+          "metadata": {
+            "attributes": {
+              "language": "xml",
+              "line-comment": "%"
+            },
+            "style": "source"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "X09 <tag/> <!--1-->\nX10 <tag/> % ",
+              "location": [
+                {
+                  "line": 36,
+                  "col": 1
+                },
+                {
+                  "line": 37,
+                  "col": 13
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "explicit",
+              "number": 1,
+              "location": [
+                {
+                  "line": 37,
+                  "col": 14
+                },
+                {
+                  "line": 37,
+                  "col": 16
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "\nX11 <tag/> \\<!--2-->",
+              "location": [
+                {
+                  "line": 37,
+                  "col": 17
+                },
+                {
+                  "line": 38,
+                  "col": 20
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 34,
+              "col": 1
+            },
+            {
+              "line": 39,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "callout",
+          "items": [
+            {
+              "name": "listItem",
+              "type": "block",
+              "callout": {
+                "name": "callout_reference",
+                "type": "inline",
+                "variant": "explicit",
+                "number": 1,
+                "location": [
+                  {
+                    "line": 40,
+                    "col": 1
+                  },
+                  {
+                    "line": 40,
+                    "col": 18
+                  }
+                ]
+              },
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Custom prefix.",
+                  "location": [
+                    {
+                      "line": 40,
+                      "col": 5
+                    },
+                    {
+                      "line": 40,
+                      "col": 18
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 40,
+                  "col": 1
+                },
+                {
+                  "line": 40,
+                  "col": 18
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 40,
+              "col": 1
+            },
+            {
+              "line": 40,
+              "col": 18
+            }
+          ]
+        },
+        {
+          "name": "listing",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "----",
+          "metadata": {
+            "attributes": {
+              "language": "xml",
+              "line-comment": ""
+            },
+            "style": "source"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "X12 <tag/> <!--1-->\nX13 <tag/> ",
+              "location": [
+                {
+                  "line": 44,
+                  "col": 1
+                },
+                {
+                  "line": 45,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "explicit",
+              "number": 1,
+              "location": [
+                {
+                  "line": 45,
+                  "col": 12
+                },
+                {
+                  "line": 45,
+                  "col": 14
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 42,
+              "col": 1
+            },
+            {
+              "line": 46,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "callout",
+          "items": [
+            {
+              "name": "listItem",
+              "type": "block",
+              "callout": {
+                "name": "callout_reference",
+                "type": "inline",
+                "variant": "explicit",
+                "number": 1,
+                "location": [
+                  {
+                    "line": 47,
+                    "col": 1
+                  },
+                  {
+                    "line": 47,
+                    "col": 24
+                  }
+                ]
+              },
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Quoted empty prefix.",
+                  "location": [
+                    {
+                      "line": 47,
+                      "col": 5
+                    },
+                    {
+                      "line": 47,
+                      "col": 24
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 47,
+                  "col": 1
+                },
+                {
+                  "line": 47,
+                  "col": 24
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 47,
+              "col": 1
+            },
+            {
+              "line": 47,
+              "col": 24
+            }
+          ]
+        },
+        {
+          "name": "listing",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "----",
+          "metadata": {
+            "attributes": {
+              "language": "xml",
+              "line-comment": "※"
+            },
+            "style": "source"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "X14 café <!--1-->\nX15 café ※ ",
+              "location": [
+                {
+                  "line": 51,
+                  "col": 1
+                },
+                {
+                  "line": 52,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "explicit",
+              "number": 1,
+              "location": [
+                {
+                  "line": 52,
+                  "col": 12
+                },
+                {
+                  "line": 52,
+                  "col": 14
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 49,
+              "col": 1
+            },
+            {
+              "line": 53,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "callout",
+          "items": [
+            {
+              "name": "listItem",
+              "type": "block",
+              "callout": {
+                "name": "callout_reference",
+                "type": "inline",
+                "variant": "explicit",
+                "number": 1,
+                "location": [
+                  {
+                    "line": 54,
+                    "col": 1
+                  },
+                  {
+                    "line": 54,
+                    "col": 26
+                  }
+                ]
+              },
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Unicode custom prefix.",
+                  "location": [
+                    {
+                      "line": 54,
+                      "col": 5
+                    },
+                    {
+                      "line": 54,
+                      "col": 26
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 54,
+                  "col": 1
+                },
+                {
+                  "line": 54,
+                  "col": 26
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 54,
+              "col": 1
+            },
+            {
+              "line": 54,
+              "col": 26
+            }
+          ]
+        },
+        {
+          "name": "literal",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "....",
+          "metadata": {
+            "attributes": {
+              "line-comment": ""
+            }
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "X16 literal <!--1-->\nX17 literal ",
+              "location": [
+                {
+                  "line": 58,
+                  "col": 1
+                },
+                {
+                  "line": 59,
+                  "col": 12
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "explicit",
+              "number": 1,
+              "location": [
+                {
+                  "line": 59,
+                  "col": 13
+                },
+                {
+                  "line": 59,
+                  "col": 15
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 56,
+              "col": 1
+            },
+            {
+              "line": 60,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "callout",
+          "items": [
+            {
+              "name": "listItem",
+              "type": "block",
+              "callout": {
+                "name": "callout_reference",
+                "type": "inline",
+                "variant": "explicit",
+                "number": 1,
+                "location": [
+                  {
+                    "line": 61,
+                    "col": 1
+                  },
+                  {
+                    "line": 61,
+                    "col": 22
+                  }
+                ]
+              },
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Delimited literal.",
+                  "location": [
+                    {
+                      "line": 61,
+                      "col": 5
+                    },
+                    {
+                      "line": 61,
+                      "col": 22
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 61,
+                  "col": 1
+                },
+                {
+                  "line": 61,
+                  "col": 22
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 61,
+              "col": 1
+            },
+            {
+              "line": 61,
+              "col": 22
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "X18 literal paragraph <!--1-->\nX19 literal paragraph \\<!--2-->\nX20 literal paragraph % ",
+              "location": [
+                {
+                  "line": 64,
+                  "col": 1
+                },
+                {
+                  "line": 66,
+                  "col": 24
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "explicit",
+              "number": 1,
+              "location": [
+                {
+                  "line": 66,
+                  "col": 25
+                },
+                {
+                  "line": 66,
+                  "col": 27
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "attributes": {
+              "line-comment": "%"
+            },
+            "style": "literal"
+          },
+          "location": [
+            {
+              "line": 63,
+              "col": 1
+            },
+            {
+              "line": 66,
+              "col": 27
+            }
+          ]
+        },
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "callout",
+          "items": [
+            {
+              "name": "listItem",
+              "type": "block",
+              "callout": {
+                "name": "callout_reference",
+                "type": "inline",
+                "variant": "explicit",
+                "number": 1,
+                "location": [
+                  {
+                    "line": 68,
+                    "col": 1
+                  },
+                  {
+                    "line": 68,
+                    "col": 22
+                  }
+                ]
+              },
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Literal paragraph.",
+                  "location": [
+                    {
+                      "line": 68,
+                      "col": 5
+                    },
+                    {
+                      "line": 68,
+                      "col": 22
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 68,
+                  "col": 1
+                },
+                {
+                  "line": 68,
+                  "col": 22
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 68,
+              "col": 1
+            },
+            {
+              "line": 68,
+              "col": 22
+            }
+          ]
+        },
+        {
+          "name": "comment",
+          "type": "block",
+          "content": "-",
+          "location": [
+            {
+              "line": 70,
+              "col": 1
+            },
+            {
+              "line": 70,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "X21 source paragraph <!--1-->\nX22 source paragraph ",
+              "location": [
+                {
+                  "line": 73,
+                  "col": 1
+                },
+                {
+                  "line": 74,
+                  "col": 21
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "explicit",
+              "number": 1,
+              "location": [
+                {
+                  "line": 74,
+                  "col": 22
+                },
+                {
+                  "line": 74,
+                  "col": 24
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "attributes": {
+              "language": "xml",
+              "line-comment": ""
+            },
+            "style": "source"
+          },
+          "location": [
+            {
+              "line": 72,
+              "col": 1
+            },
+            {
+              "line": 74,
+              "col": 24
+            }
+          ]
+        },
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "callout",
+          "items": [
+            {
+              "name": "listItem",
+              "type": "block",
+              "callout": {
+                "name": "callout_reference",
+                "type": "inline",
+                "variant": "explicit",
+                "number": 1,
+                "location": [
+                  {
+                    "line": 76,
+                    "col": 1
+                  },
+                  {
+                    "line": 76,
+                    "col": 21
+                  }
+                ]
+              },
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Source paragraph.",
+                  "location": [
+                    {
+                      "line": 76,
+                      "col": 5
+                    },
+                    {
+                      "line": 76,
+                      "col": 21
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 76,
+                  "col": 1
+                },
+                {
+                  "line": 76,
+                  "col": 21
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 76,
+              "col": 1
+            },
+            {
+              "line": 76,
+              "col": 21
+            }
+          ]
+        },
+        {
+          "name": "listing",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "```",
+          "metadata": {
+            "attributes": {
+              "language": "xml",
+              "line-comment": ""
+            },
+            "style": "source"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "X23 fenced <!--1-->\nX24 fenced ",
+              "location": [
+                {
+                  "line": 80,
+                  "col": 1
+                },
+                {
+                  "line": 81,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "explicit",
+              "number": 1,
+              "location": [
+                {
+                  "line": 81,
+                  "col": 12
+                },
+                {
+                  "line": 81,
+                  "col": 14
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 78,
+              "col": 1
+            },
+            {
+              "line": 82,
+              "col": 3
+            }
+          ]
+        },
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "callout",
+          "items": [
+            {
+              "name": "listItem",
+              "type": "block",
+              "callout": {
+                "name": "callout_reference",
+                "type": "inline",
+                "variant": "explicit",
+                "number": 1,
+                "location": [
+                  {
+                    "line": 83,
+                    "col": 1
+                  },
+                  {
+                    "line": 83,
+                    "col": 24
+                  }
+                ]
+              },
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Fenced source block.",
+                  "location": [
+                    {
+                      "line": 83,
+                      "col": 5
+                    },
+                    {
+                      "line": 83,
+                      "col": 24
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 83,
+                  "col": 1
+                },
+                {
+                  "line": 83,
+                  "col": 24
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 83,
+              "col": 1
+            },
+            {
+              "line": 83,
+              "col": 24
+            }
+          ]
+        },
+        {
+          "name": "listing",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "----",
+          "metadata": {
+            "attributes": {
+              "language": "xml"
+            },
+            "style": "source"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "X25 restored <!--",
+              "location": [
+                {
+                  "line": 87,
+                  "col": 1
+                },
+                {
+                  "line": 87,
+                  "col": 17
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "auto",
+              "number": 1,
+              "location": [
+                {
+                  "line": 87,
+                  "col": 18
+                },
+                {
+                  "line": 87,
+                  "col": 18
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "--><!--",
+              "location": [
+                {
+                  "line": 87,
+                  "col": 19
+                },
+                {
+                  "line": 87,
+                  "col": 25
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "auto",
+              "number": 2,
+              "location": [
+                {
+                  "line": 87,
+                  "col": 26
+                },
+                {
+                  "line": 87,
+                  "col": 26
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "-->",
+              "location": [
+                {
+                  "line": 87,
+                  "col": 27
+                },
+                {
+                  "line": 87,
+                  "col": 29
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 85,
+              "col": 1
+            },
+            {
+              "line": 88,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "callout",
+          "items": [
+            {
+              "name": "listItem",
+              "type": "block",
+              "callout": {
+                "name": "callout_reference",
+                "type": "inline",
+                "variant": "auto",
+                "number": 1,
+                "location": [
+                  {
+                    "line": 89,
+                    "col": 1
+                  },
+                  {
+                    "line": 89,
+                    "col": 31
+                  }
+                ]
+              },
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Block settings do not leak.",
+                  "location": [
+                    {
+                      "line": 89,
+                      "col": 5
+                    },
+                    {
+                      "line": 89,
+                      "col": 31
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 89,
+                  "col": 1
+                },
+                {
+                  "line": 89,
+                  "col": 31
+                }
+              ]
+            },
+            {
+              "name": "listItem",
+              "type": "block",
+              "callout": {
+                "name": "callout_reference",
+                "type": "inline",
+                "variant": "auto",
+                "number": 2,
+                "location": [
+                  {
+                    "line": 90,
+                    "col": 1
+                  },
+                  {
+                    "line": 90,
+                    "col": 24
+                  }
+                ]
+              },
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Adjacent XML marker.",
+                  "location": [
+                    {
+                      "line": 90,
+                      "col": 5
+                    },
+                    {
+                      "line": 90,
+                      "col": 24
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 90,
+                  "col": 1
+                },
+                {
+                  "line": 90,
+                  "col": 24
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 89,
+              "col": 1
+            },
+            {
+              "line": 90,
+              "col": 24
+            }
+          ]
+        },
+        {
+          "name": "line-comment",
+          "type": "attribute",
+          "value": "%",
+          "location": [
+            {
+              "line": 92,
+              "col": 1
+            },
+            {
+              "line": 92,
+              "col": 16
+            }
+          ]
+        },
+        {
+          "name": "listing",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "----",
+          "metadata": {
+            "attributes": {
+              "language": "xml"
+            },
+            "style": "source"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "X26 document attribute <!--",
+              "location": [
+                {
+                  "line": 96,
+                  "col": 1
+                },
+                {
+                  "line": 96,
+                  "col": 27
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "explicit",
+              "number": 1,
+              "location": [
+                {
+                  "line": 96,
+                  "col": 28
+                },
+                {
+                  "line": 96,
+                  "col": 28
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "-->",
+              "location": [
+                {
+                  "line": 96,
+                  "col": 29
+                },
+                {
+                  "line": 96,
+                  "col": 31
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 94,
+              "col": 1
+            },
+            {
+              "line": 97,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "callout",
+          "items": [
+            {
+              "name": "listItem",
+              "type": "block",
+              "callout": {
+                "name": "callout_reference",
+                "type": "inline",
+                "variant": "explicit",
+                "number": 1,
+                "location": [
+                  {
+                    "line": 98,
+                    "col": 1
+                  },
+                  {
+                    "line": 98,
+                    "col": 66
+                  }
+                ]
+              },
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "A document attribute does not change block marker recognition.",
+                  "location": [
+                    {
+                      "line": 98,
+                      "col": 5
+                    },
+                    {
+                      "line": 98,
+                      "col": 66
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 98,
+                  "col": 1
+                },
+                {
+                  "line": 98,
+                  "col": 66
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 98,
+              "col": 1
+            },
+            {
+              "line": 98,
+              "col": 66
+            }
+          ]
+        },
+        {
+          "name": "line-comment",
+          "type": "attribute",
+          "value": false,
+          "location": [
+            {
+              "line": 100,
+              "col": 1
+            },
+            {
+              "line": 100,
+              "col": 15
+            }
+          ]
+        },
+        {
+          "name": "listing",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "----",
+          "metadata": {
+            "attributes": {
+              "language": "xml",
+              "linenums": "line-comment"
+            },
+            "style": "source"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "X27 positional attribute <!--",
+              "location": [
+                {
+                  "line": 104,
+                  "col": 1
+                },
+                {
+                  "line": 104,
+                  "col": 29
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "explicit",
+              "number": 1,
+              "location": [
+                {
+                  "line": 104,
+                  "col": 30
+                },
+                {
+                  "line": 104,
+                  "col": 30
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "-->",
+              "location": [
+                {
+                  "line": 104,
+                  "col": 31
+                },
+                {
+                  "line": 104,
+                  "col": 33
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 102,
+              "col": 1
+            },
+            {
+              "line": 105,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "callout",
+          "items": [
+            {
+              "name": "listItem",
+              "type": "block",
+              "callout": {
+                "name": "callout_reference",
+                "type": "inline",
+                "variant": "explicit",
+                "number": 1,
+                "location": [
+                  {
+                    "line": 106,
+                    "col": 1
+                  },
+                  {
+                    "line": 106,
+                    "col": 50
+                  }
+                ]
+              },
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "A positional word does not set a named prefix.",
+                  "location": [
+                    {
+                      "line": 106,
+                      "col": 5
+                    },
+                    {
+                      "line": 106,
+                      "col": 50
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 106,
+                  "col": 1
+                },
+                {
+                  "line": 106,
+                  "col": 50
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 106,
+              "col": 1
+            },
+            {
+              "line": 106,
+              "col": 50
+            }
+          ]
+        },
+        {
+          "name": "icons",
+          "type": "attribute",
+          "value": false,
+          "location": [
+            {
+              "line": 108,
+              "col": 1
+            },
+            {
+              "line": 108,
+              "col": 8
+            }
+          ]
+        },
+        {
+          "name": "listing",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "----",
+          "metadata": {
+            "attributes": {
+              "language": "xml",
+              "line-comment": ""
+            },
+            "style": "source"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "X28 no icons <!--1-->\nX29 no icons ",
+              "location": [
+                {
+                  "line": 112,
+                  "col": 1
+                },
+                {
+                  "line": 113,
+                  "col": 13
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "explicit",
+              "number": 1,
+              "location": [
+                {
+                  "line": 113,
+                  "col": 14
+                },
+                {
+                  "line": 113,
+                  "col": 16
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 110,
+              "col": 1
+            },
+            {
+              "line": 114,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "callout",
+          "items": [
+            {
+              "name": "listItem",
+              "type": "block",
+              "callout": {
+                "name": "callout_reference",
+                "type": "inline",
+                "variant": "explicit",
+                "number": 1,
+                "location": [
+                  {
+                    "line": 115,
+                    "col": 1
+                  },
+                  {
+                    "line": 115,
+                    "col": 40
+                  }
+                ]
+              },
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Recognition is independent of icons.",
+                  "location": [
+                    {
+                      "line": 115,
+                      "col": 5
+                    },
+                    {
+                      "line": 115,
+                      "col": 40
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 115,
+                  "col": 1
+                },
+                {
+                  "line": 115,
+                  "col": 40
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 115,
+              "col": 1
+            },
+            {
+              "line": 115,
+              "col": 40
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 11,
+          "col": 1
+        },
+        {
+          "line": 115,
+          "col": 40
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 115,
+      "col": 40
+    }
+  ]
+}

@@ -57,6 +57,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Blocks with an explicit `line-comment` value, including an empty value, keep
+  XML-style callouts such as `<!--1-->` literal, matching Asciidoctor. These
+  markers no longer consume automatic numbers or satisfy callout-list items;
+  their escape backslashes stay intact. Ordinary `<1>` and `<.>` markers remain
+  available, and blocks without this setting still recognize XML callouts.
+  Unlike Asciidoctor PDF's highlighted source path, acdc keeps this rule when
+  highlighting is enabled.
+
 - Unfinished `link:` macros keep their targets as literal text instead of
   creating fallback URL or email links, matching Asciidoctor. Brackets expanded
   by attributes after the macro stage cannot complete the link. Formatting and
