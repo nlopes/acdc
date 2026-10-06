@@ -130,10 +130,12 @@ text. A heading or opening delimiter on the first line still selects a
 section or delimited block, matching Asciidoctor. Each style retains its
 normal substitutions; verse can contain inline formatting.
 
-Known limitation: preprocessing can discard adjacent `//` lines inside these
-paragraphs, unlike Asciidoctor. For code containing these lines, use a
-delimited listing or literal block. This is a parser gap, not an intentional
-SDR-5 difference.
+After the first content line, `//` lines and `////` lines remain part of the
+paragraph. Callouts in code comments work normally, and include and conditional
+directives still run. Comments before the content starts are discarded.
+These rules also apply across includes, matching Asciidoctor. Table buffering
+removes adjacent line comments before interpreting cell styles, as in
+Asciidoctor; a styled paragraph in an AsciiDoc table cell does not preserve them.
 
 == Conditional expressions
 

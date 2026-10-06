@@ -1,0 +1,1 @@
+include::styled_comment_part.adoc[lines=1..3]

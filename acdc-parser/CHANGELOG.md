@@ -57,6 +57,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `source`, `listing`, `literal`, and `verse` paragraphs now preserve `//`
+  comments after their first content line, including callouts in code comments.
+  Literal `////` lines no longer suppress include or conditional directives
+  inside those paragraphs. Comments and paragraph boundaries are also retained
+  across includes, matching Asciidoctor.
+
 - Paragraphs styled as `source`, `listing`, `literal`, or `verse` now retain
   list-looking text and admonition prefixes instead of becoming lists or
   admonitions, matching Asciidoctor. Content continues through apparent

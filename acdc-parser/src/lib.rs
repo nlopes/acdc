@@ -1250,7 +1250,11 @@ mod tests {
 
     #[rstest::rstest]
     #[tracing_test::traced_test]
-    fn test_with_fixtures(#[files("fixtures/tests/**/*.adoc")] path: PathBuf) -> Result<(), Error> {
+    fn test_with_fixtures(
+        #[files("fixtures/tests/**/*.adoc")]
+        #[exclude(r"[/\\]includes[/\\]")]
+        path: PathBuf,
+    ) -> Result<(), Error> {
         let stem = path
             .file_stem()
             .and_then(|stem| stem.to_str())

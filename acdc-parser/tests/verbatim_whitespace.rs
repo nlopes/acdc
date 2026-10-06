@@ -47,6 +47,43 @@ fn explicit_verbatim_paragraph_styles_preserve_indentation() -> Result<(), Error
 }
 
 #[test]
+fn styled_paragraph_comment_callouts_retain_source_spans() -> Result<(), Error> {
+    for style in ["source,text", "listing", "literal"] {
+        let source =
+            format!("[{style}]\ncode\n// é comment <1>\n// last line\n\n<1> Explanation.\n");
+        let parsed = parse(&source, &Options::default())?;
+        assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
+        let [Block::Paragraph(paragraph), Block::CalloutList(_)] =
+            parsed.document().blocks.as_slice()
+        else {
+            return Err("expected code and its callout explanation".into());
+        };
+        assert_eq!(
+            inline_text(&paragraph.content),
+            "code\n// é comment <1>\n// last line"
+        );
+        let callout = paragraph
+            .content
+            .iter()
+            .find_map(|node| {
+                if let InlineNode::CalloutRef(callout) = node {
+                    Some(callout)
+                } else {
+                    None
+                }
+            })
+            .ok_or("missing callout")?;
+        assert_eq!(
+            source.get(callout.location.absolute_start..=callout.location.absolute_end),
+            Some("<1>")
+        );
+        assert_eq!(callout.location.start.line, 3);
+        assert_eq!(callout.location.start.column, 14);
+    }
+    Ok(())
+}
+
+#[test]
 fn explicit_verbatim_styles_override_block_syntax() -> Result<(), Error> {
     for style in ["source,text", "listing", "literal", "verse"] {
         for content in [

@@ -44,6 +44,10 @@ Trace module mapping (use with `rust-test-one`):
 
 ## Fixtures
 
+Put supporting include inputs in `fixtures/tests/includes/` with the `.adoc`
+extension. Fixture discovery excludes that folder; test documents include them
+using relative paths.
+
 Regenerate parser fixtures:
 ```bash
 cargo run -p acdc-parser --example generate_parser_fixtures --all-features

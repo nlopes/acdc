@@ -1,0 +1,68 @@
+<div class="sect1">
+<h2 id="_name">Name</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>comment-includes - retain comment ownership across includes</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_synopsis">Synopsis</h2>
+<div class="sectionbody">
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text">I01 parent before include
+// I02 included first comment
+I03 included body
+// I04 included last comment
+// I05 parent after include</code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>I06 before selected include
+I03 included body
+// I04 included last comment
+// I07 after selected include</pre>
+</div>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>I08 before boundary include
+// I09 included code comment</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>I10 ordinary included paragraph
+I11 ordinary included tail
+I12 ordinary after include</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text">I13 included opening
+// I14 parent after included style</code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text">I15 before included metadata
+:included-kind: source
+[{included-kind},text]
+I13 included opening
+// I16 still in parent code</code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text">I17 before nested include
+// I02 included first comment
+I03 included body
+// I04 included last comment
+// I18 after nested include</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>I19 ordinary end</p>
+</div>
+</div>
+</div>

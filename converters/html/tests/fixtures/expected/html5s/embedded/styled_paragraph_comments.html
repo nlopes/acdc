@@ -1,0 +1,86 @@
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>paragraph-comments - preserve code comments</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_synopsis">Synopsis</h2>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text">C01 start
+// C02 source comment
+// C03 second comment <b class="conum">(1)</b>
+C04 end</code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Callout inside a comment.</li>
+</ol>
+<div class="listing-block">
+<pre>C05 start
+////
+C06 enabled
+////
+// C07 after slash delimiters</pre>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>C08 start
+// C09 literal comment</pre>
+</div>
+</div>
+<div class="verseblock">
+<pre class="content">C10 <strong>bold</strong>
+// C11 verse comment</pre>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text">C12 start after leading comment
+// C13 visible after content</code></pre>
+</div>
+<p>C14 ordinary
+C15 ordinary tail</p>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text">C16 before continuation</code></pre>
+</div>
+<p>+
+C17 after continuation</p>
+<div class="example-block">
+<div class="example">
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text">C18 inside example
+// C19 inside example</code></pre>
+</div>
+</div>
+</div>
+<p>C20 after example</p>
+<div id="code" class="listing-block role">
+<pre>C21 attribute style
+// C22 attribute style comment</pre>
+</div>
+<div class="quoteblock">
+<blockquote>
+C23 overridden style
+</blockquote>
+<div class="attribution">
+&#8212; text
+</div>
+</div>
+<div class="table-block">
+<table class="frame-all grid-all stretch">
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="halign-left valign-top"><div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text">C24 cell start
+C25 cell end</code></pre>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text">C26 before false conditional
+// C27 after false conditional
+C28 end</code></pre>
+</div>
+</section>

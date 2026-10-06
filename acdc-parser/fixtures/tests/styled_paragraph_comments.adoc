@@ -1,0 +1,88 @@
+= paragraph-comments(1)
+:doctype: manpage
+:revdate: 2026-10-06
+:manmanual: Parser checks
+:mansource: acdc
+:enabled:
+:kind: source
+
+== Name
+paragraph-comments - preserve code comments
+
+== Synopsis
+
+[source,text]
+C01 start
+// C02 source comment
+// C03 second comment <1>
+C04 end
+
+<1> Callout inside a comment.
+
+[listing]
+C05 start
+////
+ifdef::enabled[]
+C06 enabled
+endif::[]
+////
+// C07 after slash delimiters
+
+[literal]
+C08 start
+// C09 literal comment
+
+[verse]
+C10 *bold*
+// C11 verse comment
+
+[source,text]
+// HIDDEN leading comment
+C12 start after leading comment
+// C13 visible after content
+
+C14 ordinary
+// HIDDEN ordinary comment
+C15 ordinary tail
+
+[source,text]
+C16 before continuation
++
+C17 after continuation
+// HIDDEN ordinary after continuation
+
+====
+[source,text]
+C18 inside example
+// C19 inside example
+====
+C20 after example
+// HIDDEN ordinary after example
+
+[{kind}.role#code]
+C21 attribute style
+// C22 attribute style comment
+
+[source,text]
+[quote]
+C23 overridden style
+// HIDDEN quote comment
+
+[cols="a"]
+|===
+|
+[source,text]
+C24 cell start
+// HIDDEN table comment
+C25 cell end
+|===
+
+[source,text]
+C26 before false conditional
+ifdef::absent[]
+
+[quote]
+////
+endif::[]
+// C27 after false conditional
+C28 end

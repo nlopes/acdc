@@ -1036,6 +1036,43 @@ fn apply_block_style<'input>(
     matches!(metadata.style, Some("discrete" | "float"))
 }
 
+// Preprocessing needs only the style to preserve comments in verbatim
+// paragraphs. Share attribute tokenization with the full metadata parser.
+pub(crate) fn verbatim_paragraph_style(
+    source: &str,
+    attributes: &DocumentAttributes<'_>,
+) -> Option<bool> {
+    let source = source.strip_prefix('[')?.strip_suffix(']')?;
+    if source.starts_with('[') {
+        return None;
+    }
+    let substituted = substitute(source, &[Substitution::Attributes], attributes);
+    let mut style = None;
+    for (slot, attribute) in scan_attribute_list(&substituted, &[])
+        .into_iter()
+        .enumerate()
+    {
+        let value = attribute.value.as_str();
+        let name = match attribute.name.as_deref() {
+            Some("style") if attribute.quote != AttributeQuote::Unquoted || value != "None" => {
+                value
+            }
+            None if slot == 0 && !value.is_empty() => {
+                if value.chars().any(char::is_whitespace) {
+                    value
+                } else {
+                    value.split(['#', '.', '%']).next().unwrap_or_default()
+                }
+            }
+            _ => continue,
+        };
+        if !name.is_empty() || attribute.name.is_some() {
+            style = Some(matches!(name, "source" | "listing" | "literal" | "verse"));
+        }
+    }
+    style
+}
+
 #[derive(Clone, Copy)]
 enum StylePartKind {
     Id,

@@ -1,0 +1,103 @@
+'\" t
+.\"     Title: comment-includes
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-06
+.\"    Manual: Parser checks
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "COMMENT\-INCLUDES" "1" "2026-10-06" "acdc" "Parser checks"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+comment\-includes \- retain comment ownership across includes
+.SH "SYNOPSIS"
+.sp
+.if n .RS 4
+.nf
+.fam C
+I01 parent before include
+// I02 included first comment
+I03 included body
+// I04 included last comment
+// I05 parent after include
+.fam
+.fi
+.if n .RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+I06 before selected include
+I03 included body
+// I04 included last comment
+// I07 after selected include
+.fam
+.fi
+.if n .RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+I08 before boundary include
+// I09 included code comment
+.fam
+.fi
+.if n .RE
+.sp
+I10 ordinary included paragraph
+I11 ordinary included tail
+I12 ordinary after include
+.sp
+.if n .RS 4
+.nf
+.fam C
+I13 included opening
+// I14 parent after included style
+.fam
+.fi
+.if n .RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+I15 before included metadata
+:included\-kind: source
+[{included\-kind},text]
+I13 included opening
+// I16 still in parent code
+.fam
+.fi
+.if n .RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+I17 before nested include
+// I02 included first comment
+I03 included body
+// I04 included last comment
+// I18 after nested include
+.fam
+.fi
+.if n .RE
+.sp
+I19 ordinary end

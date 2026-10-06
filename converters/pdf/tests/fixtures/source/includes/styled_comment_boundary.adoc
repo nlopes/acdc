@@ -1,0 +1,5 @@
+// I09 included code comment
+
+I10 ordinary included paragraph
+// HIDDEN ordinary included comment
+I11 ordinary included tail

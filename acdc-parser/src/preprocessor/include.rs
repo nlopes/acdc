@@ -309,7 +309,7 @@ peg::parser! {
                     encoding: None,
                     opts: Vec::new(),
                     options: inputs.options.clone(),
-                    context: inputs.context,
+                    context: inputs.context.clone(),
                     line_number: inputs.location.line_number,
                     current_offset: inputs.location.current_offset,
                     current_file: inputs.location.current_file.map(Path::to_path_buf),
@@ -453,6 +453,7 @@ pub(crate) struct IncludeResult {
     pub(crate) source_ranges: Vec<SourceRange>,
     pub(crate) included_files: HashSet<String>,
     pub(crate) document_attributes: Option<crate::DocumentAttributes<'static>>,
+    pub(super) comment_context: Option<super::comment::BlockContext>,
 }
 
 enum UrlReadError {
@@ -465,7 +466,7 @@ enum UrlReadError {
 
 enum UrlIncludeOutcome {
     Content(String),
-    Fallback(IncludeResult),
+    Fallback(Box<IncludeResult>),
 }
 
 impl From<Error> for UrlReadError {
@@ -485,6 +486,7 @@ impl IncludeResult {
             source_ranges: Vec::new(),
             included_files: HashSet::new(),
             document_attributes: None,
+            comment_context: None,
         }
     }
 
@@ -504,6 +506,7 @@ impl IncludeResult {
             source_ranges: Vec::new(),
             included_files: HashSet::new(),
             document_attributes: None,
+            comment_context: None,
         }
     }
 
@@ -517,6 +520,7 @@ impl IncludeResult {
             source_ranges: Vec::new(),
             included_files: HashSet::new(),
             document_attributes: None,
+            comment_context: None,
         }
     }
 }
@@ -952,9 +956,10 @@ impl<'a> Include<'a> {
             source_ranges: Vec::new(),
             included_files: HashSet::new(),
             document_attributes: None,
+            comment_context: None,
         };
         if is_asciidoc {
-            let preprocessed = Preprocessor::nested(&self.warnings, self.context)
+            let preprocessed = Preprocessor::nested(&self.warnings, self.context.clone())
                 .process_mapped(take(&mut included.content), source_origin, &self.options, line_origins)
                 .map_err(|error| {
                     tracing::error!(origin=?source_origin, ?error, "failed to process included content");
@@ -965,6 +970,7 @@ impl<'a> Include<'a> {
             included.source_ranges = preprocessed.result.source_ranges;
             included.included_files = preprocessed.result.included_files;
             included.document_attributes = Some(preprocessed.document_attributes);
+            included.comment_context = Some(preprocessed.result.comment_context);
             let full = match &self.selection {
                 ContentSelection::All => true,
                 ContentSelection::Lines(_) => false,
@@ -1034,9 +1040,11 @@ impl<'a> Include<'a> {
             self.warn_located(format!(
                 "include uri not read because URI access is disabled: {url}"
             ));
-            return Ok(UrlIncludeOutcome::Fallback(IncludeResult::link_fallback(
-                self.target_as_written(),
-                self.options.document_attributes.contains_key("compat-mode"),
+            return Ok(UrlIncludeOutcome::Fallback(Box::new(
+                IncludeResult::link_fallback(
+                    self.target_as_written(),
+                    self.options.document_attributes.contains_key("compat-mode"),
+                ),
             )));
         }
 
@@ -1047,17 +1055,17 @@ impl<'a> Include<'a> {
                 self.warn_located(format!(
                     "network support is disabled, cannot fetch remote includes: {url}",
                 ));
-                Ok(UrlIncludeOutcome::Fallback(
+                Ok(UrlIncludeOutcome::Fallback(Box::new(
                     self.unresolved_uri_directive(attribute_list_as_written),
-                ))
+                )))
             }
             #[cfg(feature = "network")]
             Err(UrlReadError::Retrieval(detail)) => {
                 tracing::debug!(%url, %detail, "failed to retrieve remote include");
                 self.warn_located(format!("include uri not readable: {url}"));
-                Ok(UrlIncludeOutcome::Fallback(
+                Ok(UrlIncludeOutcome::Fallback(Box::new(
                     self.unresolved_uri_directive(attribute_list_as_written),
-                ))
+                )))
             }
             Err(UrlReadError::Other(error)) => Err(error),
         }
@@ -1162,7 +1170,7 @@ impl<'a> Include<'a> {
                 let content =
                     match self.read_url_content_or_fallback(url, attribute_list_as_written)? {
                         UrlIncludeOutcome::Content(content) => content,
-                        UrlIncludeOutcome::Fallback(result) => return Ok(result),
+                        UrlIncludeOutcome::Fallback(result) => return Ok(*result),
                     };
                 let parsed_url = Url::parse(url)?;
                 let is_asciidoc = Self::has_asciidoc_extension(Path::new(parsed_url.path()));

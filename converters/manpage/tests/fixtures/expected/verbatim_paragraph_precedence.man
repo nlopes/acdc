@@ -166,6 +166,7 @@ P16 opening \fB(1)\fP
 == Apparent heading
 image::missing.png[]
 \-\-\-\-
+// Apparent comment
 P17 closing \fB(2)\fP
 .fam
 .fi

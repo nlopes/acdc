@@ -47,6 +47,7 @@ pub(crate) struct PreprocessorResult<'input> {
     pub(crate) included_files: HashSet<String>,
     /// Front matter captured from the primary input. Included front matter does not replace it.
     pub(crate) front_matter: Option<String>,
+    comment_context: comment::BlockContext,
 }
 
 impl PreprocessorResult<'_> {
@@ -60,6 +61,7 @@ impl PreprocessorResult<'_> {
             source_ranges: self.source_ranges,
             included_files: self.included_files,
             front_matter: self.front_matter,
+            comment_context: self.comment_context,
         }
     }
 }
@@ -187,7 +189,7 @@ fn is_escaped_directive(line: &str) -> bool {
 }
 
 /// Caller authority, recursion and block state shared by one include-processing chain.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub(super) struct IncludeContext {
     allows_uri_read: bool,
     depth: usize,
@@ -222,7 +224,7 @@ impl IncludeContext {
     /// `0` when includes are disabled outright, a positive depth when the limit
     /// was reached. `Secure` mode neutralizes includes in `Include::lines`, so the
     /// directive is left for that path to handle.
-    fn blocked_limit(self, safe_mode: crate::SafeMode) -> Option<usize> {
+    fn blocked_limit(&self, safe_mode: crate::SafeMode) -> Option<usize> {
         (safe_mode != crate::SafeMode::Secure && self.depth >= self.max_depth)
             .then_some(self.max_depth)
     }
@@ -747,43 +749,51 @@ impl Preprocessor {
     /// Decides whether the normalized `text` can be used as-is, letting the
     /// caller skip the full line-by-line rebuild in [`Self::process_inner`].
     ///
-    /// Returns `true` when running `process_inner` would produce byte-identical
+    /// Returns the final scanner when `process_inner` would produce byte-identical
     /// output, so the caller returns the normalized text directly (zero-copy,
-    /// preserving any borrow from the original input). Returns `false` as soon
+    /// preserving any borrow from the original input). Returns `None` as soon
     /// as it spots something `process_inner` would rewrite: an
-    /// `include`/`ifdef`/`ifndef`/`ifeval` directive (or its escaped form), a
-    /// multi-line attribute continuation, or a line comment that would be
-    /// dropped.
+    /// directive, a multi-line attribute continuation, or a dropped line comment.
     ///
-    /// Read-only: it must not mutate options. Single-line attributes
-    /// (`:attr: value`) are left to downstream parsing — `process_inner` only
-    /// mutates attributes to evaluate conditional directives, which already
-    /// force the rebuild.
+    /// Read-only: attribute-driven styles use a private copy of the attribute
+    /// values, leaving the document's assignments to downstream parsing.
     ///
     /// Comment-block contents bypass preprocessing. Outside those blocks,
     /// directives remain active even inside a listing or passthrough block,
     /// matching asciidoctor. Verbatim tracking keeps slash delimiters and
     /// line comments inside those blocks literal.
-    fn try_pass_through(&self, text: &str, setext: bool) -> bool {
+    fn try_pass_through(
+        &self,
+        text: &str,
+        setext: bool,
+        attributes: &DocumentAttributes<'_>,
+    ) -> Option<CommentScanner> {
         // Dropping an adjacent line comment is the one rewrite that can't be
         // spotted with a simple per-line check: whether a `//` line is dropped
         // depends on the previous line and on being outside a verbatim block.
-        // Run the same `CommentScanner` that `process_inner` uses, and return
-        // false only on an actual drop — so documents whose comments are all
-        // kept (standalone, inside verbatim, tag directives) still pass through.
-        let mut scanner = CommentScanner::new(setext, self.include_context.block_context);
+        // Use the same scanner as the slow path so preserved comments alone
+        // do not force a rebuild.
+        let mut scanner = CommentScanner::new(setext, self.include_context.block_context.clone());
+        let mut style_options = (text.contains('{')
+            && text
+                .lines()
+                .any(|line| line.starts_with('[') && line.contains('{')))
+        .then(|| Options {
+            document_attributes: attributes.clone(),
+            ..Options::default()
+        });
         for line in text.lines() {
             if scanner.preserves_comment_line(line) {
-                scanner.record(line);
+                scanner.record(line, attributes);
                 continue;
             }
             // `process_inner` unescapes escaped directives.
             if is_escaped_directive(line) {
-                return false;
+                return None;
             }
             // `process_inner` collapses multi-line attribute continuations.
             if has_attribute_continuation(line) {
-                return false;
+                return None;
             }
             // Directive lines: include::, ifdef::, ifndef::, ifeval::
             if line.ends_with(']')
@@ -794,20 +804,28 @@ impl Preprocessor {
                         .iter()
                         .any(|prefix| line.starts_with(prefix)))
             {
-                return false;
+                return None;
             }
+            if let Some(options) = style_options.as_mut()
+                && line.starts_with(':')
+            {
+                attribute::parse_line(options, line).ok()?;
+            }
+            let attributes = style_options
+                .as_ref()
+                .map_or(attributes, |options| &options.document_attributes);
             if scanner.at_table_delimiter(line) || scanner.at_verbatim_delimiter(line) {
-                scanner.record(line);
+                scanner.record(line, attributes);
                 continue;
             }
             if scanner.drops(line) {
                 // `process_inner` would drop this adjacent comment, so the text
                 // is not byte-identical — force the rebuild.
-                return false;
+                return None;
             }
-            scanner.record(line);
+            scanner.record(line, attributes);
         }
-        true
+        Some(scanner)
     }
 
     #[tracing::instrument(skip(reader, warnings))]
@@ -1108,6 +1126,7 @@ impl Preprocessor {
         attributes: &DocumentAttributes,
         stack: &mut Vec<ConditionalFrame<'input>>,
         out: &mut PreprocessorState<'_>,
+        scanner: &mut CommentScanner,
     ) -> Result<bool, Error> {
         if !line.ends_with(']') || line.starts_with('[') || !line.contains("::") {
             return Ok(false);
@@ -1139,6 +1158,7 @@ impl Preprocessor {
 
             if is_inline {
                 if active {
+                    scanner.record_expansion(&content, attributes);
                     out.push_chunk(content, ctx.input_line);
                 }
             } else {
@@ -1187,6 +1207,7 @@ impl Preprocessor {
         if is_escaped_directive(line) {
             out.note_source_line(ctx.input_line);
             out.push_line(Cow::Borrowed(&line[1..]));
+            scanner.record(&line[1..], &options.document_attributes);
         } else if has_include_directive_shape(line) {
             if let Some(limit) = self.include_context.blocked_limit(options.safe_mode) {
                 let message = if limit == 0 {
@@ -1199,6 +1220,7 @@ impl Preprocessor {
                     Self::create_source_location(ctx.source_line, ctx.current_file()),
                 );
                 out.push_source_line(line, ctx.input_line);
+                scanner.record(line, &options.document_attributes);
                 return Ok(());
             }
             // Included content carries its own source ranges; close the main-file
@@ -1212,10 +1234,16 @@ impl Preprocessor {
                 options,
                 IncludeContext {
                     block_context: scanner.block_context(),
-                    ..self.include_context
+                    ..self.include_context.clone()
                 },
             )? {
-                scanner.record_expansion(&include_result.content);
+                if let Some(context) = include_result.comment_context.take() {
+                    // The child has already resolved attribute-driven styles
+                    // in source order. Replaying with caller values can differ.
+                    scanner.record_preprocessed(&include_result.content, context);
+                } else {
+                    scanner.record_expansion(&include_result.content, &options.document_attributes);
+                }
                 let document_attributes = include_result.document_attributes.take();
                 Self::handle_include_result(include_result, out, ctx.input_line);
                 if let Some(document_attributes) = document_attributes {
@@ -1224,6 +1252,7 @@ impl Preprocessor {
             }
         } else {
             out.push_source_line(line, ctx.input_line);
+            scanner.record(line, &options.document_attributes);
         }
         Ok(())
     }
@@ -1247,8 +1276,9 @@ impl Preprocessor {
         // output. Return the normalized text directly, preserving any borrow from
         // the caller's input so that downstream parsing can be zero-copy.
         if front_matter.is_none()
-            && self.try_pass_through(&normalized, setext)
             && !self.nested_attributes_must_propagate(&normalized)
+            && let Some(scanner) =
+                self.try_pass_through(&normalized, setext, &options.document_attributes)
         {
             return Ok(PreprocessorResult {
                 text: normalized,
@@ -1256,6 +1286,7 @@ impl Preprocessor {
                 source_ranges: Vec::new(),
                 included_files: HashSet::new(),
                 front_matter: None,
+                comment_context: scanner.block_context(),
             });
         }
 
@@ -1287,8 +1318,9 @@ impl Preprocessor {
             .then(|| skim_front_matter(normalized.lines()))
             .flatten();
         if front_matter.is_none()
-            && self.try_pass_through(&normalized, setext)
             && !self.nested_attributes_must_propagate(&normalized)
+            && let Some(scanner) =
+                self.try_pass_through(&normalized, setext, &options.document_attributes)
         {
             let source_ranges = {
                 let normalized_ref = normalized.as_ref();
@@ -1314,6 +1346,7 @@ impl Preprocessor {
                 source_ranges,
                 included_files: HashSet::new(),
                 front_matter: None,
+                comment_context: scanner.block_context(),
             };
             return Ok(NestedPreprocessorResult {
                 result,
@@ -1362,7 +1395,7 @@ impl Preprocessor {
         // Tracks verbatim-block and previous-line context so adjacent line
         // comments can be dropped (matching asciidoctor's reader). See
         // `comment::CommentScanner`.
-        let mut scanner = CommentScanner::new(setext, self.include_context.block_context);
+        let mut scanner = CommentScanner::new(setext, self.include_context.block_context.clone());
         let mut conditional_stack: Vec<ConditionalFrame<'_>> = Vec::new();
         let captured_front_matter = consume_front_matter(
             &mut lines,
@@ -1382,28 +1415,26 @@ impl Preprocessor {
             if scanner.preserves_comment_line(line) {
                 if conditional_stack.last().is_none_or(|frame| frame.active) {
                     out.push_source_line(line, line_number);
-                    scanner.record(line);
+                    scanner.record(line, &options.document_attributes);
                 }
                 line_number += 1;
                 continue;
             }
-            let conditional_consumed = {
-                let origin = out.origin_of_line(line_number);
-                let ctx = DirectiveContext {
-                    input_line: line_number,
-                    source_line: origin.line,
-                    current_offset: origin.offset,
-                    source_origin,
-                };
-                self.process_conditional_line(
-                    line,
-                    &ctx,
-                    &options.document_attributes,
-                    &mut conditional_stack,
-                    &mut out,
-                )?
+            let origin = out.origin_of_line(line_number);
+            let ctx = DirectiveContext {
+                input_line: line_number,
+                source_line: origin.line,
+                current_offset: origin.offset,
+                source_origin,
             };
-            if conditional_consumed {
+            if self.process_conditional_line(
+                line,
+                &ctx,
+                &options.document_attributes,
+                &mut conditional_stack,
+                &mut out,
+                &mut scanner,
+            )? {
                 line_number += 1;
                 continue;
             }
@@ -1427,7 +1458,7 @@ impl Preprocessor {
                 Self::process_continuation(&mut attribute_content, &mut lines, &mut line_number);
                 attribute::parse_line(options, attribute_content.as_str())?;
                 out.push_chunk(attribute_content, continuation_start_line);
-                scanner.record(line);
+                scanner.record(line, &options.document_attributes);
                 // `process_continuation` advanced `line_number` over the absorbed
                 // continuation lines but not the attribute line itself; the `continue`
                 // below skips the loop-tail increment, so account for it here to keep
@@ -1452,18 +1483,13 @@ impl Preprocessor {
                 }
                 out.push_source_line(line, line_number);
             } else if line.ends_with(']') && !line.starts_with('[') && line.contains("::") {
-                let origin = out.origin_of_line(line_number);
-                let ctx = DirectiveContext {
-                    input_line: line_number,
-                    source_line: origin.line,
-                    current_offset: origin.offset,
-                    source_origin,
-                };
                 self.process_directive_line(line, &ctx, options, &mut out, &mut scanner)?;
+                line_number += 1;
+                continue;
             } else {
                 out.push_source_line(line, line_number);
             }
-            scanner.record(line);
+            scanner.record(line, &options.document_attributes);
             line_number += 1;
         }
 
@@ -1483,6 +1509,7 @@ impl Preprocessor {
             source_ranges: out.source_ranges,
             included_files: out.included_files,
             front_matter: captured_front_matter,
+            comment_context: scanner.block_context(),
         })
     }
 
@@ -1650,6 +1677,7 @@ mod tests {
                 source_ranges: Vec::new(),
                 included_files: HashSet::new(),
                 document_attributes: None,
+                comment_context: None,
             };
             Preprocessor::handle_regular_include_result(included, &mut state);
             assert_eq!(state.byte_offset, following_offset, "{content:?}");
@@ -2072,6 +2100,132 @@ endif::inner[]";
             result.text,
             "////\ninclude::missing-comment-file.adoc[]\n////\nVisible"
         );
+        Ok(())
+    }
+
+    #[test]
+    fn styled_paragraph_comments_survive_fast_and_slow_paths() -> Result<(), Error> {
+        for style in ["source,text", "listing", "literal", "verse"] {
+            let source =
+                format!("[{style}]\ncode\n// visible\n////\ninside\n////\n// still visible");
+            let fast = Preprocessor::process(&source, &Options::default(), Rc::default())?;
+            assert_eq!(fast.text, source);
+            assert!(matches!(fast.text, Cow::Borrowed(_)));
+            let slow = source.replace("inside", "ifndef::missing[]\ninside\nendif::[]");
+            let result = Preprocessor::process(&slow, &Options::default(), Rc::default())?;
+            assert_eq!(result.text, source);
+        }
+        for first in [".", "..", ": code", "+", " +"] {
+            let source = format!("[source]\n{first}\n// visible");
+            let result = Preprocessor::process(&source, &Options::default(), Rc::default())?;
+            assert_eq!(result.text, source);
+        }
+        let source = ":kind: source\n\n[{kind}]\ncode\n// visible";
+        let result = Preprocessor::process(source, &Options::default(), Rc::default())?;
+        assert_eq!(result.text, source);
+        assert!(matches!(result.text, Cow::Borrowed(_)));
+        assert!(result.source_ranges.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn styled_paragraph_comments_respect_metadata_and_boundaries() -> Result<(), Error> {
+        for metadata in [
+            "[source,text]",
+            "[listing.role#id%nowrap]",
+            "[style=literal]",
+            "[\"verse\"]\n[#id]\n.Title",
+            ":kind: source\n[{kind}]",
+        ] {
+            for (prefix, boundary) in [
+                ("", "\n"),
+                ("", "+"),
+                ("====\n", "===="),
+                ("--\n", "--"),
+                ("****\n", "****"),
+            ] {
+                let source = format!(
+                    "{prefix}{metadata}\n// leading\ncode\n// visible\n{boundary}\nordinary\n// hidden\nafter"
+                );
+                let result = Preprocessor::process(&source, &Options::default(), Rc::default())?;
+                assert_eq!(
+                    result.text,
+                    source
+                        .replace("// leading\n", "")
+                        .replace("// hidden\n", ""),
+                    "{source}"
+                );
+            }
+        }
+        for prefix in [
+            "[source]\n[quote]",
+            "[source]\n== Section",
+            "[source]\n\n[normal]",
+        ] {
+            let source = format!("{prefix}\nordinary\n// hidden\nafter");
+            let result = Preprocessor::process(&source, &Options::default(), Rc::default())?;
+            assert_eq!(result.text, source.replace("// hidden\n", ""));
+        }
+        Ok(())
+    }
+
+    #[test]
+    #[cfg(feature = "setext")]
+    fn styled_paragraph_comments_respect_setext_headings() -> Result<(), Error> {
+        let options = Options::builder().with_setext().build()?;
+        for title in ["= Title", "Title\n====="] {
+            let source =
+                format!("{title}\n\n[source]\nHeading\n-------\nordinary\n// hidden\ntail");
+            let result = Preprocessor::process(&source, &options, Rc::default())?;
+            assert_eq!(result.text, source.replace("// hidden\n", ""));
+            let result = Preprocessor::process(&source, &Options::default(), Rc::default())?;
+            assert_eq!(result.text, source);
+        }
+        for source in [
+            "[source]\nfirst\nHeading\n-------\n// visible",
+            "[source]\n+\ncode\n// visible",
+        ] {
+            let result = Preprocessor::process(source, &options, Rc::default())?;
+            assert_eq!(result.text, source);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn styled_paragraph_comments_cross_selected_and_nested_includes() -> Result<(), Error> {
+        let options = Options::builder()
+            .with_base_dir(Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/tests"))
+            .build()?;
+        let source = include_str!("../../fixtures/tests/styled_paragraph_comment_includes.adoc");
+        let result = Preprocessor::process(source, &options, Rc::default())?;
+        for visible in [
+            "// I02", "// I04", "// I05", "// I07", "// I09", "// I14", "// I16", "// I18",
+        ] {
+            assert!(
+                result.text.contains(visible),
+                "missing {visible}: {}",
+                result.text
+            );
+        }
+        assert!(!result.text.contains("HIDDEN"), "{}", result.text);
+        assert_eq!(result.text.matches("// I02").count(), 2);
+        assert_eq!(result.text.matches("// I04").count(), 3);
+        Ok(())
+    }
+
+    #[test]
+    fn styled_paragraph_comments_follow_emitted_conditional_content() -> Result<(), Error> {
+        for middle in [
+            "ifdef::missing[]\n\n[quote]\n////\nendif::[]",
+            "ifndef::missing[code]",
+        ] {
+            let source = format!("[source]\ncode\n{middle}\n// visible");
+            let result = Preprocessor::process(&source, &Options::default(), Rc::default())?;
+            assert!(result.text.ends_with("// visible"), "{}", result.text);
+        }
+        let source = "[source]\nifndef::missing[code]\n// visible\n\nordinary\n// hidden";
+        let result = Preprocessor::process(source, &Options::default(), Rc::default())?;
+        assert_eq!(result.text, "[source]\ncode\n// visible\n\nordinary");
         Ok(())
     }
 

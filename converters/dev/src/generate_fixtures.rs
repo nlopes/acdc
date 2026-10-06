@@ -98,7 +98,8 @@ impl FixtureGenerator {
     /// Discover subdirectory names under the source fixture directory.
     ///
     /// Returns sorted directory names found directly inside the source
-    /// directory (e.g., `["embedded"]` or `["html", "html5s"]`).
+    /// directory (e.g., `["embedded"]` or `["html", "html5s"]`). The `includes`
+    /// directory is reserved for supporting inputs and is excluded.
     ///
     /// # Errors
     ///
@@ -131,8 +132,8 @@ impl FixtureGenerator {
     ///
     /// Scans the source directory for `.adoc` files and generates expected
     /// outputs in the corresponding expected directory. Also discovers and
-    /// processes any subdirectories, passing the subdirectory name to the
-    /// conversion function (`None` for top-level files).
+    /// processes subdirectories other than `includes`, passing the subdirectory
+    /// name to the conversion function (`None` for top-level files).
     ///
     /// # Errors
     ///
@@ -266,13 +267,14 @@ impl FixtureGenerator {
     }
 }
 
-/// Return sorted directory names found directly inside `dir`.
+/// Return sorted fixture directory names, excluding supporting include inputs.
 fn sorted_subdirs(dir: &Path) -> Result<Vec<String>, Box<dyn Error>> {
     let mut names: Vec<_> = dir
         .read_dir()?
         .filter_map(Result::ok)
         .filter(|e| e.path().is_dir())
         .filter_map(|e| e.file_name().into_string().ok())
+        .filter(|name| name != "includes")
         .collect();
     names.sort();
     Ok(names)

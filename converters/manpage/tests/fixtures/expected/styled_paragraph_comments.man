@@ -1,0 +1,156 @@
+'\" t
+.\"     Title: paragraph-comments
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-06
+.\"    Manual: Parser checks
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "PARAGRAPH\-COMMENTS" "1" "2026-10-06" "acdc" "Parser checks"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+paragraph\-comments \- preserve code comments
+.SH "SYNOPSIS"
+.sp
+.if n .RS 4
+.nf
+.fam C
+C01 start
+// C02 source comment
+// C03 second comment \fB(1)\fP
+C04 end
+.fam
+.fi
+.if n .RE
+.RS 0
+.IP \fB(1)\fP 4
+Callout inside a comment.
+.RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+C05 start
+////
+C06 enabled
+////
+// C07 after slash delimiters
+.fam
+.fi
+.if n .RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+C08 start
+// C09 literal comment
+.fam
+.fi
+.if n .RE
+.sp
+.nf
+C10 \fBbold\fR
+// C11 verse comment
+.fi
+.sp
+.if n .RS 4
+.nf
+.fam C
+C12 start after leading comment
+// C13 visible after content
+.fam
+.fi
+.if n .RE
+.sp
+C14 ordinary
+C15 ordinary tail
+.sp
+.if n .RS 4
+.nf
+.fam C
+C16 before continuation
+.fam
+.fi
+.if n .RE
+.sp
++
+C17 after continuation
+.RS 4
+.sp
+.if n .RS 4
+.nf
+.fam C
+C18 inside example
+// C19 inside example
+.fam
+.fi
+.if n .RE
+.RE
+.sp
+C20 after example
+.sp
+.if n .RS 4
+.nf
+.fam C
+C21 attribute style
+// C22 attribute style comment
+.fam
+.fi
+.if n .RE
+.RS 3
+.ll -.6i
+.sp
+C23 overridden style
+.br
+.RE
+.ll
+.RS 5
+.ll -.10i
+\(em text
+.RE
+.ll
+.TS
+allbox tab(:);
+ltx.
+T{
+.sp
+.if n .RS 4
+.nf
+.fam C
+C24 cell start
+C25 cell end
+.fam
+.fi
+.if n .RE
+
+T}
+.TE
+.sp
+.if n .RS 4
+.nf
+.fam C
+C26 before false conditional
+// C27 after false conditional
+C28 end
+.fam
+.fi
+.if n .RE

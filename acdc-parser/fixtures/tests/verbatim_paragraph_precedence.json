@@ -1816,7 +1816,7 @@
             {
               "name": "text",
               "type": "string",
-              "value": "\n----\n[[apparent-id]]\n[.apparent-role]\n== Apparent heading\nimage::missing.png[]\n----\nP17 closing ",
+              "value": "\n----\n[[apparent-id]]\n[.apparent-role]\n== Apparent heading\nimage::missing.png[]\n----\n// Apparent comment\nP17 closing ",
               "location": [
                 {
                   "line": 87,
@@ -1877,11 +1877,11 @@
                 "number": 1,
                 "location": [
                   {
-                    "line": 96,
+                    "line": 97,
                     "col": 1
                   },
                   {
-                    "line": 96,
+                    "line": 97,
                     "col": 60
                   }
                 ]
@@ -1924,11 +1924,11 @@
                 "number": 2,
                 "location": [
                   {
-                    "line": 97,
+                    "line": 98,
                     "col": 1
                   },
                   {
-                    "line": 97,
+                    "line": 98,
                     "col": 48
                   }
                 ]
@@ -2097,11 +2097,11 @@
                         "number": 1,
                         "location": [
                           {
-                            "line": 106,
+                            "line": 107,
                             "col": 1
                           },
                           {
-                            "line": 106,
+                            "line": 107,
                             "col": 34
                           }
                         ]
@@ -2286,11 +2286,11 @@
                 "number": 1,
                 "location": [
                   {
-                    "line": 116,
+                    "line": 117,
                     "col": 1
                   },
                   {
-                    "line": 116,
+                    "line": 117,
                     "col": 44
                   }
                 ]
@@ -2333,11 +2333,11 @@
                 "number": 2,
                 "location": [
                   {
-                    "line": 117,
+                    "line": 118,
                     "col": 1
                   },
                   {
-                    "line": 117,
+                    "line": 118,
                     "col": 44
                   }
                 ]

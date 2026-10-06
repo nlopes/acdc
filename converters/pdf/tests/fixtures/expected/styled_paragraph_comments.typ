@@ -1,7 +1,7 @@
 #set document(
-  title: "paragraph-precedence(1)",
+  title: "paragraph-comments(1)",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[paragraph-precedence(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[paragraph-comments(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -74,106 +74,56 @@
 #set page(numbering: "1")
 #counter(page).update(1)
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("paragraph-precedence(1)")]
+#text(size: 22pt, weight: "bold")[#text("paragraph-comments(1)")]
 ]
 #v(1em)
 
 #heading(level: 1)[#text("Name")] <id-5f6e616d65>
 
-#text("paragraph-precedence - retain explicit verbatim paragraphs")
+#text("paragraph-comments - preserve code comments")
 
 #heading(level: 1)[#text("Synopsis")] <id-5f73796e6f70736973>
 
-#raw(block: true, "P01 code (1)")
+#raw(block: true, "C01 start\n// C02 source comment\n// C03 second comment (1)\nC04 end")
 
 #grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
-[#text("(1)")], [#text("Source marker.")],
+[#text("(1)")], [#text("Callout inside a comment.")],
 )
 
-#raw(block: true, "P02 code:: (1)")
+#raw(block: true, "C05 start\n////\nC06 enabled\n////\n// C07 after slash delimiters")
 
-#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
-[#text("(1)")], [#text("Listing marker.")],
-)
+#raw(block: true, "C08 start\n// C09 literal comment")
 
-#raw(block: true, "P03 code::: (1)")
+#verse[#text("C10 ")#strong[#text("bold")]#text("\n// C11 verse comment")]
 
-#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
-[#text("(1)")], [#text("Literal marker.")],
-)
+#raw(block: true, "C12 start after leading comment\n// C13 visible after content")
 
-#raw(block: true, "P04 first line (1)\nP05 continuation (2)\nP06 following line (3)")
+#text("C14 ordinary C15 ordinary tail")
 
-#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
-[#text("(1)")], [#text("First line.")],
-[#text("(2)")], [#text("Continuation.")],
-[#text("(3)")], [#text("Following line.")],
-)
+#raw(block: true, "C16 before continuation")
 
-#raw(block: true, "* P07 bullet (1)\n. P08 ordered (2)\nP09 term:::: (3)")
+#text("+ C17 after continuation")
 
-#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
-[#text("(1)")], [#text("Bullet stays code.")],
-[#text("(2)")], [#text("Number stays code.")],
-[#text("(3)")], [#text("Term stays code.")],
-)
+#examplebox[
+#raw(block: true, "C18 inside example\n// C19 inside example")
 
-#raw(block: true, "NOTE: P10 admonition (1)")
-
-#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
-[#text("(1)")], [#text("Admonition stays code.")],
-)
-
-#raw(block: true, "P11 before (1)\n* P12 bullet (2)\nP13 after (3)")
-
-#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
-[#text("(1)")], [#text("Before list-looking text.")],
-[#text("(2)")], [#text("Bullet within source paragraph.")],
-[#text("(3)")], [#text("After list-looking text.")],
-)
-
-  - #block(width: 100%)[#text("Parent.")
-
-#raw(block: true, "P14 attached (1)")
-
-#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
-[#text("(1)")], [#text("Attached source paragraph.")],
-)
-
-  ]
-
-#block(width: 100%, above: 0pt, below: 0.5em)[
-#text(weight: "bold")[#text("P15 ordinary")]
-#block(above: 0pt, below: 0pt, inset: (left: 1.5em))[#text("Still a description list.")]
 ]
 
-#raw(block: true, "P16 opening (1)\n----\n[[apparent-id]]\n[.apparent-role]\n== Apparent heading\nimage::missing.png[]\n----\n// Apparent comment\nP17 closing (2)")
+#text("C20 after example")
 
-#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
-[#text("(1)")], [#text("Paragraph content starts before the apparent delimiters.")],
-[#text("(2)")], [#text("Content stays together until the blank line.")],
-)
+#metadata(none) <id-636f6465>
+#raw(block: true, "C21 attribute style\n// C22 attribute style comment")
 
-#block(width: 100%, above: 0pt, below: 0.5em)[
-#text(weight: "bold")[#text("Term")]
-#block(above: 0pt, below: 0pt, inset: (left: 1.5em))[#text("Parent description.")
-
-#raw(block: true, "P18 attached to description (1)")
-
-#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
-[#text("(1)")], [#text("Description-list continuation.")],
-)
+#blockquote[
+#text("C23 overridden style")
+#text(style: "normal")[
+#attribution[#text("text")]
 
 ]
 ]
 
-#raw(block: true, "P19 real delimited source (1)\n\nP20 real delimited source after blank (2)")
+#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#raw(block: true, "C24 cell start\nC25 cell end")
 
-#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
-[#text("(1)")], [#text("Opening delimiter still selects a block.")],
-[#text("(2)")], [#text("A delimited block keeps its blank lines.")],
-)
+])
 
-#verse[#text("  P21 verse:: ")#strong[#text("Bold")]#text("\n  * P22 line, not a list.\n  NOTE: P23 ordinary verse text.")]
-
-#text("After the verse.")
+#raw(block: true, "C26 before false conditional\n// C27 after false conditional\nC28 end")

@@ -51,6 +51,10 @@ pub(crate) fn parse_line(options: &mut Options<'_>, line: &str) -> Result<(), Er
     Ok(())
 }
 
+pub(super) fn is_declaration(line: &str) -> bool {
+    line.starts_with(':') && attribute_parser::document_attribute(line).is_ok()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

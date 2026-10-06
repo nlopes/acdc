@@ -1,0 +1,3 @@
+:included-kind: source
+[{included-kind},text]
+I13 included opening

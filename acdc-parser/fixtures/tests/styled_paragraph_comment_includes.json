@@ -1,0 +1,472 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "comment-includes(1)",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 21
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 5,
+        "col": 16
+      }
+    ]
+  },
+  "attributes": {
+    "doctype": "manpage",
+    "manmanual": "Parser checks",
+    "manname": "comment-includes",
+    "manname-title": "Name",
+    "manpurpose": "retain comment ownership across includes",
+    "mansource": "acdc",
+    "mantitle": "comment-includes",
+    "manvolnum": "1",
+    "revdate": "2026-10-06"
+  },
+  "blocks": [
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Name",
+          "location": [
+            {
+              "line": 7,
+              "col": 4
+            },
+            {
+              "line": 7,
+              "col": 7
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "comment-includes - retain comment ownership across includes",
+              "location": [
+                {
+                  "line": 8,
+                  "col": 1
+                },
+                {
+                  "line": 8,
+                  "col": 59
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 8,
+              "col": 1
+            },
+            {
+              "line": 8,
+              "col": 59
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 8,
+          "col": 59
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Synopsis",
+          "location": [
+            {
+              "line": 10,
+              "col": 4
+            },
+            {
+              "line": 10,
+              "col": 11
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "I01 parent before include\n// I02 included first comment\nI03 included body\n// I04 included last comment\n// I05 parent after include",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 1
+                },
+                {
+                  "line": 15,
+                  "col": 27
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "attributes": {
+              "language": "text"
+            },
+            "style": "source"
+          },
+          "location": [
+            {
+              "line": 12,
+              "col": 1
+            },
+            {
+              "line": 15,
+              "col": 27
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "I06 before selected include\nI03 included body\n// I04 included last comment\n// I07 after selected include",
+              "location": [
+                {
+                  "line": 18,
+                  "col": 1
+                },
+                {
+                  "line": 20,
+                  "col": 29
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "style": "listing"
+          },
+          "location": [
+            {
+              "line": 17,
+              "col": 1
+            },
+            {
+              "line": 20,
+              "col": 29
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "I08 before boundary include\n// I09 included code comment",
+              "location": [
+                {
+                  "line": 23,
+                  "col": 1
+                },
+                {
+                  "line": 23,
+                  "col": 28,
+                  "file": [
+                    "includes/styled_comment_boundary.adoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "style": "literal"
+          },
+          "location": [
+            {
+              "line": 22,
+              "col": 1
+            },
+            {
+              "line": 22,
+              "col": 28,
+              "file": [
+                "includes/styled_comment_boundary.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "I10 ordinary included paragraph\nI11 ordinary included tail\nI12 ordinary after include",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 1,
+                  "file": [
+                    "includes/styled_comment_boundary.adoc"
+                  ]
+                },
+                {
+                  "line": 26,
+                  "col": 26
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 3,
+              "col": 1,
+              "file": [
+                "includes/styled_comment_boundary.adoc"
+              ]
+            },
+            {
+              "line": 26,
+              "col": 26
+            }
+          ]
+        },
+        {
+          "name": "included-kind",
+          "type": "attribute",
+          "value": "source",
+          "location": [
+            {
+              "line": 1,
+              "col": 1,
+              "file": [
+                "includes/styled_comment_open.adoc"
+              ]
+            },
+            {
+              "line": 1,
+              "col": 22,
+              "file": [
+                "includes/styled_comment_open.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "I13 included opening\n// I14 parent after included style",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 1,
+                  "file": [
+                    "includes/styled_comment_open.adoc"
+                  ]
+                },
+                {
+                  "line": 29,
+                  "col": 34
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "attributes": {
+              "language": "text"
+            },
+            "style": "source"
+          },
+          "location": [
+            {
+              "line": 2,
+              "col": 1,
+              "file": [
+                "includes/styled_comment_open.adoc"
+              ]
+            },
+            {
+              "line": 29,
+              "col": 34
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "I15 before included metadata\n:included-kind: source\n[{included-kind},text]\nI13 included opening\n// I16 still in parent code",
+              "location": [
+                {
+                  "line": 32,
+                  "col": 1
+                },
+                {
+                  "line": 34,
+                  "col": 27
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "attributes": {
+              "language": "text"
+            },
+            "style": "source"
+          },
+          "location": [
+            {
+              "line": 31,
+              "col": 1
+            },
+            {
+              "line": 34,
+              "col": 27
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "I17 before nested include\n// I02 included first comment\nI03 included body\n// I04 included last comment\n// I18 after nested include",
+              "location": [
+                {
+                  "line": 37,
+                  "col": 1
+                },
+                {
+                  "line": 39,
+                  "col": 27
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "attributes": {
+              "language": "text"
+            },
+            "style": "source"
+          },
+          "location": [
+            {
+              "line": 36,
+              "col": 1
+            },
+            {
+              "line": 39,
+              "col": 27
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "I19 ordinary end",
+              "location": [
+                {
+                  "line": 41,
+                  "col": 1
+                },
+                {
+                  "line": 41,
+                  "col": 16
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 41,
+              "col": 1
+            },
+            {
+              "line": 41,
+              "col": 16
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 10,
+          "col": 1
+        },
+        {
+          "line": 41,
+          "col": 16
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 41,
+      "col": 16
+    }
+  ]
+}

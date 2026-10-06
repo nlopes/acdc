@@ -49,6 +49,7 @@ Shared utilities in `core/`:
 
 ## Test placement
 
+- Put supporting include inputs in an `includes/` folder beside the source fixtures, using `.adoc`. Fixture discovery and generation exclude that folder; test documents include the inputs using relative paths.
 - Use source and expected-output fixtures for rendered HTML, text, Typst, and other snapshot-like converter output.
 - Use integration tests for properties that snapshots cannot prove, including structured diagnostics, PDF annotations, PDF objects and metadata, warnings, and end-to-end behavior.
 

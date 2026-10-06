@@ -1,0 +1,42 @@
+= comment-includes(1)
+:doctype: manpage
+:revdate: 2026-10-06
+:manmanual: Parser checks
+:mansource: acdc
+
+== Name
+comment-includes - retain comment ownership across includes
+
+== Synopsis
+
+[source,text]
+I01 parent before include
+include::includes/styled_comment_part.adoc[]
+// I05 parent after include
+
+[listing]
+I06 before selected include
+include::includes/styled_comment_part.adoc[lines=2..3]
+// I07 after selected include
+
+[literal]
+I08 before boundary include
+include::includes/styled_comment_boundary.adoc[]
+// HIDDEN parent ordinary comment
+I12 ordinary after include
+
+include::includes/styled_comment_open.adoc[]
+// I14 parent after included style
+
+[source,text]
+I15 before included metadata
+include::includes/styled_comment_open.adoc[]
+// I16 still in parent code
+
+[source,text]
+I17 before nested include
+include::includes/styled_comment_nested.adoc[]
+// I18 after nested include
+
+I19 ordinary end
+// HIDDEN final comment

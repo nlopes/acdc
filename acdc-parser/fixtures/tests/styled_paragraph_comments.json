@@ -1,0 +1,887 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "paragraph-comments(1)",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 23
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 7,
+        "col": 13
+      }
+    ]
+  },
+  "attributes": {
+    "doctype": "manpage",
+    "enabled": true,
+    "kind": "source",
+    "manmanual": "Parser checks",
+    "manname": "paragraph-comments",
+    "manname-title": "Name",
+    "manpurpose": "preserve code comments",
+    "mansource": "acdc",
+    "mantitle": "paragraph-comments",
+    "manvolnum": "1",
+    "revdate": "2026-10-06"
+  },
+  "blocks": [
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Name",
+          "location": [
+            {
+              "line": 9,
+              "col": 4
+            },
+            {
+              "line": 9,
+              "col": 7
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "paragraph-comments - preserve code comments",
+              "location": [
+                {
+                  "line": 10,
+                  "col": 1
+                },
+                {
+                  "line": 10,
+                  "col": 43
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 10,
+              "col": 1
+            },
+            {
+              "line": 10,
+              "col": 43
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 9,
+          "col": 1
+        },
+        {
+          "line": 10,
+          "col": 43
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Synopsis",
+          "location": [
+            {
+              "line": 12,
+              "col": 4
+            },
+            {
+              "line": 12,
+              "col": 11
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "C01 start\n// C02 source comment\n// C03 second comment ",
+              "location": [
+                {
+                  "line": 15,
+                  "col": 1
+                },
+                {
+                  "line": 17,
+                  "col": 22
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "explicit",
+              "number": 1,
+              "location": [
+                {
+                  "line": 17,
+                  "col": 23
+                },
+                {
+                  "line": 17,
+                  "col": 25
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "\nC04 end",
+              "location": [
+                {
+                  "line": 17,
+                  "col": 26
+                },
+                {
+                  "line": 18,
+                  "col": 7
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "attributes": {
+              "language": "text"
+            },
+            "style": "source"
+          },
+          "location": [
+            {
+              "line": 14,
+              "col": 1
+            },
+            {
+              "line": 18,
+              "col": 7
+            }
+          ]
+        },
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "callout",
+          "items": [
+            {
+              "name": "listItem",
+              "type": "block",
+              "callout": {
+                "name": "callout_reference",
+                "type": "inline",
+                "variant": "explicit",
+                "number": 1,
+                "location": [
+                  {
+                    "line": 20,
+                    "col": 1
+                  },
+                  {
+                    "line": 20,
+                    "col": 29
+                  }
+                ]
+              },
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Callout inside a comment.",
+                  "location": [
+                    {
+                      "line": 20,
+                      "col": 5
+                    },
+                    {
+                      "line": 20,
+                      "col": 29
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 20,
+                  "col": 1
+                },
+                {
+                  "line": 20,
+                  "col": 29
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 20,
+              "col": 1
+            },
+            {
+              "line": 20,
+              "col": 29
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "C05 start\n////\nC06 enabled\n////\n// C07 after slash delimiters",
+              "location": [
+                {
+                  "line": 23,
+                  "col": 1
+                },
+                {
+                  "line": 29,
+                  "col": 29
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "style": "listing"
+          },
+          "location": [
+            {
+              "line": 22,
+              "col": 1
+            },
+            {
+              "line": 29,
+              "col": 29
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "C08 start\n// C09 literal comment",
+              "location": [
+                {
+                  "line": 32,
+                  "col": 1
+                },
+                {
+                  "line": 33,
+                  "col": 22
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "style": "literal"
+          },
+          "location": [
+            {
+              "line": 31,
+              "col": 1
+            },
+            {
+              "line": 33,
+              "col": 22
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "C10 ",
+              "location": [
+                {
+                  "line": 36,
+                  "col": 1
+                },
+                {
+                  "line": 36,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "bold",
+                  "location": [
+                    {
+                      "line": 36,
+                      "col": 6
+                    },
+                    {
+                      "line": 36,
+                      "col": 9
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 36,
+                  "col": 5
+                },
+                {
+                  "line": 36,
+                  "col": 10
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "\n// C11 verse comment",
+              "location": [
+                {
+                  "line": 36,
+                  "col": 11
+                },
+                {
+                  "line": 37,
+                  "col": 20
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "style": "verse"
+          },
+          "location": [
+            {
+              "line": 35,
+              "col": 1
+            },
+            {
+              "line": 37,
+              "col": 20
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "C12 start after leading comment\n// C13 visible after content",
+              "location": [
+                {
+                  "line": 41,
+                  "col": 1
+                },
+                {
+                  "line": 42,
+                  "col": 28
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "attributes": {
+              "language": "text"
+            },
+            "style": "source"
+          },
+          "location": [
+            {
+              "line": 39,
+              "col": 1
+            },
+            {
+              "line": 42,
+              "col": 28
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "C14 ordinary\nC15 ordinary tail",
+              "location": [
+                {
+                  "line": 44,
+                  "col": 1
+                },
+                {
+                  "line": 46,
+                  "col": 17
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 44,
+              "col": 1
+            },
+            {
+              "line": 46,
+              "col": 17
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "C16 before continuation",
+              "location": [
+                {
+                  "line": 49,
+                  "col": 1
+                },
+                {
+                  "line": 49,
+                  "col": 23
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "attributes": {
+              "language": "text"
+            },
+            "style": "source"
+          },
+          "location": [
+            {
+              "line": 48,
+              "col": 1
+            },
+            {
+              "line": 49,
+              "col": 23
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "+\nC17 after continuation",
+              "location": [
+                {
+                  "line": 50,
+                  "col": 1
+                },
+                {
+                  "line": 51,
+                  "col": 22
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 50,
+              "col": 1
+            },
+            {
+              "line": 51,
+              "col": 22
+            }
+          ]
+        },
+        {
+          "name": "example",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "====",
+          "blocks": [
+            {
+              "name": "paragraph",
+              "type": "block",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "C18 inside example\n// C19 inside example",
+                  "location": [
+                    {
+                      "line": 56,
+                      "col": 1
+                    },
+                    {
+                      "line": 57,
+                      "col": 21
+                    }
+                  ]
+                }
+              ],
+              "metadata": {
+                "attributes": {
+                  "language": "text"
+                },
+                "style": "source"
+              },
+              "location": [
+                {
+                  "line": 55,
+                  "col": 1
+                },
+                {
+                  "line": 57,
+                  "col": 21
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 54,
+              "col": 1
+            },
+            {
+              "line": 58,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "C20 after example",
+              "location": [
+                {
+                  "line": 59,
+                  "col": 1
+                },
+                {
+                  "line": 59,
+                  "col": 17
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 59,
+              "col": 1
+            },
+            {
+              "line": 59,
+              "col": 17
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "C21 attribute style\n// C22 attribute style comment",
+              "location": [
+                {
+                  "line": 63,
+                  "col": 1
+                },
+                {
+                  "line": 64,
+                  "col": 30
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "roles": [
+              "role"
+            ],
+            "style": "source",
+            "id": {
+              "id": "code",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 0
+                },
+                {
+                  "line": 1,
+                  "col": 0
+                }
+              ]
+            }
+          },
+          "location": [
+            {
+              "line": 62,
+              "col": 1
+            },
+            {
+              "line": 64,
+              "col": 30
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "C23 overridden style",
+              "location": [
+                {
+                  "line": 68,
+                  "col": 1
+                },
+                {
+                  "line": 68,
+                  "col": 20
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "style": "quote",
+            "attribution": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "text",
+                "location": [
+                  {
+                    "line": 66,
+                    "col": 9
+                  },
+                  {
+                    "line": 66,
+                    "col": 13
+                  }
+                ]
+              }
+            ]
+          },
+          "location": [
+            {
+              "line": 66,
+              "col": 1
+            },
+            {
+              "line": 68,
+              "col": 20
+            }
+          ]
+        },
+        {
+          "name": "table",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "|===",
+          "metadata": {
+            "attributes": {
+              "cols": "a"
+            }
+          },
+          "content": {
+            "header": null,
+            "footer": null,
+            "rows": [
+              {
+                "columns": [
+                  {
+                    "content": [
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "C24 cell start\nC25 cell end",
+                            "location": [
+                              {
+                                "line": 75,
+                                "col": 1
+                              },
+                              {
+                                "line": 77,
+                                "col": 12
+                              }
+                            ]
+                          }
+                        ],
+                        "metadata": {
+                          "attributes": {
+                            "language": "text"
+                          },
+                          "style": "source"
+                        },
+                        "location": [
+                          {
+                            "line": 74,
+                            "col": 1
+                          },
+                          {
+                            "line": 77,
+                            "col": 12
+                          }
+                        ]
+                      }
+                    ],
+                    "style": "asciidoc"
+                  }
+                ]
+              }
+            ],
+            "columns": [
+              {
+                "style": "asciidoc"
+              }
+            ],
+            "location": [
+              {
+                "line": 72,
+                "col": 1
+              },
+              {
+                "line": 78,
+                "col": 4
+              }
+            ]
+          },
+          "location": [
+            {
+              "line": 71,
+              "col": 1
+            },
+            {
+              "line": 78,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "C26 before false conditional\n// C27 after false conditional\nC28 end",
+              "location": [
+                {
+                  "line": 81,
+                  "col": 1
+                },
+                {
+                  "line": 88,
+                  "col": 7
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "attributes": {
+              "language": "text"
+            },
+            "style": "source"
+          },
+          "location": [
+            {
+              "line": 80,
+              "col": 1
+            },
+            {
+              "line": 88,
+              "col": 7
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 12,
+          "col": 1
+        },
+        {
+          "line": 88,
+          "col": 7
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 88,
+      "col": 7
+    }
+  ]
+}
