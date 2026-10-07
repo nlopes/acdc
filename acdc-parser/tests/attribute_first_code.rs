@@ -3,10 +3,33 @@ use acdc_parser::{Block, InlineNode, Options, parse};
 type Error = Box<dyn std::error::Error>;
 
 #[test]
+fn prepend_modifiers_register_attribute_macros_once() -> Result<(), Error> {
+    for subs in [
+        "attributes+",
+        "attributes+,attributes+",
+        "normal+,attributes+",
+    ] {
+        let source = format!(
+            ":value: anchor:target[]footnote:[Only note.]\n\n[subs=\"{subs}\"]\n{{value}}\n"
+        );
+        let parsed = parse(&source, &Options::default())?;
+        assert_eq!(parsed.document().footnotes.len(), 1, "{subs}");
+        assert_eq!(parsed.document().references.len(), 1, "{subs}");
+        assert!(
+            parsed.document().references.contains_key("target"),
+            "{subs}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
 fn attribute_first_code_checks_expanded_content_and_keeps_default_order() -> Result<(), Error> {
     for subs in [
         "attributes,quotes",
         "quotes,attributes",
+        "attributes+",
+        "+attributes",
         "-attributes,attributes+",
         "normal",
     ] {
@@ -31,7 +54,10 @@ fn attribute_first_code_checks_expanded_content_and_keeps_default_order() -> Res
                     .iter()
                     .find(|node| matches!(node, InlineNode::MonospaceText(_)));
                 let attributes_first = cfg!(feature = "pre-spec-subs")
-                    && matches!(subs, "attributes,quotes" | "-attributes,attributes+");
+                    && matches!(
+                        subs,
+                        "attributes,quotes" | "attributes+" | "-attributes,attributes+"
+                    );
                 assert_eq!(code.is_none(), attributes_first, "{source:?}");
                 if let Some(code) = code {
                     let span = code.location();

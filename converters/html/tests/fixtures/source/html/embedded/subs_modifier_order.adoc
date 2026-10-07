@@ -1,0 +1,82 @@
+= Modifier order(1)
+:doctype: manpage
+:manmanual: Test Manual
+:mansource: acdc
+:revdate: 2026-10-07
+:value: *bold*
+:empty:
+:link: link:https://example.org[Link]
+
+== Name
+
+modifier-order - incremental substitution order
+
+== Description
+
+[subs="attributes+"]
+S01 {value}.
+
+[subs="+attributes"]
+S02 {value}.
+
+[subs="-attributes,+attributes"]
+S03 {value}.
+
+[subs="attributes+"]
+S04 `{empty}`.
+
+[subs="attributes+"]
+S05 *bold{sp}*.
+
+[subs="attributes+,normal+"]
+S06 `{empty}`.
+
+[subs="normal+,attributes+"]
+S07 {value}.
+
+[subs="attributes+,attributes+"]
+S08 {value}.
+
+[subs="attributes+,quotes+"]
+S09 *source* {value}.
+
+[subs="quotes+,attributes+"]
+S10 *source* {value}.
+
+[subs="attributes+,verbatim+"]
+S11 {value}.
+
+[source,text,subs="normal+"]
+----
+S12 {value}.
+----
+
+[source,text,subs="normal+,attributes+"]
+----
+S13 {value}.
+----
+
+[source,text,subs="+normal"]
+----
+S14 {value}.
+----
+
+[subs="attributes+"]
+S15 {link}.
+
+[subs="macros+,attributes+"]
+S16 {link}.
+
+[subs="attributes+,macros+"]
+S17 {link}.
+
+[source,text,subs="attributes+,+quotes"]
+----
+S18 `{empty}` *café{sp}*.
+----
+
+[subs="attributes+,-attributes"]
+S19 {value}.
+
+[subs="-quotes,attributes+"]
+S20 {value}.

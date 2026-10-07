@@ -57,6 +57,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Prepend substitution modifiers such as `subs="attributes+"` move an existing
+  stage to the front, matching Asciidoctor. Groups retain their member order,
+  repeated prepends do not duplicate stages, and successive modifiers apply
+  left to right. Append modifiers still keep enabled stages in place. acdc
+  retains structured formatting and links when later escaping would expose
+  generated markup in Asciidoctor, under its existing parser/converter policy.
+
 - Anchors, hard line breaks and standalone apostrophes inside formatted text
   report their correct source spans, including nested formatting, attribute
   expansion and included files. Reference catalogs and duplicate-ID diagnostics

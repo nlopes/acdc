@@ -517,15 +517,13 @@ pub(crate) fn append_substitution(result: &mut Vec<Substitution>, sub: &Substitu
     append_expanded_substitution(result, sub, GroupContext::Block);
 }
 
-/// Prepend a substitution (or group) to the beginning of the list.
+/// Move a substitution (or group) to the beginning, preserving group order.
 #[cfg(feature = "pre-spec-subs")]
 pub(crate) fn prepend_substitution(result: &mut Vec<Substitution>, sub: &Substitution) {
-    // Insert in reverse order at position 0 to maintain group order
-    for s in substitution_members(sub, GroupContext::Block).iter().rev() {
-        if !result.contains(s) {
-            result.insert(0, s.clone());
-        }
-    }
+    // The prepended occurrence wins, including members already enabled by the baseline.
+    remove_substitution(result, sub);
+    let members = substitution_members(sub, GroupContext::Block);
+    result.splice(0..0, members.iter().cloned());
 }
 
 /// Remove a substitution (or group) from the list.
@@ -789,6 +787,104 @@ mod tests {
         assert_eq!(resolved.first(), Some(&Substitution::Quotes));
         assert!(resolved.contains(&Substitution::SpecialChars));
         assert!(resolved.contains(&Substitution::Callouts));
+    }
+
+    #[test]
+    fn prepend_modifiers_move_existing_stages_and_preserve_group_order() {
+        for (spec, baseline, expected) in [
+            (
+                "attributes+",
+                NORMAL,
+                "attributes,special_chars,quotes,replacements,macros,post_replacements",
+            ),
+            (
+                "+attributes",
+                NORMAL,
+                "special_chars,quotes,attributes,replacements,macros,post_replacements",
+            ),
+            (
+                "attributes+,quotes+",
+                NORMAL,
+                "quotes,attributes,special_chars,replacements,macros,post_replacements",
+            ),
+            (
+                "quotes+,attributes+",
+                NORMAL,
+                "attributes,quotes,special_chars,replacements,macros,post_replacements",
+            ),
+            (
+                "attributes+,attributes+",
+                NORMAL,
+                "attributes,special_chars,quotes,replacements,macros,post_replacements",
+            ),
+            (
+                "attributes+,normal+",
+                NORMAL,
+                "special_chars,quotes,attributes,replacements,macros,post_replacements",
+            ),
+            (
+                "normal+,attributes+",
+                NORMAL,
+                "attributes,special_chars,quotes,replacements,macros,post_replacements",
+            ),
+            (
+                "verbatim+",
+                NORMAL,
+                "special_chars,callouts,quotes,attributes,replacements,macros,post_replacements",
+            ),
+            (
+                "normal+",
+                VERBATIM,
+                "special_chars,quotes,attributes,replacements,macros,post_replacements,callouts",
+            ),
+            (
+                "+normal",
+                VERBATIM,
+                "special_chars,callouts,quotes,attributes,replacements,macros,post_replacements",
+            ),
+            (
+                "normal+,verbatim+,normal+",
+                VERBATIM,
+                "special_chars,quotes,attributes,replacements,macros,post_replacements,callouts",
+            ),
+            ("-normal,attributes+", NORMAL, "attributes"),
+            (
+                "attributes+,-attributes",
+                NORMAL,
+                "special_chars,quotes,replacements,macros,post_replacements",
+            ),
+            (
+                "-attributes,+attributes",
+                NORMAL,
+                "special_chars,quotes,replacements,macros,post_replacements,attributes",
+            ),
+            (
+                "normal+,-quotes,quotes+",
+                VERBATIM,
+                "quotes,special_chars,attributes,replacements,macros,post_replacements,callouts",
+            ),
+            (
+                "verbatim+,-specialchars,+specialchars",
+                NORMAL,
+                "callouts,quotes,attributes,replacements,macros,post_replacements,special_chars",
+            ),
+            (
+                "+quotes,attributes+",
+                &[] as &[Substitution],
+                "attributes,quotes",
+            ),
+        ] {
+            let actual = parse_subs_attribute(spec).resolve(baseline);
+            assert_eq!(
+                actual
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>()
+                    .join(","),
+                expected,
+                "{spec} with {baseline:?}"
+            );
+        }
     }
 
     #[test]

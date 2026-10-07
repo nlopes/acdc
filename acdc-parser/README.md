@@ -146,6 +146,12 @@ attribute, including one supplied by defaults.
 
 ## Parsing and conversion
 
+With the experimental `pre-spec-subs` feature, `subs="attributes+"` moves an
+already-enabled attribute stage to the front. Groups such as `normal+` move
+their members together in group order. Modifiers apply left to right; append
+syntax such as `+attributes` leaves an existing stage in place, matching
+Asciidoctor. Use `-attributes,+attributes` to move it to the end.
+
 acdc follows [SDR-5's separation of parsing and conversion](https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/sdrs/sdr-005-formal-grammar-for-inline-syntax.adoc).
 The parser expands source references and constructs inline nodes. Converters
 produce output markup and apply the escaping required by their output format.

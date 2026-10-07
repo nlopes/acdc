@@ -287,9 +287,20 @@ literal inside the code span:
 `pass:[{word}]`
 ----
 
-The existing `attributes+` modifier does not move an already-enabled stage to
-the front, unlike Asciidoctor. Use an explicit list or
-`subs="-attributes,attributes+"` when attributes must run before quotes.
+The `attributes+` modifier moves attribute substitution to the front, including
+when it is already enabled. Groups such as `normal+` also move their members
+to the front in group order. Operations apply from left to right, so
+`subs="attributes+,quotes+"` puts quotes first, whereas
+`subs="quotes+,attributes+"` puts attributes first.
+As in Asciidoctor, `+attributes` adds a missing stage at the end but keeps an
+already-enabled stage in its current position. Use `-attributes,+attributes`
+to move an existing stage to the end.
+
+This fixes stage ordering without changing acdc's separation of parsing and
+conversion under SDR-5. If special-character escaping runs after quotes or
+macros, acdc retains their structured formatting and links. Asciidoctor may
+instead display escaped generated markup. This rendering difference remains
+separate from resolving the requested stage order.
 
 == Incomplete links
 

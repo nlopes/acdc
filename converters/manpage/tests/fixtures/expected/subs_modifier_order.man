@@ -1,0 +1,80 @@
+'\" t
+.\"     Title: Modifier order
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-07
+.\"    Manual: Test Manual
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "MODIFIER ORDER" "1" "2026-10-07" "acdc" "Test Manual"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+modifier\-order \- incremental substitution order
+.SH "DESCRIPTION"
+.sp
+S01 \fBbold\fR\&.
+.sp
+S02 *bold*.
+.sp
+S03 *bold*.
+.sp
+S04 ``.
+.sp
+S05 *bold *.
+.sp
+S06 \f(CR\fR\&.
+.sp
+S07 \fBbold\fR\&.
+.sp
+S08 \fBbold\fR\&.
+.sp
+S09 \fBsource\fR *bold*.
+.sp
+S10 \fBsource\fR \fBbold\fR\&.
+.sp
+S11 \fBbold\fR\&.
+.EX
+S12 *bold*.
+.EE
+.EX
+S13 \fBbold\fR\&.
+.EE
+.EX
+S14 *bold*.
+.EE
+.sp
+S15 \c
+.URL "https://example.org" "Link" "\fR\c"
+\&.
+.sp
+S16 \c
+.URL "https://example.org" "Link" "\fR\c"
+\&.
+.sp
+S17 link:https://example.org[Link].
+.EX
+S18 `` *café *.
+.EE
+.sp
+S19 {value}.
+.sp
+S20 *bold*.
