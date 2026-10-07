@@ -183,57 +183,12 @@ impl<'a> InlinePreprocessorParserState<'a> {
         (subs_str, content, substitutions)
     }
 
-    /// When macros are disabled, a `pass:SUBS[CONTENT]` macro is treated as literal text.
-    /// However, if its sub-spec includes attributes (`a` or `n`), we still expand
-    /// attribute references in the content — matching asciidoctor behavior.
-    fn expand_disabled_pass_macro(
-        &self,
-        full: &'a str,
-        document_attributes: &DocumentAttributes<'a>,
-    ) -> String {
-        let (subs_str, content, substitutions) = Self::parse_pass_macro_parts(full);
-
-        let has_attr_subs = substitutions
-            .iter()
-            .any(|s| matches!(s, Substitution::Attributes | Substitution::Normal));
-
-        if !has_attr_subs {
-            self.advance(full);
-            return full.into();
-        }
-
-        let expanded = inline_preprocessing::attribute_reference_substitutions(
-            content,
-            document_attributes,
-            self,
-        )
-        .unwrap_or_else(|_| content.into());
-        let reconstructed = format!("pass:{subs_str}[{expanded}]");
-
-        let absolute_start = self.get_offset();
-        self.advance(full);
-        if reconstructed.len() != full.len() {
-            self.source_map.borrow_mut().add_replacement(
-                absolute_start,
-                absolute_start + full.len(),
-                reconstructed.len(),
-                ProcessedKind::Attribute,
-            );
-        }
-        reconstructed
-    }
-
     fn expand_escaped_passthrough(
         &self,
         source: &'a str,
         document_attributes: &DocumentAttributes<'a>,
         extract_single_passthroughs: bool,
     ) -> String {
-        if !self.macros_enabled {
-            self.advance_by(source.len() + 1);
-            return format!("\\{source}");
-        }
-
         let escape_start = self.get_offset();
         let source_start = escape_start + 1;
         // Escaping `++` or `+++` skips that match, but the remaining pluses still
@@ -872,16 +827,14 @@ parser!(
                 attribute_name
             }
 
+        // Disabled passthroughs are ordinary text: neither extraction nor its
+        // lookahead may hide references from the enclosing attribute stage.
+        rule check_macros() = {? state.macros_enabled.then_some(()).ok_or("macros disabled") }
+
         rule escaped_passthrough() -> String
-            = "\\" source:$(pass_macro_pattern()) {
+            = check_macros() expanded:("\\" source:$(pass_macro_pattern()) {
                 let start = state.get_offset();
-                let expanded = if state.macros_enabled {
-                    state.extract_single_passthroughs(source, start + 1, document_attributes)
-                } else {
-                    let mut text = String::new();
-                    state.append_unprotected_text(&mut text, source, start + 1, document_attributes);
-                    text
-                };
+                let expanded = state.extract_single_passthroughs(source, start + 1, document_attributes);
                 state.current_offset.set(start + source.len() + 1);
                 format!("\\{expanded}")
             }
@@ -893,10 +846,10 @@ parser!(
             }
             / "\\" source:$("+" ![' '| '\t' | '\n' | '\r'] (!("+" &([' '| '\t' | '\n' | '\r' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | '[' | ']' | '}' | '/' | '-' | '<' | '>'] / ![_])) [_])* "+") {
                 state.expand_escaped_passthrough(source, document_attributes, false)
-            }
+            }) { expanded }
 
         rule passthrough() -> String = quiet!{
-            triple_plus_passthrough() / double_plus_passthrough() / single_plus_passthrough() / pass_macro()
+            check_macros() text:(triple_plus_passthrough() / double_plus_passthrough() / single_plus_passthrough() / pass_macro()) { text }
         } / expected!("passthrough parser failed")
 
         rule single_plus_passthrough() -> String
@@ -906,12 +859,6 @@ parser!(
         content:$(![(' '|'\t'|'\n'|'\r')] (!("+" &([' '|'\t'|'\n'|'\r'|','|';'|'"'|'.'|'?'|'!'|':'|')'|'['|']'|'}'|'/'|'-'|'<'|'>'] / ![_])) [_])*)
         "+"
         {
-            if !state.macros_enabled {
-                let text = format!("+{content}+");
-                state.advance(&text);
-                return text;
-            }
-
             // Check if we're at start OR preceded by word boundary character
             // Convert absolute offset to relative offset within the substring
             let substring_start = state.substring_start_offset.get();
@@ -987,10 +934,6 @@ parser!(
 
         rule double_plus_passthrough() -> String
             = start:position() "++" content:$((!"++" [_])+) "++" {
-                if !state.macros_enabled {
-                    state.advance(&format!("++{content}++"));
-                    return format!("++{content}++");
-                }
                 let location = state.calculate_location(start, content, 4);
                 state.passthroughs.borrow_mut().push(Pass {
                 attribute_fragments: Box::default(),
@@ -1015,11 +958,6 @@ parser!(
 
         rule triple_plus_passthrough() -> String
             = start:position() "+++" content:$((!"+++" [_])+) "+++" {
-                if !state.macros_enabled {
-                    let text = format!("+++{content}+++");
-                    state.advance(&text);
-                    return text;
-                }
                 let location = state.calculate_location(start, content, 6);
                 state.passthroughs.borrow_mut().push(Pass {
                 attribute_fragments: Box::default(),
@@ -1042,10 +980,6 @@ parser!(
 
         rule pass_macro() -> String
         = start:position() full:$(pass_macro_pattern()) {
-            if !state.macros_enabled {
-                return state.expand_disabled_pass_macro(full, document_attributes);
-            }
-
             let (subs_str, content, substitutions) =
                 InlinePreprocessorParserState::parse_pass_macro_parts(full);
 
@@ -1116,40 +1050,13 @@ parser!(
         // Simple pattern for unprocessed_text negative lookahead
         // Doesn't check boundaries - that's done in the full rules
         // For single +, allows + in content if not followed by boundary (greedy matching)
-        rule passthrough_pattern() =
+        rule passthrough_pattern() = check_macros() (
         "+++" (!("+++") [_])+ "+++" /
         "++" (!("++") [_])+ "++" /
         "+" ![' '|'\t'|'\n'|'\r'] (!("+" &([' '|'\t'|'\n'|'\r'|','|';'|'"'|'.'|'?'|'!'|':'|')'|'['|']'|'}'|'/'|'-'|'<'|'>'] / ![_])) [_])* "+" /
-        pass_macro_pattern()
+        pass_macro_pattern())
 
         rule escaped_passthrough_pattern() = "\\" passthrough_pattern()
-
-        pub rule attribute_reference_substitutions() -> String
-            = content:(attribute_reference_content() / unprocessed_text_content())+ {
-                content.join("")
-            }
-
-        rule attribute_reference_content() -> String
-            = "{" attribute_name:attribute_name() "}" {
-                let mut value = String::new();
-                if document_attributes
-                    .write_text(attribute_name, &mut value)
-                    .unwrap_or_default()
-                {
-                    value
-                } else {
-                    format!("{{{attribute_name}}}")
-                }
-            }
-
-        rule unprocessed_text_content() -> String
-            = text:$((
-                [^'{' | '+' | '`' | 'p' | '\\']+
-                /
-                !(escaped_passthrough_pattern() / passthrough_pattern() / attribute_reference_pattern()) [_]
-            )+) {
-                text.to_string()
-            }
 
         rule ANY() = [_]
 
@@ -1961,12 +1868,12 @@ mod tests {
     }
 
     #[test]
-    fn test_pass_macro_no_subs_with_macros_disabled_preserves_attributes() -> Result<(), Error> {
+    fn test_pass_macro_no_subs_with_macros_disabled_expands_attributes() -> Result<(), Error> {
         let attributes = setup_attributes();
         let input = "pass:[{version}]";
         let state = setup_state_macros_disabled(input);
         let result = inline_preprocessing::run(input, &attributes, &state)?;
-        assert_eq!(result.text, "pass:[{version}]");
+        assert_eq!(result.text, "pass:[1.0]");
         assert!(result.passthroughs.is_empty());
         Ok(())
     }

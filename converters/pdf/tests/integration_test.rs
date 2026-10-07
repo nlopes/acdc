@@ -599,6 +599,19 @@ fn whitespace_only_inline_code_keeps_pdf_advance_width() -> Result<(), Error> {
     Ok(())
 }
 
+#[cfg(feature = "pre-spec-subs")]
+#[test]
+fn disabled_passthrough_attributes_do_not_create_pdf_links() -> Result<(), Error> {
+    let pdf = render_input(
+        "= Literal links\n:word: café\n\n[subs=\"-macros\"]\n+https://example.org[{word}]+ and pass:[https://example.org[{word}]].\n",
+    )?;
+    let text = pdf.extract_text(&[1])?.replace('\n', "");
+    assert!(text.contains("+https://example.org[café]+"), "{text}");
+    assert!(text.contains("pass:[https://example.org[café]]"), "{text}");
+    assert!(external_link_rects(&pdf, 1)?.is_empty());
+    Ok(())
+}
+
 #[test]
 fn constrained_monospace_boundaries_preserve_pdf_positions_and_links() -> Result<(), Error> {
     for content in [

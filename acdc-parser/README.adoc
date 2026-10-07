@@ -294,6 +294,26 @@ literal inside the code span:
 `pass:[{word}]`
 ----
 
+When `macros` is disabled, inline passthroughs are ordinary text:
+
+[source,asciidoc]
+----
+:word: café
+
+[subs="attributes"]
++{word}+ and pass:[{word}]
+----
+
+Both references expand to `café`, and their surrounding delimiters remain
+visible, including inside code spans. The enclosing substitution list controls
+attribute expansion: a disabled `pass:a[...]` cannot enable attributes when the block has
+`subs="none"`. Escaped references are handled by that same attribute stage.
+These rules match Asciidoctor and do not depend on the output backend.
+
+The existing counter policy also applies in disabled passthrough text when
+attributes are enabled: acdc warns and removes a counter reference, while
+Asciidoctor evaluates it. Disabled attributes leave the reference literal.
+
 The `attributes+` modifier moves attribute substitution to the front, including
 when it is already enabled. Groups such as `normal+` also move their members
 to the front in group order. Operations apply from left to right, so

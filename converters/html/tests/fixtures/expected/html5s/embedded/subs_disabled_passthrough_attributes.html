@@ -1,0 +1,57 @@
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>passthrough-attributes - apply enabled attributes to literal macro syntax</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_description">Description</h2>
+<p>D01 +café+ | ++café++ | +++café+++ | pass:[café] | pass:a[café].</p>
+<p>D02 <code>+café+</code> | <code>pass:[café]</code> | <code>++café++</code>.</p>
+<p>D03 +café+ | ++café++ | +++café+++ | pass:[café] | pass:q[*Bold*].</p>
+<p>D04 <code>+café+</code> | <code>pass:[café]</code> | <code>++café++</code>.</p>
+<p>D05 +{word}+ | pass:[{word}] | pass:a[{word}] | pass:normal[{word}].</p>
+<p>D06 +{word}+ | pass:[{word}] | pass:a[{word}] | pass:normal[{word}].</p>
+<p>D07 {word} | {word} | {word} | {word} | café.</p>
+<p>D08 <code>{word}</code> | <code>{word}</code> | <code>{word}</code>.</p>
+<p>D09 \+café+ | \++café++ | \+++café+++ | \pass:[café].</p>
+<p>D10 ++ | ++++ | pass:[] | + +.</p>
+<p>D11 +{word}+ | pass:[{word}] | +{word}+ | pass:[{word}].</p>
+<p>D12 +{unknown}+ | pass:[{unknown}] | pass:a[{unknown}].</p>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text">D13 +café+ | ++café++ | +++café+++ | pass:[café].</code></pre>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>D14 <code>+café+</code> | <code>pass:[café]</code>.</pre>
+</div>
+</div>
+<p>D15 pass:[] | pass:a[] | pass:normal[] | pass:unknown[café].</p>
+<p>D16 pass:[one [nested café]] | pass:[café | +café.</p>
+<p>D17 +<strong>Bold</strong>+ | pass:[<strong>Bold</strong>].</p>
+<p>D18 +*Bold*+ | pass:[*Bold*].</p>
+<p>D19 +<café>+ | pass:[&café] | ++*café++.</p>
+<p>D20 ++{word}+ &copy;+ | pass:[+{word}+ &copy;].</p>
+<p>D21 +anchor:target[]footnote:[Note.]indexterm2:[Term]+ | pass:[anchor:target[]footnote:[Note.]indexterm2:[Term]].</p>
+<p>D22 {word} | {word} | café.</p>
+<p>D23 {word} | {word} | café.</p>
+<p>D24 +<strong>café</strong>+ | pass:[<em>café</em>].</p>
+<p>D25 +https://example.org[café]+ | pass:[https://example.org[café]].</p>
+<p>D26 +café+<strong>End</strong> | pass:<strong class="caf">End</strong>.</p>
+<p>D27 ++café
+café++ | pass:[café
+café].</p>
+<p>D28 +late+ | pass:[late].</p>
+<div class="table-block">
+<table class="frame-all grid-all stretch">
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="halign-left valign-top"><p>D29 +late+ and pass:[late].</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>D30 +late+ | pass:[late].</p>
+</section>

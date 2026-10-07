@@ -65,6 +65,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Disabled inline passthroughs now use the enclosing attribute substitutions.
+  With `subs="attributes"` or `subs="-macros"`, `+{word}+` and `pass:[{word}]`
+  retain their delimiters but expand `{word}`, including inside code spans.
+  If attributes are disabled, a literal `pass:a[...]` cannot enable them.
+  This matches Asciidoctor. Escaped references keep their normal behavior;
+  counters still warn and are removed rather than evaluated by acdc.
+
 - Whitespace-only content inside inline formatting is preserved, including
   spaces, tabs, newlines and Unicode spaces produced by attributes. For example,
   double-backtick code containing `{sp}` now retains its space, matching

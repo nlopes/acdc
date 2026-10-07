@@ -1,0 +1,2782 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "passthrough-attributes(1)",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 27
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 10,
+        "col": 56
+      }
+    ]
+  },
+  "attributes": {
+    "doctype": "manpage",
+    "empty": true,
+    "macro": "anchor:target[]footnote:[Note.]indexterm2:[Term]",
+    "manmanual": "Test Manual",
+    "manname": "passthrough-attributes",
+    "manname-title": "Name",
+    "manpurpose": "apply enabled attributes to literal macro syntax",
+    "mansource": "acdc",
+    "mantitle": "passthrough-attributes",
+    "manvolnum": "1",
+    "raw": "+{word}+ &copy;",
+    "revdate": "2026-10-07",
+    "style": "*Bold*",
+    "word": "café"
+  },
+  "blocks": [
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Name",
+          "location": [
+            {
+              "line": 12,
+              "col": 4
+            },
+            {
+              "line": 12,
+              "col": 7
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "passthrough-attributes - apply enabled attributes to literal macro syntax",
+              "location": [
+                {
+                  "line": 14,
+                  "col": 1
+                },
+                {
+                  "line": 14,
+                  "col": 73
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 14,
+              "col": 1
+            },
+            {
+              "line": 14,
+              "col": 73
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 12,
+          "col": 1
+        },
+        {
+          "line": 14,
+          "col": 73
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Description",
+          "location": [
+            {
+              "line": 16,
+              "col": 4
+            },
+            {
+              "line": 16,
+              "col": 14
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "D01 +café+ | ++café++ | +++café+++ | pass:[café] | pass:a[café].",
+              "location": [
+                {
+                  "line": 19,
+                  "col": 1
+                },
+                {
+                  "line": 19,
+                  "col": 74
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "attributes"
+            ]
+          },
+          "location": [
+            {
+              "line": 18,
+              "col": 1
+            },
+            {
+              "line": 19,
+              "col": 74
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "D02 ",
+              "location": [
+                {
+                  "line": 22,
+                  "col": 1
+                },
+                {
+                  "line": 22,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "+café+",
+                  "location": [
+                    {
+                      "line": 22,
+                      "col": 6
+                    },
+                    {
+                      "line": 22,
+                      "col": 13
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 22,
+                  "col": 5
+                },
+                {
+                  "line": 22,
+                  "col": 14
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " | ",
+              "location": [
+                {
+                  "line": 22,
+                  "col": 15
+                },
+                {
+                  "line": 22,
+                  "col": 17
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "pass:[café]",
+                  "location": [
+                    {
+                      "line": 22,
+                      "col": 19
+                    },
+                    {
+                      "line": 22,
+                      "col": 31
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 22,
+                  "col": 18
+                },
+                {
+                  "line": 22,
+                  "col": 32
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " | ",
+              "location": [
+                {
+                  "line": 22,
+                  "col": 33
+                },
+                {
+                  "line": 22,
+                  "col": 35
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "unconstrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "++café++",
+                  "location": [
+                    {
+                      "line": 22,
+                      "col": 38
+                    },
+                    {
+                      "line": 22,
+                      "col": 47
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 22,
+                  "col": 36
+                },
+                {
+                  "line": 22,
+                  "col": 49
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 22,
+                  "col": 50
+                },
+                {
+                  "line": 22,
+                  "col": 50
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "attributes",
+              "quotes"
+            ]
+          },
+          "location": [
+            {
+              "line": 21,
+              "col": 1
+            },
+            {
+              "line": 22,
+              "col": 50
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "D03 +café+ | ++café++ | +++café+++ | pass:[café] | pass:q[*Bold*].",
+              "location": [
+                {
+                  "line": 25,
+                  "col": 1
+                },
+                {
+                  "line": 25,
+                  "col": 75
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "-macros"
+            ]
+          },
+          "location": [
+            {
+              "line": 24,
+              "col": 1
+            },
+            {
+              "line": 25,
+              "col": 75
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "D04 ",
+              "location": [
+                {
+                  "line": 28,
+                  "col": 1
+                },
+                {
+                  "line": 28,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "+café+",
+                  "location": [
+                    {
+                      "line": 28,
+                      "col": 6
+                    },
+                    {
+                      "line": 28,
+                      "col": 13
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 28,
+                  "col": 5
+                },
+                {
+                  "line": 28,
+                  "col": 14
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " | ",
+              "location": [
+                {
+                  "line": 28,
+                  "col": 15
+                },
+                {
+                  "line": 28,
+                  "col": 17
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "pass:[café]",
+                  "location": [
+                    {
+                      "line": 28,
+                      "col": 19
+                    },
+                    {
+                      "line": 28,
+                      "col": 31
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 28,
+                  "col": 18
+                },
+                {
+                  "line": 28,
+                  "col": 32
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " | ",
+              "location": [
+                {
+                  "line": 28,
+                  "col": 33
+                },
+                {
+                  "line": 28,
+                  "col": 35
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "unconstrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "++café++",
+                  "location": [
+                    {
+                      "line": 28,
+                      "col": 38
+                    },
+                    {
+                      "line": 28,
+                      "col": 47
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 28,
+                  "col": 36
+                },
+                {
+                  "line": 28,
+                  "col": 49
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 28,
+                  "col": 50
+                },
+                {
+                  "line": 28,
+                  "col": 50
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "quotes",
+              "attributes"
+            ]
+          },
+          "location": [
+            {
+              "line": 27,
+              "col": 1
+            },
+            {
+              "line": 28,
+              "col": 50
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "D05 +{word}+ | pass:[{word}] | pass:a[{word}] | pass:normal[{word}].",
+              "location": [
+                {
+                  "line": 31,
+                  "col": 1
+                },
+                {
+                  "line": 31,
+                  "col": 68
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "quotes"
+            ]
+          },
+          "location": [
+            {
+              "line": 30,
+              "col": 1
+            },
+            {
+              "line": 31,
+              "col": 68
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "D06 +{word}+ | pass:[{word}] | pass:a[{word}] | pass:normal[{word}].",
+              "location": [
+                {
+                  "line": 34,
+                  "col": 1
+                },
+                {
+                  "line": 34,
+                  "col": 68
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": []
+          },
+          "location": [
+            {
+              "line": 33,
+              "col": 1
+            },
+            {
+              "line": 34,
+              "col": 68
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "D07 ",
+              "location": [
+                {
+                  "line": 36,
+                  "col": 1
+                },
+                {
+                  "line": 36,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "{word}",
+              "location": [
+                {
+                  "line": 36,
+                  "col": 6
+                },
+                {
+                  "line": 36,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " | ",
+              "location": [
+                {
+                  "line": 36,
+                  "col": 13
+                },
+                {
+                  "line": 36,
+                  "col": 15
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "{word}",
+              "location": [
+                {
+                  "line": 36,
+                  "col": 18
+                },
+                {
+                  "line": 36,
+                  "col": 23
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " | ",
+              "location": [
+                {
+                  "line": 36,
+                  "col": 26
+                },
+                {
+                  "line": 36,
+                  "col": 28
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "{word}",
+              "location": [
+                {
+                  "line": 36,
+                  "col": 32
+                },
+                {
+                  "line": 36,
+                  "col": 37
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " | ",
+              "location": [
+                {
+                  "line": 36,
+                  "col": 41
+                },
+                {
+                  "line": 36,
+                  "col": 43
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "{word}",
+              "location": [
+                {
+                  "line": 36,
+                  "col": 50
+                },
+                {
+                  "line": 36,
+                  "col": 55
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " | ",
+              "location": [
+                {
+                  "line": 36,
+                  "col": 57
+                },
+                {
+                  "line": 36,
+                  "col": 59
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "café",
+              "location": [
+                {
+                  "line": 36,
+                  "col": 67
+                },
+                {
+                  "line": 36,
+                  "col": 72
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 36,
+                  "col": 74
+                },
+                {
+                  "line": 36,
+                  "col": 74
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 36,
+              "col": 1
+            },
+            {
+              "line": 36,
+              "col": 74
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "D08 ",
+              "location": [
+                {
+                  "line": 39,
+                  "col": 1
+                },
+                {
+                  "line": 39,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "{word}",
+                  "location": [
+                    {
+                      "line": 39,
+                      "col": 7
+                    },
+                    {
+                      "line": 39,
+                      "col": 12
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 39,
+                  "col": 5
+                },
+                {
+                  "line": 39,
+                  "col": 14
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " | ",
+              "location": [
+                {
+                  "line": 39,
+                  "col": 15
+                },
+                {
+                  "line": 39,
+                  "col": 17
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "unconstrained",
+              "inlines": [
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "{word}",
+                  "location": [
+                    {
+                      "line": 39,
+                      "col": 22
+                    },
+                    {
+                      "line": 39,
+                      "col": 27
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 39,
+                  "col": 18
+                },
+                {
+                  "line": 39,
+                  "col": 31
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " | ",
+              "location": [
+                {
+                  "line": 39,
+                  "col": 32
+                },
+                {
+                  "line": 39,
+                  "col": 34
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "{word}",
+                  "location": [
+                    {
+                      "line": 39,
+                      "col": 42
+                    },
+                    {
+                      "line": 39,
+                      "col": 47
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 39,
+                  "col": 35
+                },
+                {
+                  "line": 39,
+                  "col": 49
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 39,
+                  "col": 50
+                },
+                {
+                  "line": 39,
+                  "col": 50
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "attributes",
+              "quotes",
+              "macros"
+            ]
+          },
+          "location": [
+            {
+              "line": 38,
+              "col": 1
+            },
+            {
+              "line": 39,
+              "col": 50
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "D09 \\+café+ | \\++café++ | \\+++café+++ | \\pass:[café].",
+              "location": [
+                {
+                  "line": 42,
+                  "col": 1
+                },
+                {
+                  "line": 42,
+                  "col": 61
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "-macros"
+            ]
+          },
+          "location": [
+            {
+              "line": 41,
+              "col": 1
+            },
+            {
+              "line": 42,
+              "col": 61
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "D10 ++ | ++++ | pass:[] | + +.",
+              "location": [
+                {
+                  "line": 45,
+                  "col": 1
+                },
+                {
+                  "line": 45,
+                  "col": 54
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "attributes"
+            ]
+          },
+          "location": [
+            {
+              "line": 44,
+              "col": 1
+            },
+            {
+              "line": 45,
+              "col": 54
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "D11 +",
+              "location": [
+                {
+                  "line": 48,
+                  "col": 1
+                },
+                {
+                  "line": 48,
+                  "col": 5
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "{word}",
+              "location": [
+                {
+                  "line": 48,
+                  "col": 6
+                },
+                {
+                  "line": 48,
+                  "col": 12
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "+ | pass:[",
+              "location": [
+                {
+                  "line": 48,
+                  "col": 13
+                },
+                {
+                  "line": 48,
+                  "col": 22
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "{word}",
+              "location": [
+                {
+                  "line": 48,
+                  "col": 23
+                },
+                {
+                  "line": 48,
+                  "col": 29
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "] | +",
+              "location": [
+                {
+                  "line": 48,
+                  "col": 30
+                },
+                {
+                  "line": 48,
+                  "col": 34
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "{word}",
+              "location": [
+                {
+                  "line": 48,
+                  "col": 35
+                },
+                {
+                  "line": 48,
+                  "col": 41
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "+ | pass:[",
+              "location": [
+                {
+                  "line": 48,
+                  "col": 42
+                },
+                {
+                  "line": 48,
+                  "col": 51
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "{word}",
+              "location": [
+                {
+                  "line": 48,
+                  "col": 52
+                },
+                {
+                  "line": 48,
+                  "col": 59
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "].",
+              "location": [
+                {
+                  "line": 48,
+                  "col": 60
+                },
+                {
+                  "line": 48,
+                  "col": 61
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "-macros"
+            ]
+          },
+          "location": [
+            {
+              "line": 47,
+              "col": 1
+            },
+            {
+              "line": 48,
+              "col": 61
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "D12 +{unknown}+ | pass:[{unknown}] | pass:a[{unknown}].",
+              "location": [
+                {
+                  "line": 51,
+                  "col": 1
+                },
+                {
+                  "line": 51,
+                  "col": 55
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "attributes"
+            ]
+          },
+          "location": [
+            {
+              "line": 50,
+              "col": 1
+            },
+            {
+              "line": 51,
+              "col": 55
+            }
+          ]
+        },
+        {
+          "name": "listing",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "----",
+          "metadata": {
+            "attributes": {
+              "language": "text"
+            },
+            "style": "source",
+            "substitutions": [
+              "+attributes"
+            ]
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "D13 +café+ | ++café++ | +++café+++ | pass:[café].",
+              "location": [
+                {
+                  "line": 55,
+                  "col": 1
+                },
+                {
+                  "line": 55,
+                  "col": 57
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 53,
+              "col": 1
+            },
+            {
+              "line": 56,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "D14 ",
+              "location": [
+                {
+                  "line": 59,
+                  "col": 1
+                },
+                {
+                  "line": 59,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "+café+",
+                  "location": [
+                    {
+                      "line": 59,
+                      "col": 6
+                    },
+                    {
+                      "line": 59,
+                      "col": 13
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 59,
+                  "col": 5
+                },
+                {
+                  "line": 59,
+                  "col": 14
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " | ",
+              "location": [
+                {
+                  "line": 59,
+                  "col": 15
+                },
+                {
+                  "line": 59,
+                  "col": 17
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "pass:[café]",
+                  "location": [
+                    {
+                      "line": 59,
+                      "col": 19
+                    },
+                    {
+                      "line": 59,
+                      "col": 31
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 59,
+                  "col": 18
+                },
+                {
+                  "line": 59,
+                  "col": 32
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 59,
+                  "col": 33
+                },
+                {
+                  "line": 59,
+                  "col": 33
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "style": "literal",
+            "substitutions": [
+              "+attributes",
+              "+quotes"
+            ]
+          },
+          "location": [
+            {
+              "line": 58,
+              "col": 1
+            },
+            {
+              "line": 59,
+              "col": 33
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "D15 pass:[] | pass:a[] | pass:normal[] | pass:unknown[café].",
+              "location": [
+                {
+                  "line": 62,
+                  "col": 1
+                },
+                {
+                  "line": 62,
+                  "col": 62
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "attributes"
+            ]
+          },
+          "location": [
+            {
+              "line": 61,
+              "col": 1
+            },
+            {
+              "line": 62,
+              "col": 62
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "D16 pass:[one [nested café]] | pass:[café | +café.",
+              "location": [
+                {
+                  "line": 65,
+                  "col": 1
+                },
+                {
+                  "line": 65,
+                  "col": 56
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "attributes"
+            ]
+          },
+          "location": [
+            {
+              "line": 64,
+              "col": 1
+            },
+            {
+              "line": 65,
+              "col": 56
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "D17 +",
+              "location": [
+                {
+                  "line": 68,
+                  "col": 1
+                },
+                {
+                  "line": 68,
+                  "col": 5
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Bold",
+                  "location": [
+                    {
+                      "line": 68,
+                      "col": 6
+                    },
+                    {
+                      "line": 68,
+                      "col": 12
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 68,
+                  "col": 6
+                },
+                {
+                  "line": 68,
+                  "col": 12
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "+ | pass:[",
+              "location": [
+                {
+                  "line": 68,
+                  "col": 13
+                },
+                {
+                  "line": 68,
+                  "col": 22
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Bold",
+                  "location": [
+                    {
+                      "line": 68,
+                      "col": 23
+                    },
+                    {
+                      "line": 68,
+                      "col": 29
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 68,
+                  "col": 23
+                },
+                {
+                  "line": 68,
+                  "col": 29
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "].",
+              "location": [
+                {
+                  "line": 68,
+                  "col": 30
+                },
+                {
+                  "line": 68,
+                  "col": 31
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "attributes",
+              "quotes"
+            ]
+          },
+          "location": [
+            {
+              "line": 67,
+              "col": 1
+            },
+            {
+              "line": 68,
+              "col": 31
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "D18 +*Bold*+ | pass:[*Bold*].",
+              "location": [
+                {
+                  "line": 71,
+                  "col": 1
+                },
+                {
+                  "line": 71,
+                  "col": 31
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "quotes",
+              "attributes"
+            ]
+          },
+          "location": [
+            {
+              "line": 70,
+              "col": 1
+            },
+            {
+              "line": 71,
+              "col": 31
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "D19 +",
+              "location": [
+                {
+                  "line": 74,
+                  "col": 1
+                },
+                {
+                  "line": 74,
+                  "col": 5
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "<",
+              "location": [
+                {
+                  "line": 74,
+                  "col": 6
+                },
+                {
+                  "line": 74,
+                  "col": 9
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "café",
+              "location": [
+                {
+                  "line": 74,
+                  "col": 10
+                },
+                {
+                  "line": 74,
+                  "col": 14
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": ">",
+              "location": [
+                {
+                  "line": 74,
+                  "col": 16
+                },
+                {
+                  "line": 74,
+                  "col": 19
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "+ | pass:[",
+              "location": [
+                {
+                  "line": 74,
+                  "col": 19
+                },
+                {
+                  "line": 74,
+                  "col": 28
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "&",
+              "location": [
+                {
+                  "line": 74,
+                  "col": 30
+                },
+                {
+                  "line": 74,
+                  "col": 34
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "café] | ++",
+              "location": [
+                {
+                  "line": 74,
+                  "col": 34
+                },
+                {
+                  "line": 74,
+                  "col": 44
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "*",
+              "location": [
+                {
+                  "line": 74,
+                  "col": 47
+                },
+                {
+                  "line": 74,
+                  "col": 56
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "café++.",
+              "location": [
+                {
+                  "line": 74,
+                  "col": 55
+                },
+                {
+                  "line": 74,
+                  "col": 65
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "specialcharacters",
+              "attributes"
+            ]
+          },
+          "location": [
+            {
+              "line": 73,
+              "col": 1
+            },
+            {
+              "line": 74,
+              "col": 65
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "D20 ++{word}+ ",
+              "location": [
+                {
+                  "line": 77,
+                  "col": 1
+                },
+                {
+                  "line": 77,
+                  "col": 10
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "&copy;",
+              "location": [
+                {
+                  "line": 77,
+                  "col": 6
+                },
+                {
+                  "line": 77,
+                  "col": 10
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "+ | pass:[+{word}+ ",
+              "location": [
+                {
+                  "line": 77,
+                  "col": 11
+                },
+                {
+                  "line": 77,
+                  "col": 25
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "&copy;",
+              "location": [
+                {
+                  "line": 77,
+                  "col": 21
+                },
+                {
+                  "line": 77,
+                  "col": 25
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "].",
+              "location": [
+                {
+                  "line": 77,
+                  "col": 26
+                },
+                {
+                  "line": 77,
+                  "col": 27
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "-macros"
+            ]
+          },
+          "location": [
+            {
+              "line": 76,
+              "col": 1
+            },
+            {
+              "line": 77,
+              "col": 27
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "D21 +anchor:target[]footnote:[Note.]indexterm2:[Term]+ | pass:[anchor:target[]footnote:[Note.]indexterm2:[Term]].",
+              "location": [
+                {
+                  "line": 80,
+                  "col": 1
+                },
+                {
+                  "line": 80,
+                  "col": 31
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "-macros"
+            ]
+          },
+          "location": [
+            {
+              "line": 79,
+              "col": 1
+            },
+            {
+              "line": 80,
+              "col": 31
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "D22 ",
+              "location": [
+                {
+                  "line": 83,
+                  "col": 1
+                },
+                {
+                  "line": 83,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "{word}",
+              "location": [
+                {
+                  "line": 83,
+                  "col": 6
+                },
+                {
+                  "line": 83,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " | ",
+              "location": [
+                {
+                  "line": 83,
+                  "col": 13
+                },
+                {
+                  "line": 83,
+                  "col": 15
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "{word}",
+              "location": [
+                {
+                  "line": 83,
+                  "col": 22
+                },
+                {
+                  "line": 83,
+                  "col": 27
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " | ",
+              "location": [
+                {
+                  "line": 83,
+                  "col": 29
+                },
+                {
+                  "line": 83,
+                  "col": 31
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "café",
+              "location": [
+                {
+                  "line": 83,
+                  "col": 39
+                },
+                {
+                  "line": 83,
+                  "col": 44
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 83,
+                  "col": 46
+                },
+                {
+                  "line": 83,
+                  "col": 46
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "attributes",
+              "macros"
+            ]
+          },
+          "location": [
+            {
+              "line": 82,
+              "col": 1
+            },
+            {
+              "line": 83,
+              "col": 46
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "D23 ",
+              "location": [
+                {
+                  "line": 86,
+                  "col": 1
+                },
+                {
+                  "line": 86,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "{word}",
+              "location": [
+                {
+                  "line": 86,
+                  "col": 6
+                },
+                {
+                  "line": 86,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " | ",
+              "location": [
+                {
+                  "line": 86,
+                  "col": 13
+                },
+                {
+                  "line": 86,
+                  "col": 15
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "{word}",
+              "location": [
+                {
+                  "line": 86,
+                  "col": 22
+                },
+                {
+                  "line": 86,
+                  "col": 27
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " | ",
+              "location": [
+                {
+                  "line": 86,
+                  "col": 29
+                },
+                {
+                  "line": 86,
+                  "col": 31
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "café",
+              "location": [
+                {
+                  "line": 86,
+                  "col": 39
+                },
+                {
+                  "line": 86,
+                  "col": 44
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 86,
+                  "col": 46
+                },
+                {
+                  "line": 86,
+                  "col": 46
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "quotes",
+              "macros"
+            ]
+          },
+          "location": [
+            {
+              "line": 85,
+              "col": 1
+            },
+            {
+              "line": 86,
+              "col": 46
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "D24 +",
+              "location": [
+                {
+                  "line": 89,
+                  "col": 1
+                },
+                {
+                  "line": 89,
+                  "col": 5
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "café",
+                  "location": [
+                    {
+                      "line": 89,
+                      "col": 7
+                    },
+                    {
+                      "line": 89,
+                      "col": 12
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 89,
+                  "col": 6
+                },
+                {
+                  "line": 89,
+                  "col": 13
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "+ | pass:[",
+              "location": [
+                {
+                  "line": 89,
+                  "col": 14
+                },
+                {
+                  "line": 89,
+                  "col": 23
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "emphasis",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "café",
+                  "location": [
+                    {
+                      "line": 89,
+                      "col": 25
+                    },
+                    {
+                      "line": 89,
+                      "col": 30
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 89,
+                  "col": 24
+                },
+                {
+                  "line": 89,
+                  "col": 31
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "].",
+              "location": [
+                {
+                  "line": 89,
+                  "col": 32
+                },
+                {
+                  "line": 89,
+                  "col": 33
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "quotes",
+              "attributes"
+            ]
+          },
+          "location": [
+            {
+              "line": 88,
+              "col": 1
+            },
+            {
+              "line": 89,
+              "col": 33
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "D25 +https://example.org[café]+ | pass:[https://example.org[café]].",
+              "location": [
+                {
+                  "line": 92,
+                  "col": 1
+                },
+                {
+                  "line": 92,
+                  "col": 71
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "-macros"
+            ]
+          },
+          "location": [
+            {
+              "line": 91,
+              "col": 1
+            },
+            {
+              "line": 92,
+              "col": 71
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "D26 +café+",
+              "location": [
+                {
+                  "line": 95,
+                  "col": 1
+                },
+                {
+                  "line": 95,
+                  "col": 12
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "unconstrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "End",
+                  "location": [
+                    {
+                      "line": 95,
+                      "col": 15
+                    },
+                    {
+                      "line": 95,
+                      "col": 17
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 95,
+                  "col": 13
+                },
+                {
+                  "line": 95,
+                  "col": 19
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " | pass:",
+              "location": [
+                {
+                  "line": 95,
+                  "col": 20
+                },
+                {
+                  "line": 95,
+                  "col": 27
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "unconstrained",
+              "role": "caf",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "End",
+                  "location": [
+                    {
+                      "line": 95,
+                      "col": 38
+                    },
+                    {
+                      "line": 95,
+                      "col": 40
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 95,
+                  "col": 36
+                },
+                {
+                  "line": 95,
+                  "col": 42
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 95,
+                  "col": 43
+                },
+                {
+                  "line": 95,
+                  "col": 43
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "-macros"
+            ]
+          },
+          "location": [
+            {
+              "line": 94,
+              "col": 1
+            },
+            {
+              "line": 95,
+              "col": 43
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "D27 ++café\ncafé++ | pass:[café\ncafé].",
+              "location": [
+                {
+                  "line": 98,
+                  "col": 1
+                },
+                {
+                  "line": 100,
+                  "col": 8
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "attributes"
+            ]
+          },
+          "location": [
+            {
+              "line": 97,
+              "col": 1
+            },
+            {
+              "line": 100,
+              "col": 8
+            }
+          ]
+        },
+        {
+          "name": "word",
+          "type": "attribute",
+          "value": "late",
+          "location": [
+            {
+              "line": 102,
+              "col": 1
+            },
+            {
+              "line": 102,
+              "col": 11
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "D28 +late+ | pass:[late].",
+              "location": [
+                {
+                  "line": 105,
+                  "col": 1
+                },
+                {
+                  "line": 105,
+                  "col": 29
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "-macros"
+            ]
+          },
+          "location": [
+            {
+              "line": 104,
+              "col": 1
+            },
+            {
+              "line": 105,
+              "col": 29
+            }
+          ]
+        },
+        {
+          "name": "table",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "|===",
+          "metadata": {
+            "attributes": {
+              "cols": "a"
+            }
+          },
+          "content": {
+            "header": null,
+            "footer": null,
+            "rows": [
+              {
+                "columns": [
+                  {
+                    "content": [
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "D29 +late+ and pass:[late].",
+                            "location": [
+                              {
+                                "line": 111,
+                                "col": 1
+                              },
+                              {
+                                "line": 111,
+                                "col": 31
+                              }
+                            ]
+                          }
+                        ],
+                        "metadata": {
+                          "substitutions": [
+                            "-macros"
+                          ]
+                        },
+                        "location": [
+                          {
+                            "line": 110,
+                            "col": 1
+                          },
+                          {
+                            "line": 111,
+                            "col": 31
+                          }
+                        ]
+                      }
+                    ],
+                    "style": "asciidoc"
+                  }
+                ]
+              }
+            ],
+            "columns": [
+              {
+                "style": "asciidoc"
+              }
+            ],
+            "location": [
+              {
+                "line": 108,
+                "col": 1
+              },
+              {
+                "line": 112,
+                "col": 4
+              }
+            ]
+          },
+          "location": [
+            {
+              "line": 107,
+              "col": 1
+            },
+            {
+              "line": 112,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "D30 +late+ | pass:[late].",
+              "location": [
+                {
+                  "line": 2,
+                  "col": 1,
+                  "file": [
+                    "includes/disabled_passthrough_attributes.adoc"
+                  ]
+                },
+                {
+                  "line": 2,
+                  "col": 29,
+                  "file": [
+                    "includes/disabled_passthrough_attributes.adoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "-macros"
+            ]
+          },
+          "location": [
+            {
+              "line": 1,
+              "col": 1,
+              "file": [
+                "includes/disabled_passthrough_attributes.adoc"
+              ]
+            },
+            {
+              "line": 2,
+              "col": 29,
+              "file": [
+                "includes/disabled_passthrough_attributes.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 16,
+          "col": 1
+        },
+        {
+          "line": 16,
+          "col": 29,
+          "file": [
+            "includes/disabled_passthrough_attributes.adoc"
+          ]
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 2,
+      "col": 29,
+      "file": [
+        "includes/disabled_passthrough_attributes.adoc"
+      ]
+    }
+  ]
+}

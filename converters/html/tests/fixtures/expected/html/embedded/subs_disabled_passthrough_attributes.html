@@ -1,0 +1,119 @@
+<div class="sect1">
+<h2 id="_name">Name</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>passthrough-attributes - apply enabled attributes to literal macro syntax</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_description">Description</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>D01 +café+ | ++café++ | +++café+++ | pass:[café] | pass:a[café].</p>
+</div>
+<div class="paragraph">
+<p>D02 <code>+café+</code> | <code>pass:[café]</code> | <code>++café++</code>.</p>
+</div>
+<div class="paragraph">
+<p>D03 +café+ | ++café++ | +++café+++ | pass:[café] | pass:q[*Bold*].</p>
+</div>
+<div class="paragraph">
+<p>D04 <code>+café+</code> | <code>pass:[café]</code> | <code>++café++</code>.</p>
+</div>
+<div class="paragraph">
+<p>D05 +{word}+ | pass:[{word}] | pass:a[{word}] | pass:normal[{word}].</p>
+</div>
+<div class="paragraph">
+<p>D06 +{word}+ | pass:[{word}] | pass:a[{word}] | pass:normal[{word}].</p>
+</div>
+<div class="paragraph">
+<p>D07 {word} | {word} | {word} | {word} | café.</p>
+</div>
+<div class="paragraph">
+<p>D08 <code>{word}</code> | <code>{word}</code> | <code>{word}</code>.</p>
+</div>
+<div class="paragraph">
+<p>D09 \+café+ | \++café++ | \+++café+++ | \pass:[café].</p>
+</div>
+<div class="paragraph">
+<p>D10 ++ | ++++ | pass:[] | + +.</p>
+</div>
+<div class="paragraph">
+<p>D11 +{word}+ | pass:[{word}] | +{word}+ | pass:[{word}].</p>
+</div>
+<div class="paragraph">
+<p>D12 +{unknown}+ | pass:[{unknown}] | pass:a[{unknown}].</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text">D13 +café+ | ++café++ | +++café+++ | pass:[café].</code></pre>
+</div>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>D14 <code>+café+</code> | <code>pass:[café]</code>.</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>D15 pass:[] | pass:a[] | pass:normal[] | pass:unknown[café].</p>
+</div>
+<div class="paragraph">
+<p>D16 pass:[one [nested café]] | pass:[café | +café.</p>
+</div>
+<div class="paragraph">
+<p>D17 +<strong>Bold</strong>+ | pass:[<strong>Bold</strong>].</p>
+</div>
+<div class="paragraph">
+<p>D18 +*Bold*+ | pass:[*Bold*].</p>
+</div>
+<div class="paragraph">
+<p>D19 +<café>+ | pass:[&café] | ++*café++.</p>
+</div>
+<div class="paragraph">
+<p>D20 ++{word}+ &copy;+ | pass:[+{word}+ &copy;].</p>
+</div>
+<div class="paragraph">
+<p>D21 +anchor:target[]footnote:[Note.]indexterm2:[Term]+ | pass:[anchor:target[]footnote:[Note.]indexterm2:[Term]].</p>
+</div>
+<div class="paragraph">
+<p>D22 {word} | {word} | café.</p>
+</div>
+<div class="paragraph">
+<p>D23 {word} | {word} | café.</p>
+</div>
+<div class="paragraph">
+<p>D24 +<strong>café</strong>+ | pass:[<em>café</em>].</p>
+</div>
+<div class="paragraph">
+<p>D25 +https://example.org[café]+ | pass:[https://example.org[café]].</p>
+</div>
+<div class="paragraph">
+<p>D26 +café+<strong>End</strong> | pass:<strong class="caf">End</strong>.</p>
+</div>
+<div class="paragraph">
+<p>D27 ++café
+café++ | pass:[café
+café].</p>
+</div>
+<div class="paragraph">
+<p>D28 +late+ | pass:[late].</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><div class="paragraph">
+<p>D29 +late+ and pass:[late].</p>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>D30 +late+ | pass:[late].</p>
+</div>
+</div>
+</div>

@@ -1,0 +1,114 @@
+= passthrough-attributes(1)
+:doctype: manpage
+:manmanual: Test Manual
+:mansource: acdc
+:revdate: 2026-10-07
+:word: café
+:empty:
+:style: *Bold*
+:raw: pass:[+{word}+ &copy;]
+:macro: anchor:target[]footnote:[Note.]indexterm2:[Term]
+
+== Name
+
+passthrough-attributes - apply enabled attributes to literal macro syntax
+
+== Description
+
+[subs="attributes"]
+D01 +{word}+ | ++{word}++ | +++{word}+++ | pass:[{word}] | pass:a[{word}].
+
+[subs="attributes,quotes"]
+D02 `+{word}+` | `pass:[{word}]` | ``++{word}++``.
+
+[subs="-macros"]
+D03 +{word}+ | ++{word}++ | +++{word}+++ | pass:[{word}] | pass:q[{style}].
+
+[subs="quotes,attributes"]
+D04 `+{word}+` | `pass:[{word}]` | ``++{word}++``.
+
+[subs="quotes"]
+D05 +{word}+ | pass:[{word}] | pass:a[{word}] | pass:normal[{word}].
+
+[subs="none"]
+D06 +{word}+ | pass:[{word}] | pass:a[{word}] | pass:normal[{word}].
+
+D07 +{word}+ | ++{word}++ | +++{word}+++ | pass:[{word}] | pass:a[{word}].
+
+[subs="attributes,quotes,macros"]
+D08 `+{word}+` | ``++{word}++`` | `pass:[{word}]`.
+
+[subs="-macros"]
+D09 \+{word}+ | \++{word}++ | \+++{word}+++ | \pass:[{word}].
+
+[subs="attributes"]
+D10 +{empty}+ | ++{empty}++ | pass:[{empty}] | +{sp}+.
+
+[subs="-macros"]
+D11 +\{word}+ | pass:[\{word}] | +{word\}+ | pass:[\{word\}].
+
+[subs="attributes"]
+D12 +{unknown}+ | pass:[{unknown}] | pass:a[{unknown}].
+
+[source,text,subs="+attributes"]
+----
+D13 +{word}+ | ++{word}++ | +++{word}+++ | pass:[{word}].
+----
+
+[literal,subs="+attributes,+quotes"]
+D14 `+{word}+` | `pass:[{word}]`.
+
+[subs="attributes"]
+D15 pass:[] | pass:a[] | pass:normal[] | pass:unknown[{word}].
+
+[subs="attributes"]
+D16 pass:[one [nested {word}]] | pass:[{word} | +{word}.
+
+[subs="attributes,quotes"]
+D17 +{style}+ | pass:[{style}].
+
+[subs="quotes,attributes"]
+D18 +{style}+ | pass:[{style}].
+
+[subs="specialcharacters,attributes"]
+D19 +{lt}{word}{gt}+ | pass:[{amp}{word}] | ++{asterisk}{word}++.
+
+[subs="-macros"]
+D20 +{raw}+ | pass:[{raw}].
+
+[subs="-macros"]
+D21 +{macro}+ | pass:[{macro}].
+
+[subs="attributes,macros"]
+D22 +{word}+ | pass:[{word}] | pass:a[{word}].
+
+[subs="quotes,macros"]
+D23 +{word}+ | pass:[{word}] | pass:a[{word}].
+
+[subs="quotes,attributes"]
+D24 +*{word}*+ | pass:[_{word}_].
+
+[subs="-macros"]
+D25 +https://example.org[{word}]+ | pass:[https://example.org[{word}]].
+
+[subs="-macros"]
+D26 +{word}+**End** | pass:[{word}]**End**.
+
+[subs="attributes"]
+D27 ++{word}
+{word}++ | pass:[{word}
+{word}].
+
+:word: late
+
+[subs="-macros"]
+D28 +{word}+ | pass:[{word}].
+
+[cols="a"]
+|===
+|
+[subs="-macros"]
+D29 +{word}+ and pass:[{word}].
+|===
+
+include::includes/disabled_passthrough_attributes.adoc[]

@@ -952,18 +952,6 @@ impl<'a> DocumentAttributes<'a> {
         self.base.as_ref()?.get(name)?.stored_text()
     }
 
-    pub(crate) fn write_text<W: fmt::Write>(
-        &self,
-        name: &str,
-        output: &mut W,
-    ) -> Result<bool, fmt::Error> {
-        let Some(value) = self.get(name) else {
-            return Ok(false);
-        };
-        value.write_text(output)?;
-        Ok(true)
-    }
-
     /// Return whether the attribute has an effective value.
     #[must_use]
     pub fn contains_key(&self, name: &str) -> bool {
@@ -1369,14 +1357,18 @@ mod document_attribute_tests {
         assert_eq!(default.text(MAX_INCLUDE_DEPTH_ATTR), None);
         let mut rendered = String::new();
         assert!(matches!(
-            default.write_text(MAX_INCLUDE_DEPTH_ATTR, &mut rendered),
-            Ok(true)
+            default
+                .get(MAX_INCLUDE_DEPTH_ATTR)
+                .map(|value| value.write_text(&mut rendered)),
+            Some(Ok(()))
         ));
         assert_eq!(rendered, "64");
         rendered.clear();
         assert!(matches!(
-            attributes.write_text("present", &mut rendered),
-            Ok(true)
+            attributes
+                .get("present")
+                .map(|value| value.write_text(&mut rendered)),
+            Some(Ok(()))
         ));
         assert!(rendered.is_empty());
     }

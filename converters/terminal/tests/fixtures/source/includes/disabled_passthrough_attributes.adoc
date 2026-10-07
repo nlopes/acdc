@@ -1,0 +1,2 @@
+[subs="-macros"]
+D30 +{word}+ | pass:[{word}].

@@ -1,0 +1,50 @@
+[1m[4mpassthrough-attributes(1)[0m[2m2026-10-07[0m
+
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mName[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+passthrough-attributes - apply enabled attributes to literal macro syntax
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mDescription[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+D01 +café+ | ++café++ | +++café+++ | pass:[café] | pass:a[café].
+D02 [38;5;14m+café+[39m | [38;5;14mpass:[café][39m | [38;5;14m++café++[39m.
+D03 +café+ | ++café++ | +++café+++ | pass:[café] | pass:q[*Bold*].
+D04 [38;5;14m+café+[39m | [38;5;14mpass:[café][39m | [38;5;14m++café++[39m.
+D05 +{word}+ | pass:[{word}] | pass:a[{word}] | pass:normal[{word}].
+D06 +{word}+ | pass:[{word}] | pass:a[{word}] | pass:normal[{word}].
+D07 {word} | {word} | {word} | {word} | café.
+D08 [38;5;14m{word}[39m | [38;5;14m{word}[39m | [38;5;14m{word}[39m.
+D09 \+café+ | \++café++ | \+++café+++ | \pass:[café].
+D10 ++ | ++++ | pass:[] | + +.
+D11 +{word}+ | pass:[{word}] | +{word}+ | pass:[{word}].
+D12 +{unknown}+ | pass:[{unknown}] | pass:a[{unknown}].
+[38;5;8m────────────────────────────────────[ text ]────────────────────────────────────[39m
+[38;2;131;148;150mD13 +café+ | ++café++ | +++café+++ | pass:[café].[39m
+[38;5;8m────────────────────────────────────────────────────────────────────────────────[39m
+[38;5;8m────────────────────[39m
+D14 +café+ | pass:[café].
+[38;5;8m────────────────────[39m
+D15 pass:[] | pass:a[] | pass:normal[] | pass:unknown[café].
+D16 pass:[one [nested café]] | pass:[café | +café.
+D17 +[1mBold[22m+ | pass:[[1mBold[22m].
+D18 +*Bold*+ | pass:[*Bold*].
+D19 +<café>+ | pass:[&café] | ++*café++.
+D20 ++{word}+ &copy;+ | pass:[+{word}+ &copy;].
+D21 +anchor:target[]footnote:[Note.]indexterm2:[Term]+ | pass:[anchor:target[]footnote:[Note.]indexterm2:[Term]].
+D22 {word} | {word} | café.
+D23 {word} | {word} | café.
+D24 +[1mcafé[22m+ | pass:[[3mcafé[23m].
+D25 +https://example.org[café]+ | pass:[https://example.org[café]].
+D26 +café+[1mEnd[22m | pass:[1mEnd[22m.
+D27 ++café
+café++ | pass:[café
+café].
+D28 +late+ | pass:[late].
+╭─────────────────────────────╮
+│ D29 +late+ and pass:[late]. │
+│                             │
+╰─────────────────────────────╯
+D30 +late+ | pass:[late].
