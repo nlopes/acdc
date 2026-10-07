@@ -599,6 +599,36 @@ fn whitespace_only_inline_code_keeps_pdf_advance_width() -> Result<(), Error> {
     Ok(())
 }
 
+#[test]
+fn inline_code_spaces_keep_their_width_across_formatting_boundaries() -> Result<(), Error> {
+    // Text extraction can collapse styled spaces even when the PDF retains
+    // their advance. A monospace glyph gives an independent width control.
+    for source in [
+        "A `` `` **End**.",
+        "A ``  `` **End**.",
+        "A ``{sp}`` **End**.",
+        "A`` `` `` ``**End**.",
+        "A** **`` ``__ __**End**.",
+        "A [.gap#gap]`` `` **End**.",
+        "A link:https://example.org[`` ``] **End**.",
+        "|===\n|A `` `` **End**.\n|===",
+    ] {
+        let control = source
+            .replace("`` ``", "``x``")
+            .replace("``  ``", "``x``")
+            .replace("``{sp}``", "``x``");
+        let actual = render_input(&format!("= Spaces\n\n{source}\n"))?;
+        let expected = render_input(&format!("= Spaces\n\n{control}\n"))?;
+        let actual = text_origin(&actual, 1, "End")?;
+        let expected = text_origin(&expected, 1, "End")?;
+        assert!(
+            (actual.0 - expected.0).abs() < 0.01 && (actual.1 - expected.1).abs() < 0.01,
+            "{source:?}: {actual:?}, expected monospace cell advance {expected:?}"
+        );
+    }
+    Ok(())
+}
+
 #[cfg(feature = "pre-spec-subs")]
 #[test]
 fn disabled_passthrough_attributes_do_not_create_pdf_links() -> Result<(), Error> {
