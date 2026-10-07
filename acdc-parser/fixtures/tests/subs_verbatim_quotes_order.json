@@ -139,7 +139,7 @@
           "delimiter": "----",
           "metadata": {
             "substitutions": [
-              "special_chars",
+              "specialcharacters",
               "quotes",
               "attributes"
             ]
@@ -259,7 +259,7 @@
           "delimiter": "----",
           "metadata": {
             "substitutions": [
-              "special_chars",
+              "specialcharacters",
               "attributes",
               "quotes"
             ]
@@ -332,7 +332,7 @@
           "delimiter": "....",
           "metadata": {
             "substitutions": [
-              "special_chars",
+              "specialcharacters",
               "quotes",
               "attributes"
             ]
@@ -548,7 +548,7 @@
           "metadata": {
             "style": "listing",
             "substitutions": [
-              "special_chars",
+              "specialcharacters",
               "quotes",
               "attributes"
             ]
@@ -667,7 +667,7 @@
           "metadata": {
             "style": "literal",
             "substitutions": [
-              "special_chars",
+              "specialcharacters",
               "quotes",
               "attributes"
             ]
@@ -786,7 +786,7 @@
           "metadata": {
             "style": "literal",
             "substitutions": [
-              "special_chars",
+              "specialcharacters",
               "quotes",
               "attributes"
             ]
@@ -813,7 +813,7 @@
             },
             "style": "source",
             "substitutions": [
-              "special_chars",
+              "specialcharacters",
               "quotes",
               "attributes"
             ]
@@ -933,7 +933,7 @@
           "delimiter": "----",
           "metadata": {
             "substitutions": [
-              "special_chars",
+              "specialcharacters",
               "quotes"
             ]
           },
@@ -1020,7 +1020,7 @@
           "delimiter": "----",
           "metadata": {
             "substitutions": [
-              "special_chars",
+              "specialcharacters",
               "attributes"
             ]
           },
@@ -1326,7 +1326,7 @@
           "metadata": {
             "style": "literal",
             "substitutions": [
-              "special_chars",
+              "specialcharacters",
               "quotes",
               "attributes"
             ]

@@ -706,7 +706,7 @@
       "delimiter": "----",
       "metadata": {
         "substitutions": [
-          "special_chars",
+          "specialcharacters",
           "attributes"
         ]
       },
@@ -926,7 +926,7 @@
       "metadata": {
         "substitutions": [
           "attributes",
-          "special_chars"
+          "specialcharacters"
         ]
       },
       "inlines": [
@@ -1054,7 +1054,7 @@
       "delimiter": "----",
       "metadata": {
         "substitutions": [
-          "special_chars",
+          "specialcharacters",
           "attributes",
           "quotes",
           "macros"
@@ -1180,7 +1180,7 @@
       "delimiter": "----",
       "metadata": {
         "substitutions": [
-          "special_chars"
+          "specialcharacters"
         ]
       },
       "inlines": [

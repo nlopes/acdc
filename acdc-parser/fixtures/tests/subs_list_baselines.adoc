@@ -1,0 +1,91 @@
+= Substitution lists(1)
+:doctype: manpage
+:manmanual: Test Manual
+:mansource: acdc
+:revdate: 2026-10-07
+:value: *bold*
+:mail: link:https://example.org[Link]
+:chosen: quotes,+attributes
+
+== Name
+
+substitution-lists - explicit and incremental substitution lists
+
+== Description
+
+[subs="quotes,+attributes"]
+B01 *source* {value} (C) link:https://example.org[Link].
+
+[subs="+quotes,attributes"]
+B02 *source* {value} (C) link:https://example.org[Link].
+
+[subs="quotes,attributes+"]
+B03 {value} (C) link:https://example.org[Link].
+
+[subs="none,+quotes"]
+B04 *source* {value} (C) link:https://example.org[Link].
+
+[subs="none,+attributes"]
+B05 *source* {value} (C) link:https://example.org[Link].
+
+[subs="normal,-macros"]
+B06 *source* {value} (C) link:https://example.org[Link].
+
+[subs="normal,-normal,+attributes"]
+B07 *source* {value} (C) link:https://example.org[Link].
+
+[subs="quotes,-quotes"]
+B08 *source* {value} (C) link:https://example.org[Link].
+
+[subs="quotes,-quotes,+quotes"]
+B09 *source* {value} (C) link:https://example.org[Link].
+
+[subs="unknown,+quotes"]
+B10 *source* {value} (C) link:https://example.org[Link].
+
+[subs=",+attributes"]
+B11 *source* {value} (C) link:https://example.org[Link].
+
+[subs="quotes,,+attributes,"]
+B12 *source* {value} (C) link:https://example.org[Link].
+
+[subs="{chosen}"]
+B13 *source* {value} (C) link:https://example.org[Link].
+
+[subs="attributes,+macros"]
+B14 {mail}.
+
+[subs="macros,+attributes"]
+B15 {mail}.
+
+[subs="macros,attributes+"]
+B16 {mail}.
+
+[source,text,subs="quotes,+attributes"]
+----
+B17 *source* {value} (C) link:https://example.org[Link] <1>.
+----
+
+[source,text,subs="verbatim,-callouts,+quotes"]
+----
+B18 *source* {value} (C) link:https://example.org[Link] <1>.
+----
+
+[literal,subs="quotes,attributes+"]
+B19 {value} (C) link:https://example.org[Link].
+
+[source,text,subs="normal,-normal,+attributes"]
+----
+B20 *source* {value} (C) link:https://example.org[Link] <1>.
+----
+
+[subs="+none,attributes"]
+B21 *source* {value} (C) link:https://example.org[Link].
+
+[subs="quotes,+attributes"]
+B22 footnote:[Literal note.] anchor:literal[] indexterm:[Literal].
+
+[subs="quotes,+attributes"]
+B23 café *accentué* {value}.
+
+B24 *defaults restored* (C) link:https://example.org[Link].

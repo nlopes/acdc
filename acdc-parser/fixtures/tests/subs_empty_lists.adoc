@@ -1,0 +1,26 @@
+:value: expanded
+:disabled: none
+:blank:
+
+[subs=none]
+N01 *bold* {value} footnote:[Literal note.]
+
+[subs=""]
+N02 *bold* {value} footnote:[Literal note.]
+
+[subs="  none  "]
+N03 *bold* {value} footnote:[Literal note.]
+
+[subs="{disabled}"]
+N04 *bold* {value} footnote:[Literal note.]
+
+[subs="{blank}"]
+N05 *bold* {value} footnote:[Literal note.]
+
+[subs="none,+quotes"]
+N06 *bold* {value} footnote:[Literal note.]
+
+[subs="+none"]
+N07 *bold* {value} footnote:[Enabled note.]
+
+N08 *bold* {value} footnote:[Default note.]

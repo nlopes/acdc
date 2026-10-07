@@ -595,7 +595,7 @@
       "metadata": {
         "style": "source",
         "substitutions": [
-          "special_chars",
+          "specialcharacters",
           "attributes",
           "macros",
           "callouts"

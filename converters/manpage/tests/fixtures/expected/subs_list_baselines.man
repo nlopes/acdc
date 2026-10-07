@@ -1,0 +1,99 @@
+'\" t
+.\"     Title: Substitution lists
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-07
+.\"    Manual: Test Manual
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "SUBSTITUTION LISTS" "1" "2026-10-07" "acdc" "Test Manual"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+substitution\-lists \- explicit and incremental substitution lists
+.SH "DESCRIPTION"
+.sp
+B01 \fBsource\fR *bold* (C) link:https://example.org[Link].
+.sp
+B02 \fBsource\fR *bold* \(co \c
+.URL "https://example.org" "Link" "\fR\c"
+\&.
+.sp
+B03 \fBbold\fR (C) link:https://example.org[Link].
+.sp
+B04 \fBsource\fR {value} (C) link:https://example.org[Link].
+.sp
+B05 *source* *bold* (C) link:https://example.org[Link].
+.sp
+B06 \fBsource\fR *bold* \(co link:https://example.org[Link].
+.sp
+B07 *source* *bold* (C) link:https://example.org[Link].
+.sp
+B08 *source* {value} (C) link:https://example.org[Link].
+.sp
+B09 \fBsource\fR {value} (C) link:https://example.org[Link].
+.sp
+B10 \fBsource\fR {value} (C) link:https://example.org[Link].
+.sp
+B11 *source* *bold* (C) link:https://example.org[Link].
+.sp
+B12 \fBsource\fR *bold* (C) link:https://example.org[Link].
+.sp
+B13 \fBsource\fR *bold* (C) link:https://example.org[Link].
+.sp
+B14 \c
+.URL "https://example.org" "Link" "\fR\c"
+\&.
+.sp
+B15 link:https://example.org[Link].
+.sp
+B16 \c
+.URL "https://example.org" "Link" "\fR\c"
+\&.
+.EX
+B17 \fBsource\fR *bold* (C) link:https://example.org[Link] <1>.
+.EE
+.EX
+B18 \fBsource\fR {value} (C) link:https://example.org[Link] <1>.
+.EE
+.sp
+.if n .RS 4
+.nf
+.fam C
+B19 \fBbold\fR (C) link:https://example.org[Link].
+.fam
+.fi
+.if n .RE
+.EX
+B20 *source* *bold* (C) link:https://example.org[Link] <1>.
+.EE
+.sp
+B21 \fBsource\fR *bold* \(co \c
+.URL "https://example.org" "Link" "\fR\c"
+\&.
+.sp
+B22 footnote:[Literal note.] anchor:literal[] indexterm:[Literal].
+.sp
+B23 café \fBaccentué\fR *bold*.
+.sp
+B24 \fBdefaults restored\fR \(co \c
+.URL "https://example.org" "Link" "\fR\c"
+\&.

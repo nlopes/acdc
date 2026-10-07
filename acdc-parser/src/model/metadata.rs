@@ -65,6 +65,7 @@ pub struct BlockMetadata<'a> {
     /// grammar, so this field is feature-gated to reflect that.
     ///
     /// - `None`: Use block-type defaults (VERBATIM for listing/literal, NORMAL for paragraphs)
+    /// - `Some(Source(entries))`: Preserve authored entries; resolve against block defaults as needed
     /// - `Some(Explicit([]))`: No substitutions (equivalent to `subs=none`)
     /// - `Some(Explicit(list))`: Use the explicit list of substitutions
     /// - `Some(Modifiers(ops))`: Apply modifier operations to block-type defaults

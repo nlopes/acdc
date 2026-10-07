@@ -1,0 +1,115 @@
+= Removed groups(1)
+:doctype: manpage
+:manmanual: Test Manual
+:mansource: acdc
+:revdate: 2026-10-07
+:value: *bold*
+:mail: link:https://example.org[Link]
+
+== Name
+
+removed-groups - substitution group removal
+
+== Description
+
+[subs="-normal"]
+G01 *source* {value} (C) link:https://example.org[Link].
+
+[subs="-normal,attributes+"]
+G02 *source* {value} (C) link:https://example.org[Link].
+
+[subs="-normal,+quotes"]
+G03 *source* {value} (C) link:https://example.org[Link].
+
+[subs="-normal,+macros"]
+G04 *source* {value} (C) link:https://example.org[Link].
+
+[subs="-normal,+normal"]
+G05 *source* {value} (C) link:https://example.org[Link].
+
+[subs="-normal,+normal,-macros"]
+G06 *source* {value} (C) link:https://example.org[Link].
+
+[subs="-normal,+normal,-normal,+attributes"]
+G07 *source* {value} (C) link:https://example.org[Link].
+
+[subs="+quotes,-normal"]
+G08 *source* {value} (C) link:https://example.org[Link].
+
+[subs="-normal,normal+,attributes+"]
+G09 {value} (C) link:https://example.org[Link].
+
+[subs="-normal,+attributes,+macros"]
+G10 {mail}.
+
+[subs="-normal,+macros,+attributes"]
+G11 {mail}.
+
+[subs="-normal"]
+G12 footnote:[Literal note.] anchor:literal[] indexterm:[Literal].
+
+[subs="-verbatim"]
+G13 *source* {value} (C) link:https://example.org[Link].
+
+[subs="-verbatim,+verbatim"]
+G14 *source* {value} (C) link:https://example.org[Link].
+
+[subs="-normal,-verbatim,+quotes"]
+G15 *source* {value} (C) link:https://example.org[Link].
+
+[subs="-verbatim,-normal,+attributes"]
+G16 *source* {value} (C) link:https://example.org[Link].
+
+[subs="-normal"]
+G17 before +
+after.
+
+[subs="-normal,+post_replacements"]
+G18 before +
+after.
+
+[source,text,subs="-normal,attributes+"]
+----
+G19 *source* {value} (C) link:https://example.org[Link].
+----
+
+[source,text,subs="-verbatim"]
+----
+G20 code <1>
+----
+
+[source,text,subs="-verbatim,+callouts"]
+----
+G21 code <1>
+----
+<1> Restored marker.
+
+[source,text,subs="-verbatim,+verbatim"]
+----
+G22 code <1>
+----
+<1> Restored group.
+
+[source,text,subs="-verbatim,+verbatim,-verbatim"]
+----
+G23 code <1>
+----
+
+[source,text,subs="-verbatim,+specialchars"]
+----
+G24 code <1>
+----
+
+[listing,subs="-verbatim"]
+G25 code <1>
+
+[literal,subs="-verbatim"]
+G26 code <1>
+
+[subs="-verbatim"]
+ G27 code <1>
+
+[subs="-normal,attributes+"]
+G28 café *accentué* {value}.
+
+G29 *defaults restored* (C) link:https://example.org[Link].

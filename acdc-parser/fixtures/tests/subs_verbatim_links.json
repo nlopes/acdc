@@ -1121,7 +1121,7 @@
       "metadata": {
         "style": "source",
         "substitutions": [
-          "special_chars",
+          "specialcharacters",
           "attributes",
           "macros"
         ]
@@ -1236,7 +1236,7 @@
       "metadata": {
         "style": "source",
         "substitutions": [
-          "special_chars",
+          "specialcharacters",
           "macros",
           "attributes"
         ]
@@ -1350,7 +1350,7 @@
       "metadata": {
         "style": "source",
         "substitutions": [
-          "+verbatim",
+          "verbatim",
           "-macros"
         ]
       },

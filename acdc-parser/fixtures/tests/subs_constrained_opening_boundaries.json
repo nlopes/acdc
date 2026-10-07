@@ -1709,7 +1709,7 @@
           "metadata": {
             "substitutions": [
               "quotes",
-              "special_chars"
+              "specialchars"
             ]
           },
           "location": [

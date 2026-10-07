@@ -24,12 +24,7 @@
       ],
       "metadata": {
         "substitutions": [
-          "special_chars",
-          "quotes",
-          "attributes",
-          "replacements",
-          "macros",
-          "post_replacements"
+          "normal"
         ]
       },
       "location": [

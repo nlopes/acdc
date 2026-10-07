@@ -543,7 +543,7 @@
             },
             "style": "source",
             "substitutions": [
-              "special_chars",
+              "specialchars",
               "macros",
               "attributes",
               "quotes",
@@ -653,7 +653,7 @@
             },
             "style": "source",
             "substitutions": [
-              "special_chars",
+              "specialchars",
               "attributes",
               "quotes",
               "replacements",
@@ -850,7 +850,7 @@
             },
             "style": "source",
             "substitutions": [
-              "+verbatim",
+              "verbatim",
               "-macros"
             ]
           },

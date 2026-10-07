@@ -296,11 +296,45 @@ As in Asciidoctor, `+attributes` adds a missing stage at the end but keeps an
 already-enabled stage in its current position. Use `-attributes,+attributes`
 to move an existing stage to the end.
 
+The first list entry selects the starting substitutions. A plain name starts
+from an empty list, so `subs="quotes,+attributes"` enables only quotes and
+attributes. A modifier starts from the block defaults, so
+`subs="+quotes,attributes"` also retains those defaults. Later entries apply
+to that same list; they do not select a new starting point. `none` contributes
+no stages, so `subs="none,+quotes"` enables only quotes.
+
+Removing a group disables its members during parsing too. For example,
+`subs="-normal,attributes+"` expands attributes but keeps formatting and macros
+literal. `subs="-verbatim"` leaves code callout markers literal; a later
+`+callouts` or `+verbatim` restores them.
+
+acdc recognizes explicitly enabled callouts directly from the source, including
+`subs="-verbatim,+callouts"`. Asciidoctor leaves the marker literal without
+special-character substitution. This retained difference keeps callout recognition
+independent of output escaping under acdc's documented SDR-5 parsing/conversion
+policy; SDR-5 does not specify these experimental substitution combinations.
+
+AST and JSON substitution metadata preserve the list entries. For example,
+`verbatim,-macros` stays `["verbatim", "-macros"]`; its effective stages are
+`special_chars` and `callouts`. Groups, aliases, duplicates and modifiers remain
+in the AST. Resolving their effect does not rewrite the stored list. Metadata
+parsing still expands attribute references and trims surrounding entry whitespace.
+
+Standalone `subs="none"` and `subs=""` retain an explicit empty list (`[]`),
+meaning no substitutions. Absent metadata uses block defaults. Mixed lists keep
+`none`: `none,+quotes` starts empty and enables only quotes, whereas `+quotes`
+adds quotes to block defaults.
+
 This fixes stage ordering without changing acdc's separation of parsing and
 conversion under SDR-5. If special-character escaping runs after quotes or
 macros, acdc retains their structured formatting and links. Asciidoctor may
 instead display escaped generated markup. This rendering difference remains
 separate from resolving the requested stage order.
+
+In source blocks with `subs="quotes,+attributes"`, acdc PDF also retains
+formatted text. Asciidoctor PDF displays generated `<strong>` tags as text
+when special-character substitution is absent; its HTML and manpage output
+preserves the formatting. acdc keeps the same parsed structure across backends.
 
 == Incomplete links
 

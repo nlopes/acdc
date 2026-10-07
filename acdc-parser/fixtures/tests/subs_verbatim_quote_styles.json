@@ -142,7 +142,7 @@
             },
             "style": "source",
             "substitutions": [
-              "special_chars",
+              "specialcharacters",
               "quotes",
               "attributes"
             ]
@@ -814,7 +814,7 @@
             },
             "style": "source",
             "substitutions": [
-              "special_chars",
+              "specialcharacters",
               "quotes",
               "attributes",
               "macros"
@@ -1068,7 +1068,7 @@
           "delimiter": "....",
           "metadata": {
             "substitutions": [
-              "special_chars",
+              "specialcharacters",
               "quotes",
               "attributes"
             ]
@@ -1426,7 +1426,7 @@
           "delimiter": "----",
           "metadata": {
             "substitutions": [
-              "special_chars",
+              "specialcharacters",
               "quotes",
               "attributes",
               "callouts"

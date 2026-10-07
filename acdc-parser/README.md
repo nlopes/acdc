@@ -152,11 +152,48 @@ their members together in group order. Modifiers apply left to right; append
 syntax such as `+attributes` leaves an existing stage in place, matching
 Asciidoctor. Use `-attributes,+attributes` to move it to the end.
 
+A plain first entry replaces block defaults, including when later entries have
+modifiers: `subs="quotes,+attributes"` enables only quotes and attributes.
+A modifier first entry retains block defaults: `subs="+quotes,attributes"`
+adds to those defaults. `none,+quotes` enables only quotes. These rules match
+Asciidoctor; later entries do not reset the starting list.
+
+Removing a group also disables its members during parsing. For example,
+`-normal,attributes+` enables attributes without restoring formatting or macros;
+`-verbatim,+callouts` restores callouts without restoring special-character
+substitution. Asciidoctor leaves these callout markers literal without the
+special-character stage. acdc retains source-based recognition of enabled callouts
+under its SDR-5 parsing/conversion policy; SDR-5 does not specify this experimental
+substitution combination.
+
+AST and JSON substitution metadata retain the list entries. For example,
+`verbatim,-macros` stays `["verbatim", "-macros"]`. Groups, aliases, duplicates
+and modifiers are preserved; group expansion and removal happen only when the
+effective stages are resolved. Metadata parsing still expands attribute references
+in the list and trims whitespace around each entry.
+
+Standalone `subs="none"` and `subs=""` retain `[]`, meaning no substitutions.
+Absent substitution metadata uses block defaults. Mixed lists retain `none`:
+`none,+quotes` starts empty and enables only quotes; removing `none` would
+incorrectly restore block defaults.
+
+Nonempty parsed lists use `SubstitutionSpec::Source`, except standalone `none`,
+which retains `Explicit([])` like an empty value. Consumers that match this enum must
+handle that variant; `resolve()` and the existing typed `Explicit`/`Modifiers`
+constructors remain available.
+
 acdc follows [SDR-5's separation of parsing and conversion](https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/sdrs/sdr-005-formal-grammar-for-inline-syntax.adoc).
 The parser expands source references and constructs inline nodes. Converters
 produce output markup and apply the escaping required by their output format.
 The parser may use explicit `backend` conditions, but must not render an attribute
 to HTML or roff to decide its value.
+
+Custom substitution order also retains structured formatting and links when
+escaping runs last, where Asciidoctor can display generated markup as text.
+In source blocks with `subs="quotes,+attributes"`, acdc PDF keeps formatted text;
+Asciidoctor PDF displays generated tags when special-character substitution is
+absent. These retained differences keep the parsed structure independent of the
+output backend.
 
 Constrained formatting uses source punctuation as its boundary. For example,
 `>*Bold*` produces a literal `>` followed by bold text; each converter escapes

@@ -217,7 +217,7 @@
       ],
       "metadata": {
         "substitutions": [
-          "special_chars",
+          "specialcharacters",
           "macros",
           "attributes"
         ]
@@ -379,7 +379,7 @@
       ],
       "metadata": {
         "substitutions": [
-          "special_chars",
+          "specialcharacters",
           "macros",
           "attributes"
         ]
@@ -609,7 +609,7 @@
       ],
       "metadata": {
         "substitutions": [
-          "special_chars",
+          "specialcharacters",
           "macros",
           "attributes"
         ]
@@ -788,7 +788,7 @@
       ],
       "metadata": {
         "substitutions": [
-          "special_chars",
+          "specialcharacters",
           "macros",
           "quotes"
         ]
@@ -815,7 +815,7 @@
         },
         "style": "source",
         "substitutions": [
-          "special_chars",
+          "specialcharacters",
           "macros",
           "attributes",
           "quotes"

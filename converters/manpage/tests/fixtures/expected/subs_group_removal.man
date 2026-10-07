@@ -1,0 +1,139 @@
+'\" t
+.\"     Title: Removed groups
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-07
+.\"    Manual: Test Manual
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "REMOVED GROUPS" "1" "2026-10-07" "acdc" "Test Manual"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+removed\-groups \- substitution group removal
+.SH "DESCRIPTION"
+.sp
+G01 *source* {value} (C) link:https://example.org[Link].
+.sp
+G02 *source* *bold* (C) link:https://example.org[Link].
+.sp
+G03 \fBsource\fR {value} (C) link:https://example.org[Link].
+.sp
+G04 *source* {value} (C) \c
+.URL "https://example.org" "Link" "\fR\c"
+\&.
+.sp
+G05 \fBsource\fR *bold* \(co \c
+.URL "https://example.org" "Link" "\fR\c"
+\&.
+.sp
+G06 \fBsource\fR *bold* \(co link:https://example.org[Link].
+.sp
+G07 *source* *bold* (C) link:https://example.org[Link].
+.sp
+G08 *source* {value} (C) link:https://example.org[Link].
+.sp
+G09 \fBbold\fR \(co \c
+.URL "https://example.org" "Link" "\fR\c"
+\&.
+.sp
+G10 \c
+.URL "https://example.org" "Link" "\fR\c"
+\&.
+.sp
+G11 link:https://example.org[Link].
+.sp
+G12 footnote:[Literal note.] anchor:literal[] indexterm:[Literal].
+.sp
+G13 \fBsource\fR *bold* \(co \c
+.URL "https://example.org" "Link" "\fR\c"
+\&.
+.sp
+G14 \fBsource\fR *bold* \(co \c
+.URL "https://example.org" "Link" "\fR\c"
+\&.
+.sp
+G15 \fBsource\fR {value} (C) link:https://example.org[Link].
+.sp
+G16 *source* *bold* (C) link:https://example.org[Link].
+.sp
+G17 before +
+after.
+.sp
+G18 before
+.br
+after.
+.EX
+G19 *source* *bold* (C) link:https://example.org[Link].
+.EE
+.EX
+G20 code <1>
+.EE
+.EX
+G21 code \fB(1)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+Restored marker.
+.RE
+.EX
+G22 code \fB(1)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+Restored group.
+.RE
+.EX
+G23 code <1>
+.EE
+.EX
+G24 code <1>
+.EE
+.sp
+.if n .RS 4
+.nf
+.fam C
+G25 code <1>
+.fam
+.fi
+.if n .RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+G26 code <1>
+.fam
+.fi
+.if n .RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+G27 code <1>
+.fam
+.fi
+.if n .RE
+.sp
+G28 café *accentué* *bold*.
+.sp
+G29 \fBdefaults restored\fR \(co \c
+.URL "https://example.org" "Link" "\fR\c"
+\&.

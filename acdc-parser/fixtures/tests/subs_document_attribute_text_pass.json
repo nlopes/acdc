@@ -1894,7 +1894,7 @@
           "delimiter": "----",
           "metadata": {
             "substitutions": [
-              "special_chars",
+              "specialcharacters",
               "attributes"
             ]
           },
@@ -2893,7 +2893,7 @@
           "delimiter": "----",
           "metadata": {
             "substitutions": [
-              "special_chars",
+              "specialcharacters",
               "attributes"
             ]
           },
@@ -3211,7 +3211,7 @@
           "metadata": {
             "substitutions": [
               "attributes",
-              "special_chars"
+              "specialcharacters"
             ]
           },
           "inlines": [
@@ -3476,7 +3476,7 @@
             "substitutions": [
               "attributes",
               "replacements",
-              "special_chars"
+              "specialcharacters"
             ]
           },
           "inlines": [
@@ -3740,7 +3740,7 @@
           "metadata": {
             "substitutions": [
               "attributes",
-              "special_chars",
+              "specialcharacters",
               "replacements"
             ]
           },
@@ -4004,7 +4004,7 @@
           "delimiter": "----",
           "metadata": {
             "substitutions": [
-              "special_chars"
+              "specialcharacters"
             ]
           },
           "inlines": [

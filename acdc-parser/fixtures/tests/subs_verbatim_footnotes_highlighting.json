@@ -1293,7 +1293,7 @@
         },
         "style": "source",
         "substitutions": [
-          "+verbatim",
+          "verbatim",
           "-macros"
         ]
       },

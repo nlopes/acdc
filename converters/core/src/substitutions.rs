@@ -121,6 +121,7 @@ impl SubsFlags {
 /// # Behaviour
 ///
 /// - `spec = None` — returns the baseline as-is (block has no `[subs="…"]`).
+/// - `spec = Some(Source(...))` — resolves the authored list against the baseline.
 /// - `spec = Some(Explicit(...))` — returns the explicit list verbatim.
 /// - `spec = Some(Modifiers(...))` — applies the `+`/`-` modifiers to the
 ///   baseline.

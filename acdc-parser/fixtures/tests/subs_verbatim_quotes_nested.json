@@ -330,7 +330,7 @@
             },
             "style": "source",
             "substitutions": [
-              "special_chars",
+              "specialcharacters",
               "quotes",
               "attributes",
               "macros",

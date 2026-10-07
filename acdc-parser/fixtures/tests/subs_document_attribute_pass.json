@@ -164,7 +164,7 @@
           "delimiter": "----",
           "metadata": {
             "substitutions": [
-              "special_chars",
+              "specialcharacters",
               "attributes"
             ]
           },
@@ -627,7 +627,7 @@
           "delimiter": "----",
           "metadata": {
             "substitutions": [
-              "special_chars",
+              "specialcharacters",
               "attributes"
             ]
           },
@@ -712,7 +712,7 @@
           "delimiter": "----",
           "metadata": {
             "substitutions": [
-              "special_chars",
+              "specialcharacters",
               "attributes"
             ]
           },

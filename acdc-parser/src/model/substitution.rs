@@ -68,15 +68,9 @@ impl SubstitutionPlan {
 
     #[cfg(feature = "pre-spec-subs")]
     pub(crate) fn for_block_spec(spec: &SubstitutionSpec) -> Self {
-        let mut substitutions = spec.resolve(NORMAL);
-        if matches!(spec, SubstitutionSpec::Modifiers(_)) {
-            for substitution in DEFAULT_PARSER_SUBSTITUTIONS {
-                if !spec.is_disabled(substitution) && !substitutions.contains(substitution) {
-                    substitutions.push(substitution.clone());
-                }
-            }
-        }
-        Self::from_substitutions(&substitutions)
+        // Parser defaults include callout discovery for verbatim blocks. Resolve once:
+        // filling missing stages afterwards would restore removed group members.
+        Self::from_substitutions(&spec.resolve(DEFAULT_PARSER_SUBSTITUTIONS))
     }
 
     pub(crate) fn enabled(self, substitution: &Substitution) -> bool {
@@ -183,6 +177,17 @@ impl std::fmt::Display for Substitution {
 ///
 /// Returns `None` for unknown substitution types, which are logged and skipped.
 pub(crate) fn parse_substitution(value: &str) -> Option<Substitution> {
+    let substitution = substitution_named(value);
+    if substitution.is_none() {
+        tracing::error!(
+            substitution = %value,
+            "unknown substitution type, ignoring - check for typos"
+        );
+    }
+    substitution
+}
+
+fn substitution_named(value: &str) -> Option<Substitution> {
     match value {
         "attributes" | "a" => Some(Substitution::Attributes),
         "replacements" | "r" => Some(Substitution::Replacements),
@@ -193,13 +198,7 @@ pub(crate) fn parse_substitution(value: &str) -> Option<Substitution> {
         "quotes" | "q" => Some(Substitution::Quotes),
         "callouts" => Some(Substitution::Callouts),
         "specialchars" | "specialcharacters" | "c" => Some(Substitution::SpecialChars),
-        unknown => {
-            tracing::error!(
-                substitution = %unknown,
-                "unknown substitution type, ignoring - check for typos"
-            );
-            None
-        }
+        _ => None,
     }
 }
 
@@ -302,26 +301,32 @@ impl std::fmt::Display for SubstitutionOp {
 
 /// Specification for substitutions to apply to a block.
 ///
-/// This type represents how substitutions are specified in a `subs` attribute:
+/// Parsed documents use [`Self::Source`] to preserve the entries in the `subs`
+/// attribute, including groups, aliases, duplicates and modifiers. Only whitespace
+/// around each entry is trimmed. Attribute references in the list have already
+/// been expanded by metadata parsing.
 ///
-/// - **Explicit**: A direct list of substitutions (e.g., `subs=specialchars,quotes`)
-/// - **Modifiers**: Operations to apply to the block-type default substitutions
-///   (e.g., `subs=+quotes,-callouts`)
+/// Standalone `none` and empty values use [`Self::Explicit`] with an empty list.
+/// They disable substitutions, whereas absent metadata uses block defaults.
+/// Mixed lists retain `none` because its position can select the starting list.
 ///
-/// The parser cannot know the block type when parsing attributes (metadata comes before
-/// the block delimiter), so modifier operations are stored and the converter applies
-/// them with the appropriate baseline (VERBATIM for listing/literal, NORMAL for paragraphs).
+/// [`Self::resolve`] derives the effective stages without changing the stored
+/// entries. A plain first entry starts an empty list; a modifier first entry
+/// starts with the supplied block defaults. Later entries operate on that list.
+/// [`Self::Explicit`] and [`Self::Modifiers`] also support typed construction.
 ///
 /// ## Serialization
 ///
-/// Serializes to a flat array of strings matching document syntax:
-/// - Explicit: `["special_chars", "quotes"]`
-/// - Modifiers: `["+quotes", "-callouts", "macros+"]`
+/// Serializes to a flat array. Source entries retain their spelling, for example
+/// `["verbatim", "-macros"]`; typed entries use canonical names such as
+/// `"special_chars"`.
 ///
 /// Only available when the `pre-spec-subs` feature is enabled.
 #[cfg(feature = "pre-spec-subs")]
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub enum SubstitutionSpec {
+    /// Authored entries, interpreted when resolving against block defaults.
+    Source(Vec<String>),
     /// Explicit list of substitutions to apply (replaces all defaults)
     Explicit(Vec<Substitution>),
     /// Modifier operations to apply to block-type defaults
@@ -335,6 +340,7 @@ impl Serialize for SubstitutionSpec {
         S: serde::Serializer,
     {
         let strings: Vec<String> = match self {
+            Self::Source(entries) => return entries.serialize(serializer),
             Self::Explicit(subs) => subs.iter().map(ToString::to_string).collect(),
             Self::Modifiers(ops) => ops.iter().map(ToString::to_string).collect(),
         };
@@ -346,6 +352,22 @@ impl Serialize for SubstitutionSpec {
 impl SubstitutionSpec {
     pub(crate) fn contains(&self, substitution: &Substitution, defaults: &[Substitution]) -> bool {
         match self {
+            Self::Source(entries) => entries
+                .iter()
+                .rev()
+                .find_map(|entry| {
+                    let (name, modifier) = parse_subs_part(entry.trim());
+                    let affected = substitution_named(name)?;
+                    substitution_members(&affected, GroupContext::Block)
+                        .contains(substitution)
+                        .then_some(!matches!(modifier, Some(SubsModifier::Remove)))
+                })
+                .unwrap_or_else(|| {
+                    entries
+                        .first()
+                        .is_some_and(|entry| parse_subs_part(entry.trim()).1.is_some())
+                        && defaults.contains(substitution)
+                }),
             Self::Explicit(substitutions) => substitutions.contains(substitution),
             // The last operation affecting a substitution determines its membership.
             Self::Modifiers(operations) => operations
@@ -382,22 +404,15 @@ impl SubstitutionSpec {
         result
     }
 
-    fn is_disabled(&self, substitution: &Substitution) -> bool {
-        match self {
-            Self::Explicit(substitutions) => !substitutions.contains(substitution),
-            Self::Modifiers(operations) => operations.iter().any(
-                |operation| matches!(operation, SubstitutionOp::Remove(removed) if removed == substitution),
-            ),
-        }
-    }
-
     /// Resolve the substitution spec to a concrete list of substitutions.
     ///
+    /// - For `Source`, applies its entries in order, expanding named groups
     /// - For `Explicit`, returns the list directly
     /// - For `Modifiers`, applies the operations to the provided default
     #[must_use]
     pub fn resolve(&self, default: &[Substitution]) -> Vec<Substitution> {
         match self {
+            SubstitutionSpec::Source(entries) => resolve_source_substitutions(entries, default),
             SubstitutionSpec::Explicit(subs) => subs.clone(),
             SubstitutionSpec::Modifiers(ops) => Self::apply_modifiers(ops, default),
         }
@@ -430,85 +445,53 @@ fn parse_subs_part(part: &str) -> (&str, Option<SubsModifier>) {
     }
 }
 
-/// Parse a `subs` attribute value into a substitution specification.
-///
-/// Returns either:
-/// - `SubstitutionSpec::Explicit` for explicit lists (e.g., `subs=specialchars,quotes`)
-/// - `SubstitutionSpec::Modifiers` for modifier syntax (e.g., `subs=+quotes,-callouts`)
-///
-/// Supports:
-/// - `none` → Explicit empty list (no substitutions)
-/// - `normal` → Explicit NORMAL list
-/// - `verbatim` → Explicit VERBATIM list
-/// - `a,q,c` → Explicit specific substitutions (comma-separated)
-/// - `+quotes` → Modifiers: append to end of default list
-/// - `quotes+` → Modifiers: prepend to beginning of default list
-/// - `-specialchars` → Modifiers: remove from default list
-/// - `specialchars,+quotes` → Modifiers: mixed modifier mode
-///
-/// Order matters: substitutions/modifiers are applied in sequence.
+/// Preserve `subs` entries and report unknown names once during parsing.
 #[cfg(feature = "pre-spec-subs")]
 #[must_use]
 pub(crate) fn parse_subs_attribute(value: &str) -> SubstitutionSpec {
     let value = value.trim();
-
-    // Handle special cases
     if value.is_empty() || value == "none" {
         return SubstitutionSpec::Explicit(Vec::new());
     }
-
-    // Parse all parts in one pass: O(n)
-    let parts: Vec<_> = value
+    let entries = value
         .split(',')
-        .map(str::trim)
-        .filter(|p| !p.is_empty())
-        .map(parse_subs_part)
-        .collect();
-
-    // Determine mode: if ANY part has a modifier, use modifier mode
-    let has_modifiers = parts.iter().any(|(_, m)| m.is_some());
-
-    if has_modifiers {
-        // Modifier mode: collect operations for converter to apply
-        let mut ops = Vec::new();
-
-        for (name, modifier) in parts {
-            // Parse the substitution name; skip if invalid
-            let Some(sub) = parse_substitution(name) else {
-                continue;
-            };
-
-            match modifier {
-                Some(SubsModifier::Append) => {
-                    ops.push(SubstitutionOp::Append(sub));
-                }
-                Some(SubsModifier::Prepend) => {
-                    ops.push(SubstitutionOp::Prepend(sub));
-                }
-                Some(SubsModifier::Remove) => {
-                    ops.push(SubstitutionOp::Remove(sub));
-                }
-                None => {
-                    // Plain substitution name in modifier context - warn and treat as append
-                    tracing::warn!(
-                        substitution = %name,
-                        "plain substitution in modifier context; consider +{name} for clarity"
-                    );
-                    ops.push(SubstitutionOp::Append(sub));
-                }
-            }
+        .map(|entry| entry.trim().to_owned())
+        .collect::<Vec<_>>();
+    for entry in &entries {
+        let (name, _) = parse_subs_part(entry);
+        if !name.is_empty() && name != "none" {
+            let _ = parse_substitution(name);
         }
-        SubstitutionSpec::Modifiers(ops)
-    } else {
-        // No modifiers - parse as an explicit list of substitution names (in order)
-        let mut result = Vec::new();
-        for (name, _) in parts {
-            if let Some(ref sub) = parse_substitution(name) {
-                append_substitution(&mut result, sub);
-            }
-        }
-        SubstitutionSpec::Explicit(result)
     }
+    SubstitutionSpec::Source(entries)
+}
+
+#[cfg(feature = "pre-spec-subs")]
+fn resolve_source_substitutions(entries: &[String], default: &[Substitution]) -> Vec<Substitution> {
+    let mut parts = entries
+        .iter()
+        .map(|entry| parse_subs_part(entry.trim()))
+        .peekable();
+
+    // The first entry selects the baseline, even if its name is empty or unknown.
+    let uses_defaults = parts.peek().is_some_and(|(_, modifier)| modifier.is_some());
+    let mut result = if uses_defaults {
+        default.to_vec()
+    } else {
+        Vec::new()
+    };
+    for (name, modifier) in parts {
+        // Invalid names remain in the AST; resolution must not repeat parse diagnostics.
+        let Some(substitution) = substitution_named(name) else {
+            continue;
+        };
+        match modifier {
+            Some(SubsModifier::Prepend) => prepend_substitution(&mut result, &substitution),
+            Some(SubsModifier::Remove) => remove_substitution(&mut result, &substitution),
+            Some(SubsModifier::Append) | None => append_substitution(&mut result, &substitution),
+        }
+    }
+    result
 }
 
 /// Append a substitution (or group) to the end of the list.
@@ -694,79 +677,108 @@ mod tests {
                 }
             }
         }
-    }
 
-    // Helper to extract explicit list from SubstitutionSpec
-    #[allow(clippy::panic)]
-    fn explicit(spec: &SubstitutionSpec) -> &Vec<Substitution> {
-        match spec {
-            SubstitutionSpec::Explicit(subs) => subs,
-            SubstitutionSpec::Modifiers(_) => panic!("Expected Explicit, got Modifiers"),
+        #[test]
+        fn membership_matches_resolved_source_order(
+            operations in proptest::collection::vec((0_usize..15, 0_u8..4), 0..20),
+        ) {
+            let names = [
+                "specialchars", "attributes", "replacements", "macros",
+                "post_replacements", "quotes", "callouts", "normal", "verbatim",
+                "a", "q", "c", "none", "unknown", "",
+            ];
+            let entries = operations.into_iter().filter_map(|(index, operation)| {
+                names.get(index).map(|name| match operation {
+                    0 => format!(" {name} "),
+                    1 => format!(" +{name} "),
+                    2 => format!(" {name}+ "),
+                    _ => format!(" -{name} "),
+                })
+            }).collect();
+            let spec = SubstitutionSpec::Source(entries);
+            for defaults in [NORMAL, VERBATIM, &[]] {
+                let resolved = spec.resolve(defaults);
+                for substitution in [
+                    Substitution::SpecialChars, Substitution::Attributes,
+                    Substitution::Replacements, Substitution::Macros,
+                    Substitution::PostReplacements, Substitution::Quotes,
+                    Substitution::Callouts, Substitution::Normal, Substitution::Verbatim,
+                ] {
+                    proptest::prop_assert_eq!(
+                        spec.contains(&substitution, defaults),
+                        resolved.contains(&substitution),
+                    );
+                }
+            }
         }
     }
 
-    // Helper to extract modifiers from SubstitutionSpec
+    fn explicit(spec: &SubstitutionSpec) -> Vec<Substitution> {
+        spec.resolve(&[])
+    }
+
     #[allow(clippy::panic)]
-    fn modifiers(spec: &SubstitutionSpec) -> &Vec<SubstitutionOp> {
+    fn source_entries(spec: &SubstitutionSpec) -> &[String] {
         match spec {
-            SubstitutionSpec::Modifiers(ops) => ops,
-            SubstitutionSpec::Explicit(_) => panic!("Expected Modifiers, got Explicit"),
+            SubstitutionSpec::Source(entries) => entries,
+            SubstitutionSpec::Explicit(_) | SubstitutionSpec::Modifiers(_) => {
+                panic!("expected source entries")
+            }
         }
     }
 
     #[test]
     fn test_parse_subs_none() {
         let result = parse_subs_attribute("none");
-        assert!(explicit(&result).is_empty());
+        assert_eq!(result, SubstitutionSpec::Explicit(Vec::new()));
     }
 
     #[test]
     fn test_parse_subs_empty_string() {
         let result = parse_subs_attribute("");
-        assert!(explicit(&result).is_empty());
+        assert_eq!(result, SubstitutionSpec::Explicit(Vec::new()));
     }
 
     #[test]
     fn test_parse_subs_none_with_whitespace() {
         let result = parse_subs_attribute("  none  ");
-        assert!(explicit(&result).is_empty());
+        assert_eq!(result, SubstitutionSpec::Explicit(Vec::new()));
     }
 
     #[test]
     fn test_parse_subs_specialchars() {
         let result = parse_subs_attribute("specialchars");
-        assert_eq!(explicit(&result), &vec![Substitution::SpecialChars]);
+        assert_eq!(explicit(&result), vec![Substitution::SpecialChars]);
     }
 
     #[test]
     fn test_parse_subs_specialchars_shorthand() {
         let result = parse_subs_attribute("c");
-        assert_eq!(explicit(&result), &vec![Substitution::SpecialChars]);
+        assert_eq!(explicit(&result), vec![Substitution::SpecialChars]);
     }
 
     #[test]
     fn test_parse_subs_specialcharacters_alias() {
         let result = parse_subs_attribute("specialcharacters");
-        assert_eq!(explicit(&result), &vec![Substitution::SpecialChars]);
+        assert_eq!(explicit(&result), vec![Substitution::SpecialChars]);
     }
 
     #[test]
     fn test_parse_subs_normal_expands() {
         let result = parse_subs_attribute("normal");
-        assert_eq!(explicit(&result), &NORMAL.to_vec());
+        assert_eq!(explicit(&result), NORMAL.to_vec());
     }
 
     #[test]
     fn test_parse_subs_verbatim_expands() {
         let result = parse_subs_attribute("verbatim");
-        assert_eq!(explicit(&result), &VERBATIM.to_vec());
+        assert_eq!(explicit(&result), VERBATIM.to_vec());
     }
 
     #[test]
     fn test_parse_subs_append_modifier() {
         let result = parse_subs_attribute("+quotes");
-        let ops = modifiers(&result);
-        assert_eq!(ops, &vec![SubstitutionOp::Append(Substitution::Quotes)]);
+        assert_eq!(source_entries(&result), ["+quotes"]);
 
         // Verify resolved result with VERBATIM baseline
         let resolved = result.resolve(VERBATIM);
@@ -779,8 +791,7 @@ mod tests {
     #[test]
     fn test_parse_subs_prepend_modifier() {
         let result = parse_subs_attribute("quotes+");
-        let ops = modifiers(&result);
-        assert_eq!(ops, &vec![SubstitutionOp::Prepend(Substitution::Quotes)]);
+        assert_eq!(source_entries(&result), ["quotes+"]);
 
         // Verify resolved result with VERBATIM baseline
         let resolved = result.resolve(VERBATIM);
@@ -890,11 +901,7 @@ mod tests {
     #[test]
     fn test_parse_subs_remove_modifier() {
         let result = parse_subs_attribute("-specialchars");
-        let ops = modifiers(&result);
-        assert_eq!(
-            ops,
-            &vec![SubstitutionOp::Remove(Substitution::SpecialChars)]
-        );
+        assert_eq!(source_entries(&result), ["-specialchars"]);
 
         // Verify resolved result with VERBATIM baseline
         let resolved = result.resolve(VERBATIM);
@@ -905,7 +912,7 @@ mod tests {
     #[test]
     fn test_parse_subs_remove_all_verbatim() {
         let result = parse_subs_attribute("-specialchars,-callouts");
-        let ops = modifiers(&result);
+        let ops = source_entries(&result);
         assert_eq!(ops.len(), 2);
 
         // Verify resolved result with VERBATIM baseline
@@ -916,7 +923,7 @@ mod tests {
     #[test]
     fn test_parse_subs_combined_modifiers() {
         let result = parse_subs_attribute("+quotes,-callouts");
-        let ops = modifiers(&result);
+        let ops = source_entries(&result);
         assert_eq!(ops.len(), 2);
 
         // Verify resolved result with VERBATIM baseline
@@ -931,7 +938,7 @@ mod tests {
         let result = parse_subs_attribute("quotes,attributes,specialchars");
         assert_eq!(
             explicit(&result),
-            &vec![
+            vec![
                 Substitution::Quotes,
                 Substitution::Attributes,
                 Substitution::SpecialChars
@@ -944,7 +951,7 @@ mod tests {
         let result = parse_subs_attribute("q,a,c");
         assert_eq!(
             explicit(&result),
-            &vec![
+            vec![
                 Substitution::Quotes,
                 Substitution::Attributes,
                 Substitution::SpecialChars
@@ -957,14 +964,14 @@ mod tests {
         let result = parse_subs_attribute(" quotes , attributes ");
         assert_eq!(
             explicit(&result),
-            &vec![Substitution::Quotes, Substitution::Attributes]
+            vec![Substitution::Quotes, Substitution::Attributes]
         );
     }
 
     #[test]
     fn test_parse_subs_duplicates_ignored() {
         let result = parse_subs_attribute("quotes,quotes,quotes");
-        assert_eq!(explicit(&result), &vec![Substitution::Quotes]);
+        assert_eq!(explicit(&result), vec![Substitution::Quotes]);
     }
 
     #[test]
@@ -1012,7 +1019,7 @@ mod tests {
         let result = parse_subs_attribute("quotes,typo,attributes");
         assert_eq!(
             explicit(&result),
-            &vec![Substitution::Quotes, Substitution::Attributes]
+            vec![Substitution::Quotes, Substitution::Attributes]
         );
     }
 
@@ -1021,27 +1028,27 @@ mod tests {
         // Test each substitution type can be parsed
         assert_eq!(
             explicit(&parse_subs_attribute("attributes")),
-            &vec![Substitution::Attributes]
+            vec![Substitution::Attributes]
         );
         assert_eq!(
             explicit(&parse_subs_attribute("replacements")),
-            &vec![Substitution::Replacements]
+            vec![Substitution::Replacements]
         );
         assert_eq!(
             explicit(&parse_subs_attribute("macros")),
-            &vec![Substitution::Macros]
+            vec![Substitution::Macros]
         );
         assert_eq!(
             explicit(&parse_subs_attribute("post_replacements")),
-            &vec![Substitution::PostReplacements]
+            vec![Substitution::PostReplacements]
         );
         assert_eq!(
             explicit(&parse_subs_attribute("quotes")),
-            &vec![Substitution::Quotes]
+            vec![Substitution::Quotes]
         );
         assert_eq!(
             explicit(&parse_subs_attribute("callouts")),
-            &vec![Substitution::Callouts]
+            vec![Substitution::Callouts]
         );
     }
 
@@ -1049,64 +1056,55 @@ mod tests {
     fn test_parse_subs_shorthand_types() {
         assert_eq!(
             explicit(&parse_subs_attribute("a")),
-            &vec![Substitution::Attributes]
+            vec![Substitution::Attributes]
         );
         assert_eq!(
             explicit(&parse_subs_attribute("r")),
-            &vec![Substitution::Replacements]
+            vec![Substitution::Replacements]
         );
         assert_eq!(
             explicit(&parse_subs_attribute("m")),
-            &vec![Substitution::Macros]
+            vec![Substitution::Macros]
         );
         assert_eq!(
             explicit(&parse_subs_attribute("p")),
-            &vec![Substitution::PostReplacements]
+            vec![Substitution::PostReplacements]
         );
         assert_eq!(
             explicit(&parse_subs_attribute("q")),
-            &vec![Substitution::Quotes]
+            vec![Substitution::Quotes]
         );
         assert_eq!(
             explicit(&parse_subs_attribute("c")),
-            &vec![Substitution::SpecialChars]
+            vec![Substitution::SpecialChars]
         );
     }
 
     #[test]
     fn test_parse_subs_mixed_modifier_list() {
-        // Bug case: subs=specialchars,+quotes - modifier not at start of string
         let result = parse_subs_attribute("specialchars,+quotes");
-        // Should be in modifier mode
-        let ops = modifiers(&result);
-        assert_eq!(ops.len(), 2); // specialchars (as append) and +quotes
-
-        // Verify resolved result with VERBATIM baseline
-        let resolved = result.resolve(VERBATIM);
-        assert!(resolved.contains(&Substitution::SpecialChars));
-        assert!(resolved.contains(&Substitution::Callouts)); // from VERBATIM default
-        assert!(resolved.contains(&Substitution::Quotes)); // appended
+        assert_eq!(
+            explicit(&result),
+            &[Substitution::SpecialChars, Substitution::Quotes]
+        );
+        assert_eq!(result.resolve(VERBATIM), explicit(&result));
     }
 
     #[test]
     fn test_parse_subs_modifier_in_middle() {
-        // subs=attributes,+quotes,-callouts
         let result = parse_subs_attribute("attributes,+quotes,-callouts");
-        let ops = modifiers(&result);
-        assert_eq!(ops.len(), 3);
-
-        // Verify resolved result with VERBATIM baseline
-        let resolved = result.resolve(VERBATIM);
-        assert!(resolved.contains(&Substitution::Attributes)); // plain name in modifier context
-        assert!(resolved.contains(&Substitution::Quotes)); // appended
-        assert!(!resolved.contains(&Substitution::Callouts)); // removed
+        assert_eq!(
+            explicit(&result),
+            &[Substitution::Attributes, Substitution::Quotes]
+        );
+        assert_eq!(result.resolve(VERBATIM), explicit(&result));
     }
 
     #[test]
     fn test_parse_subs_asciidoctor_example() {
         // From asciidoctor docs: subs="attributes+,+replacements,-callouts"
         let result = parse_subs_attribute("attributes+,+replacements,-callouts");
-        let ops = modifiers(&result);
+        let ops = source_entries(&result);
         assert_eq!(ops.len(), 3);
 
         // Verify resolved result with VERBATIM baseline
@@ -1118,17 +1116,110 @@ mod tests {
 
     #[test]
     fn test_parse_subs_modifier_only_at_end() {
-        // Modifier at end of comma-separated list
         let result = parse_subs_attribute("quotes,-specialchars");
-        // Should detect modifier mode from -specialchars
-        let ops = modifiers(&result);
-        assert_eq!(ops.len(), 2);
+        assert_eq!(explicit(&result), &[Substitution::Quotes]);
+        assert_eq!(result.resolve(VERBATIM), explicit(&result));
+    }
 
-        // Verify resolved result with VERBATIM baseline
-        let resolved = result.resolve(VERBATIM);
-        assert!(resolved.contains(&Substitution::Quotes)); // plain name appended
-        assert!(!resolved.contains(&Substitution::SpecialChars)); // removed
-        assert!(resolved.contains(&Substitution::Callouts)); // from default
+    #[test]
+    fn plain_first_substitution_lists_ignore_all_block_baselines() -> Result<(), serde_json::Error>
+    {
+        for (spec, expected) in [
+            ("quotes,+attributes", "quotes,attributes"),
+            ("quotes,attributes+", "attributes,quotes"),
+            ("quotes,-quotes", ""),
+            ("quotes,-quotes,+quotes", "quotes"),
+            ("none,+quotes", "quotes"),
+            ("none,-quotes,+attributes", "attributes"),
+            ("quotes,+none", "quotes"),
+            ("quotes,none", "quotes"),
+            (
+                "none,normal,-macros",
+                "special_chars,quotes,attributes,replacements,post_replacements",
+            ),
+            (
+                "normal,-macros",
+                "special_chars,quotes,attributes,replacements,post_replacements",
+            ),
+            ("verbatim,-callouts,+quotes", "special_chars,quotes"),
+            (
+                "verbatim,normal+",
+                "special_chars,quotes,attributes,replacements,macros,post_replacements,callouts",
+            ),
+            (
+                "normal,verbatim+",
+                "special_chars,callouts,quotes,attributes,replacements,macros,post_replacements",
+            ),
+            ("none,+normal,-normal", ""),
+            ("unknown,+quotes", "quotes"),
+            ("none,unknown,+quotes", "quotes"),
+            (",+quotes", "quotes"),
+            (" , +quotes", "quotes"),
+            (",,attributes+", "attributes"),
+            ("quotes,,+attributes,", "quotes,attributes"),
+            ("quotes,+attributes,-quotes,quotes+", "quotes,attributes"),
+            ("quotes,attributes+,+quotes", "attributes,quotes"),
+            ("attributes,+quotes,-callouts", "attributes,quotes"),
+            ("quotes,-normal,+macros", "macros"),
+            ("normal,-normal,+attributes", "attributes"),
+            (
+                "normal,+replacements",
+                "special_chars,quotes,attributes,replacements,macros,post_replacements",
+            ),
+        ] {
+            let parsed = parse_subs_attribute(spec);
+            assert_eq!(
+                source_entries(&parsed),
+                spec.split(',').map(str::trim).collect::<Vec<_>>(),
+                "{spec}"
+            );
+            for baseline in [NORMAL, VERBATIM, &[]] {
+                let actual = parsed.resolve(baseline);
+                assert_eq!(
+                    actual
+                        .iter()
+                        .map(ToString::to_string)
+                        .collect::<Vec<_>>()
+                        .join(","),
+                    expected,
+                    "{spec} with {baseline:?}"
+                );
+                assert_eq!(
+                    serde_json::to_value(&parsed)?,
+                    serde_json::to_value(spec.split(',').map(str::trim).collect::<Vec<_>>())?,
+                    "{spec}"
+                );
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn modifier_first_substitution_lists_keep_block_baselines() {
+        for spec in [
+            "+quotes,attributes",
+            "+none,quotes,attributes",
+            "-unknown,quotes,attributes",
+            "+quotes,,attributes",
+        ] {
+            let parsed = parse_subs_attribute(spec);
+            assert_eq!(
+                source_entries(&parsed),
+                spec.split(',').map(str::trim).collect::<Vec<_>>(),
+                "{spec}"
+            );
+            assert_eq!(parsed.resolve(NORMAL), NORMAL, "{spec}");
+            assert_eq!(
+                parsed.resolve(VERBATIM),
+                [
+                    Substitution::SpecialChars,
+                    Substitution::Callouts,
+                    Substitution::Quotes,
+                    Substitution::Attributes
+                ],
+                "{spec}"
+            );
+        }
     }
 
     #[test]
@@ -1328,7 +1419,7 @@ mod tests {
     )]
     #[case::modifier_remove_quotes("-quotes", Substitution::Quotes, true)]
     #[case::modifier_remove_callouts("-callouts", Substitution::Callouts, true)]
-    // Modifier add `+X` leaves X enabled (no `Remove` op present).
+    // Later operations can restore individual stages or whole groups.
     #[case::modifier_add_macros("+macros", Substitution::Macros, false)]
     #[case::modifier_add_attributes("+attributes", Substitution::Attributes, false)]
     #[case::modifier_add_post_replacements(
@@ -1338,23 +1429,77 @@ mod tests {
     )]
     #[case::modifier_add_quotes("+quotes", Substitution::Quotes, false)]
     #[case::modifier_add_callouts("+callouts", Substitution::Callouts, false)]
+    #[case::remove_normal_disables_macros("-normal", Substitution::Macros, true)]
+    #[case::remove_normal_disables_quotes("-normal", Substitution::Quotes, true)]
+    #[case::remove_normal_disables_attributes("-normal", Substitution::Attributes, true)]
+    #[case::remove_normal_disables_hardbreaks("-normal", Substitution::PostReplacements, true)]
+    #[case::remove_normal_keeps_callouts("-normal", Substitution::Callouts, false)]
+    #[case::remove_verbatim_disables_callouts("-verbatim", Substitution::Callouts, true)]
+    #[case::remove_verbatim_disables_specialchars("-verbatim", Substitution::SpecialChars, true)]
+    #[case::remove_verbatim_keeps_quotes("-verbatim", Substitution::Quotes, false)]
+    #[case::restore_normal_macros("-normal,+normal", Substitution::Macros, false)]
+    #[case::restore_normal_attributes("-normal,+normal", Substitution::Attributes, false)]
+    #[case::restore_verbatim_callouts("-verbatim,+verbatim", Substitution::Callouts, false)]
+    #[case::restore_only_callouts("-verbatim,+callouts", Substitution::SpecialChars, true)]
+    #[case::restore_only_specialchars("-verbatim,+specialchars", Substitution::Callouts, true)]
+    #[case::remove_restored_group("-normal,+normal,-normal", Substitution::Quotes, true)]
+    #[case::restore_only_macros("-normal,+macros", Substitution::Attributes, true)]
+    #[case::restore_only_attributes("-normal,attributes+", Substitution::Macros, true)]
     // `none` is the explicit empty list and disables everything.
     #[case::none_disables_macros("none", Substitution::Macros, true)]
     #[case::none_disables_attributes("none", Substitution::Attributes, true)]
     #[case::none_disables_post_replacements("none", Substitution::PostReplacements, true)]
     #[case::none_disables_quotes("none", Substitution::Quotes, true)]
     #[case::none_disables_callouts("none", Substitution::Callouts, true)]
-    fn is_disabled_matches_spec(
+    fn block_plan_disables_requested_stages(
         #[case] subs_attr: &str,
         #[case] sub: Substitution,
         #[case] expected: bool,
     ) {
         let spec = parse_subs_attribute(subs_attr);
         assert_eq!(
-            spec.is_disabled(&sub),
+            !SubstitutionPlan::for_block_spec(&spec).enabled(&sub),
             expected,
             "spec={subs_attr:?} sub={sub:?}"
         );
+    }
+
+    #[test]
+    fn removed_group_plans_keep_restored_stages_in_order() {
+        for (spec, expected) in [
+            ("-normal", "callouts"),
+            ("-normal,attributes+", "attributes,callouts"),
+            ("-normal,+attributes,+macros", "callouts,attributes,macros"),
+            ("-normal,+macros,+attributes", "callouts,macros,attributes"),
+            (
+                "-normal,+normal",
+                "callouts,specialchars,quotes,attributes,replacements,macros,post_replacements",
+            ),
+            (
+                "-normal,normal+,attributes+",
+                "attributes,specialchars,quotes,replacements,macros,post_replacements,callouts",
+            ),
+            (
+                "-verbatim",
+                "quotes,attributes,replacements,macros,post_replacements",
+            ),
+            (
+                "-verbatim,+verbatim",
+                "quotes,attributes,replacements,macros,post_replacements,specialchars,callouts",
+            ),
+            (
+                "-verbatim,+callouts",
+                "quotes,attributes,replacements,macros,post_replacements,callouts",
+            ),
+            ("-normal,-verbatim", "none"),
+            ("-normal,+quotes,-normal", "callouts"),
+        ] {
+            assert_eq!(
+                SubstitutionPlan::for_block_spec(&parse_subs_attribute(spec)),
+                SubstitutionPlan::from_substitutions(&parse_subs_attribute(expected).resolve(&[])),
+                "{spec}"
+            );
+        }
     }
 }
 

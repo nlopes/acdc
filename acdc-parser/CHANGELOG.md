@@ -24,6 +24,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Parsing file-based conditionals and checking enabled block substitutions use
   fewer temporary allocations.
+- **Breaking (`pre-spec-subs`):** parsed block substitution lists preserve their
+  authored entries in the AST and JSON, including groups, aliases, duplicates and
+  modifiers. For example, `verbatim,-macros` stays `["verbatim", "-macros"]`.
+  Standalone `none` and empty values still produce `[]`, meaning no substitutions;
+  `none` remains in mixed lists such as `none,+quotes`.
+  Exhaustive matches on substitution specifications must handle source entries;
+  existing typed construction and effective-stage resolution remain available.
+
 - Repeated automatic cross-references use less memory when document attributes
   stay unchanged. Caption and section-signifier changes still apply in source order.
 
@@ -56,6 +64,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unchanged.
 
 ### Fixed
+
+- Removing a substitution group now keeps its members disabled during parsing.
+  For example, `subs="-normal,attributes+"` expands attributes without enabling
+  formatting, links, footnotes or index terms. `-verbatim` keeps code callout
+  markers literal; adding back `callouts` or `verbatim` restores them. Operations
+  apply in order, matching Asciidoctor. acdc continues to recognize enabled
+  callouts without special-character substitution, where Asciidoctor leaves
+  their markers literal.
+
+- Substitution lists that start with a plain name now replace the block defaults,
+  even when later entries use modifiers. For example, `subs="quotes,+attributes"`
+  enables only formatting and attributes, matching Asciidoctor; typography and
+  macros stay disabled, and literal footnotes or anchors do not register entries.
+  Lists that start with a modifier, such as `+quotes,attributes`, retain defaults.
+  acdc PDF keeps enabled code formatting where Asciidoctor PDF can display
+  generated tags when special-character substitution is absent.
 
 - Prepend substitution modifiers such as `subs="attributes+"` move an existing
   stage to the front, matching Asciidoctor. Groups retain their member order,

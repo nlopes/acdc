@@ -481,7 +481,7 @@
             },
             "style": "source",
             "substitutions": [
-              "special_chars",
+              "specialcharacters",
               "attributes",
               "macros"
             ]
@@ -585,7 +585,7 @@
             },
             "style": "source",
             "substitutions": [
-              "special_chars",
+              "specialcharacters",
               "macros",
               "attributes"
             ]

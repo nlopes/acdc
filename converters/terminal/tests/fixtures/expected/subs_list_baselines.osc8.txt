@@ -1,0 +1,43 @@
+[1m[4mSubstitution lists(1)[0m[2m2026-10-07[0m
+
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mName[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+substitution-lists - explicit and incremental substitution lists
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mDescription[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+B01 [1msource[22m *bold* (C) link:https://example.org[Link].
+B02 [1msource[22m *bold* © [38;5;12m]8;;https://example.org\Link]8;;\[39m.
+B03 [1mbold[22m (C) link:https://example.org[Link].
+B04 [1msource[22m {value} (C) link:https://example.org[Link].
+B05 *source* *bold* (C) link:https://example.org[Link].
+B06 [1msource[22m *bold* © link:https://example.org[Link].
+B07 *source* *bold* (C) link:https://example.org[Link].
+B08 *source* {value} (C) link:https://example.org[Link].
+B09 [1msource[22m {value} (C) link:https://example.org[Link].
+B10 [1msource[22m {value} (C) link:https://example.org[Link].
+B11 *source* *bold* (C) link:https://example.org[Link].
+B12 [1msource[22m *bold* (C) link:https://example.org[Link].
+B13 [1msource[22m *bold* (C) link:https://example.org[Link].
+B14 [38;5;12m]8;;https://example.org\Link]8;;\[39m.
+B15 link:https://example.org[Link].
+B16 [38;5;12m]8;;https://example.org\Link]8;;\[39m.
+[38;5;8m────────────────────────────────────[ text ]────────────────────────────────────[39m
+B17 [1msource[22m *bold* (C) link:https://example.org[Link] <1>.
+[38;5;8m────────────────────────────────────────────────────────────────────────────────[39m
+[38;5;8m────────────────────────────────────[ text ]────────────────────────────────────[39m
+B18 [1msource[22m {value} (C) link:https://example.org[Link] <1>.
+[38;5;8m────────────────────────────────────────────────────────────────────────────────[39m
+[38;5;8m────────────────────[39m
+B19 bold (C) link:https://example.org[Link].
+[38;5;8m────────────────────[39m
+[38;5;8m────────────────────────────────────[ text ]────────────────────────────────────[39m
+[38;2;131;148;150mB20 *source* *bold* (C) link:https://example.org[Link] <1>.[39m
+[38;5;8m────────────────────────────────────────────────────────────────────────────────[39m
+B21 [1msource[22m *bold* © [38;5;12m]8;;https://example.org\Link]8;;\[39m.
+B22 footnote:[Literal note.] anchor:literal[] indexterm:[Literal].
+B23 café [1maccentué[22m *bold*.
+B24 [1mdefaults restored[22m © [38;5;12m]8;;https://example.org\Link]8;;\[39m.

@@ -1,0 +1,66 @@
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>removed-groups - substitution group removal</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_description">Description</h2>
+<p>G01 *source* {value} (C) link:https://example.org[Link].</p>
+<p>G02 *source* *bold* (C) link:https://example.org[Link].</p>
+<p>G03 <strong>source</strong> {value} (C) link:https://example.org[Link].</p>
+<p>G04 *source* {value} (C) <a href="https://example.org">Link</a>.</p>
+<p>G05 <strong>source</strong> *bold* &#169; <a href="https://example.org">Link</a>.</p>
+<p>G06 <strong>source</strong> *bold* &#169; link:https://example.org[Link].</p>
+<p>G07 *source* *bold* (C) link:https://example.org[Link].</p>
+<p>G08 *source* {value} (C) link:https://example.org[Link].</p>
+<p>G09 <strong>bold</strong> &#169; <a href="https://example.org">Link</a>.</p>
+<p>G10 <a href="https://example.org">Link</a>.</p>
+<p>G11 link:https://example.org[Link].</p>
+<p>G12 footnote:[Literal note.] anchor:literal[] indexterm:[Literal].</p>
+<p>G13 <strong>source</strong> *bold* &#169; <a href="https://example.org">Link</a>.</p>
+<p>G14 <strong>source</strong> *bold* &#169; <a href="https://example.org">Link</a>.</p>
+<p>G15 <strong>source</strong> {value} (C) link:https://example.org[Link].</p>
+<p>G16 *source* *bold* (C) link:https://example.org[Link].</p>
+<p>G17 before +
+after.</p>
+<p>G18 before<br>
+after.</p>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text">G19 *source* *bold* (C) link:https://example.org[Link].</code></pre>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text">G20 code <1></code></pre>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text">G21 code <b class="conum">(1)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Restored marker.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text">G22 code <b class="conum">(1)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Restored group.</li>
+</ol>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text">G23 code <1></code></pre>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text">G24 code &lt;1&gt;</code></pre>
+</div>
+<div class="listing-block">
+<pre>G25 code <1></pre>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>G26 code <1></pre>
+</div>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>G27 code <1></pre>
+</div>
+</div>
+<p>G28 café *accentué* *bold*.</p>
+<p>G29 <strong>defaults restored</strong> &#169; <a href="https://example.org">Link</a>.</p>
+</section>

@@ -497,7 +497,7 @@
       ],
       "metadata": {
         "substitutions": [
-          "special_chars",
+          "specialchars",
           "replacements",
           "post_replacements"
         ]
@@ -581,7 +581,7 @@
       ],
       "metadata": {
         "substitutions": [
-          "special_chars",
+          "specialchars",
           "post_replacements",
           "replacements"
         ]
