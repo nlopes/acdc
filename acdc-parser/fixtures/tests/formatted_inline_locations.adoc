@@ -1,0 +1,24 @@
+:word: café
+
+L01 *Bold anchor:bold[Bold target] text*.
+
+L02 _Italic [[italic,Italic target]] text_.
+
+L03 `Code anchor:code[Code target] text`.
+
+L04 *{word} _nested anchor:nested[Nested target] text_ tail*.
+
+L05 *Before +
+after*.
+
+L06 *Writer`'s text*.
+
+L07 ~xanchor:sub[]y~ ^xanchor:super[]y^.
+
+L08 "`Curved anchor:curved[] quote`".
+
+include::includes/formatted_inline_locations.adoc[]
+
+L09 See <<bold>>, <<italic>>, <<code>>, <<nested>>, and <<included>>.
+
+L10 *After anchor:following[Following target] text*.

@@ -220,13 +220,15 @@ pub(crate) fn map_inner_content_locations<'a>(
             | InlineNode::CurvedQuotationText(_)
             | InlineNode::CurvedApostropheText(_)) => map_marked_text_locations(marked_text, ctx)?,
             InlineNode::Macro(inline_macro) => map_inline_macro(inline_macro, ctx, form)?,
-            // Resolved label escapes still use the formatted text's local coordinates.
-            InlineNode::RawText(raw) => raw.location = ctx.map_location(&raw.location, form)?,
-            InlineNode::VerbatimText(_)
+            // Invisible nodes and resolved escapes still use the enclosing text's local coordinates.
+            InlineNode::RawText(_)
+            | InlineNode::VerbatimText(_)
             | InlineNode::StandaloneCurvedApostrophe(_)
             | InlineNode::LineBreak(_)
             | InlineNode::InlineAnchor(_)
-            | InlineNode::CalloutRef(_) => {}
+            | InlineNode::CalloutRef(_) => {
+                *node.location_mut() = ctx.map_location(node.location(), form)?;
+            }
         }
         Ok(None)
     })

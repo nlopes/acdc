@@ -57,6 +57,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Anchors, hard line breaks and standalone apostrophes inside formatted text
+  report their correct source spans, including nested formatting, attribute
+  expansion and included files. Reference catalogs and duplicate-ID diagnostics
+  now point to those anchors' source locations; rendered content is unchanged.
+
 - With `subs="attributes,quotes"`, constrained backtick spans use the expanded content
   to determine whether code formatting is valid, matching Asciidoctor. Empty
   content and edge spaces keep their literal backticks; a later valid closing

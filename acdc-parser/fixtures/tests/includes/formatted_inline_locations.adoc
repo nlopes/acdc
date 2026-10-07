@@ -1,0 +1,3 @@
+// Source positions must still refer to this file after comment removal.
+
+Included *α anchor:included[Included target] text*.

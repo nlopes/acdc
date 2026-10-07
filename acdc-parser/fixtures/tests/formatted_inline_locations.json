@@ -1,0 +1,1483 @@
+{
+  "name": "document",
+  "type": "block",
+  "attributes": {
+    "word": "café"
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "L01 ",
+          "location": [
+            {
+              "line": 3,
+              "col": 1
+            },
+            {
+              "line": 3,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Bold ",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 6
+                },
+                {
+                  "line": 3,
+                  "col": 10
+                }
+              ]
+            },
+            {
+              "name": "anchor",
+              "type": "inline",
+              "id": "bold",
+              "xreflabel": "Bold target",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 11
+                },
+                {
+                  "line": 3,
+                  "col": 34
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " text",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 35
+                },
+                {
+                  "line": 3,
+                  "col": 39
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 3,
+              "col": 5
+            },
+            {
+              "line": 3,
+              "col": 40
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 3,
+              "col": 41
+            },
+            {
+              "line": 3,
+              "col": 41
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 3,
+          "col": 41
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "L02 ",
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "emphasis",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Italic ",
+              "location": [
+                {
+                  "line": 5,
+                  "col": 6
+                },
+                {
+                  "line": 5,
+                  "col": 12
+                }
+              ]
+            },
+            {
+              "name": "anchor",
+              "type": "inline",
+              "id": "italic",
+              "xreflabel": "Italic target",
+              "location": [
+                {
+                  "line": 5,
+                  "col": 13
+                },
+                {
+                  "line": 5,
+                  "col": 36
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " text",
+              "location": [
+                {
+                  "line": 5,
+                  "col": 37
+                },
+                {
+                  "line": 5,
+                  "col": 41
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 5,
+              "col": 5
+            },
+            {
+              "line": 5,
+              "col": 42
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 5,
+              "col": 43
+            },
+            {
+              "line": 5,
+              "col": 43
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 43
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "L03 ",
+          "location": [
+            {
+              "line": 7,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "code",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Code ",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 6
+                },
+                {
+                  "line": 7,
+                  "col": 10
+                }
+              ]
+            },
+            {
+              "name": "anchor",
+              "type": "inline",
+              "id": "code",
+              "xreflabel": "Code target",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 11
+                },
+                {
+                  "line": 7,
+                  "col": 34
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " text",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 35
+                },
+                {
+                  "line": 7,
+                  "col": 39
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 7,
+              "col": 5
+            },
+            {
+              "line": 7,
+              "col": 40
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 7,
+              "col": 41
+            },
+            {
+              "line": 7,
+              "col": 41
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 41
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "L04 ",
+          "location": [
+            {
+              "line": 9,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "café ",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 6
+                },
+                {
+                  "line": 9,
+                  "col": 12
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "emphasis",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "nested ",
+                  "location": [
+                    {
+                      "line": 9,
+                      "col": 14
+                    },
+                    {
+                      "line": 9,
+                      "col": 20
+                    }
+                  ]
+                },
+                {
+                  "name": "anchor",
+                  "type": "inline",
+                  "id": "nested",
+                  "xreflabel": "Nested target",
+                  "location": [
+                    {
+                      "line": 9,
+                      "col": 21
+                    },
+                    {
+                      "line": 9,
+                      "col": 48
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": " text",
+                  "location": [
+                    {
+                      "line": 9,
+                      "col": 49
+                    },
+                    {
+                      "line": 9,
+                      "col": 53
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 9,
+                  "col": 13
+                },
+                {
+                  "line": 9,
+                  "col": 54
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " tail",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 55
+                },
+                {
+                  "line": 9,
+                  "col": 59
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 9,
+              "col": 5
+            },
+            {
+              "line": 9,
+              "col": 60
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 9,
+              "col": 61
+            },
+            {
+              "line": 9,
+              "col": 61
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 9,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 61
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "L05 ",
+          "location": [
+            {
+              "line": 11,
+              "col": 1
+            },
+            {
+              "line": 11,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Before",
+              "location": [
+                {
+                  "line": 11,
+                  "col": 6
+                },
+                {
+                  "line": 11,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "break",
+              "type": "inline",
+              "location": [
+                {
+                  "line": 11,
+                  "col": 12
+                },
+                {
+                  "line": 11,
+                  "col": 13
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "after",
+              "location": [
+                {
+                  "line": 12,
+                  "col": 1
+                },
+                {
+                  "line": 12,
+                  "col": 5
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 11,
+              "col": 5
+            },
+            {
+              "line": 12,
+              "col": 6
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 12,
+              "col": 7
+            },
+            {
+              "line": 12,
+              "col": 7
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 11,
+          "col": 1
+        },
+        {
+          "line": 12,
+          "col": 7
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "L06 ",
+          "location": [
+            {
+              "line": 14,
+              "col": 1
+            },
+            {
+              "line": 14,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Writer",
+              "location": [
+                {
+                  "line": 14,
+                  "col": 6
+                },
+                {
+                  "line": 14,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "curved_apostrophe",
+              "type": "string",
+              "location": [
+                {
+                  "line": 14,
+                  "col": 12
+                },
+                {
+                  "line": 14,
+                  "col": 13
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "s text",
+              "location": [
+                {
+                  "line": 14,
+                  "col": 14
+                },
+                {
+                  "line": 14,
+                  "col": 19
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 14,
+              "col": 5
+            },
+            {
+              "line": 14,
+              "col": 20
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 14,
+              "col": 21
+            },
+            {
+              "line": 14,
+              "col": 21
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 14,
+          "col": 1
+        },
+        {
+          "line": 14,
+          "col": 21
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "L07 ",
+          "location": [
+            {
+              "line": 16,
+              "col": 1
+            },
+            {
+              "line": 16,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "subscript",
+          "form": "unconstrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "x",
+              "location": [
+                {
+                  "line": 16,
+                  "col": 6
+                },
+                {
+                  "line": 16,
+                  "col": 6
+                }
+              ]
+            },
+            {
+              "name": "anchor",
+              "type": "inline",
+              "id": "sub",
+              "location": [
+                {
+                  "line": 16,
+                  "col": 7
+                },
+                {
+                  "line": 16,
+                  "col": 18
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "y",
+              "location": [
+                {
+                  "line": 16,
+                  "col": 19
+                },
+                {
+                  "line": 16,
+                  "col": 19
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 16,
+              "col": 5
+            },
+            {
+              "line": 16,
+              "col": 20
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " ",
+          "location": [
+            {
+              "line": 16,
+              "col": 21
+            },
+            {
+              "line": 16,
+              "col": 21
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "superscript",
+          "form": "unconstrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "x",
+              "location": [
+                {
+                  "line": 16,
+                  "col": 23
+                },
+                {
+                  "line": 16,
+                  "col": 23
+                }
+              ]
+            },
+            {
+              "name": "anchor",
+              "type": "inline",
+              "id": "super",
+              "location": [
+                {
+                  "line": 16,
+                  "col": 24
+                },
+                {
+                  "line": 16,
+                  "col": 37
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "y",
+              "location": [
+                {
+                  "line": 16,
+                  "col": 38
+                },
+                {
+                  "line": 16,
+                  "col": 38
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 16,
+              "col": 22
+            },
+            {
+              "line": 16,
+              "col": 39
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 16,
+              "col": 40
+            },
+            {
+              "line": 16,
+              "col": 40
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 16,
+          "col": 1
+        },
+        {
+          "line": 16,
+          "col": 40
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "L08 ",
+          "location": [
+            {
+              "line": 18,
+              "col": 1
+            },
+            {
+              "line": 18,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "curved_quotation",
+          "form": "unconstrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Curved ",
+              "location": [
+                {
+                  "line": 18,
+                  "col": 7
+                },
+                {
+                  "line": 18,
+                  "col": 13
+                }
+              ]
+            },
+            {
+              "name": "anchor",
+              "type": "inline",
+              "id": "curved",
+              "location": [
+                {
+                  "line": 18,
+                  "col": 14
+                },
+                {
+                  "line": 18,
+                  "col": 28
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " quote",
+              "location": [
+                {
+                  "line": 18,
+                  "col": 29
+                },
+                {
+                  "line": 18,
+                  "col": 34
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 18,
+              "col": 5
+            },
+            {
+              "line": 18,
+              "col": 36
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 18,
+              "col": 37
+            },
+            {
+              "line": 18,
+              "col": 37
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 18,
+          "col": 1
+        },
+        {
+          "line": 18,
+          "col": 37
+        }
+      ]
+    },
+    {
+      "name": "comment",
+      "type": "block",
+      "content": " Source positions must still refer to this file after comment removal.",
+      "location": [
+        {
+          "line": 1,
+          "col": 1,
+          "file": [
+            "includes/formatted_inline_locations.adoc"
+          ]
+        },
+        {
+          "line": 1,
+          "col": 73,
+          "file": [
+            "includes/formatted_inline_locations.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Included ",
+          "location": [
+            {
+              "line": 3,
+              "col": 1,
+              "file": [
+                "includes/formatted_inline_locations.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 9,
+              "file": [
+                "includes/formatted_inline_locations.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "α ",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 11,
+                  "file": [
+                    "includes/formatted_inline_locations.adoc"
+                  ]
+                },
+                {
+                  "line": 3,
+                  "col": 12,
+                  "file": [
+                    "includes/formatted_inline_locations.adoc"
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "anchor",
+              "type": "inline",
+              "id": "included",
+              "xreflabel": "Included target",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 13,
+                  "file": [
+                    "includes/formatted_inline_locations.adoc"
+                  ]
+                },
+                {
+                  "line": 3,
+                  "col": 44,
+                  "file": [
+                    "includes/formatted_inline_locations.adoc"
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " text",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 45,
+                  "file": [
+                    "includes/formatted_inline_locations.adoc"
+                  ]
+                },
+                {
+                  "line": 3,
+                  "col": 49,
+                  "file": [
+                    "includes/formatted_inline_locations.adoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 3,
+              "col": 10,
+              "file": [
+                "includes/formatted_inline_locations.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 50,
+              "file": [
+                "includes/formatted_inline_locations.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 3,
+              "col": 51,
+              "file": [
+                "includes/formatted_inline_locations.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 51,
+              "file": [
+                "includes/formatted_inline_locations.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1,
+          "file": [
+            "includes/formatted_inline_locations.adoc"
+          ]
+        },
+        {
+          "line": 3,
+          "col": 51,
+          "file": [
+            "includes/formatted_inline_locations.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "L09 See ",
+          "location": [
+            {
+              "line": 22,
+              "col": 1
+            },
+            {
+              "line": 22,
+              "col": 8
+            }
+          ]
+        },
+        {
+          "name": "xref",
+          "type": "inline",
+          "target": "bold",
+          "location": [
+            {
+              "line": 22,
+              "col": 9
+            },
+            {
+              "line": 22,
+              "col": 16
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ", ",
+          "location": [
+            {
+              "line": 22,
+              "col": 17
+            },
+            {
+              "line": 22,
+              "col": 18
+            }
+          ]
+        },
+        {
+          "name": "xref",
+          "type": "inline",
+          "target": "italic",
+          "location": [
+            {
+              "line": 22,
+              "col": 19
+            },
+            {
+              "line": 22,
+              "col": 28
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ", ",
+          "location": [
+            {
+              "line": 22,
+              "col": 29
+            },
+            {
+              "line": 22,
+              "col": 30
+            }
+          ]
+        },
+        {
+          "name": "xref",
+          "type": "inline",
+          "target": "code",
+          "location": [
+            {
+              "line": 22,
+              "col": 31
+            },
+            {
+              "line": 22,
+              "col": 38
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ", ",
+          "location": [
+            {
+              "line": 22,
+              "col": 39
+            },
+            {
+              "line": 22,
+              "col": 40
+            }
+          ]
+        },
+        {
+          "name": "xref",
+          "type": "inline",
+          "target": "nested",
+          "location": [
+            {
+              "line": 22,
+              "col": 41
+            },
+            {
+              "line": 22,
+              "col": 50
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ", and ",
+          "location": [
+            {
+              "line": 22,
+              "col": 51
+            },
+            {
+              "line": 22,
+              "col": 56
+            }
+          ]
+        },
+        {
+          "name": "xref",
+          "type": "inline",
+          "target": "included",
+          "location": [
+            {
+              "line": 22,
+              "col": 57
+            },
+            {
+              "line": 22,
+              "col": 68
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 22,
+              "col": 69
+            },
+            {
+              "line": 22,
+              "col": 69
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 22,
+          "col": 1
+        },
+        {
+          "line": 22,
+          "col": 69
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "L10 ",
+          "location": [
+            {
+              "line": 24,
+              "col": 1
+            },
+            {
+              "line": 24,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "After ",
+              "location": [
+                {
+                  "line": 24,
+                  "col": 6
+                },
+                {
+                  "line": 24,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "anchor",
+              "type": "inline",
+              "id": "following",
+              "xreflabel": "Following target",
+              "location": [
+                {
+                  "line": 24,
+                  "col": 12
+                },
+                {
+                  "line": 24,
+                  "col": 45
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " text",
+              "location": [
+                {
+                  "line": 24,
+                  "col": 46
+                },
+                {
+                  "line": 24,
+                  "col": 50
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 24,
+              "col": 5
+            },
+            {
+              "line": 24,
+              "col": 51
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 24,
+              "col": 52
+            },
+            {
+              "line": 24,
+              "col": 52
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 24,
+          "col": 1
+        },
+        {
+          "line": 24,
+          "col": 52
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 24,
+      "col": 52
+    }
+  ]
+}
