@@ -1,0 +1,93 @@
+'\" t
+.\"     Title: url-semantic-boundaries
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-07
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "URL\-SEMANTIC\-BOUNDARIES" "1" "2026-10-07" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+url\-semantic\-boundaries \- inspect URLs following inline content
+.SH "CASES"
+.sp
+E01 \fBPrefix\fR\c
+.URL "https://example.org/e01" "" "\fR\c"
+
+.sp
+E02 Xhttps://example.org/e02
+.sp
+E03 \(lq\c
+.URL "https://example.org/e03" "" "\fR\c"
+\(rq
+.sp
+E04 \(oq\c
+.URL "https://example.org/e04" "" "\fR\c"
+\(cq
+.sp
+E05 \c
+.URL "https://example.org/e05\-one" "One" "\fR\c"
+\c
+.URL "https://example.org/e05\-two" "Two" "\fR\c"
+
+.sp
+E06 \fBPrefix\fR\c
+.URL "https://example.org/e06" "Site" "\fR\c"
+
+.sp
+E07  https://example.org/e07
+.sp
+E08 *https://example.org/e08
+.sp
+E09 \fBBold\fR\c
+.URL "https://example.org/e09" "" "\fR\c"
+
+.sp
+E10 \fBBold\fR\c
+.URL "https://example.org/e10" "Site" "\fR\c"
+
+.sp
+E11 Xhttps://example.org/e11
+.sp
+E12 \fBBold\fR\c
+.URL "https://example.org/e12" "" "\fR\c"
+
+.sp
+E13 \fBBold\fR\c
+.URL "https://example.org/e13" "" "\fR\c"
+
+.sp
+E14 \fBBold\fR \c
+.URL "https://example.org/e14" "" "\fR\c"
+
+.sp
+E15 \fBBold\fR;\c
+.URL "https://example.org/e15" "" "\fR\c"
+
+.sp
+E16  \c
+.URL "https://example.org/e16" "" "\fR\c"
+
+.sp
+E17 *Bold*tailhttps://example.org/e17
+.SH "END"

@@ -54,6 +54,8 @@ pub(crate) struct ParserState<'a> {
     pub(crate) attribute_value_ranges: Vec<Range<usize>>,
     /// Original references for index labels and code boundaries checked before attributes.
     pub(crate) late_attribute_sources: Vec<(Range<usize>, &'a str)>,
+    /// Boundary left by the last completed inline node in this parse.
+    pub(crate) last_url_boundary: Option<InlineUrlBoundary>,
     pub(crate) line_map: Rc<LineMap>,
     /// Parse options, shared via `Rc` so the per-inline-parse
     /// `for_inline_parsing` sub-state is cheap to construct — the old
@@ -145,6 +147,13 @@ pub(crate) struct ParserState<'a> {
     /// "no `@`" result at offset X is indistinguishable from "`@` is at X"
     /// and can trigger the expensive email rule the cache was meant to avoid.
     pub(crate) next_at_sign_cache: Cell<Option<AtLookahead>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum InlineUrlBoundary {
+    Formatted(usize),
+    Protected(usize),
+    Text(usize, Option<char>),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -550,6 +559,7 @@ impl<'a> ParserState<'a> {
             empty_attribute_offsets: Vec::new(),
             attribute_value_ranges: Vec::new(),
             late_attribute_sources: Vec::new(),
+            last_url_boundary: None,
             line_map: Rc::new(LineMap::new(input)),
             input,
             arena,
@@ -590,6 +600,7 @@ impl<'a> ParserState<'a> {
             empty_attribute_offsets: Vec::new(),
             attribute_value_ranges: Vec::new(),
             late_attribute_sources: Vec::new(),
+            last_url_boundary: None,
             line_map: Rc::new(LineMap::new(input)),
             input,
             arena,
@@ -631,6 +642,7 @@ impl<'a> ParserState<'a> {
             empty_attribute_offsets: Vec::new(),
             attribute_value_ranges: Vec::new(),
             late_attribute_sources: Vec::new(),
+            last_url_boundary: None,
             line_map: Rc::new(LineMap::new(input)),
             input,
             arena: parent.arena,

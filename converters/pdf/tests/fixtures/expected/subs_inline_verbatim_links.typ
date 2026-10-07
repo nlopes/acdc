@@ -119,7 +119,7 @@
 
 #text("P07 ")#raw("https://example.org/disabled[Literal]")#text(".")
 
-#text("P08 `")#link("https://example.org/quotes-off")[#text("Quotes off")]#text("`.")
+#text("P08 `https://example.org/quotes-off[Quotes off]`.")
 
 #text("P09 ")#link("other.manual.pdf#target")[#raw("Custom")]#raw("")#text(".")
 

@@ -1,7 +1,7 @@
 #set document(
-  title: "incomplete-links(1)",
+  title: "url-opening-boundaries(1)",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[incomplete-links(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[url-opening-boundaries(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -74,78 +74,135 @@
 #set page(numbering: "1")
 #counter(page).update(1)
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("incomplete-links(1)")]
+#text(size: 22pt, weight: "bold")[#text("url-opening-boundaries(1)")]
 ]
 #v(1em)
 
 #heading(level: 1)[#text("Name")] <id-5f6e616d65>
 
-#text("incomplete-links - preserve unfinished links as text")
+#text("url-opening-boundaries - inspect automatic URL boundaries")
 
-#heading(level: 1)[#text("Synopsis")] <id-5f73796e6f70736973>
+#heading(level: 1)[#text("Cases")] <id-5f6361736573>
 
-#text("L01 ")#text("link:https://unfinished.example")
+#text("U01 Link:https://example.org/u01")
 
-#text("L02 ")#text("link:https://unfinished.example")#text("[Unfinished")
+#text("U02 prefixhttps://example.org/u02")
 
-#text("L03 ")#text("link:https://unfinished.example")#text("[Escaped\\]")
+#text("U03 label:https://example.org/u03[Site]")
 
-#text("L04 ")#link("https://complete.example")[#text("Complete")]
+#text("U04 (")#link("https://example.org/u04")[#text("https://example.org/u04")]#text(")")
 
-#text("L05 ")#link("https://bare.example")[#text("https://bare.example")]
+#text("U05 \"https://example.org/u05\"")
 
-#text("L06 link: ")#link("https://separate.example")[#text("Label")]
+#text("U06 ")#link("https://example.org/u06")[#text("Site")]
 
-#text("L07 x")#text("link:https://unfinished.example")
+#text("U07 ")#strong[#link("https://example.org/u07")[#text("https://example.org/u07")]]
 
-#text("L08 Link:https://boundary.example")
+#text("U08 ")#link("https://example.org/u08")[#text("https://example.org/u08")]
 
-#text("L09 ")#text("link:http://unfinished.example")
+#text("U09 'https://example.org/u09'")
 
-#text("L10 ")#text("link:ftp://unfinished.example")
+#text("U10 \"")#link("https://example.org/u10")[#text("Site")]#text("\"")
 
-#text("L11 ")#text("link:irc://unfinished.example")
+#text("U11 '")#link("https://example.org/u11")[#text("Site")]#text("'")
 
-#text("L12 ")#text("link:mailto:user@example.org")
+#text("U12 ,https://example.org/u12")
 
-#text("L13 ")#text("link:user@example.org")
+#text("U13 ;")#link("https://example.org/u13")[#text("https://example.org/u13")]
 
-#text("L14 \\")#text("link:https://unfinished.example")#text("[Unfinished")
+#text("U14 =https://example.org/u14")
 
-#text("L15 ")#text("link:\\https://unfinished.example")
+#text("U15 _prefixhttps://example.org/u15")
 
-#text("L16 ")#link("https://suffix.example")[#text("path")]#text("suffix")
+#text("U16 caféhttps://example.org/u16")
 
-#text("L17 ")#text("link:https://unfinished.example")#text("[Unfinished ")#link("https://inner.example")[#text("Inner")]
+#text("U17 éhttps://example.org/u17")
 
-#text("L18 ")#strong[#text("link:https://unfinished.example")]
+#text("U18  ")#link("https://example.org/u18")[#text("https://example.org/u18")]
 
-#text("L19 ")#text("link:https://unfinished.example")#text("[")#strong[#text("Bold")]#text(" text")
+#text("U19 [")#link("https://example.org/u19")[#text("https://example.org/u19")]#text("]")
 
-#text("L20 ")#link("https://implicit.example")[#text("https://implicit.example")]#text("[Unfinished")
+#text("U20 ")#link("https://example.org/u20")[#text("https://example.org/u20")]
 
-#text("L21 ")#link("https://angle.example")[#text("https://angle.example")]
+#text("U21 *Prefix*https://example.org/u21")
 
-#text("L22 link:")#link("https://angle.example")[#text("https://angle.example")]
+#text("U22 ")#strong[#text("Link:https://example.org/u22")]
 
-#text("L23 ")#text("link:https://user@unfinished.example")#text("[Unfinished")
+#text("U23 ")#emph[#link("https://example.org/u23")[#text("https://example.org/u23")]]
 
-#text("L24 link:école.html[Unfinished")
+#text("U24 ")#text("Link:https://example.org/u24")
 
-#text("L25 ")#text("link:manual.html")#text("[Unfinished ")#link("https://inner.example")[#text("Inner")]
+#text("U25 ")#text("https://example.org/u25")
 
-#text("L26 ")#text("link:https://unfinished.example")#text("[Unfinished")
+#text("U26 prefix\\https://example.org/u26")
 
-#text("L27 ")#text("link:https://unfinished.example")#text("[Unfinished still unfinished")
+#text("U27 \"")#text("https://example.org/u27[Site]")#text("\"")
 
-#text("L28 ")#text("link:https://unfinished.example")#text("[Unfinished ")#strong[#text("bold")]#text(" and ")#link("https://other.example")[#text("https://other.example")]#text(".")
+#text("U28 \"")#text("https://example.org/u28")#text("\"")
 
-#text("L29 ")#text("link:https://unfinished.example")#text("[Unfinished ")#link("mailto:inner@example.org")[#text("Mail")]#text(".")
+#text("U29 ")#text("\\\\https://example.org/u29")
 
-#text("L30 ")#text("link:https://unfinished.example")#text("[Unfinished ")#metadata(none)<__indexterm-1>#text("Term")#text(" ")#counter(footnote).update(0)#footnote[#text("Only note.")]<id-666f6f746e6f74653a6f6e65>
+#text("U30 prefix\\https://example.org/u30[Site]")
 
-#text("Reuse ")#footnote(<id-666f6f746e6f74653a6f6e65>)#text(".")
+#text("U31 Label:https://example.org/u31")
 
-#text("L31 ")#text("link:\\\\https://unfinished.example")#text("[Unfinished")
+#text("U32 prefix ")#link("https://example.org/u32")[#text("https://example.org/u32")]
 
-#text("L32 \\\\")#text("link:https://unfinished.example")#text("[Unfinished")
+#text("U33 \"https://example.org/u34\"")
+
+#text("U34 ")#link("https://example.org/u34")[#text("Site")]
+
+#text("U35 https://example.org/u35[Site]")
+
+#text("U36 ")#link("https://example.org/u36")[#text("Site")]
+
+#text("U37 https://example.org/u37 and https://example.org/u37-label[Site]")
+
+#{
+  // Slice highlighted text without discarding its syntax styles.
+  let code-slice(body, start, end) = {
+    if body.has("text") {
+      let size = body.text.len()
+      (text(body.text.slice(calc.min(start, size), calc.min(end, size))), size)
+    } else if body.has("children") {
+      let offset = 0
+      let parts = []
+      for child in body.children {
+        let (part, size) = code-slice(child, calc.max(0, start - offset), calc.max(0, end - offset))
+        parts += part
+        offset += size
+      }
+      (parts, offset)
+    } else if body.has("child") {
+      let (child, size) = code-slice(body.child, start, end)
+      (body.func()(child, body.styles), size)
+    } else {
+      ([], 0)
+    }
+  }
+  let links = (
+    (),
+    ((4, 8, body => link("https://example.org/u39", body)), ),
+    (),
+    ((5, 9, body => link("https://example.org/u41", body)), ),
+  )
+  let code-links(line) = {
+    let start = 0
+    let body = []
+    for (from, to, make-link) in links.at(line.number - 1, default: ()) {
+      body += code-slice(line.body, start, from).first()
+      body += make-link(code-slice(line.body, from, to).first())
+      start = to
+    }
+    body + code-slice(line.body, start, line.text.len()).first()
+  }
+  show raw.line: line => code-links(line)
+  raw(block: true, "U38 Link:https://example.org/u38\nU39 Site\nU40 \"https://example.org/u40\"\nU41 \"Site\"")
+}
+#text("U42 (")#link("ftp://example.org/u42")[#text("ftp://example.org/u42")]#text(")")
+
+#text("U43 Link:irc://example.org/u43[channel]")
+
+#text("U44 Label:")#link("https://example.org/u44")[#text("Site")]
+
+#heading(level: 1)[#text("End")] <id-5f656e64>

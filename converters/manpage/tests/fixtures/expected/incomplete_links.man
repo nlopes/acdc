@@ -51,9 +51,7 @@ L06 link: \c
 .sp
 L07 xlink:https://unfinished.example
 .sp
-L08 Link:\c
-.URL "https://boundary.example" "" "\fR\c"
-
+L08 Link:https://boundary.example
 .sp
 L09 link:http://unfinished.example
 .sp

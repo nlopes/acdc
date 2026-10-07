@@ -681,11 +681,9 @@ impl<'a> Include<'a> {
         &self.target_as_written
     }
 
-    fn unresolved_directive_for_target(
-        &self,
-        target_as_written: &str,
-        attribute_list_as_written: &str,
-    ) -> IncludeResult {
+    /// Build Asciidoctor's visible recovery line for a failed include read.
+    fn unresolved_directive(&self, attribute_list_as_written: &str) -> IncludeResult {
+        let target_as_written = self.target_as_written();
         let source = match &self.source_origin {
             SourceOrigin::File {
                 path,
@@ -711,20 +709,6 @@ impl<'a> Include<'a> {
         IncludeResult::unresolved_directive(format!(
             "Unresolved directive in {source} - include::{target_as_written}[{attribute_list_as_written}]"
         ))
-    }
-
-    /// Build Asciidoctor's visible recovery line for a failed local include read.
-    fn unresolved_directive(&self, attribute_list_as_written: &str) -> IncludeResult {
-        self.unresolved_directive_for_target(self.target_as_written(), attribute_list_as_written)
-    }
-
-    /// Escape the URI macro in generated parser input so the unresolved directive
-    /// remains converter-visible plain text. Inline parsing removes the backslash.
-    fn unresolved_uri_directive(&self, attribute_list_as_written: &str) -> IncludeResult {
-        self.unresolved_directive_for_target(
-            &format!(r"\{}", self.target_as_written()),
-            attribute_list_as_written,
-        )
     }
 
     /// Fetch a URL target into memory without changing its source origin.
@@ -1056,7 +1040,7 @@ impl<'a> Include<'a> {
                     "network support is disabled, cannot fetch remote includes: {url}",
                 ));
                 Ok(UrlIncludeOutcome::Fallback(Box::new(
-                    self.unresolved_uri_directive(attribute_list_as_written),
+                    self.unresolved_directive(attribute_list_as_written),
                 )))
             }
             #[cfg(feature = "network")]
@@ -1064,7 +1048,7 @@ impl<'a> Include<'a> {
                 tracing::debug!(%url, %detail, "failed to retrieve remote include");
                 self.warn_located(format!("include uri not readable: {url}"));
                 Ok(UrlIncludeOutcome::Fallback(Box::new(
-                    self.unresolved_uri_directive(attribute_list_as_written),
+                    self.unresolved_directive(attribute_list_as_written),
                 )))
             }
             Err(UrlReadError::Other(error)) => Err(error),
@@ -1192,7 +1176,7 @@ impl<'a> Include<'a> {
                     ));
                 }
                 self.warn_located(format!("include uri not readable: {uri}"));
-                return Ok(self.unresolved_uri_directive(attribute_list_as_written));
+                return Ok(self.unresolved_directive(attribute_list_as_written));
             }
         };
         self.process_selected_content(&content, &source_origin, &resolved_source, is_asciidoc)

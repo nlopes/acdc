@@ -1,7 +1,7 @@
 #set document(
-  title: "incomplete-links(1)",
+  title: "url-semantic-boundaries(1)",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[incomplete-links(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[url-semantic-boundaries(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -74,78 +74,48 @@
 #set page(numbering: "1")
 #counter(page).update(1)
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("incomplete-links(1)")]
+#text(size: 22pt, weight: "bold")[#text("url-semantic-boundaries(1)")]
 ]
 #v(1em)
 
 #heading(level: 1)[#text("Name")] <id-5f6e616d65>
 
-#text("incomplete-links - preserve unfinished links as text")
+#text("url-semantic-boundaries - inspect URLs following inline content")
 
-#heading(level: 1)[#text("Synopsis")] <id-5f73796e6f70736973>
+#heading(level: 1)[#text("Cases")] <id-5f6361736573>
 
-#text("L01 ")#text("link:https://unfinished.example")
+#text("E01 ")#strong[#text("Prefix")]#link("https://example.org/e01")[#text("https://example.org/e01")]
 
-#text("L02 ")#text("link:https://unfinished.example")#text("[Unfinished")
+#text("E02 ")#text("X")#text("https://example.org/e02")
 
-#text("L03 ")#text("link:https://unfinished.example")#text("[Escaped\\]")
+#text("E03 ")#text("“")#link("https://example.org/e03")[#text("https://example.org/e03")]#text("”")
 
-#text("L04 ")#link("https://complete.example")[#text("Complete")]
+#text("E04 ")#text("‘")#link("https://example.org/e04")[#text("https://example.org/e04")]#text("’")
 
-#text("L05 ")#link("https://bare.example")[#text("https://bare.example")]
+#text("E05 ")#link("https://example.org/e05-one")[#text("One")]#link("https://example.org/e05-two")[#text("Two")]
 
-#text("L06 link: ")#link("https://separate.example")[#text("Label")]
+#text("E06 ")#strong[#text("Prefix")]#link("https://example.org/e06")[#text("Site")]
 
-#text("L07 x")#text("link:https://unfinished.example")
+#text("E07 ")#text(" ")#text("https://example.org/e07")
 
-#text("L08 Link:https://boundary.example")
+#text("E08 ")#text("*")#text("https://example.org/e08")
 
-#text("L09 ")#text("link:http://unfinished.example")
+#text("E09 ")#strong[#text("Bold")]#link("https://example.org/e09")[#text("https://example.org/e09")]
 
-#text("L10 ")#text("link:ftp://unfinished.example")
+#text("E10 ")#strong[#text("Bold")]#link("https://example.org/e10")[#text("Site")]
 
-#text("L11 ")#text("link:irc://unfinished.example")
+#text("E11 Xhttps://example.org/e11")
 
-#text("L12 ")#text("link:mailto:user@example.org")
+#text("E12 ")#strong[#text("Bold")]#link("https://example.org/e12")[#text("https://example.org/e12")]
 
-#text("L13 ")#text("link:user@example.org")
+#text("E13 ")#strong[#text("Bold")]#link("https://example.org/e13")[#text("https://example.org/e13")]
 
-#text("L14 \\")#text("link:https://unfinished.example")#text("[Unfinished")
+#text("E14 ")#strong[#text("Bold")]#text(" ")#link("https://example.org/e14")[#text("https://example.org/e14")]
 
-#text("L15 ")#text("link:\\https://unfinished.example")
+#text("E15 ")#strong[#text("Bold")]#text(";")#link("https://example.org/e15")[#text("https://example.org/e15")]
 
-#text("L16 ")#link("https://suffix.example")[#text("path")]#text("suffix")
+#text("E16 ")#link("https://example.org/e16")[#text("https://example.org/e16")]
 
-#text("L17 ")#text("link:https://unfinished.example")#text("[Unfinished ")#link("https://inner.example")[#text("Inner")]
+#text("E17 ")#text("*Bold*tail")#text("https://example.org/e17")
 
-#text("L18 ")#strong[#text("link:https://unfinished.example")]
-
-#text("L19 ")#text("link:https://unfinished.example")#text("[")#strong[#text("Bold")]#text(" text")
-
-#text("L20 ")#link("https://implicit.example")[#text("https://implicit.example")]#text("[Unfinished")
-
-#text("L21 ")#link("https://angle.example")[#text("https://angle.example")]
-
-#text("L22 link:")#link("https://angle.example")[#text("https://angle.example")]
-
-#text("L23 ")#text("link:https://user@unfinished.example")#text("[Unfinished")
-
-#text("L24 link:école.html[Unfinished")
-
-#text("L25 ")#text("link:manual.html")#text("[Unfinished ")#link("https://inner.example")[#text("Inner")]
-
-#text("L26 ")#text("link:https://unfinished.example")#text("[Unfinished")
-
-#text("L27 ")#text("link:https://unfinished.example")#text("[Unfinished still unfinished")
-
-#text("L28 ")#text("link:https://unfinished.example")#text("[Unfinished ")#strong[#text("bold")]#text(" and ")#link("https://other.example")[#text("https://other.example")]#text(".")
-
-#text("L29 ")#text("link:https://unfinished.example")#text("[Unfinished ")#link("mailto:inner@example.org")[#text("Mail")]#text(".")
-
-#text("L30 ")#text("link:https://unfinished.example")#text("[Unfinished ")#metadata(none)<__indexterm-1>#text("Term")#text(" ")#counter(footnote).update(0)#footnote[#text("Only note.")]<id-666f6f746e6f74653a6f6e65>
-
-#text("Reuse ")#footnote(<id-666f6f746e6f74653a6f6e65>)#text(".")
-
-#text("L31 ")#text("link:\\\\https://unfinished.example")#text("[Unfinished")
-
-#text("L32 \\\\")#text("link:https://unfinished.example")#text("[Unfinished")
+#heading(level: 1)[#text("End")] <id-5f656e64>

@@ -1,0 +1,32 @@
+[1m[4murl-semantic-boundaries(1)[0m[2m2026-10-07[0m
+
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mName[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+url-semantic-boundaries - inspect URLs following inline content
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mCases[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+E01 [1mPrefix[22m[38;5;12mhttps://example.org/e01[39m
+E02 Xhttps://example.org/e02
+E03 “[38;5;12mhttps://example.org/e03[39m”
+E04 ‘[38;5;12mhttps://example.org/e04[39m’
+E05 [38;5;12mOne[39m[2m (https://example.org/e05-one)[0m[38;5;12mTwo[39m[2m (https://example.org/e05-two)[0m
+E06 [1mPrefix[22m[38;5;12mSite[39m[2m (https://example.org/e06)[0m
+E07  https://example.org/e07
+E08 *https://example.org/e08
+E09 [1mBold[22m[38;5;12mhttps://example.org/e09[39m
+E10 [1mBold[22m[38;5;12mSite[39m[2m (https://example.org/e10)[0m
+E11 Xhttps://example.org/e11
+E12 [1mBold[22m[38;5;12mhttps://example.org/e12[39m
+E13 [1mBold[22m[38;5;12mhttps://example.org/e13[39m
+E14 [1mBold[22m [38;5;12mhttps://example.org/e14[39m
+E15 [1mBold[22m;[38;5;12mhttps://example.org/e15[39m
+E16  [38;5;12mhttps://example.org/e16[39m
+E17 *Bold*tailhttps://example.org/e17
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mEnd[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m

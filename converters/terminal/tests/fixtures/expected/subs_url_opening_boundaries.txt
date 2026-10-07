@@ -1,0 +1,61 @@
+[1m[4murl-opening-boundaries(1)[0m[2m2026-10-07[0m
+
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mName[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+url-opening-boundaries - inspect automatic URL boundaries
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mCases[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+U01 Link:https://example.org/u01
+U02 prefixhttps://example.org/u02
+U03 label:https://example.org/u03[Site]
+U04 ([38;5;12mhttps://example.org/u04[39m)
+U05 "https://example.org/u05"
+U06 [38;5;12mSite[39m[2m (https://example.org/u06)[0m
+U07 [1m[38;5;12mhttps://example.org/u07[39m[22m
+U08 [38;5;12mhttps://example.org/u08[39m
+U09 'https://example.org/u09'
+U10 "[38;5;12mSite[39m[2m (https://example.org/u10)[0m"
+U11 '[38;5;12mSite[39m[2m (https://example.org/u11)[0m'
+U12 ,https://example.org/u12
+U13 ;[38;5;12mhttps://example.org/u13[39m
+U14 =https://example.org/u14
+U15 _prefixhttps://example.org/u15
+U16 caféhttps://example.org/u16
+U17 éhttps://example.org/u17
+U18  [38;5;12mhttps://example.org/u18[39m
+U19 [[38;5;12mhttps://example.org/u19[39m]
+U20 [38;5;12mhttps://example.org/u20[39m
+U21 *Prefix*https://example.org/u21
+U22 [1mLink:https://example.org/u22[22m
+U23 [3m[38;5;12mhttps://example.org/u23[39m[23m
+U24 Link:https://example.org/u24
+U25 https://example.org/u25
+U26 prefix\https://example.org/u26
+U27 "https://example.org/u27[Site]"
+U28 "https://example.org/u28"
+U29 \\https://example.org/u29
+U30 prefix\https://example.org/u30[Site]
+U31 Label:https://example.org/u31
+U32 prefix [38;5;12mhttps://example.org/u32[39m
+U33 "https://example.org/u34"
+U34 [38;5;12mSite[39m[2m (https://example.org/u34)[0m
+U35  https://example.org/u35[Site]
+U36  [38;5;12mSite[39m[2m (https://example.org/u36)[0m
+U37 https://example.org/u37 and https://example.org/u37-label[Site]
+[38;5;8m────────────────────────────────────[ text ]────────────────────────────────────[39m
+[38;2;131;148;150mU38 Link:https://example.org/u38
+[39m[38;2;131;148;150mU39 Site
+[39m[38;2;131;148;150mU40 "https://example.org/u40"
+[39m[38;2;131;148;150mU41 "Site"[39m
+[38;5;8m────────────────────────────────────────────────────────────────────────────────[39m
+U42 ([38;5;12mftp://example.org/u42[39m)
+U43 Link:irc://example.org/u43[channel]
+U44 Label:[38;5;12mSite[39m[2m (https://example.org/u44)[0m
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mEnd[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m

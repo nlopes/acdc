@@ -1,0 +1,54 @@
+= url-semantic-boundaries(1)
+:doctype: manpage
+:manname: url-semantic-boundaries
+:manpurpose: inspect URLs following inline content
+:revdate: 2026-10-07
+:bold: pass:q[*Bold*]
+:raw: pass:[X]
+:blank:
+:tail-space: pass:q[*Bold* ]
+:tail-semicolon: pass:q[*Bold*;]
+:raw-space: pass:[ ]
+:tail-word: pass:q[*Bold*tail]
+
+== Name
+
+url-semantic-boundaries - inspect URLs following inline content
+
+== Cases
+
+E01 **Prefix**https://example.org/e01
+
+E02 pass:[X]https://example.org/e02
+
+E03 "`https://example.org/e03`"
+
+E04 '`https://example.org/e04`'
+
+E05 https://example.org/e05-one[One]https://example.org/e05-two[Two]
+
+E06 **Prefix**https://example.org/e06[Site]
+
+E07 pass:[ ]https://example.org/e07
+
+E08 pass:[*]https://example.org/e08
+
+E09 {bold}https://example.org/e09
+
+E10 {bold}https://example.org/e10[Site]
+
+E11 {raw}https://example.org/e11
+
+E12 **Bold**{blank}https://example.org/e12
+
+E13 {bold}{blank}https://example.org/e13
+
+E14 {tail-space}https://example.org/e14
+
+E15 {tail-semicolon}https://example.org/e15
+
+E16 {raw-space}https://example.org/e16
+
+E17 {tail-word}https://example.org/e17
+
+== End

@@ -6,7 +6,7 @@
       {
         "name": "text",
         "type": "string",
-        "value": "incomplete-links(1)",
+        "value": "url-opening-boundaries(1)",
         "location": [
           {
             "line": 1,
@@ -14,7 +14,7 @@
           },
           {
             "line": 1,
-            "col": 21
+            "col": 27
           }
         ]
       }
@@ -25,19 +25,25 @@
         "col": 1
       },
       {
-        "line": 3,
-        "col": 20
+        "line": 11,
+        "col": 30
       }
     ]
   },
   "attributes": {
+    "docdate": "2026-10-07",
     "doctype": "manpage",
-    "manname": "incomplete-links",
+    "manmanual": "URL boundaries",
+    "manname": "url-opening-boundaries",
     "manname-title": "Name",
-    "manpurpose": "preserve unfinished links as text",
-    "mantitle": "incomplete-links",
+    "manpurpose": "inspect automatic URL boundaries",
+    "mansource": "acdc",
+    "mantitle": "url-opening-boundaries",
     "manvolnum": "1",
-    "revdate": "2026-10-05"
+    "prefix": "Label:",
+    "revdate": "2026-10-07",
+    "site": "https://example.org/u34",
+    "space": " "
   },
   "blocks": [
     {
@@ -50,11 +56,11 @@
           "value": "Name",
           "location": [
             {
-              "line": 5,
+              "line": 13,
               "col": 4
             },
             {
-              "line": 5,
+              "line": 13,
               "col": 7
             }
           ]
@@ -69,39 +75,39 @@
             {
               "name": "text",
               "type": "string",
-              "value": "incomplete-links - preserve unfinished links as text",
+              "value": "url-opening-boundaries - inspect automatic URL boundaries",
               "location": [
                 {
-                  "line": 6,
+                  "line": 15,
                   "col": 1
                 },
                 {
-                  "line": 6,
-                  "col": 52
+                  "line": 15,
+                  "col": 57
                 }
               ]
             }
           ],
           "location": [
             {
-              "line": 6,
+              "line": 15,
               "col": 1
             },
             {
-              "line": 6,
-              "col": 52
+              "line": 15,
+              "col": 57
             }
           ]
         }
       ],
       "location": [
         {
-          "line": 5,
+          "line": 13,
           "col": 1
         },
         {
-          "line": 6,
-          "col": 52
+          "line": 15,
+          "col": 57
         }
       ]
     },
@@ -112,15 +118,15 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Synopsis",
+          "value": "Cases",
           "location": [
             {
-              "line": 8,
+              "line": 17,
               "col": 4
             },
             {
-              "line": 8,
-              "col": 11
+              "line": 17,
+              "col": 8
             }
           ]
         }
@@ -134,599 +140,14 @@
             {
               "name": "text",
               "type": "string",
-              "value": "L01 ",
+              "value": "U01 Link:https://example.org/u01",
               "location": [
                 {
-                  "line": 10,
+                  "line": 19,
                   "col": 1
                 },
                 {
-                  "line": 10,
-                  "col": 4
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": "link:https://unfinished.example",
-              "location": [
-                {
-                  "line": 10,
-                  "col": 5
-                },
-                {
-                  "line": 10,
-                  "col": 35
-                }
-              ]
-            }
-          ],
-          "location": [
-            {
-              "line": 10,
-              "col": 1
-            },
-            {
-              "line": 10,
-              "col": 35
-            }
-          ]
-        },
-        {
-          "name": "paragraph",
-          "type": "block",
-          "inlines": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "L02 ",
-              "location": [
-                {
-                  "line": 12,
-                  "col": 1
-                },
-                {
-                  "line": 12,
-                  "col": 4
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": "link:https://unfinished.example",
-              "location": [
-                {
-                  "line": 12,
-                  "col": 5
-                },
-                {
-                  "line": 12,
-                  "col": 35
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": "[Unfinished",
-              "location": [
-                {
-                  "line": 12,
-                  "col": 36
-                },
-                {
-                  "line": 12,
-                  "col": 46
-                }
-              ]
-            }
-          ],
-          "location": [
-            {
-              "line": 12,
-              "col": 1
-            },
-            {
-              "line": 12,
-              "col": 46
-            }
-          ]
-        },
-        {
-          "name": "paragraph",
-          "type": "block",
-          "inlines": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "L03 ",
-              "location": [
-                {
-                  "line": 14,
-                  "col": 1
-                },
-                {
-                  "line": 14,
-                  "col": 4
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": "link:https://unfinished.example",
-              "location": [
-                {
-                  "line": 14,
-                  "col": 5
-                },
-                {
-                  "line": 14,
-                  "col": 35
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": "[Escaped\\]",
-              "location": [
-                {
-                  "line": 14,
-                  "col": 36
-                },
-                {
-                  "line": 14,
-                  "col": 45
-                }
-              ]
-            }
-          ],
-          "location": [
-            {
-              "line": 14,
-              "col": 1
-            },
-            {
-              "line": 14,
-              "col": 45
-            }
-          ]
-        },
-        {
-          "name": "paragraph",
-          "type": "block",
-          "inlines": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "L04 ",
-              "location": [
-                {
-                  "line": 16,
-                  "col": 1
-                },
-                {
-                  "line": 16,
-                  "col": 4
-                }
-              ]
-            },
-            {
-              "name": "ref",
-              "type": "inline",
-              "variant": "link",
-              "target": {
-                "type": "url",
-                "value": "https://complete.example"
-              },
-              "inlines": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Complete",
-                  "location": [
-                    {
-                      "line": 16,
-                      "col": 35
-                    },
-                    {
-                      "line": 16,
-                      "col": 42
-                    }
-                  ]
-                }
-              ],
-              "location": [
-                {
-                  "line": 16,
-                  "col": 5
-                },
-                {
-                  "line": 16,
-                  "col": 43
-                }
-              ],
-              "attributes": {}
-            }
-          ],
-          "location": [
-            {
-              "line": 16,
-              "col": 1
-            },
-            {
-              "line": 16,
-              "col": 43
-            }
-          ]
-        },
-        {
-          "name": "paragraph",
-          "type": "block",
-          "inlines": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "L05 ",
-              "location": [
-                {
-                  "line": 18,
-                  "col": 1
-                },
-                {
-                  "line": 18,
-                  "col": 4
-                }
-              ]
-            },
-            {
-              "name": "ref",
-              "type": "inline",
-              "variant": "link",
-              "target": {
-                "type": "url",
-                "value": "https://bare.example"
-              },
-              "location": [
-                {
-                  "line": 18,
-                  "col": 5
-                },
-                {
-                  "line": 18,
-                  "col": 31
-                }
-              ],
-              "attributes": {}
-            }
-          ],
-          "location": [
-            {
-              "line": 18,
-              "col": 1
-            },
-            {
-              "line": 18,
-              "col": 31
-            }
-          ]
-        },
-        {
-          "name": "paragraph",
-          "type": "block",
-          "inlines": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "L06 link: ",
-              "location": [
-                {
-                  "line": 20,
-                  "col": 1
-                },
-                {
-                  "line": 20,
-                  "col": 10
-                }
-              ]
-            },
-            {
-              "name": "ref",
-              "type": "inline",
-              "variant": "link",
-              "target": {
-                "type": "url",
-                "value": "https://separate.example"
-              },
-              "inlines": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Label",
-                  "location": [
-                    {
-                      "line": 20,
-                      "col": 36
-                    },
-                    {
-                      "line": 20,
-                      "col": 40
-                    }
-                  ]
-                }
-              ],
-              "location": [
-                {
-                  "line": 20,
-                  "col": 11
-                },
-                {
-                  "line": 20,
-                  "col": 41
-                }
-              ],
-              "attributes": {}
-            }
-          ],
-          "location": [
-            {
-              "line": 20,
-              "col": 1
-            },
-            {
-              "line": 20,
-              "col": 41
-            }
-          ]
-        },
-        {
-          "name": "paragraph",
-          "type": "block",
-          "inlines": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "L07 x",
-              "location": [
-                {
-                  "line": 22,
-                  "col": 1
-                },
-                {
-                  "line": 22,
-                  "col": 5
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": "link:https://unfinished.example",
-              "location": [
-                {
-                  "line": 22,
-                  "col": 6
-                },
-                {
-                  "line": 22,
-                  "col": 36
-                }
-              ]
-            }
-          ],
-          "location": [
-            {
-              "line": 22,
-              "col": 1
-            },
-            {
-              "line": 22,
-              "col": 36
-            }
-          ]
-        },
-        {
-          "name": "paragraph",
-          "type": "block",
-          "inlines": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "L08 Link:https://boundary.example",
-              "location": [
-                {
-                  "line": 24,
-                  "col": 1
-                },
-                {
-                  "line": 24,
-                  "col": 33
-                }
-              ]
-            }
-          ],
-          "location": [
-            {
-              "line": 24,
-              "col": 1
-            },
-            {
-              "line": 24,
-              "col": 33
-            }
-          ]
-        },
-        {
-          "name": "paragraph",
-          "type": "block",
-          "inlines": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "L09 ",
-              "location": [
-                {
-                  "line": 26,
-                  "col": 1
-                },
-                {
-                  "line": 26,
-                  "col": 4
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": "link:http://unfinished.example",
-              "location": [
-                {
-                  "line": 26,
-                  "col": 5
-                },
-                {
-                  "line": 26,
-                  "col": 34
-                }
-              ]
-            }
-          ],
-          "location": [
-            {
-              "line": 26,
-              "col": 1
-            },
-            {
-              "line": 26,
-              "col": 34
-            }
-          ]
-        },
-        {
-          "name": "paragraph",
-          "type": "block",
-          "inlines": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "L10 ",
-              "location": [
-                {
-                  "line": 28,
-                  "col": 1
-                },
-                {
-                  "line": 28,
-                  "col": 4
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": "link:ftp://unfinished.example",
-              "location": [
-                {
-                  "line": 28,
-                  "col": 5
-                },
-                {
-                  "line": 28,
-                  "col": 33
-                }
-              ]
-            }
-          ],
-          "location": [
-            {
-              "line": 28,
-              "col": 1
-            },
-            {
-              "line": 28,
-              "col": 33
-            }
-          ]
-        },
-        {
-          "name": "paragraph",
-          "type": "block",
-          "inlines": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "L11 ",
-              "location": [
-                {
-                  "line": 30,
-                  "col": 1
-                },
-                {
-                  "line": 30,
-                  "col": 4
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": "link:irc://unfinished.example",
-              "location": [
-                {
-                  "line": 30,
-                  "col": 5
-                },
-                {
-                  "line": 30,
-                  "col": 33
-                }
-              ]
-            }
-          ],
-          "location": [
-            {
-              "line": 30,
-              "col": 1
-            },
-            {
-              "line": 30,
-              "col": 33
-            }
-          ]
-        },
-        {
-          "name": "paragraph",
-          "type": "block",
-          "inlines": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "L12 ",
-              "location": [
-                {
-                  "line": 32,
-                  "col": 1
-                },
-                {
-                  "line": 32,
-                  "col": 4
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": "link:mailto:user@example.org",
-              "location": [
-                {
-                  "line": 32,
-                  "col": 5
-                },
-                {
-                  "line": 32,
+                  "line": 19,
                   "col": 32
                 }
               ]
@@ -734,11 +155,11 @@
           ],
           "location": [
             {
-              "line": 32,
+              "line": 19,
               "col": 1
             },
             {
-              "line": 32,
+              "line": 19,
               "col": 32
             }
           ]
@@ -750,42 +171,27 @@
             {
               "name": "text",
               "type": "string",
-              "value": "L13 ",
+              "value": "U02 prefixhttps://example.org/u02",
               "location": [
                 {
-                  "line": 34,
+                  "line": 21,
                   "col": 1
                 },
                 {
-                  "line": 34,
-                  "col": 4
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": "link:user@example.org",
-              "location": [
-                {
-                  "line": 34,
-                  "col": 5
-                },
-                {
-                  "line": 34,
-                  "col": 25
+                  "line": 21,
+                  "col": 33
                 }
               ]
             }
           ],
           "location": [
             {
-              "line": 34,
+              "line": 21,
               "col": 1
             },
             {
-              "line": 34,
-              "col": 25
+              "line": 21,
+              "col": 33
             }
           ]
         },
@@ -796,509 +202,14 @@
             {
               "name": "text",
               "type": "string",
-              "value": "L14 \\",
+              "value": "U03 label:https://example.org/u03[Site]",
               "location": [
                 {
-                  "line": 36,
+                  "line": 23,
                   "col": 1
                 },
                 {
-                  "line": 36,
-                  "col": 5
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": "link:https://unfinished.example",
-              "location": [
-                {
-                  "line": 36,
-                  "col": 6
-                },
-                {
-                  "line": 36,
-                  "col": 36
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": "[Unfinished",
-              "location": [
-                {
-                  "line": 36,
-                  "col": 37
-                },
-                {
-                  "line": 36,
-                  "col": 47
-                }
-              ]
-            }
-          ],
-          "location": [
-            {
-              "line": 36,
-              "col": 1
-            },
-            {
-              "line": 36,
-              "col": 47
-            }
-          ]
-        },
-        {
-          "name": "paragraph",
-          "type": "block",
-          "inlines": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "L15 ",
-              "location": [
-                {
-                  "line": 38,
-                  "col": 1
-                },
-                {
-                  "line": 38,
-                  "col": 4
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": "link:\\https://unfinished.example",
-              "location": [
-                {
-                  "line": 38,
-                  "col": 5
-                },
-                {
-                  "line": 38,
-                  "col": 36
-                }
-              ]
-            }
-          ],
-          "location": [
-            {
-              "line": 38,
-              "col": 1
-            },
-            {
-              "line": 38,
-              "col": 36
-            }
-          ]
-        },
-        {
-          "name": "paragraph",
-          "type": "block",
-          "inlines": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "L16 ",
-              "location": [
-                {
-                  "line": 40,
-                  "col": 1
-                },
-                {
-                  "line": 40,
-                  "col": 4
-                }
-              ]
-            },
-            {
-              "name": "ref",
-              "type": "inline",
-              "variant": "link",
-              "target": {
-                "type": "url",
-                "value": "https://suffix.example"
-              },
-              "inlines": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "path",
-                  "location": [
-                    {
-                      "line": 40,
-                      "col": 33
-                    },
-                    {
-                      "line": 40,
-                      "col": 36
-                    }
-                  ]
-                }
-              ],
-              "location": [
-                {
-                  "line": 40,
-                  "col": 5
-                },
-                {
-                  "line": 40,
-                  "col": 37
-                }
-              ],
-              "attributes": {}
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": "suffix",
-              "location": [
-                {
-                  "line": 40,
-                  "col": 38
-                },
-                {
-                  "line": 40,
-                  "col": 43
-                }
-              ]
-            }
-          ],
-          "location": [
-            {
-              "line": 40,
-              "col": 1
-            },
-            {
-              "line": 40,
-              "col": 43
-            }
-          ]
-        },
-        {
-          "name": "paragraph",
-          "type": "block",
-          "inlines": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "L17 ",
-              "location": [
-                {
-                  "line": 42,
-                  "col": 1
-                },
-                {
-                  "line": 42,
-                  "col": 4
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": "link:https://unfinished.example",
-              "location": [
-                {
-                  "line": 42,
-                  "col": 5
-                },
-                {
-                  "line": 42,
-                  "col": 35
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": "[Unfinished ",
-              "location": [
-                {
-                  "line": 42,
-                  "col": 36
-                },
-                {
-                  "line": 42,
-                  "col": 47
-                }
-              ]
-            },
-            {
-              "name": "ref",
-              "type": "inline",
-              "variant": "link",
-              "target": {
-                "type": "url",
-                "value": "https://inner.example"
-              },
-              "inlines": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Inner",
-                  "location": [
-                    {
-                      "line": 42,
-                      "col": 70
-                    },
-                    {
-                      "line": 42,
-                      "col": 74
-                    }
-                  ]
-                }
-              ],
-              "location": [
-                {
-                  "line": 42,
-                  "col": 48
-                },
-                {
-                  "line": 42,
-                  "col": 75
-                }
-              ],
-              "attributes": {}
-            }
-          ],
-          "location": [
-            {
-              "line": 42,
-              "col": 1
-            },
-            {
-              "line": 42,
-              "col": 75
-            }
-          ]
-        },
-        {
-          "name": "paragraph",
-          "type": "block",
-          "inlines": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "L18 ",
-              "location": [
-                {
-                  "line": 44,
-                  "col": 1
-                },
-                {
-                  "line": 44,
-                  "col": 4
-                }
-              ]
-            },
-            {
-              "name": "span",
-              "type": "inline",
-              "variant": "strong",
-              "form": "constrained",
-              "inlines": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "link:https://unfinished.example",
-                  "location": [
-                    {
-                      "line": 44,
-                      "col": 6
-                    },
-                    {
-                      "line": 44,
-                      "col": 36
-                    }
-                  ]
-                }
-              ],
-              "location": [
-                {
-                  "line": 44,
-                  "col": 5
-                },
-                {
-                  "line": 44,
-                  "col": 37
-                }
-              ]
-            }
-          ],
-          "location": [
-            {
-              "line": 44,
-              "col": 1
-            },
-            {
-              "line": 44,
-              "col": 37
-            }
-          ]
-        },
-        {
-          "name": "paragraph",
-          "type": "block",
-          "inlines": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "L19 ",
-              "location": [
-                {
-                  "line": 46,
-                  "col": 1
-                },
-                {
-                  "line": 46,
-                  "col": 4
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": "link:https://unfinished.example",
-              "location": [
-                {
-                  "line": 46,
-                  "col": 5
-                },
-                {
-                  "line": 46,
-                  "col": 35
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": "[",
-              "location": [
-                {
-                  "line": 46,
-                  "col": 36
-                },
-                {
-                  "line": 46,
-                  "col": 36
-                }
-              ]
-            },
-            {
-              "name": "span",
-              "type": "inline",
-              "variant": "strong",
-              "form": "constrained",
-              "inlines": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Bold",
-                  "location": [
-                    {
-                      "line": 46,
-                      "col": 38
-                    },
-                    {
-                      "line": 46,
-                      "col": 41
-                    }
-                  ]
-                }
-              ],
-              "location": [
-                {
-                  "line": 46,
-                  "col": 37
-                },
-                {
-                  "line": 46,
-                  "col": 42
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": " text",
-              "location": [
-                {
-                  "line": 46,
-                  "col": 43
-                },
-                {
-                  "line": 46,
-                  "col": 47
-                }
-              ]
-            }
-          ],
-          "location": [
-            {
-              "line": 46,
-              "col": 1
-            },
-            {
-              "line": 46,
-              "col": 47
-            }
-          ]
-        },
-        {
-          "name": "paragraph",
-          "type": "block",
-          "inlines": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "L20 ",
-              "location": [
-                {
-                  "line": 48,
-                  "col": 1
-                },
-                {
-                  "line": 48,
-                  "col": 4
-                }
-              ]
-            },
-            {
-              "name": "ref",
-              "type": "inline",
-              "variant": "autolink",
-              "target": {
-                "type": "url",
-                "value": "https://implicit.example"
-              },
-              "location": [
-                {
-                  "line": 48,
-                  "col": 5
-                },
-                {
-                  "line": 48,
-                  "col": 28
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": "[Unfinished",
-              "location": [
-                {
-                  "line": 48,
-                  "col": 29
-                },
-                {
-                  "line": 48,
+                  "line": 23,
                   "col": 39
                 }
               ]
@@ -1306,11 +217,11 @@
           ],
           "location": [
             {
-              "line": 48,
+              "line": 23,
               "col": 1
             },
             {
-              "line": 48,
+              "line": 23,
               "col": 39
             }
           ]
@@ -1322,14 +233,246 @@
             {
               "name": "text",
               "type": "string",
-              "value": "L21 ",
+              "value": "U04 (",
               "location": [
                 {
-                  "line": 50,
+                  "line": 25,
                   "col": 1
                 },
                 {
-                  "line": 50,
+                  "line": 25,
+                  "col": 5
+                }
+              ]
+            },
+            {
+              "name": "ref",
+              "type": "inline",
+              "variant": "autolink",
+              "target": {
+                "type": "url",
+                "value": "https://example.org/u04"
+              },
+              "location": [
+                {
+                  "line": 25,
+                  "col": 6
+                },
+                {
+                  "line": 25,
+                  "col": 28
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ")",
+              "location": [
+                {
+                  "line": 25,
+                  "col": 29
+                },
+                {
+                  "line": 25,
+                  "col": 29
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 25,
+              "col": 1
+            },
+            {
+              "line": 25,
+              "col": 29
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "U05 \"https://example.org/u05\"",
+              "location": [
+                {
+                  "line": 27,
+                  "col": 1
+                },
+                {
+                  "line": 27,
+                  "col": 29
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 27,
+              "col": 1
+            },
+            {
+              "line": 27,
+              "col": 29
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "U06 ",
+              "location": [
+                {
+                  "line": 29,
+                  "col": 1
+                },
+                {
+                  "line": 29,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "ref",
+              "type": "inline",
+              "variant": "link",
+              "target": {
+                "type": "url",
+                "value": "https://example.org/u06"
+              },
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Site",
+                  "location": [
+                    {
+                      "line": 29,
+                      "col": 34
+                    },
+                    {
+                      "line": 29,
+                      "col": 37
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 29,
+                  "col": 5
+                },
+                {
+                  "line": 29,
+                  "col": 38
+                }
+              ],
+              "attributes": {}
+            }
+          ],
+          "location": [
+            {
+              "line": 29,
+              "col": 1
+            },
+            {
+              "line": 29,
+              "col": 38
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "U07 ",
+              "location": [
+                {
+                  "line": 31,
+                  "col": 1
+                },
+                {
+                  "line": 31,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "ref",
+                  "type": "inline",
+                  "variant": "autolink",
+                  "target": {
+                    "type": "url",
+                    "value": "https://example.org/u07"
+                  },
+                  "location": [
+                    {
+                      "line": 31,
+                      "col": 6
+                    },
+                    {
+                      "line": 31,
+                      "col": 28
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 31,
+                  "col": 5
+                },
+                {
+                  "line": 31,
+                  "col": 29
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 31,
+              "col": 1
+            },
+            {
+              "line": 31,
+              "col": 29
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "U08 ",
+              "location": [
+                {
+                  "line": 33,
+                  "col": 1
+                },
+                {
+                  "line": 33,
                   "col": 4
                 }
               ]
@@ -1340,15 +483,15 @@
               "variant": "autolink",
               "target": {
                 "type": "url",
-                "value": "https://angle.example"
+                "value": "https://example.org/u08"
               },
               "location": [
                 {
-                  "line": 50,
+                  "line": 33,
                   "col": 5
                 },
                 {
-                  "line": 50,
+                  "line": 33,
                   "col": 27
                 }
               ]
@@ -1356,11 +499,11 @@
           ],
           "location": [
             {
-              "line": 50,
+              "line": 33,
               "col": 1
             },
             {
-              "line": 50,
+              "line": 33,
               "col": 27
             }
           ]
@@ -1372,46 +515,27 @@
             {
               "name": "text",
               "type": "string",
-              "value": "L22 link:",
+              "value": "U09 'https://example.org/u09'",
               "location": [
                 {
-                  "line": 52,
+                  "line": 35,
                   "col": 1
                 },
                 {
-                  "line": 52,
-                  "col": 9
-                }
-              ]
-            },
-            {
-              "name": "ref",
-              "type": "inline",
-              "variant": "autolink",
-              "target": {
-                "type": "url",
-                "value": "https://angle.example"
-              },
-              "location": [
-                {
-                  "line": 52,
-                  "col": 10
-                },
-                {
-                  "line": 52,
-                  "col": 32
+                  "line": 35,
+                  "col": 29
                 }
               ]
             }
           ],
           "location": [
             {
-              "line": 52,
+              "line": 35,
               "col": 1
             },
             {
-              "line": 52,
-              "col": 32
+              "line": 35,
+              "col": 29
             }
           ]
         },
@@ -1422,137 +546,15 @@
             {
               "name": "text",
               "type": "string",
-              "value": "L23 ",
+              "value": "U10 \"",
               "location": [
                 {
-                  "line": 54,
+                  "line": 37,
                   "col": 1
                 },
                 {
-                  "line": 54,
-                  "col": 4
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": "link:https://user@unfinished.example",
-              "location": [
-                {
-                  "line": 54,
+                  "line": 37,
                   "col": 5
-                },
-                {
-                  "line": 54,
-                  "col": 40
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": "[Unfinished",
-              "location": [
-                {
-                  "line": 54,
-                  "col": 41
-                },
-                {
-                  "line": 54,
-                  "col": 51
-                }
-              ]
-            }
-          ],
-          "location": [
-            {
-              "line": 54,
-              "col": 1
-            },
-            {
-              "line": 54,
-              "col": 51
-            }
-          ]
-        },
-        {
-          "name": "paragraph",
-          "type": "block",
-          "inlines": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "L24 link:école.html[Unfinished",
-              "location": [
-                {
-                  "line": 56,
-                  "col": 1
-                },
-                {
-                  "line": 56,
-                  "col": 30
-                }
-              ]
-            }
-          ],
-          "location": [
-            {
-              "line": 56,
-              "col": 1
-            },
-            {
-              "line": 56,
-              "col": 30
-            }
-          ]
-        },
-        {
-          "name": "paragraph",
-          "type": "block",
-          "inlines": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "L25 ",
-              "location": [
-                {
-                  "line": 58,
-                  "col": 1
-                },
-                {
-                  "line": 58,
-                  "col": 4
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": "link:manual.html",
-              "location": [
-                {
-                  "line": 58,
-                  "col": 5
-                },
-                {
-                  "line": 58,
-                  "col": 20
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": "[Unfinished ",
-              "location": [
-                {
-                  "line": 58,
-                  "col": 21
-                },
-                {
-                  "line": 58,
-                  "col": 32
                 }
               ]
             },
@@ -1562,168 +564,61 @@
               "variant": "link",
               "target": {
                 "type": "url",
-                "value": "https://inner.example"
+                "value": "https://example.org/u10"
               },
               "inlines": [
                 {
                   "name": "text",
                   "type": "string",
-                  "value": "Inner",
+                  "value": "Site",
                   "location": [
                     {
-                      "line": 58,
-                      "col": 55
+                      "line": 37,
+                      "col": 30
                     },
                     {
-                      "line": 58,
-                      "col": 59
+                      "line": 37,
+                      "col": 33
                     }
                   ]
                 }
               ],
               "location": [
                 {
-                  "line": 58,
-                  "col": 33
+                  "line": 37,
+                  "col": 6
                 },
                 {
-                  "line": 58,
-                  "col": 60
+                  "line": 37,
+                  "col": 34
                 }
               ],
               "attributes": {}
-            }
-          ],
-          "location": [
-            {
-              "line": 58,
-              "col": 1
-            },
-            {
-              "line": 58,
-              "col": 60
-            }
-          ]
-        },
-        {
-          "name": "paragraph",
-          "type": "block",
-          "inlines": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "L26 ",
-              "location": [
-                {
-                  "line": 60,
-                  "col": 1
-                },
-                {
-                  "line": 60,
-                  "col": 4
-                }
-              ]
-            },
-            {
-              "name": "raw",
-              "type": "string",
-              "value": "link:https://unfinished.example",
-              "location": [
-                {
-                  "line": 60,
-                  "col": 12
-                },
-                {
-                  "line": 60,
-                  "col": 42
-                }
-              ]
-            },
-            {
-              "name": "raw",
-              "type": "string",
-              "value": "[Unfinished",
-              "location": [
-                {
-                  "line": 60,
-                  "col": 43
-                },
-                {
-                  "line": 60,
-                  "col": 53
-                }
-              ]
-            }
-          ],
-          "location": [
-            {
-              "line": 60,
-              "col": 1
-            },
-            {
-              "line": 60,
-              "col": 54
-            }
-          ]
-        },
-        {
-          "name": "paragraph",
-          "type": "block",
-          "inlines": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "L27 ",
-              "location": [
-                {
-                  "line": 62,
-                  "col": 1
-                },
-                {
-                  "line": 62,
-                  "col": 4
-                }
-              ]
             },
             {
               "name": "text",
               "type": "string",
-              "value": "link:https://unfinished.example",
+              "value": "\"",
               "location": [
                 {
-                  "line": 62,
-                  "col": 5
+                  "line": 37,
+                  "col": 35
                 },
                 {
-                  "line": 62,
+                  "line": 37,
                   "col": 35
                 }
               ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": "[Unfinished\nstill unfinished",
-              "location": [
-                {
-                  "line": 62,
-                  "col": 36
-                },
-                {
-                  "line": 63,
-                  "col": 16
-                }
-              ]
             }
           ],
           "location": [
             {
-              "line": 62,
+              "line": 37,
               "col": 1
             },
             {
-              "line": 63,
-              "col": 16
+              "line": 37,
+              "col": 35
             }
           ]
         },
@@ -1734,45 +629,499 @@
             {
               "name": "text",
               "type": "string",
-              "value": "L28 ",
+              "value": "U11 '",
               "location": [
                 {
-                  "line": 65,
+                  "line": 39,
                   "col": 1
                 },
                 {
-                  "line": 65,
+                  "line": 39,
+                  "col": 5
+                }
+              ]
+            },
+            {
+              "name": "ref",
+              "type": "inline",
+              "variant": "link",
+              "target": {
+                "type": "url",
+                "value": "https://example.org/u11"
+              },
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Site",
+                  "location": [
+                    {
+                      "line": 39,
+                      "col": 30
+                    },
+                    {
+                      "line": 39,
+                      "col": 33
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 39,
+                  "col": 6
+                },
+                {
+                  "line": 39,
+                  "col": 34
+                }
+              ],
+              "attributes": {}
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "'",
+              "location": [
+                {
+                  "line": 39,
+                  "col": 35
+                },
+                {
+                  "line": 39,
+                  "col": 35
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 39,
+              "col": 1
+            },
+            {
+              "line": 39,
+              "col": 35
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "U12 ,https://example.org/u12",
+              "location": [
+                {
+                  "line": 41,
+                  "col": 1
+                },
+                {
+                  "line": 41,
+                  "col": 28
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 41,
+              "col": 1
+            },
+            {
+              "line": 41,
+              "col": 28
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "U13 ;",
+              "location": [
+                {
+                  "line": 43,
+                  "col": 1
+                },
+                {
+                  "line": 43,
+                  "col": 5
+                }
+              ]
+            },
+            {
+              "name": "ref",
+              "type": "inline",
+              "variant": "autolink",
+              "target": {
+                "type": "url",
+                "value": "https://example.org/u13"
+              },
+              "location": [
+                {
+                  "line": 43,
+                  "col": 6
+                },
+                {
+                  "line": 43,
+                  "col": 28
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 43,
+              "col": 1
+            },
+            {
+              "line": 43,
+              "col": 28
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "U14 =https://example.org/u14",
+              "location": [
+                {
+                  "line": 45,
+                  "col": 1
+                },
+                {
+                  "line": 45,
+                  "col": 28
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 45,
+              "col": 1
+            },
+            {
+              "line": 45,
+              "col": 28
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "U15 _prefixhttps://example.org/u15",
+              "location": [
+                {
+                  "line": 47,
+                  "col": 1
+                },
+                {
+                  "line": 47,
+                  "col": 34
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 47,
+              "col": 1
+            },
+            {
+              "line": 47,
+              "col": 34
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "U16 caféhttps://example.org/u16",
+              "location": [
+                {
+                  "line": 49,
+                  "col": 1
+                },
+                {
+                  "line": 49,
+                  "col": 31
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 49,
+              "col": 1
+            },
+            {
+              "line": 49,
+              "col": 31
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "U17 éhttps://example.org/u17",
+              "location": [
+                {
+                  "line": 51,
+                  "col": 1
+                },
+                {
+                  "line": 51,
+                  "col": 29
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 51,
+              "col": 1
+            },
+            {
+              "line": 51,
+              "col": 29
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "U18  ",
+              "location": [
+                {
+                  "line": 53,
+                  "col": 1
+                },
+                {
+                  "line": 53,
+                  "col": 5
+                }
+              ]
+            },
+            {
+              "name": "ref",
+              "type": "inline",
+              "variant": "autolink",
+              "target": {
+                "type": "url",
+                "value": "https://example.org/u18"
+              },
+              "location": [
+                {
+                  "line": 53,
+                  "col": 6
+                },
+                {
+                  "line": 53,
+                  "col": 28
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 53,
+              "col": 1
+            },
+            {
+              "line": 53,
+              "col": 28
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "U19 [",
+              "location": [
+                {
+                  "line": 55,
+                  "col": 1
+                },
+                {
+                  "line": 55,
+                  "col": 5
+                }
+              ]
+            },
+            {
+              "name": "ref",
+              "type": "inline",
+              "variant": "autolink",
+              "target": {
+                "type": "url",
+                "value": "https://example.org/u19"
+              },
+              "location": [
+                {
+                  "line": 55,
+                  "col": 6
+                },
+                {
+                  "line": 55,
+                  "col": 28
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "]",
+              "location": [
+                {
+                  "line": 55,
+                  "col": 29
+                },
+                {
+                  "line": 55,
+                  "col": 29
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 55,
+              "col": 1
+            },
+            {
+              "line": 55,
+              "col": 29
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "U20 ",
+              "location": [
+                {
+                  "line": 57,
+                  "col": 1
+                },
+                {
+                  "line": 57,
                   "col": 4
                 }
               ]
             },
             {
-              "name": "text",
-              "type": "string",
-              "value": "link:https://unfinished.example",
+              "name": "ref",
+              "type": "inline",
+              "variant": "autolink",
+              "target": {
+                "type": "url",
+                "value": "https://example.org/u20"
+              },
               "location": [
                 {
-                  "line": 65,
+                  "line": 57,
                   "col": 5
                 },
                 {
-                  "line": 65,
-                  "col": 35
+                  "line": 57,
+                  "col": 29
                 }
               ]
+            }
+          ],
+          "location": [
+            {
+              "line": 57,
+              "col": 1
             },
+            {
+              "line": 57,
+              "col": 29
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
             {
               "name": "text",
               "type": "string",
-              "value": "[Unfinished ",
+              "value": "U21 *Prefix*https://example.org/u21",
               "location": [
                 {
-                  "line": 65,
-                  "col": 36
+                  "line": 59,
+                  "col": 1
                 },
                 {
-                  "line": 65,
-                  "col": 47
+                  "line": 59,
+                  "col": 35
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 59,
+              "col": 1
+            },
+            {
+              "line": 59,
+              "col": 35
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "U22 ",
+              "location": [
+                {
+                  "line": 61,
+                  "col": 1
+                },
+                {
+                  "line": 61,
+                  "col": 4
                 }
               ]
             },
@@ -1785,42 +1134,479 @@
                 {
                   "name": "text",
                   "type": "string",
-                  "value": "bold",
+                  "value": "Link:https://example.org/u22",
                   "location": [
                     {
-                      "line": 65,
-                      "col": 49
+                      "line": 61,
+                      "col": 6
                     },
                     {
-                      "line": 65,
-                      "col": 52
+                      "line": 61,
+                      "col": 33
                     }
                   ]
                 }
               ],
               "location": [
                 {
+                  "line": 61,
+                  "col": 5
+                },
+                {
+                  "line": 61,
+                  "col": 34
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 61,
+              "col": 1
+            },
+            {
+              "line": 61,
+              "col": 34
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "U23 ",
+              "location": [
+                {
+                  "line": 63,
+                  "col": 1
+                },
+                {
+                  "line": 63,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "emphasis",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "ref",
+                  "type": "inline",
+                  "variant": "autolink",
+                  "target": {
+                    "type": "url",
+                    "value": "https://example.org/u23"
+                  },
+                  "location": [
+                    {
+                      "line": 63,
+                      "col": 6
+                    },
+                    {
+                      "line": 63,
+                      "col": 28
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 63,
+                  "col": 5
+                },
+                {
+                  "line": 63,
+                  "col": 29
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 63,
+              "col": 1
+            },
+            {
+              "line": 63,
+              "col": 29
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "U24 ",
+              "location": [
+                {
                   "line": 65,
-                  "col": 48
+                  "col": 1
                 },
                 {
                   "line": 65,
-                  "col": 53
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "Link:https://example.org/u24",
+              "location": [
+                {
+                  "line": 65,
+                  "col": 12
+                },
+                {
+                  "line": 65,
+                  "col": 39
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 65,
+              "col": 1
+            },
+            {
+              "line": 65,
+              "col": 40
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "U25 ",
+              "location": [
+                {
+                  "line": 67,
+                  "col": 1
+                },
+                {
+                  "line": 67,
+                  "col": 4
                 }
               ]
             },
             {
               "name": "text",
               "type": "string",
-              "value": " and ",
+              "value": "https://example.org/u25",
               "location": [
                 {
-                  "line": 65,
-                  "col": 54
+                  "line": 67,
+                  "col": 5
                 },
                 {
-                  "line": 65,
-                  "col": 58
+                  "line": 67,
+                  "col": 28
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 67,
+              "col": 1
+            },
+            {
+              "line": 67,
+              "col": 28
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "U26 prefix\\https://example.org/u26",
+              "location": [
+                {
+                  "line": 69,
+                  "col": 1
+                },
+                {
+                  "line": 69,
+                  "col": 34
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 69,
+              "col": 1
+            },
+            {
+              "line": 69,
+              "col": 34
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "U27 \"",
+              "location": [
+                {
+                  "line": 71,
+                  "col": 1
+                },
+                {
+                  "line": 71,
+                  "col": 5
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "https://example.org/u27[Site]",
+              "location": [
+                {
+                  "line": 71,
+                  "col": 6
+                },
+                {
+                  "line": 71,
+                  "col": 35
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "\"",
+              "location": [
+                {
+                  "line": 71,
+                  "col": 36
+                },
+                {
+                  "line": 71,
+                  "col": 36
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 71,
+              "col": 1
+            },
+            {
+              "line": 71,
+              "col": 36
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "U28 \"",
+              "location": [
+                {
+                  "line": 73,
+                  "col": 1
+                },
+                {
+                  "line": 73,
+                  "col": 5
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "https://example.org/u28",
+              "location": [
+                {
+                  "line": 73,
+                  "col": 6
+                },
+                {
+                  "line": 73,
+                  "col": 29
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "\"",
+              "location": [
+                {
+                  "line": 73,
+                  "col": 30
+                },
+                {
+                  "line": 73,
+                  "col": 30
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 73,
+              "col": 1
+            },
+            {
+              "line": 73,
+              "col": 30
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "U29 ",
+              "location": [
+                {
+                  "line": 75,
+                  "col": 1
+                },
+                {
+                  "line": 75,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "\\\\https://example.org/u29",
+              "location": [
+                {
+                  "line": 75,
+                  "col": 5
+                },
+                {
+                  "line": 75,
+                  "col": 29
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 75,
+              "col": 1
+            },
+            {
+              "line": 75,
+              "col": 29
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "U30 prefix\\https://example.org/u30[Site]",
+              "location": [
+                {
+                  "line": 77,
+                  "col": 1
+                },
+                {
+                  "line": 77,
+                  "col": 40
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 77,
+              "col": 1
+            },
+            {
+              "line": 77,
+              "col": 40
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "U31 Label:https://example.org/u31",
+              "location": [
+                {
+                  "line": 79,
+                  "col": 1
+                },
+                {
+                  "line": 79,
+                  "col": 35
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 79,
+              "col": 1
+            },
+            {
+              "line": 79,
+              "col": 35
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "U32 prefix ",
+              "location": [
+                {
+                  "line": 81,
+                  "col": 1
+                },
+                {
+                  "line": 81,
+                  "col": 17
                 }
               ]
             },
@@ -1830,43 +1616,28 @@
               "variant": "autolink",
               "target": {
                 "type": "url",
-                "value": "https://other.example"
+                "value": "https://example.org/u32"
               },
               "location": [
                 {
-                  "line": 65,
-                  "col": 59
+                  "line": 81,
+                  "col": 18
                 },
                 {
-                  "line": 65,
-                  "col": 79
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": ".",
-              "location": [
-                {
-                  "line": 65,
-                  "col": 80
-                },
-                {
-                  "line": 65,
-                  "col": 80
+                  "line": 81,
+                  "col": 40
                 }
               ]
             }
           ],
           "location": [
             {
-              "line": 65,
+              "line": 81,
               "col": 1
             },
             {
-              "line": 65,
-              "col": 80
+              "line": 81,
+              "col": 40
             }
           ]
         },
@@ -1877,81 +1648,308 @@
             {
               "name": "text",
               "type": "string",
-              "value": "L29 ",
+              "value": "U33 \"https://example.org/u34\"",
               "location": [
                 {
-                  "line": 67,
+                  "line": 83,
                   "col": 1
                 },
                 {
-                  "line": 67,
+                  "line": 83,
+                  "col": 12
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 83,
+              "col": 1
+            },
+            {
+              "line": 83,
+              "col": 12
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "U34 ",
+              "location": [
+                {
+                  "line": 85,
+                  "col": 1
+                },
+                {
+                  "line": 85,
                   "col": 4
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": "link:https://unfinished.example",
-              "location": [
-                {
-                  "line": 67,
-                  "col": 5
-                },
-                {
-                  "line": 67,
-                  "col": 35
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": "[Unfinished ",
-              "location": [
-                {
-                  "line": 67,
-                  "col": 36
-                },
-                {
-                  "line": 67,
-                  "col": 47
                 }
               ]
             },
             {
               "name": "ref",
               "type": "inline",
-              "variant": "mailto",
+              "variant": "link",
               "target": {
                 "type": "url",
-                "value": "mailto:inner@example.org"
+                "value": "https://example.org/u34"
               },
               "inlines": [
                 {
                   "name": "text",
                   "type": "string",
-                  "value": "Mail",
+                  "value": "Site",
                   "location": [
                     {
-                      "line": 67,
-                      "col": 73
+                      "line": 85,
+                      "col": 12
                     },
                     {
-                      "line": 67,
-                      "col": 76
+                      "line": 85,
+                      "col": 15
                     }
                   ]
                 }
               ],
               "location": [
                 {
-                  "line": 67,
-                  "col": 48
+                  "line": 85,
+                  "col": 5
                 },
                 {
-                  "line": 67,
-                  "col": 77
+                  "line": 85,
+                  "col": 16
+                }
+              ],
+              "attributes": {}
+            }
+          ],
+          "location": [
+            {
+              "line": 85,
+              "col": 1
+            },
+            {
+              "line": 85,
+              "col": 16
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "U35  https://example.org/u35[Site]",
+              "location": [
+                {
+                  "line": 88,
+                  "col": 1
+                },
+                {
+                  "line": 88,
+                  "col": 40
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "macros",
+              "attributes"
+            ]
+          },
+          "location": [
+            {
+              "line": 87,
+              "col": 1
+            },
+            {
+              "line": 88,
+              "col": 40
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "U36  ",
+              "location": [
+                {
+                  "line": 91,
+                  "col": 1
+                },
+                {
+                  "line": 91,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "ref",
+              "type": "inline",
+              "variant": "link",
+              "target": {
+                "type": "url",
+                "value": "https://example.org/u36"
+              },
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Site",
+                  "location": [
+                    {
+                      "line": 91,
+                      "col": 36
+                    },
+                    {
+                      "line": 91,
+                      "col": 39
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 91,
+                  "col": 12
+                },
+                {
+                  "line": 91,
+                  "col": 40
+                }
+              ],
+              "attributes": {}
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "attributes",
+              "macros"
+            ]
+          },
+          "location": [
+            {
+              "line": 90,
+              "col": 1
+            },
+            {
+              "line": 91,
+              "col": 40
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "U37 https://example.org/u37 and https://example.org/u37-label[Site]",
+              "location": [
+                {
+                  "line": 94,
+                  "col": 1
+                },
+                {
+                  "line": 94,
+                  "col": 67
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "-macros"
+            ]
+          },
+          "location": [
+            {
+              "line": 93,
+              "col": 1
+            },
+            {
+              "line": 94,
+              "col": 67
+            }
+          ]
+        },
+        {
+          "name": "listing",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "----",
+          "metadata": {
+            "attributes": {
+              "language": "text"
+            },
+            "style": "source",
+            "substitutions": [
+              "+macros"
+            ]
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "U38 Link:https://example.org/u38\nU39 ",
+              "location": [
+                {
+                  "line": 98,
+                  "col": 1
+                },
+                {
+                  "line": 99,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "ref",
+              "type": "inline",
+              "variant": "link",
+              "target": {
+                "type": "url",
+                "value": "https://example.org/u39"
+              },
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Site",
+                  "location": [
+                    {
+                      "line": 99,
+                      "col": 29
+                    },
+                    {
+                      "line": 99,
+                      "col": 32
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 99,
+                  "col": 5
+                },
+                {
+                  "line": 99,
+                  "col": 33
                 }
               ],
               "attributes": {}
@@ -1959,229 +1957,79 @@
             {
               "name": "text",
               "type": "string",
-              "value": ".",
+              "value": "\nU40 \"https://example.org/u40\"\nU41 \"",
               "location": [
                 {
-                  "line": 67,
-                  "col": 78
+                  "line": 99,
+                  "col": 34
                 },
                 {
-                  "line": 67,
-                  "col": 78
-                }
-              ]
-            }
-          ],
-          "location": [
-            {
-              "line": 67,
-              "col": 1
-            },
-            {
-              "line": 67,
-              "col": 78
-            }
-          ]
-        },
-        {
-          "name": "paragraph",
-          "type": "block",
-          "inlines": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "L30 ",
-              "location": [
-                {
-                  "line": 69,
-                  "col": 1
-                },
-                {
-                  "line": 69,
-                  "col": 4
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": "link:https://unfinished.example",
-              "location": [
-                {
-                  "line": 69,
+                  "line": 101,
                   "col": 5
-                },
-                {
-                  "line": 69,
-                  "col": 35
                 }
               ]
             },
             {
-              "name": "text",
-              "type": "string",
-              "value": "[Unfinished ",
-              "location": [
-                {
-                  "line": 69,
-                  "col": 36
-                },
-                {
-                  "line": 69,
-                  "col": 47
-                }
-              ]
-            },
-            {
-              "name": "indexterm",
+              "name": "ref",
               "type": "inline",
-              "term": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Term",
-                  "location": [
-                    {
-                      "line": 69,
-                      "col": 50
-                    },
-                    {
-                      "line": 69,
-                      "col": 53
-                    }
-                  ]
-                }
-              ],
-              "visible": true,
-              "location": [
-                {
-                  "line": 69,
-                  "col": 48
-                },
-                {
-                  "line": 69,
-                  "col": 55
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": " ",
-              "location": [
-                {
-                  "line": 69,
-                  "col": 56
-                },
-                {
-                  "line": 69,
-                  "col": 56
-                }
-              ]
-            },
-            {
-              "name": "footnote",
-              "type": "inline",
-              "id": "one",
+              "variant": "link",
+              "target": {
+                "type": "url",
+                "value": "https://example.org/u41"
+              },
               "inlines": [
                 {
                   "name": "text",
                   "type": "string",
-                  "value": "Only note.",
+                  "value": "Site",
                   "location": [
                     {
-                      "line": 69,
-                      "col": 70
+                      "line": 101,
+                      "col": 30
                     },
                     {
-                      "line": 69,
-                      "col": 79
+                      "line": 101,
+                      "col": 33
                     }
                   ]
                 }
               ],
               "location": [
                 {
-                  "line": 69,
-                  "col": 57
-                },
-                {
-                  "line": 69,
-                  "col": 80
-                }
-              ]
-            }
-          ],
-          "location": [
-            {
-              "line": 69,
-              "col": 1
-            },
-            {
-              "line": 69,
-              "col": 80
-            }
-          ]
-        },
-        {
-          "name": "paragraph",
-          "type": "block",
-          "inlines": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "Reuse ",
-              "location": [
-                {
-                  "line": 71,
-                  "col": 1
-                },
-                {
-                  "line": 71,
+                  "line": 101,
                   "col": 6
-                }
-              ]
-            },
-            {
-              "name": "footnote",
-              "type": "inline",
-              "id": "one",
-              "inlines": [],
-              "location": [
-                {
-                  "line": 71,
-                  "col": 7
                 },
                 {
-                  "line": 71,
-                  "col": 20
+                  "line": 101,
+                  "col": 34
                 }
-              ]
+              ],
+              "attributes": {}
             },
             {
               "name": "text",
               "type": "string",
-              "value": ".",
+              "value": "\"",
               "location": [
                 {
-                  "line": 71,
-                  "col": 21
+                  "line": 101,
+                  "col": 35
                 },
                 {
-                  "line": 71,
-                  "col": 21
+                  "line": 101,
+                  "col": 35
                 }
               ]
             }
           ],
           "location": [
             {
-              "line": 71,
+              "line": 96,
               "col": 1
             },
             {
-              "line": 71,
-              "col": 21
+              "line": 102,
+              "col": 4
             }
           ]
         },
@@ -2192,57 +2040,61 @@
             {
               "name": "text",
               "type": "string",
-              "value": "L31 ",
+              "value": "U42 (",
               "location": [
                 {
-                  "line": 73,
+                  "line": 104,
                   "col": 1
                 },
                 {
-                  "line": 73,
-                  "col": 4
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": "link:\\\\https://unfinished.example",
-              "location": [
-                {
-                  "line": 73,
+                  "line": 104,
                   "col": 5
+                }
+              ]
+            },
+            {
+              "name": "ref",
+              "type": "inline",
+              "variant": "autolink",
+              "target": {
+                "type": "url",
+                "value": "ftp://example.org/u42"
+              },
+              "location": [
+                {
+                  "line": 104,
+                  "col": 6
                 },
                 {
-                  "line": 73,
-                  "col": 37
+                  "line": 104,
+                  "col": 26
                 }
               ]
             },
             {
               "name": "text",
               "type": "string",
-              "value": "[Unfinished",
+              "value": ")",
               "location": [
                 {
-                  "line": 73,
-                  "col": 38
+                  "line": 104,
+                  "col": 27
                 },
                 {
-                  "line": 73,
-                  "col": 48
+                  "line": 104,
+                  "col": 27
                 }
               ]
             }
           ],
           "location": [
             {
-              "line": 73,
+              "line": 104,
               "col": 1
             },
             {
-              "line": 73,
-              "col": 48
+              "line": 104,
+              "col": 27
             }
           ]
         },
@@ -2253,69 +2105,139 @@
             {
               "name": "text",
               "type": "string",
-              "value": "L32 \\\\",
+              "value": "U43 Link:irc://example.org/u43[channel]",
               "location": [
                 {
-                  "line": 75,
+                  "line": 106,
                   "col": 1
                 },
                 {
-                  "line": 75,
-                  "col": 6
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": "link:https://unfinished.example",
-              "location": [
-                {
-                  "line": 75,
-                  "col": 7
-                },
-                {
-                  "line": 75,
-                  "col": 37
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": "[Unfinished",
-              "location": [
-                {
-                  "line": 75,
-                  "col": 38
-                },
-                {
-                  "line": 75,
-                  "col": 48
+                  "line": 106,
+                  "col": 39
                 }
               ]
             }
           ],
           "location": [
             {
-              "line": 75,
+              "line": 106,
               "col": 1
             },
             {
-              "line": 75,
-              "col": 48
+              "line": 106,
+              "col": 39
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "U44 Label:",
+              "location": [
+                {
+                  "line": 108,
+                  "col": 1
+                },
+                {
+                  "line": 108,
+                  "col": 10
+                }
+              ]
+            },
+            {
+              "name": "ref",
+              "type": "inline",
+              "variant": "link",
+              "target": {
+                "type": "url",
+                "value": "https://example.org/u44"
+              },
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Site",
+                  "location": [
+                    {
+                      "line": 108,
+                      "col": 40
+                    },
+                    {
+                      "line": 108,
+                      "col": 43
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 108,
+                  "col": 11
+                },
+                {
+                  "line": 108,
+                  "col": 44
+                }
+              ],
+              "attributes": {}
+            }
+          ],
+          "location": [
+            {
+              "line": 108,
+              "col": 1
+            },
+            {
+              "line": 108,
+              "col": 44
             }
           ]
         }
       ],
       "location": [
         {
-          "line": 8,
+          "line": 17,
           "col": 1
         },
         {
-          "line": 75,
-          "col": 48
+          "line": 108,
+          "col": 44
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "End",
+          "location": [
+            {
+              "line": 110,
+              "col": 4
+            },
+            {
+              "line": 110,
+              "col": 6
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "location": [
+        {
+          "line": 110,
+          "col": 1
+        },
+        {
+          "line": 110,
+          "col": 6
         }
       ]
     }
@@ -2326,8 +2248,8 @@
       "col": 1
     },
     {
-      "line": 75,
-      "col": 48
+      "line": 110,
+      "col": 6
     }
   ]
 }

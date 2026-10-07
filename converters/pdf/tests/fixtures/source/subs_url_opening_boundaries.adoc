@@ -1,0 +1,110 @@
+= url-opening-boundaries(1)
+:doctype: manpage
+:manname: url-opening-boundaries
+:manpurpose: inspect automatic URL boundaries
+:mansource: acdc
+:manmanual: URL boundaries
+:revdate: 2026-10-07
+:docdate: 2026-10-07
+:prefix: Label:
+:space: {sp}
+:site: https://example.org/u34
+
+== Name
+
+url-opening-boundaries - inspect automatic URL boundaries
+
+== Cases
+
+U01 Link:https://example.org/u01
+
+U02 prefixhttps://example.org/u02
+
+U03 label:https://example.org/u03[Site]
+
+U04 (https://example.org/u04)
+
+U05 "https://example.org/u05"
+
+U06 link:https://example.org/u06[Site]
+
+U07 *https://example.org/u07*
+
+U08 https://example.org/u08
+
+U09 'https://example.org/u09'
+
+U10 "https://example.org/u10[Site]"
+
+U11 'https://example.org/u11[Site]'
+
+U12 ,https://example.org/u12
+
+U13 ;https://example.org/u13
+
+U14 =https://example.org/u14
+
+U15 _prefixhttps://example.org/u15
+
+U16 caféhttps://example.org/u16
+
+U17 éhttps://example.org/u17
+
+U18  https://example.org/u18
+
+U19 [https://example.org/u19]
+
+U20 <https://example.org/u20>
+
+U21 *Prefix*https://example.org/u21
+
+U22 *Link:https://example.org/u22*
+
+U23 _https://example.org/u23_
+
+U24 pass:m[Link:https://example.org/u24]
+
+U25 \https://example.org/u25
+
+U26 prefix\https://example.org/u26
+
+U27 "\https://example.org/u27[Site]"
+
+U28 "\https://example.org/u28"
+
+U29 \\https://example.org/u29
+
+U30 prefix\https://example.org/u30[Site]
+
+U31 {prefix}https://example.org/u31
+
+U32 prefix{space}https://example.org/u32
+
+U33 "{site}"
+
+U34 {site}[Site]
+
+[subs="macros,attributes"]
+U35 {space}https://example.org/u35[Site]
+
+[subs="attributes,macros"]
+U36 {space}https://example.org/u36[Site]
+
+[subs="-macros"]
+U37 https://example.org/u37 and https://example.org/u37-label[Site]
+
+[source,text,subs="+macros"]
+----
+U38 Link:https://example.org/u38
+U39 https://example.org/u39[Site]
+U40 "https://example.org/u40"
+U41 "https://example.org/u41[Site]"
+----
+
+U42 (ftp://example.org/u42)
+
+U43 Link:irc://example.org/u43[channel]
+
+U44 Label:link:https://example.org/u44[Site]
+
+== End

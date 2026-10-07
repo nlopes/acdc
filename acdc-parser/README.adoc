@@ -440,6 +440,29 @@ formatted text. Asciidoctor PDF displays generated `<strong>` tags as text
 when special-character substitution is absent; its HTML and manpage output
 preserves the formatting. acdc keeps the same parsed structure across backends.
 
+== Automatic URL boundaries
+
+Automatic URLs need an opening boundary. For example, `Label:https://example.org`
+and `prefixhttps://example.org[Site]` remain text; `(https://example.org)` creates
+a link. A bare URL immediately after a straight quote stays literal:
+`"https://example.org"`. Add label brackets, as in `"https://example.org[Site]"`,
+to make it a link. An explicit `link:https://example.org[Site]` does not require
+this opening boundary. These cases match Asciidoctor.
+
+A completed formatted span can supply the boundary, as in
+`**Prefix**https://example.org`. Unmatched formatting markers cannot. Attribute
+values affect the boundary only when attributes run before macros; for example,
+`{space}https://example.org` stays literal with `subs="macros,attributes"`, even
+if `space` expands to a blank. An inline `pass:[]` macro does not create a URL
+boundary; an attribute value expanded before macros can supply a blank.
+
+acdc retains separate links for adjacent complete URL macros and keeps a URL
+inside typographic quotation marks separate from those marks. Asciidoctor can
+leave the second adjacent macro literal or include generated quotation entities
+in the URL. acdc keeps its existing nested inline structure under the selected
+SDR-5 separation of parsing and conversion; SDR-5 does not prescribe these exact
+boundary decisions.
+
 == Incomplete links
 
 An unfinished `link:` macro keeps its target as text. For example,

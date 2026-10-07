@@ -300,7 +300,7 @@
     }
   }
   let links = (
-    ((4, 6, body => [#strong[#body]]), (9, 17, body => link("https://example.org/mixed", body)), ),
+    ((4, 6, body => [#strong[#body]]), ),
     ((12, 18, body => [#strong[#body]]), ),
   )
   let code-links(line) = {
@@ -314,7 +314,7 @@
     body + code-slice(line.body, start, line.text.len()).first()
   }
   show raw.line: line => code-links(line)
-  raw(block: true, "C20 ©(R)Next ™…\nC21 — middle — ")
+  raw(block: true, "C20 ©(R)https://example.org/mixed[Next ™]…\nC21 — middle — ")
 }
 #{
   // Slice highlighted text without discarding its syntax styles.

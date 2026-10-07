@@ -100,9 +100,7 @@ Second callout.
 XML callout.
 .RE
 .EX
-C20 \fB\(co\fR(R)\c
-.URL "https://example.org/mixed" "Next \(tm" "\fR\c"
-\&.\|.\|.
+C20 \fB\(co\fR(R)https://example.org/mixed[Next \(tm].\|.\|.
 C21 \(em \fBmiddle\fR \(em
 .EE
 .EX

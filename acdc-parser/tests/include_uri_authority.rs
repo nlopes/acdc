@@ -148,10 +148,8 @@ fn paragraph_source_text(block: &Block<'_>) -> Result<String, Box<dyn Error>> {
         .map(|inline| {
             if let InlineNode::PlainText(text) = inline {
                 Ok(text.content.to_string())
-            } else if let InlineNode::Macro(InlineMacro::Autolink(link)) = inline {
-                Ok(link.url.to_string())
             } else {
-                Err(format!("expected source-text inline, got {inline:?}").into())
+                Err(format!("expected plain text, got {inline:?}").into())
             }
         })
         .collect::<Result<Vec<_>, Box<dyn Error>>>()
@@ -248,7 +246,7 @@ fn authorized_uri_with_internal_spaces_uses_ureq_recovery() -> TestResult {
     assert_eq!(
         paragraph_source_text(unresolved)?,
         format!(
-            "Unresolved directive in main.adoc - include::\\{}[]",
+            "Unresolved directive in main.adoc - include::{}[]",
             server.uri
         )
     );

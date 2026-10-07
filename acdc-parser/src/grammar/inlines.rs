@@ -25,7 +25,7 @@ use super::{
         RESERVED_NAMED_ATTRIBUTE_ROLE, Shorthand, is_valid_bibliography_id, process_attribute_list,
         restore_url_path,
     },
-    state::{InlineContext, InlineRules, ParserScope},
+    state::{InlineContext, InlineRules, InlineUrlBoundary, ParserScope},
 };
 
 /// The parts of `xref:target[...]` that decide what the link shows.
@@ -838,6 +838,92 @@ fn macro_token_allowed(state: &ParserState<'_>, start: usize, len: usize) -> boo
     structural_token_allowed(state, &Substitution::Macros, start, len)
 }
 
+fn url_opening_allowed(
+    state: &ParserState<'_>,
+    position: usize,
+    bare: bool,
+    escaped: bool,
+) -> bool {
+    let prefix = &state.input[..position];
+    let prefix = if escaped {
+        prefix.trim_end_matches('\\')
+    } else {
+        prefix
+    };
+    // A later attribute value cannot replace the original reference's `}` with
+    // a URI boundary. The same check covers references that expand to nothing.
+    if state
+        .inline_ctx
+        .substitutions
+        .precedes(&Substitution::Macros, &Substitution::Attributes)
+        && state
+            .late_attribute_sources
+            .iter()
+            .any(|(range, _)| range.end == prefix.len())
+    {
+        return false;
+    }
+    let previous = match state.last_url_boundary {
+        Some(InlineUrlBoundary::Formatted(end)) if end == prefix.len() => return true,
+        Some(InlineUrlBoundary::Protected(end)) if end == prefix.len() => return false,
+        Some(InlineUrlBoundary::Text(end, previous)) if end == prefix.len() => previous,
+        _ => prefix.chars().next_back(),
+    };
+    previous.is_none_or(|previous| {
+        match previous {
+            '"' | '\'' => !bare || escaped,
+            '<' | '>' | '(' | ')' | '[' | ']' | ';' => true,
+            // URI prefixes accept horizontal Unicode blanks and line starts,
+            // but not vertical tabs, form feeds or Unicode line separators.
+            _ => {
+                previous.is_whitespace()
+                    && !matches!(
+                        previous,
+                        '\u{b}' | '\u{c}' | '\u{85}' | '\u{2028}' | '\u{2029}'
+                    )
+            }
+        }
+    })
+}
+
+fn record_url_boundary(
+    state: &mut ParserState<'_>,
+    node: &InlineNode<'_>,
+    end: usize,
+    substitution: &Substitution,
+) {
+    // Only completed inline nodes establish this boundary. Lookahead does not
+    // call this helper, and each nested inline parse starts with no prior node.
+    let formatted = matches!(
+        node,
+        InlineNode::BoldText(_)
+            | InlineNode::ItalicText(_)
+            | InlineNode::MonospaceText(_)
+            | InlineNode::HighlightText(_)
+            | InlineNode::SubscriptText(_)
+            | InlineNode::SuperscriptText(_)
+    ) && state
+        .inline_ctx
+        .substitutions
+        .precedes(substitution, &Substitution::Macros);
+    state.last_url_boundary = if formatted {
+        Some(InlineUrlBoundary::Formatted(end))
+    } else if matches!(node, InlineNode::Macro(InlineMacro::Pass(_))) {
+        Some(InlineUrlBoundary::Protected(end))
+    } else if *substitution == Substitution::Attributes {
+        let text = if let InlineNode::PlainText(text) = node {
+            Some(text.content)
+        } else if let InlineNode::RawText(text) = node {
+            Some(text.content)
+        } else {
+            None
+        };
+        text.map(|text| InlineUrlBoundary::Text(end, text.chars().next_back()))
+    } else {
+        None
+    };
+}
+
 fn index_content_present(state: &ParserState<'_>, start: usize, text: &str) -> bool {
     !text.is_empty()
         || (state
@@ -1146,7 +1232,10 @@ peg::parser! {
         / nodes:normal_inline()+ {? expand_escaped_index_terms(nodes, state) }
 
         rule normal_inline() -> InlineNode<'input>
-        = non_plain_text() / plain_text()
+        = node:(non_plain_text() / plain_text()) {
+            record_url_boundary(state, &node, span_end, &Substitution::Quotes);
+            node
+        }
 
         pub(crate) rule inlines_no_autolinks() -> Vec<InlineNode<'input>>
         = inlines()
@@ -1156,7 +1245,10 @@ peg::parser! {
         / nodes:verbatim_inline()+ {? expand_escaped_index_terms(nodes, state) }
 
         rule verbatim_inline() -> InlineNode<'input>
-        = verbatim_index_term() / verbatim_footnote() / verbatim_anchor() / verbatim_link() / quotes_non_plain_text() / verbatim_plain_text()
+        = node:(verbatim_index_term() / verbatim_footnote() / verbatim_anchor() / verbatim_link() / quotes_non_plain_text() / verbatim_plain_text()) {
+            record_url_boundary(state, &node, span_end, &Substitution::Quotes);
+            node
+        }
 
         rule check_attribute_profiles()
         = {? (!state.attribute_passthroughs.is_empty()).then_some(()).ok_or("no attribute profiles") }
@@ -1170,7 +1262,25 @@ peg::parser! {
 
         rule profiled_attribute() -> Vec<InlineNode<'input>>
         = index:profiled_attribute_match() {
-            crate::grammar::passthrough_processing::process_attribute_placeholder(index, span_start, span_end, state)
+            let nodes = crate::grammar::passthrough_processing::process_attribute_placeholder(index, span_start, span_end, state);
+            // Empty profiles keep the preceding boundary; nonempty profiles
+            // use their final nonempty node rather than the opaque placeholder.
+            if let Some(node) = nodes.iter().rfind(|node|
+                !matches!(node, InlineNode::PlainText(text) if text.content.is_empty())
+                    && !matches!(node, InlineNode::RawText(text) if text.content.is_empty())) {
+                record_url_boundary(state, node, span_end, &Substitution::Attributes);
+            } else {
+                state.last_url_boundary = match state.last_url_boundary {
+                    Some(InlineUrlBoundary::Formatted(end)) if end == span_start =>
+                        Some(InlineUrlBoundary::Formatted(span_end)),
+                    Some(InlineUrlBoundary::Protected(end)) if end == span_start =>
+                        Some(InlineUrlBoundary::Protected(span_end)),
+                    Some(InlineUrlBoundary::Text(end, previous)) if end == span_start =>
+                        Some(InlineUrlBoundary::Text(span_end, previous)),
+                    _ => Some(InlineUrlBoundary::Text(span_end, state.input[..span_start].chars().next_back())),
+                };
+            }
+            nodes
         }
 
         rule verbatim_anchor() -> InlineNode<'input>
@@ -1194,8 +1304,8 @@ peg::parser! {
 
         rule verbatim_link() -> InlineNode<'input>
         = check_macros() node:(
-            &("\\"+ verbatim_link_match()) node:escaped_syntax() { node }
-            / "\\" content:$(check_autolinks() inline_autolink_match()) {
+            &("\\"+ verbatim_link_match(true)) node:escaped_syntax() { node }
+            / "\\" content:$(check_autolinks() inline_autolink_match(true)) {
                 InlineNode::PlainText(Plain {
                     content,
                     location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
@@ -1211,11 +1321,11 @@ peg::parser! {
             / check_autolinks() node:inline_autolink() { node }
         ) { node }
 
-        rule verbatim_link_match()
+        rule verbatim_link_match(escaped: bool)
         = cross_reference_shorthand_match() / cross_reference_macro_match()
-        / link_macro_match() / mailto_macro_match() / url_macro_match()
+        / link_macro_match() / mailto_macro_match() / url_macro_match(escaped)
         / literal_link_target_match()
-        / check_autolinks() inline_autolink_match()
+        / check_autolinks() inline_autolink_match(escaped)
 
         rule verbatim_index_term() -> InlineNode<'input>
         = check_index_terms() node:(
@@ -1239,9 +1349,9 @@ peg::parser! {
                 / &("\\"+ "[[") escaped_syntax_match()
             ))
             !(check_macros() (
-                verbatim_link_match()
-                / &("\\"+ verbatim_link_match()) escaped_syntax_match()
-                / "\\" check_autolinks() inline_autolink_match()
+                verbatim_link_match(false)
+                / &("\\"+ verbatim_link_match(true)) escaped_syntax_match()
+                / "\\" check_autolinks() inline_autolink_match(true)
             ))
             !(check_quotes() (
                 escaped_syntax_match() / bold_text_unconstrained_match() / bold_text_constrained_match()
@@ -1472,7 +1582,7 @@ peg::parser! {
 
         /// Remove the escape before recognized inline syntax, keeping its text literal.
         rule escaped_syntax() -> InlineNode<'input>
-        = check_catalog_escape() escapes:$("\\"+) check_macros() content:$(url_macro_match()) {
+        = check_catalog_escape() escapes:$("\\"+) check_macros() content:$(url_macro_match(true) / check_autolinks() bare_url(true)) {
             // Asciidoctor recognizes a bare URI escape only with one backslash.
             // A longer run leaves the entire URL macro literal, including the run.
             // Late attribute text also stays literal: the original reference's
@@ -1510,7 +1620,7 @@ peg::parser! {
             check_index_terms() index_term_match()
             / check_macros()
             // The URI pass consumes link: before named macro escapes are handled.
-            !("link:" url_macro_match())
+            !("link:" url_macro_syntax())
             (cross_reference_shorthand_match() / cross_reference_macro_match()
             / footnote_match() / link_macro_match() / mailto_macro_match()
             // These empty forms still recognize an escape in Asciidoctor.
@@ -1549,7 +1659,7 @@ peg::parser! {
         /// Match escaped syntax without consuming - for use in negative lookaheads.
         rule escaped_syntax_match() -> ()
         = check_catalog_escape() (
-            "\\"+ check_macros() url_macro_match()
+            "\\"+ check_macros() (url_macro_match(true) / check_autolinks() bare_url(true))
             / "\\" (escapable_macro_pattern() / "\\"? escapable_pattern_match())
         )
 
@@ -1935,7 +2045,7 @@ peg::parser! {
         /// This is similar to link macros but the URL is directly specified rather than
         /// using the `link:` prefix.
         rule url_macro() -> InlineNode<'input>
-        = target:url()
+        = check_url_opening(false, false) target:url()
         "["
         content_start:position!() content:link_macro_content() "]"
         {?
@@ -1962,8 +2072,18 @@ peg::parser! {
         }
 
         /// Recognize URL macro syntax for escaping and inline lookahead.
-        rule url_macro_match()
+        rule url_macro_match(escaped: bool)
+        = check_url_opening(false, escaped) url_macro_syntax()
+
+        // Explicit `link:` macros consume their own prefix and bypass URI boundaries.
+        rule url_macro_syntax()
         = url_macro_target_match() "[" ("\\]" / !"]" [_])* "]"
+
+        rule check_url_opening(bare: bool, escaped: bool)
+        = position:position!() {?
+            url_opening_allowed(state, position, bare, escaped)
+                .then_some(()).ok_or("URL opening boundary")
+        }
 
         rule url_macro_target_match()
         = ("https" / "http" / "ftp" / "irc") "://" ['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '.' | '_' | '~' | ':' | '/' | '?' | '#' | '@' | '!' | '$' | '&' | '\'' | '(' | ')' | '*' | '+' | ',' | ';' | '=' | '%' | '\\']+
@@ -2086,7 +2206,7 @@ peg::parser! {
         = url_info:(
             "<" url:url() ">" { (url, true) }
             / "<" url:email_address() ">" { (Cow::Owned(format!("mailto:{url}")), true) }
-            / url:bare_url() { (url, false) }
+            / url:bare_url(false) { (url, false) }
             / email_at_sign_ahead() url:email_address() { (Cow::Owned(format!("mailto:{url}")), false) }
         )
         {?
@@ -2105,10 +2225,10 @@ peg::parser! {
         /// Match inline autolink without consuming - for use in negative lookaheads.
         /// Uses existing sub-rules (url, bare_url, email_address) for correctness;
         /// avoids Source::from_str_borrowed and Autolink struct allocation.
-        rule inline_autolink_match()
+        rule inline_autolink_match(escaped: bool)
         = "<" url() ">"
         / "<" email_address() ">"
-        / bare_url()
+        / bare_url(escaped)
         / email_at_sign_ahead() email_address()
 
         rule replacement_consumes_eol()
@@ -2532,11 +2652,11 @@ peg::parser! {
             / &['a' | 's'] inline_stem_match()
             / &['b'] inline_button_match()
             / &['f'] footnote_match() {}
-            / &['f' | 'h'] url_macro_match()
+            / &['f' | 'h'] url_macro_match(false)
             / &['i'] (
                 inline_image_match()
                 / inline_icon_match()
-                / url_macro_match()
+                / url_macro_match(false)
             )
             / &['k'] inline_keyboard_match()
             / &['l'] (inline_stem_match() / link_macro_match())
@@ -3375,9 +3495,9 @@ peg::parser! {
                     // Macro guard: [ ( < for delimiters, then first letters of each macro:
                     // a=anchor/asciimath, b=btn, f=footnote/ftp, h=http(s), i=image/icon/indexterm/irc,
                     // k=kbd, l=link/latexmath, m=menu/mailto, p=pass, s=stem, x=xref
-                    / (check_macros() &['[' | '(' | '<' | 'a' | 'b' | 'f' | 'h' | 'i' | 'k' | 'l' | 'm' | 'p' | 's' | 'x'] (inline_anchor_match() / (check_index_terms() index_term_match()) / cross_reference_shorthand_match() / cross_reference_macro_match() / footnote_match() / inline_image_match() / inline_icon_match() / inline_stem_match() / inline_keyboard_match() / inline_button_match() / inline_menu_match() / mailto_macro_match() / url_macro_match() / inline_pass_match() / link_macro_match()))
+                    / (check_macros() &['[' | '(' | '<' | 'a' | 'b' | 'f' | 'h' | 'i' | 'k' | 'l' | 'm' | 'p' | 's' | 'x'] (inline_anchor_match() / (check_index_terms() index_term_match()) / cross_reference_shorthand_match() / cross_reference_macro_match() / footnote_match() / inline_image_match() / inline_icon_match() / inline_stem_match() / inline_keyboard_match() / inline_button_match() / inline_menu_match() / mailto_macro_match() / url_macro_match(false) / inline_pass_match() / link_macro_match()))
                     / (check_macros() &['l'] literal_link_target_match())
-                    / (check_macros() check_autolinks() inline_autolink_match())
+                    / (check_macros() check_autolinks() inline_autolink_match(false))
                     / (check_quotes() &['*' | '_' | '`' | '#' | '^' | '~' | '"' | '\'' | '['] (bold_text_unconstrained_match() / bold_text_constrained_match() / italic_text_unconstrained_match() / italic_text_constrained_match() / monospace_text_unconstrained_match() / monospace_text_constrained_match() / highlight_text_unconstrained_match() / highlight_text_constrained_match() / superscript_text_match() / subscript_text_match() / curved_quotation_text_match() / curved_apostrophe_text_match() / standalone_curved_apostrophe_match()))
                 ) [_]
             )
@@ -3701,8 +3821,8 @@ peg::parser! {
 
         /// URL for bare autolinks — avoids capturing trailing sentence punctuation
         /// (., ;, !, etc.) by only consuming punctuation when more URL chars follow.
-        rule bare_url() -> Cow<'input, str> =
-        proto:$("https" / "http" / "ftp" / "irc") "://" path:bare_url_path()
+        rule bare_url(escaped: bool) -> Cow<'input, str> =
+        check_url_opening(true, escaped) proto:$("https" / "http" / "ftp" / "irc") "://" path:bare_url_path()
         { Cow::Owned(format!("{proto}://{path}")) }
 
         /// URL path for bare autolinks. Like url_path() but:

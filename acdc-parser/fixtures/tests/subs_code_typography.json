@@ -1722,50 +1722,13 @@
               ]
             },
             {
-              "name": "ref",
-              "type": "inline",
-              "variant": "link",
-              "target": {
-                "type": "url",
-                "value": "https://example.org/mixed"
-              },
-              "inlines": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Next (TM)",
-                  "location": [
-                    {
-                      "line": 79,
-                      "col": 48
-                    },
-                    {
-                      "line": 79,
-                      "col": 56
-                    }
-                  ]
-                }
-              ],
+              "name": "text",
+              "type": "string",
+              "value": "https://example.org/mixed[Next (TM)]...\nC21 -- ",
               "location": [
                 {
                   "line": 79,
                   "col": 22
-                },
-                {
-                  "line": 79,
-                  "col": 57
-                }
-              ],
-              "attributes": {}
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": "...\nC21 -- ",
-              "location": [
-                {
-                  "line": 79,
-                  "col": 58
                 },
                 {
                   "line": 80,

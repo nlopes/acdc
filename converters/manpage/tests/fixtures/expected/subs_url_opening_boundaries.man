@@ -1,0 +1,155 @@
+'\" t
+.\"     Title: url-opening-boundaries
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-07
+.\"    Manual: URL boundaries
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "URL\-OPENING\-BOUNDARIES" "1" "2026-10-07" "acdc" "URL boundaries"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+url\-opening\-boundaries \- inspect automatic URL boundaries
+.SH "CASES"
+.sp
+U01 Link:https://example.org/u01
+.sp
+U02 prefixhttps://example.org/u02
+.sp
+U03 label:https://example.org/u03[Site]
+.sp
+U04 (\c
+.URL "https://example.org/u04" "" "\fR\c"
+)
+.sp
+U05 "https://example.org/u05"
+.sp
+U06 \c
+.URL "https://example.org/u06" "Site" "\fR\c"
+
+.sp
+U07 \fB\c
+.URL "https://example.org/u07" "\fB" "\fB\c"
+\fR
+.sp
+U08 \c
+.URL "https://example.org/u08" "" "\fR\c"
+
+.sp
+U09 \(aqhttps://example.org/u09\(aq
+.sp
+U10 "\c
+.URL "https://example.org/u10" "Site" "\fR\c"
+"
+.sp
+U11 \(aq\c
+.URL "https://example.org/u11" "Site" "\fR\c"
+\(aq
+.sp
+U12 ,https://example.org/u12
+.sp
+U13 ;\c
+.URL "https://example.org/u13" "" "\fR\c"
+
+.sp
+U14 =https://example.org/u14
+.sp
+U15 _prefixhttps://example.org/u15
+.sp
+U16 caféhttps://example.org/u16
+.sp
+U17 éhttps://example.org/u17
+.sp
+U18 \ \c
+.URL "https://example.org/u18" "" "\fR\c"
+
+.sp
+U19 [\c
+.URL "https://example.org/u19" "" "\fR\c"
+]
+.sp
+U20 \c
+.URL "https://example.org/u20" "" "\fR\c"
+
+.sp
+U21 *Prefix*https://example.org/u21
+.sp
+U22 \fBLink:https://example.org/u22\fR
+.sp
+U23 \fI\c
+.URL "https://example.org/u23" "\fI" "\fI\c"
+\fR
+.sp
+U24 Link:https://example.org/u24
+.sp
+U25 https://example.org/u25
+.sp
+U26 prefix\ehttps://example.org/u26
+.sp
+U27 "https://example.org/u27[Site]"
+.sp
+U28 "https://example.org/u28"
+.sp
+U29 \e\ehttps://example.org/u29
+.sp
+U30 prefix\ehttps://example.org/u30[Site]
+.sp
+U31 Label:https://example.org/u31
+.sp
+U32 prefix \c
+.URL "https://example.org/u32" "" "\fR\c"
+
+.sp
+U33 "https://example.org/u34"
+.sp
+U34 \c
+.URL "https://example.org/u34" "Site" "\fR\c"
+
+.sp
+U35  https://example.org/u35[Site]
+.sp
+U36  \c
+.URL "https://example.org/u36" "Site" "\fR\c"
+
+.sp
+U37 https://example.org/u37 and https://example.org/u37\-label[Site]
+.EX
+U38 Link:https://example.org/u38
+U39 \c
+.URL "https://example.org/u39" "Site" "\fR\c"
+
+U40 "https://example.org/u40"
+U41 "\c
+.URL "https://example.org/u41" "Site" "\fR\c"
+"
+.EE
+.sp
+U42 (\c
+.URL "ftp://example.org/u42" "" "\fR\c"
+)
+.sp
+U43 Link:irc://example.org/u43[channel]
+.sp
+U44 Label:\c
+.URL "https://example.org/u44" "Site" "\fR\c"
+
+.SH "END"

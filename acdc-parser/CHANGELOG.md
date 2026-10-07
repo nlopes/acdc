@@ -65,6 +65,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Automatic URLs no longer become links after word or colon prefixes, and
+  quoted bare URLs stay literal unless label brackets are supplied, matching
+  Asciidoctor. URL escapes follow the same opening boundaries. Complete
+  formatting and formatted attribute values still separate a following URL;
+  a raw passthrough does not. Explicit `link:` macros retain their behavior.
+  Failed remote includes keep their original target text without added escapes.
+
 - Single-plus passthroughs preserve the correct attribute and macro boundaries.
   Invalid candidates leave attributes available for expansion; apostrophes and
   backticks can surround valid passthroughs. A closer after whitespace is skipped

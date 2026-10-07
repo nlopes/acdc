@@ -796,7 +796,6 @@ fn inline_verbatim_links_honor_context_and_copied_title_ownership() -> Result<()
         "https://example.org/attribute",
         "https://example.org/multiline",
         "https://example.org/spaces",
-        "https://example.org/quotes-off",
         "other.manual.pdf#target",
         "other.pdf#target",
         "https://example.org/heading",
@@ -811,6 +810,14 @@ fn inline_verbatim_links_honor_context_and_copied_title_ownership() -> Result<()
         );
     }
     assert!(!uris.iter().any(|uri| uri.ends_with("/disabled")));
+    assert!(!uris.iter().any(|uri| uri.ends_with("/quotes-off")));
+    let text = pdf.extract_text(&pdf.get_pages().keys().copied().collect::<Vec<_>>())?;
+    assert!(
+        text.split_whitespace()
+            .collect::<String>()
+            .contains("P08`https://example.org/quotes-off[Quotesoff]`."),
+        "disabled quotes must keep the literal URL and its brackets: {text}"
+    );
     let targets = named_destinations(&pdf)?;
     let heading = *targets.get("heading-id").ok_or("missing heading ID")?;
     assert_eq!(

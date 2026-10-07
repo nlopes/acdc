@@ -1,0 +1,32 @@
+[1m[4murl-semantic-boundaries(1)[0m[2m2026-10-07[0m
+
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mName[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+url-semantic-boundaries - inspect URLs following inline content
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mCases[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+E01 [1mPrefix[22m[38;5;12m]8;;https://example.org/e01\https://example.org/e01]8;;\[39m
+E02 Xhttps://example.org/e02
+E03 “[38;5;12m]8;;https://example.org/e03\https://example.org/e03]8;;\[39m”
+E04 ‘[38;5;12m]8;;https://example.org/e04\https://example.org/e04]8;;\[39m’
+E05 [38;5;12m]8;;https://example.org/e05-one\One]8;;\[39m[38;5;12m]8;;https://example.org/e05-two\Two]8;;\[39m
+E06 [1mPrefix[22m[38;5;12m]8;;https://example.org/e06\Site]8;;\[39m
+E07  https://example.org/e07
+E08 *https://example.org/e08
+E09 [1mBold[22m[38;5;12m]8;;https://example.org/e09\https://example.org/e09]8;;\[39m
+E10 [1mBold[22m[38;5;12m]8;;https://example.org/e10\Site]8;;\[39m
+E11 Xhttps://example.org/e11
+E12 [1mBold[22m[38;5;12m]8;;https://example.org/e12\https://example.org/e12]8;;\[39m
+E13 [1mBold[22m[38;5;12m]8;;https://example.org/e13\https://example.org/e13]8;;\[39m
+E14 [1mBold[22m [38;5;12m]8;;https://example.org/e14\https://example.org/e14]8;;\[39m
+E15 [1mBold[22m;[38;5;12m]8;;https://example.org/e15\https://example.org/e15]8;;\[39m
+E16  [38;5;12m]8;;https://example.org/e16\https://example.org/e16]8;;\[39m
+E17 *Bold*tailhttps://example.org/e17
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mEnd[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
