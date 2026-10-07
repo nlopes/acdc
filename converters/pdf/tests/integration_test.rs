@@ -601,8 +601,9 @@ fn whitespace_only_inline_code_keeps_pdf_advance_width() -> Result<(), Error> {
 
 #[test]
 fn inline_code_spaces_keep_their_width_across_formatting_boundaries() -> Result<(), Error> {
-    // Text extraction can collapse styled spaces even when the PDF retains
-    // their advance. A monospace glyph gives an independent width control.
+    // As in Asciidoctor PDF, ordinary whitespace runs in code have one cell's
+    // width; surrounding prose spaces retain their own advance. Text extraction
+    // can hide these boundaries, so compare glyph positions against a visible x.
     for source in [
         "A `` `` **End**.",
         "A ``  `` **End**.",
