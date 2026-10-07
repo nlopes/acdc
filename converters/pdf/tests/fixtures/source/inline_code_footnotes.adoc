@@ -1,0 +1,35 @@
+= Inline Code Footnotes
+:toc:
+
+[[notes,Notes]]
+== `Heading footnote:heading[Heading note.]`
+
+I01 `afootnote:[Anonymous note.]b`.
+
+I02 ``cfootnote:shared[Shared *bold* note with https://example.org[note link].]d``.
+
+I03 `footnote:shared[]` and footnote:shared[].
+
+I04 `footnote:only[Note-only span.]`.
+
+I05 `*bold footnote:[Bold note.] tail*`.
+
+I06 `link:https://example.org[Before footnote:[Link note.] after]`.
+
+.Title `footnote:title[Title note.]`
+[#titled]
+Paragraph.
+
+I07 See <<notes>>, <<titled>>, and footnote:heading[].
+
+[cols="1,3"]
+|===
+|I08 `prefixfootnote:cell[Cell note.]suffix`
+|Neighbor.
+|===
+
+I09 `\footnote:[Literal macro.]` and `+footnote:[Passthrough macro.]+`.
+
+<<<
+
+I10 `footnote:shared[]footnote:only[]`.

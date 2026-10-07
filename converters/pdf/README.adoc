@@ -237,7 +237,18 @@ Links copied into TOC entries or automatic reference labels retain the enclosing
 Footnotes in those copied titles display their existing number without adding
 another footnote body or definition. Normal footnote references retain their
 native PDF links.
+Footnotes inside backticks also retain their bodies and clickable markers, including named definitions reused outside the code:
+
+[source,asciidoc]
+----
+`code footnote:detail[Details about this code.]`
+Reuse footnote:detail[].
+----
+
+These use acdc's existing native page footnotes and unbracketed superscripts,
+rather than Asciidoctor PDF's endnote layout and bracketed markers.
 Nested links keep separate click targets, and anchors inside link labels retain their full label text; Asciidoctor PDF can leave these cases as literal or incomplete markup.
+Footnotes inside code link labels also keep their own targets; Asciidoctor PDF can produce malformed markup for these labels.
 Content omitted from PDF output creates no destination.
 Local cross-references can appear before or after these targets.
 When several anchors precede a document title, the last anchor is used and automatic references show the full title and subtitle.

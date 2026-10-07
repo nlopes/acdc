@@ -1975,6 +1975,99 @@ fn index_catalog_labels_do_not_create_extra_pdf_footnotes() -> Result<(), Error>
     Ok(())
 }
 
+#[test]
+fn inline_code_footnotes_keep_bodies_and_named_references() -> Result<(), Error> {
+    for delimiter in ["`", "``"] {
+        let input = format!(
+            "= Notes\n\n{delimiter}afootnote:[Anonymous body.]b{delimiter}\n\n{delimiter}cfootnote:named[Named body.]d{delimiter}\n\n<<<\n\nReuse footnote:named[] and {delimiter}footnote:named[]{delimiter}.\n"
+        );
+        let pdf = render_input(&input)?;
+        let text = pdf.extract_text(&[1, 2])?.replace('\n', "");
+        assert_eq!(text.matches("Anonymous body.").count(), 1, "{text}");
+        assert_eq!(text.matches("Named body.").count(), 1, "{text}");
+        assert!(text.contains("a1b"), "{text}");
+        assert!(text.contains("c2d"), "{text}");
+        assert_eq!(internal_link_pages(&pdf, 1)?, [1, 1, 1, 1]);
+        assert_eq!(internal_link_pages(&pdf, 2)?, [1, 1]);
+    }
+    Ok(())
+}
+
+#[test]
+fn inline_code_footnotes_keep_title_copies_and_nested_content() -> Result<(), Error> {
+    let pdf = render_input(include_str!("fixtures/source/inline_code_footnotes.adoc"))?;
+    let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+    let text = pdf
+        .extract_text(&pages)?
+        .split_whitespace()
+        .collect::<String>();
+    for body in [
+        "Headingnote.",
+        "Anonymousnote.",
+        "Sharedboldnotewithnotelink.",
+        "Note-onlyspan.",
+        "Boldnote.",
+        "Linknote.",
+        "Titlenote.",
+        "Cellnote.",
+    ] {
+        assert_eq!(text.matches(body).count(), 1, "{body}: {text}");
+    }
+    assert!(text.contains("footnote:[Literalmacro.]"), "{text}");
+    assert!(text.contains("footnote:[Passthroughmacro.]"), "{text}");
+    let targets = named_destinations(&pdf)?;
+    for id in ["notes", "titled"] {
+        assert!(targets.contains_key(id), "missing {id}");
+    }
+    Ok(())
+}
+
+#[test]
+fn inline_code_footnotes_keep_separate_link_actions() -> Result<(), Error> {
+    let pdf = render_input(
+        "= Notes\n\n`link:https://example.org[Before footnote:[Nested *strong* body with https://example.org/note[NoteLink].] after]`\n",
+    )?;
+    let links = external_link_rects(&pdf, 1)?;
+    assert_eq!(
+        links
+            .iter()
+            .filter(|(uri, _)| uri == "https://example.org")
+            .count(),
+        2
+    );
+    assert_eq!(
+        links
+            .iter()
+            .filter(|(uri, _)| uri == "https://example.org/note")
+            .count(),
+        1
+    );
+    let page = *pdf.get_pages().get(&1).ok_or("missing page")?;
+    assert_eq!(pdf.get_page_annotations(page)?.len(), 5);
+    let runs = pdf_text_fonts(&pdf)?;
+    assert_text_font(&runs, "Before", "IBMPlexMono");
+    assert_text_font(&runs, "after", "IBMPlexMono");
+    assert_text_font(&runs, "strong", "IBMPlexSerif-Bold");
+    Ok(())
+}
+
+#[test]
+fn inline_code_footnotes_survive_table_wrapping() -> Result<(), Error> {
+    for width in [20, 40, 60] {
+        let source = format!(
+            "= Notes\n\n[cols=\"1,5\"]\n|===\n|`{}footnote:wrapped[Wrapped body.]{}footnote:wrapped[]`\n|Neighbor.\n|===\n",
+            "x".repeat(width),
+            "y".repeat(width),
+        );
+        let pdf = render_input(&source)?;
+        let text = pdf.extract_text(&[1])?;
+        assert_eq!(text.matches("Wrapped body.").count(), 1, "{text}");
+        assert_eq!(internal_link_pages(&pdf, 1)?, [1, 1, 1]);
+        assert!(!text.contains('\u{fffc}'), "{text}");
+    }
+    Ok(())
+}
+
 #[cfg(feature = "pre-spec-subs")]
 #[test]
 fn verbatim_footnotes_keep_clickable_markers_and_reuse_definitions() -> Result<(), Error> {

@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Footnotes inside backticks retain their bodies and clickable markers, matching
+  Asciidoctor PDF. Named notes defined in inline code can be reused outside it
+  without a PDF compilation error. Nested formatting, table wrapping and copied
+  titles preserve a single definition. Notes inside code link labels keep their
+  own link targets; Asciidoctor PDF can produce malformed markup in that case.
+  acdc's existing page-footnote layout and unbracketed markers are retained.
+
 - Code callouts honor block `line-comment` settings: custom prefixes are removed,
   while an empty value preserves prefixes. This matches unhighlighted Asciidoctor
   PDF and applies consistently with highlighting enabled, unlike its highlighted

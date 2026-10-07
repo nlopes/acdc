@@ -1,7 +1,7 @@
 #set document(
-  title: "Attribute first code(1)",
+  title: "Inline Code Footnotes",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Attribute first code(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Inline Code Footnotes]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -74,90 +74,57 @@
 #set page(numbering: "1")
 #counter(page).update(1)
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("Attribute first code(1)")]
+#text(size: 22pt, weight: "bold")[#text("Inline Code Footnotes")]
 ]
 #v(1em)
 
-#heading(level: 1)[#text("Name")] <id-5f6e616d65>
+#heading(outlined: false, bookmarked: false)[#text("Table of Contents")]
+#let _acdc_toc_entry(target, depth, body) = context {
+  link(
+    target,
+    pad(
+      left: depth * 1.25em,
+      grid(
+        columns: (auto, 1fr, auto),
+        column-gutter: 0.5em,
+        body,
+        repeat[.],
+        counter(page).display(at: target),
+      ),
+    ),
+  )
+}
+#_acdc_toc_entry(<id-6e6f746573>, 0, [#raw("Heading ")#super[1]#raw("")])
+#pagebreak()
 
-#text("attribute-first-code - code formatting after attribute expansion")
+#heading(level: 1)[#raw("Heading ")#counter(footnote).update(0)#footnote[#text("Heading note.")]<id-666f6f746e6f74653a68656164696e67>#raw("")] <id-6e6f746573>
 
-#heading(level: 1)[#text("Description")] <id-5f6465736372697074696f6e>
+#text("I01 ")#raw("a")#counter(footnote).update(1)#footnote[#text("Anonymous note.")]#raw("b")#text(".")
 
-#text("C01 ``.")
+#text("I02 ")#raw("c")#counter(footnote).update(2)#footnote[#text("Shared ")#strong[#text("bold")]#text(" note with ")#link("https://example.org")[#text("note link")]#text(".")]<id-666f6f746e6f74653a736861726564>#raw("d")#text(".")
 
-#text("C02 `code `.")
+#text("I03 ")#footnote(<id-666f6f746e6f74653a736861726564>)#raw("")#text(" and ")#footnote(<id-666f6f746e6f74653a736861726564>)#text(".")
 
-#text("C03 ` code`.")
+#text("I04 ")#counter(footnote).update(3)#footnote[#text("Note-only span.")]<id-666f6f746e6f74653a6f6e6c79>#raw("")#text(".")
 
-#text("C04 `code `.")
+#text("I05 ")#strong[#raw("bold ")]#strong[#counter(footnote).update(4)#footnote[#text("Bold note.")]]#strong[#raw(" tail")]#raw("")#text(".")
 
-#text("C05 ` code`.")
+#text("I06 ")#link("https://example.org")[#raw("Before ")]#counter(footnote).update(5)#footnote[#text("Link note.")]#link("https://example.org")[#raw(" after")]#raw("")#text(".")
 
-#text("C06 ")#raw("code `; tail")#text(".")
+#metadata(none) <id-7469746c6564>
+#blocktitle[#text("Title ")#counter(footnote).update(6)#footnote[#text("Title note.")]<id-666f6f746e6f74653a7469746c65>#raw("")]
+#text("Paragraph.")
 
-#text("C07 ")#raw("")#text(" ")#raw("code ")#text(" ")#raw(" code")#text(".")
+#text("I07 See ")#context link(query(<id-6e6f746573>).first().location())[#text("Notes")]#text(", ")#context link(query(<id-7469746c6564>).first().location())[#text("Title ")#super[7]#raw("")]#text(", and ")#footnote(<id-666f6f746e6f74653a68656164696e67>)#text(".")
 
-#text("C08 ")#raw("``")#text(".")
+#table(columns: (1fr, 3fr), align: (left + top, left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("I08 ")#raw("prefix")#counter(footnote).update(7)#footnote[#text("Cell note.")]<id-666f6f746e6f74653a63656c6c>#raw("suffix")
 
-#text("C09 ")#raw("code ")#text(".")
+], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Neighbor.")
 
-#raw(block: true, "C10 ``.")
+])
 
-#raw(block: true, "C11 `code `.")
+#text("I09 ")#raw("footnote:[Literal macro.]")#text(" and ")#raw("footnote:[Passthrough macro.]")#text(".")
 
-#text("C12 ")#raw("café")#strong[#text("End")]#text(".")
+#pagebreak(weak: true)
 
-#text("C13 ")#strong[#text("``")]#text(".")
-
-#text("C14 ")#strong[#raw("café")]#raw("")#text(".")
-
-#text("C15 ")#raw("value")#text(".")
-
-#text("C16 ")#raw("café `; café")#strong[#text("End")]#text(".")
-
-#text("C17 ")#metadata(none)<id-6b657074>#raw("café")#text(".")
-
-#text("C18 [.token#literal]``.")
-
-#text("C19 ")#raw("{word}")#text(" and ")#raw("{word}")#text(".")
-
-#text("C20 ")#raw("{word}")#text(".")
-
-#text("C21 ")#raw("{word}")#text(".")
-
-#text("C22 ")#raw("{word}")#text(".")
-
-#text("C23 ")#link("https://example.org")[#raw("café")]#raw("")#text(".")
-
-#text("C24 ")#link("https://example.org")[#text("``")]#text(".")
-
-#text("C25 ")#metadata(none)<id-746172676574>#counter(footnote).update(0)#footnote[#text("Only once.")]#raw("Term")#text(".")
-
-#text("C26 `café`.")
-
-#text("C27 ")#raw("{word}")#text(".")
-
-#text("C28 ")#raw("")#text(" ")#raw("code ")#text(" ")#raw(" code")#text(".")
-
-#raw(block: true, "C29 ``.")
-
-#text("C30 ")#raw("")#text(".")
-
-#text("C31 ``.")
-
-#text("C32 ")#raw("first `; tail")#text(".")
-
-#raw(block: true, "C33 ` code`.")
-
-#raw(block: true, "C34 café.")
-
-#text("C35 `code `.")
-
-#text("C36 `café`.")
-
-#text("C37 ")#raw("café ")#text(".")
-
-#text("C38 `")#text("{word}")#text(" `.")
-
-#text("C39 ` ")#strong[#text("bold")]#text("`.")
+#text("I10 ")#footnote(<id-666f6f746e6f74653a736861726564>)#footnote(<id-666f6f746e6f74653a6f6e6c79>)#raw("")#text(".")

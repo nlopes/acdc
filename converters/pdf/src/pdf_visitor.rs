@@ -874,10 +874,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
 
     pub(crate) fn write_inline_verbatim_nodes(
         &mut self,
-        traversal: &TraversalContext<'_>,
+        traversal: &mut TraversalContext<'a>,
         nodes: &[InlineNode<'_>],
     ) -> Result<(), Error> {
-        let mut code = self.inline_verbatim_text(nodes, code_output_extension(traversal));
+        let mut code = self.inline_verbatim_text(traversal, nodes)?;
         let mut positions = code
             .links
             .iter()
@@ -897,7 +897,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         for ([(position, _), (end, _)], span) in positions.as_chunks::<2>().0.iter().zip(code.links)
         {
             let label = span.anchor.as_deref().and_then(|id| self.anchors.claim(id));
-            if label.is_some() || span.target.is_some() || !span.prefix.is_empty() {
+            let has_content =
+                span.replacement.is_some() || span.target.is_some() || !span.prefix.is_empty();
+            if label.is_some() || has_content {
                 let position = *position;
                 if start < position {
                     self.write_inline_verbatim_fragment(&code.source, start..position, &breaks);
@@ -906,9 +908,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     let _ = write!(self.writer, "#metadata(none)<{label}>");
                 }
                 start = position;
-                if position < *end && (span.target.is_some() || !span.prefix.is_empty()) {
+                if position < *end && has_content {
                     self.writer.raw(&span.prefix);
-                    if let Some(target) = span.target.as_ref() {
+                    if let Some(replacement) = span.replacement.as_ref() {
+                        self.writer.raw(replacement);
+                    } else if let Some(target) = span.target.as_ref() {
                         self.write_inline_verbatim_link(
                             target,
                             &code.source,
@@ -975,10 +979,13 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         );
     }
 
-    fn inline_verbatim_text(&mut self, nodes: &[InlineNode<'_>], extension: &str) -> CodeText {
+    fn inline_verbatim_text(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        nodes: &[InlineNode<'_>],
+    ) -> Result<CodeText, Error> {
         let mut code = CodeText::default();
         let transform = InlineTextTransform::default().rendered_replacements(false);
-        // Extract text without registering footnotes or index entries.
         for node in nodes {
             if let InlineNode::InlineAnchor(anchor) = node {
                 code.links.push(CodeSpan {
@@ -986,16 +993,20 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     anchor: Some(anchor.id.to_owned()),
                     ..CodeSpan::default()
                 });
+            } else if let InlineNode::Macro(inline_macro @ InlineMacro::Footnote(_)) = node {
+                self.collect_code_footnote(traversal, inline_macro, &mut code)?;
             } else if let Some(children) = code_inline_children(node) {
-                let child = self.inline_verbatim_text(children, extension);
+                let child = self.inline_verbatim_text(traversal, children)?;
                 code.append(self.format_code_text(node, child));
-            } else if let Some(link) =
-                resolve_code_link(node, &self.processor.references, extension)
-            {
+            } else if let Some(link) = resolve_code_link(
+                node,
+                &self.processor.references,
+                code_output_extension(traversal),
+            ) {
                 let mut child = if let Some(children) =
                     code_link_children(node).filter(|nodes| !nodes.is_empty())
                 {
-                    self.inline_verbatim_text(children, extension)
+                    self.inline_verbatim_text(traversal, children)?
                 } else {
                     CodeText {
                         source: link.text,
@@ -1017,7 +1028,28 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 let _ = transform.write(&mut code.source, std::slice::from_ref(node));
             }
         }
-        code
+        Ok(code)
+    }
+
+    fn collect_code_footnote(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        inline_macro: &InlineMacro<'_>,
+        code: &mut CodeText,
+    ) -> Result<(), Error> {
+        let output = replace(&mut self.writer, Writer::new());
+        let result = self.write_inline_macro(traversal, inline_macro);
+        let markup = replace(&mut self.writer, output).into_string();
+        result?;
+        let start = code.source.len();
+        // An indivisible placeholder keeps note-only spans and prevents wrapping inside a note.
+        code.source.push('\u{fffc}');
+        code.links.push(CodeSpan {
+            range: start..code.source.len(),
+            replacement: Some(markup),
+            ..CodeSpan::default()
+        });
+        Ok(())
     }
 
     fn write_table_literal(&mut self, text: &str) {
@@ -2062,20 +2094,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     ..CodeSpan::default()
                 });
             } else if let InlineNode::Macro(inline_macro @ InlineMacro::Footnote(_)) = node {
-                let output = replace(&mut self.writer, Writer::new());
-                let result = self.write_inline_macro(traversal, inline_macro);
-                let markup = replace(&mut self.writer, output).into_string();
-                result?;
-                let start = code.source.len();
-                // One indivisible placeholder keeps note-only lines and cannot split a note when wrapping.
-                code.source.push('\u{fffc}');
-                code.links.push(CodeSpan {
-                    range: start..code.source.len(),
-                    target: None,
-                    anchor: None,
-                    replacement: Some(markup),
-                    ..CodeSpan::default()
-                });
+                self.collect_code_footnote(traversal, inline_macro, &mut code)?;
             } else if let Some(children) = code_inline_children(node) {
                 let child = self.collect_code_text(
                     traversal,
