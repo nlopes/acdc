@@ -47,7 +47,7 @@ P07 {name} {name} {name} \e{name}
 .sp
 P08 pass:[Early]
 .sp
-P09 Before after.
+P09 Before  after.
 .sp
 P10 Before {not\-set} after.
 .sp

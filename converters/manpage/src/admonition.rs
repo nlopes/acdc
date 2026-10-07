@@ -5,10 +5,7 @@
 
 use std::io::Write;
 
-use acdc_converters_core::{
-    TraversalContext,
-    visitor::{Visitor, WritableVisitor},
-};
+use acdc_converters_core::{TraversalContext, visitor::WritableVisitor};
 use acdc_parser::Admonition;
 
 use crate::{Error, ManpageVisitor};
@@ -32,7 +29,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         // Optional title
         if !admon.title.is_empty() {
             write!(w, " ")?;
-            self.visit_inline_nodes(traversal, &admon.title)?;
+            self.render_title_inlines(traversal, &admon.title)?;
         }
 
         let w = self.writer_mut();

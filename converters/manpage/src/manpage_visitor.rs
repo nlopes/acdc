@@ -1,6 +1,6 @@
 //! Visitor implementation for manpage (roff/troff) conversion.
 
-use std::io::Write;
+use std::{io::Write, mem::replace};
 
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::{SubsFlags, effective_subs_flags};
@@ -148,6 +148,18 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
         Ok(())
     }
 
+    pub(crate) fn render_title_inlines(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        title: &[InlineNode<'_>],
+    ) -> Result<(), Error> {
+        // Titles use collapsed whitespace; their bodies retain authored spacing.
+        let previous = replace(&mut self.text_escape_mode, EscapeMode::Collapse);
+        let result = self.visit_inline_nodes(traversal, title);
+        self.text_escape_mode = previous;
+        result
+    }
+
     /// Render a block title with the caption resolved by the parser.
     pub(crate) fn render_captioned_title(
         &mut self,
@@ -173,7 +185,7 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
                 write!(
                     visitor.writer_mut(),
                     "{}",
-                    manify(&prefix, EscapeMode::Normalize)
+                    manify(&prefix, EscapeMode::Collapse)
                 )?;
             }
             // A title uses normal substitutions even when its block's body disables them.
@@ -182,7 +194,7 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
                 .processor
                 .current_subs
                 .replace(effective_subs_flags(None, false));
-            let result = visitor.visit_inline_nodes(traversal, title);
+            let result = visitor.render_title_inlines(traversal, title);
             #[cfg(feature = "pre-spec-subs")]
             visitor.processor.current_subs.set(previous_subs);
             result
@@ -443,7 +455,7 @@ impl<'a, W: Write> Visitor<'a> for ManpageVisitor<'a, '_, W> {
         // Discrete headers are rendered as bold text, not as sections
         self.write_sp()?;
         self.render_font("\\fB", false, |visitor| {
-            visitor.visit_inline_nodes(traversal, &header.title)
+            visitor.render_title_inlines(traversal, &header.title)
         })?;
         writeln!(self.writer)?;
         Ok(())

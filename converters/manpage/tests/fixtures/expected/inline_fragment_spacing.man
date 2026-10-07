@@ -51,7 +51,7 @@ Raw \fBBold\fR and \(co.
 .sp
 Adjacent \fBBold\fR\(co.
 .sp
-Multiple \fBBold\fR spaces and \(co.
+Multiple \fBBold\fR  spaces and \(co.
 .sp
 Wrapped plain
 next line.

@@ -35,9 +35,9 @@ W01 A\f(CR \fRB.
 .sp
 W02 A\f(CR \fRB.
 .sp
-W03 A\f(CR \fRB.
+W03 A\f(CR  \fRB.
 .sp
-W04 A\f(CR \fRB.
+W04 A\f(CR	\fRB.
 .sp
 W05 A\f(CR
 \fRB.

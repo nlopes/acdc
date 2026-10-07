@@ -91,7 +91,7 @@ T}
 T{
 P08 Before.
 .sp
- P08 Indented paragraph.
+  P08 Indented paragraph.
 T}
 .TE
 .TS

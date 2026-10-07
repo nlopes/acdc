@@ -12,7 +12,8 @@ use std::borrow::Cow;
 /// Escape modes for different content types.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum EscapeMode {
-    /// Collapse repeated spaces and remove indentation after newlines.
+    /// Remove horizontal whitespace around wrapped newlines.
+    /// Preserve repeated spaces and tabs within each line.
     /// Retain a leading separator when text continues an inline fragment.
     #[default]
     Normalize,
@@ -54,10 +55,7 @@ pub fn manify(text: &str, mode: EscapeMode) -> Cow<'_, str> {
             // Expand tabs to 8 spaces
             text.replace('\t', "        ")
         }
-        EscapeMode::Normalize => {
-            // Collapse multiple whitespace to single space
-            collapse_whitespace(text)
-        }
+        EscapeMode::Normalize => normalize_wrapped_lines(text),
         EscapeMode::Collapse => {
             // Collapse all whitespace including newlines
             collapse_all_whitespace(text)
@@ -160,38 +158,25 @@ fn needs_escaping(text: &str, mode: EscapeMode) -> bool {
 
     // Check for whitespace normalization needs
     match mode {
-        EscapeMode::Normalize => text.contains("  ") || text.contains('\t') || text.contains("\n "),
+        EscapeMode::Normalize => text.contains('\n'),
         EscapeMode::Collapse => text.contains('\n') || text.contains("  ") || text.contains('\t'),
         EscapeMode::Preserve => false,
     }
 }
 
-/// Collapse repeated whitespace while keeping the separator before an inline fragment.
-/// Strip indentation after newlines so roff does not treat wrapped prose as indented text.
-fn collapse_whitespace(text: &str) -> String {
+/// Strip wrapped-line indentation without changing authored inline spacing.
+fn normalize_wrapped_lines(text: &str) -> String {
     let mut result = String::with_capacity(text.len());
-    let mut prev_whitespace = false;
     let mut at_line_start = false;
 
     for ch in text.chars() {
         if ch == '\n' {
+            result.truncate(result.trim_end_matches([' ', '\t']).len());
             result.push(ch);
             at_line_start = true;
-            prev_whitespace = false;
-        } else if ch.is_ascii_whitespace() {
-            // Skip leading whitespace at line start
-            if at_line_start {
-                continue;
-            }
-            // Collapse consecutive whitespace to single space
-            if !prev_whitespace {
-                result.push(' ');
-                prev_whitespace = true;
-            }
-        } else {
+        } else if !at_line_start || !matches!(ch, ' ' | '\t') {
             result.push(ch);
             at_line_start = false;
-            prev_whitespace = false;
         }
     }
 
@@ -437,8 +422,7 @@ mod tests {
     }
 
     #[test]
-    fn test_collapse_whitespace_strips_leading() {
-        // Should strip leading whitespace on continuation lines
+    fn normalize_removes_wrapped_line_indentation() {
         assert_eq!(
             manify("line one\n  line two", EscapeMode::Normalize),
             "line one\nline two"
@@ -447,5 +431,25 @@ mod tests {
             manify("first\n   second\n\tthird", EscapeMode::Normalize),
             "first\nsecond\nthird"
         );
+    }
+
+    #[test]
+    fn normalize_keeps_inline_spacing_and_removes_only_wrapped_indentation() {
+        for (source, expected) in [
+            ("a  b", "a  b"),
+            ("a\tb", "a\tb"),
+            ("  fragment  ", "  fragment  "),
+            ("\tfragment\t", "\tfragment\t"),
+            ("a \t\n \tb", "a\nb"),
+            ("a\n\t  b  c", "a\nb  c"),
+            ("a\n\n\tb", "a\n\nb"),
+            ("\n\t.fragment", "\n\\&.fragment"),
+        ] {
+            assert_eq!(
+                manify(source, EscapeMode::Normalize),
+                expected,
+                "{source:?}"
+            );
+        }
     }
 }

@@ -99,7 +99,7 @@ code \fB(1)\fP \fB(2)\fP
 .if n .RE
 .SS "Tab indent"
 .sp
- <1> Alpha.
+	<1> Alpha.
 <2> Beta.
 .SS "Tab separator"
 .RS 0

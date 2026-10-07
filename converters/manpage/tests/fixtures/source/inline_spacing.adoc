@@ -1,0 +1,82 @@
+= inline-spacing(1)
+:doctype: manpage
+:revdate: 2026-10-07
+
+== Name
+
+inline-spacing - preserve authored inline spaces
+
+== Synopsis
+
+inline-spacing
+
+== Description
+
+M01 A  B.
+
+M02 A``  ``B.
+
+M03 A**  **B.
+
+M04 A__  __B.
+
+M05 A##  ##B.
+
+M06 A	B.
+
+M07 A``	``B.
+
+M08 A**	**B.
+
+M09 A  ``code  with	spaces``  B.
+
+M10 A
+  wrapped  line.
+
+M11 A** first
+  second **B.
+
+M12 A`` one
+  two ``B.
+
+M13 A** ``  `` **B.
+
+M14 link:https://example.org[First  second].
+
+M15 link:https://example.org[``  ``].
+
+M16 +first  second+.
+
+M17 A``{nbsp}{nbsp}``B.
+
+M18 café  naïve.
+
+.M19 Title  with  spaces
+M20 Body  with  spaces.
+
+* M21 Item  with  spaces.
+
+Term:: M22 Description  with  spaces.
+
+|===
+|M23 Cell  with  spaces.
+|===
+
+M24 footnote:[Body  with  spaces.].
+
+.M25 List  with  spaces
+* Body  with  spaces.
+
+.M26 Note  with  spaces
+NOTE: Body  with  spaces.
+
+[discrete]
+=== M27 Discrete  with  spaces
+
+Body  with  spaces.
+
+=== Subsection
+
+==== M28 Deep  with  spaces
+
+Body  with  spaces.

@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   acdc retains its Unicode typography policy; Asciidoctor instead displays
   the escaped generated numeric entity.
 
+- Repeated spaces and tabs remain visible in prose and inline formatting,
+  including backticks, matching Asciidoctor's manpage output. Indentation around
+  wrapped source lines still becomes a single line break.
+
 - Custom `line-comment` prefixes that end in spaces are removed before callouts
   even without an extra separator space, matching Asciidoctor. Required spaces
   within the prefix remain distinct from the optional separator after it.

@@ -4,10 +4,7 @@
 
 use std::io::Write;
 
-use acdc_converters_core::{
-    TraversalContext, document_attribute_text,
-    visitor::{Visitor, WritableVisitor},
-};
+use acdc_converters_core::{TraversalContext, document_attribute_text, visitor::WritableVisitor};
 use acdc_parser::{Section, SectionKind};
 
 use crate::{
@@ -60,7 +57,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
                 // Levels 3+ - no roff section macro exists; render as bold paragraph heading
                 writeln!(w, ".sp")?;
                 self.render_font("\\fB", false, |visitor| {
-                    visitor.visit_inline_nodes(traversal, &section.title)
+                    visitor.render_title_inlines(traversal, &section.title)
                 })?;
                 writeln!(self.writer_mut())?;
             }

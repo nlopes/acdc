@@ -93,7 +93,7 @@ N09 \c
 .URL "https://outer.example" "Before" "\fR \c"
 \c
 .MTO "test\(atexample.org" "Inner" "\fR\c"
- \c
+  \c
 .URL "https://outer.example" "after" "\fR\c"
 \&.
 .sp

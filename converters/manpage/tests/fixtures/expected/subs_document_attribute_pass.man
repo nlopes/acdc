@@ -53,7 +53,7 @@ P03 prefix pass:[Embedded] | \epass:[Escaped]
 .sp
 P04 first second | café α
 .sp
-P05 Before after.
+P05 Before  after.
 .sp
 P07 \(co
 .sp

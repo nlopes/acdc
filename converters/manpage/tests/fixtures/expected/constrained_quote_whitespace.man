@@ -39,7 +39,7 @@ Q03 #mark #.
 .sp
 Q04 `code `.
 .sp
-Q05 *bold *.
+Q05 *bold	*.
 .sp
 Q06 *first
 *.
@@ -95,7 +95,7 @@ Q28 \fBpassed *; tail\fR\&.
 .sp
 Q29 * leading*.
 .sp
-Q30 * leading*.
+Q30 *	leading*.
 .sp
 Q31 *
 leading*.

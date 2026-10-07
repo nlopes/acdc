@@ -44,7 +44,7 @@ one]two Expanded term
 .URL "https://example.net" "Two" "\fR\c"
 
 .sp
- ] \c
+  ] \c
 .URL "https://example.org" "" "\fR\c"
 
 .sp

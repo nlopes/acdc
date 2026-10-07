@@ -58,7 +58,7 @@ P09 \f(CRCode\fR\fBEnd\fR\&.
 .fi
 .if n .RE
 .sp
-P10 \f(CRCode\fR \fBEnd\fR\&.
+P10 \f(CRCode\fR  \fBEnd\fR\&.
 .RS 0
 .IP \(bu 2
 P11 \f(CRCode\fR\fBEnd\fR\&.

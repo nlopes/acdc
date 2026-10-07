@@ -31,7 +31,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         if !title.is_empty() {
             self.write_sp()?;
             self.render_font("\\fB", false, |visitor| {
-                visitor.visit_inline_nodes(traversal, title)
+                visitor.render_title_inlines(traversal, title)
             })?;
             writeln!(self.writer_mut())?;
         }

@@ -1,0 +1,122 @@
+'\" t
+.\"     Title: inline-spacing
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-07
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "INLINE\-SPACING" "1" "2026-10-07" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+inline\-spacing \- preserve authored inline spaces
+.SH "SYNOPSIS"
+.sp
+inline\-spacing
+.SH "DESCRIPTION"
+.sp
+M01 A  B.
+.sp
+M02 A\f(CR  \fRB.
+.sp
+M03 A\fB  \fRB.
+.sp
+M04 A\fI  \fRB.
+.sp
+M05 A\fB  \fRB.
+.sp
+M06 A	B.
+.sp
+M07 A\f(CR	\fRB.
+.sp
+M08 A\fB	\fRB.
+.sp
+M09 A  \f(CRcode  with	spaces\fR  B.
+.sp
+M10 A
+wrapped  line.
+.sp
+M11 A\fB first
+second \fRB.
+.sp
+M12 A\f(CR one
+two \fRB.
+.sp
+M13 A\fB \f(CR  \fB \fRB.
+.sp
+M14 \c
+.URL "https://example.org" "First  second" "\fR\c"
+\&.
+.sp
+M15 \c
+.URL "https://example.org" "\f(CR  \fR" "\fR\c"
+\&.
+.sp
+M16 first  second\&.
+.sp
+M17 A\f(CR\ \ \fRB.
+.sp
+M18 café  naïve.
+.sp
+\fBM19 Title with spaces\fR
+.br
+M20 Body  with  spaces.
+.RS 0
+.IP \(bu 2
+M21 Item  with  spaces.
+.RE
+.RS 0
+.TP
+\fBTerm\fR
+M22 Description  with  spaces.
+.RE
+.TS
+allbox tab(:);
+ltx.
+M23 Cell  with  spaces.
+.TE
+.sp
+M24 [1]\&.
+.sp
+\fBM25 List with spaces\fR
+.RS 0
+.IP \(bu 2
+Body  with  spaces.
+.RE
+.sp
+\fBNOTE:\fP M26 Note with spaces
+.RS 4
+.sp
+Body  with  spaces.
+.RE
+.sp
+\fBM27 Discrete with spaces\fR
+.sp
+Body  with  spaces.
+.SS "Subsection"
+.sp
+\fBM28 Deep with spaces\fR
+.sp
+Body  with  spaces.
+.SH "NOTES"
+.IP [1] 4
+Body  with  spaces.
