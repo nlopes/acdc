@@ -65,6 +65,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Single-plus passthroughs preserve the correct attribute and macro boundaries.
+  Invalid candidates leave attributes available for expansion; apostrophes and
+  backticks can surround valid passthroughs. A closer after whitespace is skipped
+  in favor of a later valid closer, including across newlines. Protected links,
+  index terms and footnotes remain literal, matching Asciidoctor for these cases.
+  Adjacent Unicode combining marks, connector punctuation and join controls
+  prevent a boundary. Characters first assigned in Unicode 17 can still differ
+  from Asciidoctor on a Ruby version with newer Unicode tables.
+- Lines beginning with `+ text` remain in the current paragraph. Only a
+  standalone `+` ends the paragraph for a list continuation.
+
 - Attribute references inside invalid or escaped backtick pairs now expand
   normally instead of remaining literal. For example, ``A`{word}`B`` retains its
   backticks and expands `{word}`, matching Asciidoctor. Code spans that end at a

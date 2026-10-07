@@ -1,0 +1,106 @@
+= single-plus-boundaries(1)
+:doctype: manpage
+:manname: single-plus-boundaries
+:manpurpose: inspect constrained passthrough boundaries
+:mansource: acdc
+:manmanual: Single plus boundaries
+:revdate: 2026-10-07
+:docdate: 2026-10-07
+:word: café
+:blank:
+
+== Name
+
+single-plus-boundaries - inspect constrained passthrough boundaries
+
+== Cases
+
+S01 A+{word}+B.
+
+S02 + {word} +.
+
+S03 +{word}+.
+
+S04 A+{word}+B | + {word} + | +{word}+.
+
+S05 '+{word}+'.
+
+S06 `+{word}+`.
+
+S07 A`+{word}+`B.
+
+S08 :+{word}+.
+
+S09 ;+{word}+.
+
+S10 }+{word}+.
+
+S11 +{word}+».
+
+S12 «+{word}+.
+
+S13 é+{word}+é.
+
+S14 + {word} +.
+
+S15 +{word} + then +{word}+.
+
+S16 +{word}	+ then +{word}+.
+
+S17 +{word}
++ then +{word}+.
+
+S18 +	{word}+.
+
+S19 +
+{word}+.
+
+S20 \+{word}+.
+
+S21 A\+{word}+B.
+
+S22 \++before +{word}+ after++.
+
+S23 \+++before +{word}+ after+++.
+
+S24 \pass:[before +{word}+ after].
+
+S25 \pass:[before '+{word}+' after].
+
+[subs="attributes"]
+S26 '+{word}+' and +{word}+.
+
+[subs="-attributes"]
+S27 A+{word}+B | +{word}+.
+
+[subs="attributes,quotes,macros"]
+S28 `+{word}+` and `{word}`.
+
+[subs="quotes,attributes,macros"]
+S29 `+{word}+` and `{word}`.
+
+[source,text,subs="+macros,+attributes"]
+----
+S30 '+{word}+'.
+----
+
+[source,text,subs="+macros,+attributes"]
+----
+S31 A+{word}+B.
+----
+
+[subs="+macros,+attributes"]
+ S32 '+{word}+'.
+
+S33 é+{word}+.
+
+S34 +{word}+́e.
+
+S35 '+https://example.org[Site] ((Dormant term)) footnote:[Dormant note.]+'.
+
+S36 A`+footnote:[Dormant code note.]+`B.
+
+include::includes/single-plus.adoc[]
+
+[index]
+== Index

@@ -213,6 +213,7 @@ dependencies = [
  "peg",
  "pretty_assertions",
  "proptest",
+ "regex-syntax",
  "rstest",
  "rustc-hash",
  "self_cell",

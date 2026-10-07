@@ -35,6 +35,7 @@ csv = "1.4"
 encoding_rs = "0.8"
 evalexpr = "13"
 peg = "0.8.6"
+regex-syntax = { version = "0.8", default-features = false, features = ["unicode-perl"] }
 rustc-hash.workspace = true
 self_cell = "1"
 serde.workspace = true

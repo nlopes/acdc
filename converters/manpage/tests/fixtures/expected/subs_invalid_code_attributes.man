@@ -69,7 +69,7 @@ B18 \f(CRcafé ` then *Bold*\fR\&.
 .sp
 B19 A`café` then \f(CRcafé\fR\&.
 .sp
-B20 A`+café+\f(CRB | A\fR{word}`B.
+B20 A`{word}\f(CRB | A\fR{word}`B.
 .sp
 B21 \f(CRcafé ` then {word}\fR\&.
 .sp

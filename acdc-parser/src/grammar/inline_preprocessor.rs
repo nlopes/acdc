@@ -8,6 +8,7 @@ use std::{
 };
 
 use peg::parser;
+use regex_syntax::is_word_character;
 
 use crate::{
     DocumentAttributes, Error, Location, Pass, PassthroughKind, Position, SourceLocation,
@@ -232,9 +233,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
             } else {
                 source[..start].chars().next_back()
             };
-            if previous.is_some_and(|character| {
-                is_passthrough_word_character(character) || matches!(character, ';' | ':' | '\\')
-            }) {
+            if !constrained_passthrough_start(previous) {
                 search_from = start + 1;
                 continue;
             }
@@ -470,14 +469,17 @@ impl ProcessedKind {
     }
 }
 
-fn is_passthrough_word_character(character: char) -> bool {
-    character.is_alphanumeric() || character == '_'
+fn constrained_passthrough_start(previous: Option<char>) -> bool {
+    previous.is_none_or(|character| {
+        !is_word_character(character) && !matches!(character, ';' | ':' | '\\')
+    })
 }
 
 fn constrained_passthrough_end(source: &str, start: usize) -> Option<usize> {
     let content_start = start + 1;
     let first = source[content_start..].chars().next()?;
-    if first.is_whitespace() {
+    // These content edges exclude ASCII whitespace, including VT/FF, but accept NBSP.
+    if matches!(first, ' ' | '\t'..='\r') {
         return None;
     }
 
@@ -488,7 +490,8 @@ fn constrained_passthrough_end(source: &str, start: usize) -> Option<usize> {
         let end = content_start + relative_end;
         let last = source[content_start..end].chars().next_back()?;
         let next = source[end + 1..].chars().next();
-        if !last.is_whitespace() && next.is_none_or(|value| !is_passthrough_word_character(value)) {
+        if !matches!(last, ' ' | '\t'..='\r') && next.is_none_or(|value| !is_word_character(value))
+        {
             return Some(end);
         }
     }
@@ -846,7 +849,7 @@ parser!(
             / "\\" source:$("++" (!"++" [_])+ "++") {
                 state.expand_escaped_passthrough(source, document_attributes, true)
             }
-            / "\\" source:$("+" ![' '| '\t' | '\n' | '\r'] (!("+" &([' '| '\t' | '\n' | '\r' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | '[' | ']' | '}' | '/' | '-' | '<' | '>'] / ![_])) [_])* "+") {
+            / "\\" source:single_plus_pattern(true) {
                 state.expand_escaped_passthrough(source, document_attributes, false)
             }) { expanded }
 
@@ -855,75 +858,18 @@ parser!(
         } / expected!("passthrough parser failed")
 
         rule single_plus_passthrough() -> String
-        = start:position() start_offset:byte_offset()
-        "+"
-        // Content: must not start with whitespace, can contain + if not followed by boundary
-        content:$(![(' '|'\t'|'\n'|'\r')] (!("+" &([' '|'\t'|'\n'|'\r'|','|';'|'"'|'.'|'?'|'!'|':'|')'|'['|']'|'}'|'/'|'-'|'<'|'>'] / ![_])) [_])*)
-        "+"
+        = start:position() source:single_plus_pattern(false)
         {
-            // Check if we're at start OR preceded by word boundary character
-            // Convert absolute offset to relative offset within the substring
-            let substring_start = state.substring_start_offset.get();
-            let relative_offset = start_offset - substring_start;
-
-            let input_bytes = state.input.borrow();
-            let prev_byte_value = if relative_offset > 0 {
-                input_bytes.as_bytes().get(relative_offset - 1).copied()
-            } else {
-                None
-            };
-
-            let valid_boundary = relative_offset == 0 || {
-                if let Some(b) = prev_byte_value {
-                    matches!(
-                        b,
-                        b' ' | b'\t' | b'\n' | b'\r' | b'(' | b'{' | b'[' | b')' | b'}' | b']'
-                            | b'/' | b'-' | b'|' | b',' | b';' | b'.' | b'?' | b'!' | b'\''
-                            | b'"' | b'<' | b'>' | b'='
-                    )
-                } else {
-                    false
-                }
-            };
-
-            // Also check trailing boundary - must be followed by whitespace, punctuation, or EOF
-            // Calculate position after closing + based on: relative_offset + '+' + content + '+'
-            let trailing_valid = {
-                let input_bytes = state.input.borrow();
-                // Position after: start '+' (1) + content (len) + end '+' (1) = relative_offset + 1 + content.len() + 1
-                let after_plus_relative = relative_offset + 1 + content.len() + 1;
-                if after_plus_relative >= input_bytes.len() {
-                    // At EOF - valid trailing boundary
-                    true
-                } else if let Some(next_byte) = input_bytes.as_bytes().get(after_plus_relative) {
-                    matches!(
-                        *next_byte,
-                        b' ' | b'\t' | b'\n' | b'\r' | b',' | b';' | b'"' | b'.' | b'?' | b'!'
-                            | b':' | b')' | b'[' | b']' | b'}' | b'/' | b'-' | b'<' | b'>'
-                    )
-                } else {
-                    false
-                }
-            };
-
-            // Calculate location to advance offset (even for invalid boundaries)
+            let content = &source[1..source.len() - 1];
             let location = state.calculate_location(start, content, 2);
-
-            if !valid_boundary || !trailing_valid {
-                // Not a valid constrained passthrough - return literal text without creating passthrough
-                return format!("+{content}+");
-            }
             state.passthroughs.borrow_mut().push(Pass {
                 attribute_fragments: Box::default(),
                 text: Some(content),
-                // We add SpecialChars here for single and double but we don't do
-                // anything with them, only the converter does.
-                substitutions: vec![Substitution::SpecialChars].into_iter().collect(),
+                substitutions: vec![Substitution::SpecialChars],
                 location: location.clone(),
                 kind: PassthroughKind::Single,
             });
             let new_content = format!("\u{FFFD}\u{FFFD}\u{FFFD}{}\u{FFFD}\u{FFFD}\u{FFFD}", state.pass_found_count.get());
-            let original_span = location.absolute_end - location.absolute_start;
             state.source_map.borrow_mut().add_replacement(
                 location.absolute_start,
                 location.absolute_end,
@@ -1029,7 +975,7 @@ parser!(
             = text:$((
                 [^'{' | '+' | '`' | 'k' | 'p' | '\\']+
                 /
-                !(escaped_passthrough_pattern() / escaped_attribute_reference_pattern() / passthrough_pattern() / counter_reference_pattern() / attribute_reference_pattern() / kbd_macro_pattern() / monospace_pattern()) [_]
+                !(escaped_passthrough_pattern() / escaped_attribute_reference_pattern() / passthrough_pattern(false) / counter_reference_pattern() / attribute_reference_pattern() / kbd_macro_pattern() / monospace_pattern()) [_]
             )+) {
                 state.advance(text);
                 text.to_string()
@@ -1070,16 +1016,31 @@ parser!(
                 (!trailing_space && valid_follow).then_some(()).ok_or("code closing boundary")
             }
 
-        // Simple pattern for unprocessed_text negative lookahead
-        // Doesn't check boundaries - that's done in the full rules
-        // For single +, allows + in content if not followed by boundary (greedy matching)
-        rule passthrough_pattern() = check_macros() (
+        // Extraction and lookahead must reject the same candidates without advancing
+        // source offsets, so invalid spans leave references and later pluses visible.
+        rule single_plus_pattern(escaped: bool) -> &'input str
+        = source:#{|input, position| {
+            let previous = input[..position].chars().next_back();
+            // An explicit escape bypasses the opening context, even after a word;
+            // content edges and the closing boundary still determine its extent.
+            if input.as_bytes().get(position) != Some(&b'+')
+                || (!escaped && !constrained_passthrough_start(previous))
+            {
+                return peg::RuleResult::Failed;
+            }
+            match constrained_passthrough_end(input, position) {
+                Some(end) => peg::RuleResult::Matched(end + 1, &input[position..=end]),
+                None => peg::RuleResult::Failed,
+            }
+        }} { source }
+
+        rule passthrough_pattern(escaped: bool) = check_macros() (
         "+++" (!("+++") [_])+ "+++" /
         "++" (!("++") [_])+ "++" /
-        "+" ![' '|'\t'|'\n'|'\r'] (!("+" &([' '|'\t'|'\n'|'\r'|','|';'|'"'|'.'|'?'|'!'|':'|')'|'['|']'|'}'|'/'|'-'|'<'|'>'] / ![_])) [_])* "+" /
+        single_plus_pattern(escaped) /
         pass_macro_pattern())
 
-        rule escaped_passthrough_pattern() = "\\" passthrough_pattern()
+        rule escaped_passthrough_pattern() = "\\" passthrough_pattern(true)
 
         rule ANY() = [_]
 

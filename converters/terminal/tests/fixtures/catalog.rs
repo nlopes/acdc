@@ -1,5 +1,6 @@
 // (fixture_name, has_osc8_variant [, requires: <cfg>])
 terminal_fixture_catalog!([
+    (subs_single_plus_boundaries, true),
     (subs_invalid_code_attributes, true),
     (subs_passthrough_arrows, false, requires: feature = "highlighting"),
     (subs_disabled_passthrough_attributes, true),

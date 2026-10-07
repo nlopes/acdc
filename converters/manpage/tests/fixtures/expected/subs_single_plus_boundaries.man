@@ -1,0 +1,120 @@
+'\" t
+.\"     Title: single-plus-boundaries
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-07
+.\"    Manual: Single plus boundaries
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "SINGLE\-PLUS\-BOUNDARIES" "1" "2026-10-07" "acdc" "Single plus boundaries"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+single\-plus\-boundaries \- inspect constrained passthrough boundaries
+.SH "CASES"
+.sp
+S01 A+café+B.
+.sp
+S02 + café +.
+.sp
+S03 {word}\&.
+.sp
+S04 A+caféB | + {word} + | +{word}\&.
+.sp
+S05 \(aq{word}\(aq.
+.sp
+S06 \f(CR{word}\fR\&.
+.sp
+S07 A`{word}`B.
+.sp
+S08 :+café+.
+.sp
+S09 ;+café+.
+.sp
+S10 }{word}\&.
+.sp
+S11 {word}».
+.sp
+S12 «{word}\&.
+.sp
+S13 é+café+é.
+.sp
+S14 \ {word}\ \&.
+.sp
+S15 {word} + then +{word}\&.
+.sp
+S16 {word}	+ then +{word}\&.
+.sp
+S17 {word}
++ then +{word}\&.
+.sp
+S18 +	café+.
+.sp
+S19
+.br
+café+.
+.sp
+S20 +café+.
+.sp
+S21 A\e+café+B.
+.sp
+S22 +before +{word} after++.
+.sp
+S23 ++before +{word} after+++.
+.sp
+S24 pass:[before {word} after]\&.
+.sp
+S25 pass:[before \(aq{word}\(aq after]\&.
+.sp
+S26 \(aq+café+\(aq and +café+.
+.sp
+S27 A+{word}B | +{word}\&.
+.sp
+S28 \f(CR{word}\fR and \f(CRcafé\fR\&.
+.sp
+S29 \f(CR{word}\fR and \f(CRcafé\fR\&.
+.EX
+S30 \(aq{word}\(aq.
+.EE
+.EX
+S31 A+café+B.
+.EE
+.sp
+.if n .RS 4
+.nf
+.fam C
+S32 \(aq{word}\(aq.
+.fam
+.fi
+.if n .RE
+.sp
+S33 é+café+.
+.sp
+S34 +café+́e.
+.sp
+S35 \(aqhttps://example.org[Site] ((Dormant term)) footnote:[Dormant note.]\(aq.
+.sp
+S36 A`footnote:[Dormant code note.]`B.
+.sp
+S37 \(aq{word}\(aq from an include.
+.sp
+S38 A+caféB | + {word} + | +{word} from an include.
+.SH "INDEX"

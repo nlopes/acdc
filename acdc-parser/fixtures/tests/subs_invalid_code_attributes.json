@@ -1264,7 +1264,7 @@
             {
               "name": "text",
               "type": "string",
-              "value": "B20 A`+café+",
+              "value": "B20 A`",
               "location": [
                 {
                   "line": 54,
@@ -1272,7 +1272,22 @@
                 },
                 {
                   "line": 54,
-                  "col": 14
+                  "col": 6
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "{word}",
+              "location": [
+                {
+                  "line": 54,
+                  "col": 8
+                },
+                {
+                  "line": 54,
+                  "col": 13
                 }
               ]
             },

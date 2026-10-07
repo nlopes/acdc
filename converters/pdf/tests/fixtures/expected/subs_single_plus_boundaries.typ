@@ -1,7 +1,7 @@
 #set document(
-  title: "code-attributes(1)",
+  title: "single-plus-boundaries(1)",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[code-attributes(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[single-plus-boundaries(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -74,105 +74,88 @@
 #set page(numbering: "1")
 #counter(page).update(1)
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("code-attributes(1)")]
+#text(size: 22pt, weight: "bold")[#text("single-plus-boundaries(1)")]
 ]
 #v(1em)
 
 #heading(level: 1)[#text("Name")] <id-5f6e616d65>
 
-#text("code-attributes - expand attributes beside invalid code delimiters")
+#text("single-plus-boundaries - inspect constrained passthrough boundaries")
 
-#heading(level: 1)[#text("Description")] <id-5f6465736372697074696f6e>
+#heading(level: 1)[#text("Cases")] <id-5f6361736573>
 
-#text("B01 A`café`B.")
+#text("S01 A+café+B.")
 
-#text("B02 A`café`.")
+#text("S02 + café +.")
 
-#text("B03 `café`B.")
+#text("S03 ")#text("{word}")#text(".")
 
-#text("B04 é`café`日.")
+#text("S04 A+café")#text("B | + {word} + | +{word}")#text(".")
 
-#text("B05 ")#emph[#text("`café`")]#text(".")
+#text("S05 '")#text("{word}")#text("'.")
 
-#text("B06 :`café`; ;`café`; }`café`.")
+#text("S06 ")#raw("{word}")#text(".")
 
-#text("B07 `café `.")
+#text("S07 A`")#text("{word}")#text("`B.")
 
-#text("B08 ` café`.")
+#text("S08 :+café+.")
 
-#text("B09 ")#text("`")#text("café`.")
+#text("S09 ;+café+.")
 
-#text("B10 ")#text("`")#text("café`.")
+#text("S10 }")#text("{word}")#text(".")
 
-#text("B11 `café`\".")
+#text("S11 ")#text("{word}")#text("».")
 
-#text("B12 ")#raw("\"café\"")#text(".")
+#text("S12 «")#text("{word}")#text(".")
 
-#text("B13 A``B | A` `B | A`{unknown}`B.")
+#text("S13 é+café+é.")
 
-#text("B14 A`")#text("{word}")#text("`B | A`")#text("{word}")#text("`B.")
+#text("S14 ")#text(" {word} ")#text(".")
 
-#text("B15 A")#raw("café")#text("B.")
+#text("S15 ")#text("{word} + then +{word}")#text(".")
 
-#text("B16 ")#raw("")#text(" | ")#raw(" ")#text(" | ")#raw("café ")#text(".")
+#text("S16 ")#text("{word} + then +{word}")#text(".")
 
-#text("B17 ")#raw("café`B then *Bold*")#text(".")
+#text("S17 ")#text("{word} + then +{word}")#text(".")
 
-#text("B18 ")#raw("café ` then *Bold*")#text(".")
+#text("S18 + café+.")
 
-#text("B19 A`café` then ")#raw("café")#text(".")
+#text("S19")#linebreak()#text("café+.")
 
-#text("B20 A`")#text("{word}")#raw("B | A")#text("{word}")#text("`B.")
+#text("S20 +café+.")
 
-#text("B21 ")#raw("café ` then {word}")#text(".")
+#text("S21 A\\+café+B.")
 
-#text("B22 ")#raw("{word}")#text(" | ")#raw("{word}")#text(".")
+#text("S22 ")#text("+before +{word}")#text(" after++.")
 
-#text("B23 ")#text(fill: rgb("#bf0000"))[#raw("café`X | [red]")]#text("café`.")
+#text("S23 ")#text("++before +{word}")#text(" after+++.")
 
-#text("B24 ")#strong[#text("A`café`B")]#text(" | ")#emph[#text("A`café`B")]#text(".")
+#text("S24 ")#text("pass:[before ")#text("{word}")#text(" after]")#text(".")
 
-#text("B25 A`café`B | ")#raw("café ` | `café")#text(".")
+#text("S25 ")#text("pass:[before '")#text("{word}")#text("' after]")#text(".")
 
-#text("B26 A`café`B | ")#raw("café ` | \\")#text("café`.")
+#text("S26 '+café+' and +café+.")
 
-#text("B27 A`{word}`B.")
+#text("S27 A+{word}")#text("B | +{word}")#text(".")
 
-#text("B28 A`café`B.")
+#text("S28 ")#raw("{word}")#text(" and ")#raw("café")#text(".")
 
-#text("B29 A`café more`B.")
+#text("S29 ")#raw("{word}")#text(" and ")#raw("café")#text(".")
 
-#text("B30 <tag>")#raw("café")#text(" | «")#raw("café")#text("» | (")#raw("café")#text(").")
+#raw(block: true, "S30 '{word}'.")
 
-#text("B31 ")#strong[#raw("café")]#text(" | ")#emph[#text("`café`")]#text(" | ")#text(fill: rgb("#bf0000"))[#raw("café")]#text(".")
+#raw(block: true, "S31 A+café+B.")
 
-#text("B32 A`{word}`B | `{word} ` | \\`{word}`.")
+#raw(block: true, "S32 '{word}'.")
 
-#text("B33 A`café`B.")
+#text("S33 é+café+.")
 
-#text("B34 A`café`B.")
+#text("S34 +café+́e.")
 
-#text("B35 A`")#raw("B | A")#text(" `B.")
+#text("S35 '")#text("https://example.org[Site] ((Dormant term)) footnote:[Dormant note.]")#text("'.")
 
-#text("B36 A``B | A` `B.")
+#text("S36 A`")#text("footnote:[Dormant code note.]")#text("`B.")
 
-#text("B37 ")#link("https://example.org")[#text("A`café`B")]#text(".")
+#text("S37 '")#text("{word}")#text("' from an include.")
 
-#text("B38 ")#counter(footnote).update(0)#footnote[#text("A`café`B")]#text(".")
-
-#text("B39 ")#metadata(none)<id-746172676574>#text("See ")#context link(query(<id-746172676574>).first().location())[#text("A`café`B")]#text(".")
-
-#blocktitle[#text("A`café`B")]
-#text("Example with a title.")
-
-#heading(level: 1)[#text("B40 A`café`B")] <id-5f6234305f61636166c3a962>
-
-#raw(block: true, "B41 A`café`B | café | `café `.")
-
-#raw(block: true, "B42 A`café`B | café.")
-
-#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("B43 A`café`B.")
-
-])
-
-#text("B44 A`late`B.")
+#text("S38 A+café")#text("B | + {word} + | +{word}")#text(" from an include.")

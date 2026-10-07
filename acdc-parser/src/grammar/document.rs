@@ -6427,7 +6427,7 @@ peg::parser! {
             / eol() at_callout_parent_item(offset)
             // Callout markers do not interrupt ordinary paragraph text.
             / eol() !at_callout_list_item() list(start, offset, block_metadata)
-            / eol() &("+" (whitespace() / eol() / ![_]))  // Stop at list continuation marker
+            / eol() &("+" whitespace()* (eol() / ![_]))  // Only a standalone plus continues a list.
             / eol()* &heading_boundary(offset)
             ) [_]
         )+))

@@ -317,6 +317,36 @@ code span keeps its passthrough contents protected. With the default
 quotes-before-attributes order, code boundaries use the original reference
 syntax; expanding an empty reference must not create a new code span.
 
+Single-plus passthroughs must have valid source boundaries. For example:
+
+[source,asciidoc]
+----
+:word: café
+
+A+{word}+B
+
+'+{word}+'
+----
+
+The first paragraph keeps its plus signs and expands the reference to `café`.
+The second removes its plus signs and preserves the literal reference between
+apostrophes. An invalid opening does not hide later attribute references or
+prevent a later plus from starting a valid passthrough. Content cannot start or
+end with ASCII whitespace, including vertical tab and form feed; a nonbreaking
+space is allowed. Escaping a single-plus span ignores its opening context but
+still requires valid content edges and a closing boundary.
+
+Adjacent Unicode word characters, including combining marks, connector
+punctuation and join controls, prevent a single-plus boundary. Thus a decomposed
+accent behaves like its precomposed letter. These checks use the Unicode 16
+tables supplied by `regex-syntax` 0.8.11; Asciidoctor on Ruby with Unicode 17
+can differ for characters first assigned in Unicode 17.
+
+A line beginning with `+ text` remains part of its ordinary paragraph. Only a
+standalone `+`, optionally followed by whitespace, marks a list continuation.
+This also lets a passthrough continue across a line whose first plus cannot close
+it because the preceding character is a newline.
+
 When `macros` is disabled, inline passthroughs are ordinary text:
 
 [source,asciidoc]

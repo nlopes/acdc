@@ -28,7 +28,7 @@ B16 [38;5;14m[39m | [38;5;14m [39m | [38;5;14mcafé [39m.
 B17 [38;5;14mcafé`B then *Bold*[39m.
 B18 [38;5;14mcafé ` then *Bold*[39m.
 B19 A`café` then [38;5;14mcafé[39m.
-B20 A`+café+[38;5;14mB | A[39m{word}`B.
+B20 A`{word}[38;5;14mB | A[39m{word}`B.
 B21 [38;5;14mcafé ` then {word}[39m.
 B22 [38;5;14m{word}[39m | [38;5;14m{word}[39m.
 B23 [38;5;14mcafé`X | [red][39mcafé`.

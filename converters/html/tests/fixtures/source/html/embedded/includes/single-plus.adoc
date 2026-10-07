@@ -1,0 +1,3 @@
+S37 '+{word}+' from an include.
+
+S38 A+{word}+B | + {word} + | +{word}+ from an include.
