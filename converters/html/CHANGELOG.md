@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Already encoded arrows such as `pass:r[-&gt;]` render as symbols; escaping
   afterward retains literal generated entities, matching Asciidoctor HTML.
 
+- Inline formatting escapes HTML attribute characters in roles and IDs, so
+  Unicode and punctuation remain part of the intended value. Quotes in roles
+  use `&quot;`, unlike Asciidoctor, which can produce malformed HTML for them.
+
 - With `icons=font`, custom `line-comment` prefixes that end in spaces are
   removed before callouts even without an extra separator space, matching
   Asciidoctor. Plain and highlighted output follow the same rule.

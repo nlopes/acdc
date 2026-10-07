@@ -77,6 +77,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   respect replacement escapes, matching Asciidoctor. Source text and locations
   remain available independently of rendering.
 
+- Inline formatting preserves complete Unicode roles and IDs. For example,
+  `[café]**Text**` keeps the `café` role and `[#école]**Text**` defines the
+  complete `école` cross-reference target. Bare roles also retain spaces and
+  punctuation, matching Asciidoctor; `.role` and `#id` shorthand still work.
+
 - Disabled inline passthroughs now use the enclosing attribute substitutions.
   With `subs="attributes"` or `subs="-macros"`, `+{word}+` and `pass:[{word}]`
   retain their delimiters but expand `{word}`, including inside code spans.

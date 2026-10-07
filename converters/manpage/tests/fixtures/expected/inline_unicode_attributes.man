@@ -1,0 +1,128 @@
+'\" t
+.\"     Title: roles
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-07
+.\"    Manual: Roles
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "ROLES" "1" "2026-10-07" "acdc" "Roles"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+roles \- Unicode inline roles and IDs
+.SH "CASES"
+.sp
+R01 \fBEnd\fR\&.
+.sp
+R02 \fBEnd\fR\&.
+.sp
+R03 \fBEnd\fR\&.
+.sp
+R04 \fIEnd\fR\&.
+.sp
+R05 \fIEnd\fR\&.
+.sp
+R06 \fBEnd\fR\&.
+.sp
+R07 \fBEnd\fR\&.
+.sp
+R08 \fBEnd\fR\&.
+.sp
+R09 \fBEnd\fR\&.
+.sp
+R10 \fBEnd\fR\&.
+.sp
+R11 \fBEnd\fR\&.
+.sp
+R12 \fBEnd\fR\&.
+.sp
+R13 \fBEnd\fR\&.
+.sp
+R14 \fBEnd\fR\&.
+.sp
+R15 \fBEnd\fR\&.
+.sp
+R16 \fBEnd\fR\&.
+.sp
+R17 \fBEnd\fR\&.
+.sp
+R18 \fBEnd\fR\&.
+.sp
+R19 \fBEnd\fR\&.
+.sp
+R20 \f(CRCode\fR\&.
+.sp
+R21 \f(CRCode\fR\&.
+.sp
+R22 End\&.
+.sp
+R23 End\&.
+.sp
+R24 ^(End)\&.
+.sp
+R25 _(End)\&.
+.sp
+R26 \(lqEnd\(rq\&.
+.sp
+R27 \(oqEnd\(cq\&.
+.sp
+R28 \fBEnd\fR\&.
+.sp
+R29 \fBEnd\fR\&.
+.sp
+R30 \fBEnd\fR\&.
+.sp
+R31 \fBEnd\fR\&.
+.sp
+R32 \fBEnd\fR\&.
+.sp
+R33 \fBEnd\fR\&.
+.sp
+R34 \fBEnd\fR\&.
+.sp
+R35 \e\fBEnd\fR\&.
+.sp
+R36 \fBBefore \fIInside\fB After\fR\&.
+.sp
+R37 First Second Third Fourth Fifth\&.
+.sp
+R38 \fBEnd\fR\&.
+.sp
+R39 \fBEnd\fR\&.
+.sp
+R40 \fBEnd\fR\&.
+.sp
+R41 \fBEnd\fR\&.
+.sp
+R42 \fBEnd\fR\&.
+.sp
+R43 \fBEnd\fR\&.
+.sp
+R44 \fBEnd\fR\&.
+.sp
+R45 \fBEnd\fR\&.
+.sp
+R46 \fBEnd\fR\&.
+.sp
+R47 \fBEnd\fR\&.
+.sp
+R48 \fBEnd\fR\&.

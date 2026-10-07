@@ -827,6 +827,9 @@ The HTML converter:
 
 While the HTML converter aims for compatibility with Asciidoctor, there are some known differences and limitations.
 
+- Inline formatting escapes quotes in role names: `[café"quote]**Text**` emits
+  `class="café&quot;quote"`. Asciidoctor leaves the quote unescaped, producing
+  malformed HTML. acdc preserves the complete role as one attribute value.
 - The `css-signature` attribute is not supported. Use a document ID instead (`[[my-id]]` above the title).
 - Syntax highlighting uses syntect with inline CSS styles rather than external highlight.js or Pygments. Language coverage may differ.
 - The `html5s` backend is inspired by Jakub Jirutka's https://github.com/jirutka/asciidoctor-html5s[asciidoctor-html5s] gem but is a separate implementation with its own output.

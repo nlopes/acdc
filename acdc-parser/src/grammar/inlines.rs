@@ -3247,12 +3247,18 @@ peg::parser! {
         // tables. This is broader than Asciidoctor's word class; ASCII syntax,
         // whitespace, controls, and the first character remain constrained.
         rule anchor_macro_id() -> &'input str
-        = id:$((['_' | ':'] / c:[_] {? c.is_alphabetic().then_some(()).ok_or("anchor ID start") })
+        = id:$(anchor_id_start_char()
           (['a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-' | ':' | '.']
-          / c:['\u{80}'..='\u{10FFFF}'] {?
-              (!c.is_whitespace() && !c.is_control())
-                  .then_some(()).ok_or("anchor ID character")
-          })*) { id }
+          / non_ascii_id_char())*) { id }
+
+        rule anchor_id_start_char()
+        = ['_' | ':'] / c:[_] {? c.is_alphabetic().then_some(()).ok_or("anchor ID start") }
+
+        rule non_ascii_id_char()
+        = c:['\u{80}'..='\u{10FFFF}'] {?
+            (!c.is_whitespace() && !c.is_control())
+                .then_some(()).ok_or("anchor ID character")
+        }
 
         rule check_anchor_macro_token(start: usize, len: usize)
         = {? macro_token_allowed(state, start, len).then_some(()).ok_or("anchor syntax introduced after macros") }
@@ -3391,10 +3397,12 @@ peg::parser! {
         /// Parse optional attribute list for inline elements
         /// Returns (roles, id) extracted from attributes like [.role1.role2] or [#id.role]
         /// This is a simplified version of block attributes, used for inline formatting
-        /// In inline context, % is treated as a literal character, not an option separator
-        /// Stops parsing shorthands at invalid characters (comma, space, etc.)
+        /// A bare first positional value is a role; only a leading . or # starts shorthand.
+        /// In inline context, % is a literal character, not an option separator.
         rule inline_attributes() -> (Vec<&'input str>, Option<&'input str>)
-        = open_square_bracket() shorthands:inline_shorthand()+ [^']']* close_square_bracket()
+        = open_square_bracket() role:bare_inline_role() [^']']* close_square_bracket()
+        { (vec![role], None) }
+        / open_square_bracket() whitespace()* shorthands:inline_shorthand()+ [^']']* close_square_bracket()
         {
             let mut roles: Vec<&'input str> = Vec::new();
             let mut id: Option<&'input str> = None;
@@ -3412,27 +3420,27 @@ peg::parser! {
             (roles, id)
         }
 
-        /// Parse inline attribute shorthand: .role, #id, %role, or bare role
-        /// In inline context, % is not an option separator - it's a literal character
-        /// Leading % is treated as part of the role name
-        /// Bare roles (no prefix) are supported for asciidoctor compatibility
+        /// Parse inline .role and #id shorthand, preserving % as literal text.
         rule inline_shorthand() -> Shorthand<'input>
         = "#" id:inline_id() { Shorthand::Id(id.into()) }
         / "." role:inline_role() { Shorthand::Role(role.into()) }
-        / "%" role:inline_role() { Shorthand::Role(Cow::Owned(format!("%{role}"))) }
-        / role:bare_inline_role() { Shorthand::Role(role.into()) }
 
-        /// Bare role pattern for inline contexts (no prefix) - matches CSS-like identifiers
-        /// Starts with letter, followed by letters, numbers, or hyphens
-        /// Used for syntax like [line-through]#text# (asciidoctor compatibility)
-        rule bare_inline_role() -> &'input str = $(['a'..='z' | 'A'..='Z'] ['a'..='z' | 'A'..='Z' | '0'..='9' | '-']*)
+        // Bare roles are positional text, not CSS identifiers. Preserve Unicode,
+        // spaces and punctuation instead of silently discarding an unmatched tail.
+        rule bare_inline_role() -> &'input str
+        = role:$([^(',' | ']')]+) {?
+            let role = role.trim();
+            (!role.is_empty() && !role.starts_with(['.', '#']))
+                .then_some(role).ok_or("bare inline role")
+        }
 
         /// Role pattern for inline contexts - allows % as literal character
         rule inline_role() -> &'input str = $([^(',' | ']' | '#' | '.')]+)
 
         /// ID pattern for inline contexts - allows % as literal character
-        rule inline_id() -> &'input str = $(id_start_char() inline_id_subsequent_char()*)
-        rule inline_id_subsequent_char() = ['A'..='Z' | 'a'..='z' | '0'..='9' | '_' | '-' | '%']
+        rule inline_id() -> &'input str = $(anchor_id_start_char() inline_id_subsequent_char()*)
+        rule inline_id_subsequent_char()
+        = ['A'..='Z' | 'a'..='z' | '0'..='9' | '_' | '-' | ':' | '%'] / non_ascii_id_char()
 
         /// Macro attribute parsing - simpler than block attributes.
         ///

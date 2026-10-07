@@ -2467,7 +2467,7 @@
               "type": "inline",
               "variant": "strong",
               "form": "unconstrained",
-              "role": "caf",
+              "role": "café",
               "inlines": [
                 {
                   "name": "text",

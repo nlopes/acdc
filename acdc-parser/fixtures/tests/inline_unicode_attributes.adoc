@@ -1,0 +1,110 @@
+= roles(1)
+:doctype: manpage
+:manmanual: Roles
+:mansource: acdc
+:revdate: 2026-10-07
+:word: café
+:target: école
+:punctuation: café"quote
+
+== Name
+
+roles - Unicode inline roles and IDs
+
+== Cases
+
+R01 [café]**End**.
+
+R02 [{word}]**End**.
+
+R03 [école]*End*.
+
+R04 [東京]_End_.
+
+R05 [café]__End__.
+
+R06 [topic🚀]**End**.
+
+R07 [123role]**End**.
+
+R08 [_role]**End**.
+
+R09 [two words]**End**.
+
+R10 [café.résumé]**End**.
+
+R11 [.café.résumé]**End**.
+
+R12 [#café]**End**.
+
+R13 [%café]**End**.
+
+R14 [café,other]**End**.
+
+R15 [café café]**End**.
+
+R16 [role_name]**End**.
+
+R17 [rôle#target]**End**.
+
+R18 [!café]**End**.
+
+R19 [café/role]**End**.
+
+R20 [café]`Code`.
+
+R21 [café]``Code``.
+
+R22 [café]#End#.
+
+R23 [café]##End##.
+
+R24 [café]^End^.
+
+R25 [café]~End~.
+
+R26 [café]"`End`".
+
+R27 [café]'`End`'.
+
+R28 [#{target}.résumé]**End**.
+
+R29 [.résumé#東京]**End**.
+
+R30 [#café]**End**.
+
+R31 [#topic🚀]**End**.
+
+R32 [#simple_id.role1.role2]**End**.
+
+R33 [.role1.role2#other-id]**End**.
+
+R34 [  café  ]**End**.
+
+R35 \[café]**End**.
+
+R36 [café]**Before [résumé]__Inside__ After**.
+
+R37 <<café,First>> <<école,Second>> <<東京,Third>> <<café,Fourth>> <<topic🚀,Fifth>>.
+
+R38 [café.role#other,ignored]**End**.
+
+R39 [café"quote]**End**.
+
+R40 [.café"quote]**End**.
+
+R41 [café&role]**End**.
+
+R42 [.café<role>]**End**.
+
+R43 [{punctuation}]**End**.
+
+R44 [café&amp;role]**End**.
+
+R45 [caf&#233;]**End**.
+
+R46 [caf&#xE9;]**End**.
+
+R47 [café&quot;quote]**End**.
+
+R48 [café&invalid]**End**.

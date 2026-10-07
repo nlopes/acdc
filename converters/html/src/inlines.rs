@@ -233,7 +233,15 @@ fn write_tag_with_attrs<W: Write + ?Sized>(
     id: Option<&str>,
     role: Option<&str>,
 ) -> io::Result<()> {
-    match (id, role) {
+    // Roles retain source entity references; escape the quoted attribute without
+    // turning an authored &amp; into a literal entity name.
+    let role = role.map(|role| {
+        escape_ampersands(role)
+            .replace('<', "&lt;")
+            .replace('>', "&gt;")
+            .replace('"', "&quot;")
+    });
+    match (id.map(escape_attribute), role) {
         (Some(id), Some(role)) => write!(writer, "<{tag} id=\"{id}\" class=\"{role}\">"),
         (Some(id), None) => write!(writer, "<{tag} id=\"{id}\">"),
         (None, Some(role)) => write!(writer, "<{tag} class=\"{role}\">"),
