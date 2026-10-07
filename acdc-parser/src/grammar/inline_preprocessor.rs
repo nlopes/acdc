@@ -11,7 +11,9 @@ use peg::parser;
 
 use crate::{
     DocumentAttributes, Error, Location, Pass, PassthroughKind, Position, SourceLocation,
-    Substitution, Warning, WarningKind, grammar::LineMap, model::substitution::parse_substitution,
+    Substitution, Warning, WarningKind,
+    grammar::{LineMap, inlines::check_constrained_opening_boundary},
+    model::substitution::parse_substitution,
 };
 
 #[cfg(test)]
@@ -718,8 +720,8 @@ parser!(
             text.into()
         }
 
-        // Keep default-order code content for its nested parse, including passthroughs.
-        // Earlier attributes must instead expand before the code boundary is checked.
+        // Check code boundaries before deferring attributes to the nested parse.
+        // Earlier attributes still expand before the final code boundary is checked.
         rule monospace() -> String
             = text:$monospace_pattern() {?
                 tracing::debug!(text, "monospace matched");
@@ -1045,7 +1047,28 @@ parser!(
         rule kbd_macro_pattern() = "kbd:[" (!"]" [_])* "]"
 
         rule monospace_pattern()
-            = ("``" (!"``" [_])+ "``" / "`" [^('`' | ' ' | '\t' | '\n')] [^'`']* "`")
+            = ({? (!state.defer_monospace).then_some(()).ok_or("attributes precede quotes") })
+              ("``" (!"``" [_])+ "``" / "`" [^('`' | ' ' | '\t' | '\n')] [^'`']* "`")
+            / (start:position!()
+              {? (!state.input.borrow()[..start].trim_end_matches('`').ends_with('\\'))
+                  .then_some(()).ok_or("escaped code delimiter") })
+              ("``" (!"``" [_])+ "``"
+              / (start:position!() {? check_constrained_opening_boundary(start, state.input.borrow().as_bytes(), None, b'`')
+                  .then_some(()).ok_or("code opening boundary") })
+                "`" ![' ' | '\t'..='\r'] [_]
+                (!monospace_close() [_])* monospace_close())
+
+        // Skip invalid closing candidates so passthroughs stay inside the code
+        // scope selected by the inline parser. Lookahead uses this same rule.
+        rule monospace_close()
+            = close:position!() "`" after:position!() {?
+                let input = state.input.borrow();
+                let trailing_space = input.as_bytes().get(close.saturating_sub(1))
+                    .is_some_and(|byte| matches!(byte, b' ' | b'\t'..=b'\r'));
+                let valid_follow = input[after..].chars().next()
+                    .is_none_or(|ch| !ch.is_alphanumeric() && !matches!(ch, '_' | '`' | '\'' | '"'));
+                (!trailing_space && valid_follow).then_some(()).ok_or("code closing boundary")
+            }
 
         // Simple pattern for unprocessed_text negative lookahead
         // Doesn't check boundaries - that's done in the full rules

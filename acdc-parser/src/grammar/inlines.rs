@@ -593,6 +593,13 @@ fn registration_source<'a>(
     state: &ParserState<'a>,
     content: IndexTermSegment<'a>,
 ) -> (&'a str, Vec<RestoredRange>) {
+    if !state
+        .inline_ctx
+        .substitutions
+        .precedes(&Substitution::Macros, &Substitution::Attributes)
+    {
+        return (content.text, Vec::new());
+    }
     let end = content.start + content.text.len();
     let mut source = String::new();
     let mut cursor = content.start;
@@ -833,10 +840,14 @@ fn macro_token_allowed(state: &ParserState<'_>, start: usize, len: usize) -> boo
 
 fn index_content_present(state: &ParserState<'_>, start: usize, text: &str) -> bool {
     !text.is_empty()
-        || state
-            .late_attribute_sources
-            .iter()
-            .any(|(range, _)| range.start == start && range.is_empty())
+        || (state
+            .inline_ctx
+            .substitutions
+            .precedes(&Substitution::Macros, &Substitution::Attributes)
+            && state
+                .late_attribute_sources
+                .iter()
+                .any(|(range, _)| range.start == start && range.is_empty()))
 }
 
 fn has_inline_line_break_prefix(state: &ParserState<'_>, span_start: usize) -> bool {
@@ -866,7 +877,7 @@ At position 0, falls back to `outer_delimiter` (the byte preceding the current
 inline span in the parent context). A word-character outer delimiter means the
 boundary is invalid.
 */
-fn check_constrained_opening_boundary(
+pub(super) fn check_constrained_opening_boundary(
     pos: usize,
     input: &[u8],
     outer_delimiter: Option<u8>,
@@ -924,6 +935,39 @@ fn check_constrained_closing_at_end(
     outer_delimiter: Option<u8>,
 ) -> bool {
     end < input_len || outer_delimiter.is_none_or(|d| !is_word_char(d))
+}
+
+fn code_followed_by_attribute(state: &ParserState<'_>, position: usize) -> bool {
+    state
+        .inline_ctx
+        .substitutions
+        .precedes(&Substitution::Quotes, &Substitution::Attributes)
+        && state
+            .late_attribute_sources
+            .iter()
+            .any(|(range, _)| range.start == position)
+}
+
+fn check_code_opening_boundary(state: &ParserState<'_>, position: usize) -> bool {
+    // A reference ended in `}` when quotes ran. Its later value must not turn
+    // a literal closing backtick into a new opening delimiter.
+    if state
+        .inline_ctx
+        .substitutions
+        .precedes(&Substitution::Quotes, &Substitution::Attributes)
+        && state
+            .late_attribute_sources
+            .iter()
+            .any(|(range, _)| range.end == position)
+    {
+        return false;
+    }
+    check_constrained_opening_boundary(
+        position,
+        state.input.as_bytes(),
+        state.outer_constrained_delimiter,
+        b'`',
+    )
 }
 
 /// Macro to handle inline processing errors with logging
@@ -2546,7 +2590,9 @@ peg::parser! {
         /// character. A repeated marker stays inside its delimiter run. Consuming
         /// the boundary supports both `&` and `!` lookaheads.
         rule constrained_boundary_follow(marker: char)
-        = !['a'..='z' | 'A'..='Z' | '0'..='9' | '_'] c:['\0'..='\x7f'] {?
+        = (position:position!() {? (marker == '`' && code_followed_by_attribute(state, position))
+            .then_some(()).ok_or("code followed by an original attribute reference") }) ([_] / ![_])
+        / !['a'..='z' | 'A'..='Z' | '0'..='9' | '_'] c:['\0'..='\x7f'] {?
             if c == marker { Err("same formatting marker") } else { Ok(()) }
         }
         / non_word_non_ascii_char()
@@ -2588,7 +2634,8 @@ peg::parser! {
         rule constrained_formatting_close(marker: char)
         = start:position!() constrained_formatting_edge(start.saturating_sub(1))
         c:[_] next:position!() &constrained_boundary_follow(marker) {?
-            (c == marker && (c != '`' || !matches!(state.input.as_bytes().get(next), Some(b'"' | b'\''))))
+            (c == marker && (c != '`' || code_followed_by_attribute(state, next)
+                || !matches!(state.input.as_bytes().get(next), Some(b'"' | b'\''))))
                 .then_some(()).ok_or("constrained formatting delimiter")
         }
 
@@ -2809,7 +2856,9 @@ peg::parser! {
 
         // Reserve backticks beside quotes for curved quotation syntax.
         rule monospace_boundary_follow()
-        = !['"' | '\''] constrained_boundary_follow('`')
+        = (position:position!() {? code_followed_by_attribute(state, position)
+            .then_some(()).ok_or("code followed by an original attribute reference") }) ([_] / ![_])
+        / !['"' | '\''] constrained_boundary_follow('`')
 
         rule monospace_text_constrained() -> InlineNode<'input>
         = attrs:inline_attributes()?
@@ -2832,7 +2881,7 @@ peg::parser! {
 
             // Check if we're at start of input OR preceded by word boundary character
             let absolute_pos = start + state.inline_ctx.offset;
-            if !check_constrained_opening_boundary(absolute_pos, state.input.as_bytes(), state.outer_constrained_delimiter, b'`') {
+            if !check_code_opening_boundary(state, absolute_pos) {
                 return Err("monospace must be at word boundary");
             }
 
@@ -2876,7 +2925,7 @@ peg::parser! {
         closing_pos:position!()
         monospace_boundary_follow()
         {?
-            let valid_opening = check_constrained_opening_boundary(boundary_pos, state.input.as_bytes(), state.outer_constrained_delimiter, b'`');
+            let valid_opening = check_code_opening_boundary(state, boundary_pos);
             let valid_closing = check_constrained_closing_at_end(closing_pos, state.input.len(), state.outer_constrained_delimiter);
 
             if valid_opening && valid_closing { Ok(()) } else { Err("monospace must be at word boundary") }

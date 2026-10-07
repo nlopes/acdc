@@ -52,7 +52,7 @@ pub(crate) struct ParserState<'a> {
     pub(crate) empty_attribute_offsets: Vec<usize>,
     /// Attribute-produced spans used to preserve substitution order in nested parsing.
     pub(crate) attribute_value_ranges: Vec<Range<usize>>,
-    /// Original references for index labels registered before attribute substitution.
+    /// Original references for index labels and code boundaries checked before attributes.
     pub(crate) late_attribute_sources: Vec<(Range<usize>, &'a str)>,
     pub(crate) line_map: Rc<LineMap>,
     /// Parse options, shared via `Rc` so the per-inline-parse

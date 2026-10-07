@@ -1,0 +1,83 @@
+<section class="doc-section level-1">
+<h2 id="_name">Name</h2>
+<p>code-attributes - expand attributes beside invalid code delimiters</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_description">Description</h2>
+<p>B01 A`café`B.</p>
+<p>B02 A`café`.</p>
+<p>B03 `café`B.</p>
+<p>B04 é`café`日.</p>
+<p>B05 <em>`café`</em>.</p>
+<p>B06 :`café`; ;`café`; }`café`.</p>
+<p>B07 `café `.</p>
+<p>B08 ` café`.</p>
+<p>B09 `café`.</p>
+<p>B10 `café`.</p>
+<p>B11 `café`".</p>
+<p>B12 <code>"café"</code>.</p>
+<p>B13 A``B | A` `B | A`{unknown}`B.</p>
+<p>B14 A`{word}`B | A`{word}`B.</p>
+<p>B15 A<code>café</code>B.</p>
+<p>B16 <code></code> | <code> </code> | <code>café </code>.</p>
+<p>B17 <code>café`B then *Bold*</code>.</p>
+<p>B18 <code>café ` then *Bold*</code>.</p>
+<p>B19 A`café` then <code>café</code>.</p>
+<p>B20 A`+café+<code>B | A</code>{word}`B.</p>
+<p>B21 <code>café ` then {word}</code>.</p>
+<p>B22 <code>{word}</code> | <code>{word}</code>.</p>
+<p>B23 <code class="red">café`X | [red]</code>café`.</p>
+<p>B24 <strong>A`café`B</strong> | <em>A`café`B</em>.</p>
+<p>B25 A`café`B | <code>café ` | `café</code>.</p>
+<p>B26 A`café`B | <code>café ` | \</code>café`.</p>
+<p>B27 A`{word}`B.</p>
+<p>B28 A`café`B.</p>
+<p>B29 A`café
+more`B.</p>
+<p>B30 &lt;tag&gt;<code>café</code> | «<code>café</code>» | (<code>café</code>).</p>
+<p>B31 <strong><code>café</code></strong> | <em>`café`</em> | <code class="red">café</code>.</p>
+<p>B32 A`{word}`B | `{word} ` | \`{word}`.</p>
+<p>B33 A`café`B.</p>
+<p>B34 A`café`B.</p>
+<p>B35 A`<code>B | A</code> `B.</p>
+<p>B36 A``B | A` `B.</p>
+<p>B37 <a href="https://example.org">A`café`B</a>.</p>
+<p>B38 <sup class="footnote-ref" id="_footnoteref_1">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup>.</p>
+<p>B39 <a id="target"></a>See <a href="#target">A`café`B</a>.</p>
+<section class="paragraph">
+<h6 class="block-title">A`café`B</h6>
+<p>Example with a title.</p>
+</section>
+</section>
+<section class="doc-section level-1">
+<h2 id="_b40_acaféb">B40 A`café`B</h2>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text">B41 A`café`B | <code>café</code> | `café `.</code></pre>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>B42 A`café`B | <code>café</code>.</pre>
+</div>
+</div>
+<div class="table-block">
+<table class="frame-all grid-all stretch">
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="halign-left valign-top"><p>B43 A`café`B.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>B44 A`late`B.</p>
+</section>
+<section class="footnotes" aria-label="Footnotes" role="doc-endnotes">
+<hr>
+<ol class="footnotes">
+<li class="footnote" id="_footnote_1" role="doc-endnote">
+A`café`B <a class="footnote-backref" href="#_footnoteref_1" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+</ol>
+</section>

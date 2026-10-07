@@ -1,0 +1,124 @@
+= code-attributes(1)
+:doctype: manpage
+:manmanual: Test Manual
+:mansource: acdc
+:revdate: 2026-10-07
+:word: café
+:empty:
+:style: *Bold*
+
+== Name
+
+code-attributes - expand attributes beside invalid code delimiters
+
+== Description
+
+B01 A`{word}`B.
+
+B02 A`{word}`.
+
+B03 `{word}`B.
+
+B04 é`{word}`日.
+
+B05 _`{word}`_.
+
+B06 :`{word}`; ;`{word}`; }`{word}`.
+
+B07 `{word} `.
+
+B08 ` {word}`.
+
+B09 \`{word}`.
+
+B10 \\`{word}`.
+
+B11 `{word}`".
+
+B12 `"{word}"`.
+
+B13 A`{empty}`B | A`{sp}`B | A`{unknown}`B.
+
+B14 A`\{word}`B | A`{word\}`B.
+
+B15 A``{word}``B.
+
+B16 `{empty}` | `{sp}` | `{word}{sp}`.
+
+B17 `{word}`B then {style}`.
+
+B18 `{word} ` then {style}`.
+
+B19 A`{word}` then `{word}`.
+
+B20 A`+{word}+`B | A`pass:[{word}]`B.
+
+B21 `{word} ` then +{word}+`.
+
+B22 `+{word}+` | `pass:[{word}]`.
+
+B23 [red]`{word}`X | [red]`{word}`.
+
+B24 *A`{word}`B* | _A`{word}`B_.
+
+[subs="attributes,quotes"]
+B25 A`{word}`B | `{word} ` | \`{word}`.
+
+[subs="quotes,attributes"]
+B26 A`{word}`B | `{word} ` | \`{word}`.
+
+[subs="quotes"]
+B27 A`{word}`B.
+
+[subs="attributes"]
+B28 A`{word}`B.
+
+B29 A`{word}
+more`B.
+
+B30 <tag>`{word}` | «`{word}`» | (`{word}`).
+
+B31 *`{word}`* | _`{word}`_ | [red]`{word}`.
+
+[subs="none"]
+B32 A`{word}`B | `{word} ` | \`{word}`.
+
+[subs="attributes,quotes"]
+B33 A`{word}`B.
+
+[subs="quotes,attributes"]
+B34 A`{word}`B.
+
+[subs="attributes,quotes"]
+B35 A`{empty}`B | A`{sp}`B.
+
+[subs="quotes,attributes"]
+B36 A`{empty}`B | A`{sp}`B.
+
+B37 link:https://example.org[A`{word}`B].
+
+B38 footnote:[A`{word}`B].
+
+B39 anchor:target[]See xref:target[A`{word}`B].
+
+.A`{word}`B
+Example with a title.
+
+== B40 A`{word}`B
+
+[source,text,subs="+quotes,+attributes"]
+----
+B41 A`{word}`B | `{word}` | `{word} `.
+----
+
+[literal,subs="+quotes,+attributes"]
+B42 A`{word}`B | `{word}`.
+
+[cols="a"]
+|===
+|B43 A`{word}`B.
+|===
+
+:word: late
+
+include::includes/invalid_code_attributes.adoc[]

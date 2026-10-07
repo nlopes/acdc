@@ -1,0 +1,143 @@
+'\" t
+.\"     Title: code-attributes
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-07
+.\"    Manual: Test Manual
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "CODE\-ATTRIBUTES" "1" "2026-10-07" "acdc" "Test Manual"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+code\-attributes \- expand attributes beside invalid code delimiters
+.SH "DESCRIPTION"
+.sp
+B01 A`café`B.
+.sp
+B02 A`café`.
+.sp
+B03 `café`B.
+.sp
+B04 é`café`日.
+.sp
+B05 \fI`café`\fR\&.
+.sp
+B06 :`café`; ;`café`; }`café`.
+.sp
+B07 `café `.
+.sp
+B08 ` café`.
+.sp
+B09 `café`.
+.sp
+B10 `café`.
+.sp
+B11 `café`".
+.sp
+B12 \f(CR"café"\fR\&.
+.sp
+B13 A``B | A` `B | A`{unknown}`B.
+.sp
+B14 A`{word}`B | A`{word}`B.
+.sp
+B15 A\f(CRcafé\fRB.
+.sp
+B16 \f(CR\fR | \f(CR \fR | \f(CRcafé \fR\&.
+.sp
+B17 \f(CRcafé`B then *Bold*\fR\&.
+.sp
+B18 \f(CRcafé ` then *Bold*\fR\&.
+.sp
+B19 A`café` then \f(CRcafé\fR\&.
+.sp
+B20 A`+café+\f(CRB | A\fR{word}`B.
+.sp
+B21 \f(CRcafé ` then {word}\fR\&.
+.sp
+B22 \f(CR{word}\fR | \f(CR{word}\fR\&.
+.sp
+B23 \f(CRcafé`X | [red]\fRcafé`.
+.sp
+B24 \fBA`café`B\fR | \fIA`café`B\fR\&.
+.sp
+B25 A`café`B | \f(CRcafé ` | `café\fR\&.
+.sp
+B26 A`café`B | \f(CRcafé ` | \e\fRcafé`.
+.sp
+B27 A`{word}`B.
+.sp
+B28 A`café`B.
+.sp
+B29 A`café
+more`B.
+.sp
+B30 <tag>\f(CRcafé\fR | «\f(CRcafé\fR» | (\f(CRcafé\fR).
+.sp
+B31 \fB\f(CRcafé\fB\fR | \fI`café`\fR | \f(CRcafé\fR\&.
+.sp
+B32 A`{word}`B | `{word} ` | \e`{word}`.
+.sp
+B33 A`café`B.
+.sp
+B34 A`café`B.
+.sp
+B35 A`\f(CRB | A\fR `B.
+.sp
+B36 A``B | A` `B.
+.sp
+B37 \c
+.URL "https://example.org" "A`café`B" "\fR\c"
+\&.
+.sp
+B38 [1]\&.
+.sp
+B39 See A`café`B\&.
+.sp
+\fBA`café`B\fR
+.br
+Example with a title.
+.SH "B40 A`CAFÉ`B"
+.EX
+B41 A`café`B | \f(CRcafé\fR | `café `.
+.EE
+.sp
+.if n .RS 4
+.nf
+.fam C
+B42 A`café`B | \f(CRcafé\fR\&.
+.fam
+.fi
+.if n .RE
+.TS
+allbox tab(:);
+ltx.
+T{
+.sp
+B43 A`café`B.
+
+T}
+.TE
+.sp
+B44 A`late`B.
+.SH "NOTES"
+.IP [1] 4
+A`café`B

@@ -294,6 +294,22 @@ literal inside the code span:
 `pass:[{word}]`
 ----
 
+Invalid or escaped backtick pairs do not prevent attribute expansion:
+
+[source,asciidoc]
+----
+:word: café
+
+A`{word}`B
+\`{word}`
+----
+
+These render as literal backticks around `café`, without monospace formatting,
+matching Asciidoctor. If a later backtick supplies a valid end, the complete
+code span keeps its passthrough contents protected. With the default
+quotes-before-attributes order, code boundaries use the original reference
+syntax; expanding an empty reference must not create a new code span.
+
 When `macros` is disabled, inline passthroughs are ordinary text:
 
 [source,asciidoc]

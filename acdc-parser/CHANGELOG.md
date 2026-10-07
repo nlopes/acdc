@@ -65,6 +65,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Attribute references inside invalid or escaped backtick pairs now expand
+  normally instead of remaining literal. For example, ``A`{word}`B`` retains its
+  backticks and expands `{word}`, matching Asciidoctor. Code spans that end at a
+  later valid backtick keep their enclosed passthroughs protected. With the
+  default substitution order, later attribute values do not create new code
+  boundaries or change existing ones.
+
 - Disabled inline passthroughs now use the enclosing attribute substitutions.
   With `subs="attributes"` or `subs="-macros"`, `+{word}+` and `pass:[{word}]`
   retain their delimiters but expand `{word}`, including inside code spans.

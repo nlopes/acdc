@@ -1,0 +1,3381 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "code-attributes(1)",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 20
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 8,
+        "col": 14
+      }
+    ]
+  },
+  "attributes": {
+    "doctype": "manpage",
+    "empty": true,
+    "manmanual": "Test Manual",
+    "manname": "code-attributes",
+    "manname-title": "Name",
+    "manpurpose": "expand attributes beside invalid code delimiters",
+    "mansource": "acdc",
+    "mantitle": "code-attributes",
+    "manvolnum": "1",
+    "revdate": "2026-10-07",
+    "style": "*Bold*",
+    "word": "café"
+  },
+  "blocks": [
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Name",
+          "location": [
+            {
+              "line": 10,
+              "col": 4
+            },
+            {
+              "line": 10,
+              "col": 7
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "code-attributes - expand attributes beside invalid code delimiters",
+              "location": [
+                {
+                  "line": 12,
+                  "col": 1
+                },
+                {
+                  "line": 12,
+                  "col": 66
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 12,
+              "col": 1
+            },
+            {
+              "line": 12,
+              "col": 66
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 10,
+          "col": 1
+        },
+        {
+          "line": 12,
+          "col": 66
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Description",
+          "location": [
+            {
+              "line": 14,
+              "col": 4
+            },
+            {
+              "line": 14,
+              "col": 14
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B01 A`café`B.",
+              "location": [
+                {
+                  "line": 16,
+                  "col": 1
+                },
+                {
+                  "line": 16,
+                  "col": 15
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 16,
+              "col": 1
+            },
+            {
+              "line": 16,
+              "col": 15
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B02 A`café`.",
+              "location": [
+                {
+                  "line": 18,
+                  "col": 1
+                },
+                {
+                  "line": 18,
+                  "col": 14
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 18,
+              "col": 1
+            },
+            {
+              "line": 18,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B03 `café`B.",
+              "location": [
+                {
+                  "line": 20,
+                  "col": 1
+                },
+                {
+                  "line": 20,
+                  "col": 14
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 20,
+              "col": 1
+            },
+            {
+              "line": 20,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B04 é`café`日.",
+              "location": [
+                {
+                  "line": 22,
+                  "col": 1
+                },
+                {
+                  "line": 22,
+                  "col": 15
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 22,
+              "col": 1
+            },
+            {
+              "line": 22,
+              "col": 15
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B05 ",
+              "location": [
+                {
+                  "line": 24,
+                  "col": 1
+                },
+                {
+                  "line": 24,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "emphasis",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "`café`",
+                  "location": [
+                    {
+                      "line": 24,
+                      "col": 6
+                    },
+                    {
+                      "line": 24,
+                      "col": 13
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 24,
+                  "col": 5
+                },
+                {
+                  "line": 24,
+                  "col": 14
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 24,
+                  "col": 15
+                },
+                {
+                  "line": 24,
+                  "col": 15
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 24,
+              "col": 1
+            },
+            {
+              "line": 24,
+              "col": 15
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B06 :`café`; ;`café`; }`café`.",
+              "location": [
+                {
+                  "line": 26,
+                  "col": 1
+                },
+                {
+                  "line": 26,
+                  "col": 36
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 26,
+              "col": 1
+            },
+            {
+              "line": 26,
+              "col": 36
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B07 `café `.",
+              "location": [
+                {
+                  "line": 28,
+                  "col": 1
+                },
+                {
+                  "line": 28,
+                  "col": 14
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 28,
+              "col": 1
+            },
+            {
+              "line": 28,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B08 ` café`.",
+              "location": [
+                {
+                  "line": 30,
+                  "col": 1
+                },
+                {
+                  "line": 30,
+                  "col": 14
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 30,
+              "col": 1
+            },
+            {
+              "line": 30,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B09 ",
+              "location": [
+                {
+                  "line": 32,
+                  "col": 1
+                },
+                {
+                  "line": 32,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "`",
+              "location": [
+                {
+                  "line": 32,
+                  "col": 5
+                },
+                {
+                  "line": 32,
+                  "col": 5
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "café`.",
+              "location": [
+                {
+                  "line": 32,
+                  "col": 7
+                },
+                {
+                  "line": 32,
+                  "col": 14
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 32,
+              "col": 1
+            },
+            {
+              "line": 32,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B10 ",
+              "location": [
+                {
+                  "line": 34,
+                  "col": 1
+                },
+                {
+                  "line": 34,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "`",
+              "location": [
+                {
+                  "line": 34,
+                  "col": 5
+                },
+                {
+                  "line": 34,
+                  "col": 5
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "café`.",
+              "location": [
+                {
+                  "line": 34,
+                  "col": 8
+                },
+                {
+                  "line": 34,
+                  "col": 15
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 34,
+              "col": 1
+            },
+            {
+              "line": 34,
+              "col": 15
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B11 `café`\".",
+              "location": [
+                {
+                  "line": 36,
+                  "col": 1
+                },
+                {
+                  "line": 36,
+                  "col": 14
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 36,
+              "col": 1
+            },
+            {
+              "line": 36,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B12 ",
+              "location": [
+                {
+                  "line": 38,
+                  "col": 1
+                },
+                {
+                  "line": 38,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "\"café\"",
+                  "location": [
+                    {
+                      "line": 38,
+                      "col": 6
+                    },
+                    {
+                      "line": 38,
+                      "col": 13
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 38,
+                  "col": 5
+                },
+                {
+                  "line": 38,
+                  "col": 14
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 38,
+                  "col": 15
+                },
+                {
+                  "line": 38,
+                  "col": 15
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 38,
+              "col": 1
+            },
+            {
+              "line": 38,
+              "col": 15
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B13 A``B | A` `B | A`{unknown}`B.",
+              "location": [
+                {
+                  "line": 40,
+                  "col": 1
+                },
+                {
+                  "line": 40,
+                  "col": 43
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 40,
+              "col": 1
+            },
+            {
+              "line": 40,
+              "col": 43
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B14 A`",
+              "location": [
+                {
+                  "line": 42,
+                  "col": 1
+                },
+                {
+                  "line": 42,
+                  "col": 6
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "{word}",
+              "location": [
+                {
+                  "line": 42,
+                  "col": 7
+                },
+                {
+                  "line": 42,
+                  "col": 13
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "`B | A`",
+              "location": [
+                {
+                  "line": 42,
+                  "col": 14
+                },
+                {
+                  "line": 42,
+                  "col": 20
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "{word}",
+              "location": [
+                {
+                  "line": 42,
+                  "col": 21
+                },
+                {
+                  "line": 42,
+                  "col": 27
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "`B.",
+              "location": [
+                {
+                  "line": 42,
+                  "col": 28
+                },
+                {
+                  "line": 42,
+                  "col": 30
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 42,
+              "col": 1
+            },
+            {
+              "line": 42,
+              "col": 30
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B15 A",
+              "location": [
+                {
+                  "line": 44,
+                  "col": 1
+                },
+                {
+                  "line": 44,
+                  "col": 5
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "unconstrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "café",
+                  "location": [
+                    {
+                      "line": 44,
+                      "col": 8
+                    },
+                    {
+                      "line": 44,
+                      "col": 13
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 44,
+                  "col": 6
+                },
+                {
+                  "line": 44,
+                  "col": 15
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B.",
+              "location": [
+                {
+                  "line": 44,
+                  "col": 16
+                },
+                {
+                  "line": 44,
+                  "col": 17
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 44,
+              "col": 1
+            },
+            {
+              "line": 44,
+              "col": 17
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B16 ",
+              "location": [
+                {
+                  "line": 46,
+                  "col": 1
+                },
+                {
+                  "line": 46,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "constrained",
+              "inlines": [],
+              "location": [
+                {
+                  "line": 46,
+                  "col": 5
+                },
+                {
+                  "line": 46,
+                  "col": 13
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " | ",
+              "location": [
+                {
+                  "line": 46,
+                  "col": 14
+                },
+                {
+                  "line": 46,
+                  "col": 16
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": " ",
+                  "location": [
+                    {
+                      "line": 46,
+                      "col": 18
+                    },
+                    {
+                      "line": 46,
+                      "col": 21
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 46,
+                  "col": 17
+                },
+                {
+                  "line": 46,
+                  "col": 22
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " | ",
+              "location": [
+                {
+                  "line": 46,
+                  "col": 23
+                },
+                {
+                  "line": 46,
+                  "col": 25
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "café ",
+                  "location": [
+                    {
+                      "line": 46,
+                      "col": 27
+                    },
+                    {
+                      "line": 46,
+                      "col": 36
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 46,
+                  "col": 26
+                },
+                {
+                  "line": 46,
+                  "col": 37
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 46,
+                  "col": 38
+                },
+                {
+                  "line": 46,
+                  "col": 38
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 46,
+              "col": 1
+            },
+            {
+              "line": 46,
+              "col": 38
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B17 ",
+              "location": [
+                {
+                  "line": 48,
+                  "col": 1
+                },
+                {
+                  "line": 48,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "café`B then *Bold*",
+                  "location": [
+                    {
+                      "line": 48,
+                      "col": 6
+                    },
+                    {
+                      "line": 48,
+                      "col": 26
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 48,
+                  "col": 5
+                },
+                {
+                  "line": 48,
+                  "col": 27
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 48,
+                  "col": 28
+                },
+                {
+                  "line": 48,
+                  "col": 28
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 48,
+              "col": 1
+            },
+            {
+              "line": 48,
+              "col": 28
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B18 ",
+              "location": [
+                {
+                  "line": 50,
+                  "col": 1
+                },
+                {
+                  "line": 50,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "café ` then *Bold*",
+                  "location": [
+                    {
+                      "line": 50,
+                      "col": 6
+                    },
+                    {
+                      "line": 50,
+                      "col": 26
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 50,
+                  "col": 5
+                },
+                {
+                  "line": 50,
+                  "col": 27
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 50,
+                  "col": 28
+                },
+                {
+                  "line": 50,
+                  "col": 28
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 50,
+              "col": 1
+            },
+            {
+              "line": 50,
+              "col": 28
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B19 A`café` then ",
+              "location": [
+                {
+                  "line": 52,
+                  "col": 1
+                },
+                {
+                  "line": 52,
+                  "col": 19
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "café",
+                  "location": [
+                    {
+                      "line": 52,
+                      "col": 21
+                    },
+                    {
+                      "line": 52,
+                      "col": 26
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 52,
+                  "col": 20
+                },
+                {
+                  "line": 52,
+                  "col": 27
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 52,
+                  "col": 28
+                },
+                {
+                  "line": 52,
+                  "col": 28
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 52,
+              "col": 1
+            },
+            {
+              "line": 52,
+              "col": 28
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B20 A`+café+",
+              "location": [
+                {
+                  "line": 54,
+                  "col": 1
+                },
+                {
+                  "line": 54,
+                  "col": 14
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "B | A",
+                  "location": [
+                    {
+                      "line": 54,
+                      "col": 16
+                    },
+                    {
+                      "line": 54,
+                      "col": 20
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 54,
+                  "col": 15
+                },
+                {
+                  "line": 54,
+                  "col": 21
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "{word}",
+              "location": [
+                {
+                  "line": 54,
+                  "col": 28
+                },
+                {
+                  "line": 54,
+                  "col": 33
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "`B.",
+              "location": [
+                {
+                  "line": 54,
+                  "col": 35
+                },
+                {
+                  "line": 54,
+                  "col": 37
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 54,
+              "col": 1
+            },
+            {
+              "line": 54,
+              "col": 37
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B21 ",
+              "location": [
+                {
+                  "line": 56,
+                  "col": 1
+                },
+                {
+                  "line": 56,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "café ` then ",
+                  "location": [
+                    {
+                      "line": 56,
+                      "col": 6
+                    },
+                    {
+                      "line": 56,
+                      "col": 18
+                    }
+                  ]
+                },
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "{word}",
+                  "location": [
+                    {
+                      "line": 56,
+                      "col": 21
+                    },
+                    {
+                      "line": 56,
+                      "col": 26
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 56,
+                  "col": 5
+                },
+                {
+                  "line": 56,
+                  "col": 28
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 56,
+                  "col": 29
+                },
+                {
+                  "line": 56,
+                  "col": 29
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 56,
+              "col": 1
+            },
+            {
+              "line": 56,
+              "col": 29
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B22 ",
+              "location": [
+                {
+                  "line": 58,
+                  "col": 1
+                },
+                {
+                  "line": 58,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "{word}",
+                  "location": [
+                    {
+                      "line": 58,
+                      "col": 7
+                    },
+                    {
+                      "line": 58,
+                      "col": 12
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 58,
+                  "col": 5
+                },
+                {
+                  "line": 58,
+                  "col": 14
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " | ",
+              "location": [
+                {
+                  "line": 58,
+                  "col": 15
+                },
+                {
+                  "line": 58,
+                  "col": 17
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "{word}",
+                  "location": [
+                    {
+                      "line": 58,
+                      "col": 25
+                    },
+                    {
+                      "line": 58,
+                      "col": 30
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 58,
+                  "col": 18
+                },
+                {
+                  "line": 58,
+                  "col": 32
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 58,
+                  "col": 33
+                },
+                {
+                  "line": 58,
+                  "col": 33
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 58,
+              "col": 1
+            },
+            {
+              "line": 58,
+              "col": 33
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B23 ",
+              "location": [
+                {
+                  "line": 60,
+                  "col": 1
+                },
+                {
+                  "line": 60,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "constrained",
+              "role": "red",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "café`X | [red]",
+                  "location": [
+                    {
+                      "line": 60,
+                      "col": 11
+                    },
+                    {
+                      "line": 60,
+                      "col": 26
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 60,
+                  "col": 10
+                },
+                {
+                  "line": 60,
+                  "col": 27
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "café`.",
+              "location": [
+                {
+                  "line": 60,
+                  "col": 28
+                },
+                {
+                  "line": 60,
+                  "col": 35
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 60,
+              "col": 1
+            },
+            {
+              "line": 60,
+              "col": 35
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B24 ",
+              "location": [
+                {
+                  "line": 62,
+                  "col": 1
+                },
+                {
+                  "line": 62,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "A`café`B",
+                  "location": [
+                    {
+                      "line": 62,
+                      "col": 6
+                    },
+                    {
+                      "line": 62,
+                      "col": 15
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 62,
+                  "col": 5
+                },
+                {
+                  "line": 62,
+                  "col": 16
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " | ",
+              "location": [
+                {
+                  "line": 62,
+                  "col": 17
+                },
+                {
+                  "line": 62,
+                  "col": 19
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "emphasis",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "A`café`B",
+                  "location": [
+                    {
+                      "line": 62,
+                      "col": 21
+                    },
+                    {
+                      "line": 62,
+                      "col": 30
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 62,
+                  "col": 20
+                },
+                {
+                  "line": 62,
+                  "col": 31
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 62,
+                  "col": 32
+                },
+                {
+                  "line": 62,
+                  "col": 32
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 62,
+              "col": 1
+            },
+            {
+              "line": 62,
+              "col": 32
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B25 A`café`B | ",
+              "location": [
+                {
+                  "line": 65,
+                  "col": 1
+                },
+                {
+                  "line": 65,
+                  "col": 17
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "café ` | ",
+                  "location": [
+                    {
+                      "line": 65,
+                      "col": 19
+                    },
+                    {
+                      "line": 65,
+                      "col": 29
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "`",
+                  "location": [
+                    {
+                      "line": 65,
+                      "col": 30
+                    },
+                    {
+                      "line": 65,
+                      "col": 30
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "café",
+                  "location": [
+                    {
+                      "line": 65,
+                      "col": 32
+                    },
+                    {
+                      "line": 65,
+                      "col": 37
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 65,
+                  "col": 18
+                },
+                {
+                  "line": 65,
+                  "col": 38
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 65,
+                  "col": 39
+                },
+                {
+                  "line": 65,
+                  "col": 39
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "attributes",
+              "quotes"
+            ]
+          },
+          "location": [
+            {
+              "line": 64,
+              "col": 1
+            },
+            {
+              "line": 65,
+              "col": 39
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B26 A`café`B | ",
+              "location": [
+                {
+                  "line": 68,
+                  "col": 1
+                },
+                {
+                  "line": 68,
+                  "col": 17
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "café ` | \\",
+                  "location": [
+                    {
+                      "line": 68,
+                      "col": 19
+                    },
+                    {
+                      "line": 68,
+                      "col": 30
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 68,
+                  "col": 18
+                },
+                {
+                  "line": 68,
+                  "col": 31
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "café`.",
+              "location": [
+                {
+                  "line": 68,
+                  "col": 32
+                },
+                {
+                  "line": 68,
+                  "col": 39
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "quotes",
+              "attributes"
+            ]
+          },
+          "location": [
+            {
+              "line": 67,
+              "col": 1
+            },
+            {
+              "line": 68,
+              "col": 39
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B27 A`{word}`B.",
+              "location": [
+                {
+                  "line": 71,
+                  "col": 1
+                },
+                {
+                  "line": 71,
+                  "col": 15
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "quotes"
+            ]
+          },
+          "location": [
+            {
+              "line": 70,
+              "col": 1
+            },
+            {
+              "line": 71,
+              "col": 15
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B28 A`café`B.",
+              "location": [
+                {
+                  "line": 74,
+                  "col": 1
+                },
+                {
+                  "line": 74,
+                  "col": 15
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "attributes"
+            ]
+          },
+          "location": [
+            {
+              "line": 73,
+              "col": 1
+            },
+            {
+              "line": 74,
+              "col": 15
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B29 A`café\nmore`B.",
+              "location": [
+                {
+                  "line": 76,
+                  "col": 1
+                },
+                {
+                  "line": 77,
+                  "col": 7
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 76,
+              "col": 1
+            },
+            {
+              "line": 77,
+              "col": 7
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B30 <tag>",
+              "location": [
+                {
+                  "line": 79,
+                  "col": 1
+                },
+                {
+                  "line": 79,
+                  "col": 9
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "café",
+                  "location": [
+                    {
+                      "line": 79,
+                      "col": 11
+                    },
+                    {
+                      "line": 79,
+                      "col": 16
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 79,
+                  "col": 10
+                },
+                {
+                  "line": 79,
+                  "col": 17
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " | «",
+              "location": [
+                {
+                  "line": 79,
+                  "col": 18
+                },
+                {
+                  "line": 79,
+                  "col": 21
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "café",
+                  "location": [
+                    {
+                      "line": 79,
+                      "col": 23
+                    },
+                    {
+                      "line": 79,
+                      "col": 28
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 79,
+                  "col": 22
+                },
+                {
+                  "line": 79,
+                  "col": 29
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "» | (",
+              "location": [
+                {
+                  "line": 79,
+                  "col": 30
+                },
+                {
+                  "line": 79,
+                  "col": 34
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "café",
+                  "location": [
+                    {
+                      "line": 79,
+                      "col": 36
+                    },
+                    {
+                      "line": 79,
+                      "col": 41
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 79,
+                  "col": 35
+                },
+                {
+                  "line": 79,
+                  "col": 42
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ").",
+              "location": [
+                {
+                  "line": 79,
+                  "col": 43
+                },
+                {
+                  "line": 79,
+                  "col": 44
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 79,
+              "col": 1
+            },
+            {
+              "line": 79,
+              "col": 44
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B31 ",
+              "location": [
+                {
+                  "line": 81,
+                  "col": 1
+                },
+                {
+                  "line": 81,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "span",
+                  "type": "inline",
+                  "variant": "code",
+                  "form": "constrained",
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "café",
+                      "location": [
+                        {
+                          "line": 81,
+                          "col": 7
+                        },
+                        {
+                          "line": 81,
+                          "col": 12
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 81,
+                      "col": 6
+                    },
+                    {
+                      "line": 81,
+                      "col": 13
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 81,
+                  "col": 5
+                },
+                {
+                  "line": 81,
+                  "col": 14
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " | ",
+              "location": [
+                {
+                  "line": 81,
+                  "col": 15
+                },
+                {
+                  "line": 81,
+                  "col": 17
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "emphasis",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "`café`",
+                  "location": [
+                    {
+                      "line": 81,
+                      "col": 19
+                    },
+                    {
+                      "line": 81,
+                      "col": 26
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 81,
+                  "col": 18
+                },
+                {
+                  "line": 81,
+                  "col": 27
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " | ",
+              "location": [
+                {
+                  "line": 81,
+                  "col": 28
+                },
+                {
+                  "line": 81,
+                  "col": 30
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "constrained",
+              "role": "red",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "café",
+                  "location": [
+                    {
+                      "line": 81,
+                      "col": 37
+                    },
+                    {
+                      "line": 81,
+                      "col": 42
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 81,
+                  "col": 36
+                },
+                {
+                  "line": 81,
+                  "col": 43
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 81,
+                  "col": 44
+                },
+                {
+                  "line": 81,
+                  "col": 44
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 81,
+              "col": 1
+            },
+            {
+              "line": 81,
+              "col": 44
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B32 A`{word}`B | `{word} ` | \\`{word}`.",
+              "location": [
+                {
+                  "line": 84,
+                  "col": 1
+                },
+                {
+                  "line": 84,
+                  "col": 39
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": []
+          },
+          "location": [
+            {
+              "line": 83,
+              "col": 1
+            },
+            {
+              "line": 84,
+              "col": 39
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B33 A`café`B.",
+              "location": [
+                {
+                  "line": 87,
+                  "col": 1
+                },
+                {
+                  "line": 87,
+                  "col": 15
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "attributes",
+              "quotes"
+            ]
+          },
+          "location": [
+            {
+              "line": 86,
+              "col": 1
+            },
+            {
+              "line": 87,
+              "col": 15
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B34 A`café`B.",
+              "location": [
+                {
+                  "line": 90,
+                  "col": 1
+                },
+                {
+                  "line": 90,
+                  "col": 15
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "quotes",
+              "attributes"
+            ]
+          },
+          "location": [
+            {
+              "line": 89,
+              "col": 1
+            },
+            {
+              "line": 90,
+              "col": 15
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B35 A`",
+              "location": [
+                {
+                  "line": 93,
+                  "col": 1
+                },
+                {
+                  "line": 93,
+                  "col": 6
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "B | A",
+                  "location": [
+                    {
+                      "line": 93,
+                      "col": 15
+                    },
+                    {
+                      "line": 93,
+                      "col": 19
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 93,
+                  "col": 7
+                },
+                {
+                  "line": 93,
+                  "col": 20
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " `B.",
+              "location": [
+                {
+                  "line": 93,
+                  "col": 21
+                },
+                {
+                  "line": 93,
+                  "col": 27
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "attributes",
+              "quotes"
+            ]
+          },
+          "location": [
+            {
+              "line": 92,
+              "col": 1
+            },
+            {
+              "line": 93,
+              "col": 27
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B36 A``B | A` `B.",
+              "location": [
+                {
+                  "line": 96,
+                  "col": 1
+                },
+                {
+                  "line": 96,
+                  "col": 27
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "substitutions": [
+              "quotes",
+              "attributes"
+            ]
+          },
+          "location": [
+            {
+              "line": 95,
+              "col": 1
+            },
+            {
+              "line": 96,
+              "col": 27
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B37 ",
+              "location": [
+                {
+                  "line": 98,
+                  "col": 1
+                },
+                {
+                  "line": 98,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "ref",
+              "type": "inline",
+              "variant": "link",
+              "target": {
+                "type": "url",
+                "value": "https://example.org"
+              },
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "A`café`B",
+                  "location": [
+                    {
+                      "line": 98,
+                      "col": 30
+                    },
+                    {
+                      "line": 98,
+                      "col": 39
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 98,
+                  "col": 5
+                },
+                {
+                  "line": 98,
+                  "col": 40
+                }
+              ],
+              "attributes": {}
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 98,
+                  "col": 41
+                },
+                {
+                  "line": 98,
+                  "col": 41
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 98,
+              "col": 1
+            },
+            {
+              "line": 98,
+              "col": 41
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B38 ",
+              "location": [
+                {
+                  "line": 100,
+                  "col": 1
+                },
+                {
+                  "line": 100,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "footnote",
+              "type": "inline",
+              "id": null,
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "A`café`B",
+                  "location": [
+                    {
+                      "line": 100,
+                      "col": 15
+                    },
+                    {
+                      "line": 100,
+                      "col": 24
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 100,
+                  "col": 5
+                },
+                {
+                  "line": 100,
+                  "col": 25
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 100,
+                  "col": 26
+                },
+                {
+                  "line": 100,
+                  "col": 26
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 100,
+              "col": 1
+            },
+            {
+              "line": 100,
+              "col": 26
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B39 ",
+              "location": [
+                {
+                  "line": 102,
+                  "col": 1
+                },
+                {
+                  "line": 102,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "anchor",
+              "type": "inline",
+              "id": "target",
+              "location": [
+                {
+                  "line": 102,
+                  "col": 5
+                },
+                {
+                  "line": 102,
+                  "col": 19
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "See ",
+              "location": [
+                {
+                  "line": 102,
+                  "col": 20
+                },
+                {
+                  "line": 102,
+                  "col": 23
+                }
+              ]
+            },
+            {
+              "name": "xref",
+              "type": "inline",
+              "target": "target",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "A`café`B",
+                  "location": [
+                    {
+                      "line": 102,
+                      "col": 36
+                    },
+                    {
+                      "line": 102,
+                      "col": 45
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 102,
+                  "col": 24
+                },
+                {
+                  "line": 102,
+                  "col": 46
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 102,
+                  "col": 47
+                },
+                {
+                  "line": 102,
+                  "col": 47
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 102,
+              "col": 1
+            },
+            {
+              "line": 102,
+              "col": 47
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "title": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "A`café`B",
+              "location": [
+                {
+                  "line": 104,
+                  "col": 2
+                },
+                {
+                  "line": 104,
+                  "col": 11
+                }
+              ]
+            }
+          ],
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Example with a title.",
+              "location": [
+                {
+                  "line": 105,
+                  "col": 1
+                },
+                {
+                  "line": 105,
+                  "col": 21
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 104,
+              "col": 1
+            },
+            {
+              "line": 105,
+              "col": 21
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 14,
+          "col": 1
+        },
+        {
+          "line": 105,
+          "col": 21
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "B40 A`café`B",
+          "location": [
+            {
+              "line": 107,
+              "col": 4
+            },
+            {
+              "line": 107,
+              "col": 17
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "listing",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "----",
+          "metadata": {
+            "attributes": {
+              "language": "text"
+            },
+            "style": "source",
+            "substitutions": [
+              "+quotes",
+              "+attributes"
+            ]
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B41 A`café`B | ",
+              "location": [
+                {
+                  "line": 111,
+                  "col": 1
+                },
+                {
+                  "line": 111,
+                  "col": 17
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "café",
+                  "location": [
+                    {
+                      "line": 111,
+                      "col": 19
+                    },
+                    {
+                      "line": 111,
+                      "col": 24
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 111,
+                  "col": 18
+                },
+                {
+                  "line": 111,
+                  "col": 25
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " | `café `.",
+              "location": [
+                {
+                  "line": 111,
+                  "col": 26
+                },
+                {
+                  "line": 111,
+                  "col": 38
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 109,
+              "col": 1
+            },
+            {
+              "line": 112,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B42 A`café`B | ",
+              "location": [
+                {
+                  "line": 115,
+                  "col": 1
+                },
+                {
+                  "line": 115,
+                  "col": 17
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "café",
+                  "location": [
+                    {
+                      "line": 115,
+                      "col": 19
+                    },
+                    {
+                      "line": 115,
+                      "col": 24
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 115,
+                  "col": 18
+                },
+                {
+                  "line": 115,
+                  "col": 25
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 115,
+                  "col": 26
+                },
+                {
+                  "line": 115,
+                  "col": 26
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "style": "literal",
+            "substitutions": [
+              "+quotes",
+              "+attributes"
+            ]
+          },
+          "location": [
+            {
+              "line": 114,
+              "col": 1
+            },
+            {
+              "line": 115,
+              "col": 26
+            }
+          ]
+        },
+        {
+          "name": "table",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "|===",
+          "metadata": {
+            "attributes": {
+              "cols": "a"
+            }
+          },
+          "content": {
+            "header": null,
+            "footer": null,
+            "rows": [
+              {
+                "columns": [
+                  {
+                    "content": [
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "B43 A`café`B.",
+                            "location": [
+                              {
+                                "line": 119,
+                                "col": 2
+                              },
+                              {
+                                "line": 119,
+                                "col": 16
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 119,
+                            "col": 2
+                          },
+                          {
+                            "line": 119,
+                            "col": 16
+                          }
+                        ]
+                      }
+                    ],
+                    "style": "asciidoc"
+                  }
+                ]
+              }
+            ],
+            "columns": [
+              {
+                "style": "asciidoc"
+              }
+            ],
+            "location": [
+              {
+                "line": 118,
+                "col": 1
+              },
+              {
+                "line": 120,
+                "col": 4
+              }
+            ]
+          },
+          "location": [
+            {
+              "line": 117,
+              "col": 1
+            },
+            {
+              "line": 120,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "word",
+          "type": "attribute",
+          "value": "late",
+          "location": [
+            {
+              "line": 122,
+              "col": 1
+            },
+            {
+              "line": 122,
+              "col": 11
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B44 A`late`B.",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 1,
+                  "file": [
+                    "includes/invalid_code_attributes.adoc"
+                  ]
+                },
+                {
+                  "line": 1,
+                  "col": 15,
+                  "file": [
+                    "includes/invalid_code_attributes.adoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 1,
+              "col": 1,
+              "file": [
+                "includes/invalid_code_attributes.adoc"
+              ]
+            },
+            {
+              "line": 1,
+              "col": 15,
+              "file": [
+                "includes/invalid_code_attributes.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 107,
+          "col": 1
+        },
+        {
+          "line": 107,
+          "col": 15,
+          "file": [
+            "includes/invalid_code_attributes.adoc"
+          ]
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 1,
+      "col": 15,
+      "file": [
+        "includes/invalid_code_attributes.adoc"
+      ]
+    }
+  ]
+}
