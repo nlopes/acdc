@@ -121,6 +121,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Passthrough arrows follow their substitution order: `pass:c,r[->]` renders
+  `→`, while `pass:r,c[->]` and `pass:r[->]` remain literal, matching
+  Asciidoctor. Already encoded arrows such as `pass:r[-&gt;]` also render as
+  symbols. Escaped arrows remain text, and source-text reads are unchanged.
+
 - Enabled typography in code and quotes-disabled text retains unrelated
   formatting backslashes, matching Asciidoctor. Escaped symbols and arrows stay
   literal; source-text extraction remains unchanged.

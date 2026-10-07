@@ -1,0 +1,82 @@
+= passthrough-arrows(1)
+:doctype: manpage
+:manmanual: Passthrough arrows
+:mansource: acdc
+:revdate: 2026-10-07
+:docdate: 2026-10-07
+:source-highlighter: syntect
+:arrow: ->
+:profile: pass:c,r[-> => <- <=]
+:reverse: pass:r,c[-> => <- <=]
+
+== Name
+
+passthrough-arrows - preserve passthrough replacement order
+
+== Cases
+
+R01 pass:c,r[-> => <- <=].
+
+R02 pass:r,c[-> => <- <=].
+
+R03 pass:r[-> => <- <=].
+
+R04 pass:c[-> => <- <=].
+
+R05 pass:c,r[\-> \=> \<- \<=].
+
+R06 pass:r,c[\-> \=> \<- \<=].
+
+R07 pass:c,r[->->=><-<=].
+
+R08 `pass:c,r[-> => <- <=]`.
+
+[subs="macros"]
+R09 pass:c,r[-> => <- <=].
+
+[subs="-macros"]
+R10 pass:c,r[-> => <- <=].
+
+R11 {profile} and {reverse}.
+
+R12 pass:a,c,r[{arrow}] and pass:c,r,a[{arrow}].
+
+R13 pass:c,r[(C) ... <x> &copy; \*Bold\*].
+
+R14 pass:c,r[-&gt; =&gt; &lt;- &lt;=].
+
+:!source-highlighter:
+
+[source,text,subs="+macros"]
+----
+R15 pass:c,r[-> => <- <=] and pass:r,c[-> => <- <=].
+R16 pass:c,r[\-> \=> \<- \<=].
+----
+
+:source-highlighter: syntect
+
+[source,rust,subs="+macros"]
+----
+// R17 pass:c,r[-> => <- <=] and pass:r,c[-> => <- <=].
+// R18 pass:c,r[\-> \=> \<- \<=].
+----
+
+R19 pass:r[-&gt; =&gt; &lt;- &lt;=].
+
+R20 pass:r,c[-&gt; =&gt; &lt;- &lt;=].
+
+R21 pass:r[\-&gt; \=&gt; \&lt;- \&lt;=].
+
+R22 pass:c,r[\-&gt; \=&gt; \&lt;- \&lt;=].
+
+R23 pass:r[&lt;=-&gt; &amp;].
+
+R24 pass:r[-&#62; =&#62; &#60;- &#60;=].
+
+R25 pass:r,c[\-&gt; \=&gt; \&lt;- \&lt;=].
+
+R26 pass:r[&lt;-&gt; &lt;=&gt;].
+
+R27 pass:r[&lt;\-&gt; &lt;\=&gt;].
+
+R28 pass:r[\&lt;-&gt; \&lt;=&gt;].

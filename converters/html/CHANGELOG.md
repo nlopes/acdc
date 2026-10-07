@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Passthroughs with character escaping before replacements, such as
+  `pass:c,r[->]`, render arrows in prose and code, matching Asciidoctor.
+  Reversed lists and escaped arrows retain literal text, including highlighting.
+  Already encoded arrows such as `pass:r[-&gt;]` render as symbols; escaping
+  afterward retains literal generated entities, matching Asciidoctor HTML.
+
 - With `icons=font`, custom `line-comment` prefixes that end in spaces are
   removed before callouts even without an extra separator space, matching
   Asciidoctor. Plain and highlighted output follow the same rule.

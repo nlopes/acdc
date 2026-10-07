@@ -134,11 +134,16 @@ Their escaped replacement patterns remain literal and do not undergo surrounding
 For example, `:value: pass:r[\(C)]` exposes `\(C)` through text reads and renders `(C)` at each use.
 Asciidoctor removes this escape during assignment, so ordinary prose and replacements-enabled code can later render `©`.
 This difference follows acdc's source-first policy under SDR-5; SDR-5 does not prescribe these custom-list semantics.
-Raw-arrow replacement, replacement-only substitution order, and block-level typography in some code paths remain separate compatibility limits.
+Passthrough source arrows follow the profile order: `pass:c,r[->]` renders an arrow, whereas `pass:r,c[->]` and `pass:r[->]` retain the source characters.
+Ordinary blocks deliberately recognize source arrows whenever replacements are enabled, even without special-character escaping; Asciidoctor requires the escaped angle-bracket form.
+Both decisions are converter compatibility policies, not requirements of SDR-5.
 
 The implementation stores source spans and compact rule lists rather than converted markup or owned inline trees.
 Profiles are parsed when referenced in document content, so one parsed document can be converted to several formats.
-Earlier compatibility behavior, including attribute character escaping and the treatment of ordinary attribute-introduced formatting, also needs a separate migration audit.
+Earlier text-only attribute escaping and ordinary quotes-before-attributes ordering remain compatibility policies.
+For example, `:value: <x>` still exposes `&lt;x&gt;` through attribute text reads, and `:value: *Bold*` displays literal asterisks under normal substitutions.
+These policies match Asciidoctor but do not implement SDR-5's proposed late escaping and attribute-before-grammar semantics.
+Changing them would affect public value reads, conditions, include paths and document rendering, so they require a separate migration decision.
 Backend-neutral attribute expansion, source locations, and caller assignment policy remain necessary before includes and conditions can be processed.
 
 ==== Attribute parsing: blocks vs inlines

@@ -603,6 +603,92 @@ mod tests {
     }
 
     #[test]
+    fn passthrough_arrows_change_rendered_text_without_changing_source()
+    -> Result<(), Box<dyn std::error::Error>> {
+        for (profile, expected) in [
+            ("c,r", "→ ⇒ ← ⇐"),
+            ("r,c", "-> => <- <="),
+            ("r", "-> => <- <="),
+            ("c", "-> => <- <="),
+        ] {
+            let source = format!("pass:{profile}[-> => <- <=]");
+            let parsed = parse(&source, &Options::default())?;
+            let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+                return Err("expected one paragraph".into());
+            };
+            let transform = super::InlineTextTransform::default();
+            assert_eq!(transform.to_string(&paragraph.content), "-> => <- <=");
+            assert_eq!(
+                transform
+                    .rendered_replacements(false)
+                    .to_string(&paragraph.content),
+                expected,
+                "{profile}",
+            );
+            assert_eq!(transform.to_string(&paragraph.content), "-> => <- <=");
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn encoded_passthrough_arrows_reach_rendering_as_complete_tokens()
+    -> Result<(), Box<dyn std::error::Error>> {
+        for (content, arrow) in [
+            ("-&gt;", "→"),
+            ("=&gt;", "⇒"),
+            ("&lt;-", "←"),
+            ("&lt;=", "⇐"),
+            (r"\-&gt;", "->"),
+            (r"\=&gt;", "=>"),
+            (r"\&lt;-", "<-"),
+            (r"\&lt;=", "<="),
+            ("&lt;-&gt;", "<→"),
+            ("&lt;=&gt;", "<⇒"),
+            (r"&lt;\-&gt;", "←>"),
+            (r"&lt;\=&gt;", "⇐>"),
+            (r"\&lt;-&gt;", r"\<→"),
+        ] {
+            let source = format!("α pass:r[{content}] ω");
+            let parsed = parse(&source, &Options::default())?;
+            let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+                return Err("expected one paragraph".into());
+            };
+            let raw = paragraph
+                .content
+                .iter()
+                .find_map(|node| {
+                    if let InlineNode::RawText(raw) = node {
+                        Some(raw)
+                    } else {
+                        None
+                    }
+                })
+                .ok_or("expected raw arrow content")?;
+            assert_eq!(raw.content, content);
+            assert_eq!(
+                parsed
+                    .source()
+                    .get(raw.location.absolute_start..=raw.location.absolute_end),
+                Some(content),
+            );
+            let transform = super::InlineTextTransform::default();
+            assert_eq!(
+                transform.to_string(&paragraph.content),
+                format!("α {content} ω")
+            );
+            let rendered = transform
+                .rendered_replacements(false)
+                .to_string(&paragraph.content);
+            assert_eq!(rendered, format!("α {arrow} ω"));
+            assert_eq!(
+                transform.to_string(&paragraph.content),
+                format!("α {content} ω")
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
     fn deferred_typography_does_not_reapply_surrounding_replacements()
     -> Result<(), Box<dyn std::error::Error>> {
         let parsed = parse(r"pass:r[\(C)] (R) pass:[(TM)]", &Options::default())?;

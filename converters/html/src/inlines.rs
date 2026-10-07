@@ -102,10 +102,10 @@ fn passthrough_substitution_text(
     for substitution in subs {
         match substitution {
             Substitution::SpecialChars => {
-                text = text
-                    .replace('&', "&amp;")
-                    .replace('>', "&gt;")
-                    .replace('<', "&lt;");
+                // Keep source arrow characters until replacements have run.
+                // Ampersands still follow the requested stage order so authored
+                // references and generated typography escape independently.
+                text = text.replace('&', "&amp;");
                 applied_special_chars = true;
             }
             Substitution::Replacements => {
@@ -124,7 +124,7 @@ fn passthrough_substitution_text(
     }
 
     if applied_special_chars {
-        encode_html_entities(&text)
+        encode_html_entities(&text.replace('>', "&gt;").replace('<', "&lt;"))
     } else {
         text
     }

@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `pass:c,r[->]` renders an arrow in prose and code, matching Asciidoctor's
+  HTML and manpage behavior. Reversed lists and escaped arrows remain literal,
+  including highlighted code.
+  Encoded arrows such as `pass:r[-&gt;]` also render as symbols. With `r,c`,
+  acdc retains Unicode symbols while Asciidoctor HTML and manpage display
+  escaped generated numeric entities.
+
 - Enabled replacements render dashes and contractions across visible index labels
   in prose and code: `prefixindexterm2:[--]tail` displays `prefix—tail`, retaining
   escaped dashes and following links. Unlike Asciidoctor's default substitution

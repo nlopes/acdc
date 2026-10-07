@@ -258,6 +258,13 @@ detection; SDR-5 does not require it. acdc's manpage converter also retains its
 bold fallback for highlighted text. Asciidoctor removes that style and leaves a
 paragraph break when the closing markers were alone on a line.
 
+The same distinction affects underscore runs in ordinary inline text and normal
+table cells. `Before ____ inside ____ after` retains two underscores on each side
+in acdc; Asciidoctor retains one and extends emphasis through the words between
+them. acdc retains one source-based inline tree for every converter. Matching the
+reference's successive passes over generated tags would change that boundary;
+SDR-5 does not define the exact interpretation of these marker runs.
+
 == Constrained formatting whitespace
 
 Single bold, italic, highlight, and code markers cannot enclose content that
@@ -373,6 +380,30 @@ conversion under SDR-5. If special-character escaping runs after quotes or
 macros, acdc retains their structured formatting and links. Asciidoctor may
 instead display escaped generated markup. This rendering difference remains
 separate from resolving the requested stage order.
+
+Ordinary attribute values still follow the established Asciidoctor compatibility
+rules. `:value: *Bold*` displays literal `*Bold*` under normal substitutions;
+`subs="attributes,quotes"` lets that value introduce formatting. Text-only
+attribute definitions also retain character escaping, so `:value: <x>` exposes
+`&lt;x&gt;` in attribute text reads. These are deliberate compatibility choices,
+not SDR-5 requirements: SDR-5 proposes attribute expansion before inline grammar
+and output escaping during conversion. Formatted `pass:` attribute values retain
+the source-profile policy described in the architecture documentation.
+
+Passthrough arrow replacements honor the list order. `pass:c,r[->]` renders
+`→`; `pass:r,c[->]` and `pass:r[->]` retain `->`, matching Asciidoctor.
+An escaped arrow remains literal. Already encoded arrows such as
+`pass:r[-&gt;]` also render as symbols; an earlier `c` stage protects the
+authored reference instead. Ordinary blocks recognize source
+arrows whenever replacements are enabled: `[subs="replacements"]` can render
+`->` as `→` without an escaping stage. Asciidoctor leaves that source arrow
+literal because its replacement pattern requires the escaped angle bracket.
+acdc keeps this existing source-based typography policy independently of SDR-5.
+With `pass:r,c[-&gt;]`, HTML displays the generated numeric entity as text,
+matching Asciidoctor HTML. acdc's non-HTML converters instead retain the Unicode
+arrow, as they do for other converted symbols; Asciidoctor PDF and manpage
+display the escaped numeric entity. This is a converter policy, not a parser
+decision.
 
 In source blocks with `subs="quotes,+attributes"`, acdc PDF also retains
 formatted text. Asciidoctor PDF displays generated `<strong>` tags as text

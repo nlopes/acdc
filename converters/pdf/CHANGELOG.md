@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `pass:c,r[->]` renders an arrow in prose and code, matching Asciidoctor PDF.
+  Reversed lists and escaped arrows retain literal text. Passthrough profiles
+  remain independent of surrounding block substitutions.
+  Encoded arrows such as `pass:r[-&gt;]` also render as symbols. With `r,c`,
+  acdc retains its Unicode typography policy; Asciidoctor PDF instead displays
+  the escaped generated numeric entity.
+
 - Footnotes inside backticks retain their bodies and clickable markers, matching
   Asciidoctor PDF. Named notes defined in inline code can be reused outside it
   without a PDF compilation error. Nested formatting, table wrapping and copied

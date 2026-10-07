@@ -622,7 +622,9 @@ pub fn protect_replacement_escapes(text: &str, include_arrows: bool) -> Cow<'_, 
 /// Apply a passthrough's own replacement profile, independent of block settings.
 ///
 /// Replacement escapes stay literal; escapes for disabled formatting rules are
-/// preserved. Raw arrows retain their existing passthrough behavior.
+/// preserved. Source arrows require special-character substitution before
+/// replacements, matching the passthrough's requested order. Authored encoded
+/// arrows are recognized when an earlier escaping stage has not protected them.
 #[must_use]
 pub fn apply_passthrough_replacements<'a>(
     text: &'a str,
@@ -633,16 +635,83 @@ pub fn apply_passthrough_replacements<'a>(
     if !subs.contains(&Substitution::Replacements) {
         return Cow::Borrowed(text);
     }
-    let replacements = Replacements {
+    let arrows = subs
+        .iter()
+        .take_while(|sub| **sub != Substitution::Replacements)
+        .any(|sub| *sub == Substitution::SpecialChars);
+    let mut text = Cow::Borrowed(text);
+    if !arrows && text.contains('&') {
+        // A later escape stage sees the authored entity spelling. Without it,
+        // an escaped arrow contributes literal characters to every backend.
+        let escape_after = subs
+            .iter()
+            .skip_while(|sub| **sub != Substitution::Replacements)
+            .any(|sub| *sub == Substitution::SpecialChars);
+        for (pattern, replacement, literal) in [
+            ("=&gt;", replacements.double_arrow_right, "=>"),
+            ("-&gt;", replacements.arrow_right, "->"),
+            ("&lt;=", replacements.double_arrow_left, "<="),
+            ("&lt;-", replacements.arrow_left, "<-"),
+        ] {
+            text = replace_encoded_arrow(
+                text,
+                pattern,
+                replacement,
+                if escape_after { pattern } else { literal },
+            );
+        }
+    }
+    let raw_replacements = Replacements {
         double_arrow_right: "=>",
         double_arrow_left: "<=",
         arrow_right: "->",
         arrow_left: "<-",
         ..*replacements
     };
-    let protected = protect_replacement_escapes(text, false);
+    let replacements = if arrows {
+        replacements
+    } else {
+        &raw_replacements
+    };
+    let protected = protect_replacement_escapes(&text, arrows);
     let replaced = replacements.apply(&protected, text_boundaries);
     Cow::Owned(restore_escaped_patterns(&replaced))
+}
+
+fn replace_encoded_arrow<'a>(
+    text: Cow<'a, str>,
+    pattern: &str,
+    replacement: &str,
+    literal: &str,
+) -> Cow<'a, str> {
+    if !text.contains(pattern) {
+        return text;
+    }
+    let mut result = String::with_capacity(text.len());
+    let mut parts = text.split(pattern);
+    let mut prefix = parts.next().unwrap_or_default();
+    for next in parts {
+        if let Some(prefix) = prefix.strip_suffix('\\') {
+            result.push_str(prefix);
+            result.push_str(literal);
+        } else {
+            // Right arrows run first. When they consume the shared dash or
+            // equals sign, the unmatched left angle remains literal text.
+            if literal != pattern
+                && pattern.ends_with("&gt;")
+                && let Some(prefix) = prefix.strip_suffix("&lt;")
+            {
+                result.push_str(prefix);
+                result.push('<');
+            } else {
+                result.push_str(prefix);
+            }
+            result.push_str(replacement);
+        }
+        prefix = next;
+    }
+    result.push_str(prefix);
+    Cow::Owned(result)
 }
 
 /// Remove backslash escapes from `AsciiDoc` formatting characters and patterns.
@@ -1145,6 +1214,65 @@ fn replace_contextual_apostrophes(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn passthrough_arrows_follow_character_escaping_order() {
+        let source = r"-> => <- <= | \-> \=> \<- \<= | (C)";
+        for (subs, expected) in [
+            (
+                vec![Substitution::SpecialChars, Substitution::Replacements],
+                "→ ⇒ ← ⇐ | -> => <- <= | ©",
+            ),
+            (
+                vec![Substitution::Replacements, Substitution::SpecialChars],
+                r"-> => <- <= | \-> \=> \<- \<= | ©",
+            ),
+            (
+                vec![Substitution::Replacements],
+                r"-> => <- <= | \-> \=> \<- \<= | ©",
+            ),
+            (vec![Substitution::SpecialChars], source),
+            (vec![], source),
+        ] {
+            assert_eq!(
+                apply_passthrough_replacements(
+                    source,
+                    &subs,
+                    &Replacements::unicode(),
+                    TextBoundaries::BOTH
+                ),
+                expected,
+                "{subs:?}",
+            );
+        }
+    }
+
+    #[test]
+    fn passthrough_encoded_arrows_respect_escapes_and_prior_escaping() {
+        let source = r"-&gt; =&gt; &lt;- &lt;= | \-&gt; \=&gt; \&lt;- \&lt;=";
+        for (subs, expected) in [
+            (vec![Substitution::Replacements], "→ ⇒ ← ⇐ | -> => <- <="),
+            (
+                vec![Substitution::Replacements, Substitution::SpecialChars],
+                "→ ⇒ ← ⇐ | -&gt; =&gt; &lt;- &lt;=",
+            ),
+            (
+                vec![Substitution::SpecialChars, Substitution::Replacements],
+                source,
+            ),
+        ] {
+            assert_eq!(
+                apply_passthrough_replacements(
+                    source,
+                    &subs,
+                    &Replacements::unicode(),
+                    TextBoundaries::BOTH
+                ),
+                expected,
+                "{subs:?}",
+            );
+        }
+    }
 
     #[test]
     fn test_caret_escape_preserved() {

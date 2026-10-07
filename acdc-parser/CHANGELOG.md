@@ -72,6 +72,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   default substitution order, later attribute values do not create new code
   boundaries or change existing ones.
 
+- Passthrough replacement profiles preserve complete encoded arrow sequences,
+  such as `pass:r[-&gt;]`, so converters can render the requested arrow and
+  respect replacement escapes, matching Asciidoctor. Source text and locations
+  remain available independently of rendering.
+
 - Disabled inline passthroughs now use the enclosing attribute substitutions.
   With `subs="attributes"` or `subs="-macros"`, `+{word}+` and `pass:[{word}]`
   retain their delimiters but expand `{word}`, including inside code spans.

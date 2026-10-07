@@ -227,6 +227,20 @@ fn restore_raw_character_references<'a>(
             continue;
         };
         let end = amp + length;
+        // Keep encoded arrow tokens together for deferred replacements. A prior
+        // escape stage instead protects the authored reference from that rule.
+        let encoded_arrow = match &raw.content[amp..end] {
+            "&gt;" => amp > 0 && matches!(raw.content.as_bytes().get(amp - 1), Some(b'-' | b'=')),
+            "&lt;" => {
+                matches!(raw.content.as_bytes().get(end), Some(b'-' | b'='))
+                    || raw.content[end..].starts_with("\\-&gt;")
+                    || raw.content[end..].starts_with("\\=&gt;")
+            }
+            _ => false,
+        };
+        if encoded_arrow && !raw.subs.contains(&Substitution::SpecialChars) {
+            continue;
+        }
         let mut start = if amp > cursor && raw.content.as_bytes().get(amp - 1) == Some(&b'\\') {
             amp - 1
         } else {

@@ -1,0 +1,88 @@
+'\" t
+.\"     Title: passthrough-arrows
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-07
+.\"    Manual: Passthrough arrows
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "PASSTHROUGH\-ARROWS" "1" "2026-10-07" "acdc" "Passthrough arrows"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+passthrough\-arrows \- preserve passthrough replacement order
+.SH "CASES"
+.sp
+R01 \(-> \(rA \(<- \(lA\&.
+.sp
+R02 \-> => <\- <=\&.
+.sp
+R03 \-> => <\- <=\&.
+.sp
+R04 \-> => <\- <=\&.
+.sp
+R05 \-> => <\- <=\&.
+.sp
+R06 \e\-> \e=> \e<\- \e<=\&.
+.sp
+R07 \(->\(->\(rA\(<-\(lA\&.
+.sp
+R08 \f(CR\(-> \(rA \(<- \(lA\fR\&.
+.sp
+R09 \(-> \(rA \(<- \(lA\&.
+.sp
+R10 pass:c,r[\(-> \(rA \(<- \(lA].
+.sp
+R11 \(-> \(rA \(<- \(lA and \-> => <\- <=\&.
+.sp
+R12 \-> and \->\&.
+.sp
+R13 \(co .\|.\|. <x> &copy; \e*Bold\e*\&.
+.sp
+R14 \-> => <\- <=\&.
+.EX
+R15 \(-> \(rA \(<- \(lA and \-> => <\- <=\&.
+R16 \-> => <\- <=\&.
+.EE
+.EX
+// R17 \(-> \(rA \(<- \(lA and \-> => <\- <=\&.
+// R18 \-> => <\- <=\&.
+.EE
+.sp
+R19 \(-> \(rA \(<- \(lA\&.
+.sp
+R20 \(-> \(rA \(<- \(lA\&.
+.sp
+R21 \-> => <\- <=\&.
+.sp
+R22 \e\-> \e=> &lt;\- &lt;=\&.
+.sp
+R23 \(lA\(-> &\&.
+.sp
+R24 \-> => <\- <=\&.
+.sp
+R25 \-&gt; =&gt; &lt;\- &lt;=\&.
+.sp
+R26 <\(-> <\(rA\&.
+.sp
+R27 \(<-> \(lA>\&.
+.sp
+R28 \e<\(-> \e<\(rA\&.

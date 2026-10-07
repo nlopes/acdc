@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `pass:c,r[->]` renders an arrow in prose and code, matching Asciidoctor.
+  Reversed lists and escaped arrows retain literal text. Passthrough profiles
+  remain independent of surrounding block substitutions.
+  Encoded arrows such as `pass:r[-&gt;]` also render as symbols. With `r,c`,
+  acdc retains its Unicode typography policy; Asciidoctor instead displays
+  the escaped generated numeric entity.
+
 - Custom `line-comment` prefixes that end in spaces are removed before callouts
   even without an extra separator space, matching Asciidoctor. Required spaces
   within the prefix remain distinct from the optional separator after it.
