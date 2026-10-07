@@ -1,0 +1,72 @@
+= Inline whitespace(1)
+:doctype: manpage
+:manmanual: Test Manual
+:mansource: acdc
+:revdate: 2026-10-07
+:empty:
+
+== Name
+
+inline-whitespace - preserve spaces inside formatting
+
+== Description
+
+W01 A``{sp}``B.
+
+W02 A`` ``B.
+
+W03 A``  ``B.
+
+W04 A``	``B.
+
+W05 A``
+``B.
+
+W06 A``{nbsp}``B.
+
+W07 A`` ``B.
+
+W08 A``{empty}``B.
+
+W09 A `{sp}` B.
+
+W10 A**{sp}**B.
+
+W11 A__{sp}__B.
+
+W12 A##{sp}##B.
+
+W13 A** **B.
+
+W14 A__ __B.
+
+W15 A## ##B.
+
+W16 A *{sp}* B.
+
+W17 A _{sp}_ B.
+
+W18 A #{sp}# B.
+
+W19 A**{empty}**B.
+
+W20 **A``{sp}``B**.
+
+W21 link:https://example.org/space[A``{sp}``B].
+
+W22 link:https://example.org/only[`` ``].
+
+W23 [.gap#gap]``{sp}`` and xref:gap[Gap].
+
+W24 footnote:[A``{sp}``B.].
+
+.W25 A``{sp}``B
+Paragraph with a title.
+
+{sp}
+
+W26 After a blank expansion.
+
+|===
+|W27 A``{sp}``B.
+|===

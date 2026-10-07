@@ -1,7 +1,7 @@
 #set document(
-  title: "Attribute first code(1)",
+  title: "Inline whitespace(1)",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Attribute first code(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Inline whitespace(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -74,90 +74,71 @@
 #set page(numbering: "1")
 #counter(page).update(1)
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("Attribute first code(1)")]
+#text(size: 22pt, weight: "bold")[#text("Inline whitespace(1)")]
 ]
 #v(1em)
 
 #heading(level: 1)[#text("Name")] <id-5f6e616d65>
 
-#text("attribute-first-code - code formatting after attribute expansion")
+#text("inline-whitespace - preserve spaces inside formatting")
 
 #heading(level: 1)[#text("Description")] <id-5f6465736372697074696f6e>
 
-#text("C01 ``.")
+#text("W01 A")#raw(" ")#text("B.")
 
-#text("C02 `code `.")
+#text("W02 A")#raw(" ")#text("B.")
 
-#text("C03 ` code`.")
+#text("W03 A")#raw(" ")#text("B.")
 
-#text("C04 `code `.")
+#text("W04 A")#raw(" ")#text("B.")
 
-#text("C05 ` code`.")
+#text("W05 A")#raw(" ")#text("B.")
 
-#text("C06 ")#raw("code `; tail")#text(".")
+#text("W06 A")#raw(" ")#text("B.")
 
-#text("C07 ")#raw("")#text(" ")#raw("code ")#text(" ")#raw(" code")#text(".")
+#text("W07 A")#raw(" ")#text("B.")
 
-#text("C08 ")#raw("``")#text(".")
+#text("W08 A")#raw("")#text("B.")
 
-#text("C09 ")#raw("code ")#text(".")
+#text("W09 A ")#raw(" ")#text(" B.")
 
-#raw(block: true, "C10 ``.")
+#text("W10 A")#strong[#text(" ")]#text("B.")
 
-#raw(block: true, "C11 `code `.")
+#text("W11 A")#emph[#text(" ")]#text("B.")
 
-#text("C12 ")#raw("café")#strong[#text("End")]#text(".")
+#text("W12 A")#highlight[#text(" ")]#text("B.")
 
-#text("C13 ")#strong[#text("``")]#text(".")
+#text("W13 A")#strong[#text(" ")]#text("B.")
 
-#text("C14 ")#strong[#raw("café")]#raw("")#text(".")
+#text("W14 A")#emph[#text(" ")]#text("B.")
 
-#text("C15 ")#raw("value")#text(".")
+#text("W15 A")#highlight[#text(" ")]#text("B.")
 
-#text("C16 ")#raw("café `; café")#strong[#text("End")]#text(".")
+#text("W16 A ")#strong[#text(" ")]#text(" B.")
 
-#text("C17 ")#metadata(none)<id-6b657074>#raw("café")#text(".")
+#text("W17 A ")#emph[#text(" ")]#text(" B.")
 
-#text("C18 [.token#literal]``.")
+#text("W18 A ")#highlight[#text(" ")]#text(" B.")
 
-#text("C19 ")#raw("{word}")#text(" and ")#raw("{word}")#text(".")
+#text("W19 A")#strong[]#text("B.")
 
-#text("C20 ")#raw("{word}")#text(".")
+#text("W20 ")#strong[#text("A")#raw(" ")#text("B")]#text(".")
 
-#text("C21 ")#raw("{word}")#text(".")
+#text("W21 ")#link("https://example.org/space")[#text("A")#raw(" ")#text("B")]#text(".")
 
-#text("C22 ")#raw("{word}")#text(".")
+#text("W22 ")#link("https://example.org/only")[#raw(" ")]#text(".")
 
-#text("C23 ")#link("https://example.org")[#raw("café")]#raw("")#text(".")
+#text("W23 ")#metadata(none)<id-676170>#raw(" ")#text(" and ")#context link(query(<id-676170>).first().location())[#text("Gap")]#text(".")
 
-#text("C24 ")#link("https://example.org")[#text("``")]#text(".")
+#text("W24 ")#counter(footnote).update(0)#footnote[#text("A")#raw(" ")#text("B.")]#text(".")
 
-#text("C25 ")#metadata(none)<id-746172676574>#counter(footnote).update(0)#footnote[#text("Only once.")]#raw("Term")#text(".")
+#blocktitle[#text("W25 A")#raw(" ")#text("B")]
+#text("Paragraph with a title.")
 
-#text("C26 `café`.")
 
-#text("C27 ")#raw("{word}")#text(".")
 
-#text("C28 ")#raw("")#text(" ")#raw("code ")#text(" ")#raw(" code")#text(".")
+#text("W26 After a blank expansion.")
 
-#raw(block: true, "C29 ``.")
+#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("W27 A")#raw(" ")#text("B.")
 
-#text("C30 ")#raw(" ")#text(".")
-
-#text("C31 ``.")
-
-#text("C32 ")#raw("first `; tail")#text(".")
-
-#raw(block: true, "C33 ` code`.")
-
-#raw(block: true, "C34 café.")
-
-#text("C35 `code `.")
-
-#text("C36 `café`.")
-
-#text("C37 ")#raw("café ")#text(".")
-
-#text("C38 `")#text("{word}")#text(" `.")
-
-#text("C39 ` ")#strong[#text("bold")]#text("`.")
+])

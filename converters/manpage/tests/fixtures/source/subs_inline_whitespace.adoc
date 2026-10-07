@@ -1,0 +1,51 @@
+= Inline whitespace substitutions(1)
+:doctype: manpage
+:manmanual: Test Manual
+:mansource: acdc
+:revdate: 2026-10-07
+:empty:
+
+== Name
+
+inline-whitespace-substitutions - preserve requested whitespace substitutions
+
+== Description
+
+[subs="attributes,quotes"]
+S01 A``{sp}``B.
+
+[subs="quotes,attributes"]
+S02 A``{sp}``B.
+
+[subs="attributes,quotes"]
+S03 A `{sp}` B.
+
+[subs="quotes,attributes"]
+S04 A `{sp}` B.
+
+[subs="attributes,quotes"]
+S05 A**{sp}**B.
+
+[subs="quotes,attributes"]
+S06 A**{sp}**B.
+
+[subs="-attributes"]
+S07 A``{sp}``B.
+
+[subs="-quotes"]
+S08 A``{sp}``B.
+
+[subs="none"]
+S09 A``{sp}``B.
+
+[source,text,subs="+quotes,+attributes"]
+----
+S10 A``{sp}``B.
+S11 A**{sp}**B.
+----
+
+[literal,subs="+quotes,+attributes"]
+S12 A``{sp}``B.
+
+[subs="quotes,attributes"]
+S13 A``{empty}``B.

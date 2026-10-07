@@ -1,0 +1,64 @@
+'\" t
+.\"     Title: Inline whitespace substitutions
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-07
+.\"    Manual: Test Manual
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "INLINE WHITESPACE SUBSTITUTIONS" "1" "2026-10-07" "acdc" "Test Manual"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+inline\-whitespace\-substitutions \- preserve requested whitespace substitutions
+.SH "DESCRIPTION"
+.sp
+S01 A\f(CR \fRB.
+.sp
+S02 A\f(CR \fRB.
+.sp
+S03 A ` ` B.
+.sp
+S04 A \f(CR \fR B.
+.sp
+S05 A\fB \fRB.
+.sp
+S06 A\fB \fRB.
+.sp
+S07 A\f(CR{sp}\fRB.
+.sp
+S08 A`` ``B.
+.sp
+S09 A``{sp}``B.
+.EX
+S10 A\f(CR \fRB.
+S11 A\fB \fRB.
+.EE
+.sp
+.if n .RS 4
+.nf
+.fam C
+S12 A\f(CR \fRB.
+.fam
+.fi
+.if n .RE
+.sp
+S13 A\f(CR\fRB.

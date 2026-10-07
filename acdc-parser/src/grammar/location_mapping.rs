@@ -88,10 +88,13 @@ impl<'a> LocationMappingContext<'_, 'a> {
         let mut processed_abs_start = base_location.absolute_start + loc.absolute_start;
         let mut processed_abs_end = base_location.absolute_start + loc.absolute_end;
 
-        // A newline already occupies one inclusive source position; extending it
-        // would include the first character of the next line.
+        // Whitespace already occupies its inclusive source position. Extending
+        // it would include a closing delimiter or the next line's first character.
         if loc.absolute_start == loc.absolute_end
-            && processed.text.as_bytes().get(loc.absolute_start) != Some(&b'\n')
+            && !processed
+                .text
+                .get(loc.absolute_start..)
+                .is_some_and(|text| text.starts_with(char::is_whitespace))
         {
             if loc.absolute_start == 0 && base_location.absolute_start < base_location.absolute_end
             {
@@ -828,7 +831,7 @@ fn map_plain_text_inline_locations<'a>(
         }
         return Ok(Some(nodes));
     }
-    if plain.content.chars().count() == 1 {
+    if plain.content.chars().count() == 1 && !plain.content.starts_with(char::is_whitespace) {
         plain.location.end.column = plain.location.start.column;
     }
     Ok(None)

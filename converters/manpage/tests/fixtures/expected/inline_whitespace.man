@@ -1,0 +1,103 @@
+'\" t
+.\"     Title: Inline whitespace
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-07
+.\"    Manual: Test Manual
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "INLINE WHITESPACE" "1" "2026-10-07" "acdc" "Test Manual"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+inline\-whitespace \- preserve spaces inside formatting
+.SH "DESCRIPTION"
+.sp
+W01 A\f(CR \fRB.
+.sp
+W02 A\f(CR \fRB.
+.sp
+W03 A\f(CR \fRB.
+.sp
+W04 A\f(CR \fRB.
+.sp
+W05 A\f(CR
+\fRB.
+.sp
+W06 A\f(CR\ \fRB.
+.sp
+W07 A\f(CR \fRB.
+.sp
+W08 A\f(CR\fRB.
+.sp
+W09 A \f(CR \fR B.
+.sp
+W10 A\fB \fRB.
+.sp
+W11 A\fI \fRB.
+.sp
+W12 A\fB \fRB.
+.sp
+W13 A\fB \fRB.
+.sp
+W14 A\fI \fRB.
+.sp
+W15 A\fB \fRB.
+.sp
+W16 A \fB \fR B.
+.sp
+W17 A \fI \fR B.
+.sp
+W18 A \fB \fR B.
+.sp
+W19 A\fB\fRB.
+.sp
+W20 \fBA\f(CR \fBB\fR\&.
+.sp
+W21 \c
+.URL "https://example.org/space" "A\f(CR \fRB" "\fR\c"
+\&.
+.sp
+W22 \c
+.URL "https://example.org/only" "\f(CR \fR" "\fR\c"
+\&.
+.sp
+W23 \f(CR \fR and Gap\&.
+.sp
+W24 [1]\&.
+.sp
+\fBW25 A\f(CR \fBB\fR
+.br
+Paragraph with a title.
+.sp
+
+.sp
+W26 After a blank expansion.
+.TS
+allbox tab(:);
+ltx.
+T{
+W27 A\f(CR \fRB.
+T}
+.TE
+.SH "NOTES"
+.IP [1] 4
+A\f(CR \fRB.

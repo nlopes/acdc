@@ -65,6 +65,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Whitespace-only content inside inline formatting is preserved, including
+  spaces, tabs, newlines and Unicode spaces produced by attributes. For example,
+  double-backtick code containing `{sp}` now retains its space, matching
+  Asciidoctor, instead of joining the surrounding text. Empty attribute values
+  still produce empty spans, and blank block content keeps its existing behavior.
+
+- Inline-only parsing reports the same conflicting named footnote warnings as
+  full-document parsing, including inside formatting, with original source
+  locations.
+
 - Removing a substitution group now keeps its members disabled during parsing.
   For example, `subs="-normal,attributes+"` expands attributes without enabling
   formatting, links, footnotes or index terms. `-verbatim` keeps code callout

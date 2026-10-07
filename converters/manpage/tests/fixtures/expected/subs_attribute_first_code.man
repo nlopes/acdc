@@ -96,7 +96,7 @@ C28 \f(CR\fR \f(CRcode \fR \f(CR code\fR\&.
 C29 \f(CR``\fR\&.
 .EE
 .sp
-C30 \f(CR\fR\&.
+C30 \f(CR \fR\&.
 .sp
 C31 ``.
 .sp

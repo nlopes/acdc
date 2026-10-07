@@ -574,6 +574,32 @@ fn deferred_typography_keeps_pdf_link_and_anchor_positions() -> Result<(), Error
 }
 
 #[test]
+fn whitespace_only_inline_code_keeps_pdf_advance_width() -> Result<(), Error> {
+    // Ordinary prose whitespace collapses, as in Asciidoctor PDF; NBSPs keep
+    // their individual cells. Empty spans must not stand in for either case.
+    for (content, control) in [
+        (" ", "x"),
+        ("  ", "x"),
+        ("\t", "x"),
+        ("\n", "x"),
+        ("{sp}", "x"),
+        ("{sp}{sp}", "x"),
+        ("{nbsp}", "x"),
+        ("{nbsp}{nbsp}", "xx"),
+    ] {
+        let actual = render_input(&format!("= Spaces\n\nA``{content}``**End**.\n"))?;
+        let expected = render_input(&format!("= Spaces\n\nA``{control}``**End**.\n"))?;
+        let actual = text_origin(&actual, 1, "End")?;
+        let expected = text_origin(&expected, 1, "End")?;
+        assert!(
+            (actual.0 - expected.0).abs() < 0.01 && (actual.1 - expected.1).abs() < 0.01,
+            "{content:?}: {actual:?}, expected monospace cell advance {expected:?}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
 fn constrained_monospace_boundaries_preserve_pdf_positions_and_links() -> Result<(), Error> {
     for content in [
         "café",

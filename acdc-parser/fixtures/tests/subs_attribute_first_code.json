@@ -2589,7 +2589,23 @@
               "type": "inline",
               "variant": "code",
               "form": "unconstrained",
-              "inlines": [],
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": " ",
+                  "location": [
+                    {
+                      "line": 110,
+                      "col": 7
+                    },
+                    {
+                      "line": 110,
+                      "col": 10
+                    }
+                  ]
+                }
+              ],
               "location": [
                 {
                   "line": 110,

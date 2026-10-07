@@ -1,7 +1,7 @@
 use std::{borrow::Cow, ops::Range, rc::Rc};
 
 use crate::{
-    Error, InlineNode, InlinePreprocessorParserState, Location, Plain, Position, ProcessedContent,
+    Error, InlineNode, InlinePreprocessorParserState, Location, Position, ProcessedContent,
     SourceLocation,
     grammar::{
         inline_preprocessor::{ProcessedKind, SourceMap},
@@ -500,9 +500,11 @@ fn process_inline_content<'a>(
         block_metadata.substitutions,
     )?;
     let source = processed_text_as_outer(&processed, state);
-    // After preprocessing, attribute substitution may result in empty content
-    // (e.g., {empty} -> ""). In this case, return empty vec without parsing.
-    if processed.text.is_empty() || (!verbatim && processed.text.trim().is_empty()) {
+    // Empty expansions have no nodes. Whitespace can be dropped for a block,
+    // but remains content inside formatting, including spaces from attributes.
+    if processed.text.is_empty()
+        || (!verbatim && state.scope == ParserScope::Document && processed.text.trim().is_empty())
+    {
         return Ok((Vec::new(), source));
     }
     let content = parse_processed_inlines(
@@ -550,19 +552,6 @@ pub(crate) fn process_inlines_no_autolinks<'a>(
     )?;
     if processed.text.is_empty() {
         return Ok(Vec::new());
-    }
-    if processed.text.trim().is_empty() {
-        // Whitespace-only text inside a link-style macro (`link:`, URL,
-        // `mailto:`, `xref:`) must render literally — asciidoctor preserves
-        // `link:https://example.com[ ]` as `<a href="..."> </a>` instead of
-        // falling back to the target. Emit one `PlainText` carrying the
-        // substituted whitespace and skip the inline parser entirely.
-        let text = processed_text_as_outer(&processed, state);
-        return Ok(vec![InlineNode::PlainText(Plain {
-            content: text,
-            location,
-            escaped: false,
-        })]);
     }
     let source = processed_text_as_outer(&processed, state);
     let content = parse_processed_inlines(

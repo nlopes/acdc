@@ -553,6 +553,7 @@ pub fn parse_inline(input: &str, options: &Options<'_>) -> Result<ParseInlineRes
 
     ParseInlineResult::try_new(owner, warnings_handle, move |owner| {
         let mut state = grammar::ParserState::new(&owner.source, &owner.arena);
+        state.scope = grammar::ParserScope::Inline;
         state.document_attributes = Rc::new(options_owned.document_attributes.clone());
         state.options = Rc::new(options_owned);
         state.initialize_hardbreaks();
@@ -569,6 +570,16 @@ pub fn parse_inline(input: &str, options: &Options<'_>) -> Result<ParseInlineRes
                     &owner.source,
                     &state.line_map,
                 );
+                // Nested parsing uses inline scope to retain whitespace. Finalize
+                // diagnostics only once all locations refer to the original input.
+                state.scope = grammar::ParserScope::Document;
+                for inline in &mut inlines {
+                    grammar::walk_inline_nodes_mut(inline, &mut |node| {
+                        if let InlineNode::Macro(InlineMacro::Footnote(note)) = node {
+                            state.finalize_footnote(note);
+                        }
+                    });
+                }
                 Ok(inlines)
             }
             Err(error) => {

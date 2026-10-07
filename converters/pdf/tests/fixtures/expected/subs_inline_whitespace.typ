@@ -1,7 +1,7 @@
 #set document(
-  title: "Attribute first code(1)",
+  title: "Inline whitespace substitutions(1)",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Attribute first code(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Inline whitespace substitutions(1)]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -74,90 +74,73 @@
 #set page(numbering: "1")
 #counter(page).update(1)
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("Attribute first code(1)")]
+#text(size: 22pt, weight: "bold")[#text("Inline whitespace substitutions(1)")]
 ]
 #v(1em)
 
 #heading(level: 1)[#text("Name")] <id-5f6e616d65>
 
-#text("attribute-first-code - code formatting after attribute expansion")
+#text("inline-whitespace-substitutions - preserve requested whitespace substitutions")
 
 #heading(level: 1)[#text("Description")] <id-5f6465736372697074696f6e>
 
-#text("C01 ``.")
+#text("S01 A")#raw(" ")#text("B.")
 
-#text("C02 `code `.")
+#text("S02 A")#raw(" ")#text("B.")
 
-#text("C03 ` code`.")
+#text("S03 A ` ` B.")
 
-#text("C04 `code `.")
+#text("S04 A ")#raw(" ")#text(" B.")
 
-#text("C05 ` code`.")
+#text("S05 A")#strong[#text(" ")]#text("B.")
 
-#text("C06 ")#raw("code `; tail")#text(".")
+#text("S06 A")#strong[#text(" ")]#text("B.")
 
-#text("C07 ")#raw("")#text(" ")#raw("code ")#text(" ")#raw(" code")#text(".")
+#text("S07 A")#raw("{sp}")#text("B.")
 
-#text("C08 ")#raw("``")#text(".")
+#text("S08 A`` ``B.")
 
-#text("C09 ")#raw("code ")#text(".")
+#text("S09 A``{sp}``B.")
 
-#raw(block: true, "C10 ``.")
+#{
+  // Slice highlighted text without discarding its syntax styles.
+  let code-slice(body, start, end) = {
+    if body.has("text") {
+      let size = body.text.len()
+      (text(body.text.slice(calc.min(start, size), calc.min(end, size))), size)
+    } else if body.has("children") {
+      let offset = 0
+      let parts = []
+      for child in body.children {
+        let (part, size) = code-slice(child, calc.max(0, start - offset), calc.max(0, end - offset))
+        parts += part
+        offset += size
+      }
+      (parts, offset)
+    } else if body.has("child") {
+      let (child, size) = code-slice(body.child, start, end)
+      (body.func()(child, body.styles), size)
+    } else {
+      ([], 0)
+    }
+  }
+  let links = (
+    (),
+    ((5, 6, body => [#strong[#body]]), ),
+  )
+  let code-links(line) = {
+    let start = 0
+    let body = []
+    for (from, to, make-link) in links.at(line.number - 1, default: ()) {
+      body += code-slice(line.body, start, from).first()
+      body += make-link(code-slice(line.body, from, to).first())
+      start = to
+    }
+    body + code-slice(line.body, start, line.text.len()).first()
+  }
+  show raw.line: line => code-links(line)
+  raw(block: true, "S10 A B.\nS11 A B.")
+}
+#raw(block: true, "S12 A B.")
 
-#raw(block: true, "C11 `code `.")
-
-#text("C12 ")#raw("café")#strong[#text("End")]#text(".")
-
-#text("C13 ")#strong[#text("``")]#text(".")
-
-#text("C14 ")#strong[#raw("café")]#raw("")#text(".")
-
-#text("C15 ")#raw("value")#text(".")
-
-#text("C16 ")#raw("café `; café")#strong[#text("End")]#text(".")
-
-#text("C17 ")#metadata(none)<id-6b657074>#raw("café")#text(".")
-
-#text("C18 [.token#literal]``.")
-
-#text("C19 ")#raw("{word}")#text(" and ")#raw("{word}")#text(".")
-
-#text("C20 ")#raw("{word}")#text(".")
-
-#text("C21 ")#raw("{word}")#text(".")
-
-#text("C22 ")#raw("{word}")#text(".")
-
-#text("C23 ")#link("https://example.org")[#raw("café")]#raw("")#text(".")
-
-#text("C24 ")#link("https://example.org")[#text("``")]#text(".")
-
-#text("C25 ")#metadata(none)<id-746172676574>#counter(footnote).update(0)#footnote[#text("Only once.")]#raw("Term")#text(".")
-
-#text("C26 `café`.")
-
-#text("C27 ")#raw("{word}")#text(".")
-
-#text("C28 ")#raw("")#text(" ")#raw("code ")#text(" ")#raw(" code")#text(".")
-
-#raw(block: true, "C29 ``.")
-
-#text("C30 ")#raw(" ")#text(".")
-
-#text("C31 ``.")
-
-#text("C32 ")#raw("first `; tail")#text(".")
-
-#raw(block: true, "C33 ` code`.")
-
-#raw(block: true, "C34 café.")
-
-#text("C35 `code `.")
-
-#text("C36 `café`.")
-
-#text("C37 ")#raw("café ")#text(".")
-
-#text("C38 `")#text("{word}")#text(" `.")
-
-#text("C39 ` ")#strong[#text("bold")]#text("`.")
+#text("S13 A")#raw("")#text("B.")

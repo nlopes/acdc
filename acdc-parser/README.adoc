@@ -270,6 +270,13 @@ nonbreaking and em spaces remain valid with single markers, matching Asciidoctor
 These are inline grammar rules, independent of the output backend and SDR-5's
 separation of parsing and conversion.
 
+Whitespace-only content is retained inside a valid formatted span. For example,
+`+A``{sp}``B+` produces a code span containing one space, so the surrounding
+letters remain separated. Doubled markers also preserve literal spaces, tabs,
+and newlines in the parsed content, matching Asciidoctor. Empty attribute
+expansions still produce empty spans; converters apply their normal whitespace
+layout rules to nonempty spans.
+
 The existing substitution order still applies: `+*bold{sp}*+` is valid when
 quotes run before the attribute expands to a space, as in ordinary prose.
 With `subs="attributes,quotes"`, the space exists first and the single formatting
