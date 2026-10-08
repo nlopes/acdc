@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-08
+
 ### Breaking changes
 
 - The minimum supported Rust version is now 1.88, up from 1.85.
@@ -641,7 +643,8 @@ Initial release of acdc-parser, a PEG-based AsciiDoc parser with source location
 [#349]: https://github.com/nlopes/acdc/issues/349
 [#357]: https://github.com/nlopes/acdc/issues/357
 
-[Unreleased]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.9.0...HEAD
+[Unreleased]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.10.0...HEAD
+[0.10.0]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.9.0...acdc-parser-v0.10.0
 [0.9.0]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.8.0...acdc-parser-v0.9.0
 [0.8.0]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.7.0...acdc-parser-v0.8.0
 [0.7.0]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.6.0...acdc-parser-v0.7.0
