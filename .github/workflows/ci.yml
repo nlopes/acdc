@@ -26,6 +26,7 @@ jobs:
         with:
           filters: |
             parser:
+              - '.github/workflows/ci.yml'
               - 'acdc-parser/**'
               - 'Cargo.toml'
               - 'Cargo.lock'
@@ -90,6 +91,19 @@ jobs:
         run: rustup target add wasm32-unknown-unknown
       - name: Run clippy (WASM editor)
         run: cargo clippy -p acdc-editor-wasm --target wasm32-unknown-unknown --all-features -- --deny clippy::pedantic
+
+  check-parser-msrv:
+    needs: changes
+    if: needs.changes.outputs.parser == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@1.88.0
+      - uses: Swatinem/rust-cache@v2
+      - name: Check parser on minimum supported Rust
+        run: cargo check -p acdc-parser --lib --all-features --locked
+      - name: Check parser without default features on minimum supported Rust
+        run: cargo check -p acdc-parser --lib --no-default-features --locked
 
   test-parser:
     needs: changes

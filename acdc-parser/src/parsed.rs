@@ -104,13 +104,10 @@ self_cell::self_cell! {
     impl {Debug}
 }
 
-/// Successful document parse output: the AST plus the buffers it borrows
-/// from, plus any non-fatal warnings the parser collected.
+/// Owns a parsed document, its backing text, and non-fatal warnings.
 ///
-/// Modelled on chumsky's `ParseResult`: the presence of the output and the
-/// presence of warnings are orthogonal, so both are returned side-by-side
-/// rather than encoded into `Result`. `#[must_use]` so warnings don't get
-/// silently dropped.
+/// A successful parse can contain recovered content. Check [`Self::source_recovery`]
+/// when the application requires complete input, and [`Self::warnings`] for all diagnostics.
 #[derive(Debug)]
 #[must_use = "ignoring a ParseResult drops any warnings the parser produced"]
 pub struct ParseResult {
@@ -195,12 +192,9 @@ impl ParseResult {
         self.source_recovery.as_deref()
     }
 
-    /// Take the warnings out of this result, leaving an empty warnings
-    /// slice behind. Useful when the caller wants to route warnings
-    /// independently of the AST (e.g. attach them to an LSP diagnostic
-    /// stream while keeping the document for further borrowing). The
-    /// `ParseResult` keeps its AST intact — only `warnings()` becomes
-    /// empty.
+    /// Take the warnings, leaving [`Self::warnings`] empty.
+    ///
+    /// The document and [`Self::source_recovery`] remain available.
     pub fn take_warnings(&mut self) -> Vec<Warning> {
         std::mem::take(&mut self.warnings)
     }

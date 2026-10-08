@@ -36,7 +36,7 @@ fn secure_mode_preserves_local_and_uri_includes_without_reading_them()
         };
 
         assert_eq!(link.target.to_string(), expected_target);
-        assert!(link.text.is_empty());
+        assert_eq!(link.text, []);
         assert_eq!(link.attributes.iter().count(), 1);
         assert_eq!(
             link.attributes.get_string("role").as_deref(),

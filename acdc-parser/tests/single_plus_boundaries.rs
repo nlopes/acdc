@@ -111,7 +111,7 @@ fn single_plus_invalid_candidates_keep_references_and_later_openers_visible() ->
                 assert_eq!(content, expected_raw, "{source:?}");
                 assert_source_span(parsed.source(), location, expected_raw)?;
             }
-            assert!(parsed.document().footnotes.is_empty());
+            assert_eq!(parsed.document().footnotes, []);
             assert!(parsed.document().references.is_empty());
         }
     }
@@ -392,7 +392,7 @@ fn single_plus_protected_macros_do_not_register_catalog_entries() -> Result<(), 
     collect_text(&paragraph.content, &mut text, &mut protected)?;
     assert_eq!(text, format!("α `{content}`B."));
     assert_eq!(protected.len(), 1);
-    assert!(parsed.document().footnotes.is_empty());
+    assert_eq!(parsed.document().footnotes, []);
     assert!(parsed.document().references.is_empty());
     Ok(())
 }

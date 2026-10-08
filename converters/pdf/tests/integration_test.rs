@@ -639,7 +639,7 @@ fn disabled_passthrough_attributes_do_not_create_pdf_links() -> Result<(), Error
     let text = pdf.extract_text(&[1])?.replace('\n', "");
     assert!(text.contains("+https://example.org[café]+"), "{text}");
     assert!(text.contains("pass:[https://example.org[café]]"), "{text}");
-    assert!(external_link_rects(&pdf, 1)?.is_empty());
+    assert_eq!(external_link_rects(&pdf, 1)?, []);
     Ok(())
 }
 
@@ -755,7 +755,7 @@ fn inline_verbatim_links_preserve_local_reference_navigation() -> Result<(), Err
             "= Links\n\n`xref:target[Named]` and `<<target>>` and `xref:#[Top]`.\n\nSee <<target>>.\n\n<<<\n\n[[target]]\n== {title}\n"
         ))?;
         assert_eq!(internal_link_pages(&pdf, 1)?, expected_pages);
-        assert!(external_link_rects(&pdf, 1)?.is_empty());
+        assert_eq!(external_link_rects(&pdf, 1)?, []);
         assert!(pdf.extract_text(&[1])?.contains("Target"));
         if title.contains("https") {
             assert!(
@@ -876,7 +876,7 @@ fn inline_verbatim_links_keep_glyph_positions_and_disjoint_rectangles() -> Resul
                 "{context} {linked}: {actual:?}, expected {expected:?}"
             );
             let rectangles = external_link_rects(&marked, 1)?;
-            assert!(!rectangles.is_empty());
+            assert_ne!(rectangles, []);
             if linked.contains("wrapped")
                 || (linked.contains("longword") && context.contains("cols"))
             {
@@ -2300,9 +2300,9 @@ fn verbatim_link_ids_and_wrapped_links_compile() -> Result<(), Error> {
     let pdf = render_input(include_str!(
         "fixtures/source/subs_verbatim_link_labels.adoc"
     ))?;
-    assert!(
-        !pdf.get_page_annotations(*pdf.get_pages().get(&1).ok_or("missing page")?)?
-            .is_empty()
+    assert_ne!(
+        pdf.get_page_annotations(*pdf.get_pages().get(&1).ok_or("missing page")?)?,
+        [] as [&lopdf::Dictionary; 0]
     );
     let parsed = parse(
         include_str!("fixtures/source/subs_verbatim_links_highlighting.adoc"),

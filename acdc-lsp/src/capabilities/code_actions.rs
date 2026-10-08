@@ -373,7 +373,7 @@ mod tests {
         };
 
         let actions = quickfix_actions(&doc, &uri, &ctx);
-        assert!(actions.is_empty());
+        assert_eq!(actions, []);
         Ok(())
     }
 
@@ -622,7 +622,7 @@ mod tests {
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
         let actions = toc_actions(&doc, &uri);
-        assert!(actions.is_empty());
+        assert_eq!(actions, []);
         Ok(())
     }
 
@@ -635,7 +635,7 @@ mod tests {
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
         let actions = toc_actions(&doc, &uri);
-        assert!(actions.is_empty());
+        assert_eq!(actions, []);
         Ok(())
     }
 

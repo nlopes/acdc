@@ -1173,7 +1173,7 @@ fn unhandled_blocks_emit_a_structured_warning_with_source_context() -> Result<()
         visitor.visit_unhandled_block(&mut traversal, block)?;
     }
 
-    assert!(output.is_empty());
+    assert_eq!(output, [] as [u8; 0]);
     let warning = warnings.first().ok_or("missing fallback warning")?;
     assert!(
         warning.message.contains("unknown parser block feature"),

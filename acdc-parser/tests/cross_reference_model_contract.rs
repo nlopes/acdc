@@ -115,7 +115,7 @@ fn unused_block_metadata_does_not_register_references_or_footnotes() -> Result<(
         include_str!("../fixtures/tests/block_metadata_eof_contexts.adoc"),
     ] {
         let parsed = parse(source, &Options::default())?;
-        assert!(parsed.document().footnotes.is_empty());
+        assert_eq!(parsed.document().footnotes, []);
         assert!(
             parsed
                 .document()

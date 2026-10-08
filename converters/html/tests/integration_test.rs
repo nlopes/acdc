@@ -68,7 +68,7 @@ fn highlighted_callouts_preserve_plain_code_text_and_targets(
             variant,
         )?;
         let plain_text = rendered_code_texts(&plain)?;
-        assert!(!plain_text.is_empty());
+        assert_ne!(plain_text, [] as [String; 0]);
         for mut settings in [
             vec![],
             vec![("highlight-css", AttributeValue::String("class".into()))],

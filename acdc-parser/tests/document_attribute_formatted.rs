@@ -62,7 +62,7 @@ fn formatted_attributes_do_not_register_unused_definitions() -> Result<(), Error
         "= T\n:unused: pass:m[footnote:[Unused.] ((Unused)) anchor:unused[]]\n\nBody.\n",
         &Options::default(),
     )?;
-    assert!(parsed.document().footnotes.is_empty());
+    assert_eq!(parsed.document().footnotes, []);
     assert!(!parsed.document().references.contains_key("unused"));
     Ok(())
 }
@@ -117,7 +117,7 @@ fn formatted_attributes_register_footnotes_in_source_order() -> Result<(), Error
 #[test]
 fn formatted_attributes_warn_only_on_used_conflicting_named_bodies() -> Result<(), Error> {
     let source = "= T\n:first: pass:m[footnote:n[First.]]\n:second: pass:m[footnote:n[Different.]]\n\n{first}\n";
-    assert!(parse(source, &Options::default())?.warnings().is_empty());
+    assert_eq!(parse(source, &Options::default())?.warnings(), []);
     let source = format!("{source}\n{{second}}\n");
     let parsed = parse(&source, &Options::default())?;
     assert_eq!(parsed.document().footnotes.len(), 1);
@@ -136,7 +136,7 @@ fn formatted_attributes_obey_locked_and_soft_caller_values() -> Result<(), Error
         Options::builder().with_attribute("value", false).build()?,
     ] {
         let parsed = parse(source, &options)?;
-        assert!(parsed.document().footnotes.is_empty());
+        assert_eq!(parsed.document().footnotes, []);
     }
     let soft = Options::builder()
         .with_default_attribute("value", "Caller")

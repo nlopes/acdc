@@ -557,7 +557,7 @@ mod tests {
     fn test_extract_includes_no_includes() {
         let text = "= Document\n\nJust regular text.\n";
         let includes = extract_includes(text);
-        assert!(includes.is_empty());
+        assert_eq!(includes, []);
     }
 
     #[test]

@@ -106,7 +106,7 @@ fn utf16_bom_and_explicit_endian_labels_decode_to_utf8() -> TestResult {
         let result = parse_include(&directory, attributes)?;
 
         assert_eq!(paragraph_texts(&result)?, ["BEFORE", "Café", "AFTER"]);
-        assert!(result.warnings().is_empty());
+        assert_eq!(result.warnings(), []);
     }
     Ok(())
 }
@@ -120,7 +120,7 @@ fn representative_single_byte_encodings_and_aliases_decode_to_utf8() -> TestResu
         let result = parse_include(&directory, &format!("encoding={encoding}"))?;
 
         assert_eq!(paragraph_texts(&result)?, ["BEFORE", "Café €", "AFTER"]);
-        assert!(result.warnings().is_empty());
+        assert_eq!(result.warnings(), []);
     }
     Ok(())
 }
@@ -133,7 +133,7 @@ fn unknown_encoding_label_is_ignored_before_utf8_fallback() -> TestResult {
     let result = parse_include(&directory, "encoding=not-a-ruby-encoding")?;
 
     assert_eq!(paragraph_texts(&result)?, ["BEFORE", "Café", "AFTER"]);
-    assert!(result.warnings().is_empty());
+    assert_eq!(result.warnings(), []);
     Ok(())
 }
 
@@ -188,7 +188,7 @@ fn selection_runs_after_decoding_the_complete_utf16_target() -> TestResult {
     let result = parse_include(&directory, "tag=pick")?;
 
     assert_eq!(paragraph_texts(&result)?, ["BEFORE", "PICKED", "AFTER"]);
-    assert!(result.warnings().is_empty());
+    assert_eq!(result.warnings(), []);
     Ok(())
 }
 

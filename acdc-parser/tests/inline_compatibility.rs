@@ -28,7 +28,7 @@ fn index_registration_boundaries_survive_later_substitutions() -> Result<(), Err
                         "= Boundaries\n:close: ))\n:bracket: ]\n:empty:\n\n{block}\n{index}"
                     );
                     let parsed = parse(&source, &Options::default())?;
-                    assert!(!parsed.document().blocks.is_empty());
+                    assert_ne!(parsed.document().blocks, []);
                 }
             }
         }

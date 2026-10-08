@@ -41,7 +41,7 @@ fn verse_inline_locations_and_catalogs_follow_the_source(
     let [note] = parsed.document().footnotes.as_slice() else {
         return Err("expected one reused footnote".into());
     };
-    assert!(!note.content.is_empty());
+    assert_ne!(note.content, []);
     assert_eq!(note.number, 1);
     Ok(())
 }

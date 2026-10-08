@@ -24,13 +24,12 @@ fn split_escaped(line: &str, separator: char) -> Vec<CellPart> {
     while let Some((byte_idx, ch)) = chars.next() {
         if ch == '\\' {
             // Check if next char is the separator
-            if let Some(&(_, next_ch)) = chars.peek() {
-                if next_ch == separator {
-                    // Escaped separator - add literal separator, skip the backslash
-                    current_content.push(separator);
-                    chars.next(); // consume the separator
-                    continue;
-                }
+            if let Some(&(_, next_ch)) = chars.peek()
+                && next_ch == separator
+            {
+                current_content.push(separator);
+                chars.next();
+                continue;
             }
             // Not an escape - add backslash literally
             current_content.push(ch);
@@ -982,10 +981,10 @@ impl Table<'_> {
         if lines.len() >= 2 {
             // Find where first CSV record ends - look for first complete record
             // A simple heuristic: if line 1 (0-indexed) is empty, we have a header
-            if let Some(&line) = lines.get(1) {
-                if line.trim().is_empty() {
-                    *has_header = true;
-                }
+            if let Some(&line) = lines.get(1)
+                && line.trim().is_empty()
+            {
+                *has_header = true;
             }
         }
 

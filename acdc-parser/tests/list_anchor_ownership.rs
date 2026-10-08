@@ -34,7 +34,7 @@ fn standalone_anchor_interrupts_an_ordinary_paragraph() -> Result<(), Error> {
     else {
         return Err("expected two paragraphs".into());
     };
-    assert!(before.metadata.anchors.is_empty());
+    assert_eq!(before.metadata.anchors, []);
     assert_eq!(
         after.metadata.anchors.first().ok_or("missing anchor")?.id,
         "target"
@@ -78,7 +78,7 @@ fn description_list_metadata_belongs_to_the_following_list() -> Result<(), Error
             else {
                 return Err(format!("expected separate description lists for {source:?}").into());
             };
-            assert!(first.metadata.anchors.is_empty());
+            assert_eq!(first.metadata.anchors, []);
             assert_eq!(
                 next.metadata.anchors.first().ok_or("missing anchor")?.id,
                 "target"

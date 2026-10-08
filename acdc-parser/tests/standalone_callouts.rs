@@ -142,6 +142,6 @@ fn standalone_callout_probes_do_not_register_paragraph_notes_twice() -> Result<(
         [Block::Paragraph(_)]
     ));
     assert_eq!(parsed.document().footnotes.len(), 1);
-    assert!(parsed.warnings().is_empty());
+    assert_eq!(parsed.warnings(), []);
     Ok(())
 }

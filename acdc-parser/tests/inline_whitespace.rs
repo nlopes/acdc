@@ -120,7 +120,7 @@ fn blank_block_expansions_keep_their_existing_empty_content() -> Result<(), Erro
             return Err("expected the blank paragraph and its following sibling".into());
         };
         assert!(blank.content.is_empty(), "{source}");
-        assert!(!after.content.is_empty());
+        assert_ne!(after.content, []);
     }
     Ok(())
 }

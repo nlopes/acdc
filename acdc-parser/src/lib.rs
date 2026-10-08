@@ -1,18 +1,16 @@
 //! `AsciiDoc` parser.
 //!
-//! This module provides a parser for the `AsciiDoc` markup language. The parser is
-//! implemented using the `peg` parser generator.
+//! Parse strings, files, readers, or inline fragments into an abstract syntax tree
+//! with source locations and recoverable warnings.
 //!
-//! # Quick Start
+//! # Quick start
 //!
-//! The parser is implemented as a struct that implements the `Parser` trait. The
-//! trait provides two methods for parsing `AsciiDoc` content:
-//!
-//! - `parse`: parses a string containing `AsciiDoc` content.
-//! - `parse_file`: parses the content of a file containing `AsciiDoc` content.
+//! Use [`parse`], [`parse_file`], [`parse_from_reader`], or [`parse_inline`].
+//! [`Parser`] provides a builder-style alternative. [`ParseResult`] owns the AST
+//! and its backing text; keep the result alive while borrowing [`ParseResult::document`].
 //!
 //! ```rust
-//! use acdc_parser::{Document, parse};
+//! use acdc_parser::{Options, parse};
 //!
 //! let content = r#"= Document Title
 //!
@@ -22,20 +20,28 @@
 //!
 //! This is a subsection."#;
 //!
-//! let options = acdc_parser::Options::default();
-//! let document = parse(content, &options).unwrap();
+//! let parsed = parse(content, &Options::default())?;
+//! let document = parsed.document();
+//! assert!(!document.blocks.is_empty());
 //!
-//! println!("{:?}", document);
+//! for warning in parsed.warnings() {
+//!     eprintln!("{warning}");
+//! }
+//! # Ok::<(), acdc_parser::Error>(())
 //! ```
 //!
-//! # Features
+//! # Cargo features
 //!
-//! - Full support for `AsciiDoc` syntax, including blocks, inline elements, attributes, and more.
-//! - Configurable options for parsing behaviour, including safe mode and timing. Just
-//!   like `asciidoctor`, you can choose to enable or disable certain features based on your
-//!   needs.
-//! - Detailed error reporting with source location information.
-//! - Support for parsing from strings, files, and readers.
+//! - `pre-spec-subs` (default): experimental block `subs=` settings and their AST types.
+//!   Without it, explicit settings report source recovery and use block defaults.
+//! - `setext` (off by default): legacy underlined headings, enabled through
+//!   `OptionsBuilder::with_setext()` when the feature is compiled.
+//! - `network` (off by default): HTTP(S) includes, subject to safe mode and caller permission.
+//!
+//! The parser uses the draft `AsciiDoc` specification and Asciidoctor as references;
+//! it does not claim complete conformance. A successful parse may contain recovered
+//! content. Check [`ParseResult::source_recovery`] when an application requires
+//! complete input, and [`ParseResult::warnings`] for all collected diagnostics.
 //!
 //! # Checklist markers
 //!
@@ -45,8 +51,10 @@
 //!
 //! # Local include confinement
 //!
-//! For file input, [`SafeMode::Safe`] and [`SafeMode::Server`] use the entry
-//! document's directory as the local include boundary. Given an entry document at
+//! [`SafeMode::Safe`] and [`SafeMode::Server`] use the effective include base as
+//! their local boundary. Set it through [`OptionsBuilder::with_base_dir`]; file
+//! input otherwise uses the entry file's directory, and string or reader input
+//! uses the current directory. Given an entry document at
 //! `/workspace/docs/main.adoc`:
 //!
 //! - `../shared.adoc` becomes `/workspace/docs/shared.adoc` and emits a warning;
@@ -172,15 +180,13 @@ pub use warning::{Warning, WarningKind};
 /// # Ok::<(), acdc_parser::Error>(())
 /// ```
 ///
-/// For file-based parsing, read the file first:
+/// For a file, use [`parse_file`] to retain its path for includes and diagnostics:
 ///
 /// ```no_run
-/// use acdc_parser::Parser;
-/// use std::fs;
+/// use acdc_parser::{Options, parse_file};
 ///
-/// let content = fs::read_to_string("document.adoc")?;
-/// let doc = Parser::new(&content).parse()?;
-/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// let parsed = parse_file("document.adoc", &Options::default())?;
+/// # Ok::<(), acdc_parser::Error>(())
 /// ```
 #[derive(Debug)]
 pub struct Parser<'input> {
@@ -281,18 +287,20 @@ impl<'input> Parser<'input> {
 ///
 /// ```
 /// use acdc_parser::{Options, SafeMode, parse_from_reader};
-/// use std::fs::File;
+/// use std::io::Cursor;
 ///
 /// let options = Options::builder()
 ///     .with_safe_mode(SafeMode::Unsafe)
 ///     .build()?;
-/// let file = File::open("fixtures/samples/README.adoc").unwrap();
-/// let document = parse_from_reader(file, &options)?;
+/// let reader = Cursor::new("= Example\n\nContent.\n");
+/// let parsed = parse_from_reader(reader, &options)?;
+/// assert!(!parsed.document().blocks.is_empty());
 /// # Ok::<(), acdc_parser::Error>(())
 /// ```
 ///
 /// # Errors
-/// This function returns an error if the content cannot be parsed.
+/// Returns an error if the reader fails, input decoding or preprocessing fails,
+/// or the document cannot be parsed. Recoverable problems appear in the result's warnings.
 #[instrument(skip(reader))]
 pub fn parse_from_reader<R: std::io::Read>(
     reader: R,
@@ -344,7 +352,8 @@ pub fn parse_from_reader<R: std::io::Read>(
 /// ```
 ///
 /// # Errors
-/// This function returns an error if the content cannot be parsed.
+/// Returns an error if preprocessing fails or the document cannot be parsed.
+/// Recoverable problems appear in the result's warnings.
 #[instrument]
 pub fn parse(input: &str, options: &Options<'_>) -> Result<ParseResult, Error> {
     let mut options = options
@@ -379,20 +388,21 @@ pub fn parse(input: &str, options: &Options<'_>) -> Result<ParseResult, Error> {
 ///
 /// # Example
 ///
-/// ```
+/// ```no_run
 /// use std::path::Path;
 /// use acdc_parser::{Options, SafeMode, parse_file};
 ///
 /// let options = Options::builder()
 ///     .with_safe_mode(SafeMode::Unsafe)
 ///     .build()?;
-/// let file_path = Path::new("fixtures/samples/README.adoc");
+/// let file_path = Path::new("document.adoc");
 /// let document = parse_file(file_path, &options)?;
 /// # Ok::<(), acdc_parser::Error>(())
 /// ```
 ///
 /// # Errors
-/// This function returns an error if the content cannot be parsed.
+/// Returns an error if the file cannot be read or decoded, preprocessing fails,
+/// or the document cannot be parsed. Recoverable problems appear in the result's warnings.
 #[instrument(skip(file_path))]
 pub fn parse_file<P: AsRef<Path>>(
     file_path: P,
@@ -623,7 +633,7 @@ mod tests {
             "fixtures/tests/table_comment_directives.adoc",
             &Options::default(),
         )?;
-        assert!(parsed.document().footnotes.is_empty());
+        assert_eq!(parsed.document().footnotes, []);
         assert!(!parsed.document().references.contains_key("hidden-table"));
         assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
         Ok(())
@@ -653,7 +663,7 @@ mod tests {
                 "comment assigned {name}"
             );
         }
-        assert!(doc.footnotes.is_empty());
+        assert_eq!(doc.footnotes, []);
         assert!(!doc.references.contains_key("hidden"));
         assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
         Ok(())
@@ -851,10 +861,10 @@ mod tests {
         };
 
         assert_eq!(with_content.text, Some("raw"));
-        assert!(with_content.substitutions.is_empty());
+        assert_eq!(with_content.substitutions, []);
         assert_eq!(separator.content, " ");
         assert_eq!(empty.text, Some(""));
-        assert!(empty.substitutions.is_empty());
+        assert_eq!(empty.substitutions, []);
     }
 
     #[test]
@@ -1720,11 +1730,8 @@ mod tests {
             );
         }
 
-        /// `[subs="…"]` should always surface a warning. When the
-        /// `pre-spec-subs` feature is on, the warning says the attribute is
-        /// experimental. When off, the warning says the attribute is being
-        /// silently dropped because this build follows the draft spec. Both
-        /// signals make sure users notice the spec-related shift.
+        /// Explicit `subs` settings warn in both feature modes: experimental
+        /// behavior when enabled, or ignored settings when disabled.
         #[test]
         fn subs_attribute_always_surfaces_a_warning() {
             let input = "[subs=\"-quotes\"]\nContent\n";

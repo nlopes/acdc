@@ -1,12 +1,105 @@
 # acdc-parser
 
-Fast AsciiDoc parser written in Rust. Parses AsciiDoc source into a structured AST that mirrors the draft AsciiDoc Language specification's Abstract Semantic Graph (ASG), using a PEG grammar with a preprocessor stage for includes, conditionals, and attribute substitution.
+AsciiDoc parser written in Rust. It parses source into an abstract syntax tree
+(AST), collects warnings, and can serialize the result as JSON based on the draft
+AsciiDoc Abstract Semantic Graph (ASG). Includes, conditionals, and document
+attributes are processed before block and inline parsing.
 
 The implementation here follows from:
 
 * [Language Lexicon](https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/modules/ROOT/pages/lexicon.adoc): nomenclature of elements
 * [Language Outline](https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/outline.adoc): behaviour/layout
 * [Asciidoctor Language Documentation](https://docs.asciidoctor.org/asciidoc/latest): behaviour/layout
+
+These are compatibility references, not a claim of complete conformance.
+
+Requires Rust 1.88 or later.
+
+## Quick start
+
+```rust
+use acdc_parser::{Options, parse};
+
+let parsed = parse("= Example\n\nHello, *world*.\n", &Options::default())?;
+let document = parsed.document();
+assert!(!document.blocks.is_empty());
+
+for warning in parsed.warnings() {
+    eprintln!("{warning}");
+}
+# Ok::<(), acdc_parser::Error>(())
+```
+
+Use `parse_file` for a file, `parse_from_reader` for a reader, or `parse_inline`
+for inline content. `ParseResult` owns the parsed document and its backing text;
+keep it alive while reading `document()`. A successful parse can contain warnings
+and recovered content. See [Source text and diagnostics](#source-text-and-diagnostics).
+
+## Cargo features
+
+| Feature | Default | Effect |
+| --- | --- | --- |
+| `pre-spec-subs` | On | Supports experimental block `subs=` settings and their AST types. |
+| `setext` | Off | Compiles support for legacy underlined headings; enable it with `OptionsBuilder::with_setext()`. |
+| `network` | Off | Compiles HTTP(S) include support; caller permission and safe mode still apply. |
+
+With `pre-spec-subs` disabled, explicit `subs=` settings are ignored with a
+source-recovery warning. Inline attribute substitution remains available.
+
+## Migrating from 0.9
+
+Attribute configuration now validates inputs and returns `Result`. Pass an
+iterator instead of building a mutable `DocumentAttributes` map:
+
+```rust
+use acdc_parser::{DocumentAttributeAssignment, Options, parse};
+
+let options = Options::builder()
+    .with_attribute("max-include-depth", "8")
+    .with_attribute("sectnums", true)
+    .with_default_attribute("imagesdir", "images")
+    .build()?;
+let parsed = parse(":project: acdc\n\nContent.\n", &options)?;
+let attributes = &parsed.document().attributes;
+assert_eq!(attributes.get("project").and_then(|v| v.as_str()), Some("acdc"));
+
+if let Some(DocumentAttributeAssignment::Set(value)) = attributes.assignment("project") {
+    assert_eq!(value.text(), Some("acdc"));
+}
+# Ok::<(), acdc_parser::Error>(())
+```
+
+Use `Options::document_attributes()` to read configured values and
+`Options::into_builder()` to change configuration. `with_attributes()` replaces
+earlier application inputs; `with_defaults()` replaces earlier defaults.
+`DocumentAttributes::into_inputs()` exports values for fresh configuration.
+`Options::with_document_attributes()` instead reuses an existing snapshot without
+changing its assignment precedence.
+
+`Document::attributes` stops at the end of the header. Read later
+`Block::DocumentAttribute` nodes in source order and match `assignment()` on
+`Set(value)` or `Unset`. Attribute maps no longer expose mutation methods or
+`get_string()`. Use `as_str()` for text, `as_integer()` for validated numbers,
+`is_presence()` for a value set without text, and `text()` or `write_text()` for
+the attribute's written representation.
+
+Other API and JSON changes:
+
+| In 0.9 | In 0.10 |
+| --- | --- |
+| `Position` line and column as `usize` | `u32`; use `Position::from_line_col()` for `usize` inputs. |
+| `SourceLocation::positioning` and `Positioning` | `SourceLocation::location`; use `at_position()` or `at_location()`. |
+| `Location::shift`, `shift_inline`, `shift_line_column` | Removed. Locations identify original source; use `ParseResult::source_location()` to resolve files. |
+| `TocEntry::numbered` and `style` | `kind: SectionKind` and `number()`. |
+| Index labels as strings | Inline-node slices from `term()`, `secondary()`, and `tertiary()`; JSON labels are arrays. `InlineMacro::IndexTerm` contains a `Box`. |
+| Only `Explicit` and `Modifiers` substitution specifications | Also handle `SubstitutionSpec::Source`; parsed lists and JSON retain source entries. |
+| `macros_disabled()` and `attributes_disabled()` | `BlockMetadata::uses_substitution()` or `SubstitutionSpec::resolve()`, with the block's defaults. |
+| Unconditional substitution configuration types | `SubstitutionSpec`, `SubstitutionOp`, and `BlockMetadata::substitutions` require `pre-spec-subs`. |
+| `inlines_to_string()` | Removed; walk inline nodes with the text policy your application needs. |
+
+`Position` JSON adds a `file` array for included content. Index relationships add
+an optional `relationship` field. Document-attribute JSON keeps its existing shape.
+The `ParseResult` ownership model is unchanged from 0.9.
 
 <details>
 <summary>Features supported</summary>
@@ -113,12 +206,13 @@ The implementation here follows from:
 ## Parser options
 
 * **Safe mode** - `Safe`, `Secure`, `Server`, `Unsafe`
-* **Strict mode** - Stricter parsing rules
+* **Strict mode** - Rejects manpage titles that do not use `name(volume)`;
+  other recoverable warnings remain warnings.
 * **Base directory** - Entry-input include resolution through
   `Options::builder().with_base_dir(path)`
-* **Document attributes** - Caller attributes passed with `with_attribute` or
-  `with_attributes` cannot be replaced or unset by document entries. The parser
-  also protects the built-in read-only and API-only attribute names internally.
+* **Document attributes** - `with_attribute` and `with_attributes` set application
+  overrides; `with_default_attribute` and `with_defaults` set values the document
+  can replace. Built-in read-only and API-only names remain protected.
 * **Setext headers** - Optional feature flag for two-line underlined headers
 * **Manpage doctype** - `doctype=manpage` with derived attributes
 
@@ -266,11 +360,39 @@ common profiles is an acdc policy. Earlier text-only escaping and ordinary
 attribute-introduced formatting remain separate migration work. See the
 [architecture document](../ARCHITECTURE.adoc) for the boundary and migration scope.
 
+## Source text and diagnostics
+
+`Paragraph::source_text()` and `DelimitedBlock::source_text()` return the body
+after preprocessing and before inline substitutions. Preprocessing normalizes
+line endings, removes trailing whitespace, and processes includes and conditionals.
+Delimited text excludes metadata and delimiters but retains the newline before
+the closing delimiter. Programmatically constructed blocks return `None` unless
+they have retained text. This text does not change JSON or semantic equality.
+
+Use `Block::metadata()` and `Block::location()` without matching each block
+variant. `BlockMetadata::uses_substitution()` checks enabled substitutions against
+the defaults for that block. `substitute_attributes()` performs one text-only
+attribute pass; it does not apply other inline substitutions or shell quoting.
+
+`ParseResult::source_location()` resolves an AST location to its original file,
+including partial and nested includes. Each location boundary has its own include
+chain. A span across files resolves to the file at its start. Use
+`Location::byte_len()` for an inclusive byte length; it returns `None` across files.
+For reindented includes, line and column are original-source coordinates but byte
+offsets remain in preprocessed coordinates. Do not use them to slice the original
+file.
+
+`ParseResult::source_recovery()` returns the first warning about omitted or
+recovered content, including disabled includes, incomplete tables, and unmatched
+block delimiters. It remains available after `take_warnings()` and excludes
+presentation warnings. Applications that need complete input must check it before
+acting on recovered content. Rendering can continue with the recovered document.
+
 ## Intrinsic document attributes
 
 acdc initializes the intrinsic backend, input, time, safe-mode, and environment
-attributes before preprocessing. Conditionals and substitutions therefore see the
-same values as the final parsed document. File input derives `docdir`, `docfile`,
+attributes before preprocessing. Later document assignments apply in source order.
+File input derives `docdir`, `docfile`,
 `docfilesuffix`, `docname`, and the document timestamp from the entry file. Server
 and Secure modes conceal the directory and home path. `SOURCE_DATE_EPOCH` makes
 both the document and conversion timestamps deterministic and formats them in UTC.
@@ -362,11 +484,14 @@ a value. Set it through the parser options when a different limit is needed:
 let options = acdc_parser::Options::builder()
     .with_attribute("max-include-depth", "8")
     .build()?;
+# Ok::<(), acdc_parser::Error>(())
 ```
 
 The entry document does not count toward the limit; each currently open included file
 counts as one level. A value of `0` disables built-in include processing and leaves
-each directive as literal content without a diagnostic. A string value can have
+each directive as literal content with a located source-recovery warning.
+Boolean `true` also selects zero; use a decimal string for a numeric limit.
+A string value can have
 surrounding Unicode whitespace, but the complete trimmed value must be a non-negative
 ASCII decimal integer. Malformed, empty, decimal-fraction, and negative values return
 an `InvalidDocumentAttribute` configuration error when options are built. The original
@@ -486,15 +611,16 @@ We use two fixture styles, and they are intentionally different.
 
 ### `fixtures/tests`
 
-These are general parser and AST fixtures. Every `.adoc` file below this directory
-is discovered automatically by the fixture test in `src/lib.rs` and compared with
-the adjacent `.json` file.
+These are general parser and AST fixtures. The fixture test in `src/lib.rs`
+discovers `.adoc` files recursively and compares each with its adjacent `.json`.
+Supporting files belong in `fixtures/tests/includes/`, which discovery excludes.
+The generator accepts only top-level fixture filenames.
 
-Regenerate the JSON with the parser example, then review the result before committing
-it:
+After approval to update expected output, regenerate only the affected fixtures
+from the workspace root and review the diff:
 
 ```console
-cargo run -p acdc-parser --example generate_parser_fixtures --all-features
+cargo run -p acdc-parser --example generate_parser_fixtures --all-features -- example.adoc
 ```
 
 ### `fixtures/preprocessor`
@@ -523,7 +649,39 @@ Run `acdc lint` over new or changed AsciiDoc fixtures before handing them off.
 
 ## Deliberate divergences from asciidoctor
 
-acdc's references are the [AsciiDoc Language draft specification](https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/) and [asciidoctor](https://asciidoctor.org). A handful of parser behaviours intentionally differ from asciidoctor where the draft spec and asciidoctor diverge, or where asciidoctor's output is an implementation artifact.
+acdc uses the [AsciiDoc Language draft specification](https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/)
+and [Asciidoctor](https://asciidoctor.org) as references. Some behavior deliberately
+differs. These choices do not imply complete draft-specification conformance.
+
+* **Nested inline markup**: Formatting, links, footnotes, and index labels retain
+  a nested AST. acdc keeps complete labels where Asciidoctor's substitution order
+  can truncate them or produce crossed markup. Formatting boundaries use source
+  characters before output escaping. Balanced parentheses inside visible index
+  shorthand remain part of the label, even when replacement substitutions are off.
+* **Attribute values**: Supported `pass:` values retain AsciiDoc text, not generated
+  HTML or roff. Output-dependent substitution lists stay literal with a warning.
+  Escaped attribute names remain protected from formatting. Unused values and
+  discarded titles do not register footnotes, anchors, or index terms.
+* **Quoted conditions**: `ifeval` respects operators inside quoted strings and
+  removes both quote delimiters. Asciidoctor 2.0.26 can split at an operator inside
+  a quoted value or retain its closing quote.
+* **Callouts**: Enabled callouts are recognized without special-character
+  substitution. Nested callout lists keep their outer validation context.
+* **References**: Link IDs enter the reference catalog. Anchors retain labels in
+  contexts where Asciidoctor can fall back to `[id]`; valid IDs can also include
+  non-ASCII symbols. Title-based references in `compat-mode` remain unresolved and
+  warn. Cross-references never trigger file reads.
+* **Recovery warnings**: Disabled includes and ignored `subs=` settings report
+  source recovery. Conflicting named footnotes warn and keep the first body.
+  Nested bibliography and index sections remain in the AST with warnings, while
+  Asciidoctor reports their structural restriction at error severity.
+* **Protected attributes**: Document entries cannot change read-only or API-only
+  attributes, including derived names that Asciidoctor does not consistently lock.
+  An explicitly selected backend name remains visible even if it is not a known
+  Asciidoctor backend; selecting an output converter is the application's job.
+* **Unicode boundaries**: Formatting and passthrough boundaries use Rust's Unicode
+  tables. Characters added in Unicode 17 can differ on Ruby versions with newer
+  tables.
 
 * **Uppercase checklist marker**: acdc treats `[X]` as checked, alongside `[x]`
   and `[*]`. Asciidoctor leaves `[X]` in the item's text. This acceptance
@@ -551,14 +709,14 @@ acdc's references are the [AsciiDoc Language draft specification](https://gitlab
 * **Table dimension limits**: Tables accept at most 100 logical columns and 1,000
   rows, with fixed internal limits that cannot be raised by parser options or
   document attributes. See [Table limits](#table-limits).
-* **Boolean include-depth value**: Passing boolean `true` as `max-include-depth`
-  safely disables built-in includes instead of reproducing asciidoctor's Ruby
-  `NoMethodError`. Use a decimal string for a numeric limit; see
+* **Boolean include-depth value**: Boolean `true` as `max-include-depth` selects
+  zero and disables includes with a warning. Asciidoctor raises an error for this
+  input. Use a decimal string for a numeric limit; see
   [Include depth](#include-depth).
 * **Strict include-depth validation**: acdc trims surrounding Unicode whitespace and
   requires the complete `max-include-depth` string to be a non-negative ASCII decimal
   integer. Malformed, empty, fractional, and negative values return a structured
-  configuration error. asciidoctor's current Ruby implementation instead accepts a
+  configuration error. Asciidoctor 2.0.26 instead accepts a
   leading signed decimal prefix, so a value such as `8notes` silently becomes `8`.
   The strict rule follows the documented [integer (≥ 0) domain](https://docs.asciidoctor.org/asciidoc/latest/attributes/document-attributes-ref/#security-attributes)
   and is an intentional compatibility divergence. See [Include depth](#include-depth).
@@ -566,6 +724,5 @@ acdc's references are the [AsciiDoc Language draft specification](https://gitlab
 
 ## See also
 
-- [Document attribute value model](DOCUMENT_ATTRIBUTE_MODEL.md) for the selected
-  typed-value, default, assignment, presentation, and migration boundaries
 - [CHANGELOG](CHANGELOG.md) for detailed feature history and version notes
+- [Architecture](../ARCHITECTURE.adoc) for parsing and conversion boundaries

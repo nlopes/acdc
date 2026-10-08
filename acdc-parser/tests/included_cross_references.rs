@@ -90,7 +90,7 @@ fn qualified_references_do_not_load_other_sources() -> Result<(), Error> {
         parse_from_reader(Cursor::new(source), &options)?,
     ] {
         assert!(parsed.document().references.is_empty());
-        assert!(parsed.warnings().is_empty());
+        assert_eq!(parsed.warnings(), []);
         let targets = cross_references(&parsed.document().blocks);
         let [xref] = targets.as_slice() else {
             return Err("missing xref".into());

@@ -180,7 +180,7 @@ fn optional_missing_include_remains_silent_and_is_removed() -> TestResult {
     let result = parse_file(&tree.main, &Options::default())?;
 
     assert_eq!(paragraph_texts(&result)?, ["BEFORE", "AFTER"]);
-    assert!(result.warnings().is_empty());
+    assert_eq!(result.warnings(), []);
     Ok(())
 }
 

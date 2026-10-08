@@ -252,7 +252,7 @@ fn absent_optional_include_does_not_recover_content() -> TestResult {
         "include::__missing_recovery_test__.adoc[opts=optional]",
         &options,
     )?;
-    assert!(parsed.warnings().is_empty());
+    assert_eq!(parsed.warnings(), []);
     Ok(())
 }
 
@@ -331,8 +331,8 @@ fn source_recovery_remains_available_after_warning_routing(#[case] input: &str) 
         .kind
         .clone();
     let warnings = parsed.take_warnings();
-    assert!(!warnings.is_empty());
-    assert!(parsed.warnings().is_empty());
+    assert_ne!(warnings, []);
+    assert_eq!(parsed.warnings(), []);
     assert_eq!(
         parsed.source_recovery().ok_or("lost source recovery")?.kind,
         kind
@@ -343,7 +343,7 @@ fn source_recovery_remains_available_after_warning_routing(#[case] input: &str) 
 #[test]
 fn presentation_warning_is_not_a_source_recovery() -> TestResult {
     let mut parsed = parse("See <<missing>>.", &Options::default())?;
-    assert!(!parsed.take_warnings().is_empty());
+    assert_ne!(parsed.take_warnings(), []);
     assert!(parsed.source_recovery().is_none());
     Ok(())
 }

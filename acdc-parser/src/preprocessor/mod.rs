@@ -1060,20 +1060,20 @@ impl Preprocessor {
         let content_len = if has_content { content.len() + 1 } else { 0 };
 
         // If there's an effective leveloffset, record the range
-        if let Some(leveloffset) = include_result.effective_leveloffset {
-            if leveloffset != 0 {
-                state.leveloffset_ranges.push(LeveloffsetRange::new(
-                    start_offset,
-                    start_offset + content_len,
-                    leveloffset,
-                ));
-                tracing::trace!(
-                    leveloffset,
-                    start_offset,
-                    end_offset = start_offset + content_len,
-                    "Recording leveloffset range for include"
-                );
-            }
+        if let Some(leveloffset) = include_result.effective_leveloffset
+            && leveloffset != 0
+        {
+            state.leveloffset_ranges.push(LeveloffsetRange::new(
+                start_offset,
+                start_offset + content_len,
+                leveloffset,
+            ));
+            tracing::trace!(
+                leveloffset,
+                start_offset,
+                end_offset = start_offset + content_len,
+                "Recording leveloffset range for include"
+            );
         }
 
         // Merge nested leveloffset ranges from the included file.
@@ -2126,7 +2126,7 @@ endif::inner[]";
         let result = Preprocessor::process(source, &Options::default(), Rc::default())?;
         assert_eq!(result.text, source);
         assert!(matches!(result.text, Cow::Borrowed(_)));
-        assert!(result.source_ranges.is_empty());
+        assert_eq!(result.source_ranges, []);
         Ok(())
     }
 
@@ -2345,7 +2345,7 @@ more";
         // `None` file) so same-file line/offset remapping works for it too.
         let input = "one\n// c\ntwo\n";
         let result = Preprocessor::process(input, &Options::default(), Rc::default())?;
-        assert!(!result.source_ranges.is_empty());
+        assert_ne!(result.source_ranges, []);
         assert!(result.source_ranges.iter().all(|r| r.file.is_none()));
 
         // `two` is source line 3 despite the dropped comment on line 2.

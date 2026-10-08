@@ -52,7 +52,7 @@ fn disabled_passthroughs_use_the_enclosing_attribute_stage() -> Result<(), Error
                         .get(text.location.absolute_start..=text.location.absolute_end),
                     Some(format!("α {body} ω.").as_str())
                 );
-                assert!(parsed.document().footnotes.is_empty());
+                assert_eq!(parsed.document().footnotes, []);
                 assert!(parsed.document().references.is_empty());
             }
         }
@@ -208,7 +208,7 @@ fn disabled_passthrough_expansion_keeps_catalogs_empty_and_include_origins() -> 
         &Options::default(),
     )?;
     let document = parsed.document();
-    assert!(document.footnotes.is_empty());
+    assert_eq!(document.footnotes, []);
     assert!(!document.references.contains_key("target"));
     let paragraph = document.blocks.iter().find_map(|block| {
         if let Block::Section(section) = block {

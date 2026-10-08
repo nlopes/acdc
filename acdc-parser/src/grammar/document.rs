@@ -7692,8 +7692,8 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
         assert!(!discrete); // Not discrete
         assert_eq!(metadata.id, None);
         assert_eq!(metadata.style, None);
-        assert!(metadata.roles.is_empty());
-        assert!(metadata.options.is_empty());
+        assert_eq!(metadata.roles, [] as [&str; 0]);
+        assert_eq!(metadata.options, [] as [&str; 0]);
         assert!(metadata.attributes.is_empty());
         Ok(())
     }
@@ -7708,8 +7708,8 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
         assert_eq!(metadata.id, None);
         // The `discrete` style is retained so a discrete heading renders it as a class.
         assert_eq!(metadata.style, Some("discrete"));
-        assert!(metadata.roles.is_empty());
-        assert!(metadata.options.is_empty());
+        assert_eq!(metadata.roles, [] as [&str; 0]);
+        assert_eq!(metadata.options, [] as [&str; 0]);
         Ok(())
     }
 
@@ -9045,7 +9045,7 @@ link:https://example.net[Text,positional-id]
         assert_eq!(list.items.len(), 2);
         assert_eq!(list.items[0].blocks.len(), 1);
         assert!(matches!(list.items[0].blocks[0], Block::Paragraph(_)));
-        assert!(list.items[1].blocks.is_empty());
+        assert_eq!(list.items[1].blocks, []);
         assert!(state.warnings.borrow().is_empty());
         Ok(())
     }

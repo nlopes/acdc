@@ -399,7 +399,7 @@ mod tests {
 
         let lenses = compute_code_lenses(&doc, &uri, &workspace);
 
-        assert!(!lenses.is_empty());
+        assert_ne!(lenses, []);
         // The auto-generated ID "_my_section" should match the xref
         let lens = lenses.iter().find(|l| {
             l.command

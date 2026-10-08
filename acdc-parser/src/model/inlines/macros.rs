@@ -459,12 +459,12 @@ pub enum IndexTermKind<'a> {
     Flow(Vec<InlineNode<'a>>),
     /// Hidden from output, supports hierarchical entries.
     Concealed {
-        /// The fully substituted primary term.
+        /// The primary inline label.
         term: Vec<InlineNode<'a>>,
-        /// The fully substituted secondary term, if present.
+        /// The secondary inline label, if present.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         secondary: Option<Vec<InlineNode<'a>>>,
-        /// The fully substituted tertiary term, if present.
+        /// The tertiary inline label, if present.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         tertiary: Option<Vec<InlineNode<'a>>>,
     },
@@ -599,7 +599,7 @@ mod tests {
                 xrefs.push(xref.clone());
             }
         });
-        assert!(!xrefs.is_empty());
+        assert_ne!(xrefs, []);
         for original in xrefs {
             assert!(original.section_signifiers.is_some());
             let mut explicit = original.clone();

@@ -295,7 +295,7 @@ pub(crate) fn attribute_spec(name: &str) -> AttributeSpec {
         TEXT_API_ONLY
     } else {
         // Unregistered user and converter attributes remain modifiable opaque text.
-        debug_assert!(!name.is_empty());
+        debug_assert_ne!(name, "");
         TEXT_MODIFIABLE
     }
 }

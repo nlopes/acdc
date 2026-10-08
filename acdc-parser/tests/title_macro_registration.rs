@@ -28,7 +28,7 @@ fn titled_paragraph_macros_register_once() -> Result<(), Error> {
             .enumerate()
         {
             assert_eq!(note.number as usize, index + 1);
-            assert!(!note.content.is_empty());
+            assert_ne!(note.content, []);
             assert_eq!(
                 source.get(note.location.absolute_start..=note.location.absolute_end),
                 Some(expected)
@@ -157,7 +157,7 @@ fn title_macros_register_once_with_setext_enabled() -> Result<(), Error> {
     ));
     for (index, note) in parsed.document().footnotes.iter().enumerate() {
         assert_eq!(note.number as usize, index + 1);
-        assert!(!note.content.is_empty());
+        assert_ne!(note.content, []);
     }
     Ok(())
 }

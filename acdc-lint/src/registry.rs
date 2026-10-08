@@ -54,7 +54,7 @@ pub(crate) struct LintPass {
 impl LintPass {
     /// Returns whether at least one lint emitted by this pass is enabled.
     pub(crate) fn is_enabled(self, options: &LintOptions) -> bool {
-        debug_assert!(!self.name.is_empty());
+        debug_assert_ne!(self.name, "");
         self.lints.iter().any(|lint| options.may_emit(*lint))
     }
 
@@ -322,9 +322,9 @@ mod tests {
     fn registered_lint_names_are_unique_and_meaningful() {
         let mut seen = Vec::new();
         for info in crate::LINTS {
-            assert!(!info.name.is_empty());
-            assert!(!info.summary.is_empty());
-            assert!(!info.explanation.is_empty());
+            assert_ne!(info.name, "");
+            assert_ne!(info.summary, "");
+            assert_ne!(info.explanation, "");
             assert!(
                 info.name
                     .chars()
@@ -352,8 +352,8 @@ mod tests {
     #[test]
     fn pass_lints_are_registered() {
         for pass in LINT_PASSES {
-            assert!(!pass.name.is_empty());
-            assert!(!pass.lints.is_empty());
+            assert_ne!(pass.name, "");
+            assert_ne!(pass.lints, []);
             for lint in pass.lints {
                 assert!(
                     crate::LINTS.iter().any(|info| info.id == *lint),

@@ -917,7 +917,7 @@ mod tests {
 
         // Verify resolved result with VERBATIM baseline
         let resolved = result.resolve(VERBATIM);
-        assert!(resolved.is_empty());
+        assert_eq!(resolved, []);
     }
 
     #[test]
@@ -1003,14 +1003,14 @@ mod tests {
         // This is modifier syntax, resolve with NORMAL baseline
         let resolved = result.resolve(NORMAL);
         // Removing normal group should leave empty
-        assert!(resolved.is_empty());
+        assert_eq!(resolved, []);
     }
 
     #[test]
     fn test_parse_subs_unknown_is_skipped() {
         // Unknown substitution types are logged and skipped
         let result = parse_subs_attribute("unknown");
-        assert!(explicit(&result).is_empty());
+        assert_eq!(explicit(&result), []);
     }
 
     #[test]
@@ -1892,7 +1892,7 @@ mod attribute_substitution_tests {
             Some(&value)
         });
         assert_eq!(output, expected);
-        assert!(names.is_empty());
+        assert_eq!(names, [] as [String; 0]);
     }
 
     #[rstest::rstest]

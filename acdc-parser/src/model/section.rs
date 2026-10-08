@@ -1089,7 +1089,7 @@ mod tests {
 
         // Fixtures cannot exercise AST edits or the nonserialized reference catalog.
         document.renumber_sections();
-        assert!(document.toc_entries.is_empty());
+        assert_eq!(document.toc_entries, []);
         for (id, name, number) in [
             ("outer", "chapter", "1"),
             ("inner", "section", "2"),

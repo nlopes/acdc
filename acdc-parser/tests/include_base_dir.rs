@@ -100,8 +100,8 @@ fn string_and_reader_input_resolve_includes_against_base_dir() -> TestResult {
 
     assert_eq!(paragraph_text(&string_result)?, "INCLUDED");
     assert_eq!(paragraph_text(&reader_result)?, "INCLUDED");
-    assert!(string_result.warnings().is_empty());
-    assert!(reader_result.warnings().is_empty());
+    assert_eq!(string_result.warnings(), []);
+    assert_eq!(reader_result.warnings(), []);
     Ok(())
 }
 
@@ -146,7 +146,7 @@ fn safe_and_server_confinement_use_overridden_base() -> TestResult {
         .build()?;
     let unsafe_result = parse_file(&main, &unsafe_options)?;
     assert_eq!(paragraph_text(&unsafe_result)?, "REAL OUTSIDE");
-    assert!(unsafe_result.warnings().is_empty());
+    assert_eq!(unsafe_result.warnings(), []);
 
     for safe_mode in [SafeMode::Safe, SafeMode::Server] {
         let options = Options::builder()

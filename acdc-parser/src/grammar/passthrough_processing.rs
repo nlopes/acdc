@@ -876,35 +876,35 @@ fn restore_fragment_substitutions<'a>(
 ) -> Vec<InlineNode<'a>> {
     let mut result = Vec::with_capacity(nodes.len());
     for mut node in nodes {
-        if let InlineNode::RawText(raw) = &node {
-            if raw.subs.is_empty() {
-                let original_start = raw.location.absolute_start;
-                // Escaped macro text no longer contains its leading backslash.
-                let start = text
-                    .get(
-                        original_start
-                            ..step_char(text, raw.location.absolute_end, RoundDirection::Forward),
-                    )
-                    .and_then(|source| source.find(raw.content))
-                    .map_or(original_start, |offset| original_start + offset);
-                let end = start + raw.content.len();
-                for (span, fragment) in fragments {
-                    let left = start.max(span.start);
-                    let right = end.min(span.end);
-                    if left < right {
-                        result.push(InlineNode::RawText(Raw {
-                            content: &raw.content[left - start..right - start],
-                            location: Location {
-                                absolute_start: if left == start { original_start } else { left },
-                                absolute_end: step_char(text, right, RoundDirection::Backward),
-                                ..raw.location.clone()
-                            },
-                            subs: fragment.subs.clone(),
-                        }));
-                    }
+        if let InlineNode::RawText(raw) = &node
+            && raw.subs.is_empty()
+        {
+            let original_start = raw.location.absolute_start;
+            // Escaped macro text no longer contains its leading backslash.
+            let start = text
+                .get(
+                    original_start
+                        ..step_char(text, raw.location.absolute_end, RoundDirection::Forward),
+                )
+                .and_then(|source| source.find(raw.content))
+                .map_or(original_start, |offset| original_start + offset);
+            let end = start + raw.content.len();
+            for (span, fragment) in fragments {
+                let left = start.max(span.start);
+                let right = end.min(span.end);
+                if left < right {
+                    result.push(InlineNode::RawText(Raw {
+                        content: &raw.content[left - start..right - start],
+                        location: Location {
+                            absolute_start: if left == start { original_start } else { left },
+                            absolute_end: step_char(text, right, RoundDirection::Backward),
+                            ..raw.location.clone()
+                        },
+                        subs: fragment.subs.clone(),
+                    }));
                 }
-                continue;
             }
+            continue;
         }
         for_each_inline_children(&mut node, &mut |children| {
             *children = restore_fragment_substitutions(take(children), fragments, text);
@@ -1364,6 +1364,6 @@ mod tests {
     fn test_empty_input() {
         let parsed = parse_text_for_quotes("");
         let nodes = parsed.inlines();
-        assert!(nodes.is_empty());
+        assert_eq!(nodes, []);
     }
 }

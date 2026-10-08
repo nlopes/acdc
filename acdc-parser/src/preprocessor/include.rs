@@ -1252,10 +1252,10 @@ impl<'a> Include<'a> {
         for line in ranges {
             match line {
                 LinesRange::Single(line_number) => {
-                    if let Some(idx) = self.validate_line_number(*line_number) {
-                        if idx < content_lines_count {
-                            indices.insert(idx);
-                        }
+                    if let Some(idx) = self.validate_line_number(*line_number)
+                        && idx < content_lines_count
+                    {
+                        indices.insert(idx);
                     }
                 }
                 LinesRange::Range(start, end) => {
@@ -1552,7 +1552,7 @@ mod tests {
 
         let result = include.process("opts=optional")?;
 
-        assert!(result.content.is_empty());
+        assert_eq!(result.content, "");
         assert!(include.warnings.borrow().is_empty());
         assert!(logs_contain(
             "optional include dropped because include file not found"

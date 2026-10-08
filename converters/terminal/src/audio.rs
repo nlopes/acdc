@@ -71,7 +71,7 @@ mod tests {
         visitor.render_audio(&mut traversal, &audio)?;
         let output = visitor.into_writer();
 
-        assert!(output.is_empty());
+        assert_eq!(output, [] as [u8; 0]);
         assert_eq!(warnings.len(), 1);
         assert!(
             warnings

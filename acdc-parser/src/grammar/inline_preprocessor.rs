@@ -1388,7 +1388,7 @@ mod tests {
         assert_eq!(result.text, "This is a test +\nwith a line break.");
 
         // Verify no passthroughs were captured
-        assert!(result.passthroughs.is_empty());
+        assert_eq!(result.passthroughs, []);
         Ok(())
     }
 
@@ -1847,7 +1847,7 @@ mod tests {
         let state = setup_state_macros_disabled(input);
         let result = inline_preprocessing::run(input, &attributes, &state)?;
         assert_eq!(result.text, "pass:a[1.0]");
-        assert!(result.passthroughs.is_empty());
+        assert_eq!(result.passthroughs, []);
         Ok(())
     }
 
@@ -1858,7 +1858,7 @@ mod tests {
         let state = setup_state_macros_disabled(input);
         let result = inline_preprocessing::run(input, &attributes, &state)?;
         assert_eq!(result.text, "pass:[1.0]");
-        assert!(result.passthroughs.is_empty());
+        assert_eq!(result.passthroughs, []);
         Ok(())
     }
 
@@ -1869,7 +1869,7 @@ mod tests {
         let state = setup_state_macros_disabled(input);
         let result = inline_preprocessing::run(input, &attributes, &state)?;
         assert_eq!(result.text, "pass:q[text]");
-        assert!(result.passthroughs.is_empty());
+        assert_eq!(result.passthroughs, []);
         Ok(())
     }
 
@@ -1880,7 +1880,7 @@ mod tests {
         let state = setup_state_macros_disabled(input);
         let result = inline_preprocessing::run(input, &attributes, &state)?;
         assert_eq!(result.text, "pass:a,q[1.0]");
-        assert!(result.passthroughs.is_empty());
+        assert_eq!(result.passthroughs, []);
         Ok(())
     }
 }

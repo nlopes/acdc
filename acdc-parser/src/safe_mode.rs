@@ -1,52 +1,39 @@
 use std::str::FromStr;
 
-/// Safe mode to use when processing the document. This follows from what is described in
-/// <https://docs.asciidoctor.org/asciidoctor/latest/safe-modes/> and is intended to
-/// provide similar functionality as Asciidoctor.
+/// Controls include access and exposure of local paths during parsing.
+///
+/// Fixed resource limits apply in every mode. Output converters are responsible
+/// for restrictions on stylesheets, scripts, and other rendered resources.
 #[derive(Debug, Clone, Default, PartialOrd, PartialEq, Eq, Copy)]
 pub enum SafeMode {
-    /// The `UNSAFE` safe mode level disables all security measures.
+    /// Allows local includes without a base-directory boundary.
+    ///
+    /// HTTP(S) includes still require caller-supplied `allow-uri-read` and the
+    /// `network` feature. Include depth, response size, and other limits still apply.
     #[default]
     Unsafe = 0,
 
-    /// The `SAFE` safe mode level keeps local include paths beneath the entry document's
-    /// parent directory. For `/workspace/docs/main.adoc`, `../shared.adoc` becomes
+    /// Keeps local include paths beneath the effective include base directory.
+    ///
+    /// The base defaults to the entry file's parent, or the current directory for
+    /// string and reader input. [`crate::OptionsBuilder::with_base_dir`] overrides it.
+    /// For `/workspace/docs/main.adoc`, `../shared.adoc` becomes
     /// `/workspace/docs/shared.adoc`, while `/tmp/shared.adoc` becomes
     /// `/workspace/docs/tmp/shared.adoc`; both transformations emit a warning. This
     /// check does not resolve symlinks, so `/workspace/docs/linked.adoc` may point
-    /// outside the directory. This mode allows assets (such as the stylesheet) to be
-    /// embedded in the document.
+    /// outside the directory. HTTP(S) includes require caller permission as in Unsafe mode.
     Safe,
 
-    /// The `SERVER` safe mode level disallows the document from setting attributes that
-    /// would affect conversion of the document. This level trims docfile to its relative
-    /// path and prevents the document from:
+    /// Applies Safe mode's include boundary and hides local directory and home paths.
     ///
-    /// - setting source-highlighter, doctype, docinfo and backend
-    /// - seeing docdir (as it can reveal information about the host filesystem)
-    ///
-    /// It applies the same local path transformations as [`SafeMode::Safe`]. It allows
-    /// icons and linkcss. No includes from a url are allowed unless the `allow-uri-read`
-    /// attribute is set.
+    /// `docfile` exposes the entry filename instead of its full path. HTTP(S)
+    /// includes still require caller permission and the `network` feature.
     Server,
 
-    /// The `SECURE` safe mode level disallows the document from attempting to read files
-    /// from the file system and including their contents into the document. Additionally,
-    /// it:
+    /// Disables local and remote include reads, and hides paths as in Server mode.
     ///
-    /// - disables icons
-    /// - disables include directives (`include::[]`)
-    /// - data can not be retrieved from URIs
-    /// - prevents access to stylesheets and JavaScript files
-    /// - sets the backend to html5
-    /// - disables docinfo files
-    /// - disables data-uri
-    /// - disables interactive (opts=interactive) and inline (opts=inline) modes for SVGs
-    /// - disables docdir and docfile (as these can reveal information about the host
-    ///   filesystem)
-    /// - disables source highlighting
-    ///
-    /// Note: `GitHub` processes `AsciiDoc` files using the `SECURE` mode.
+    /// Include directives become link fallbacks with source-recovery warnings.
+    /// [`crate::parse_file`] can still read the entry file selected by the caller.
     Secure,
 }
 

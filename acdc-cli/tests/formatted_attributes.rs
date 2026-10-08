@@ -13,7 +13,7 @@ fn render<'a, C: Converter<'a>>(converter: &C, doc: &Document<'_>) -> Result<Vec
     converter
         .write_to(doc, &mut output, None, None, &mut diagnostics)
         .map_err(|error| error.to_string())?;
-    assert!(!output.is_empty());
+    assert_ne!(output, [] as [u8; 0]);
     Ok(output)
 }
 

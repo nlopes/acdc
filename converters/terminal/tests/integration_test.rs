@@ -110,7 +110,7 @@ fn unhandled_parser_block_warning_is_structured() -> Result<(), Error> {
         visitor.visit_unhandled_block(&mut traversal, block)?;
     }
 
-    assert!(output.is_empty());
+    assert_eq!(output, [] as [u8; 0]);
     let warning = warnings.first().ok_or("missing fallback warning")?;
     assert_eq!(warning.source.converter, "terminal");
     assert!(warning.message.contains("omitted from terminal output"));

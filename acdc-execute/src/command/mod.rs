@@ -473,7 +473,6 @@ pub struct ExecutionPlan<'graph> {
 
 impl<'graph> ExecutionPlan<'graph> {
     /// Selected commands in execution order, including their prerequisites.
-    #[must_use]
     pub fn commands(&self) -> impl ExactSizeIterator<Item = &'graph CommandBlock> + '_ {
         self.order.iter().map(|node| &self.graph.graph[*node])
     }

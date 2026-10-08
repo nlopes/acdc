@@ -174,7 +174,7 @@ fn header_metadata_blank_lines_end_optional_slots() -> Result<(), Error> {
         let header = parsed.document().header.as_ref().ok_or("missing header")?;
         assert_eq!(header.authors.len(), authors);
         assert_eq!(parsed.document().attributes.get("revnumber"), None);
-        assert!(!parsed.document().blocks.is_empty());
+        assert_ne!(parsed.document().blocks, []);
     }
     Ok(())
 }
@@ -193,7 +193,7 @@ fn header_metadata_without_optional_lines_applies_entries_once() -> Result<(), E
             Some("root-next")
         );
         let header = parsed.document().header.as_ref().ok_or("missing header")?;
-        assert!(header.authors.is_empty());
+        assert_eq!(header.authors, []);
     }
     let source = "= T\n:kept: café";
     let parsed = parse(source, &Options::default())?;

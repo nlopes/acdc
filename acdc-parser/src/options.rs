@@ -24,11 +24,10 @@ pub struct Options<'a> {
     /// it. In Safe and Server modes this directory is also the local-include
     /// boundary.
     pub base_dir: Option<PathBuf>,
-    /// Strict mode - fail on non-conformance instead of warn-and-continue.
+    /// Reject a manpage title that does not use the `name(volume)` form.
     ///
-    /// When enabled, issues that would normally result in a warning and fallback
-    /// behavior will instead cause parsing to fail. For example:
-    /// - Non-conforming manpage titles (not matching `name(volume)` format)
+    /// This does not promote all warnings to errors. Use
+    /// [`crate::ParseResult::source_recovery`] to detect recovered content.
     pub strict: bool,
     /// Enable Setext-style (underlined) header parsing.
     ///
@@ -219,10 +218,9 @@ impl<'a> OptionsBuilder<'a> {
         self
     }
 
-    /// Enable strict mode.
+    /// Reject manpage titles that do not use the `name(volume)` form.
     ///
-    /// When enabled, issues that would normally result in a warning and fallback
-    /// behavior will instead cause parsing to fail.
+    /// Other recoverable problems still produce warnings.
     ///
     /// # Example
     ///
@@ -330,7 +328,7 @@ impl<'a> OptionsBuilder<'a> {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```
     /// use acdc_parser::Options;
     ///
     /// let options = Options::builder()

@@ -127,7 +127,7 @@ fn styled_paragraph_boundaries_preserve_source_and_macro_ownership() -> Result<(
         );
         let parsed = parse(&source, &Options::default())?;
         assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
-        assert!(parsed.document().footnotes.is_empty());
+        assert_eq!(parsed.document().footnotes, []);
         let [
             Block::Paragraph(paragraph),
             Block::CalloutList(_),
@@ -286,7 +286,7 @@ fn delimiter_scanning_preserves_unicode_and_nonclosing_runs() -> Result<(), Erro
         let content = format!("é中 {delimiter} inside a line\n\n{delimiter}{delimiter}\nlast λ");
         let source = format!("{delimiter}\n{content}\n{delimiter}\n\nAfter.\n");
         let parsed = parse(&source, &Options::default())?;
-        assert!(parsed.warnings().is_empty());
+        assert_eq!(parsed.warnings(), []);
         let Some(Block::DelimitedBlock(block)) = parsed.document().blocks.first() else {
             return Err("expected a delimited block".into());
         };

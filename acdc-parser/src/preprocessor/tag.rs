@@ -318,7 +318,7 @@ mod tests {
             &["intro"],
         );
         assert_eq!(selected, [2, 3]);
-        assert!(issues.is_empty());
+        assert_eq!(issues, []);
     }
 
     #[test]
@@ -335,7 +335,7 @@ mod tests {
             &["intro", "main"],
         );
         assert_eq!(selected, [1, 4]);
-        assert!(issues.is_empty());
+        assert_eq!(issues, []);
     }
 
     #[test]
@@ -353,7 +353,7 @@ mod tests {
             &["*", "!debug"],
         );
         assert_eq!(selected, [2]);
-        assert!(issues.is_empty());
+        assert_eq!(issues, []);
     }
 
     #[test]
@@ -369,7 +369,7 @@ mod tests {
             &["**"],
         );
         assert_eq!(selected, [0, 2, 4]);
-        assert!(issues.is_empty());
+        assert_eq!(issues, []);
     }
 
     #[test]
@@ -385,40 +385,40 @@ mod tests {
             &["!*"],
         );
         assert_eq!(selected, [0, 4]);
-        assert!(issues.is_empty());
+        assert_eq!(issues, []);
     }
 
     #[test]
     fn negated_double_wildcard_uses_first_remaining_selector_order() {
         let (selected, issues) = select(MIXED_SELECTOR_LINES, &["!**", "beta", "!alpha"]);
         assert_eq!(selected, [2]);
-        assert!(issues.is_empty());
+        assert_eq!(issues, []);
 
         let (selected, issues) = select(MIXED_SELECTOR_LINES, &["!**", "!alpha", "beta"]);
         assert_eq!(selected, [2, 8]);
-        assert!(issues.is_empty());
+        assert_eq!(issues, []);
     }
 
     #[test]
     fn negated_double_wildcard_uses_final_value_at_first_insertion_position() {
         let (selected, issues) = select(MIXED_SELECTOR_LINES, &["!**", "!beta", "!alpha", "beta"]);
         assert_eq!(selected, [2]);
-        assert!(issues.is_empty());
+        assert_eq!(issues, []);
 
         let (selected, issues) = select(MIXED_SELECTOR_LINES, &["!**", "!alpha", "!beta", "beta"]);
         assert_eq!(selected, [2, 8]);
-        assert!(issues.is_empty());
+        assert_eq!(issues, []);
     }
 
     #[test]
     fn explicit_wildcard_overrides_negated_double_wildcard_inference() {
         let (selected, issues) = select(MIXED_SELECTOR_LINES, &["!**", "beta", "!alpha", "*"]);
         assert_eq!(selected, [2, 8]);
-        assert!(issues.is_empty());
+        assert_eq!(issues, []);
 
         let (selected, issues) = select(MIXED_SELECTOR_LINES, &["!**", "!alpha", "beta", "!*"]);
         assert_eq!(selected, [2]);
-        assert!(issues.is_empty());
+        assert_eq!(issues, []);
     }
 
     #[test]
@@ -436,7 +436,7 @@ mod tests {
             &["outer"],
         );
         assert_eq!(selected, [1, 3, 5]);
-        assert!(issues.is_empty());
+        assert_eq!(issues, []);
     }
 
     #[test]
@@ -454,7 +454,7 @@ mod tests {
             &["same"],
         );
         assert_eq!(selected, [1, 3, 5]);
-        assert!(issues.is_empty());
+        assert_eq!(issues, []);
     }
 
     #[test]
@@ -519,7 +519,7 @@ mod tests {
     #[test]
     fn missing_tags_preserve_requested_order_and_deduplicate() {
         let (selected, issues) = select(&["Plain."], &["alpha", "beta", "alpha"]);
-        assert!(selected.is_empty());
+        assert_eq!(selected, [] as [usize; 0]);
         assert_eq!(
             issues,
             [Issue::Missing {
@@ -540,6 +540,6 @@ mod tests {
             &["wanted", "!wanted"],
         );
         assert_eq!(selected, [3]);
-        assert!(issues.is_empty());
+        assert_eq!(issues, []);
     }
 }

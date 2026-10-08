@@ -57,6 +57,8 @@ pub use title::{Subtitle, Title};
 #[non_exhaustive]
 pub struct Document<'a> {
     pub header: Option<Header<'a>>,
+    /// Effective end-of-header values. Later accepted changes are ordered
+    /// [`Block::DocumentAttribute`] nodes and do not update this snapshot.
     pub attributes: DocumentAttributes<'a>,
     pub blocks: Vec<Block<'a>>,
     pub footnotes: Vec<Footnote<'a>>,

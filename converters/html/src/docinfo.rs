@@ -382,7 +382,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diag = test_diag(&source, &mut warnings);
         let positions = parse_docinfo_value("bogus", &mut diag);
-        assert!(positions.is_empty());
+        assert_eq!(positions, []);
         assert!(
             warnings
                 .first()
@@ -408,7 +408,7 @@ mod tests {
 
         let substitutions = resolve_docinfo_subs(&attributes, &mut diag);
 
-        assert!(substitutions.is_empty());
+        assert_eq!(substitutions, []);
         assert!(
             warnings
                 .first()

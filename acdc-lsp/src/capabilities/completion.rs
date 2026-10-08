@@ -852,7 +852,7 @@ mod tests {
     fn test_complete_include_paths_nonexistent_dir() -> Result<(), Box<dyn Error>> {
         let doc_uri = "file:///nonexistent/dir/doc.adoc".parse::<Uri>()?;
         let items = complete_include_paths(&doc_uri, "", pos_for_prefix(""));
-        assert!(items.is_empty());
+        assert_eq!(items, []);
         Ok(())
     }
 
@@ -1041,7 +1041,7 @@ mod tests {
                 character: 3,
             },
         );
-        assert!(items.is_empty());
+        assert_eq!(items, []);
     }
 
     #[test]

@@ -77,7 +77,7 @@ acdc/
 | Feature | Default | Crate | Notes |
 |---------|---------|-------|-------|
 | `pre-spec-subs` | on | parser (+ all converters and lint) | `acdc-parser/AGENTS.md` (parser contract) + `converters/AGENTS.md` (converter plumbing & fixtures) |
-| `setext` | on | parser | Setext (two-line underlined) headers |
+| `setext` | off | parser | Setext (two-line underlined) headers; enabled by default by the CLI |
 | `network` | off | parser | Remote `include::https://...[]` (pulls in `ureq`) |
 | `highlighting` | off | html, terminal | syntect source highlighting |
 | `terminal` | off | html | Renders terminal previews into HTML; the cli exposes it as `html-terminal` |

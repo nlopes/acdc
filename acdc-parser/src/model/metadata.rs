@@ -226,7 +226,6 @@ impl<'a> BlockMetadata<'a> {
     /// `[source,rust]`, setting the named `language` attribute to `python` leaves
     /// positional slot 0 as `Some("rust")`. Metadata created with [`Self::new`] or
     /// [`Self::default`] has no positional slots; setting attributes does not add them.
-    #[must_use]
     pub fn positional_attributes(&self) -> impl ExactSizeIterator<Item = Option<&'a str>> + '_ {
         self.raw_positional_attributes()
             .iter()

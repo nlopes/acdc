@@ -460,7 +460,7 @@ Some content.
 
         let tokens = compute_semantic_tokens(parsed.document(), &[], content);
         // Should have at least tokens for section titles
-        assert!(!tokens.data.is_empty());
+        assert_ne!(tokens.data, []);
         Ok(())
     }
 

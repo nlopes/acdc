@@ -1370,7 +1370,7 @@ mod document_attribute_tests {
                 .map(|value| value.write_text(&mut rendered)),
             Some(Ok(()))
         ));
-        assert!(rendered.is_empty());
+        assert_eq!(rendered, "");
     }
 
     #[test]
@@ -1602,7 +1602,7 @@ impl<'a> ElementAttributes<'a> {
         )
     }
 
-    /// Get a string attribute value as an owned `String`.
+    /// Get a text attribute, borrowing its content when possible.
     ///
     /// Strips surrounding quotes from the value if present.
     #[must_use]

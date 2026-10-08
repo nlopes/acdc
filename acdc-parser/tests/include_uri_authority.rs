@@ -168,7 +168,7 @@ fn assert_include_fallback(result: &ParseResult, target: &str) -> TestResult {
         return Err(format!("expected one fallback link, got {paragraph:?}").into());
     };
     assert_eq!(link.target.to_string(), target);
-    assert!(link.text.is_empty());
+    assert_eq!(link.text, []);
     assert_eq!(
         link.attributes.get_string("role").as_deref(),
         Some("include")
@@ -217,7 +217,7 @@ fn caller_attribute_presence_grants_uri_read_authority() -> TestResult {
         let result = parse_file(&document.path, &options)?;
 
         assert_single_paragraph(&result, "Remote content.")?;
-        assert!(result.warnings().is_empty());
+        assert_eq!(result.warnings(), []);
         assert!(server.finish()?);
     }
 
@@ -308,7 +308,7 @@ fn document_cannot_revoke_caller_uri_read_authority() -> TestResult {
 
     assert_single_paragraph(&result, "Remote content.")?;
     assert!(result.document().attributes.contains_key("allow-uri-read"));
-    assert!(result.warnings().is_empty());
+    assert_eq!(result.warnings(), []);
     assert!(server.finish()?);
 
     Ok(())

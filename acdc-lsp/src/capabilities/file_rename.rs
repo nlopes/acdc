@@ -463,7 +463,7 @@ mod tests {
         let content = "[[my-anchor]]\n== Section\n\nContent.\n";
         workspace.update_document(old_uri.clone(), content.to_string(), 1);
 
-        assert!(!workspace.find_anchor_globally("my-anchor").is_empty());
+        assert_ne!(workspace.find_anchor_globally("my-anchor"), []);
 
         let new_uri = "file:///docs/new.adoc".parse::<Uri>()?;
         let renames = vec![FileRename {

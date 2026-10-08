@@ -968,7 +968,7 @@ mod tests {
             Ok::<(), Infallible>(())
         });
 
-        assert!(opened.is_empty());
+        assert_eq!(opened, [] as [std::path::PathBuf; 0]);
     }
 
     #[test]
@@ -980,7 +980,7 @@ mod tests {
             Ok::<(), Infallible>(())
         });
 
-        assert!(opened.is_empty());
+        assert_eq!(opened, [] as [std::path::PathBuf; 0]);
     }
 }
 

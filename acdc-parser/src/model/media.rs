@@ -43,7 +43,7 @@ use super::title::Title;
 /// # Variants
 ///
 /// - `Path(PathBuf)` - Local filesystem path (e.g., `images/photo.png`)
-/// - `Url(url::Url)` - Remote URL (e.g., `https://example.com/image.png`)
+/// - `Url(SourceUrl)` - Remote URL, retaining its original spelling for display
 /// - `Name(&str)` - Simple identifier (e.g., icon names like `heart`, `github`)
 #[derive(Clone, Debug, PartialEq)]
 pub enum Source<'a> {

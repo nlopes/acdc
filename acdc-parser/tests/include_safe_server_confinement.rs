@@ -132,7 +132,7 @@ fn ancestor_traversal_is_moved_inside_the_entry_directory() -> TestResult {
 
     let unsafe_result = parse_file(&tree.main, &options(SafeMode::Unsafe)?)?;
     assert_eq!(paragraph_texts(&unsafe_result)?, ["REAL OUTSIDE"]);
-    assert!(unsafe_result.warnings().is_empty());
+    assert_eq!(unsafe_result.warnings(), []);
 
     for safe_mode in [SafeMode::Safe, SafeMode::Server] {
         let result = parse_file(&tree.main, &options(safe_mode)?)?;
@@ -207,7 +207,7 @@ fn optional_missing_recovered_target_keeps_only_the_recovery_warning() -> TestRe
 
     for safe_mode in [SafeMode::Safe, SafeMode::Server] {
         let result = parse_file(&tree.main, &options(safe_mode)?)?;
-        assert!(result.document().blocks.is_empty());
+        assert_eq!(result.document().blocks, []);
         assert_single_recovery_warning(&result, ANCESTOR_RECOVERY_WARNING, &tree.main, 1)?;
     }
 
@@ -227,7 +227,7 @@ fn in_boundary_symlinks_can_point_to_outside_files() -> TestResult {
     for safe_mode in [SafeMode::Unsafe, SafeMode::Safe, SafeMode::Server] {
         let result = parse_file(&tree.main, &options(safe_mode)?)?;
         assert_eq!(paragraph_texts(&result)?, ["SYMLINK OUTSIDE"]);
-        assert!(result.warnings().is_empty());
+        assert_eq!(result.warnings(), []);
     }
 
     Ok(())

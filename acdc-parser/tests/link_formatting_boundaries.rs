@@ -27,7 +27,7 @@ fn link_formatting_boundaries_register_nested_notes_once() -> Result<(), Error> 
     };
     assert_eq!(note.id, Some("one"));
     assert_eq!(note.number, 1);
-    assert!(!note.content.is_empty());
+    assert_ne!(note.content, []);
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     Ok(())
 }

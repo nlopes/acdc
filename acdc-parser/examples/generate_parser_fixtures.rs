@@ -1,7 +1,8 @@
 //! Regenerate JSON test fixtures from .adoc files
 //!
-//! Run all fixtures with: `cargo run --example generate_parser_fixtures`
-//! Run selected fixtures by passing exact `.adoc` file names as arguments.
+//! From the workspace root, run `cargo run -p acdc-parser --all-features
+//! --example generate_parser_fixtures -- example.adoc` for selected fixtures.
+//! Use exact top-level `.adoc` filenames; omitting them rewrites all fixtures.
 
 use std::{
     ffi::OsString,

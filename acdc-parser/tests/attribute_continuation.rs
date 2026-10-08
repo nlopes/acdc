@@ -70,7 +70,7 @@ fn attribute_continuation_preserves_a_literal_backslash_at_eof() -> Result<(), E
                 .and_then(DocumentAttributeValue::text),
             Some("\\")
         );
-        assert!(parsed.document().blocks.is_empty());
+        assert_eq!(parsed.document().blocks, []);
     }
     Ok(())
 }

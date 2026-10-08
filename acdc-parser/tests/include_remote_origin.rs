@@ -203,7 +203,7 @@ fn assert_nested_include(
             "Parent root end",
         ]
     );
-    assert!(result.warnings().is_empty());
+    assert_eq!(result.warnings(), []);
     assert_eq!(
         server.finish()?,
         ["/base/parent.adoc".to_string(), expected_path]

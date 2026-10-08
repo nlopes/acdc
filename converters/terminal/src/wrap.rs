@@ -483,28 +483,28 @@ mod tests {
     fn sgr_bold_off_cancels_bold() {
         let mut codes = vec!["\x1b[1m".to_string()];
         update_ansi_state_full("\x1b[22m", &mut codes);
-        assert!(codes.is_empty());
+        assert_eq!(codes, [] as [String; 0]);
     }
 
     #[test]
     fn sgr_italic_off_cancels_italic() {
         let mut codes = vec!["\x1b[3m".to_string()];
         update_ansi_state_full("\x1b[23m", &mut codes);
-        assert!(codes.is_empty());
+        assert_eq!(codes, [] as [String; 0]);
     }
 
     #[test]
     fn sgr_underline_off_cancels_underline() {
         let mut codes = vec!["\x1b[4m".to_string()];
         update_ansi_state_full("\x1b[24m", &mut codes);
-        assert!(codes.is_empty());
+        assert_eq!(codes, [] as [String; 0]);
     }
 
     #[test]
     fn sgr_inverse_off_cancels_inverse() {
         let mut codes = vec!["\x1b[7m".to_string()];
         update_ansi_state_full("\x1b[27m", &mut codes);
-        assert!(codes.is_empty());
+        assert_eq!(codes, [] as [String; 0]);
     }
 
     #[test]
@@ -521,7 +521,7 @@ mod tests {
     fn sgr_default_fg_cancels_extended_foreground() {
         let mut codes = vec!["\x1b[38;5;200m".to_string()];
         update_ansi_state_full("\x1b[39m", &mut codes);
-        assert!(codes.is_empty());
+        assert_eq!(codes, [] as [String; 0]);
     }
 
     #[test]
@@ -538,7 +538,7 @@ mod tests {
     fn sgr_default_bg_cancels_extended_background() {
         let mut codes = vec!["\x1b[48;2;255;0;0m".to_string()];
         update_ansi_state_full("\x1b[49m", &mut codes);
-        assert!(codes.is_empty());
+        assert_eq!(codes, [] as [String; 0]);
     }
 
     #[test]

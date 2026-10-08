@@ -17,7 +17,7 @@ cargo run --bin acdc -- convert document.adoc
 cargo run --bin acdc -- lint --help
 
 # Run the test suite
-cargo nextest run
+cargo nextest run --workspace --all-features
 ----
 
 See link:./acdc-cli/README.adoc[acdc-cli README] for all CLI options, backends, and feature flags.
@@ -38,7 +38,7 @@ See link:./acdc-cli/README.adoc[acdc-cli README] for all CLI options, backends, 
 
 PEG-based:: Uses the `peg` crate for grammar definition.
 Two-pass inline processing:: First identifies boundaries, then parses content.
-Fail-fast:: Stops on the first error by design.
+Errors and recovery:: Returns fatal errors and keeps recoverable content with structured warnings.
 Preprocessor:: Handles includes and conditionals before parsing.
 
 === Testing strategy
@@ -58,13 +58,16 @@ Before running all-features checks, install the development prerequisites in lin
 cargo build --workspace --all-features
 
 # Run tests with detailed output
-cargo nextest run --no-fail-fast --all-features --all-targets
+cargo nextest run --workspace --all-features --no-fail-fast
+
+# Run documentation examples
+cargo test --doc --workspace --all-features
 
 # Run clippy with pedantic lints
-cargo clippy --all-targets --all-features -- --deny clippy::pedantic
+cargo clippy --all-targets --all-features -- --deny clippy::pedantic --deny clippy::todo
 
 # Run property-based tests
-PROPTEST_CASES=1000 cargo test --package acdc-parser --lib proptests
+PROPTEST_CASES=1000 cargo nextest run -p acdc-parser --all-features -E 'test(/proptests/)'
 ----
 
 == Development workflow

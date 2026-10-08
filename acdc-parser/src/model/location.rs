@@ -132,21 +132,17 @@ impl SourceRange {
 
 /// A `Location` represents a location in a document.
 ///
-/// After parsing completes, a `Location` is **original-source-relative**: its
-/// `absolute_start`/`absolute_end` byte offsets and `start`/`end` positions all refer
-/// to the original source the node came from — even across `include::` directives and
-/// preprocessor edits (dropped comments, conditionals, attribute continuations). The
-/// originating file lives on each [`Position`] (`start.file` / `end.file`), so a span
-/// that crosses a file boundary reports each endpoint's own file. For content from the
-/// primary input the position `file` is `None`.
+/// After parsing, line and column positions refer to the original source, including
+/// content from nested and partial includes. Each [`Position`] carries its own include
+/// chain in `file`; primary-input positions use `None`.
 ///
-/// `absolute_start`/`absolute_end` are byte offsets **into each endpoint's own file**.
-/// They form a single contiguous byte span only when `start.file == end.file` (the usual
-/// case); for a span that crosses a file boundary the two offsets are in different files'
-/// coordinate spaces, so byte math like `absolute_end - absolute_start` is meaningless —
-/// use the per-boundary `file`/line instead. Prefer [`byte_len`](Self::byte_len) over
-/// subtracting the offsets directly: it returns `None` across files. (`absolute_*` is not
-/// serialized to the ASG, which carries line/column/file only.)
+/// Byte offsets normally refer to each endpoint's original file. Reindented includes
+/// are an exception: their byte offsets remain in preprocessed coordinates. Use the
+/// line and column to locate that content in its original file.
+///
+/// A span can cross files. [`Self::byte_len`] returns `None` in that case because the
+/// offsets use different coordinate spaces. JSON contains line, column, and include
+/// chain only; it omits byte offsets.
 #[derive(Debug, Default, Clone, Hash, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Location {

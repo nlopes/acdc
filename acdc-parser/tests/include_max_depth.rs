@@ -152,7 +152,7 @@ fn default_depth_is_visible_and_allows_a_two_level_chain() -> TestResult {
 
     assert_max_depth(&result, "64")?;
     assert_chain(&result, "64", Expansion::Full)?;
-    assert!(result.warnings().is_empty());
+    assert_eq!(result.warnings(), []);
     Ok(())
 }
 
@@ -176,7 +176,7 @@ fn default_depth_is_defined_for_conditionals_without_being_explicit() -> TestRes
             "MAIN AFTER",
         ]
     );
-    assert!(result.warnings().is_empty());
+    assert_eq!(result.warnings(), []);
     Ok(())
 }
 
@@ -214,7 +214,7 @@ fn include_like_block_macros_are_not_include_directives() -> TestResult {
         paragraph_texts(&result)?,
         ["includes::x[]", "include-foo::bar[]"]
     );
-    assert!(result.warnings().is_empty());
+    assert_eq!(result.warnings(), []);
     Ok(())
 }
 
@@ -244,7 +244,7 @@ fn caller_limit_two_allows_a_two_level_chain() -> TestResult {
 
     assert_max_depth(&result, "2")?;
     assert_chain(&result, "2", Expansion::Full)?;
-    assert!(result.warnings().is_empty());
+    assert_eq!(result.warnings(), []);
     Ok(())
 }
 
@@ -257,7 +257,7 @@ fn caller_string_values_allow_surrounding_unicode_whitespace() -> TestResult {
 
         assert_max_depth(&result, value)?;
         assert_chain(&result, value, Expansion::Full)?;
-        assert!(result.warnings().is_empty());
+        assert_eq!(result.warnings(), []);
     }
     Ok(())
 }
@@ -271,7 +271,7 @@ fn very_large_positive_caller_value_saturates_without_overflow() -> TestResult {
 
     assert_max_depth(&result, value)?;
     assert_chain(&result, value, Expansion::Full)?;
-    assert!(result.warnings().is_empty());
+    assert_eq!(result.warnings(), []);
     Ok(())
 }
 
@@ -339,7 +339,7 @@ fn boolean_false_and_no_value_restore_the_default() -> TestResult {
 
         assert_max_depth(&result, "64")?;
         assert_chain(&result, "64", Expansion::Full)?;
-        assert!(result.warnings().is_empty());
+        assert_eq!(result.warnings(), []);
     }
     Ok(())
 }
@@ -381,7 +381,7 @@ fn ignored_body_depth_declarations_are_absent_from_the_ast() -> TestResult {
         return Err(format!("unexpected paragraph content: {after:?}").into());
     };
     assert_eq!(after.content, "AFTER 1");
-    assert!(result.warnings().is_empty());
+    assert_eq!(result.warnings(), []);
     Ok(())
 }
 
@@ -411,7 +411,7 @@ fn document_header_cannot_override_or_unset_the_default() -> TestResult {
 
     assert_max_depth(&result, "64")?;
     assert_chain(&result, "64", Expansion::Full)?;
-    assert!(result.warnings().is_empty());
+    assert_eq!(result.warnings(), []);
     Ok(())
 }
 

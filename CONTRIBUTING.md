@@ -18,7 +18,7 @@ Thank you for your interest in contributing! This guide covers the essentials. F
 4. **Build and test**:
    ```bash
    cargo build --workspace --all-features
-   cargo nextest run --all-features
+   cargo nextest run --workspace --all-features
    ```
 
 ## Documentation
@@ -37,8 +37,12 @@ Thank you for your interest in contributing! This guide covers the essentials. F
 Before submitting, ensure:
 
 - Code is formatted: `cargo fmt --all`
-- Lints pass: `cargo clippy --all-targets --all-features -- --deny clippy::pedantic`
-- Tests pass: `cargo nextest run --all-features`
+- Lints pass: `cargo clippy --all-targets --all-features -- --deny clippy::pedantic --deny clippy::todo`
+- Tests pass: `cargo nextest run --workspace --all-features`
+- Documentation examples pass: `cargo test --doc --workspace --all-features`
+
+Use the stable toolchain for workspace checks. The published parser supports
+Rust 1.88 or later; CI also checks its library with that version.
 
 `--all-features` clippy and converter tests build `libghostty-vt-sys`, which
 uses Zig to compile Ghostty's virtual terminal library. Set `GHOSTTY_SOURCE_DIR`
@@ -63,7 +67,7 @@ Examples:
 
 1. Create a branch: `git checkout -b feat/your-feature-name`
 2. Make your changes (with tests!)
-3. Run checks: `cargo fmt --all && cargo clippy --all-targets --all-features -- --deny clippy::pedantic && cargo nextest run --all-features`
+3. Run the formatting, lint, test, and documentation checks above.
 4. Commit using conventional commits
 5. Push and open a Pull Request
 

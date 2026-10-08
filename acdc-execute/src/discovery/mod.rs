@@ -414,7 +414,7 @@ mod tests {
     #[test]
     fn listing_without_command_role_is_ignored() {
         let src = "[source, bash]\n----\necho hi\n----\n";
-        assert!(ids(&graph(src)).is_empty());
+        assert_eq!(ids(&graph(src)), [] as [String; 0]);
     }
 
     #[test]
@@ -1035,15 +1035,15 @@ mod tests {
             warning.kind,
             acdc_parser::WarningKind::UnresolvedReference { .. }
         )));
-        assert!(!parsed.take_warnings().is_empty());
+        assert_ne!(parsed.take_warnings(), []);
         assert_eq!(ids(&CommandGraph::try_from(&parsed).unwrap()), ["valid"]);
     }
 
     #[test]
     fn routing_warnings_does_not_permit_recovered_commands() {
         let mut parsed = parse("[.command,id=broken]\n----\necho hi");
-        assert!(!parsed.take_warnings().is_empty());
-        assert!(parsed.warnings().is_empty());
+        assert_ne!(parsed.take_warnings(), []);
+        assert_eq!(parsed.warnings(), []);
         assert!(matches!(
             CommandGraph::try_from(&parsed),
             Err(DiscoveryError::RecoveredSource { .. })

@@ -171,7 +171,7 @@ fn included_content_does_not_leak_across_iterations() -> TestResult {
     let path = Path::new("fixtures/tests/leveloffset_include.adoc");
     for _ in 0..WARMUP_ITERATIONS {
         let parsed = parse_file(path, &options)?;
-        assert!(parsed.warnings().is_empty());
+        assert_eq!(parsed.warnings(), []);
     }
     let region = Region::new(GLOBAL);
     for _ in 0..MEASURED_ITERATIONS {

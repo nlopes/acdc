@@ -276,7 +276,7 @@ mod tests {
     #[test]
     fn test_empty_columns() {
         let widths = calculate_column_widths(&[]);
-        assert!(widths.is_empty());
+        assert_eq!(widths, [] as [f64; 0]);
     }
 
     #[test]

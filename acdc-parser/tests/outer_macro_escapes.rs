@@ -67,9 +67,9 @@ fn outer_macro_escapes_preserve_backslash_runs_and_unicode_source_spans() -> Res
                 text,
                 format!("α {}{literal} ω.", "\\".repeat(count - consumed))
             );
-            assert!(parsed.document().footnotes.is_empty());
+            assert_eq!(parsed.document().footnotes, []);
             assert!(parsed.document().references.is_empty());
-            assert!(parsed.warnings().is_empty());
+            assert_eq!(parsed.warnings(), []);
         }
     }
     Ok(())

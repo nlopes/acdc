@@ -561,7 +561,7 @@ mod tests {
 
     #[test]
     fn sampled_indexes_bounds_count_and_keeps_endpoints() {
-        assert!(sampled_indexes(0, 5).is_empty());
+        assert_eq!(sampled_indexes(0, 5), [] as [usize; 0]);
         assert_eq!(sampled_indexes(3, 5), vec![0, 1, 2]);
         assert_eq!(sampled_indexes(10, 1), vec![9]);
 

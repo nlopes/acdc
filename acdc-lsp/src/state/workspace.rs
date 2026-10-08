@@ -625,11 +625,11 @@ mod tests {
         let content = "[[my-anchor]]\n== My Section\n\nContent.\n";
         workspace.update_document(uri.clone(), content.to_string(), 1);
 
-        assert!(!workspace.find_anchor_globally("my-anchor").is_empty());
+        assert_ne!(workspace.find_anchor_globally("my-anchor"), []);
 
         workspace.remove_document(&uri);
 
-        assert!(workspace.find_anchor_globally("my-anchor").is_empty());
+        assert_eq!(workspace.find_anchor_globally("my-anchor"), []);
         Ok(())
     }
 
@@ -640,13 +640,13 @@ mod tests {
 
         let content1 = "[[old-anchor]]\n== Old Section\n\nContent.\n";
         workspace.update_document(uri.clone(), content1.to_string(), 1);
-        assert!(!workspace.find_anchor_globally("old-anchor").is_empty());
+        assert_ne!(workspace.find_anchor_globally("old-anchor"), []);
 
         let content2 = "[[new-anchor]]\n== New Section\n\nContent.\n";
         workspace.update_document(uri.clone(), content2.to_string(), 2);
 
-        assert!(workspace.find_anchor_globally("old-anchor").is_empty());
-        assert!(!workspace.find_anchor_globally("new-anchor").is_empty());
+        assert_eq!(workspace.find_anchor_globally("old-anchor"), []);
+        assert_ne!(workspace.find_anchor_globally("new-anchor"), []);
         Ok(())
     }
 
@@ -871,7 +871,7 @@ mod tests {
         let result = workspace.apply_analysis_configuration(&configuration);
 
         assert!(!result.changed);
-        assert!(result.reparsed_documents.is_empty());
+        assert_eq!(result.reparsed_documents, []);
         Ok(())
     }
 
@@ -902,7 +902,7 @@ mod tests {
         let result = workspace.apply_analysis_configuration(&configuration);
 
         assert!(result.changed);
-        assert!(result.reparsed_documents.is_empty());
+        assert_eq!(result.reparsed_documents, []);
         assert!(workspace.query_workspace_symbols("HTML Only").is_empty());
         assert!(
             workspace
@@ -1234,8 +1234,8 @@ mod tests {
             "expected an 'indexing limit' informational diagnostic"
         );
         assert!(doc.anchors.is_empty());
-        assert!(doc.xrefs.is_empty());
-        assert!(doc.media_sources.is_empty());
+        assert_eq!(doc.xrefs, []);
+        assert_eq!(doc.media_sources, []);
         Ok(())
     }
 }

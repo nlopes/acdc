@@ -466,7 +466,7 @@ mod tests {
         let xrefs = vec![("existing-target".to_string(), loc)];
 
         let warnings = compute_warnings::<_, fn(&XrefTarget) -> bool>(&anchors, &xrefs, None);
-        assert!(warnings.is_empty());
+        assert_eq!(warnings, []);
     }
 
     #[test]
@@ -525,7 +525,7 @@ mod tests {
             loc,
         )];
         let diags = compute_link_diagnostics(&media, &[], &tmp, None);
-        assert!(diags.is_empty());
+        assert_eq!(diags, []);
 
         let _ = std::fs::remove_dir_all(&tmp);
         Ok(())
@@ -541,7 +541,7 @@ mod tests {
         let tmp = std::env::temp_dir();
 
         let diags = compute_link_diagnostics(&media, &[], &tmp, None);
-        assert!(diags.is_empty());
+        assert_eq!(diags, []);
     }
 
     #[test]
@@ -551,7 +551,7 @@ mod tests {
         let tmp = std::env::temp_dir();
 
         let diags = compute_link_diagnostics(&media, &[], &tmp, None);
-        assert!(diags.is_empty());
+        assert_eq!(diags, []);
     }
 
     #[test]
@@ -579,7 +579,7 @@ mod tests {
 
         let includes = vec![("chapter.adoc".to_string(), loc)];
         let diags = compute_link_diagnostics(&[], &includes, &tmp, None);
-        assert!(diags.is_empty());
+        assert_eq!(diags, []);
 
         let _ = std::fs::remove_dir_all(&tmp);
         Ok(())
@@ -603,7 +603,7 @@ mod tests {
 
         // With imagesdir: should resolve to images/photo.png
         let diags = compute_link_diagnostics(&media, &[], &tmp, Some("images"));
-        assert!(diags.is_empty());
+        assert_eq!(diags, []);
 
         let _ = std::fs::remove_dir_all(&tmp);
         Ok(())
@@ -621,7 +621,7 @@ mod tests {
 
         // imagesdir should be ignored for absolute paths
         let diags = compute_link_diagnostics(&media, &[], &tmp, Some("other"));
-        assert!(diags.is_empty());
+        assert_eq!(diags, []);
 
         let _ = std::fs::remove_dir_all(&tmp);
         Ok(())
@@ -634,7 +634,7 @@ mod tests {
         let tmp = std::env::temp_dir();
 
         let diags = compute_link_diagnostics(&[], &includes, &tmp, None);
-        assert!(diags.is_empty());
+        assert_eq!(diags, []);
     }
 
     #[test]
@@ -671,6 +671,6 @@ mod tests {
         }];
 
         let diags = compute_conditional_diagnostics(&conditionals);
-        assert!(diags.is_empty());
+        assert_eq!(diags, []);
     }
 }

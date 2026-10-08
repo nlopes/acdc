@@ -75,7 +75,7 @@ fn passthrough_character_references_map_generated_values_to_the_reference() -> R
         .collect();
     assert_eq!(fragments.len(), 2);
     for raw in fragments {
-        assert!(raw.subs.is_empty());
+        assert_eq!(raw.subs, []);
         assert_eq!(
             &source[raw.location.absolute_start..=raw.location.absolute_end],
             "{value}"

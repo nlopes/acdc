@@ -477,7 +477,7 @@ mod tests {
         let (text, callouts) =
             extract_text_and_callouts(&inlines, false, TextBoundaries::BOTH, None, None);
         assert_eq!(text, "fn main() {\n    println!(\"Hello\");\n}");
-        assert!(callouts.is_empty());
+        assert_eq!(callouts, []);
     }
 
     #[test]

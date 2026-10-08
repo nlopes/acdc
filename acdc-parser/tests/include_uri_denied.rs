@@ -64,7 +64,7 @@ fn assert_denied_uri_fallback(result: &ParseResult, target: &str) -> TestResult 
         return Err(format!("expected one fallback link, got {:?}", fallback.content).into());
     };
     assert_eq!(link.target.to_string(), target);
-    assert!(link.text.is_empty());
+    assert_eq!(link.text, []);
     assert_eq!(link.attributes.iter().count(), 1);
     assert_eq!(
         link.attributes.get_string("role").as_deref(),

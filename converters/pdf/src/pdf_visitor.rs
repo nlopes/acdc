@@ -5400,7 +5400,10 @@ mod tests {
         let ranges = long_unbreakable_ranges("short abcdefghij after", 8);
         assert_eq!(ranges.len(), 1);
         assert_eq!(ranges.first(), Some(&(6..16)));
-        assert!(long_unbreakable_ranges("one two three", 8).is_empty());
+        assert_eq!(
+            long_unbreakable_ranges("one two three", 8),
+            [] as [std::ops::Range<usize>; 0]
+        );
     }
 
     #[test]
