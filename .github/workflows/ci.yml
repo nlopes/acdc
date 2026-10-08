@@ -45,17 +45,20 @@ jobs:
               - 'Cargo.toml'
               - 'Cargo.lock'
             lsp:
+              - '.github/workflows/ci.yml'
               - 'acdc-lsp/**'
               - 'acdc-parser/**'
               - 'Cargo.toml'
               - 'Cargo.lock'
             pdf:
+              - '.github/workflows/ci.yml'
               - 'converters/core/**'
               - 'converters/pdf/**'
               - 'acdc-parser/**'
               - 'Cargo.toml'
               - 'Cargo.lock'
             wasm:
+              - '.github/workflows/ci.yml'
               - 'acdc-editor-wasm/**'
               - 'acdc-parser/**'
               - 'converters/core/**'
@@ -83,6 +86,8 @@ jobs:
         with:
           version: 0.16.0
       - uses: Swatinem/rust-cache@v2
+        with:
+          env-vars: ImageOS
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- --deny clippy::pedantic --deny clippy::todo
       - name: Run clippy (execute library)
@@ -100,6 +105,8 @@ jobs:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@1.88.0
       - uses: Swatinem/rust-cache@v2
+        with:
+          env-vars: ImageOS
       - name: Check parser on minimum supported Rust
         run: cargo check -p acdc-parser --lib --all-features --locked
       - name: Check parser without default features on minimum supported Rust
@@ -113,6 +120,8 @@ jobs:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+        with:
+          env-vars: ImageOS
       - uses: taiki-e/install-action@nextest
       - name: Run parser tests - all features
         run: cargo nextest run -p acdc-parser --all-features --verbose
@@ -140,6 +149,8 @@ jobs:
         with:
           version: 0.16.0
       - uses: Swatinem/rust-cache@v2
+        with:
+          env-vars: ImageOS
       - uses: taiki-e/install-action@nextest
       - name: Install manpage test renderers
         run: |
@@ -166,6 +177,8 @@ jobs:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+        with:
+          env-vars: ImageOS
       - uses: taiki-e/install-action@nextest
       - name: Run PDF pipeline tests - all features
         run: cargo nextest run -p acdc-pdf-theme -p acdc-pdf-typst -p acdc-pdf-render -p acdc-pdf-images -p acdc-converters-pdf --all-features --verbose
@@ -181,6 +194,8 @@ jobs:
         with:
           version: 0.16.0
       - uses: Swatinem/rust-cache@v2
+        with:
+          env-vars: ImageOS
       - uses: taiki-e/install-action@nextest
       - name: Run CLI and execute library tests
         run: cargo nextest run -p acdc-cli -p acdc-execute --all-features --verbose --no-tests warn --test-threads 1 # we've added this until https://github.com/nextest-rs/nextest/pull/3553 gets merged
@@ -212,6 +227,8 @@ jobs:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+        with:
+          env-vars: ImageOS
       - uses: taiki-e/install-action@nextest
       - name: Run LSP tests
         run: cargo nextest run -p acdc-lsp --all-features --verbose
@@ -224,6 +241,8 @@ jobs:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+        with:
+          env-vars: ImageOS
       - name: Install wasm32 target
         run: rustup target add wasm32-unknown-unknown
       - name: Run clippy (WASM editor)
@@ -237,6 +256,8 @@ jobs:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+        with:
+          env-vars: ImageOS
       - uses: taiki-e/install-action@nextest
       - name: Run property tests
         run: cargo nextest run -p acdc-parser --all-features --lib proptests --verbose
@@ -252,6 +273,8 @@ jobs:
         with:
           version: 0.16.0
       - uses: Swatinem/rust-cache@v2
+        with:
+          env-vars: ImageOS
       - name: Run doc tests
         run: cargo test --doc --all-features --verbose
       - name: Run execute library doc tests
