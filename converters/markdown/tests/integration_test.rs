@@ -32,6 +32,46 @@ fn fixture_paths_preserve_stems_and_ignore_unrelated_warnings() -> Result<(), Er
 }
 
 #[test]
+fn fixture_paths_ignore_unrelated_content_recovery() -> Result<(), Error> {
+    let parsed = parse("ifdef::missing[]\nBody.\n", &ParserOptions::default())?;
+    assert!(parsed.warnings().iter().any(|warning| matches!(
+        warning.kind,
+        acdc_parser::WarningKind::ContentRecovery { .. }
+    )));
+    assert_eq!(
+        support::expected_fixture_path(Path::new("expected"), "subs_case", parsed.warnings()),
+        Path::new("expected/subs_case.md")
+    );
+    Ok(())
+}
+
+#[test]
+fn fixture_paths_follow_parser_substitution_behavior() -> Result<(), Error> {
+    let parsed = parse("[subs=\"none\"]\n*Bold*.\n", &ParserOptions::default())?;
+    let block = parsed
+        .document()
+        .blocks
+        .first()
+        .ok_or("missing paragraph")?;
+    let extension = if block
+        .metadata()
+        .ok_or("missing paragraph metadata")?
+        .uses_substitution(&acdc_parser::Substitution::Quotes, acdc_parser::NORMAL)
+    {
+        "no-subs.md"
+    } else {
+        "md"
+    };
+    for stem in ["subs_case", "commonmark_subs_case", "case.v1", "café"] {
+        assert_eq!(
+            support::expected_fixture_path(Path::new("expected"), stem, parsed.warnings()),
+            Path::new("expected").join(format!("{stem}.{extension}"))
+        );
+    }
+    Ok(())
+}
+
+#[test]
 fn substitution_fixtures_have_both_expected_variants() -> Result<(), Error> {
     let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
     let mut count = 0;
@@ -42,7 +82,9 @@ fn substitution_fixtures_have_both_expected_variants() -> Result<(), Error> {
         }
         let parsed = acdc_parser::parse_file(&path, &ParserOptions::default())?;
         if !parsed.warnings().iter().any(|warning| {
-            matches!(&warning.kind, acdc_parser::WarningKind::Other(message)
+            matches!(&warning.kind,
+                acdc_parser::WarningKind::Other(message)
+                    | acdc_parser::WarningKind::ContentRecovery { message }
                 if message.starts_with("The subs= attribute"))
         }) {
             continue;
