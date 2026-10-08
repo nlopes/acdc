@@ -936,12 +936,19 @@ impl Preprocessor {
         Ok(None)
     }
 
-    #[tracing::instrument(skip(lines, attribute_content))]
+    #[tracing::instrument(skip(lines, line))]
     fn process_continuation<'a, I: Iterator<Item = &'a str>>(
-        attribute_content: &mut String,
+        line: &str,
         lines: &mut std::iter::Peekable<I>,
         line_number: &mut usize,
-    ) {
+    ) -> String {
+        let mut attribute_content = String::with_capacity(line.len() * 2);
+        if line.ends_with(" + \\") {
+            attribute_content.push_str(line);
+            attribute_content.push('\n');
+        } else if line.ends_with(" \\") {
+            attribute_content.push_str(line.trim_end_matches('\\'));
+        }
         while let Some(next_line) = lines.peek() {
             let next_line = next_line.trim();
             // An explicit continuation owns the next nonblank line, even if
@@ -969,6 +976,7 @@ impl Preprocessor {
                 break;
             }
         }
+        attribute_content
     }
 
     /// Check if a line is a verbatim or raw block delimiter.
@@ -1445,17 +1453,11 @@ impl Preprocessor {
             }
 
             if has_attribute_continuation(line) {
-                let mut attribute_content = String::with_capacity(line.len() * 2);
-                if line.ends_with(" + \\") {
-                    attribute_content.push_str(line);
-                    attribute_content.push('\n');
-                } else if line.ends_with(" \\") {
-                    attribute_content.push_str(line.trim_end_matches('\\'));
-                }
                 // The attribute spans `[continuation_start_line, line_number]`;
                 // emit it as its own range anchored at its first line.
                 let continuation_start_line = line_number;
-                Self::process_continuation(&mut attribute_content, &mut lines, &mut line_number);
+                let attribute_content =
+                    Self::process_continuation(line, &mut lines, &mut line_number);
                 attribute::parse_line(options, attribute_content.as_str())?;
                 out.push_chunk(attribute_content, continuation_start_line);
                 scanner.record(line, &options.document_attributes);

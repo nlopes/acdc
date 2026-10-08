@@ -65,6 +65,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Strict Clippy validation passes for all parser targets.
+
 - Automatic URLs no longer become links after word or colon prefixes, and
   quoted bare URLs stay literal unless label brackets are supplied, matching
   Asciidoctor. URL escapes follow the same opening boundaries. Complete
