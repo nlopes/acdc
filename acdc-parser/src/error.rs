@@ -1,6 +1,9 @@
 use std::{fmt, path::PathBuf};
 
-use crate::model::{Location, Position, SectionLevel};
+use crate::{
+    IncludeSourceError,
+    model::{Location, Position, SectionLevel},
+};
 
 #[non_exhaustive]
 #[derive(thiserror::Error, Debug)]
@@ -59,6 +62,9 @@ pub enum Error {
 
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
+
+    #[error("Include source error: {0}")]
+    IncludeSource(#[from] IncludeSourceError),
 
     #[error("URL error: {0}")]
     Url(#[from] url::ParseError),
@@ -121,6 +127,7 @@ impl Error {
             Self::InvalidDocumentAttribute { location, .. } => location.as_deref(),
             Self::ParseGrammar(_)
             | Self::Io(_)
+            | Self::IncludeSource(_)
             | Self::Url(_)
             | Self::ParseInt(_)
             | Self::UnknownEncoding(_)
@@ -197,9 +204,11 @@ impl Error {
             Self::NonConformingManpageTitle(..) => Some(
                 "Manpage document titles must be in the format 'name(volume)', e.g., 'git-commit(1)'. Remove --strict flag to use fallback values.",
             ),
-            Self::ParseGrammar(_) | Self::Io(_) | Self::ParseInt(_) | Self::TryFromIntError(_) => {
-                None
-            }
+            Self::ParseGrammar(_)
+            | Self::Io(_)
+            | Self::IncludeSource(_)
+            | Self::ParseInt(_)
+            | Self::TryFromIntError(_) => None,
         }
     }
 }

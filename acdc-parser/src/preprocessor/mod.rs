@@ -12,7 +12,9 @@ use std::{
 use encoding_rs::{Encoding, UTF_8, UTF_16BE, UTF_16LE};
 
 use crate::{
-    DocumentAttributeValue, DocumentAttributes, Location, Options, Warning, WarningKind,
+    DocumentAttributeValue, DocumentAttributes, IncludeSource, IncludeSourceError,
+    IncludeSourceErrorKind, IncludeSourceProvider, IncludeSourceTarget, Location, Options, Warning,
+    WarningKind,
     error::{Error, SourceLocation},
     model::{LeveloffsetRange, Position, SourceRange},
 };
@@ -25,6 +27,19 @@ mod tag;
 
 use comment::CommentScanner;
 use include::{Include, IncludeResult, LocationContext};
+
+/// Allows Secure-mode fallback processing when include loading is disabled.
+#[derive(Clone, Copy, Debug, Default)]
+struct DeniedIncludeSourceProvider;
+
+impl IncludeSourceProvider for DeniedIncludeSourceProvider {
+    fn open(&self, _target: &IncludeSourceTarget) -> Result<IncludeSource, IncludeSourceError> {
+        Err(IncludeSourceError::new(
+            IncludeSourceErrorKind::Unsupported,
+            "no include source provider was supplied",
+        ))
+    }
+}
 
 /// Result from preprocessing that includes both the processed text and metadata needed
 /// for accurate parsing (like leveloffset ranges).
@@ -647,9 +662,8 @@ pub(super) fn decode_bytes(
 /// warnings.
 ///
 /// All public entry points take the handle explicitly; the struct is
-/// a carrier so nested `&self` helpers (`process_include`,
-/// `process_conditional_line`, `process_directive_line`) can reach the sink and
-/// immutable caller authority without threading them through every parameter list.
+/// a carrier so nested `&self` helpers can report warnings and retain include
+/// context across recursive preprocessing.
 #[derive(Debug)]
 pub(crate) struct Preprocessor {
     warnings: Rc<RefCell<Vec<Warning>>>,
@@ -914,26 +928,35 @@ impl Preprocessor {
         options: &Options,
         include_context: IncludeContext,
     ) -> Result<Option<IncludeResult>, Error> {
-        if let Some(source_origin) = source_origin {
-            let include = Include::parse(
-                source_origin,
-                line,
-                LocationContext::new(line_number, current_offset, source_origin.as_path()),
-                options,
-                include_context,
-                &self.warnings,
-            )?;
-            let attribute_list_as_written = line
-                .strip_suffix(']')
-                .and_then(|directive| directive.split_once('['))
-                .map_or("", |(_, attributes)| attributes);
-            return Ok(Some(include.process(attribute_list_as_written)?));
-        }
-        self.recover_content_at(
-            format!("source origin is missing; include directive cannot be processed: {line}"),
-            Self::create_source_location(line_number, None),
-        );
-        Ok(None)
+        let Some(source_origin) = source_origin else {
+            self.recover_content_at(
+                format!("source origin is missing; include directive cannot be processed: {line}"),
+                Self::create_source_location(line_number, None),
+            );
+            return Ok(None);
+        };
+        // Secure mode produces a link fallback even when include loading is disabled.
+        static DENIED: DeniedIncludeSourceProvider = DeniedIncludeSourceProvider;
+        let source_provider = match options.include_loader.provider() {
+            Some(source_provider) => source_provider,
+            None if options.safe_mode == crate::SafeMode::Secure => &DENIED,
+            None => return Ok(None),
+        };
+        let include = Include::parse(
+            source_origin,
+            line,
+            LocationContext::new(line_number, current_offset, source_origin.as_path()),
+            options,
+            include_context,
+            &self.warnings,
+        )?;
+        let attribute_list_as_written = line
+            .strip_suffix(']')
+            .and_then(|directive| directive.split_once('['))
+            .map_or("", |(_, attributes)| attributes);
+        Ok(Some(
+            include.process(attribute_list_as_written, source_provider)?,
+        ))
     }
 
     #[tracing::instrument(skip(lines, line))]
@@ -1217,6 +1240,19 @@ impl Preprocessor {
             out.push_line(Cow::Borrowed(&line[1..]));
             scanner.record(&line[1..], &options.document_attributes);
         } else if has_include_directive_shape(line) {
+            // Disabled loading preserves the directive, except in Secure mode,
+            // which produces a link fallback without reading the target.
+            if options.include_loader.provider().is_none()
+                && options.safe_mode != crate::SafeMode::Secure
+            {
+                self.recover_content_at(
+                    "include not read because include loading is disabled",
+                    Self::create_source_location(ctx.source_line, ctx.current_file()),
+                );
+                out.push_source_line(line, ctx.input_line);
+                scanner.record(line, &options.document_attributes);
+                return Ok(());
+            }
             if let Some(limit) = self.include_context.blocked_limit(options.safe_mode) {
                 let message = if limit == 0 {
                     "include not read because maximum include depth is zero".to_owned()

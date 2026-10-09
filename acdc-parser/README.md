@@ -528,6 +528,45 @@ These are fixed internal safety limits. They cannot be changed through parser op
 or document attributes. This intentionally diverges from asciidoctor, which has no
 equivalent table dimension cap.
 
+## Include loading
+
+`SafeMode` sets processing restrictions; `Options::include_loader` selects
+where include content comes from. The default
+is `IncludeLoader::System` for string, reader, and file input, preserving the
+normal filesystem and optional HTTP(S) loader. The safe mode still defaults to
+Unsafe; select Secure to prevent include reads.
+
+- `IncludeLoader::Disabled` preserves literal include directives in modes below
+  Secure without reading their targets. Skipped includes produce source recovery diagnostics. `parse_file`
+  still reads the entry file selected by the caller.
+- `IncludeLoader::System` reads local files and, with the `network` feature,
+  authorized HTTP(S) targets.
+- `IncludeLoader::custom(provider)` reads sources through an
+  `IncludeSourceProvider`, such as unsaved editor buffers or a virtual filesystem.
+
+```rust
+use acdc_parser::{IncludeLoader, Options, SafeMode, parse};
+
+let options = Options::builder()
+    .with_safe_mode(SafeMode::Server)
+    .with_include_loader(IncludeLoader::Disabled)
+    .build()?;
+let document = parse("include::part.adoc[]", &options)?;
+assert!(document.source_recovery().is_some());
+# Ok::<(), acdc_parser::Error>(())
+```
+
+Providers receive resolved, confined paths or absolute HTTP(S) URIs and return
+byte streams. The parser retains ownership of attribute substitution, safe modes,
+decoding, line/tag selection, nested includes, diagnostics, and source locations.
+Custom URI providers do not require the `network` feature, but still require
+caller-supplied `allow-uri-read`. Secure mode never calls a provider and always
+produces the usual link fallback, including when the loader is `Disabled`.
+
+The explicit `Disabled` option differs from Asciidoctor's Secure-mode link fallback.
+At equivalent safe modes, `System` retains the existing Asciidoctor include
+behavior.
+
 ## Include base directory
 
 String and reader input resolve relative includes from the current working directory
@@ -572,14 +611,15 @@ transformations match asciidoctor; they are not strict symlink containment.
 
 ## Remote includes
 
-URI-looking targets are classified before local paths. Network reads are intentionally
-limited to HTTP(S), which require the optional `network` feature, a safe mode below
-`Secure`, and a caller-supplied `allow-uri-read` attribute. A document cannot grant
-itself this authority. Each response is limited to 10 MiB after transport decoding;
-larger responses return an HTTP request error. The limit is fixed, applies separately
-to each response, and cannot be changed by a document attribute.
+URI-looking targets are classified before local paths. HTTP(S) includes require a
+safe mode below `Secure` and a caller-supplied `allow-uri-read` attribute. A document
+cannot grant itself this authority. The system loader also requires the optional
+`network` feature; custom providers can supply authorized HTTP(S) content without it.
+Built-in HTTP responses are limited to 10 MiB after transport decoding; larger
+responses return an HTTP request error. The limit is fixed, applies separately to
+each response, and cannot be changed by a document attribute.
 
-We use `ureq` for HTTP framing, redirects, TLS, and timeouts. We don't try to
+The system loader uses `ureq` for HTTP framing, redirects, TLS, and timeouts. We don't try to
 reproduce the URI transport behavior that Asciidoctor's Ruby implementation inherits
 from OpenURI. If opening a request or reading its body fails, we emit a located
 warning, preserve the include as an unresolved directive, and continue parsing. We

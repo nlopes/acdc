@@ -8,8 +8,9 @@ use std::str::FromStr;
 pub enum SafeMode {
     /// Allows local includes without a base-directory boundary.
     ///
-    /// HTTP(S) includes still require caller-supplied `allow-uri-read` and the
-    /// `network` feature. Include depth, response size, and other limits still apply.
+    /// HTTP(S) includes require caller-supplied `allow-uri-read`. The built-in
+    /// transport also requires the `network` feature; custom providers supply
+    /// their own transport. Include depth, response size, and other limits still apply.
     #[default]
     Unsafe = 0,
 
@@ -27,7 +28,7 @@ pub enum SafeMode {
     /// Applies Safe mode's include boundary and hides local directory and home paths.
     ///
     /// `docfile` exposes the entry filename instead of its full path. HTTP(S)
-    /// includes still require caller permission and the `network` feature.
+    /// includes require caller permission as in Unsafe mode.
     Server,
 
     /// Disables local and remote include reads, and hides paths as in Server mode.

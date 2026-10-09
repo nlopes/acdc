@@ -84,19 +84,18 @@
 use std::{
     cell::RefCell,
     collections::HashSet,
+    io::Read,
     mem::take,
     path::{Component, Path, PathBuf},
     rc::Rc,
     str::FromStr,
 };
 
-#[cfg(feature = "network")]
-use std::io::Read;
-
 use url::Url;
 
 use crate::{
-    Location, Options, Preprocessor, SafeMode, Warning,
+    IncludeSource, IncludeSourceErrorKind, IncludeSourceProvider, IncludeSourceTarget, Location,
+    Options, Preprocessor, SafeMode, Warning,
     error::{Error, SourceLocation},
     model::{HEADER, LeveloffsetRange, Position, SourceRange, substitute},
 };
@@ -106,7 +105,7 @@ use super::{
     tag::{Filter as TagFilter, Issue as TagIssue, select_tagged_lines},
 };
 
-#[cfg(feature = "network")]
+#[cfg(all(feature = "network", test))]
 const MAX_REMOTE_INCLUDE_BYTES: usize = 10 * 1024 * 1024;
 /// Maximum number of spaces one include directive may prepend to each non-empty
 /// line. This bounds the allocation controlled by a single `indent` value; a
@@ -114,15 +113,25 @@ const MAX_REMOTE_INCLUDE_BYTES: usize = 10 * 1024 * 1024;
 const MAX_INCLUDE_INDENT: usize = 4 * 1024;
 
 #[cfg(feature = "network")]
-fn read_remote_include(reader: impl Read) -> Result<Vec<u8>, Error> {
-    let read_limit = u64::try_from(MAX_REMOTE_INCLUDE_BYTES + 1)?;
+fn read_remote_include(reader: impl Read, limit: usize) -> Result<Vec<u8>, Error> {
+    let read_limit = u64::try_from(limit.saturating_add(1))?;
     let mut bytes = Vec::new();
     reader.take(read_limit).read_to_end(&mut bytes)?;
-    if bytes.len() > MAX_REMOTE_INCLUDE_BYTES {
+    if bytes.len() > limit {
         return Err(Error::HttpRequest(
             "remote include response exceeds the 10 MiB limit".to_string(),
         ));
     }
+    Ok(bytes)
+}
+
+fn read_source_bytes(source: IncludeSource) -> Result<Vec<u8>, Error> {
+    #[cfg(feature = "network")]
+    if let Some(limit) = source.read_limit {
+        return read_remote_include(source.into_reader(), limit);
+    }
+    let mut bytes = Vec::new();
+    source.into_reader().read_to_end(&mut bytes)?;
     Ok(bytes)
 }
 
@@ -457,9 +466,7 @@ pub(crate) struct IncludeResult {
 }
 
 enum UrlReadError {
-    #[cfg(not(feature = "network"))]
-    NetworkDisabled,
-    #[cfg(feature = "network")]
+    Unsupported(String),
     Retrieval(String),
     Other(Error),
 }
@@ -709,39 +716,6 @@ impl<'a> Include<'a> {
         IncludeResult::unresolved_directive(format!(
             "Unresolved directive in {source} - include::{target_as_written}[{attribute_list_as_written}]"
         ))
-    }
-
-    /// Fetch a URL target into memory without changing its source origin.
-    /// Request-opening failures remain distinct from response-read failures so
-    /// callers can recover without also swallowing size or body-read errors.
-    fn fetch_url_target(url: &str) -> Result<Vec<u8>, UrlReadError> {
-        #[cfg(not(feature = "network"))]
-        {
-            let _ = url;
-            Err(UrlReadError::NetworkDisabled)
-        }
-
-        #[cfg(feature = "network")]
-        {
-            let mut response = ureq::get(url)
-                .call()
-                .map_err(|error| UrlReadError::Retrieval(error.to_string()))?;
-            // Apply the cap after transport decoding so compressed responses cannot
-            // expand beyond the parser's per-include memory boundary.
-            let bytes = match read_remote_include(response.body_mut().as_reader()) {
-                Ok(bytes) => bytes,
-                // Let ureq validate HTTP framing and transport decoding. Any body I/O
-                // failure follows the same parser recovery as a request-opening error;
-                // partial bytes are deliberately discarded.
-                Err(Error::Io(error)) => {
-                    return Err(UrlReadError::Retrieval(error.to_string()));
-                }
-                Err(error) => return Err(UrlReadError::Other(error)),
-            };
-
-            tracing::debug!(%url, "downloaded content from URL");
-            Ok(bytes)
-        }
     }
 
     /// Choose original target lines before any nested preprocessing occurs.
@@ -1009,9 +983,29 @@ impl<'a> Include<'a> {
         ranges
     }
 
-    /// Fetch and decode content from a URI without recursively preprocessing it.
-    fn read_content_from_url(&self, url: &str) -> Result<String, UrlReadError> {
-        let bytes = Self::fetch_url_target(url)?;
+    /// Read and decode URI content without recursively preprocessing it.
+    fn read_content_from_url(
+        &self,
+        url: &str,
+        source_provider: &dyn IncludeSourceProvider,
+    ) -> Result<String, UrlReadError> {
+        let source = source_provider
+            .open(&IncludeSourceTarget::Uri(url.to_string()))
+            .map_err(|error| match error.kind() {
+                IncludeSourceErrorKind::Unsupported => UrlReadError::Unsupported(error.to_string()),
+                IncludeSourceErrorKind::NotFound | IncludeSourceErrorKind::Unavailable => {
+                    UrlReadError::Retrieval(error.to_string())
+                }
+                IncludeSourceErrorKind::Fatal => UrlReadError::Other(Error::IncludeSource(error)),
+            })?;
+        let bytes = read_source_bytes(source).map_err(|error| {
+            // Discard partial content when the response cannot be read.
+            if let Error::Io(error) = error {
+                UrlReadError::Retrieval(error.to_string())
+            } else {
+                UrlReadError::Other(error)
+            }
+        })?;
         super::decode_bytes(&bytes, self.encoding.as_deref(), url).map_err(UrlReadError::from)
     }
 
@@ -1019,6 +1013,7 @@ impl<'a> Include<'a> {
         &self,
         url: &str,
         attribute_list_as_written: &str,
+        source_provider: &dyn IncludeSourceProvider,
     ) -> Result<UrlIncludeOutcome, Error> {
         if !self.context.allows_uri_read {
             self.warn_located(format!(
@@ -1032,18 +1027,14 @@ impl<'a> Include<'a> {
             )));
         }
 
-        match self.read_content_from_url(url) {
+        match self.read_content_from_url(url, source_provider) {
             Ok(content) => Ok(UrlIncludeOutcome::Content(content)),
-            #[cfg(not(feature = "network"))]
-            Err(UrlReadError::NetworkDisabled) => {
-                self.warn_located(format!(
-                    "network support is disabled, cannot fetch remote includes: {url}",
-                ));
+            Err(UrlReadError::Unsupported(detail)) => {
+                self.warn_located(format!("{detail}, cannot fetch remote includes: {url}"));
                 Ok(UrlIncludeOutcome::Fallback(Box::new(
                     self.unresolved_directive(attribute_list_as_written),
                 )))
             }
-            #[cfg(feature = "network")]
             Err(UrlReadError::Retrieval(detail)) => {
                 tracing::debug!(%url, %detail, "failed to retrieve remote include");
                 self.warn_located(format!("include uri not readable: {url}"));
@@ -1056,14 +1047,49 @@ impl<'a> Include<'a> {
     }
 
     /// Read and decode one resolved local file without preprocessing it.
-    fn read_existing_local_content(
+    fn read_local_content(
         &self,
         path: &Path,
         optional: bool,
+        source_provider: &dyn IncludeSourceProvider,
     ) -> Result<Option<String>, Error> {
-        let decoded = match super::read_and_decode_file(path, self.encoding.as_deref()) {
+        let source = match source_provider.open(&IncludeSourceTarget::File(path.to_path_buf())) {
+            Ok(source) => source,
+            Err(error) if error.kind() == IncludeSourceErrorKind::NotFound => {
+                if optional {
+                    tracing::info!(
+                        source_file = ?self.current_file,
+                        line = self.line_number,
+                        include_path = %path.display(),
+                        "optional include dropped because include file not found",
+                    );
+                } else {
+                    self.warn_located(format!("include file not found: {}", path.display()));
+                }
+                return Ok(None);
+            }
+            Err(error)
+                if !optional
+                    && matches!(
+                        error.kind(),
+                        IncludeSourceErrorKind::Unavailable | IncludeSourceErrorKind::Unsupported
+                    ) =>
+            {
+                self.warn_located(format!("include file not readable: {}", path.display()));
+                return Ok(None);
+            }
+            Err(error) => return Err(Error::IncludeSource(error)),
+        };
+
+        let display_path = path.display().to_string();
+        let decoded = match read_source_bytes(source)
+            .and_then(|bytes| super::decode_bytes(&bytes, self.encoding.as_deref(), &display_path))
+        {
             Ok(content) => content,
-            Err(Error::Io(_)) if !optional => {
+            Err(Error::Io(error)) => {
+                if optional {
+                    return Err(Error::Io(error));
+                }
                 self.warn_located(format!("include file not readable: {}", path.display()));
                 return Ok(None);
             }
@@ -1081,7 +1107,11 @@ impl<'a> Include<'a> {
         Ok(Some(decoded))
     }
 
-    pub(crate) fn process(&self, attribute_list_as_written: &str) -> Result<IncludeResult, Error> {
+    pub(crate) fn process(
+        &self,
+        attribute_list_as_written: &str,
+        source_provider: &dyn IncludeSourceProvider,
+    ) -> Result<IncludeResult, Error> {
         if self.options.safe_mode == SafeMode::Secure {
             self.warn_located(format!(
                 "include not read in secure mode: {}",
@@ -1125,22 +1155,13 @@ impl<'a> Include<'a> {
                 };
                 let path = self.resolve_file_target(parent, base_dir, target)?;
                 let optional = self.opts.iter().any(|option| option == "optional");
-                if !path.is_file() {
-                    if optional {
-                        tracing::info!(
-                            source_file = ?self.current_file,
-                            line = self.line_number,
-                            include_path = %path.display(),
-                            "optional include dropped because include file not found",
-                        );
+                let Some(content) = self.read_local_content(&path, optional, source_provider)?
+                else {
+                    return Ok(if optional {
+                        IncludeResult::empty()
                     } else {
-                        self.warn_located(format!("include file not found: {}", path.display()));
-                        return Ok(self.unresolved_directive(attribute_list_as_written));
-                    }
-                    return Ok(IncludeResult::empty());
-                }
-                let Some(content) = self.read_existing_local_content(&path, optional)? else {
-                    return Ok(self.unresolved_directive(attribute_list_as_written));
+                        self.unresolved_directive(attribute_list_as_written)
+                    });
                 };
                 let is_asciidoc = Self::has_asciidoc_extension(&path);
                 let source_origin = SourceOrigin::File {
@@ -1151,11 +1172,14 @@ impl<'a> Include<'a> {
                 (content, source_origin, path, is_asciidoc)
             }
             Target::Url(url) => {
-                let content =
-                    match self.read_url_content_or_fallback(url, attribute_list_as_written)? {
-                        UrlIncludeOutcome::Content(content) => content,
-                        UrlIncludeOutcome::Fallback(result) => return Ok(*result),
-                    };
+                let content = match self.read_url_content_or_fallback(
+                    url,
+                    attribute_list_as_written,
+                    source_provider,
+                )? {
+                    UrlIncludeOutcome::Content(content) => content,
+                    UrlIncludeOutcome::Fallback(result) => return Ok(*result),
+                };
                 let parsed_url = Url::parse(url)?;
                 let is_asciidoc = Self::has_asciidoc_extension(Path::new(parsed_url.path()));
                 (
@@ -1541,7 +1565,7 @@ mod tests {
 
     #[test]
     #[tracing_test::traced_test]
-    fn optional_missing_include_emits_info_trace() -> Result<(), Error> {
+    fn optional_missing_include_emits_info_trace() -> Result<(), Box<dyn std::error::Error>> {
         let path = std::env::temp_dir().join(format!(
             "acdc-parser-optional-include-info-{}",
             std::process::id()
@@ -1549,8 +1573,12 @@ mod tests {
         let missing_path = path.join("missing.adoc");
         let options = Options::default();
         let include = parse_include(&path, "include::missing.adoc[opts=optional]", &options)?;
+        let source_provider = options
+            .include_loader
+            .provider()
+            .ok_or("system include loader must provide a source provider")?;
 
-        let result = include.process("opts=optional")?;
+        let result = include.process("opts=optional", source_provider)?;
 
         assert_eq!(result.content, "");
         assert!(include.warnings.borrow().is_empty());
@@ -1566,11 +1594,13 @@ mod tests {
     fn remote_include_response_is_limited_to_ten_mib() -> Result<(), Box<dyn std::error::Error>> {
         let accepted = read_remote_include(
             std::io::repeat(b'a').take(u64::try_from(MAX_REMOTE_INCLUDE_BYTES)?),
+            MAX_REMOTE_INCLUDE_BYTES,
         )?;
         assert_eq!(accepted.len(), MAX_REMOTE_INCLUDE_BYTES);
         drop(accepted);
 
-        let Err(error) = read_remote_include(std::io::repeat(b'a')) else {
+        let Err(error) = read_remote_include(std::io::repeat(b'a'), MAX_REMOTE_INCLUDE_BYTES)
+        else {
             return Err("expected an oversized remote include to be rejected".into());
         };
         let Error::HttpRequest(message) = error else {

@@ -49,6 +49,15 @@
 //! Asciidoctor leaves `[X]` in the item text. This is an intentional acdc
 //! extension.
 //!
+//! # Include loading
+//!
+//! [`Options::include_loader`] defaults to [`IncludeLoader::System`], the
+//! filesystem and optional HTTP(S) loader. Use [`IncludeLoader::custom`] to
+//! supply sources from an editor or another store. In modes below Secure,
+//! [`IncludeLoader::Disabled`] preserves literal directives without reading targets.
+//! These settings apply to string, reader, and file input; a custom provider does
+//! not lower the safe mode or grant URI permission.
+//!
 //! # Local include confinement
 //!
 //! [`SafeMode::Safe`] and [`SafeMode::Server`] use the effective include base as
@@ -69,10 +78,11 @@
 //!
 //! # Remote includes
 //!
-//! HTTP(S) includes require the optional `network` feature, a safe mode below
-//! [`SafeMode::Secure`], and caller-supplied `allow-uri-read` authority. A document
-//! cannot grant itself this authority. Each response is limited to 10 MiB after
-//! transport decoding; larger responses return an HTTP request error. This fixed,
+//! HTTP(S) includes require a safe mode below [`SafeMode::Secure`] and caller-supplied
+//! `allow-uri-read` authority. A document cannot grant itself this authority. The
+//! built-in transport also requires `network`; custom providers supply their own
+//! transport. Built-in HTTP responses are limited to 10 MiB after transport
+//! decoding; larger responses return an HTTP request error. This fixed,
 //! per-response limit is not controlled by a document attribute and intentionally
 //! diverges from `asciidoctor`.
 //!
@@ -116,6 +126,7 @@ mod options;
 mod parsed;
 mod preprocessor;
 mod safe_mode;
+mod source_provider;
 mod warning;
 
 pub(crate) use grammar::{InlinePreprocessorParserState, ProcessedContent, inline_preprocessing};
@@ -145,6 +156,10 @@ pub use model::{
 pub use model::{SubstitutionOp, SubstitutionSpec};
 pub use options::{Options, OptionsBuilder, SafeMode};
 pub use parsed::{OwnedSource, ParseInlineResult, ParseResult};
+pub use source_provider::{
+    IncludeLoader, IncludeSource, IncludeSourceError, IncludeSourceErrorKind,
+    IncludeSourceProvider, IncludeSourceTarget,
+};
 pub use warning::{Warning, WarningKind};
 
 /// Type-based parser for `AsciiDoc` content.
@@ -282,6 +297,8 @@ impl<'input> Parser<'input> {
 /// Parse `AsciiDoc` content from a reader.
 ///
 /// This function reads the content from the provided reader and parses it as `AsciiDoc`.
+/// Includes are loaded only if [`Options::include_loader`] is enabled and
+/// the safe mode permits loading.
 ///
 /// # Example
 ///
@@ -336,7 +353,9 @@ pub fn parse_from_reader<R: std::io::Read>(
 
 /// Parse `AsciiDoc` content from a string.
 ///
-/// This function parses the provided string as `AsciiDoc`.
+/// This function parses the provided string as `AsciiDoc`. Includes follow
+/// [`Options::include_loader`], which defaults to [`IncludeLoader::System`].
+/// Relative targets use the current directory unless [`Options::base_dir`] is set.
 ///
 /// # Example
 ///
@@ -385,6 +404,8 @@ pub fn parse(input: &str, options: &Options<'_>) -> Result<ParseResult, Error> {
 /// Parse `AsciiDoc` content from a file.
 ///
 /// This function reads the content from the provided file and parses it as `AsciiDoc`.
+/// Includes follow [`Options::include_loader`]. Disabling includes does not
+/// prevent reading the entry file selected by the caller.
 ///
 /// # Example
 ///

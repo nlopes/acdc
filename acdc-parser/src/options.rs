@@ -6,7 +6,7 @@ use std::{
 pub use crate::safe_mode::SafeMode;
 
 use crate::{
-    AttributeValue, DocumentAttributes, Error,
+    AttributeValue, DocumentAttributes, Error, IncludeLoader,
     document_attribute::{InputKind, initialize_configuration, initialize_intrinsics},
     model::RawAttributes,
 };
@@ -17,12 +17,17 @@ pub struct Options<'a> {
     pub safe_mode: SafeMode,
     pub timings: bool,
     pub(crate) document_attributes: DocumentAttributes<'a>,
+    /// Selects how the parser loads include sources.
+    ///
+    /// Defaults to [`IncludeLoader::System`], subject to `safe_mode`. Set
+    /// [`IncludeLoader::Disabled`] to preserve directives in modes below Secure.
+    pub include_loader: IncludeLoader,
     /// Directory used to resolve relative includes from the entry input.
     ///
-    /// String and reader input default to the current working directory. File
-    /// input normally uses the entry file's parent, unless this value overrides
-    /// it. In Safe and Server modes this directory is also the local-include
-    /// boundary.
+    /// Only consulted when include loading is enabled. String and reader input
+    /// default to the current working directory. File input normally uses the
+    /// entry file's parent, unless this value overrides it. In Safe and Server
+    /// modes this directory is also the local-include boundary.
     pub base_dir: Option<PathBuf>,
     /// Reject a manpage title that does not use the `name(volume)` form.
     ///
@@ -114,6 +119,7 @@ impl<'a> Options<'a> {
             defaults,
             safe_mode: self.safe_mode,
             timings: self.timings,
+            include_loader: self.include_loader,
             base_dir: self.base_dir,
             strict: self.strict,
             #[cfg(feature = "setext")]
@@ -133,6 +139,7 @@ impl<'a> Options<'a> {
             safe_mode: self.safe_mode,
             timings: self.timings,
             document_attributes: self.document_attributes.into_static(),
+            include_loader: self.include_loader,
             base_dir: self.base_dir,
             strict: self.strict,
             #[cfg(feature = "setext")]
@@ -165,6 +172,7 @@ pub struct OptionsBuilder<'a> {
     timings: bool,
     attributes: RawAttributes<'a>,
     defaults: RawAttributes<'a>,
+    include_loader: IncludeLoader,
     base_dir: Option<PathBuf>,
     strict: bool,
     #[cfg(feature = "setext")]
@@ -208,10 +216,36 @@ impl<'a> OptionsBuilder<'a> {
         self
     }
 
+    /// Select how the parser loads include sources.
+    ///
+    /// Defaults to [`IncludeLoader::System`]. Secure mode prevents include
+    /// reads even when a provider is supplied. Use [`IncludeLoader::Disabled`]
+    /// to disable loading in lower modes, or [`IncludeLoader::custom`] to supply
+    /// sources from an editor overlay, virtual filesystem, or custom transport.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use acdc_parser::{IncludeLoader, Options, SafeMode};
+    ///
+    /// let options = Options::builder()
+    ///     .with_safe_mode(SafeMode::Safe)
+    ///     .with_include_loader(IncludeLoader::System)
+    ///     .build()?;
+    /// # Ok::<(), acdc_parser::Error>(())
+    /// ```
+    #[must_use]
+    pub fn with_include_loader(mut self, include_loader: IncludeLoader) -> Self {
+        self.include_loader = include_loader;
+        self
+    }
+
     /// Set the directory used to resolve relative includes from the entry input.
     ///
-    /// For file input this overrides the entry file's parent directory. Nested
-    /// includes remain relative to the file that contains them.
+    /// Only takes effect when include loading is enabled.
+    /// For file input this overrides the entry file's parent directory.
+    /// For string or reader input it overrides the current working directory.
+    /// Nested includes remain relative to the file that contains them.
     #[must_use]
     pub fn with_base_dir(mut self, base_dir: impl AsRef<Path>) -> Self {
         self.base_dir = Some(base_dir.as_ref().to_path_buf());
@@ -365,6 +399,7 @@ impl<'a> OptionsBuilder<'a> {
             safe_mode: self.safe_mode,
             timings: self.timings,
             document_attributes,
+            include_loader: self.include_loader,
             base_dir: self.base_dir,
             strict: self.strict,
             #[cfg(feature = "setext")]
