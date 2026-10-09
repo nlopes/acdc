@@ -1,0 +1,169 @@
+name: Release CLI
+
+on:
+  push:
+    tags:
+      - 'acdc-cli-v*'
+  pull_request:
+    paths:
+      - '.github/workflows/release-cli.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            target: aarch64-apple-darwin
+          - runner: macos-15-intel
+            target: x86_64-apple-darwin
+          - runner: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+          - runner: ubuntu-22.04-arm
+            target: aarch64-unknown-linux-gnu
+          - runner: windows-2025
+            target: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+      - name: Read package version and check release tag
+        id: version
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+        run: |
+          version="$(cargo metadata --no-deps --format-version 1 --locked \
+            | jq -er '.packages[] | select(.name == "acdc-cli") | .version')"
+          if [[ "$REF_TYPE" == "tag" && "$GITHUB_REF_NAME" != "acdc-cli-v${version}" ]]; then
+            echo "::error::Release tag must match Cargo.toml: acdc-cli-v${version}"
+            exit 1
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+      - uses: Swatinem/rust-cache@v2
+        with:
+          env-vars: ImageOS
+          key: cli-release-${{ matrix.target }}
+      - uses: taiki-e/install-action@nextest
+      - name: Test native CLI in release mode
+        run: cargo nextest run --release -p acdc-cli --all-features --locked --target ${{ matrix.target }} --test-threads 1
+      - name: Build and package native CLI
+        id: package
+        uses: taiki-e/upload-rust-binary-action@f0d45ae91ee7b8ee928de7a9d04d893a08bcbec6 # v1.30.2
+        with:
+          bin: acdc
+          package: acdc-cli
+          target: ${{ matrix.target }}
+          archive: acdc-${{ steps.version.outputs.version }}-$target
+          all-features: true
+          locked: true
+          include: LICENSE,converters/pdf/crates/theme/assets/fonts/OFL.txt,converters/pdf/crates/theme/assets/fonts/LICENSE-NotoColorEmoji.txt
+          checksum: sha256
+          tar: unix
+          zip: windows
+          leading-dir: false
+          dry-run: true
+          dry-run-intended: true
+      - name: Test the extracted archive
+        env:
+          ARCHIVE: ${{ steps.package.outputs.tar || steps.package.outputs.zip }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          smoke_dir="$(mktemp -d)"
+          binary=acdc
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            7z x "$ARCHIVE" "-o$smoke_dir"
+            binary=acdc.exe
+          else
+            tar -xzf "$ARCHIVE" -C "$smoke_dir"
+          fi
+          cmp LICENSE "$smoke_dir/LICENSE"
+          cmp converters/pdf/crates/theme/assets/fonts/OFL.txt "$smoke_dir/OFL.txt"
+          cmp converters/pdf/crates/theme/assets/fonts/LICENSE-NotoColorEmoji.txt "$smoke_dir/LICENSE-NotoColorEmoji.txt"
+          [[ "$(find "$smoke_dir" -type f | wc -l | tr -d ' ')" == 4 ]]
+          cd "$smoke_dir"
+          [[ "$(./"$binary" --version)" == "acdc $VERSION" ]]
+          for command in convert lint inspect execute tck; do
+            ./"$binary" "$command" --help > /dev/null
+          done
+          cat > sample.adoc <<'EOF'
+          = acdc-smoke(1)
+          Release Tester
+          :manmanual: acdc
+          :mansource: acdc
+
+          == Name
+
+          acdc-smoke - verify release binaries
+
+          == Synopsis
+
+          acdc convert document.adoc
+
+          == Description
+
+          RELEASESMOKETEXT
+
+          [terminal,cols=80,rows=4]
+          ----
+          RELEASETERMINALTEXT
+          ----
+          EOF
+          for backend in html manpage markdown terminal pdf; do
+            ./"$binary" convert --backend "$backend" --no-pager --out-file "$backend.out" sample.adoc
+            test -s "$backend.out"
+            if [[ "$backend" == pdf ]]; then
+              [[ "$(head -c 5 "$backend.out")" == '%PDF-' ]]
+            else
+              grep -q RELEASESMOKETEXT "$backend.out"
+            fi
+          done
+          grep -q 'class="terminal-view__screen"' html.out
+          grep -q RELEASETERMINALTEXT terminal.out
+      - uses: actions/upload-artifact@v7
+        with:
+          name: acdc-cli-${{ matrix.target }}
+          path: |
+            ${{ steps.package.outputs.tar }}
+            ${{ steps.package.outputs.zip }}
+            ${{ steps.package.outputs.sha256 }}
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: acdc-cli-*
+          merge-multiple: true
+          path: dist
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd dist
+          sha256sum --check ./*.sha256
+          gh release create "$GITHUB_REF_NAME" ./* \
+            --repo "$GITHUB_REPOSITORY" --verify-tag --draft \
+            --title "acdc-cli ${GITHUB_REF_NAME#acdc-cli-v}" \
+            --notes "Native acdc binaries with all CLI features. Review the changelog and platform checks before publishing."

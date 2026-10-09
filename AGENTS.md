@@ -116,7 +116,7 @@ All crates have **independent versions** — bump only crates that changed.
 - **Published to crates.io**: `acdc-parser`
 - **Not published**: `acdc-cli`, `acdc-lint`, `acdc-lsp`, `acdc-converters-core`, `acdc-converters-html`, `acdc-converters-manpage`, `acdc-converters-markdown`, `acdc-converters-terminal`, `acdc-converters-dev`, `acdc-editor-wasm`
 
-`acdc-lsp` has a native release workflow that tests five targets and creates a draft GitHub release for a matching `acdc-lsp-vX.Y.Z` tag. Manual runs upload artifacts only. Review and publish the draft separately. `acdc-cli` does not yet have a binary release pipeline; `acdc-editor-wasm` ships via GitHub Release; the converters and `acdc-converters-dev` are internal workspace members only.
+`acdc-lsp` and `acdc-cli` have separate native release workflows that test five targets and create draft GitHub releases for matching `acdc-lsp-vX.Y.Z` and `acdc-cli-vX.Y.Z` tags. CLI binaries include all features. Manual runs upload artifacts only. Review and publish each draft separately. `acdc-editor-wasm` ships via GitHub Release; the converters and `acdc-converters-dev` are internal workspace members only.
 
 ### Releasing acdc-editor-wasm
 

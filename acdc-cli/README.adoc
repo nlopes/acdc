@@ -25,6 +25,58 @@ cargo build -p acdc-cli --features terminal,highlighting
 cargo build -p acdc-cli --all-features
 ....
 
+== Native release packaging
+
+The link:../.github/workflows/release-cli.yml[Release CLI workflow] builds `acdc` with `--all-features`.
+This includes all five output backends, highlighting, terminal emulation and HTML terminal previews, network support, linting, command execution, inspection, and the TCK adapter.
+Rust and Zig are build prerequisites; users of the release binary do not need either toolchain.
+The PDF fonts and Ghostty terminal library are embedded in the binary.
+Command execution still needs the interpreter selected by each command block.
+
+[cols="1,1,1", options="header"]
+|===
+| Platform | Rust target | Build runner
+
+| macOS ARM64
+| `aarch64-apple-darwin`
+| `macos-15`
+
+| macOS x86-64
+| `x86_64-apple-darwin`
+| `macos-15-intel`
+
+| Linux x86-64
+| `x86_64-unknown-linux-gnu`
+| `ubuntu-22.04`
+
+| Linux ARM64
+| `aarch64-unknown-linux-gnu`
+| `ubuntu-22.04-arm`
+
+| Windows x86-64
+| `x86_64-pc-windows-msvc`
+| `windows-2025`
+|===
+
+Linux builds target glibc 2.35 or later; older glibc systems and musl-based distributions are not covered by these archives.
+The workflow installs Zig 0.16.0 to build the bundled terminal library.
+Each platform runs the CLI tests in release mode, then extracts its archive and checks every output backend, including PDF and terminal rendering.
+
+https://github.com/taiki-e/upload-rust-binary-action[upload-rust-binary-action] builds and packages the binaries and calculates SHA-256 checksums.
+Archives are named `acdc-X.Y.Z-TARGET.tar.gz` on macOS and Linux, or `acdc-X.Y.Z-TARGET.zip` on Windows.
+Each archive contains exactly four files at its root: `acdc` (or `acdc.exe`), `LICENSE`, `OFL.txt`, and `LICENSE-NotoColorEmoji.txt`.
+The two font notices cover the embedded PDF fonts.
+Each target also has an `acdc-X.Y.Z-TARGET.sha256` file.
+Extract the archive and put the executable in a directory on `PATH`; keep the license files with the distribution.
+
+Manual runs upload build artifacts without creating a release.
+A pushed `acdc-cli-vX.Y.Z` tag must match the CLI crate version and creates a *draft* GitHub release after all platform checks pass.
+Review the archives and changelog before publishing the draft.
+The CLI and LSP use separate workflows, tags, and versions.
+
+Before tagging a new release, update the CLI crate version and lockfile, and move the relevant changelog entries into its release section.
+Use a new tag for each release; do not move an existing tag to newer code.
+
 == Commands
 
 === `convert`

@@ -80,6 +80,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Native binary release packaging for macOS ARM64/x86-64, Linux ARM64/x86-64,
+  and Windows x86-64, with SHA-256 checksums. The binaries include all CLI
+  features, including all five output backends, developer tools, and the TCK
+  adapter. Linux binaries target glibc 2.35 or later.
 - A new `lint` command is available by default. It accepts files or `--stdin`
   and Clippy-style lint level flags (`--allow`/`-A`, `--warn`/`-W`,
   `--deny`/`-D`, `--forbid`/`-F`) for the initial Asciidoctor recommended

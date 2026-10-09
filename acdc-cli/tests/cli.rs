@@ -87,13 +87,18 @@ fn lint_requires_an_input() -> Result<(), Box<dyn Error>> {
 #[cfg(feature = "html")]
 #[test]
 fn missing_input_file_returns_a_failure() -> Result<(), Box<dyn Error>> {
-    let missing = "acdc-cli-test-file-that-does-not-exist.adoc";
+    let dir = tempdir()?;
+    let missing_path = dir.path().join("missing.adoc");
+    let missing = missing_path.to_str().ok_or("non-UTF-8 temporary path")?;
+    let read_error = fs::read_to_string(missing)
+        .err()
+        .ok_or("missing input unexpectedly exists")?;
     let output = run_acdc(&["convert", missing], None)?;
     let stderr = output_text(&output.stderr);
 
     assert_eq!(output.status.code(), Some(1));
     assert!(stderr.contains(missing));
-    assert!(stderr.contains("No such file or directory"));
+    assert!(stderr.contains(&read_error.to_string()));
     Ok(())
 }
 
