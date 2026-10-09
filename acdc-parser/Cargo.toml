@@ -59,7 +59,8 @@ rstest.workspace = true
 # its own `unsafe impl GlobalAlloc` so the workspace `forbid(unsafe_code)` lint
 # stays untouched.
 stats_alloc = "0.1"
-tracing-test.workspace = true
+# Integration tests must also capture events from the parser crate.
+tracing-test = { workspace = true, features = ["no-env-filter"] }
 
 [[bench]]
 name = "parser_bench"

@@ -361,8 +361,8 @@ impl LinesRange {
                 .map_err(|_| Self::create_error(line_range, location))?;
             Ok(LinesRange::Range(start, end))
         } else {
-            Ok(LinesRange::Single(line_range.parse().map_err(|e| {
-                tracing::error!(?line_range, ?e, "Failed to parse line range");
+            Ok(LinesRange::Single(line_range.parse().map_err(|_| {
+                tracing::error!(input_len = line_range.len(), "failed to parse line range");
                 Self::create_error(line_range, location)
             })?))
         }
@@ -422,7 +422,7 @@ pub(crate) struct IncludeResult {
 
 enum UrlReadError {
     Unsupported(String),
-    Retrieval(String),
+    Retrieval,
     Other(Error),
 }
 
@@ -586,7 +586,7 @@ impl<'a> Include<'a> {
                     self.opts.extend(value.split(',').map(str::to_string));
                 }
                 unknown => {
-                    tracing::error!(?unknown, "unknown attribute key in include directive");
+                    tracing::error!("unknown attribute key in include directive");
                     return Err(Error::InvalidIncludeDirective(
                         Box::new(SourceLocation {
                             file: self.current_file.clone(),
@@ -619,7 +619,7 @@ impl<'a> Include<'a> {
             warnings,
         };
         include_parser::include(line, &inputs).map_err(|e| {
-            tracing::error!(?line, error=?e, "failed to parse include directive");
+            tracing::error!(input_len = line.len(), "failed to parse include directive");
             let peg_location = e.location;
             Error::Parse(
                 Box::new(crate::SourceLocation {
@@ -868,10 +868,14 @@ impl<'a> Include<'a> {
         };
         if is_asciidoc {
             let preprocessed = Preprocessor::nested(&self.warnings, self.context.clone())
-                .process_mapped(take(&mut included.content), source_origin, &self.options, line_origins)
-                .map_err(|error| {
-                    tracing::error!(origin=?source_origin, ?error, "failed to process included content");
-                    error
+                .process_mapped(
+                    take(&mut included.content),
+                    source_origin,
+                    &self.options,
+                    line_origins,
+                )
+                .inspect_err(|_| {
+                    tracing::error!("failed to process included content");
                 })?;
             included.content = preprocessed.result.text.into_owned();
             included.leveloffset_ranges = preprocessed.result.leveloffset_ranges;
@@ -944,14 +948,14 @@ impl<'a> Include<'a> {
             .map_err(|error| match error.kind() {
                 IncludeSourceErrorKind::Unsupported => UrlReadError::Unsupported(error.to_string()),
                 IncludeSourceErrorKind::NotFound | IncludeSourceErrorKind::Unavailable => {
-                    UrlReadError::Retrieval(error.to_string())
+                    UrlReadError::Retrieval
                 }
                 IncludeSourceErrorKind::Fatal => UrlReadError::Other(Error::IncludeSource(error)),
             })?;
         reader::read(source, self.encoding.as_deref(), url, &self.selection).map_err(|error| {
             // Discard partial content when the response cannot be read.
-            if let Error::Io(error) = error {
-                UrlReadError::Retrieval(error.to_string())
+            if let Error::Io(_) = error {
+                UrlReadError::Retrieval
             } else {
                 UrlReadError::Other(error)
             }
@@ -984,8 +988,8 @@ impl<'a> Include<'a> {
                     self.unresolved_directive(attribute_list_as_written),
                 )))
             }
-            Err(UrlReadError::Retrieval(detail)) => {
-                tracing::debug!(%url, %detail, "failed to retrieve remote include");
+            Err(UrlReadError::Retrieval) => {
+                tracing::debug!("failed to retrieve remote include");
                 self.warn_located(format!("include uri not readable: {url}"));
                 Ok(UrlIncludeOutcome::Fallback(Box::new(
                     self.unresolved_directive(attribute_list_as_written),
@@ -1007,9 +1011,7 @@ impl<'a> Include<'a> {
             Err(error) if error.kind() == IncludeSourceErrorKind::NotFound => {
                 if optional {
                     tracing::info!(
-                        source_file = ?self.current_file,
                         line = self.line_number,
-                        include_path = %path.display(),
                         "optional include dropped because include file not found",
                     );
                 } else {
@@ -1197,7 +1199,7 @@ impl<'a> Include<'a> {
             },
             Some(source_location),
         );
-        tracing::warn!("{warning}");
+        warning.emit_trace();
         self.warnings.borrow_mut().push(warning);
     }
 
@@ -1543,7 +1545,8 @@ mod tests {
         assert!(logs_contain(
             "optional include dropped because include file not found"
         ));
-        assert!(logs_contain(&missing_path.to_string_lossy()));
+        assert!(!logs_contain(&missing_path.to_string_lossy()));
+        assert!(logs_contain("line=1"));
         Ok(())
     }
 

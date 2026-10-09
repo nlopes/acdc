@@ -82,7 +82,11 @@ impl<'a> LocationMappingContext<'_, 'a> {
             processed,
             base_location,
         } = *self;
-        tracing::info!(?base_location, ?loc, "mapping inline location");
+        tracing::trace!(
+            start = loc.absolute_start,
+            end = loc.absolute_end,
+            "mapping inline location"
+        );
 
         // Convert processed-relative absolute offsets into document-absolute offsets
         let mut processed_abs_start = base_location.absolute_start + loc.absolute_start;
@@ -172,8 +176,10 @@ pub(crate) fn extend_attribute_location_if_needed(
                 && location.absolute_start >= rep.absolute_start
                 && location.absolute_start < rep.absolute_end
         }) {
-            tracing::debug!(from=?location, to=?attr_replacement,
-                "Extending collapsed location to full attribute span",
+            tracing::trace!(
+                start = attr_replacement.absolute_start,
+                end = attr_replacement.absolute_end,
+                "extending collapsed location to full attribute span",
             );
 
             // Extend location to cover the full original attribute
@@ -279,15 +285,13 @@ fn contains_passthrough_placeholders(content: &str, processed: &ProcessedContent
 }
 
 /// Map parsed inline locations to source coordinates and expand passthrough placeholders.
-#[tracing::instrument(skip_all, fields(location=?location, processed=?processed, content=?content))]
+#[tracing::instrument(level = "trace", skip_all, fields(node_count = content.len(), start = location.absolute_start, end = location.absolute_end))]
 pub(crate) fn map_inline_locations<'a>(
     state: &ParserState<'a>,
     processed: &ProcessedContent<'a>,
     content: Vec<InlineNode<'a>>,
     location: &Location,
 ) -> Result<Vec<InlineNode<'a>>, Error> {
-    tracing::info!(?location, "mapping inline locations");
-
     let ctx = LocationMappingContext {
         state,
         processed,

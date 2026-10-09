@@ -117,7 +117,7 @@ impl LineMap {
     /// line lookup, `O(1)` column for ASCII lines, `O(line_length)` column
     /// for lines with non-ASCII content. Pure function, safe for use in PEG
     /// action blocks.
-    #[tracing::instrument(level = "debug")]
+    #[tracing::instrument(level = "trace", skip_all, fields(offset = offset))]
     pub(crate) fn offset_to_position(&self, offset: usize, input: &str) -> Position {
         let (line_idx, line_start_byte) = self.line_for_offset(offset);
         let line = line_idx + 1;

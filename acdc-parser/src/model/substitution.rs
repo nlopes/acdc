@@ -175,14 +175,11 @@ impl std::fmt::Display for Substitution {
 
 /// Parse a substitution name into a `Substitution` enum variant.
 ///
-/// Returns `None` for unknown substitution types, which are logged and skipped.
+/// Returns `None` for unknown substitution names.
 pub(crate) fn parse_substitution(value: &str) -> Option<Substitution> {
     let substitution = substitution_named(value);
     if substitution.is_none() {
-        tracing::error!(
-            substitution = %value,
-            "unknown substitution type, ignoring - check for typos"
-        );
+        tracing::error!("unknown substitution type, ignoring - check for typos");
     }
     substitution
 }

@@ -25,7 +25,7 @@ peg::parser! {
     }
 }
 
-#[tracing::instrument(level = "trace")]
+#[tracing::instrument(level = "trace", skip_all, fields(input_len = line.len()))]
 pub(crate) fn parse_line(options: &mut Options<'_>, line: &str) -> Result<(), Error> {
     match attribute_parser::document_attribute(line) {
         Ok(AttributeDeclaration { name, value }) => {
@@ -44,8 +44,8 @@ pub(crate) fn parse_line(options: &mut Options<'_>, line: &str) -> Result<(), Er
                 None,
             )?;
         }
-        Err(e) => {
-            tracing::warn!(?e, "Failed to parse attribute line");
+        Err(_) => {
+            tracing::warn!("failed to parse attribute line");
         }
     }
     Ok(())

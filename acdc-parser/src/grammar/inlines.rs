@@ -1059,8 +1059,8 @@ fn check_code_opening_boundary(state: &ParserState<'_>, position: usize) -> bool
 /// Macro to handle inline processing errors with logging
 macro_rules! process_inlines_or_err {
     ($call:expr, $msg:literal) => {
-        $call.map_err(|e| {
-            tracing::error!(?e, $msg);
+        $call.map_err(|_| {
+            tracing::error!($msg);
             $msg
         })
     };
@@ -1428,7 +1428,7 @@ peg::parser! {
         )+)
         end:position!()
         {
-            tracing::debug!(?content, "Found quotes-only plain text inline");
+            tracing::debug!(input_len = content.len(), "Found quotes-only plain text inline");
             InlineNode::PlainText(Plain {
                 content,
                 location: state.create_block_location(start_pos, end, state.inline_ctx.offset),
@@ -1684,7 +1684,7 @@ peg::parser! {
         {?
             let (start, id, content_start, content_str, end) = footnote_match;
 
-            tracing::debug!(?id, content = %content_str, "Found footnote inline");
+            tracing::debug!(input_len = content_str.len(), start, end, "Found footnote inline");
 
             // Repeated definitions use the first body without registering its macros again.
             let content = if content_str.is_empty()
@@ -1810,7 +1810,7 @@ peg::parser! {
         content:$(("\\]" / [^']'])*)
         "]"
         {
-            tracing::debug!(?content, "Found pass inline");
+            tracing::debug!("Found pass inline");
             let location = state.create_block_location(span_start, span_end, state.inline_ctx.offset);
             InlineNode::Macro(InlineMacro::Pass(Pass {
                 attribute_fragments: Box::default(),
@@ -1996,7 +1996,7 @@ peg::parser! {
         items:((item:$([^(']' | '>')]+) { item.trim() }) ** (">" whitespace()?))
         "]"
         {
-            tracing::debug!(%target, ?items, "Found menu inline");
+            tracing::debug!("Found menu inline");
             InlineNode::Macro(InlineMacro::Menu(Menu {
                 target,
                 items,
@@ -2011,7 +2011,7 @@ peg::parser! {
         rule inline_button() -> InlineNode<'input>
         = check_experimental() "btn:[" label:$balanced_bracket_content() "]"
         {
-            tracing::debug!(?label, "Found button inline");
+            tracing::debug!("Found button inline");
             InlineNode::Macro(InlineMacro::Button(Button {
                 label: label.trim(),
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
@@ -2027,7 +2027,7 @@ peg::parser! {
         keys:((key:$([^(']' | '+' | ',')]+) { key.trim() }) ** (("," / "+") whitespace()?))
         "]"
         {
-            tracing::debug!(?keys, "Found keyboard inline");
+            tracing::debug!("Found keyboard inline");
             InlineNode::Macro(InlineMacro::Keyboard(Keyboard {
                 keys,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
@@ -2049,15 +2049,14 @@ peg::parser! {
         "["
         content_start:position!() content:link_macro_content() "]"
         {?
-            tracing::debug!(?target, "Found url macro");
+            tracing::debug!("Found url macro");
             let bm = BlockParsingMetadata {
                 substitutions: state.inline_ctx.substitutions,
                 ..BlockParsingMetadata::default()
             };
-            let raw = content.raw;
             let ProcessedLinkContent { text, attributes, .. } = process_link_content(state, &bm, content_start, span_end, &content, false)
-                .map_err(|error| {
-                    tracing::error!(?error, link_text = raw, "could not process link text");
+                .map_err(|_| {
+                    tracing::error!("could not process link text");
                     "could not process link text"
                 })?;
             let interned_target = state.intern_cow(target);
@@ -2099,15 +2098,14 @@ peg::parser! {
         "["
         content_start:position!() content:link_macro_content() "]"
         {?
-            tracing::debug!(?target, "Found mailto macro");
+            tracing::debug!("Found mailto macro");
             let bm = BlockParsingMetadata {
                 substitutions: state.inline_ctx.substitutions,
                 ..BlockParsingMetadata::default()
             };
-            let raw = content.raw;
             let ProcessedLinkContent { text, attributes, subject, body } = process_link_content(state, &bm, content_start, span_end, &content, true)
-                .map_err(|error| {
-                    tracing::error!(?error, link_text = raw, "could not process link text");
+                .map_err(|_| {
+                    tracing::error!("could not process link text");
                     "could not process link text"
                 })?;
             let target_source = Source::from_str_borrowed(target).map_err(|_| "failed to parse mailto target")?;
@@ -2211,7 +2209,7 @@ peg::parser! {
         )
         {?
             let (url, bracketed) = url_info;
-            tracing::debug!(?url, bracketed, "Found autolink inline");
+            tracing::debug!("Found autolink inline");
             let interned_url = state.intern_cow(url);
             let url_source = Source::from_str_borrowed(interned_url).map_err(|_| "failed to parse autolink URL")?;
             Ok(InlineNode::Macro(InlineMacro::Autolink(Autolink {
@@ -2438,7 +2436,7 @@ peg::parser! {
         = "link:" target:link_macro_source() fragment:path_fragment()? open:position!() "["
         content_start:position!() content:link_macro_content() close:position!() "]" check_link_brackets(open, close)
         {?
-            tracing::debug!(?target, ?content, "Found link macro inline");
+            tracing::debug!("Found link macro inline");
             let bm = BlockParsingMetadata {
                 substitutions: state.inline_ctx.substitutions,
                 ..BlockParsingMetadata::default()
@@ -2450,10 +2448,9 @@ peg::parser! {
                 }
                 None => target,
             };
-            let raw = content.raw;
             let ProcessedLinkContent { text, attributes, .. } = process_link_content(state, &bm, content_start, span_end, &content, false)
-                .map_err(|error| {
-                    tracing::error!(?error, link_text = raw, "could not process link text");
+                .map_err(|_| {
+                    tracing::error!("could not process link text");
                     "could not process link text"
                 })?;
             Ok(InlineNode::Macro(InlineMacro::Link(Link {
@@ -2527,15 +2524,15 @@ peg::parser! {
                         position: state.line_map.offset_to_position(content_start, state.input),
                     };
                     process_inlines_no_autolinks(state, &bm, content_pos.offset, span_end, state.inline_ctx.offset, trimmed)
-                        .map_err(|e| {
-                            tracing::error!(?e, xref_text = trimmed, "could not process xref text");
+                        .map_err(|_| {
+                            tracing::error!("could not process xref text");
                             "could not process xref text"
                         })?
                 }
             } else {
                 vec![]
             };
-            tracing::debug!(?target_str, ?text, "Found cross-reference shorthand");
+            tracing::debug!("Found cross-reference shorthand");
             let location = state.create_block_location(span_start, span_end, state.inline_ctx.offset);
             let mut xref = crate::CrossReference::new(target_str, location).with_text(text);
             xref.resolve_natural_target = !state.document_attributes.contains_key("compat-mode");
@@ -2604,12 +2601,12 @@ peg::parser! {
                 };
                 state.inline_ctx.rules = rules;
                 parsed
-                    .map_err(|e| {
-                        tracing::error!(?e, xref_text = raw_text, "could not process xref text");
+                    .map_err(|_| {
+                        tracing::error!("could not process xref text");
                         "could not process xref text"
                     })?
             };
-            tracing::debug!(?target_str, ?text, "Found cross-reference macro");
+            tracing::debug!("Found cross-reference macro");
             let location = state.create_block_location(span_start, span_end, state.inline_ctx.offset);
             let mut xref = crate::CrossReference::new(target_str, location).with_text(text);
             if !state.document_attributes.contains_key("compat-mode") {
@@ -2687,7 +2684,7 @@ peg::parser! {
                 substitutions: state.inline_ctx.substitutions,
                 ..BlockParsingMetadata::default()
             };
-            tracing::debug!(?start, ?content_start, ?end, offset = ?state.inline_ctx.offset, ?content, ?role, "Found unconstrained bold text inline");
+            tracing::debug!(start, content_start, end, offset = state.inline_ctx.offset, "Found unconstrained bold text inline");
             let (content, _) = process_inlines_or_err!(
                 process_inlines(state, &bm, content_start, end - 2, state.inline_ctx.offset, content),
                 "could not process unconstrained bold text content"
@@ -2785,7 +2782,7 @@ peg::parser! {
             // Check if we're at start of input OR preceded by word boundary character
             let absolute_pos = start + state.inline_ctx.offset;
             if !check_constrained_opening_boundary(absolute_pos, state.input.as_bytes(), state.outer_constrained_delimiter, b'*') {
-                tracing::debug!(absolute_pos, prev_byte = ?state.input.as_bytes().get(absolute_pos.saturating_sub(1)), "Invalid word boundary for constrained bold");
+                tracing::debug!(absolute_pos, "Invalid word boundary for constrained bold");
                 return Err("invalid word boundary for constrained bold");
             }
 
@@ -2798,7 +2795,7 @@ peg::parser! {
                 substitutions: state.inline_ctx.substitutions,
                 ..BlockParsingMetadata::default()
             };
-            tracing::debug!(offset = ?state.inline_ctx.offset, ?content, ?role, "Found constrained bold text inline");
+            tracing::debug!(offset = state.inline_ctx.offset, "Found constrained bold text inline");
             let adjusted_content_start = PositionWithOffset {
                 offset: content_start.offset + 1,
                 position: content_start.position,
@@ -2869,7 +2866,7 @@ peg::parser! {
                 substitutions: state.inline_ctx.substitutions,
                 ..BlockParsingMetadata::default()
             };
-            tracing::debug!(offset = ?state.inline_ctx.offset, ?content, ?role, "Found constrained italic text inline");
+            tracing::debug!(offset = state.inline_ctx.offset, "Found constrained italic text inline");
             let adjusted_content_start = PositionWithOffset {
                 offset: content_start.offset + 1,
                 position: content_start.position,
@@ -2922,7 +2919,7 @@ peg::parser! {
                 substitutions: state.inline_ctx.substitutions,
                 ..BlockParsingMetadata::default()
             };
-            tracing::debug!(?start, ?content_start, ?end, offset = ?state.inline_ctx.offset, ?content, ?role, "Found unconstrained italic text inline");
+            tracing::debug!(start, content_start, end, offset = state.inline_ctx.offset, "Found unconstrained italic text inline");
             let (content, _) = process_inlines_or_err!(
                 process_inlines(state, &bm, content_start, end - 2, state.inline_ctx.offset, content),
                 "could not process unconstrained italic text content"
@@ -2956,7 +2953,7 @@ peg::parser! {
                 substitutions: state.inline_ctx.substitutions,
                 ..BlockParsingMetadata::default()
             };
-            tracing::debug!(?start, ?content_start, ?end, offset = ?state.inline_ctx.offset, ?content, ?role, "Found unconstrained monospace text inline");
+            tracing::debug!(start, content_start, end, offset = state.inline_ctx.offset, "Found unconstrained monospace text inline");
             let (content, _) = process_inlines_or_err!(
                 process_inlines(state, &bm, content_start, end - 2, state.inline_ctx.offset, content),
                 "could not process unconstrained monospace text content"
@@ -3014,7 +3011,7 @@ peg::parser! {
                 substitutions: state.inline_ctx.substitutions,
                 ..BlockParsingMetadata::default()
             };
-            tracing::debug!(?start, ?content_start, ?end, offset = ?state.inline_ctx.offset, ?content, ?role, "Found constrained monospace text inline");
+            tracing::debug!(start, content_start = content_start.offset, end, offset = state.inline_ctx.offset, "Found constrained monospace text inline");
             let adjusted_content_start = PositionWithOffset {
                 offset: content_start.offset + 1,
                 position: content_start.position,
@@ -3067,7 +3064,7 @@ peg::parser! {
                 substitutions: state.inline_ctx.substitutions,
                 ..BlockParsingMetadata::default()
             };
-            tracing::debug!(?start, ?content_start, ?end, offset = ?state.inline_ctx.offset, ?content, ?role, "Found unconstrained highlight text inline");
+            tracing::debug!(start, content_start, end, offset = state.inline_ctx.offset, "Found unconstrained highlight text inline");
             let (content, _) = process_inlines_or_err!(
                 process_inlines(state, &bm, content_start, end - 2, state.inline_ctx.offset, content),
                 "could not process unconstrained highlight text content"
@@ -3107,7 +3104,7 @@ peg::parser! {
             // Check if we're at start of input OR preceded by word boundary character
             let absolute_pos = start + state.inline_ctx.offset;
             if !check_constrained_opening_boundary(absolute_pos, state.input.as_bytes(), state.outer_constrained_delimiter, b'#') {
-                tracing::debug!(absolute_pos, prev_byte = ?state.input.as_bytes().get(absolute_pos.saturating_sub(1)), "Invalid word boundary for constrained highlight");
+                tracing::debug!(absolute_pos, "Invalid word boundary for constrained highlight");
                 return Err("invalid word boundary for constrained highlight");
             }
 
@@ -3120,7 +3117,7 @@ peg::parser! {
                 substitutions: state.inline_ctx.substitutions,
                 ..BlockParsingMetadata::default()
             };
-            tracing::debug!(?start, ?content_start, ?end, offset = ?state.inline_ctx.offset, ?content, ?role, "Found constrained highlight text inline");
+            tracing::debug!(start, content_start = content_start.offset, end, offset = state.inline_ctx.offset, "Found constrained highlight text inline");
             let adjusted_content_start = PositionWithOffset {
                 offset: content_start.offset + 1,
                 position: content_start.position,
@@ -3174,7 +3171,7 @@ peg::parser! {
                 substitutions: state.inline_ctx.substitutions,
                 ..BlockParsingMetadata::default()
             };
-            tracing::debug!(?start, ?content_start, ?end, offset = ?state.inline_ctx.offset, ?content, ?role, "Found superscript text inline");
+            tracing::debug!(start, content_start, end, offset = state.inline_ctx.offset, "Found superscript text inline");
             let (content, _) = process_inlines_or_err!(
                 process_inlines(state, &bm, content_start, end - 1, state.inline_ctx.offset, content),
                 "could not process superscript text content"
@@ -3209,7 +3206,7 @@ peg::parser! {
                 substitutions: state.inline_ctx.substitutions,
                 ..BlockParsingMetadata::default()
             };
-            tracing::debug!(?start, ?content_start, ?end, offset = ?state.inline_ctx.offset, ?content, ?role, "Found subscript text inline");
+            tracing::debug!(start, content_start, end, offset = state.inline_ctx.offset, "Found subscript text inline");
             let (content, _) = process_inlines_or_err!(
                 process_inlines(state, &bm, content_start, end - 1, state.inline_ctx.offset, content),
                 "could not process subscript text content"
@@ -3244,7 +3241,7 @@ peg::parser! {
                 substitutions: state.inline_ctx.substitutions,
                 ..BlockParsingMetadata::default()
             };
-            tracing::debug!(?start, ?content_start, ?end, offset = ?state.inline_ctx.offset, ?content, ?role, "Found curved quotation text inline");
+            tracing::debug!(start, content_start, end, offset = state.inline_ctx.offset, "Found curved quotation text inline");
             let (content, _) = process_inlines_or_err!(
                 process_inlines(state, &bm, content_start, end - 2, state.inline_ctx.offset, content),
                 "could not process curved quotation text content"
@@ -3279,7 +3276,7 @@ peg::parser! {
                 substitutions: state.inline_ctx.substitutions,
                 ..BlockParsingMetadata::default()
             };
-            tracing::debug!(?start, ?content_start, ?end, offset = ?state.inline_ctx.offset, ?content, ?role, "Found curved apostrophe text inline");
+            tracing::debug!(start, content_start, end, offset = state.inline_ctx.offset, "Found curved apostrophe text inline");
             let (content, _) = process_inlines_or_err!(
                 process_inlines(state, &bm, content_start, end - 2, state.inline_ctx.offset, content),
                 "could not process curved apostrophe text content"
@@ -3305,7 +3302,7 @@ peg::parser! {
         rule standalone_curved_apostrophe() -> InlineNode<'input>
             = start:position!() "`'" check_quote_markers((start, 2), (start, 2))
         {?
-            tracing::debug!(start = span_start, end = span_end, offset = ?state.inline_ctx.offset, "Found standalone curved apostrophe inline");
+            tracing::debug!(start = span_start, end = span_end, offset = state.inline_ctx.offset, "Found standalone curved apostrophe inline");
             Ok(InlineNode::StandaloneCurvedApostrophe(StandaloneCurvedApostrophe {
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
             }))
@@ -3504,7 +3501,7 @@ peg::parser! {
         )+)
         end:position!()
         {
-            tracing::trace!(?content, "Found plain text inline");
+            tracing::trace!(input_len = content.len(), "Found plain text inline");
             // Note: Backslash escape stripping (e.g., \^ -> ^) is handled by the converter,
             // not here, so that verbatim contexts (like monospace) preserve backslashes.
             InlineNode::PlainText(Plain {
@@ -3683,25 +3680,25 @@ peg::parser! {
         {
             // Strip surrounding quotes from quoted values
             let trimmed = strip_quotes(inner);
-            tracing::debug!(%inner, %trimmed, "Found named attribute value (inner)");
+            tracing::debug!("Found named attribute value (inner)");
             trimmed
         }
         / s:$([^(',' | '"' | '\'' | ']')]+)
         {
-            tracing::debug!(%s, "Found named attribute value");
+            tracing::debug!("Found named attribute value");
             s
         }
 
         rule positional_attribute_value() -> &'input str
         = quoted:inner_attribute_value() {
             let trimmed = strip_quotes(quoted);
-            tracing::debug!(%quoted, %trimmed, "Found quoted positional attribute value");
+            tracing::debug!("Found quoted positional attribute value");
             trimmed
         }
         / s:$([^('"' | ',' | ']' | '#' | '.' | '%')] [^(',' | ']' | '#' | '.' | '%' | '=')]*)
         {
             let trimmed = s.trim();
-            tracing::debug!(%s, %trimmed, "Found unquoted positional attribute value");
+            tracing::debug!("Found unquoted positional attribute value");
             trimmed
         }
 
@@ -3783,8 +3780,8 @@ peg::parser! {
                 true,
             );
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
-            .map_err(|e| {
-                tracing::error!(?e, "could not preprocess url path");
+            .map_err(|_| {
+                tracing::error!("could not preprocess url path");
                 "could not preprocess url path"
             })?;
             for warning in inline_state.drain_warnings() {
@@ -3806,8 +3803,8 @@ peg::parser! {
                 true,
             );
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
-            .map_err(|e| {
-                tracing::error!(?e, "could not preprocess media URL path");
+            .map_err(|_| {
+                tracing::error!("could not preprocess media URL path");
                 "could not preprocess media URL path"
             })?;
             for warning in inline_state.drain_warnings() {
@@ -3847,8 +3844,8 @@ peg::parser! {
                 true,
             );
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
-                .map_err(|e| {
-                    tracing::error!(?e, "could not preprocess bare url path");
+                .map_err(|_| {
+                    tracing::error!("could not preprocess bare url path");
                     "could not preprocess bare url path"
                 })?;
             for warning in inline_state.drain_warnings() {
@@ -3905,8 +3902,8 @@ peg::parser! {
                 state.arena,
             );
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
-            .map_err(|e| {
-                tracing::error!(?e, "could not preprocess path");
+            .map_err(|_| {
+                tracing::error!("could not preprocess path");
                 "could not preprocess path"
             })?;
             for warning in inline_state.drain_warnings() {
@@ -3926,8 +3923,8 @@ peg::parser! {
                 state.arena,
             );
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
-            .map_err(|e| {
-                tracing::error!(?e, "could not preprocess media path");
+            .map_err(|_| {
+                tracing::error!("could not preprocess media path");
                 "could not preprocess media path"
             })?;
             for warning in inline_state.drain_warnings() {

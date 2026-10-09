@@ -2209,7 +2209,7 @@ fn get_literal_paragraph<'input>(
     block_metadata: &BlockParsingMetadata<'input>,
 ) -> Result<Block<'input>, Error> {
     tracing::debug!(
-        content,
+        input_len = content.len(),
         "paragraph starts with a space - switching to literal block"
     );
     let mut metadata = block_metadata.metadata.clone();
@@ -2356,12 +2356,8 @@ fn apply_leveloffset(
         let clamped = adjusted.clamp(0, 5);
         // Safely converting the clamp ensures the value is in u8 range
         SectionLevel::try_from(clamped)
-            .inspect_err(|error| {
-                tracing::error!(
-                    clamped,
-                    ?error,
-                    "not a valid section after applying leveloffset"
-                );
+            .inspect_err(|_| {
+                tracing::error!(clamped, "not a valid section after applying leveloffset");
             })
             .unwrap_or(0)
     } else {
@@ -3410,7 +3406,7 @@ peg::parser! {
           &(eol() / ![_])
         {
             let (title, subtitle) = title_and_subtitle;
-            tracing::debug!(?title, ?subtitle, ?authors, "Found title and authors in the document header.");
+            tracing::debug!("Found title and authors in the document header.");
             (title, subtitle, authors.unwrap_or_default())
         }
 
@@ -3422,7 +3418,7 @@ peg::parser! {
         rule document_title_atx() -> (Title<'input>, Option<Subtitle<'input>>)
         = &atx_heading_prefix() document_title_token() whitespace() start:position!() title:$([^'\n']*) end:position!()
         {?
-            tracing::debug!(?title, "Processing ATX document title");
+            tracing::debug!("Processing ATX document title");
             let block_metadata = BlockParsingMetadata::default();
 
             let (title_inlines, subtitle) = if let Some(colon_pos) = title.rfind(": ") {
@@ -3496,7 +3492,7 @@ peg::parser! {
                 return Err("document title must use = underline");
             }
 
-            tracing::debug!(?title_text, "Processing setext document title");
+            tracing::debug!("Processing setext document title");
             let block_metadata = BlockParsingMetadata::default();
 
             let (title_inlines, subtitle) = if let Some(colon_pos) = title.rfind(": ") {
@@ -3556,7 +3552,7 @@ peg::parser! {
                     Cow::Borrowed(s) => s,
                     Cow::Owned(s) => state.intern_str(&s),
                 };
-                tracing::debug!(?author_line, ?substituted, "Processing author line with substitution");
+                tracing::debug!("Processing author line with substitution");
 
                 // Parse the substituted content as authors
                 let mut temp_state =
@@ -3567,10 +3563,10 @@ peg::parser! {
                 // [<email>]" authors (e.g. it contains parentheses, commas, or an
                 // "Author:" prefix), the whole line becomes a single author's full name.
                 let authors = if let Ok(authors) = document_parser::authors(substituted, &mut temp_state) {
-                    tracing::debug!(?authors, "Parsed authors from line");
+                    tracing::debug!("Parsed authors from line");
                     authors
                 } else {
-                    tracing::debug!(?substituted, "Author line did not parse structurally; using whole line as a single author");
+                    tracing::debug!("Author line did not parse structurally; using whole line as a single author");
                     let location = state.create_error_source_location(state.create_location(start, end));
                     state.add_warning(Warning::new(
                         WarningKind::NonStandardAuthorLine { line: substituted.to_string() },
@@ -3669,7 +3665,7 @@ peg::parser! {
                     Cow::Borrowed(s) => s,
                     Cow::Owned(s) => state.intern_str(&s),
                 };
-                tracing::debug!(?rev_line, ?substituted, "Processing revision line with substitution");
+                tracing::debug!("Processing revision line with substitution");
 
                 // Parse the substituted content as revision
                 let mut temp_state =
@@ -3705,7 +3701,7 @@ peg::parser! {
         rule document_attribute() -> ()
         = start:position!() att:document_attribute_match() end:position!() (&eol() / ![_])
         {
-            tracing::debug!(?att, "Found document attribute in the document header");
+            tracing::debug!("Found document attribute in the document header");
             let location = state.create_block_location(start, end, 0);
             state.apply_document_attribute(&att, true, location);
         }
@@ -3932,8 +3928,8 @@ peg::parser! {
 
         rule discrete_header(offset: usize) -> Result<Block<'input>, Error>
         = &atx_heading_match() block_metadata:(bm:heading_metadata(offset, None) {?
-            let bm = bm.map_err(|e| {
-                tracing::error!(?e, "error parsing block metadata in discrete_header");
+            let bm = bm.map_err(|_| {
+                tracing::error!("error parsing block metadata in discrete_header");
                 "block metadata parse error"
             })?;
             // Backtrack to the regular `section` rule unless the attribute line
@@ -3948,7 +3944,7 @@ peg::parser! {
         title_start:position!() title:section_title(offset, &block_metadata) title_end:position!() &(eol()*<1,2> / ![_])
         {
             let (title, _) = title?;
-            tracing::debug!(?block_metadata, ?title, ?title_start, ?title_end, "parsing discrete header block");
+            tracing::debug!(title_start, title_end, "parsing discrete header block");
 
             let level = section_level.1;
             // `span_end` lands at title_end here because the trailing `&(...)` is a
@@ -3990,8 +3986,8 @@ peg::parser! {
         pub(crate) rule section(offset: usize, parent_section_level: Option<SectionLevel>, direct_parent_section_kind: Option<SectionKind>) -> Result<Block<'input>, Error>
         = check_section_blocks() &atx_heading_match()
         block_metadata:(bm:heading_metadata(offset, parent_section_level) {?
-            bm.map_err(|e| {
-                tracing::error!(?e, "error parsing block metadata in section");
+            bm.map_err(|_| {
+                tracing::error!("error parsing block metadata in section");
                 "block metadata parse error"
             })
         })
@@ -4020,7 +4016,7 @@ peg::parser! {
         )), Some(SectionKind::from_style(block_metadata.metadata.style)))?
         {
             let (title, numbering, reference_text) = section_header?;
-            tracing::debug!(?offset, ?block_metadata, ?title, "parsing section block");
+            tracing::debug!(offset, "parsing section block");
 
             // Validate section level against parent section level if any is provided.
             if let Some(parent_level) = parent_section_level {
@@ -4132,8 +4128,8 @@ peg::parser! {
         = check_section_blocks() !check_line_is_description_list(offset)
         &setext_section_match(parent_section_level)
         block_metadata:(bm:heading_metadata(offset, parent_section_level) {?
-            bm.map_err(|e| {
-                tracing::error!(?e, "error parsing block metadata in section_setext");
+            bm.map_err(|_| {
+                tracing::error!("error parsing block metadata in section_setext");
                 "block metadata parse error"
             })
         })
@@ -4260,7 +4256,7 @@ peg::parser! {
         rule title_line() -> BlockMetadataLine<'input>
         = period() start:position!() title:$(![' ' | '\t' | '\n' | '\r' | '.'] [^'\n']*) end:position!() eol()
         {
-            tracing::debug!(?title, ?start, ?end, "Found title line in block metadata");
+            tracing::debug!(start, end, "Found title line in block metadata");
             BlockMetadataLine::Title { source: title, start, end }
         }
 
@@ -4270,7 +4266,7 @@ peg::parser! {
         rule document_attribute_line(offset: usize) -> (AttributeDeclaration<'input>, Location)
         = start:position!() attr:document_attribute_match() end:position!() eol()
         {
-            tracing::debug!(?attr, "Found document attribute in block metadata");
+            tracing::debug!("Found document attribute in block metadata");
             (attr, state.create_block_location(start, end, offset))
         }
 
@@ -4310,7 +4306,7 @@ peg::parser! {
         rule section_title(offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<(Title<'input>, &'input str), Error>
         = title:$([^'\n']*)
         {
-            tracing::debug!(?title, title_start = span_start, title_end = span_end, offset, "Found section title");
+            tracing::debug!(title_start = span_start, title_end = span_end, "Found section title");
             let (content, natural_title) = process_inlines(
                 state,
                 block_metadata,
@@ -4328,8 +4324,8 @@ peg::parser! {
         pub(crate) rule block_generic(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block<'input>, Error>
         = start:position!()
         block_metadata:(bm:block_metadata(offset, parent_section_level) {?
-            bm.map_err(|e| {
-                tracing::error!(?e, "error parsing block metadata in block_generic");
+            bm.map_err(|_| {
+                tracing::error!("error parsing block metadata in block_generic");
                 "block metadata parse error"
             })
         })
@@ -4357,8 +4353,8 @@ peg::parser! {
         rule block_in_continuation(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block<'input>, Error>
         = !trailing_block_metadata_match() start:position!()
         block_metadata:(bm:block_metadata(offset, parent_section_level) {?
-            bm.map_err(|e| {
-                tracing::error!(?e, "error parsing block metadata in block_in_continuation");
+            bm.map_err(|_| {
+                tracing::error!("error parsing block metadata in block_in_continuation");
                 "block metadata parse error"
             })
         })
@@ -4772,13 +4768,13 @@ peg::parser! {
             if let Some(style) = metadata.style {
                 metadata.style = None;
                 if style == "youtube" || style == "vimeo" {
-                    tracing::debug!(?metadata, "transforming video metadata style into attribute");
+                    tracing::debug!("transforming video metadata style into attribute");
                     metadata
                         .attributes
                         .set(Cow::Borrowed(style), AttributeValue::Bool(true));
                 } else {
                     // assume poster
-                    tracing::debug!(?metadata, "transforming video metadata style into attribute, assuming poster");
+                    tracing::debug!("transforming video metadata style into attribute, assuming poster");
                     metadata.attributes.set(
                         "poster".into(),
                         AttributeValue::String(Cow::Borrowed(style)),
@@ -4886,8 +4882,8 @@ peg::parser! {
 
         rule parsed_nested_list_metadata(offset: usize, parent_section_level: Option<SectionLevel>) -> BlockParsingMetadata<'input>
         = metadata:nested_list_metadata(offset, parent_section_level) {?
-            metadata.map_err(|error| {
-                tracing::error!(?error, "error parsing nested list metadata");
+            metadata.map_err(|_| {
+                tracing::error!("error parsing nested list metadata");
                 "nested list metadata parse error"
             })
         }
@@ -5184,7 +5180,7 @@ peg::parser! {
         ) { cont })*
         list_dangling_continuation()?
         {
-            tracing::debug!(%first_line, ?continuation_lines, %marker, ?checked, "found unordered list item");
+            tracing::debug!(first_line_len = first_line.len(), continuation_count = continuation_lines.len(), "found unordered list item");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
             let item_end = calculate_item_end(first_line.is_empty() && continuation_lines.is_empty(), span_start, first_line_end);
             let principal = principal?;
@@ -5231,7 +5227,7 @@ peg::parser! {
         // Ancestor continuations (1+ empty lines) bubble up to parent items
         immediate_continuations:(!at_list_separator() cont:list_explicit_continuation_immediate(offset, block_metadata) { cont })*
         {
-            tracing::debug!(%first_line, ?continuation_lines, %marker, ?checked, "found unordered list item (immediate continuation only)");
+            tracing::debug!(first_line_len = first_line.len(), continuation_count = continuation_lines.len(), "found unordered list item (immediate continuation only)");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
             let item_end = calculate_item_end(first_line.is_empty() && continuation_lines.is_empty(), span_start, first_line_end);
             let principal = principal?;
@@ -5275,7 +5271,7 @@ peg::parser! {
         ) { cont })*
         list_dangling_continuation()?
         {
-            tracing::debug!(%first_line, ?continuation_lines, %marker, ?checked, "found unordered list item (after marker)");
+            tracing::debug!(first_line_len = first_line.len(), continuation_count = continuation_lines.len(), "found unordered list item (after marker)");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
             let item_end = calculate_item_end(first_line.is_empty() && continuation_lines.is_empty(), span_start, first_line_end);
             let principal = principal?;
@@ -5309,7 +5305,7 @@ peg::parser! {
         nested:(!at_list_separator() nested_content:unordered_list_item_nested_after_principal(offset, block_metadata, marker, parent_ordered_marker) { nested_content })?
         immediate_continuations:(!at_list_separator() cont:list_explicit_continuation_immediate(offset, block_metadata) { cont })*
         {
-            tracing::debug!(%first_line, ?continuation_lines, %marker, ?checked, "found unordered list item (after marker, immediate only)");
+            tracing::debug!(first_line_len = first_line.len(), continuation_count = continuation_lines.len(), "found unordered list item (after marker, immediate only)");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
             let item_end = calculate_item_end(first_line.is_empty() && continuation_lines.is_empty(), span_start, first_line_end);
             let principal = principal?;
@@ -5388,7 +5384,7 @@ peg::parser! {
           // Parse rest items - only those at same level as base_marker (not deeper, not shallower than parent)
           rest:(unordered_list_nested_rest_item(offset, block_metadata, parent_marker, base_marker, parent_ordered_marker))*
         {
-            tracing::debug!(?parent_marker, ?base_marker, "Found nested unordered list block");
+            tracing::debug!("Found nested unordered list block");
             let mut content = vec![first?];
             for item in rest {
                 content.push(item?);
@@ -5468,7 +5464,7 @@ peg::parser! {
         ) { cont })*
         list_dangling_continuation()?
         {
-            tracing::debug!(%first_line, ?continuation_lines, %marker, "found ordered list item");
+            tracing::debug!(first_line_len = first_line.len(), continuation_count = continuation_lines.len(), "found ordered list item");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
             let item_end = calculate_item_end(first_line.is_empty() && continuation_lines.is_empty(), span_start, first_line_end);
             let principal = principal?;
@@ -5514,7 +5510,7 @@ peg::parser! {
         // Ancestor continuations (1+ empty lines) bubble up to parent items
         immediate_continuations:(!at_list_separator() cont:list_explicit_continuation_immediate(offset, block_metadata) { cont })*
         {
-            tracing::debug!(%first_line, ?continuation_lines, %marker, "found ordered list item (immediate continuation only)");
+            tracing::debug!(first_line_len = first_line.len(), continuation_count = continuation_lines.len(), "found ordered list item (immediate continuation only)");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
             let item_end = calculate_item_end(first_line.is_empty() && continuation_lines.is_empty(), span_start, first_line_end);
             let principal = principal?;
@@ -5555,7 +5551,7 @@ peg::parser! {
         ) { cont })*
         list_dangling_continuation()?
         {
-            tracing::debug!(%first_line, ?continuation_lines, %marker, "found ordered list item (after marker)");
+            tracing::debug!(first_line_len = first_line.len(), continuation_count = continuation_lines.len(), "found ordered list item (after marker)");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
             let item_end = calculate_item_end(first_line.is_empty() && continuation_lines.is_empty(), span_start, first_line_end);
             let principal = principal?;
@@ -5588,7 +5584,7 @@ peg::parser! {
         nested:(!at_list_separator() nested_content:ordered_list_item_nested_after_principal(offset, block_metadata, marker, parent_unordered_marker) { nested_content })?
         immediate_continuations:(!at_list_separator() cont:list_explicit_continuation_immediate(offset, block_metadata) { cont })*
         {
-            tracing::debug!(%first_line, ?continuation_lines, %marker, "found ordered list item (after marker, immediate only)");
+            tracing::debug!(first_line_len = first_line.len(), continuation_count = continuation_lines.len(), "found ordered list item (after marker, immediate only)");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
             let item_end = calculate_item_end(first_line.is_empty() && continuation_lines.is_empty(), span_start, first_line_end);
             let principal = principal?;
@@ -5667,7 +5663,7 @@ peg::parser! {
           // Parse rest items - only those at same level as base_marker (not deeper, not shallower than parent)
           rest:(ordered_list_nested_rest_item(offset, block_metadata, parent_marker, base_marker, parent_unordered_marker))*
         {
-            tracing::debug!(?parent_marker, ?base_marker, "Found nested ordered list block");
+            tracing::debug!("Found nested ordered list block");
             let mut content = vec![first?];
             for item in rest {
                 content.push(item?);
@@ -6028,7 +6024,7 @@ peg::parser! {
         // Now handle auto-attachment and explicit continuation
         attached_content:description_list_attached_content(offset, block_metadata)*
         {
-            tracing::debug!(%term, %delimiter, "parsing description list item with auto-attachment");
+            tracing::debug!("parsing description list item with auto-attachment");
 
             let (term, principal_text) = principal?;
 
@@ -6044,7 +6040,7 @@ peg::parser! {
                             },
                             e.source_location().cloned(),
                         ));
-                        tracing::error!(?e, "Error processing attached content");
+                        tracing::error!("Error processing attached content");
                     }
                 }
             }
@@ -6215,7 +6211,7 @@ peg::parser! {
           eol()
           "-- " attr_start:position!() attribution_line:$([^'\n']+)
         {
-            tracing::debug!(?quoted_content, ?attribution_line, "found quoted paragraph");
+            tracing::debug!("found quoted paragraph");
 
             // Parse attribution line: "Author Name, Source Title" or just "Author Name"
             // Intern the slices into the parser arena so downstream inline parsing
@@ -6297,7 +6293,7 @@ peg::parser! {
         rule markdown_blockquote(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
         = lines:markdown_blockquote_content_line()+ attribution:markdown_blockquote_attribution()?
         {
-            tracing::debug!(?lines, ?attribution, "found markdown blockquote");
+            tracing::debug!("found markdown blockquote");
 
             let content: &'input str = state.intern_join(lines.iter(), "\n");
             let content_start = start;
@@ -6512,13 +6508,13 @@ peg::parser! {
 
             if let Some((variant, admonition_start, admonition_end)) = admonition {
                 let Ok(parsed_variant) = AdmonitionVariant::from_str(&variant) else {
-                    tracing::error!(%variant, "invalid admonition variant");
+                    tracing::error!("invalid admonition variant");
                     return Err(Error::InvalidAdmonitionVariant(
                         Box::new(state.create_error_source_location(state.create_location(admonition_start + offset, admonition_end + offset - 1))),
                         variant
                     ));
                 };
-                tracing::debug!(%variant, "found admonition block with variant");
+                tracing::debug!("found admonition block with variant");
                 Ok(Block::Admonition(Admonition{
                     metadata: block_metadata.metadata.clone(),
                     title,
@@ -6537,7 +6533,7 @@ peg::parser! {
                 let mut metadata = block_metadata.metadata.clone();
                 metadata.move_positional_attributes_to_attributes();
 
-                tracing::debug!(?content, "found paragraph block");
+                tracing::debug!(node_count = content.len(), "found paragraph block");
                 Ok(Block::Paragraph(Paragraph {
                     source_text: Some(source_text),
                     content,
@@ -6785,8 +6781,8 @@ peg::parser! {
                 state.arena,
             );
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
-            .map_err(|e| {
-                tracing::error!(?e, "could not preprocess url path");
+            .map_err(|_| {
+                tracing::error!("could not preprocess url path");
                 "could not preprocess url path"
             })?;
             let result = restore_url_path(processed);
@@ -6827,8 +6823,8 @@ peg::parser! {
                 state.arena,
             );
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
-                .map_err(|e| {
-                    tracing::error!(?e, "could not preprocess bare url path");
+                .map_err(|_| {
+                    tracing::error!("could not preprocess bare url path");
                     "could not preprocess bare url path"
                 })?;
             let result = restore_url_path(processed);
@@ -6884,8 +6880,8 @@ peg::parser! {
                 state.arena,
             );
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
-            .map_err(|e| {
-                tracing::error!(?e, "could not preprocess path");
+            .map_err(|_| {
+                tracing::error!("could not preprocess path");
                 "could not preprocess path"
             })?;
             let result = processed.text.into_owned();

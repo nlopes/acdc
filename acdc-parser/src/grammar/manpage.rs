@@ -52,7 +52,7 @@ fn parse_manpage_title(title: &str) -> Option<ManpageTitle> {
         [first] if first.is_ascii_digit() => {} // valid,
         [first, second] if first.is_ascii_digit() && second.is_ascii_alphabetic() => {}
         _ => {
-            tracing::warn!(%title, %volume, "invalid manpage volume format in title");
+            tracing::warn!("invalid manpage volume format in title");
             return None;
         }
     }
@@ -177,11 +177,7 @@ pub(super) fn derive_manpage_header_attrs<'a>(
         attrs.insert_text("mantitle".into(), manpage_title.name.to_lowercase().into());
         attrs.insert_text("manvolnum".into(), manpage_title.volume.into());
 
-        tracing::debug!(
-            mantitle = manpage_title.name,
-            manvolnum = ?attrs.text("manvolnum"),
-            "derived manpage attributes from header"
-        );
+        tracing::debug!("derived manpage attributes from header");
     } else {
         // Non-conforming title
         if strict {
@@ -205,20 +201,13 @@ pub(super) fn derive_manpage_header_attrs<'a>(
         let sanitized = sanitize_mantitle(fallback_name);
 
         tracing::warn!(
-            ?title_text,
-            ?source_file,
-            mantitle = %sanitized,
             "doctype=manpage but title doesn't match name(volume) format; using filename as fallback"
         );
 
         attrs.insert_text("mantitle".into(), sanitized.into());
         attrs.insert_text("manvolnum".into(), "1".into());
 
-        tracing::debug!(
-            mantitle = ?attrs.text("mantitle"),
-            manvolnum = "1",
-            "using fallback manpage attributes for non-conforming title"
-        );
+        tracing::debug!("using fallback manpage attributes for non-conforming title");
     }
 
     if attrs.text("backend").map(crate::strip_quotes) == Some("manpage")

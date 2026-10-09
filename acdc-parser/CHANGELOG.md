@@ -38,6 +38,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Parser tracing no longer dumps document text, options, AST nodes, paths, or URLs.
+  Warning logs contain categories and positions. Read full warnings from the
+  parse result and full errors from the returned `Error`.
 - The parser now builds for `wasm32-unknown-unknown` with `network` or `--all-features`.
   This target has no built-in HTTP client.
   Attempts to load HTTP(S) includes produce a warning and keep the unresolved directive.

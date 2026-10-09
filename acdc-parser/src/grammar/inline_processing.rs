@@ -91,10 +91,13 @@ pub(crate) fn adjust_and_log_parse_error(
         },
         adjusted_error.source_location().cloned(),
     ));
-    tracing::error!(?adjusted_error, ?context, "Parsing error occurred");
+    tracing::error!(
+        doc_start_offset,
+        "inline parse error; see returned diagnostics"
+    );
 }
 
-#[tracing::instrument(skip_all, fields(content_start, end, offset))]
+#[tracing::instrument(skip_all, fields(content_start = content_start, end = end, offset = offset))]
 pub(crate) fn preprocess_inline_content<'a>(
     state: &mut ParserState<'a>,
     content_start: usize,
@@ -159,9 +162,8 @@ pub(crate) fn preprocess_inline_content<'a>(
         .attribute_value_ranges
         .clone_from(&state.attribute_value_ranges);
     tracing::debug!(
-        ?inline_state,
-        ?location,
-        ?offset,
+        input_len = content.len(),
+        offset,
         content_start,
         ?end,
         "before inline preprocessing run"
@@ -240,7 +242,7 @@ fn inline_context(
     }
 }
 
-#[tracing::instrument(skip_all, fields(processed=?processed, block_metadata=?block_metadata))]
+#[tracing::instrument(skip_all, fields(input_len = text.len(), autolinks = autolinks, verbatim = verbatim))]
 fn parse_processed_inlines<'a>(
     processed: &ProcessedContent<'a>,
     text: &'a str,
@@ -427,7 +429,7 @@ fn parse_bibliography_label<'a>(
 ///
 /// The inline nodes contain the display representation. The returned source restores protected
 /// passthrough content for callers such as natural cross-reference lookup.
-#[tracing::instrument(skip_all, fields(content_start, end, offset))]
+#[tracing::instrument(skip_all, fields(content_start = content_start, end = end, offset = offset))]
 pub(crate) fn process_inlines<'a>(
     state: &mut ParserState<'a>,
     block_metadata: &BlockParsingMetadata,
@@ -536,7 +538,7 @@ fn process_inline_content<'a>(
 ///
 /// Used inside URL macros, mailto macros, and cross-references where nested
 /// autolinks would cause incorrect parsing.
-#[tracing::instrument(skip_all, fields(content_start, end, offset))]
+#[tracing::instrument(skip_all, fields(content_start = content_start, end = end, offset = offset))]
 pub(crate) fn process_inlines_no_autolinks<'a>(
     state: &mut ParserState<'a>,
     block_metadata: &BlockParsingMetadata,

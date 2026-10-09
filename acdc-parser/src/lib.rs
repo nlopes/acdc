@@ -345,7 +345,7 @@ impl<'input> Parser<'input> {
 /// # Errors
 /// Returns an error if the reader fails, input decoding or preprocessing fails,
 /// or the document cannot be parsed. Recoverable problems appear in the result's warnings.
-#[instrument(skip(reader))]
+#[instrument(skip_all, fields(safe_mode = ?options.safe_mode))]
 pub fn parse_from_reader<R: std::io::Read>(
     reader: R,
     options: &Options<'_>,
@@ -416,7 +416,7 @@ pub fn parse_from_reader<R: std::io::Read>(
 /// # Errors
 /// Returns an error if preprocessing fails or the document cannot be parsed.
 /// Recoverable problems appear in the result's warnings.
-#[instrument]
+#[instrument(skip_all, fields(input_len = input.len(), safe_mode = ?options.safe_mode))]
 pub fn parse(input: &str, options: &Options<'_>) -> Result<ParseResult, Error> {
     let mut options = options
         .clone()
@@ -469,7 +469,7 @@ pub fn parse(input: &str, options: &Options<'_>) -> Result<ParseResult, Error> {
 /// # Errors
 /// Returns an error if the file cannot be read or decoded, preprocessing fails,
 /// or the document cannot be parsed. Recoverable problems appear in the result's warnings.
-#[instrument(skip(file_path))]
+#[instrument(skip_all, fields(safe_mode = ?options.safe_mode))]
 pub fn parse_file<P: AsRef<Path>>(
     file_path: P,
     options: &Options<'_>,
@@ -543,7 +543,7 @@ fn parse_input(
     included_files: std::collections::HashSet<String>,
     warnings_handle: Rc<RefCell<Vec<Warning>>>,
 ) -> Result<ParseResult, Error> {
-    tracing::trace!(?input, "post preprocessor");
+    tracing::trace!(input_len = input.len(), "post preprocessor");
     // Pin the preprocessed source text and a fresh `bumpalo::Bump` arena
     // together. The grammar borrows `&owner.source` and allocates every owned
     // string into `&owner.arena` via `ParserState::intern_str`. The returned
@@ -586,7 +586,7 @@ fn parse_input(
             }
             Ok(Err(e)) => Err(e),
             Err(error) => {
-                tracing::error!(?error, "error parsing document content");
+                tracing::error!("error parsing document content");
                 let source_location = peg_error_to_source_location(&error, &state);
                 Err(Error::Parse(Box::new(source_location), error.to_string()))
             }
@@ -616,9 +616,9 @@ fn parse_input(
 ///
 /// # Errors
 /// This function returns an error if the inline content cannot be parsed.
-#[instrument]
+#[instrument(skip_all, fields(input_len = input.len(), safe_mode = ?options.safe_mode))]
 pub fn parse_inline(input: &str, options: &Options<'_>) -> Result<ParseInlineResult, Error> {
-    tracing::trace!(?input, "post preprocessor");
+    tracing::trace!(input_len = input.len(), "post preprocessor");
     let owner = parsed::OwnedInput::new(input.into());
     let options_owned = options
         .clone()
@@ -659,7 +659,7 @@ pub fn parse_inline(input: &str, options: &Options<'_>) -> Result<ParseInlineRes
                 Ok(inlines)
             }
             Err(error) => {
-                tracing::error!(?error, "error parsing inline content");
+                tracing::error!("error parsing inline content");
                 Err(Error::Parse(
                     Box::new(peg_error_to_source_location(&error, &state)),
                     error.to_string(),
@@ -1708,13 +1708,30 @@ mod tests {
             // Different warnings should each appear once.
             let input = "= Title\n\n{counter:a} and {counter2:b}";
             let options = Options::default();
-            let _doc = parse(input, &options).expect("should parse");
-            assert!(logs_contain(
-                "Counters ({counter:a}) are not supported and will be removed from output"
-            ));
-            assert!(logs_contain(
-                "Counters ({counter2:b}) are not supported and will be removed from output"
-            ));
+            let parsed = parse(input, &options).expect("should parse");
+            for name in ["counter:a", "counter2:b"] {
+                assert_eq!(
+                    parsed
+                        .warnings()
+                        .iter()
+                        .filter(|warning| warning.to_string().contains(name))
+                        .count(),
+                    1
+                );
+                assert!(!logs_contain(name));
+            }
+            assert!(logs_contain("parser warning; see returned diagnostics"));
+            logs_assert(|lines| {
+                let count = lines
+                    .iter()
+                    .filter(|line| line.contains("parser warning; see returned diagnostics"))
+                    .count();
+                if count == 2 {
+                    Ok(())
+                } else {
+                    Err(format!("expected two warning events, got {count}"))
+                }
+            });
         }
     }
 

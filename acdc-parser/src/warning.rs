@@ -1,10 +1,9 @@
 //! Non-fatal parser diagnostics.
 //!
-//! Warnings are conditions the parser recovers from but that a caller (CLI,
-//! LSP, editor) may want to surface to the user. They are carried on
-//! [`ParseResult::warnings`](crate::ParseResult::warnings) and also emitted
-//! through `tracing::warn!` as a belt-and-suspenders fallback for callers
-//! that ignore the returned slice.
+//! Read full warnings through [`ParseResult::warnings`](crate::ParseResult::warnings)
+//! or [`ParseInlineResult::warnings`](crate::ParseInlineResult::warnings).
+//! Tracing records only their categories and line/column positions. Warning
+//! messages and file paths can contain document data, so they stay in the result.
 
 use std::{borrow::Cow, fmt};
 
@@ -26,6 +25,41 @@ pub struct Warning {
 }
 
 impl Warning {
+    /// Keep document data out of logs. Record only the category and line/column.
+    pub(crate) fn emit_trace(&self) {
+        let kind = match self.kind {
+            WarningKind::SectionLevelOutOfSequence { .. } => "section-level-out-of-sequence",
+            WarningKind::NestedSectionInBibliography => "nested-section-in-bibliography",
+            WarningKind::NestedSectionInIndex => "nested-section-in-index",
+            WarningKind::UnterminatedTable { .. } => "unterminated-table",
+            WarningKind::UnterminatedDelimitedBlock { .. } => "unterminated-delimited-block",
+            WarningKind::TableUnknownFormat { .. } => "table-unknown-format",
+            WarningKind::TableIncompleteRow => "table-incomplete-row",
+            WarningKind::TableCellOverflow { .. } => "table-cell-overflow",
+            WarningKind::TableColumnCount { .. } => "table-column-count",
+            WarningKind::NonStandardAuthorLine { .. } => "non-standard-author-line",
+            WarningKind::UnresolvedReference { .. } => "unresolved-reference",
+            WarningKind::DuplicateId { .. } => "duplicate-id",
+            WarningKind::ConflictingFootnote { .. } => "conflicting-footnote",
+            WarningKind::LegacyFloatDiscreteHeading => "legacy-float-discrete-heading",
+            WarningKind::InvalidDocumentAttribute { .. } => "invalid-document-attribute",
+            WarningKind::ContentRecovery { .. } => "content-recovery",
+            WarningKind::Other(_) => "other",
+        };
+        tracing::warn!(
+            kind,
+            line = self
+                .location
+                .as_ref()
+                .map(|source| source.location.start.line),
+            column = self
+                .location
+                .as_ref()
+                .map(|source| source.location.start.column),
+            "parser warning; see returned diagnostics"
+        );
+    }
+
     /// Construct a warning tied to a specific source location.
     #[must_use]
     pub(crate) fn new(kind: WarningKind, location: Option<SourceLocation>) -> Self {

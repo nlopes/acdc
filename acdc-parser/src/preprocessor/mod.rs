@@ -688,16 +688,14 @@ impl Preprocessor {
         }
     }
 
-    /// Push a warning with an attached source location, also emitting it
-    /// through `tracing::warn!` as a belt-and-suspenders fallback so
-    /// subscribers keep seeing the same messages.
+    /// Store the full warning and trace its category and source position.
     pub(crate) fn add_warning_at(
         &self,
         message: impl Into<Cow<'static, str>>,
         location: SourceLocation,
     ) {
         let warning = Warning::new(WarningKind::Other(message.into()), Some(location));
-        tracing::warn!(?warning);
+        warning.emit_trace();
         self.warnings.borrow_mut().push(warning);
     }
 
@@ -708,7 +706,7 @@ impl Preprocessor {
             },
             Some(location),
         );
-        tracing::warn!(?warning);
+        warning.emit_trace();
         self.warnings.borrow_mut().push(warning);
     }
 }
@@ -842,16 +840,15 @@ impl Preprocessor {
         Some(scanner)
     }
 
-    #[tracing::instrument(skip(reader, warnings))]
+    #[tracing::instrument(skip_all, fields(safe_mode = ?options.safe_mode))]
     pub(crate) fn process_reader<R: std::io::Read>(
         mut reader: R,
         options: &Options<'_>,
         warnings: Rc<RefCell<Vec<Warning>>>,
     ) -> Result<PreprocessorResult<'static>, Error> {
         let mut input = String::new();
-        reader.read_to_string(&mut input).map_err(|e| {
-            tracing::error!(error=?e, "failed to read from reader");
-            e
+        reader.read_to_string(&mut input).inspect_err(|e| {
+            tracing::error!(error_kind = ?e.kind(), "failed to read from reader");
         })?;
         // The local `input` cannot outlive this function, so materialize any
         // borrowed text into an owned result.
@@ -863,7 +860,7 @@ impl Preprocessor {
             .into_owned())
     }
 
-    #[tracing::instrument(skip(warnings))]
+    #[tracing::instrument(skip_all, fields(input_len = input.len(), safe_mode = ?options.safe_mode))]
     pub(crate) fn process<'input>(
         input: &'input str,
         options: &Options<'_>,
@@ -875,9 +872,8 @@ impl Preprocessor {
         preprocessor.process_inner(input, Some(&source_origin), &mut options)
     }
 
-    /// Like `process` but lets the caller pass the file path explicitly, used
-    /// by `parse_file` where the input has already been read and leaked.
-    #[tracing::instrument(skip(file_path, warnings))]
+    /// Process text from a file that the caller has already read.
+    #[tracing::instrument(skip_all, fields(safe_mode = ?options.safe_mode))]
     pub(crate) fn process_with_file<'input>(
         input: &'input str,
         file_path: &Path,
@@ -891,7 +887,7 @@ impl Preprocessor {
     }
 
     #[cfg(test)]
-    #[tracing::instrument(skip(file_path, warnings))]
+    #[tracing::instrument(skip_all, fields(safe_mode = ?options.safe_mode))]
     pub(crate) fn process_file<P: AsRef<Path>>(
         file_path: P,
         options: &Options<'_>,
@@ -918,7 +914,7 @@ impl Preprocessor {
     /// Process an include directive.
     ///
     /// Returns the included content along with any leveloffset that applies.
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip_all, fields(line_number = line_number, current_offset = current_offset))]
     fn process_include(
         &self,
         line: &str,
@@ -959,7 +955,7 @@ impl Preprocessor {
         ))
     }
 
-    #[tracing::instrument(skip(lines, line))]
+    #[tracing::instrument(skip_all, fields(line_number = line_number))]
     fn process_continuation<'a, I: Iterator<Item = &'a str>>(
         line: &str,
         lines: &mut std::iter::Peekable<I>,
@@ -1010,7 +1006,7 @@ impl Preprocessor {
     /// - `....` (literal blocks) - 4+ periods
     /// - `++++` (passthrough blocks) - 4+ plus signs
     /// - ` ``` ` (markdown code fences) - 3+ backticks
-    #[tracing::instrument]
+    #[tracing::instrument(level = "trace", skip_all, fields(input_len = line.len()))]
     pub(super) fn is_verbatim_delimiter(line: &str) -> Option<&str> {
         let trimmed = line.trim();
 
@@ -1301,7 +1297,7 @@ impl Preprocessor {
         Ok(())
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(skip_all, fields(input_len = input.len(), safe_mode = ?options.safe_mode))]
     fn process_inner<'input>(
         &self,
         input: &'input str,

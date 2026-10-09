@@ -1048,20 +1048,18 @@ pub(crate) fn parse_text_for_quotes_in<'a>(
     }
 
     let mut state = ParserState::new_quotes_only(content, arena);
-    match inline_parser::quotes_only_inlines(content, &mut state) {
-        Ok(nodes) => nodes,
-        Err(err) => {
-            tracing::warn!(
-                ?err,
-                ?content,
-                "quotes-only PEG parse failed, falling back to plain text"
-            );
-            vec![InlineNode::PlainText(Plain {
-                content,
-                location: Location::default(),
-                escaped: false,
-            })]
-        }
+    if let Ok(nodes) = inline_parser::quotes_only_inlines(content, &mut state) {
+        nodes
+    } else {
+        tracing::warn!(
+            input_len = content.len(),
+            "quotes-only PEG parse failed, falling back to plain text"
+        );
+        vec![InlineNode::PlainText(Plain {
+            content,
+            location: Location::default(),
+            escaped: false,
+        })]
     }
 }
 

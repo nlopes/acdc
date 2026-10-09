@@ -335,7 +335,7 @@ impl<'a> BlockMetadata<'a> {
             && self.citetitle.is_none()
     }
 
-    #[tracing::instrument(level = "debug")]
+    #[tracing::instrument(level = "debug", skip_all)]
     pub(crate) fn merge(&mut self, other: &BlockMetadata<'a>) {
         if let Some(attributes) = &other.document_attributes {
             self.document_attributes

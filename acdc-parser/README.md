@@ -422,6 +422,12 @@ block delimiters. It remains available after `take_warnings()` and excludes
 presentation warnings. Applications that need complete input must check it before
 acting on recovered content. Rendering can continue with the recovered document.
 
+Parser tracing records sizes, counts, positions, and diagnostic categories.
+It does not dump document text, options, AST nodes, paths, or URLs.
+Read full diagnostics from `ParseResult::warnings()`,
+`ParseInlineResult::warnings()`, and returned errors.
+These diagnostics can contain source text and paths.
+
 ## Intrinsic document attributes
 
 acdc initializes the intrinsic backend, input, time, safe-mode, and environment

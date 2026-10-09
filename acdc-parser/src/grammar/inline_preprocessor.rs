@@ -727,7 +727,7 @@ parser!(
         // Earlier attributes still expand before the final code boundary is checked.
         rule monospace() -> String
             = text:$monospace_pattern() {?
-                tracing::debug!(text, "monospace matched");
+                tracing::debug!(input_len = text.len(), "monospace matched");
                 if state.defer_monospace {
                     state.advance(text);
                     return Ok(text.into());

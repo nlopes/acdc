@@ -235,7 +235,7 @@ impl Conditional<'_> {
 }
 
 impl Endif<'_> {
-    #[tracing::instrument(level = "trace")]
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn closes(&self, conditional: &Conditional<'_>) -> bool {
         match (&self.condition, conditional.attribute_condition()) {
             (None, _) => true,
@@ -246,7 +246,7 @@ impl Endif<'_> {
 }
 
 impl EvalCondition {
-    #[tracing::instrument(level = "trace", skip(file_parent))]
+    #[tracing::instrument(level = "trace", skip_all, fields(line_number = line_number, current_offset = current_offset))]
     fn evaluate(
         &self,
         attributes: &DocumentAttributes,
@@ -286,7 +286,7 @@ impl EvalCondition {
 }
 
 impl EvalValue {
-    #[tracing::instrument(level = "trace")]
+    #[tracing::instrument(level = "trace", skip_all)]
     fn convert(&self, attributes: &DocumentAttributes) -> Self {
         match self {
             EvalValue::String(s) => {
@@ -315,7 +315,7 @@ impl EvalValue {
         }
     }
 
-    #[tracing::instrument(level = "trace")]
+    #[tracing::instrument(level = "trace", skip_all)]
     fn strip_quotes(s: &str) -> Option<&str> {
         s.strip_prefix('\'')
             .and_then(|value| value.strip_suffix('\''))
@@ -323,15 +323,19 @@ impl EvalValue {
     }
 }
 
-#[tracing::instrument(level = "trace", skip(file_parent))]
+#[tracing::instrument(level = "trace", skip_all, fields(line_number = line_number, current_offset = current_offset))]
 pub(crate) fn parse_line<'input>(
     line: &'input str,
     line_number: usize,
     current_offset: usize,
     file_parent: Option<&Path>,
 ) -> Result<Conditional<'input>, Error> {
-    conditional_parser::conditional(line).map_err(|error| {
-        tracing::error!(?error, "failed to parse conditional directive");
+    conditional_parser::conditional(line).map_err(|_| {
+        tracing::error!(
+            line_number,
+            current_offset,
+            "failed to parse conditional directive"
+        );
         Error::InvalidConditionalDirective(Box::new(SourceLocation {
             file: file_parent.map(Path::to_path_buf),
             location: Location::point(Position::from_line_col(line_number, 1)),
@@ -339,15 +343,19 @@ pub(crate) fn parse_line<'input>(
     })
 }
 
-#[tracing::instrument(level = "trace", skip(file_parent))]
+#[tracing::instrument(level = "trace", skip_all, fields(line_number = line_number, current_offset = current_offset))]
 pub(crate) fn parse_endif<'input>(
     line: &'input str,
     line_number: usize,
     current_offset: usize,
     file_parent: Option<&Path>,
 ) -> Result<Endif<'input>, Error> {
-    conditional_parser::endif(line).map_err(|error| {
-        tracing::error!(?error, "failed to parse endif directive");
+    conditional_parser::endif(line).map_err(|_| {
+        tracing::error!(
+            line_number,
+            current_offset,
+            "failed to parse endif directive"
+        );
         Error::InvalidConditionalDirective(Box::new(SourceLocation {
             file: file_parent.map(Path::to_path_buf),
             location: Location::point(Position::from_line_col(line_number, 1)),

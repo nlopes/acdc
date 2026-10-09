@@ -282,7 +282,7 @@ impl<'a> FootnoteTracker<'a> {
     }
 
     /// Assign a number, reusing named definitions. Return false for an undefined reference.
-    #[tracing::instrument(skip_all, fields(?footnote))]
+    #[tracing::instrument(skip_all, fields(node_count = footnote.content.len(), named = footnote.id.is_some()))]
     pub(crate) fn push(&mut self, footnote: &mut Footnote<'a>) -> bool {
         if let Some(id) = footnote.id
             && let Some(existing) = self.named_footnotes.get(id)
@@ -731,12 +731,11 @@ impl<'a> ParserState<'a> {
         self.add_warning(warning);
     }
 
-    /// Emit all collected warnings via tracing. Call after parsing
-    /// completes. Acts as a belt-and-suspenders fallback for callers that
-    /// ignore the warnings slice on `ParseResult`.
+    /// Trace warning categories and positions after parsing.
+    /// Full diagnostics remain in `ParseResult::warnings()`.
     pub(crate) fn emit_warnings(&self) {
         for warning in self.warnings.borrow().iter() {
-            tracing::warn!("{warning}");
+            warning.emit_trace();
         }
     }
 
@@ -986,8 +985,10 @@ mod tests {
         state.add_generic_warning("warning one".to_string());
         state.add_generic_warning("warning two".to_string());
         state.emit_warnings();
-        assert!(logs_contain("warning one"));
-        assert!(logs_contain("warning two"));
+        assert!(logs_contain("parser warning; see returned diagnostics"));
+        assert!(!logs_contain("warning one"));
+        assert!(!logs_contain("warning two"));
+        assert_eq!(state.warnings.borrow().len(), 2);
     }
 
     #[test]
