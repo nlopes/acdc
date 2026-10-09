@@ -1,0 +1,11 @@
+[advisories]
+# quick-xml 0.38.4 comes from citationberg 0.7.0 through Hayagriva and Typst 0.15.1.
+# PDF conversion generates Typst from escaped document text. It does not load
+# custom CSL citation styles, which would pass untrusted XML to citationberg.
+# This rationale does not cover untrusted Typst passed directly to acdc-pdf-render.
+# Review these exceptions if PDF conversion adds raw Typst or custom CSL input.
+# Remove them when this dependency path uses quick-xml 0.41.0 or newer.
+ignore = [
+    "RUSTSEC-2026-0194", # Slow duplicate-attribute checks.
+    "RUSTSEC-2026-0195", # Unbounded namespace allocation.
+]
