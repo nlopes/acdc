@@ -30,6 +30,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Selected blank final lines count the same whether more lines follow or not.
   Full includes, open-ended ranges, and tag selections still read to the end of the source.
 
+### Fixed
+
+- The parser now builds for `wasm32-unknown-unknown` with `network` or `--all-features`.
+  This target has no built-in HTTP client.
+  Attempts to load HTTP(S) includes produce a warning and keep the unresolved directive.
+  To use remote includes, fetch content before parsing and supply it through a custom `IncludeSourceProvider`.
+
 ## [0.10.0] - 2026-10-08
 
 ### Breaking changes

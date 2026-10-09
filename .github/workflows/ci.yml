@@ -95,7 +95,9 @@ jobs:
       - name: Install wasm32 target
         run: rustup target add wasm32-unknown-unknown
       - name: Run clippy (WASM editor)
-        run: cargo clippy -p acdc-editor-wasm --target wasm32-unknown-unknown --all-features -- --deny clippy::pedantic
+        run: cargo clippy -p acdc-editor-wasm --target wasm32-unknown-unknown --all-features -- --deny clippy::pedantic --deny clippy::todo
+      - name: Check WASM parser with all features
+        run: cargo check -p acdc-parser --target wasm32-unknown-unknown --all-features --locked
 
   check-parser-msrv:
     needs: changes
@@ -246,7 +248,11 @@ jobs:
       - name: Install wasm32 target
         run: rustup target add wasm32-unknown-unknown
       - name: Run clippy (WASM editor)
-        run: cargo clippy -p acdc-editor-wasm --target wasm32-unknown-unknown --all-features -- --deny clippy::pedantic
+        run: cargo clippy -p acdc-editor-wasm --target wasm32-unknown-unknown --all-features -- --deny clippy::pedantic --deny clippy::todo
+      - name: Check WASM parser with all features
+        run: cargo check -p acdc-parser --target wasm32-unknown-unknown --all-features --locked
+      - name: Check WASM parser without default features
+        run: cargo check -p acdc-parser --target wasm32-unknown-unknown --no-default-features --locked
 
   proptests:
     needs: changes

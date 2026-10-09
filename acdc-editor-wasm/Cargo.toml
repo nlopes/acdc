@@ -11,6 +11,7 @@ publish = false
 crate-type = ["cdylib", "rlib"]
 
 [features]
+# Do not forward `network`: browsers cannot use the parser's native HTTP client.
 default = ["pre-spec-subs", "setext"]
 pre-spec-subs = [
     "acdc-parser/pre-spec-subs",

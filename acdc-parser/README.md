@@ -41,7 +41,7 @@ and recovered content. See [Source text and diagnostics](#source-text-and-diagno
 | --- | --- | --- |
 | `pre-spec-subs` | On | Supports experimental block `subs=` settings and their AST types. |
 | `setext` | Off | Compiles support for legacy underlined headings; enable it with `OptionsBuilder::with_setext()`. |
-| `network` | Off | Compiles HTTP(S) include support; caller permission and safe mode still apply. |
+| `network` | Off | Compiles built-in HTTP(S) include support outside bare WebAssembly. Caller permission and safe mode still apply. |
 
 With `pre-spec-subs` disabled, explicit `subs=` settings are ignored with a
 source-recovery warning. Inline attribute substitution remains available.
@@ -539,8 +539,8 @@ Unsafe; select Secure to prevent include reads.
 - `IncludeLoader::Disabled` preserves literal include directives in modes below
   Secure without reading their targets. Skipped includes produce source recovery diagnostics. `parse_file`
   still reads the entry file selected by the caller.
-- `IncludeLoader::System` reads local files and, with the `network` feature,
-  authorized HTTP(S) targets.
+- `IncludeLoader::System` reads local files.
+  With `network`, it also reads permitted HTTP(S) targets outside bare WebAssembly.
 - `IncludeLoader::custom(provider)` reads sources through an
   `IncludeSourceProvider`, such as unsaved editor buffers or a virtual filesystem.
 
@@ -617,6 +617,11 @@ A document cannot grant itself permission to read a URI.
 
 `IncludeLoader::System` supports HTTP(S) and needs the `network` feature.
 Custom providers can supply permitted HTTP(S) sources without that feature.
+
+On bare WebAssembly targets such as `wasm32-unknown-unknown`, `network` does not provide an HTTP client.
+If the system loader attempts an HTTP(S) include, the parser reports a warning at the directive and leaves it unresolved.
+Fetch the content in the host application before parsing, then supply it through a custom `IncludeSourceProvider`.
+The same permissions and safe modes apply.
 
 `IncludeLoader::System` uses `ureq` for HTTP framing, redirects, TLS, and timeouts.
 Asciidoctor uses Ruby's OpenURI.

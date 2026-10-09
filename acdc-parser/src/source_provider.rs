@@ -143,8 +143,8 @@ pub enum IncludeLoader {
     /// Applies to string, reader, and file input. Disabled includes are reported
     /// through source recovery diagnostics.
     Disabled,
-    /// Load local targets from the operating-system filesystem, and, with the
-    /// `network` feature, authorized HTTP(S) targets.
+    /// Load local targets from the operating-system filesystem.
+    /// With `network`, also load permitted HTTP(S) targets outside bare WebAssembly.
     ///
     /// This is the default for all parse entry points.
     #[default]
@@ -183,9 +183,12 @@ impl fmt::Debug for IncludeLoader {
 
 /// Operating-system provider used by [`IncludeLoader::System`].
 ///
-/// Local targets are opened from the operating-system filesystem. With the
-/// `network` feature enabled, authorized HTTP(S) targets use `ureq`; without it,
-/// URI loading reports [`IncludeSourceErrorKind::Unsupported`].
+/// Open local targets from the operating-system filesystem.
+/// Outside bare WebAssembly, `network` enables HTTP(S) loading through `ureq`.
+/// Otherwise, URI loading reports [`IncludeSourceErrorKind::Unsupported`].
+/// On targets such as `wasm32-unknown-unknown`, callers must fetch remote content
+/// before parsing and supply it through a custom [`IncludeSourceProvider`].
+///
 /// HTTP(S) reads have a separate 10 MiB limit after decompression.
 /// A finite line selection closes the response when complete.
 /// The parser does not read or check the rest of the response.
@@ -217,7 +220,10 @@ impl IncludeSourceProvider for SystemIncludeSourceProvider {
                     })
             }
             IncludeSourceTarget::Uri(uri) => {
-                #[cfg(feature = "network")]
+                #[cfg(all(
+                    feature = "network",
+                    not(all(target_family = "wasm", target_os = "unknown"))
+                ))]
                 {
                     let response = ureq::get(uri).call().map_err(|error| {
                         IncludeSourceError::new(
@@ -230,12 +236,20 @@ impl IncludeSourceProvider for SystemIncludeSourceProvider {
                     source.read_limit = Some(10 * 1024 * 1024);
                     Ok(source)
                 }
-                #[cfg(not(feature = "network"))]
+                #[cfg(any(
+                    not(feature = "network"),
+                    all(target_family = "wasm", target_os = "unknown")
+                ))]
                 {
                     let _ = uri;
+                    let message = if cfg!(all(target_family = "wasm", target_os = "unknown")) {
+                        "built-in HTTP(S) includes are unavailable on this WebAssembly target. Fetch content first and supply it through a custom include provider"
+                    } else {
+                        "network support is disabled"
+                    };
                     Err(IncludeSourceError::new(
                         IncludeSourceErrorKind::Unsupported,
-                        "network support is disabled",
+                        message,
                     ))
                 }
             }

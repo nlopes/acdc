@@ -84,6 +84,11 @@
 //! A custom [`IncludeSourceProvider`] can supply permitted URI content through
 //! another transport.
 //!
+//! On bare WebAssembly targets such as `wasm32-unknown-unknown`, `network` does
+//! not provide an HTTP client. If the system loader attempts an HTTP(S) include,
+//! the parser reports a warning and leaves the directive unresolved.
+//! Fetch content in the host before parsing and supply it through a custom provider.
+//!
 //! # Include source size limit
 //!
 //! Each include can select up to 10 MiB of normalized UTF-8 text, including newlines.
