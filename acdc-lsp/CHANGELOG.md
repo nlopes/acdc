@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Native release archives for macOS (Apple Silicon and Intel), Linux (ARM64 and
+  x86-64), and Windows (x86-64), with SHA-256 checksums.
 - Document and workspace symbols now show accepted document-attribute set and
   unset events in source order. Rejected source lines remain available to
   text-based editor features but are not semantic attribute symbols.

@@ -201,6 +201,28 @@ command = "acdc-lsp"
 
 Currently no extension available. Contributions welcome!
 
+## Native release packaging
+
+The [Release LSP workflow](../.github/workflows/release-lsp.yml) tests the server
+for macOS ARM64/x86-64, Linux ARM64/x86-64, and Windows x86-64. It uses
+[upload-rust-binary-action](https://github.com/taiki-e/upload-rust-binary-action)
+to build the release binaries, create archives, and calculate SHA-256 checksums.
+Linux builds use Ubuntu 22.04 and require glibc 2.35 or later.
+
+Archives are named `acdc-lsp-X.Y.Z-TARGET.tar.gz` on macOS and Linux, or
+`acdc-lsp-X.Y.Z-TARGET.zip` on Windows. They contain `acdc-lsp` (or
+`acdc-lsp.exe`) and the license at their root. Each target also has an
+`acdc-lsp-X.Y.Z-TARGET.sha256` file.
+
+A manual workflow run uploads build artifacts without creating a release. A
+pushed `acdc-lsp-vX.Y.Z` tag must match the crate version and creates a **draft**
+GitHub release after all platform tests pass. Review the archives and changelog
+before publishing the draft.
+
+Before tagging a new release, update the crate version and lockfile, and move
+the relevant changelog entries into its release section. Use a new tag for
+each release; do not move an existing tag to newer code.
+
 ## File extensions
 
 The server works with any file your editor sends it. Configure your editor to recognize these extensions as AsciiDoc:

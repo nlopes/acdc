@@ -1,0 +1,110 @@
+name: Release LSP
+
+on:
+  push:
+    tags:
+      - 'acdc-lsp-v*'
+  pull_request:
+    paths:
+      - '.github/workflows/release-lsp.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            target: aarch64-apple-darwin
+          - runner: macos-15-intel
+            target: x86_64-apple-darwin
+          - runner: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+          - runner: ubuntu-22.04-arm
+            target: aarch64-unknown-linux-gnu
+          - runner: windows-2025
+            target: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Read package version and check release tag
+        id: version
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+        run: |
+          version="$(cargo metadata --no-deps --format-version 1 --locked \
+            | jq -er '.packages[] | select(.name == "acdc-lsp") | .version')"
+          if [[ "$REF_TYPE" == "tag" && "$GITHUB_REF_NAME" != "acdc-lsp-v${version}" ]]; then
+            echo "::error::Release tag must match Cargo.toml: acdc-lsp-v${version}"
+            exit 1
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+      - uses: Swatinem/rust-cache@v2
+        with:
+          env-vars: ImageOS
+          key: lsp-release-${{ matrix.target }}
+      - uses: taiki-e/install-action@nextest
+      - name: Test native server in release mode
+        run: cargo nextest run --release -p acdc-lsp --all-features --locked --target ${{ matrix.target }}
+      - name: Build and package native server
+        id: package
+        uses: taiki-e/upload-rust-binary-action@f0d45ae91ee7b8ee928de7a9d04d893a08bcbec6 # v1.30.2
+        with:
+          bin: acdc-lsp
+          package: acdc-lsp
+          target: ${{ matrix.target }}
+          archive: acdc-lsp-${{ steps.version.outputs.version }}-$target
+          all-features: true
+          locked: true
+          include: LICENSE
+          checksum: sha256
+          tar: unix
+          zip: windows
+          leading-dir: false
+          dry-run: true
+          dry-run-intended: true
+      - uses: actions/upload-artifact@v7
+        with:
+          name: acdc-lsp-${{ matrix.target }}
+          path: |
+            ${{ steps.package.outputs.tar }}
+            ${{ steps.package.outputs.zip }}
+            ${{ steps.package.outputs.sha256 }}
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: acdc-lsp-*
+          merge-multiple: true
+          path: dist
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd dist
+          sha256sum --check ./*.sha256
+          gh release create "$GITHUB_REF_NAME" ./* \
+            --repo "$GITHUB_REPOSITORY" --verify-tag --draft \
+            --title "acdc-lsp ${GITHUB_REF_NAME#acdc-lsp-v}" \
+            --notes "Native acdc-lsp binaries. Review the changelog and platform checks before publishing."
