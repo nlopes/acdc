@@ -201,8 +201,10 @@ impl FixtureGenerator {
                 continue;
             };
 
-            // Parse AsciiDoc with rendering defaults
-            let parser_options = Options::default();
+            // Reference fixtures use the Asciidoctor CLI's Unsafe mode.
+            let parser_options = Options::builder()
+                .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+                .build()?;
 
             let parsed = match acdc_parser::parse_file(&input_path, &parser_options) {
                 Ok(parsed) => parsed,

@@ -457,8 +457,14 @@ mod tests {
         std::fs::write(&included, cmd("build", None, None, "echo hi"))
             .unwrap_or_else(|e| panic!("{e}"));
 
-        let parsed = acdc_parser::parse_file(&main, &Options::default())
-            .unwrap_or_else(|e| panic!("parse_file failed: {e}"));
+        let parsed = acdc_parser::parse_file(
+            &main,
+            &Options::builder()
+                .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+                .build()
+                .unwrap(),
+        )
+        .unwrap_or_else(|e| panic!("parse_file failed: {e}"));
         let built = CommandGraph::try_from(&parsed).unwrap_or_else(|e| panic!("{e}"));
 
         assert_eq!(ids(&built), ["build"]);
@@ -964,7 +970,14 @@ mod tests {
                 ),
             )
             .unwrap();
-            let parsed = acdc_parser::parse_file(&main, &Options::default()).unwrap();
+            let parsed = acdc_parser::parse_file(
+                &main,
+                &Options::builder()
+                    .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+                    .build()
+                    .unwrap(),
+            )
+            .unwrap();
             let graph = CommandGraph::try_from(&parsed).unwrap();
             let included_command = find(&graph, "included");
             assert_eq!(included_command.script, "included\n");
@@ -1057,7 +1070,14 @@ mod tests {
         let included = directory.path().join("conditional.adoc");
         std::fs::write(&main, "include::conditional.adoc[lines=3..4]\n").unwrap();
         std::fs::write(&included, "ignored\n\nifdef::missing[]\nremaining\n").unwrap();
-        let parsed = acdc_parser::parse_file(&main, &Options::default()).unwrap();
+        let parsed = acdc_parser::parse_file(
+            &main,
+            &Options::builder()
+                .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+                .build()
+                .unwrap(),
+        )
+        .unwrap();
         let error = CommandGraph::try_from(&parsed).unwrap_err();
         let location = error.source_location().unwrap();
         assert_eq!(location.file.as_deref(), Some(included.as_path()));
@@ -1100,6 +1120,7 @@ mod tests {
     fn required_includes_block_graphs_but_absent_optional_includes_do_not() {
         let directory = tempfile::tempdir().unwrap();
         let options = Options::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
             .with_base_dir(directory.path())
             .build()
             .unwrap();
@@ -1163,7 +1184,14 @@ mod tests {
         let included = directory.path().join("included.adoc");
         std::fs::write(&main, "include::included.adoc[]").unwrap();
         std::fs::write(&included, format!("intro\n\n{source}")).unwrap();
-        let parsed = acdc_parser::parse_file(&main, &Options::default()).unwrap();
+        let parsed = acdc_parser::parse_file(
+            &main,
+            &Options::builder()
+                .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+                .build()
+                .unwrap(),
+        )
+        .unwrap();
         let error = CommandGraph::try_from(&parsed).unwrap_err();
         let location = error.source_location().unwrap();
         assert_eq!(location.file.as_deref(), Some(included.as_path()));

@@ -139,7 +139,12 @@ fn document_attribute_text_pass_preprocessor_handles_line_endings() -> Result<()
 fn document_attribute_text_pass_resolves_include_targets() -> Result<(), Error> {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("fixtures/tests/document_attribute_text_pass_include.adoc");
-    let parsed = acdc_parser::parse_file(path, &Options::default())?;
+    let parsed = acdc_parser::parse_file(
+        path,
+        &Options::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build()?,
+    )?;
     let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
         return Err("expected included paragraph".into());
     };

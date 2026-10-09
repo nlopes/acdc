@@ -86,7 +86,12 @@ fn parse_include(directory: &TempDirectory, attributes: &str) -> Result<ParseRes
             format!("BEFORE\n\ninclude::part.adoc[{attributes}]\n\nAFTER"),
         )
         .map_err(ParserError::from)?;
-    parse_file(main, &Options::default())
+    parse_file(
+        main,
+        &Options::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build()?,
+    )
 }
 
 #[test]

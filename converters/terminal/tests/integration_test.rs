@@ -198,15 +198,21 @@ fn test_fixture_variant(fixture_name: &str, osc8: bool) -> Result<(), Error> {
     let input_path = PathBuf::from("tests/fixtures/source").join(format!("{fixture_name}.adoc"));
 
     // Parse the `AsciiDoc` input with rendering defaults
-    let parser_options = ParserOptions::default();
+    let parser_options = ParserOptions::builder()
+        .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+        .build()?;
     let parsed = acdc_parser::parse_file(&input_path, &parser_options)?;
     let doc = parsed.document();
 
     // Convert to Terminal output
     let mut output = Vec::new();
     let processor = Processor::new(
-        ConverterOptions::default(),
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ConverterOptions::builder()
+            .safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build(),
+        ParserOptions::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .with_attributes(doc.attributes.clone().into_inputs()),
     )?
     .with_terminal_width(80)
     .with_dark_mode(true)

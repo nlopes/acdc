@@ -765,6 +765,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Library conversion now defaults to Secure: document-info files are not read
+  and terminal blocks render as listings. Select a lower mode explicitly for
+  trusted documents. The CLI retains its Unsafe default.
+
 - Use `:highlight-css: class` for CSS class highlighting and `:highlight-style:`
   for theme selection. `syntect-css` and `syntect-style` remain [deprecated]
   compatibility aliases. Using either deprecated name produces a converter

@@ -2,6 +2,9 @@ use std::str::FromStr;
 
 /// Controls include access and exposure of local paths during parsing.
 ///
+/// Defaults to [`Self::Secure`]. Applications must select a lower mode to load
+/// include targets. The CLI selects its own defaults for each command.
+///
 /// Fixed resource limits apply in every mode. Output converters are responsible
 /// for restrictions on stylesheets, scripts, and other rendered resources.
 #[derive(Debug, Clone, Default, PartialOrd, PartialEq, Eq, Copy)]
@@ -10,8 +13,7 @@ pub enum SafeMode {
     ///
     /// HTTP(S) includes require caller-supplied `allow-uri-read`. The built-in
     /// transport also requires the `network` feature; custom providers supply
-    /// their own transport. Include depth, response size, and other limits still apply.
-    #[default]
+    /// their own transport. Include depth and selected text size limits still apply.
     Unsafe = 0,
 
     /// Keeps local include paths beneath the effective include base directory.
@@ -35,6 +37,7 @@ pub enum SafeMode {
     ///
     /// Include directives become link fallbacks with source-recovery warnings.
     /// [`crate::parse_file`] can still read the entry file selected by the caller.
+    #[default]
     Secure,
 }
 

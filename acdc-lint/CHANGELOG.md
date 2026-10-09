@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Library linting now defaults to Secure and does not read include targets.
+  Use `LintOptions::with_safe_mode()` to enable includes for trusted sources.
+  The `acdc lint` command keeps its Unsafe default.
+
 - Document-attribute rules now inspect accepted text assignments. Unset,
   invalid, and rejected entries are not treated as semantic values.
 

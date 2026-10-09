@@ -58,7 +58,13 @@ impl AnalysisBackend {
     fn parser_options(self) -> Options<'static> {
         let (backend_profile, doctype) = self.profile();
         backend_profile
-            .apply(Options::builder(), doctype, false)
+            .apply(
+                Options::builder()
+                    .with_safe_mode(acdc_parser::SafeMode::Server)
+                    .with_include_loader(acdc_parser::IncludeLoader::Disabled),
+                doctype,
+                false,
+            )
             .build()
             .expect("built-in backend profile must be valid")
     }
@@ -263,6 +269,22 @@ fn uri_match_len(root: &str, document: &str) -> Option<usize> {
 mod tests {
     use super::*;
     use serde_json::from_str;
+
+    #[test]
+    fn analysis_preserves_includes_without_loading_targets()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = Path::new(env!("CARGO_MANIFEST_DIR"));
+        assert!(directory.join("Cargo.toml").is_file());
+        let source = "include::Cargo.toml[]";
+        let profiles = ParserProfiles::new();
+        let mut options = profiles.get(AnalysisBackend::default()).clone();
+        options.base_dir = Some(directory.to_path_buf());
+        let result = acdc_parser::parse(source, &options)?;
+        assert_eq!(result.source(), source);
+        assert!(result.source_recovery().is_some());
+        assert_eq!(options.safe_mode, acdc_parser::SafeMode::Server);
+        Ok(())
+    }
 
     #[test]
     fn defaults_to_asciidoctor_html5_backend() {

@@ -15,7 +15,10 @@ fn quoted_ifeval_keeps_locations_after_nested_conditions(
         source
     };
     let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/tests");
-    let options = Options::builder().with_base_dir(&fixtures).build()?;
+    let options = Options::builder()
+        .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+        .with_base_dir(&fixtures)
+        .build()?;
     let parsed = parse(input, &options)?;
     let Some(Block::Section(section)) = parsed.document().blocks.last() else {
         return Err("expected final section".into());

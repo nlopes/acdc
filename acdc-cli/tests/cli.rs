@@ -10,16 +10,24 @@ use tempfile::tempdir;
     feature = "html",
     feature = "terminal",
     feature = "inspect",
-    feature = "execute"
+    feature = "execute",
+    feature = "lint"
 ))]
 use std::fs;
 
-fn run_acdc(args: &[&str], input: Option<&str>) -> io::Result<Output> {
+fn spawn_acdc(
+    working_dir: Option<&std::path::Path>,
+    args: &[&str],
+    input: Option<&str>,
+) -> io::Result<Output> {
     let mut command = Command::new(env!("CARGO_BIN_EXE_acdc"));
     command
         .args(args)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+    if let Some(working_dir) = working_dir {
+        command.current_dir(working_dir);
+    }
     if input.is_some() {
         command.stdin(Stdio::piped());
     }
@@ -32,6 +40,19 @@ fn run_acdc(args: &[&str], input: Option<&str>) -> io::Result<Output> {
         stdin.write_all(input.as_bytes())?;
     }
     child.wait_with_output()
+}
+
+fn run_acdc(args: &[&str], input: Option<&str>) -> io::Result<Output> {
+    spawn_acdc(None, args, input)
+}
+
+#[cfg(any(feature = "html", feature = "lint"))]
+fn run_acdc_in(
+    working_dir: &std::path::Path,
+    args: &[&str],
+    input: Option<&str>,
+) -> io::Result<Output> {
+    spawn_acdc(Some(working_dir), args, input)
 }
 
 fn output_text(bytes: &[u8]) -> String {
@@ -1032,5 +1053,116 @@ fn execute_reports_unknown_and_duplicate_selectors_as_diagnostics()
     )?;
     assert_eq!(no_match.status.code(), Some(1));
     assert!(output_text(&no_match.stderr).contains("matched no commands"));
+    Ok(())
+}
+
+/// An image in an included file must reach the parsed document for linting.
+#[cfg(feature = "lint")]
+#[test]
+fn lint_stdin_resolves_includes_against_the_working_directory() -> Result<(), Box<dyn Error>> {
+    let temp = tempfile::tempdir()?;
+    fs::write(temp.path().join("part.adoc"), "image::photo.png[]\n")?;
+
+    let output = run_acdc_in(
+        temp.path(),
+        &[
+            "lint",
+            "--stdin",
+            "--output-style",
+            "compact",
+            "--deny",
+            "image-alt-text",
+        ],
+        Some("= Lint stdin\n\ninclude::part.adoc[]\n"),
+    )?;
+    let stderr = output_text(&output.stderr);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        stderr.contains("deny[image-alt-text]"),
+        "expected the included file's image to be linted, got: {stderr}"
+    );
+    Ok(())
+}
+
+#[cfg(feature = "html")]
+#[test]
+fn stdin_resolves_includes_against_the_working_directory() -> Result<(), Box<dyn Error>> {
+    let temp = tempfile::tempdir()?;
+    fs::write(temp.path().join("part.adoc"), "Included body text.\n")?;
+
+    let output = run_acdc_in(
+        temp.path(),
+        &["convert", "--stdin", "--out-file", "-"],
+        Some("= Stdin include\n\ninclude::part.adoc[]\n"),
+    )?;
+    let stdout = output_text(&output.stdout);
+
+    assert!(output.status.success());
+    assert!(stdout.contains("Included body text."));
+    assert!(!stdout.contains("include::part.adoc[]"));
+    Ok(())
+}
+
+#[cfg(feature = "html")]
+#[test]
+fn secure_stdin_does_not_expand_includes() -> Result<(), Box<dyn Error>> {
+    let temp = tempfile::tempdir()?;
+    fs::write(temp.path().join("part.adoc"), "PRIVATE CONTENT")?;
+    let output = run_acdc_in(
+        temp.path(),
+        &[
+            "convert",
+            "--stdin",
+            "--safe-mode",
+            "secure",
+            "--out-file",
+            "-",
+        ],
+        Some("include::part.adoc[]"),
+    )?;
+    assert!(output.status.success());
+    let stdout = output_text(&output.stdout);
+    assert!(!stdout.contains("PRIVATE CONTENT"));
+    assert!(stdout.contains("href=\"part.adoc\""));
+    Ok(())
+}
+
+#[cfg(feature = "lint")]
+#[test]
+fn secure_lint_stdin_does_not_expand_includes() -> Result<(), Box<dyn Error>> {
+    let temp = tempfile::tempdir()?;
+    fs::write(temp.path().join("part.adoc"), "image::photo.png[]\n")?;
+    let output = run_acdc_in(
+        temp.path(),
+        &[
+            "lint",
+            "--stdin",
+            "--safe-mode",
+            "secure",
+            "--deny",
+            "image-alt-text",
+        ],
+        Some("include::part.adoc[]"),
+    )?;
+    assert!(output.status.success(), "{}", output_text(&output.stderr));
+    assert!(!output_text(&output.stderr).contains("deny[image-alt-text]"));
+    Ok(())
+}
+
+#[cfg(feature = "inspect")]
+#[test]
+fn inspect_include_access_is_controlled_by_safe_mode() -> Result<(), Box<dyn Error>> {
+    let temp = tempfile::tempdir()?;
+    fs::write(temp.path().join("part.adoc"), "PRIVATE CONTENT")?;
+    let entry = temp.path().join("main.adoc");
+    fs::write(&entry, "include::part.adoc[]")?;
+    let entry = entry.to_str().ok_or("invalid entry path")?;
+    let default = run_acdc(&["inspect", entry], None)?;
+    let secure = run_acdc(&["inspect", "--safe-mode", "secure", entry], None)?;
+    assert!(default.status.success());
+    assert!(secure.status.success());
+    assert!(output_text(&default.stdout).contains("PRIVATE CONTENT"));
+    assert!(!output_text(&secure.stdout).contains("PRIVATE CONTENT"));
     Ok(())
 }

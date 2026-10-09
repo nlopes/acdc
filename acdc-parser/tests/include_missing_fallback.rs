@@ -102,7 +102,12 @@ fn missing_top_level_include_inserts_fallback_and_continues() -> TestResult {
         "= Document\n:part: expanded\n\nBEFORE\n\ninclude::missing-{part}.adoc[lines=1..2]\n\nAFTER",
     )?;
 
-    let result = parse_file(&tree.main, &Options::default())?;
+    let result = parse_file(
+        &tree.main,
+        &Options::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build()?,
+    )?;
 
     assert_eq!(
         paragraph_texts(&result)?,
@@ -138,7 +143,12 @@ fn missing_nested_include_is_attributed_to_its_including_source() -> TestResult 
         .as_deref()
         .ok_or("expected the nested fixture path")?;
 
-    let result = parse_file(&tree.main, &Options::default())?;
+    let result = parse_file(
+        &tree.main,
+        &Options::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build()?,
+    )?;
 
     assert_eq!(
         paragraph_texts(&result)?,
@@ -177,7 +187,12 @@ fn missing_nested_include_is_attributed_to_its_including_source() -> TestResult 
 fn optional_missing_include_remains_silent_and_is_removed() -> TestResult {
     let tree = IncludeTree::main_only("BEFORE\n\ninclude::missing.adoc[opts=optional]\n\nAFTER")?;
 
-    let result = parse_file(&tree.main, &Options::default())?;
+    let result = parse_file(
+        &tree.main,
+        &Options::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build()?,
+    )?;
 
     assert_eq!(paragraph_texts(&result)?, ["BEFORE", "AFTER"]);
     assert_eq!(result.warnings(), []);
@@ -194,7 +209,12 @@ fn unreadable_filtered_include_inserts_fallback_and_continues() -> TestResult {
     fs::write(&unreadable, "SECRET")?;
     fs::set_permissions(&unreadable, fs::Permissions::from_mode(0o000))?;
 
-    let result = parse_file(&tree.main, &Options::default())?;
+    let result = parse_file(
+        &tree.main,
+        &Options::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build()?,
+    )?;
 
     assert_eq!(
         paragraph_texts(&result)?,

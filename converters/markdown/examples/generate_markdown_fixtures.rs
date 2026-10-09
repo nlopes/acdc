@@ -43,7 +43,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             .file_stem()
             .and_then(|stem| stem.to_str())
             .ok_or("invalid fixture file name")?;
-        let parser_options = ParserOptions::default();
+        let parser_options = ParserOptions::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build()?;
         let parsed = acdc_parser::parse_file(&input_path, &parser_options)?;
         let output_path =
             fixture_support::expected_fixture_path(expected_dir, stem, parsed.warnings());
@@ -54,11 +56,14 @@ fn main() -> Result<(), Box<dyn Error>> {
             MarkdownVariant::GitHubFlavored
         };
         let options = Options::builder()
+            .safe_mode(acdc_parser::SafeMode::Unsafe)
             .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
             .build();
         let processor = Processor::new(
             options,
-            acdc_parser::Options::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            acdc_parser::Options::builder()
+                .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+                .with_attributes(doc.attributes.clone().into_inputs()),
         )?
         .with_variant(variant);
         let mut output = Vec::new();

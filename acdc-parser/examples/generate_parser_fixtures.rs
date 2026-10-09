@@ -68,7 +68,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             continue;
         }
 
-        let builder = acdc_parser::Options::builder();
+        let builder = acdc_parser::Options::builder().with_safe_mode(acdc_parser::SafeMode::Unsafe);
         #[cfg(feature = "setext")]
         let builder = if setext_fixture {
             builder.with_setext()

@@ -205,7 +205,9 @@ fn disabled_passthrough_counters_use_the_existing_warning_policy() -> Result<(),
 fn disabled_passthrough_expansion_keeps_catalogs_empty_and_include_origins() -> Result<(), Error> {
     let parsed = acdc_parser::parse_file(
         "fixtures/tests/subs_disabled_passthrough_attributes.adoc",
-        &Options::default(),
+        &Options::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build()?,
     )?;
     let document = parsed.document();
     assert_eq!(document.footnotes, []);

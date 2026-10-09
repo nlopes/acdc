@@ -115,7 +115,13 @@ fn captured_front_matter_is_available_to_conditionals_and_includes() -> TestResu
         directory.0.join("child.adoc"),
         "---\nchild\n---\nifdef::front-matter[]\nChild: {front-matter}\nendif::[]\n",
     )?;
-    let parsed = parse_file(main, &options()?)?;
+    let parsed = parse_file(
+        main,
+        &options()?
+            .into_builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build()?,
+    )?;
     assert_eq!(paragraph_texts(&parsed)?, ["Root: root", "Child: root"]);
     assert_eq!(
         parsed
@@ -190,7 +196,13 @@ fn includes_drop_front_matter_without_replacing_the_primary_value() -> TestResul
     )?;
     fs::write(&child, "---\nchild: yes\n---\nChild: {front-matter}\n")?;
 
-    let parsed = parse_file(main, &options()?)?;
+    let parsed = parse_file(
+        main,
+        &options()?
+            .into_builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build()?,
+    )?;
 
     assert_eq!(
         parsed
@@ -234,7 +246,13 @@ fn include_front_matter_is_removed_before_indent_is_applied() -> TestResult {
         "---\nchild: yes\n---\nChild content\n",
     )?;
 
-    let parsed = parse_file(main, &options()?)?;
+    let parsed = parse_file(
+        main,
+        &options()?
+            .into_builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build()?,
+    )?;
 
     assert_eq!(parsed.source(), "= Main\n\n  Child content");
     assert!(!parsed.document().attributes.contains_key("front-matter"));

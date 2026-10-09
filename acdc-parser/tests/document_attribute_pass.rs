@@ -140,7 +140,12 @@ fn document_attribute_pass_is_available_to_conditionals() -> Result<(), Error> {
 fn document_attribute_pass_is_available_to_include_targets() -> Result<(), Error> {
     let main = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("fixtures/tests/document_attribute_pass_include.adoc");
-    let parsed = acdc_parser::parse_file(&main, &Options::default())?;
+    let parsed = acdc_parser::parse_file(
+        &main,
+        &Options::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build()?,
+    )?;
     let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
         return Err("expected included paragraph".into());
     };

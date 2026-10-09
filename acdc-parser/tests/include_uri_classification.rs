@@ -66,10 +66,13 @@ fn denied_non_http_uri_uses_link_fallback_instead_of_local_file_handling() -> Te
     for compat_mode in [false, true] {
         let options = if compat_mode {
             Options::builder()
+                .with_safe_mode(acdc_parser::SafeMode::Unsafe)
                 .with_attribute("compat-mode", true)
                 .build()?
         } else {
-            Options::default()
+            Options::builder()
+                .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+                .build()?
         };
         let result = parse_file(&document.main, &options)?;
 
@@ -114,6 +117,7 @@ fn authorized_unsupported_uri_recovers_without_reading_a_local_file() -> TestRes
     let document = TempDocument::new(&format!("BEFORE\n\ninclude::{target}[]\n\nAFTER"))?;
     document.write("ftp:/example.test/part.adoc", "LOCAL FILE MUST NOT BE READ")?;
     let options = Options::builder()
+        .with_safe_mode(acdc_parser::SafeMode::Unsafe)
         .with_attribute("allow-uri-read", true)
         .build()?;
 

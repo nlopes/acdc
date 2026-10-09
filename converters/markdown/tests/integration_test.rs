@@ -270,8 +270,10 @@ fn test_gfm_fixtures(#[files("tests/fixtures/source/*.adoc")] path: PathBuf) -> 
     if file_name.starts_with("commonmark_") {
         return Ok(());
     }
-    // Parse the AsciiDoc input with rendering defaults
-    let parser_options = ParserOptions::default();
+    // Match the Asciidoctor CLI's Unsafe mode.
+    let parser_options = ParserOptions::builder()
+        .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+        .build()?;
     let parsed = acdc_parser::parse_file(&path, &parser_options)?;
     let expected_path = support::expected_fixture_path(
         Path::new("tests/fixtures/expected"),
@@ -283,11 +285,14 @@ fn test_gfm_fixtures(#[files("tests/fixtures/source/*.adoc")] path: PathBuf) -> 
     // Convert to Markdown (GFM variant)
     let mut output = Vec::new();
     let converter_options = ConverterOptions::builder()
+        .safe_mode(acdc_parser::SafeMode::Unsafe)
         .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
         .build();
     let processor = Processor::new(
         converter_options,
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .with_attributes(doc.attributes.clone().into_inputs()),
     )?
     .with_variant(MarkdownVariant::GitHubFlavored);
     let mut warnings = Vec::new();

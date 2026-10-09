@@ -105,11 +105,11 @@ fn loader(provider: &Arc<MapSourceProvider>) -> IncludeLoader {
 }
 
 #[test]
-fn default_options_keep_system_includes_for_every_input_kind() -> TestResult {
+fn default_options_deny_includes_for_every_input_kind() -> TestResult {
     let directory = TempDirectory::new()?;
     let target = directory.0.join("part.adoc");
     let entry = directory.0.join("main.adoc");
-    fs::write(&target, "DISK CONTENT")?;
+    fs::write(&target, "PRIVATE CONTENT")?;
     let input = format!("include::{}[]", target.display());
     fs::write(&entry, &input)?;
 
@@ -118,24 +118,30 @@ fn default_options_keep_system_includes_for_every_input_kind() -> TestResult {
         Options::builder().build()?,
         Options::default().into_static().into_builder().build()?,
     ] {
-        assert_eq!(options.safe_mode, SafeMode::Unsafe);
+        assert_eq!(options.safe_mode, SafeMode::Secure);
         assert!(matches!(options.include_loader, IncludeLoader::System));
-        for result in [
+        for parsed in [
             parse(&input, &options)?,
             parse_from_reader(Cursor::new(&input), &options)?,
             parse_file(&entry, &options)?,
         ] {
-            assert_eq!(paragraph_text(&result)?, "DISK CONTENT");
+            let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+                return Err("expected a fallback paragraph".into());
+            };
+            let [InlineNode::Macro(InlineMacro::Link(link))] = paragraph.content.as_slice() else {
+                return Err("expected an include link instead of private content".into());
+            };
+            assert_eq!(link.target, Source::Path(target.clone()));
+            assert!(parsed.source_recovery().is_some());
         }
     }
     Ok(())
 }
 
 #[test]
-fn custom_provider_and_uri_permission_do_not_lower_secure_mode() -> TestResult {
+fn custom_provider_and_uri_permission_do_not_lower_the_secure_default() -> TestResult {
     let provider = Arc::new(MapSourceProvider::default());
     let options = Options::builder()
-        .with_safe_mode(SafeMode::Secure)
         .with_include_loader(loader(&provider))
         .with_attribute("allow-uri-read", true)
         .build()?;

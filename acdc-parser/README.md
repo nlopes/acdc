@@ -46,6 +46,40 @@ and recovered content. See [Source text and diagnostics](#source-text-and-diagno
 With `pre-spec-subs` disabled, explicit `subs=` settings are ignored with a
 source-recovery warning. Inline attribute substitution remains available.
 
+## Migrating from 0.10
+
+The parser now defaults to `SafeMode::Secure`, matching the Asciidoctor API.
+This applies to `Options::default()`, the options builder, and all parse functions.
+Include directives become links. The parser does not read their targets.
+`parse_file` still reads the entry file that the caller selects.
+
+To enable includes in a trusted project, select Safe and set the include base:
+
+```rust
+use acdc_parser::{Options, SafeMode};
+
+let options = Options::builder()
+    .with_safe_mode(SafeMode::Safe)
+    .with_base_dir("/workspace/docs")
+    .build()?;
+# Ok::<(), acdc_parser::Error>(())
+```
+
+Select `SafeMode::Unsafe` to allow local includes outside the base directory.
+`IncludeLoader::System` remains the default loader.
+A custom provider does not change the safe mode.
+For remote includes, the caller must also set `allow-uri-read`.
+
+The CLI keeps its existing defaults. `convert`, `lint`, and `inspect` use Unsafe.
+`execute` uses Safe. Use `--safe-mode secure` to prevent include reads.
+
+Secure controls include reads and access to local path attributes.
+It does not sanitize rendered HTML or sandbox commands.
+Safe and Server restrict include paths to the base directory, but do not resolve symlinks.
+A symlink can point outside that directory.
+The 10 MiB limit applies to selected text from each include.
+It does not limit total expanded input or total parser memory use.
+
 ## Migrating from 0.9
 
 Attribute configuration now validates inputs and returns `Result`. Pass an
@@ -530,15 +564,15 @@ equivalent table dimension cap.
 
 ## Include loading
 
-`SafeMode` sets processing restrictions; `Options::include_loader` selects
-where include content comes from. The default
-is `IncludeLoader::System` for string, reader, and file input, preserving the
-normal filesystem and optional HTTP(S) loader. The safe mode still defaults to
-Unsafe; select Secure to prevent include reads.
+`SafeMode` sets processing restrictions.
+`Options::include_loader` selects where include content comes from.
+The default is `IncludeLoader::System` for string, reader, and file input.
+The default safe mode is Secure, so the parser does not read include targets.
+Select a lower mode to enable include reads.
 
 - `IncludeLoader::Disabled` preserves literal include directives in modes below
-  Secure without reading their targets. Skipped includes produce source recovery diagnostics. `parse_file`
-  still reads the entry file selected by the caller.
+  Secure without reading their targets. Skipped includes produce source recovery diagnostics.
+  `parse_file` still reads the entry file selected by the caller.
 - `IncludeLoader::System` reads local files.
   With `network`, it also reads permitted HTTP(S) targets outside bare WebAssembly.
 - `IncludeLoader::custom(provider)` reads sources through an
@@ -556,23 +590,24 @@ assert!(document.source_recovery().is_some());
 # Ok::<(), acdc_parser::Error>(())
 ```
 
-Providers receive resolved, confined paths or absolute HTTP(S) URIs and return
-byte streams. The parser retains ownership of attribute substitution, safe modes,
-decoding, line/tag selection, nested includes, diagnostics, and source locations.
+Providers receive resolved paths or absolute HTTP(S) URIs and return byte streams.
+The parser applies safe-mode restrictions before it calls a provider.
+It also handles attribute substitution, decoding, line/tag selection, nested
+includes, diagnostics, and source locations.
 Custom URI providers do not require the `network` feature, but still require
 caller-supplied `allow-uri-read`. Secure mode never calls a provider and always
 produces the usual link fallback, including when the loader is `Disabled`.
 
 The explicit `Disabled` option differs from Asciidoctor's Secure-mode link fallback.
 At equivalent safe modes, `System` retains the existing Asciidoctor include
-behavior.
+behavior. Both APIs default to Secure; both conversion CLIs default to Unsafe.
 
 ## Include base directory
 
-String and reader input resolve relative includes from the current working directory
-by default. `Options::builder().with_base_dir(path)` overrides that directory. File
-input normally uses the entry file's parent and accepts the same override; the entry
-file itself is still read from the path passed to `parse_file`.
+When include loading is enabled, string and reader input resolve relative includes
+from the current working directory. File input uses the entry file's parent directory.
+`Options::builder().with_base_dir(path)` overrides the include base for all input types.
+`parse_file` still reads the entry file from the path that the caller supplies.
 
 The effective base resolves includes in the entry input. Once a file is included,
 nested relative includes resolve from the directory containing that file. In `Safe`

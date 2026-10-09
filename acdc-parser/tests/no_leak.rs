@@ -167,7 +167,9 @@ fn parse_file_returns_static_document() -> TestResult {
 /// Include buffers and their source maps must drop with the parse result.
 #[test]
 fn included_content_does_not_leak_across_iterations() -> TestResult {
-    let options = Options::default();
+    let options = Options::builder()
+        .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+        .build()?;
     let path = Path::new("fixtures/tests/leveloffset_include.adoc");
     for _ in 0..WARMUP_ITERATIONS {
         let parsed = parse_file(path, &options)?;

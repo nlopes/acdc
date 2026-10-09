@@ -255,6 +255,8 @@ impl ConversionResult {
 
 /// Converter options.
 ///
+/// Safe mode defaults to [`SafeMode::Secure`]. The CLI sets its own defaults.
+///
 /// Use [`Options::builder()`] to construct an instance. This struct is marked
 /// `#[non_exhaustive]` to allow adding new fields in future minor versions.
 ///

@@ -1565,6 +1565,7 @@ mod tests {
     #[test]
     fn include_catalog_distinguishes_full_and_partial_sources() -> Result<(), Error> {
         let options = Options::builder()
+            .with_safe_mode(crate::SafeMode::Unsafe)
             .with_base_dir("fixtures/preprocessor/xref_catalog")
             .build()?;
         for (attributes, full) in [
@@ -1591,6 +1592,7 @@ mod tests {
     #[test]
     fn include_catalog_retains_empty_and_nested_full_includes() -> Result<(), Error> {
         let options = Options::builder()
+            .with_safe_mode(crate::SafeMode::Unsafe)
             .with_base_dir("fixtures/preprocessor/xref_catalog")
             .build()?;
         let result = Preprocessor::process(
@@ -1616,6 +1618,7 @@ mod tests {
     #[test]
     fn include_catalog_uses_paths_relative_to_the_root() -> Result<(), Error> {
         let options = Options::builder()
+            .with_safe_mode(crate::SafeMode::Unsafe)
             .with_base_dir("fixtures/preprocessor")
             .build()?;
         let result = Preprocessor::process(
@@ -2020,7 +2023,10 @@ endif::inner[]";
     #[test]
     fn block_comment_delimiters_stay_literal_in_verbatim_blocks() -> Result<(), Error> {
         let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/preprocessor");
-        let options = Options::builder().with_base_dir(fixtures).build()?;
+        let options = Options::builder()
+            .with_safe_mode(crate::SafeMode::Unsafe)
+            .with_base_dir(fixtures)
+            .build()?;
         for delimiter in ["----", "....", "++++", "```"] {
             let input = format!(
                 "{delimiter}\n////\ninclude::header_comment_visible.inc[]\n////\n{delimiter}"
@@ -2038,7 +2044,10 @@ endif::inner[]";
     #[test]
     fn table_comment_delimiters_keep_directives_active_on_both_paths() -> Result<(), Error> {
         let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/preprocessor");
-        let options = Options::builder().with_base_dir(fixtures).build()?;
+        let options = Options::builder()
+            .with_safe_mode(crate::SafeMode::Unsafe)
+            .with_base_dir(fixtures)
+            .build()?;
         let comment = "////\ninclude::missing-comment-file.adoc[]\n////";
         for delimiter in ["|===", "!===", ",===", ":==="] {
             // An unmatched listing marker is literal cell text; it must not
@@ -2083,7 +2092,10 @@ endif::inner[]";
     #[test]
     fn table_comment_context_keeps_outer_fence_through_nested_tables() -> Result<(), Error> {
         let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/preprocessor");
-        let options = Options::builder().with_base_dir(fixtures).build()?;
+        let options = Options::builder()
+            .with_safe_mode(crate::SafeMode::Unsafe)
+            .with_base_dir(fixtures)
+            .build()?;
         let input = "|===\na|\n!===\nl!\n////\ninclude::header_comment_visible.inc[]\n////\n!===\n|====\n////\ninclude::header_comment_visible.inc[]\n////\n|===\n\n////\ninclude::missing-comment-file.adoc[]\n////\nVisible";
         let result = Preprocessor::process(input, &options, Rc::default())?;
         assert_eq!(result.text.matches("Included content").count(), 2);
@@ -2094,7 +2106,10 @@ endif::inner[]";
     #[test]
     fn includes_inherit_table_and_verbatim_comment_context() -> Result<(), Error> {
         let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/tests");
-        let options = Options::builder().with_base_dir(fixtures).build()?;
+        let options = Options::builder()
+            .with_safe_mode(crate::SafeMode::Unsafe)
+            .with_base_dir(fixtures)
+            .build()?;
         for delimiter in ["|===", "----", "....", "++++", "```"] {
             for selection in ["", "lines=1..5"] {
                 let input = format!(
@@ -2119,7 +2134,10 @@ endif::inner[]";
     #[test]
     fn included_table_fences_update_the_callers_comment_context() -> Result<(), Error> {
         let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/tests");
-        let options = Options::builder().with_base_dir(fixtures).build()?;
+        let options = Options::builder()
+            .with_safe_mode(crate::SafeMode::Unsafe)
+            .with_base_dir(fixtures)
+            .build()?;
         let input = "include::table_comment_open.asciidoc[]\n////\ninclude::table_comment_visible.inc[]\n////\ninclude::table_comment_close.asciidoc[]\n\n////\ninclude::missing-comment-file.adoc[]\n////\nVisible";
         let result = Preprocessor::process(input, &options, Rc::default())?;
         assert!(
@@ -2232,6 +2250,7 @@ endif::inner[]";
     #[test]
     fn styled_paragraph_comments_cross_selected_and_nested_includes() -> Result<(), Error> {
         let options = Options::builder()
+            .with_safe_mode(crate::SafeMode::Unsafe)
             .with_base_dir(Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/tests"))
             .build()?;
         let source = include_str!("../../fixtures/tests/styled_paragraph_comment_includes.adoc");
@@ -2398,7 +2417,14 @@ more";
         // *chapter* file at its own line, and main-file content after the dropped
         // comment must still report its true source line.
         let path = Path::new("fixtures/preprocessor/include_line_mapping_main.adoc");
-        let result = Preprocessor::process_file(path, &Options::default(), Rc::default())?;
+        let result = Preprocessor::process_file(
+            path,
+            &Options {
+                safe_mode: crate::SafeMode::Unsafe,
+                ..Options::default()
+            },
+            Rc::default(),
+        )?;
         let text: &'static str = Box::leak(result.text.into_owned().into_boxed_str());
 
         // `target reference here` is line 5 of the included chapter.
@@ -2441,8 +2467,15 @@ more";
     /// the recorded ranges resolve — i.e. what an AST node anchored there reports
     /// after the remap. `None` if preprocessing fails or the needle is absent.
     fn resolve_partial_origin(path: &str, needle: &str) -> Option<(Option<String>, usize, usize)> {
-        let result =
-            Preprocessor::process_file(Path::new(path), &Options::default(), Rc::default()).ok()?;
+        let result = Preprocessor::process_file(
+            Path::new(path),
+            &Options {
+                safe_mode: crate::SafeMode::Unsafe,
+                ..Options::default()
+            },
+            Rc::default(),
+        )
+        .ok()?;
         let text = result.text.into_owned();
         let offset = text.find(needle)?;
         let range = SourceRange::find_containing(&result.source_ranges, offset)?;
@@ -2503,7 +2536,10 @@ more";
     fn partial_line_ranges_sort_deduplicate_and_accept_negative_eof() -> Result<(), Error> {
         let result = Preprocessor::process_file(
             Path::new("fixtures/preprocessor/include_lines_negative_deduplicated.adoc"),
-            &Options::default(),
+            &Options {
+                safe_mode: crate::SafeMode::Unsafe,
+                ..Options::default()
+            },
             Rc::default(),
         )?;
 
@@ -2701,7 +2737,10 @@ endif::backend-pdf[]";
         // Test that include directive works with UTF-16 LE files
         let warnings = Rc::<RefCell<Vec<Warning>>>::default();
         let path = Path::new("fixtures/preprocessor/main_with_include.adoc");
-        let options = Options::default();
+        let options = Options {
+            safe_mode: crate::SafeMode::Unsafe,
+            ..Options::default()
+        };
 
         let result = Preprocessor::process_file(path, &options, warnings)?;
 
@@ -2717,7 +2756,10 @@ endif::backend-pdf[]";
     fn test_include_with_single_tag() -> Result<(), Error> {
         let warnings = Rc::<RefCell<Vec<Warning>>>::default();
         let path = Path::new("fixtures/preprocessor/include_with_tag.adoc");
-        let options = Options::default();
+        let options = Options {
+            safe_mode: crate::SafeMode::Unsafe,
+            ..Options::default()
+        };
 
         let result = Preprocessor::process_file(path, &options, warnings)?;
 
@@ -2738,7 +2780,10 @@ endif::backend-pdf[]";
     fn test_include_with_multiple_tags() -> Result<(), Error> {
         let warnings = Rc::<RefCell<Vec<Warning>>>::default();
         let path = Path::new("fixtures/preprocessor/include_multiple_tags.adoc");
-        let options = Options::default();
+        let options = Options {
+            safe_mode: crate::SafeMode::Unsafe,
+            ..Options::default()
+        };
 
         let result = Preprocessor::process_file(path, &options, warnings)?;
 
@@ -2754,7 +2799,10 @@ endif::backend-pdf[]";
     fn test_include_with_wildcard_excluding_tag() -> Result<(), Error> {
         let warnings = Rc::<RefCell<Vec<Warning>>>::default();
         let path = Path::new("fixtures/preprocessor/include_wildcard_exclude.adoc");
-        let options = Options::default();
+        let options = Options {
+            safe_mode: crate::SafeMode::Unsafe,
+            ..Options::default()
+        };
 
         let result = Preprocessor::process_file(path, &options, warnings)?;
 
@@ -2770,7 +2818,10 @@ endif::backend-pdf[]";
     fn test_include_with_double_wildcard() -> Result<(), Error> {
         let warnings = Rc::<RefCell<Vec<Warning>>>::default();
         let path = Path::new("fixtures/preprocessor/include_double_wildcard.adoc");
-        let options = Options::default();
+        let options = Options {
+            safe_mode: crate::SafeMode::Unsafe,
+            ..Options::default()
+        };
 
         let result = Preprocessor::process_file(path, &options, warnings)?;
 
@@ -2789,7 +2840,10 @@ endif::backend-pdf[]";
     fn test_include_with_nested_tag() -> Result<(), Error> {
         let warnings = Rc::<RefCell<Vec<Warning>>>::default();
         let path = Path::new("fixtures/preprocessor/include_nested_tag.adoc");
-        let options = Options::default();
+        let options = Options {
+            safe_mode: crate::SafeMode::Unsafe,
+            ..Options::default()
+        };
 
         let result = Preprocessor::process_file(path, &options, warnings)?;
 
@@ -2805,7 +2859,10 @@ endif::backend-pdf[]";
     fn test_include_select_untagged_only() -> Result<(), Error> {
         let warnings = Rc::<RefCell<Vec<Warning>>>::default();
         let path = Path::new("fixtures/preprocessor/include_untagged_only.adoc");
-        let options = Options::default();
+        let options = Options {
+            safe_mode: crate::SafeMode::Unsafe,
+            ..Options::default()
+        };
 
         let result = Preprocessor::process_file(path, &options, warnings)?;
 
@@ -2824,7 +2881,10 @@ endif::backend-pdf[]";
     fn lines_selection_takes_precedence_over_tag_selection() -> Result<(), Error> {
         let warnings = Rc::<RefCell<Vec<Warning>>>::default();
         let path = Path::new("fixtures/preprocessor/include_tag_with_lines.adoc");
-        let options = Options::default();
+        let options = Options {
+            safe_mode: crate::SafeMode::Unsafe,
+            ..Options::default()
+        };
 
         let result = Preprocessor::process_file(path, &options, warnings)?;
 
@@ -2844,7 +2904,10 @@ endif::backend-pdf[]";
     fn test_include_with_indent() -> Result<(), Error> {
         let warnings = Rc::<RefCell<Vec<Warning>>>::default();
         let path = Path::new("fixtures/preprocessor/include_with_indent.adoc");
-        let options = Options::default();
+        let options = Options {
+            safe_mode: crate::SafeMode::Unsafe,
+            ..Options::default()
+        };
 
         let result = Preprocessor::process_file(path, &options, warnings)?;
 
@@ -2859,7 +2922,10 @@ endif::backend-pdf[]";
     fn test_include_with_indent_zero() -> Result<(), Error> {
         let warnings = Rc::<RefCell<Vec<Warning>>>::default();
         let path = Path::new("fixtures/preprocessor/include_with_indent_zero.adoc");
-        let options = Options::default();
+        let options = Options {
+            safe_mode: crate::SafeMode::Unsafe,
+            ..Options::default()
+        };
 
         let result = Preprocessor::process_file(path, &options, warnings)?;
 
@@ -2874,7 +2940,10 @@ endif::backend-pdf[]";
     fn test_include_with_indent_and_tag() -> Result<(), Error> {
         let warnings = Rc::<RefCell<Vec<Warning>>>::default();
         let path = Path::new("fixtures/preprocessor/include_with_indent_and_tag.adoc");
-        let options = Options::default();
+        let options = Options {
+            safe_mode: crate::SafeMode::Unsafe,
+            ..Options::default()
+        };
 
         let result = Preprocessor::process_file(path, &options, warnings)?;
 
@@ -2896,7 +2965,10 @@ endif::backend-pdf[]";
         //         -> includes inner.adoc (relative to subdir/)
         let warnings = Rc::<RefCell<Vec<Warning>>>::default();
         let path = Path::new("fixtures/preprocessor/nested_include_main.adoc");
-        let options = Options::default();
+        let options = Options {
+            safe_mode: crate::SafeMode::Unsafe,
+            ..Options::default()
+        };
 
         let result = Preprocessor::process_file(path, &options, warnings)?;
 

@@ -14,6 +14,7 @@ use crate::{
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
 pub struct Options<'a> {
+    /// Defaults to [`SafeMode::Secure`], which prevents include reads.
     pub safe_mode: SafeMode,
     pub timings: bool,
     pub(crate) document_attributes: DocumentAttributes<'a>,
@@ -218,8 +219,8 @@ impl<'a> OptionsBuilder<'a> {
 
     /// Select how the parser loads include sources.
     ///
-    /// Defaults to [`IncludeLoader::System`]. Secure mode prevents include
-    /// reads even when a provider is supplied. Use [`IncludeLoader::Disabled`]
+    /// Defaults to [`IncludeLoader::System`]. The default Secure mode prevents
+    /// include reads even when a provider is supplied. Use [`IncludeLoader::Disabled`]
     /// to disable loading in lower modes, or [`IncludeLoader::custom`] to supply
     /// sources from an editor overlay, virtual filesystem, or custom transport.
     ///

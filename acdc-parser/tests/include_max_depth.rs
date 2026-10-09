@@ -62,6 +62,7 @@ impl Drop for IncludeTree {
 
 fn options(max_depth: &str) -> Result<Options<'_>, acdc_parser::Error> {
     Options::builder()
+        .with_safe_mode(acdc_parser::SafeMode::Unsafe)
         .with_attribute("max-include-depth", max_depth)
         .build()
 }
@@ -148,7 +149,12 @@ fn assert_depth_warning(result: &ParseResult, max: usize, file: &Path, line: u32
 fn default_depth_is_visible_and_allows_a_two_level_chain() -> TestResult {
     let tree = IncludeTree::chain("")?;
 
-    let result = parse_file(&tree.main, &Options::default())?;
+    let result = parse_file(
+        &tree.main,
+        &Options::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build()?,
+    )?;
 
     assert_max_depth(&result, "64")?;
     assert_chain(&result, "64", Expansion::Full)?;
@@ -161,7 +167,12 @@ fn default_depth_is_defined_for_conditionals_without_being_explicit() -> TestRes
     let tree =
         IncludeTree::chain("ifdef::max-include-depth[]\nDEFAULT DEPTH IS DEFINED\nendif::[]\n\n")?;
 
-    let result = parse_file(&tree.main, &Options::default())?;
+    let result = parse_file(
+        &tree.main,
+        &Options::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build()?,
+    )?;
 
     assert_max_depth(&result, "64")?;
     assert_eq!(
@@ -208,7 +219,12 @@ fn positive_limit_preserves_the_blocked_directive_and_continues() -> TestResult 
 fn include_like_block_macros_are_not_include_directives() -> TestResult {
     let tree = IncludeTree::main_only("includes::x[]\n\ninclude-foo::bar[]")?;
 
-    let result = parse_file(&tree.main, &Options::default())?;
+    let result = parse_file(
+        &tree.main,
+        &Options::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build()?,
+    )?;
 
     assert_eq!(
         paragraph_texts(&result)?,
@@ -302,6 +318,7 @@ fn malformed_caller_values_return_a_structured_configuration_error() -> TestResu
 fn boolean_true_disables_includes_without_crashing() -> TestResult {
     let tree = IncludeTree::chain("")?;
     let options = Options::builder()
+        .with_safe_mode(acdc_parser::SafeMode::Unsafe)
         .with_attribute("max-include-depth", true)
         .build()?;
 
@@ -325,9 +342,11 @@ fn boolean_true_disables_includes_without_crashing() -> TestResult {
 fn boolean_false_and_no_value_restore_the_default() -> TestResult {
     let options = [
         Options::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
             .with_attribute("max-include-depth", false)
             .build()?,
         Options::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
             .with_attribute("max-include-depth", ())
             .build()?,
     ];
@@ -407,7 +426,12 @@ fn block_metadata_cannot_change_the_trusted_limit() -> TestResult {
 fn document_header_cannot_override_or_unset_the_default() -> TestResult {
     let tree = IncludeTree::chain(":max-include-depth: 0\n:max-include-depth!:\n\n")?;
 
-    let result = parse_file(&tree.main, &Options::default())?;
+    let result = parse_file(
+        &tree.main,
+        &Options::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build()?,
+    )?;
 
     assert_max_depth(&result, "64")?;
     assert_chain(&result, "64", Expansion::Full)?;
@@ -438,7 +462,12 @@ fn depth_limit_bounds_a_self_include_cycle() -> TestResult {
 fn default_limit_bounds_a_self_include_cycle() -> TestResult {
     let tree = IncludeTree::main_only("SELF BODY\n\ninclude::main.adoc[]")?;
 
-    let result = parse_file(&tree.main, &Options::default())?;
+    let result = parse_file(
+        &tree.main,
+        &Options::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build()?,
+    )?;
 
     let paragraphs = paragraph_texts(&result)?;
     let Some((last, bodies)) = paragraphs.split_last() else {

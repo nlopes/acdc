@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Library conversion now defaults to Secure and does not load document images.
+  Select a lower converter safe mode explicitly for trusted resources. The CLI
+  retains its Unsafe default.
+
 - **Breaking:** configure conversion with the parser options builder, then use
   the converter's validated parser options for parsing. Invalid attribute values
   are rejected before conversion.

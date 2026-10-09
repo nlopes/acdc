@@ -1104,13 +1104,27 @@ impl LintOverrideSelector {
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct LintOptions {
     overrides: Vec<LintOverride>,
+    safe_mode: acdc_parser::SafeMode,
 }
 
 impl LintOptions {
     /// Creates lint options from command-line overrides in command-line order.
     #[must_use]
     pub fn new(overrides: Vec<LintOverride>) -> Self {
-        Self { overrides }
+        Self {
+            overrides,
+            ..Self::default()
+        }
+    }
+
+    /// Set the safe mode used to parse the source.
+    ///
+    /// The default is Secure, which prevents include reads.
+    /// Select Safe or Unsafe to lint included content.
+    #[must_use]
+    pub fn with_safe_mode(mut self, safe_mode: acdc_parser::SafeMode) -> Self {
+        self.safe_mode = safe_mode;
+        self
     }
 
     /// Returns the configured command-line overrides.
@@ -1324,7 +1338,10 @@ pub trait Lintable {
 impl Lintable for Path {
     fn lint(&self, options: &LintOptions) -> Result<LintReport, Error> {
         let source = fs::read_to_string(self)?;
-        let parsed = acdc_parser::parse_file(self, &acdc_parser::Options::default())?;
+        let parser_options = acdc_parser::Options::builder()
+            .with_safe_mode(options.safe_mode)
+            .build()?;
+        let parsed = acdc_parser::parse_file(self, &parser_options)?;
         Ok(runner::lint_parsed(
             Some(self.to_path_buf()),
             Some(self),
@@ -1337,7 +1354,10 @@ impl Lintable for Path {
 
 impl Lintable for str {
     fn lint(&self, options: &LintOptions) -> Result<LintReport, Error> {
-        let parsed = acdc_parser::parse(self, &acdc_parser::Options::default())?;
+        let parser_options = acdc_parser::Options::builder()
+            .with_safe_mode(options.safe_mode)
+            .build()?;
+        let parsed = acdc_parser::parse(self, &parser_options)?;
         Ok(runner::lint_parsed(None, None, self, &parsed, options))
     }
 }
@@ -1345,6 +1365,34 @@ impl Lintable for str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn includes_require_explicit_library_permission() -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempfile::tempdir()?;
+        let included = directory.path().join("part.adoc");
+        let entry = directory.path().join("main.adoc");
+        fs::write(&included, "image::photo.png[]\n")?;
+        let source = format!("include::{}[]\n", included.display());
+        fs::write(&entry, &source)?;
+        for (options, expect_image) in [
+            (LintOptions::default(), false),
+            (
+                LintOptions::default().with_safe_mode(acdc_parser::SafeMode::Unsafe),
+                true,
+            ),
+        ] {
+            for report in [source.lint(&options)?, entry.as_path().lint(&options)?] {
+                assert_eq!(
+                    report
+                        .diagnostics()
+                        .iter()
+                        .any(|diagnostic| diagnostic.lint() == LintId::ImageAltText),
+                    expect_image
+                );
+            }
+        }
+        Ok(())
+    }
 
     const ONE_SENTENCE: LintSelector = LintSelector::Lint(LintId::OneSentencePerLine);
     const SYMMETRIC_TITLE: LintSelector = LintSelector::Lint(LintId::SectionTitleSymmetricMarker);

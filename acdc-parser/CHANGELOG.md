@@ -7,13 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking changes
+
+- The parser API now defaults to `SafeMode::Secure`, matching the Asciidoctor API.
+  Includes become links without reading their targets. Select Safe or Unsafe
+  to enable includes. `parse_file` still reads the entry document.
+  Custom providers do not change the safe mode.
+
 ### Added
 
 - `OptionsBuilder::with_include_loader()` selects custom include sources or
   disables loading with `IncludeLoader::Disabled`. Custom providers can supply
   unsaved editor buffers, virtual files, or authorized HTTP(S) content. Safe modes,
   caller attribute policy, and source recovery also apply to custom providers.
-  Existing defaults remain Unsafe with system loading.
 
 ### Changed
 

@@ -16,6 +16,10 @@ use crossterm::style::Stylize;
 /// Show a human-readable structural outline of an `AsciiDoc` document
 #[derive(clap::Args)]
 pub struct Args {
+    /// Safe mode to use while parsing the document
+    #[arg(short = 'S', long, default_value = "unsafe")]
+    pub safe_mode: acdc_parser::SafeMode,
+
     /// Input `AsciiDoc` file
     pub file: PathBuf,
 
@@ -462,7 +466,7 @@ impl<'a, W: Write> Visitor<'a> for TreeVisitor<W> {
 }
 
 pub fn run(args: &Args) -> Result<(), Box<dyn Error>> {
-    let options = Options::default();
+    let options = Options::builder().with_safe_mode(args.safe_mode).build()?;
     let parsed = parse_file(&args.file, &options)?;
 
     let stdout = io::stdout();

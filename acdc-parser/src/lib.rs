@@ -51,6 +51,8 @@
 //!
 //! # Include loading
 //!
+//! Parsing defaults to [`SafeMode::Secure`]. Include directives become links
+//! without reading their targets. Select a lower mode to enable include reads.
 //! [`Options::include_loader`] defaults to [`IncludeLoader::System`], the
 //! filesystem and optional HTTP(S) loader. Use [`IncludeLoader::custom`] to
 //! supply sources from an editor or another store. In modes below Secure,
@@ -321,8 +323,9 @@ impl<'input> Parser<'input> {
 /// Parse `AsciiDoc` content from a reader.
 ///
 /// This function reads the content from the provided reader and parses it as `AsciiDoc`.
-/// Includes are loaded only if [`Options::include_loader`] is enabled and
-/// the safe mode permits loading.
+/// The default [`SafeMode::Secure`] turns include directives into links without
+/// reading their targets. To load includes, select a lower safe mode and enable
+/// [`Options::include_loader`].
 ///
 /// # Example
 ///
@@ -377,9 +380,25 @@ pub fn parse_from_reader<R: std::io::Read>(
 
 /// Parse `AsciiDoc` content from a string.
 ///
-/// This function parses the provided string as `AsciiDoc`. Includes follow
-/// [`Options::include_loader`], which defaults to [`IncludeLoader::System`].
-/// Relative targets use the current directory unless [`Options::base_dir`] is set.
+/// The default [`SafeMode::Secure`] turns include directives into links without
+/// reading their targets. Select a lower safe mode to enable include reads.
+/// [`Options::include_loader`] defaults to [`IncludeLoader::System`].
+///
+/// # Example
+///
+/// Enable includes relative to a directory:
+///
+/// ```no_run
+/// use acdc_parser::{IncludeLoader, Options, SafeMode, parse};
+///
+/// let options = Options::builder()
+///     .with_safe_mode(SafeMode::Safe)
+///     .with_include_loader(IncludeLoader::System)
+///     .with_base_dir("/workspace/docs")
+///     .build()?;
+/// let document = parse("include::part.adoc[]", &options)?;
+/// # Ok::<(), acdc_parser::Error>(())
+/// ```
 ///
 /// # Example
 ///
@@ -428,8 +447,10 @@ pub fn parse(input: &str, options: &Options<'_>) -> Result<ParseResult, Error> {
 /// Parse `AsciiDoc` content from a file.
 ///
 /// This function reads the content from the provided file and parses it as `AsciiDoc`.
-/// Includes follow [`Options::include_loader`]. Disabling includes does not
-/// prevent reading the entry file selected by the caller.
+///
+/// The default [`SafeMode::Secure`] turns include directives into links without
+/// reading their targets. In lower modes, [`Options::include_loader`] controls
+/// include reads. Neither setting prevents reading the entry file.
 ///
 /// # Example
 ///
@@ -676,7 +697,10 @@ mod tests {
     fn table_comments_leave_hidden_footnotes_and_targets_unregistered() -> Result<(), Error> {
         let parsed = parse_file(
             "fixtures/tests/table_comment_directives.adoc",
-            &Options::default(),
+            &Options {
+                safe_mode: crate::SafeMode::Unsafe,
+                ..Options::default()
+            },
         )?;
         assert_eq!(parsed.document().footnotes, []);
         assert!(!parsed.document().references.contains_key("hidden-table"));
@@ -1716,7 +1740,10 @@ mod tests {
             .expect("write tmp");
             drop(f);
 
-            let options = Options::default();
+            let options = Options {
+                safe_mode: crate::SafeMode::Unsafe,
+                ..Options::default()
+            };
             let result = parse_file(&tmp, &options).expect("should parse");
             let _ = std::fs::remove_file(&tmp);
 

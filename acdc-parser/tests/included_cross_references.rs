@@ -28,7 +28,9 @@ fn cross_references<'d, 'a>(blocks: &'d [Block<'a>]) -> Vec<&'d CrossReference<'
 fn colon_references_warn_only_for_missing_local_targets() -> Result<(), Error> {
     let parsed = parse(
         include_str!("../fixtures/tests/xref_colon_ids.adoc"),
-        &Options::default(),
+        &Options::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build()?,
     )?;
     let missing = parsed
         .warnings()
@@ -63,7 +65,9 @@ fn colon_references_warn_only_for_missing_local_targets() -> Result<(), Error> {
 fn included_references_report_only_missing_local_fragments() -> Result<(), Error> {
     let parsed = parse_file(
         "fixtures/tests/xref_included_sources.adoc",
-        &Options::default(),
+        &Options::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build()?,
     )?;
     let targets = cross_references(&parsed.document().blocks);
     assert_eq!(
@@ -83,7 +87,10 @@ fn included_references_report_only_missing_local_fragments() -> Result<(), Error
 
 #[test]
 fn qualified_references_do_not_load_other_sources() -> Result<(), Error> {
-    let options = Options::builder().with_base_dir("fixtures/tests").build()?;
+    let options = Options::builder()
+        .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+        .with_base_dir("fixtures/tests")
+        .build()?;
     let source = "xref:xref_include_target.adoc#included-target[]";
     for parsed in [
         parse(source, &options)?,
@@ -103,6 +110,7 @@ fn qualified_references_do_not_load_other_sources() -> Result<(), Error> {
 #[test]
 fn included_reference_classification_preserves_punctuation_and_syntax() -> Result<(), Error> {
     let options = Options::builder()
+        .with_safe_mode(acdc_parser::SafeMode::Unsafe)
         .with_base_dir("fixtures/preprocessor/xref_catalog")
         .build()?;
     let parsed = parse(
@@ -140,6 +148,7 @@ fn included_reference_classification_preserves_punctuation_and_syntax() -> Resul
 #[test]
 fn partial_sources_keep_qualified_references_external() -> Result<(), Error> {
     let options = Options::builder()
+        .with_safe_mode(acdc_parser::SafeMode::Unsafe)
         .with_base_dir("fixtures/preprocessor/xref_catalog")
         .build()?;
     for selector in ["lines=1..6", "tags=body", "opts=partial"] {
@@ -159,6 +168,7 @@ fn partial_sources_keep_qualified_references_external() -> Result<(), Error> {
 #[test]
 fn document_top_references_work_with_empty_includes() -> Result<(), Error> {
     let options = Options::builder()
+        .with_safe_mode(acdc_parser::SafeMode::Unsafe)
         .with_base_dir("fixtures/preprocessor/xref_catalog")
         .build()?;
     for header in [
@@ -198,6 +208,7 @@ fn document_top_references_work_with_empty_includes() -> Result<(), Error> {
 #[test]
 fn restored_source_targets_keep_their_destination_classification() -> Result<(), Error> {
     let options = Options::builder()
+        .with_safe_mode(acdc_parser::SafeMode::Unsafe)
         .with_base_dir("fixtures/preprocessor/xref_catalog")
         .build()?;
     let parsed = parse(

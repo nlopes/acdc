@@ -36,8 +36,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let output_dir = tempfile::tempdir()?;
         let typst_path = output_dir.path().join("expected.typ");
         let processor = Processor::new(
-            Options::default(),
-            acdc_parser::Options::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            Options::builder()
+                .safe_mode(acdc_parser::SafeMode::Unsafe)
+                .build(),
+            acdc_parser::Options::builder()
+                .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+                .with_attributes(doc.attributes.clone().into_inputs()),
         )?
         .with_pdf_options(PdfOptions {
             emit_typst: Some(typst_path.clone()),

@@ -28,7 +28,12 @@ fn tag_selection_diagnostics_are_structured_and_located() -> TestResult {
     let outer = fixture_dir.join("include_tag_diagnostics_outer.adoc");
     let target = fixture_dir.join("include_tag_diagnostics_target.adoc");
 
-    let result = parse_file(&main, &Options::default())?;
+    let result = parse_file(
+        &main,
+        &Options::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build()?,
+    )?;
 
     assert_eq!(
         paragraph_texts(&result)?,
@@ -78,7 +83,12 @@ fn tag_selection_happens_before_nested_preprocessing() -> TestResult {
     let target = fixture_dir.join("include_selection_before_processing_target.adoc");
     let missing_inside = fixture_dir.join("missing-inside-selection.adoc");
 
-    let result = parse_file(&main, &Options::default())?;
+    let result = parse_file(
+        &main,
+        &Options::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build()?,
+    )?;
 
     assert_eq!(
         paragraph_texts(&result)?,
@@ -147,7 +157,12 @@ fn malformed_selected_tag_boundaries_are_structured_and_located() -> TestResult 
     let mismatch = fixture_dir.join("include_tag_state_mismatch.adoc");
     let unclosed = fixture_dir.join("include_tag_state_unclosed.adoc");
 
-    let result = parse_file(&main, &Options::default())?;
+    let result = parse_file(
+        &main,
+        &Options::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build()?,
+    )?;
 
     assert_eq!(
         paragraph_texts(&result)?,

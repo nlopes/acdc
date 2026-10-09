@@ -135,6 +135,11 @@ printf '= Title\n\nBody.\n' | acdc convert --stdin -o -
 When `--out-file` is combined with several inputs, only the first input is processed.
 `--open` opens converter-reported output files with the system's default application and is ignored for stdout.
 
+`convert`, `lint`, and `inspect` default to Unsafe mode for trusted local documents.
+Use `-S secure` or `--safe-mode secure` to prevent include reads.
+`execute` defaults to Safe. This mode restricts include paths but does not sandbox commands.
+The parser library defaults to Secure.
+
 Use `--timings` for parse/conversion timings, `--strict` to turn supported fallbacks into errors, `--safe` or `--safe-mode` for parser safety policy, and `--embedded` to suppress enclosing document structure where the backend supports embedded output.
 Values passed with `-a` or `--attribute` take precedence over matching attribute entries in the document.
 Use `-a name`, `-a name=value`, or `-a name!` to set, assign, or unset a locked value.

@@ -44,18 +44,26 @@ fn main() -> Result<(), Box<dyn Error>> {
                 {
                     continue;
                 }
-                let parsed = parse_file(&path, &ParserOptions::default())?;
+                let parsed = parse_file(
+                    &path,
+                    &ParserOptions::builder()
+                        .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+                        .build()?,
+                )?;
                 let doc = parsed.document();
                 if !cfg!(feature = "highlighting") && !fixture_support::has_highlighter(doc) {
                     continue;
                 }
                 let output_path = fixture_support::expected_fixture_path(&expected_dir, stem, doc);
                 let options = Options::builder()
+                    .safe_mode(acdc_parser::SafeMode::Unsafe)
                     .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
                     .build();
                 let processor = Processor::new_with_variant(
                     options,
-                    ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+                    ParserOptions::builder()
+                        .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+                        .with_attributes(doc.attributes.clone().into_inputs()),
                     variant,
                 )?;
                 let render_options = RenderOptions {

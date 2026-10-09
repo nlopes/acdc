@@ -253,6 +253,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Library converter options now default to Secure, matching the parser API.
+  Select a lower safe mode explicitly for trusted documents that need resources.
+  CLI conversion retains its Unsafe default.
+
 - **Breaking:** configure a converter with the parser options builder, then parse
   with the converter's validated parser options. Application overrides, defaults,
   and backend setup are resolved together before preprocessing.

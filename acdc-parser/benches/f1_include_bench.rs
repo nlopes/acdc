@@ -26,6 +26,12 @@ use std::{fs, hint::black_box, path::Path, path::PathBuf, time::Duration};
 use acdc_parser::{Options, parse, parse_file};
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 
+fn include_options() -> Options<'static> {
+    let mut options = Options::default();
+    options.safe_mode = acdc_parser::SafeMode::Unsafe;
+    options
+}
+
 /// Recursively collect every `*.adoc` under `dir`, excluding the fixtures added by
 /// the F1 change (absent from the "before" tree) so both runs parse an identical set.
 fn collect_adoc(dir: &Path, out: &mut Vec<PathBuf>) {
@@ -152,7 +158,7 @@ fn corpus_benchmark(c: &mut Criterion) {
     group.measurement_time(Duration::from_secs(10));
     group.bench_function(BenchmarkId::new("all_fixtures", n), |b| {
         b.iter(|| {
-            let opts = Options::default();
+            let opts = include_options();
             for content in &contents {
                 let _ = black_box(parse(black_box(content), &opts));
             }
@@ -171,7 +177,7 @@ fn sizes_benchmark(c: &mut Criterion) {
             BenchmarkId::new("parse", "ARCHITECTURE"),
             &content,
             |b, input| {
-                b.iter(|| black_box(parse(black_box(input), &Options::default())));
+                b.iter(|| black_box(parse(black_box(input), &include_options())));
             },
         );
     }
@@ -186,7 +192,7 @@ fn sizes_benchmark(c: &mut Criterion) {
                 BenchmarkId::new("parse", format!("sample_{size}")),
                 &content,
                 |b, input| {
-                    b.iter(|| black_box(parse(black_box(input), &Options::default())));
+                    b.iter(|| black_box(parse(black_box(input), &include_options())));
                 },
             );
         }
@@ -207,7 +213,7 @@ fn includes_benchmark(c: &mut Criterion) {
         ("partial_tags", &corpus.partial_tags),
     ] {
         group.bench_function(BenchmarkId::new("parse_file", name), |b| {
-            b.iter(|| black_box(parse_file(black_box(path), &Options::default())));
+            b.iter(|| black_box(parse_file(black_box(path), &include_options())));
         });
     }
 

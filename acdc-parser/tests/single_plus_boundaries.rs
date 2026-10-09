@@ -215,7 +215,9 @@ fn disabled_single_plus_stages_remain_disabled() -> Result<(), Error> {
 fn single_plus_source_spans_retain_include_origins() -> Result<(), Error> {
     let parsed = acdc_parser::parse_file(
         "fixtures/tests/subs_single_plus_boundaries.adoc",
-        &Options::default(),
+        &Options::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build()?,
     )?;
     let included_source = include_str!("../fixtures/tests/includes/single-plus.adoc");
     let mut checked = 0;

@@ -2589,7 +2589,9 @@ fn colon_cross_references_use_local_pdf_destinations() -> Result<(), Error> {
 fn included_source_references_create_internal_pdf_destinations() -> Result<(), Error> {
     let parsed = parse_file(
         "tests/fixtures/source/xref_included_sources.adoc",
-        &Options::default(),
+        &Options::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build()?,
     )?;
     let pdf = render_parsed(&parsed)?;
     let mut internal = 0;
@@ -2632,7 +2634,9 @@ fn included_document_top_links_target_the_first_pdf_page() -> Result<(), Error> 
     for fixture in ["xref_document_top", "xref_document_top_untitled"] {
         let parsed = parse_file(
             format!("tests/fixtures/source/{fixture}.adoc"),
-            &Options::default(),
+            &Options::builder()
+                .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+                .build()?,
         )?;
         let pdf = render_parsed(&parsed)?;
         assert_eq!(internal_link_pages(&pdf, 1)?, [1, 1, 1]);
@@ -2894,6 +2898,15 @@ fn assert_repeated_table_header_index(pdf: &[u8]) -> Result<(), Error> {
     Ok(())
 }
 
+fn cli_fixture_processor(builder: acdc_parser::OptionsBuilder<'_>) -> Result<Processor<'_>, Error> {
+    Ok(Processor::new(
+        ConverterOptions::builder()
+            .safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build(),
+        builder.with_safe_mode(acdc_parser::SafeMode::Unsafe),
+    )?)
+}
+
 fn run_typst_fixture(path: &Path) -> Result<(), Error> {
     let file_name = path
         .file_stem()
@@ -2908,12 +2921,11 @@ fn run_typst_fixture(path: &Path) -> Result<(), Error> {
     let expected_path = Path::new("tests/fixtures/expected")
         .join(file_name)
         .with_extension("typ");
-    let bootstrap = Processor::new(ConverterOptions::default(), Options::builder())?;
+    let bootstrap = cli_fixture_processor(Options::builder())?;
     let parsed = parse_file(path, bootstrap.parser_options())?;
     let output_dir = tempfile::tempdir()?;
     let typst_path = output_dir.path().join("actual.typ");
-    let processor = Processor::new(
-        ConverterOptions::default(),
+    let processor = cli_fixture_processor(
         Options::builder().with_attributes(parsed.document().attributes.clone().into_inputs()),
     )?
     .with_pdf_options(PdfOptions {
@@ -3059,11 +3071,20 @@ fn link_macro_ids_are_named_pdf_destinations() -> Result<(), Error> {
 #[test]
 fn image_alt_text_reaches_pdf_structure() -> Result<(), Error> {
     let path = Path::new("tests/fixtures/source/image_accessibility_alt_text.adoc");
-    let bootstrap = Processor::new(ConverterOptions::default(), Options::builder())?;
+    let bootstrap = Processor::new(
+        ConverterOptions::builder()
+            .safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build(),
+        Options::builder().with_safe_mode(acdc_parser::SafeMode::Unsafe),
+    )?;
     let parsed = parse_file(path, bootstrap.parser_options())?;
     let processor = Processor::new(
-        ConverterOptions::default(),
-        Options::builder().with_attributes(parsed.document().attributes.clone().into_inputs()),
+        ConverterOptions::builder()
+            .safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build(),
+        Options::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .with_attributes(parsed.document().attributes.clone().into_inputs()),
     )?;
     let mut pdf = Vec::new();
     let mut warnings = Vec::new();

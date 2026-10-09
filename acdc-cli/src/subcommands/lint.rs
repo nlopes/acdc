@@ -28,6 +28,10 @@ impl OutputStyle {
 /// Lint `AsciiDoc` documents
 #[derive(ClapArgs, Debug)]
 pub struct Args {
+    /// Safe mode to use while parsing the document
+    #[arg(short = 'S', long, default_value = "unsafe")]
+    pub safe_mode: acdc_parser::SafeMode,
+
     /// Input from stdin
     #[arg(long, conflicts_with = "files")]
     pub stdin: bool,
@@ -82,7 +86,7 @@ pub struct Args {
 }
 
 pub fn run(args: &Args, matches: &ArgMatches) -> miette::Result<()> {
-    let options = LintOptions::new(ordered_overrides(matches)?);
+    let options = LintOptions::new(ordered_overrides(matches)?).with_safe_mode(args.safe_mode);
 
     if args.stdin {
         let mut source = String::new();

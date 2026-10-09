@@ -18,6 +18,11 @@ let report = Path::new("README.adoc").lint(&LintOptions::default())?;
 let report = "= Title\n\nContent.\n".lint(&LintOptions::default())?;
 ----
 
+Library linting defaults to Secure and does not read include targets.
+For trusted sources with includes, use
+`LintOptions::default().with_safe_mode(acdc_parser::SafeMode::Safe)`.
+The CLI defaults to Unsafe. Use `acdc lint --safe-mode secure` to prevent include reads.
+
 == Lint levels
 
 The command-line model follows `rustc` and Clippy:

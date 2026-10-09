@@ -252,7 +252,7 @@ fn intrinsic_assignments_drive_preprocessing_and_the_final_model_consistently() 
 #[test]
 fn source_cannot_spoof_an_inactive_convenience_attribute() -> TestResult {
     let parsed = parse(
-        ":safe-mode-secure:\nifdef::safe-mode-secure[]\n:spoofed:\nendif::[]\nifdef::safe-mode-unsafe[]\n:actual:\nendif::[]\n",
+        ":safe-mode-unsafe:\nifdef::safe-mode-unsafe[]\n:spoofed:\nendif::[]\nifdef::safe-mode-secure[]\n:actual:\nendif::[]\n",
         &Options::default(),
     )?;
 
@@ -262,13 +262,13 @@ fn source_cannot_spoof_an_inactive_convenience_attribute() -> TestResult {
         parsed
             .document()
             .attributes
-            .contains_key("safe-mode-unsafe")
+            .contains_key("safe-mode-secure")
     );
     assert!(
         !parsed
             .document()
             .attributes
-            .contains_key("safe-mode-secure")
+            .contains_key("safe-mode-unsafe")
     );
     Ok(())
 }
@@ -307,7 +307,12 @@ fn included_header_attribute_affects_following_conditionals() -> TestResult {
         "include::attrs.adoc[]\nifdef::localyear[]\n:included-value: {localyear}\nendif::[]\n",
     )?;
 
-    let parsed = parse_file(main, &Options::default())?;
+    let parsed = parse_file(
+        main,
+        &Options::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build()?,
+    )?;
     assert_eq!(
         text(&parsed.document().attributes, "localyear"),
         Some("1999")
@@ -403,7 +408,7 @@ fn intrinsic_values_do_not_change_json_shape() -> TestResult {
             .attributes
             .get("safe-mode-level")
             .and_then(|value| value.text()),
-        Some("0")
+        Some("20")
     );
     Ok(())
 }

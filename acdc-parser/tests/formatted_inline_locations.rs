@@ -178,7 +178,9 @@ fn formatted_inline_locations_preserve_duplicate_diagnostics() -> Result<(), Err
 fn formatted_inline_locations_preserve_include_origins() -> Result<(), Error> {
     let parsed = parse_file(
         "fixtures/tests/formatted_inline_locations.adoc",
-        &Options::default(),
+        &Options::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build()?,
     )?;
     let target = parsed
         .document()

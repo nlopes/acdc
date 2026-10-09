@@ -145,7 +145,9 @@ fn retained_table_cell_source_uses_its_nested_input() -> TestResult {
 fn retained_include_body_contains_transformed_content() -> TestResult {
     let parsed = parse_file(
         fixtures().join("include_indent_main.adoc"),
-        &Options::default(),
+        &Options::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build()?,
     )?;
     assert_eq!(listing(&parsed)?.source_text(), Some("      TARGETLINE\n"));
     Ok(())
@@ -176,7 +178,12 @@ fn retained_comment_in_list_continuation_includes_final_newline() -> TestResult 
 fn source_location_resolves_nested_selected_content() -> TestResult {
     let directory = fixtures();
     let primary = directory.join("include_tag_diagnostics_main.adoc");
-    let parsed = parse_file(&primary, &Options::default())?;
+    let parsed = parse_file(
+        &primary,
+        &Options::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build()?,
+    )?;
     let selected = parsed
         .document()
         .blocks
@@ -247,7 +254,10 @@ fn source_loss_has_a_typed_located_warning(
 
 #[test]
 fn absent_optional_include_does_not_recover_content() -> TestResult {
-    let options = Options::builder().with_base_dir(fixtures()).build()?;
+    let options = Options::builder()
+        .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+        .with_base_dir(fixtures())
+        .build()?;
     let parsed = parse(
         "include::__missing_recovery_test__.adoc[opts=optional]",
         &options,

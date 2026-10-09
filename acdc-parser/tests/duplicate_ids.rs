@@ -85,7 +85,9 @@ fn duplicate_ids_report_both_original_included_files() -> Result<(), Error> {
     let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/preprocessor");
     let parsed = parse_file(
         directory.join("duplicate_ids_root.adoc"),
-        &Options::default(),
+        &Options::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build()?,
     )?;
     let [warning] = parsed.warnings() else {
         return Err(format!("expected one warning, got {:?}", parsed.warnings()).into());

@@ -21,12 +21,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     generator.generate(|subdir, doc, output| {
         let embedded = subdir == Some("embedded");
         let options = Options::builder()
+            .safe_mode(acdc_parser::SafeMode::Unsafe)
             .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
             .embedded(embedded)
             .build();
         let processor = Processor::new(
             options,
-            acdc_parser::Options::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            acdc_parser::Options::builder()
+                .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+                .with_attributes(doc.attributes.clone().into_inputs()),
         )?;
         let mut warnings = Vec::new();
         let source = acdc_converters_core::WarningSource::new("manpage");

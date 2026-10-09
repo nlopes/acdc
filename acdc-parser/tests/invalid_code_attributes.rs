@@ -169,7 +169,9 @@ fn expanded_references_do_not_create_new_code_boundaries() -> Result<(), Error> 
 fn invalid_code_expansion_retains_include_origins() -> Result<(), Error> {
     let parsed = acdc_parser::parse_file(
         "fixtures/tests/subs_invalid_code_attributes.adoc",
-        &Options::default(),
+        &Options::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build()?,
     )?;
     let text = parsed
         .document()

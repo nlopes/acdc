@@ -327,7 +327,13 @@ fn formatted_attribute_warnings_follow_assignment_policy() -> Result<(), Error> 
 fn formatted_attributes_use_source_text_in_include_paths() -> Result<(), Error> {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/tests/includes");
     let source = "= T\n:chapter: pass:q[chapter]\n\ninclude::{chapter}.txt[]\n";
-    let parsed = parse(source, &Options::builder().with_base_dir(path).build()?)?;
+    let parsed = parse(
+        source,
+        &Options::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .with_base_dir(path)
+            .build()?,
+    )?;
     assert!(parsed.source().contains("Profile include."));
     assert!(!parsed.source().contains("include::"));
     Ok(())

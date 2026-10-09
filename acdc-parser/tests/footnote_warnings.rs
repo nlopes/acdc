@@ -116,7 +116,9 @@ fn conflicting_footnotes_report_both_included_files() -> Result<(), Error> {
     let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/preprocessor");
     let parsed = parse_file(
         directory.join("footnote_conflict_root.adoc"),
-        &Options::default(),
+        &Options::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build()?,
     )?;
     let warnings = conflicts(parsed.warnings());
     let [warning] = warnings.as_slice() else {

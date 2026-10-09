@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Editor parsing and rendering now default to Secure mode, which prevents
+  include reads. Secure mode does not sanitize passthrough HTML.
+
 - The preview now applies accepted body document attributes to later blocks
   while keeping changes inside AsciiDoc table cells local to those cells.
 - Parser compatibility knobs (`pre-spec-subs`, `setext`) are now forwarded as

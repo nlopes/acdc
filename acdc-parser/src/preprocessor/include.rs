@@ -1526,7 +1526,10 @@ mod tests {
             std::process::id()
         ));
         let missing_path = path.join("missing.adoc");
-        let options = Options::default();
+        let options = Options {
+            safe_mode: crate::SafeMode::Unsafe,
+            ..Options::default()
+        };
         let include = parse_include(&path, "include::missing.adoc[opts=optional]", &options)?;
         let source_provider = options
             .include_loader

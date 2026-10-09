@@ -81,8 +81,11 @@ fn string_and_reader_input_default_to_current_directory() -> TestResult {
     let target = CurrentDirectoryFile::new("CURRENT DIRECTORY")?;
     let input = format!("include::{}[]", target.name);
 
-    let string_result = parse(&input, &Options::default())?;
-    let reader_result = parse_from_reader(Cursor::new(input), &Options::default())?;
+    let options = Options::builder()
+        .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+        .build()?;
+    let string_result = parse(&input, &options)?;
+    let reader_result = parse_from_reader(Cursor::new(input), &options)?;
 
     assert_eq!(paragraph_text(&string_result)?, "CURRENT DIRECTORY");
     assert_eq!(paragraph_text(&reader_result)?, "CURRENT DIRECTORY");
@@ -93,7 +96,10 @@ fn string_and_reader_input_default_to_current_directory() -> TestResult {
 fn string_and_reader_input_resolve_includes_against_base_dir() -> TestResult {
     let directory = TempDirectory::new()?;
     write(&directory.0.join("part.adoc"), "INCLUDED")?;
-    let options = Options::builder().with_base_dir(&directory.0).build()?;
+    let options = Options::builder()
+        .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+        .with_base_dir(&directory.0)
+        .build()?;
 
     let string_result = parse("include::part.adoc[]", &options)?;
     let reader_result = parse_from_reader(Cursor::new("include::part.adoc[]"), &options)?;
@@ -185,7 +191,10 @@ fn missing_include_recovery_uses_the_entry_basename_outside_the_base() -> TestRe
     write(&main, "include::missing.adoc[]")?;
     fs::create_dir(&base_dir)?;
 
-    let options = Options::builder().with_base_dir(&base_dir).build()?;
+    let options = Options::builder()
+        .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+        .with_base_dir(&base_dir)
+        .build()?;
     let result = parse_file(&main, &options)?;
 
     assert_eq!(
@@ -211,7 +220,10 @@ fn nested_includes_are_relative_to_the_containing_file_after_base_override() -> 
     write(&base_dir.join("chapters/one.adoc"), "include::two.adoc[]")?;
     write(&base_dir.join("chapters/two.adoc"), "RELATIVE")?;
 
-    let options = Options::builder().with_base_dir(&base_dir).build()?;
+    let options = Options::builder()
+        .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+        .with_base_dir(&base_dir)
+        .build()?;
     let result = parse_file(&main, &options)?;
 
     assert_eq!(paragraph_text(&result)?, "RELATIVE");

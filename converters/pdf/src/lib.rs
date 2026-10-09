@@ -1610,10 +1610,18 @@ mod tests {
     }
 
     fn render_warnings(input: &str) -> Result<Vec<Warning>, Box<dyn StdError>> {
-        let parsed = parse(input, &ParserOptions::default())?;
+        let parsed = parse(
+            input,
+            &ParserOptions::builder()
+                .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+                .build()?,
+        )?;
         let processor = Processor::new(
-            Options::default(),
+            Options::builder()
+                .safe_mode(acdc_parser::SafeMode::Unsafe)
+                .build(),
             ParserOptions::builder()
+                .with_safe_mode(acdc_parser::SafeMode::Unsafe)
                 .with_attributes(parsed.document().attributes.clone().into_inputs()),
         )?;
         let source = WarningSource::new("pdf");
@@ -2896,12 +2904,17 @@ mod tests {
         )?;
         let parsed = parse(
             "= Video poster\n:imagesdir: media library\n\n.Poster title\n[[poster-video]]\nvideo::demo.mp4[poster=poster file.svg]\n",
-            &ParserOptions::default(),
+            &ParserOptions::builder()
+                .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+                .build()?,
         )?;
         let typst_path = directory.path().join("video-poster.typ");
         let processor = Processor::new(
-            Options::default(),
+            Options::builder()
+                .safe_mode(acdc_parser::SafeMode::Unsafe)
+                .build(),
             ParserOptions::builder()
+                .with_safe_mode(acdc_parser::SafeMode::Unsafe)
                 .with_attributes(parsed.document().attributes.clone().into_inputs()),
         )?
         .with_pdf_options(PdfOptions {
@@ -4154,11 +4167,16 @@ mod tests {
         )?;
         let parsed = parse(
             "image::resolved.png[]\n\nimage::missing.png[]\n",
-            &ParserOptions::default(),
+            &ParserOptions::builder()
+                .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+                .build()?,
         )?;
         let processor = Processor::new(
-            Options::default(),
+            Options::builder()
+                .safe_mode(acdc_parser::SafeMode::Unsafe)
+                .build(),
             ParserOptions::builder()
+                .with_safe_mode(acdc_parser::SafeMode::Unsafe)
                 .with_attributes(parsed.document().attributes.clone().into_inputs()),
         )?;
         let source = WarningSource::new("pdf");

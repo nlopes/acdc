@@ -37,8 +37,12 @@ fn generate(
 ) -> Result<(), Box<dyn std::error::Error>> {
     generator.generate(|_subdir, doc, output| {
         let processor = Processor::new(
-            Options::default(),
-            acdc_parser::Options::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            Options::builder()
+                .safe_mode(acdc_parser::SafeMode::Unsafe)
+                .build(),
+            acdc_parser::Options::builder()
+                .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+                .with_attributes(doc.attributes.clone().into_inputs()),
         )?
         .with_terminal_width(80)
         .with_dark_mode(true)

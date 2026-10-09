@@ -1023,7 +1023,12 @@ fn run_fixture_test(
         return Ok(());
     }
 
-    let parsed = parse_file(path, &ParserOptions::default())?;
+    let parsed = parse_file(
+        path,
+        &ParserOptions::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build()?,
+    )?;
     // Require both baselines even in highlighting-enabled CI, so new inputs
     // cannot omit the plain rendering coverage.
     if support::has_highlighter(parsed.document()) {
@@ -1048,7 +1053,9 @@ fn run_fixture_test(
 }
 
 fn render_fixture(path: &Path, variant: HtmlVariant, embedded: bool) -> Result<String, Error> {
-    let parser_options = ParserOptions::default();
+    let parser_options = ParserOptions::builder()
+        .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+        .build()?;
     let parsed = parse_file(path, &parser_options)?;
     render_fixture_document(parsed.document(), variant, embedded)
 }
@@ -1059,11 +1066,14 @@ fn render_fixture_document(
     embedded: bool,
 ) -> Result<String, Error> {
     let converter_options = ConverterOptions::builder()
+        .safe_mode(acdc_parser::SafeMode::Unsafe)
         .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
         .build();
     let processor = Processor::new_with_variant(
         converter_options,
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .with_attributes(doc.attributes.clone().into_inputs()),
         variant,
     )?;
     let render_options = RenderOptions {
@@ -2848,6 +2858,7 @@ mod docinfo {
         let doc = parsed.document();
 
         let converter_options = ConverterOptions::builder()
+            .safe_mode(SafeMode::Unsafe)
             .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
             .build();
         let processor = Processor::new_with_variant(
