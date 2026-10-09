@@ -53,6 +53,14 @@ struct ResponseServer {
 
 impl ResponseServer {
     fn start(path: &str, response: String) -> io::Result<Self> {
+        Self::start_with_close_check(path, response, false)
+    }
+
+    fn start_with_close_check(
+        path: &str,
+        response: String,
+        expect_close: bool,
+    ) -> io::Result<Self> {
         let listener = TcpListener::bind(("127.0.0.1", 0))?;
         listener.set_nonblocking(true)?;
         let address = listener.local_addr()?;
@@ -62,8 +70,31 @@ impl ResponseServer {
             loop {
                 match listener.accept() {
                     Ok((mut stream, _)) => {
+                        stream.set_nonblocking(false)?;
                         read_request_headers(&mut stream)?;
-                        stream.write_all(response.as_bytes())?;
+                        if let Err(error) = stream.write_all(response.as_bytes())
+                            && !matches!(
+                                error.kind(),
+                                io::ErrorKind::BrokenPipe | io::ErrorKind::ConnectionReset
+                            )
+                        {
+                            return Err(error);
+                        }
+                        if expect_close {
+                            // Limit the wait if the client incorrectly waits for the rest of the response.
+                            stream.set_read_timeout(Some(Duration::from_secs(10)))?;
+                            let mut byte = [0];
+                            match stream.read(&mut byte) {
+                                Ok(0) => (),
+                                Err(error) if error.kind() == io::ErrorKind::ConnectionReset => (),
+                                Err(error) => return Err(error),
+                                Ok(_) => {
+                                    return Err(io::Error::other(
+                                        "expected the client to close the response",
+                                    ));
+                                }
+                            }
+                        }
                         return Ok(true);
                     }
                     Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
@@ -150,6 +181,70 @@ fn refused_uri() -> io::Result<String> {
     let address = listener.local_addr()?;
     drop(listener);
     Ok(format!("http://{address}/missing.adoc"))
+}
+
+#[test]
+fn finite_line_selection_closes_an_oversized_response_after_its_prefix() -> TestResult {
+    let body = format!("Chosen.\n{}", "x".repeat(10 * 1024 * 1024));
+    let server = ResponseServer::start(
+        "large.adoc",
+        format!(
+            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        ),
+    )?;
+    let (_document, parsed) = parse_authorized_uri(&server.uri)?;
+    assert_eq!(paragraph_texts(&parsed)?, ["BEFORE", "Chosen.", "AFTER"]);
+    assert_eq!(parsed.warnings(), []);
+    server.finish()
+}
+
+#[test]
+fn transfer_limit_still_applies_before_the_requested_line() -> TestResult {
+    let body = format!("{}\nChosen.\n", "x".repeat(10 * 1024 * 1024));
+    let server = ResponseServer::start(
+        "large.adoc",
+        format!(
+            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        ),
+    )?;
+    let document = TempDocument::new(&format!("include::{}[lines=2]", server.uri))?;
+    let options = Options::builder()
+        .with_safe_mode(SafeMode::Unsafe)
+        .with_attribute("allow-uri-read", true)
+        .build()?;
+    match parse_file(&document.path, &options) {
+        Err(acdc_parser::Error::HttpRequest(message)) => {
+            assert!(message.contains("transfer limit"), "{message}");
+        }
+        Err(error) => return Err(format!("expected transfer limit, got {error:?}").into()),
+        Ok(_) => return Err("expected transfer limit".into()),
+    }
+    server.finish()
+}
+
+#[test]
+fn incomplete_http_tail_does_not_invalidate_a_completed_selection() -> TestResult {
+    let server = ResponseServer::with_truncated_body("Chosen.\n")?;
+    let (_document, parsed) = parse_authorized_uri(&server.uri)?;
+    assert_eq!(paragraph_texts(&parsed)?, ["BEFORE", "Chosen.", "AFTER"]);
+    assert_eq!(parsed.warnings(), []);
+    server.finish()
+}
+
+#[test]
+fn finite_line_selection_closes_before_the_server_sends_the_tail() -> TestResult {
+    let server = ResponseServer::start_with_close_check(
+        "prefix.adoc",
+        "HTTP/1.1 200 OK\r\nContent-Length: 99999\r\nConnection: close\r\n\r\nChosen.\n"
+            .to_string(),
+        true,
+    )?;
+    let (_document, parsed) = parse_authorized_uri(&server.uri)?;
+    assert_eq!(paragraph_texts(&parsed)?, ["BEFORE", "Chosen.", "AFTER"]);
+    assert_eq!(parsed.warnings(), []);
+    server.finish()
 }
 
 fn parse_authorized_uri(uri: &str) -> Result<(TempDocument, ParseResult), acdc_parser::Error> {

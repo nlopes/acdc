@@ -20,6 +20,9 @@ type TestResult = Result<(), Box<dyn Error>>;
 
 static TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
+/// One byte more than the limit for selected include text.
+const OVERSIZED_SOURCE_BYTES: usize = 10 * 1024 * 1024 + 1;
+
 #[derive(Default)]
 struct MapSourceProvider {
     sources: HashMap<IncludeSourceTarget, Vec<u8>>,
@@ -390,6 +393,95 @@ fn provider_not_found_uses_normal_include_recovery() -> TestResult {
         warning.kind.to_string(),
         format!("include file not found: {}", target.display())
     );
+    Ok(())
+}
+
+/// A provider can supply generated or remote bytes for a `File` target.
+/// The size limit must apply to both file and URI targets, with the same error.
+#[test]
+fn oversized_file_source_is_rejected() -> TestResult {
+    let directory = TempDirectory::new()?;
+    let base_dir = directory.0.as_path();
+    let target = base_dir.join("huge.adoc");
+    let provider = Arc::new(MapSourceProvider::new([(
+        file_target(&target),
+        vec![b'a'; OVERSIZED_SOURCE_BYTES],
+    )]));
+    let options = Options::builder()
+        .with_safe_mode(SafeMode::Unsafe)
+        .with_include_loader(loader(&provider))
+        .with_base_dir(base_dir)
+        .build()?;
+
+    let Err(error) = parse("include::huge.adoc[]", &options) else {
+        return Err("expected an oversized file source to be rejected".into());
+    };
+    let acdc_parser::Error::IncludeSourceTooLarge(source) = error else {
+        return Err(format!("unexpected error: {error:?}").into());
+    };
+    assert_eq!(source, target.display().to_string());
+    Ok(())
+}
+
+#[test]
+fn oversized_uri_source_is_rejected() -> TestResult {
+    let uri = "https://example.test/huge.adoc";
+    let provider = Arc::new(MapSourceProvider::new([(
+        IncludeSourceTarget::Uri(uri.to_string()),
+        vec![b'a'; OVERSIZED_SOURCE_BYTES],
+    )]));
+    let options = Options::builder()
+        .with_safe_mode(SafeMode::Unsafe)
+        .with_include_loader(loader(&provider))
+        .with_attribute("allow-uri-read", true)
+        .build()?;
+
+    let Err(error) = parse(&format!("include::{uri}[]"), &options) else {
+        return Err("expected an oversized uri source to be rejected".into());
+    };
+    let acdc_parser::Error::IncludeSourceTooLarge(source) = error else {
+        return Err(format!("unexpected error: {error:?}").into());
+    };
+    assert_eq!(source, uri);
+    Ok(())
+}
+
+#[test]
+fn small_selections_from_large_local_and_custom_sources_keep_locations() -> TestResult {
+    let directory = TempDirectory::new()?;
+    let target = directory.0.join("large.adoc");
+    let skipped = "x".repeat(OVERSIZED_SOURCE_BYTES);
+    let content = format!("{skipped}\n// tag::sample[]\nChosen.\n// end::sample[]\n");
+    fs::write(&target, &content)?;
+    let provider = Arc::new(MapSourceProvider::new([
+        (file_target(&target), content.as_bytes().to_vec()),
+        (
+            IncludeSourceTarget::Uri("https://example.test/large.adoc".to_string()),
+            content.into_bytes(),
+        ),
+    ]));
+
+    for (include_loader, include_target) in [
+        (IncludeLoader::System, "large.adoc"),
+        (loader(&provider), "large.adoc"),
+        (loader(&provider), "https://example.test/large.adoc"),
+    ] {
+        let options = Options::builder()
+            .with_safe_mode(SafeMode::Unsafe)
+            .with_include_loader(include_loader)
+            .with_attribute("allow-uri-read", true)
+            .with_base_dir(&directory.0)
+            .build()?;
+        for selector in ["lines=3", "lines=3..3", "tag=sample"] {
+            let parsed = parse(&format!("include::{include_target}[{selector}]"), &options)?;
+            assert_eq!(paragraph_text(&parsed)?, "Chosen.");
+            assert_eq!(parsed.warnings(), []);
+            let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+                return Err("expected a paragraph".into());
+            };
+            assert_eq!(paragraph.location.start.line, 3);
+        }
+    }
     Ok(())
 }
 

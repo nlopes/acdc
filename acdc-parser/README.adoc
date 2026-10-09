@@ -888,38 +888,81 @@ transformations match asciidoctor; they are not strict symlink containment.
 [#remote-includes]
 == Remote includes
 
-URI-looking targets are classified before local paths.
-HTTP(S) includes require a safe mode below `Secure` and a caller-supplied `allow-uri-read` attribute.
-A document cannot grant itself this authority.
-The system loader also requires the optional `network` feature; custom providers can supply authorized HTTP(S) content without it.
-Built-in HTTP responses are limited to 10 MiB after transport decoding; larger responses return an HTTP request error.
-The limit is fixed, applies separately to each response, and cannot be changed by a document attribute.
+The parser checks for a URI before it treats a target as a local path.
+URI reads need a safe mode below `Secure` and the caller's `allow-uri-read` attribute.
+A document cannot grant itself permission to read a URI.
 
-The system loader uses `ureq` for HTTP framing, redirects, TLS, and timeouts.
-We don't try to reproduce the URI transport behavior that Asciidoctor's Ruby implementation inherits from OpenURI.
-If opening a request or reading its body fails, we emit a located warning, preserve the include as an unresolved directive, and continue parsing.
-We don't process partial response bodies.
-Character-encoding errors remain fatal.
+`IncludeLoader::System` supports HTTP(S) and needs the `network` feature.
+Custom providers can supply permitted HTTP(S) sources without that feature.
 
-This limit is an intentional security divergence from asciidoctor, which has no
-equivalent per-response limit.
+`IncludeLoader::System` uses `ureq` for HTTP framing, redirects, TLS, and timeouts.
+Asciidoctor uses Ruby's OpenURI.
+We do not try to match all OpenURI behavior.
+
+If a source cannot open or a read fails before selection completes, the parser issues a warning at the include directive.
+It keeps the unresolved directive, discards partial text, and continues parsing.
+Encoding errors in required text and provider errors marked `Fatal` stop parsing.
 
 When `compat-mode` is set, denied URI includes omit the `include` role from their
 fallback link, matching Asciidoctor.
+
+[#include-source-size-limit]
+== Include source size limit
+
+Each include can select up to 10 MiB of normalized UTF-8 text, including newlines.
+The parser checks this limit before and after `indent=`, before it processes nested directives.
+If the selected text exceeds the limit, parsing fails with `Error::IncludeSourceTooLarge`.
+A document attribute cannot change the limit.
+The limit does not apply to the entry document.
+
+Use `lines=`, `tag=`, or `tags=` to select a small part of a larger source.
+For example, `include::large.log[lines=100..120]` selects lines 100 to 120.
+If these lines fit within the limit, the source file can be larger than 10 MiB.
+The parser decodes the source in chunks and discards skipped lines.
+
+A finite `lines=` selection stops at its highest requested line, as Asciidoctor does for local files.
+Encoding errors or read failures after that line do not affect the result.
+Full includes, open-ended ranges such as `lines=100..-1`, and tag selections read to the end of the source.
+A tag can occur again later in the source.
+The text limit does not limit scan time or the total text from nested or repeated includes.
+
+Line selections remove trailing whitespace from each line independently.
+This includes Unicode whitespace such as U+2003, which Asciidoctor preserves.
+Later text cannot change the selected text or its source locations.
+A selected blank final line counts the same whether more lines follow or not.
+Earlier versions normalized the whole source, which made this count depend on later lines.
+
+The built-in HTTP(S) loader has a separate 10 MiB limit for bytes read after decompression.
+This includes bytes read ahead of the selection.
+When a finite line selection is complete, the loader closes the response without reading or checking the rest.
+Thus, a small selection near the start of a larger response can succeed.
+A selection near the end can exceed the transfer limit before the reader reaches it.
+Custom providers control their own transport limits, but the parser still limits their selected text.
+
+Tag names, active tag state, and diagnostics also have fixed 10 MiB metadata limits.
+These limits prevent unbounded tag data when the reader scans a large source.
+If tag data exceeds a limit, parsing fails with `Error::IncludeSelectionTooComplex`.
+
+These resource limits deliberately differ from Asciidoctor.
+
 [#include-encodings]
 == Include encodings
 
-Local and remote include bytes are decoded before line or tag selection. BOM-marked
-UTF-8 and UTF-16 are detected automatically; explicit endian UTF-16 labels work
-without a BOM; and WHATWG single-byte labels and aliases supported by `encoding_rs`
-are transcoded to UTF-8. Unknown labels are ignored before BOM/UTF-8 fallback,
-matching Asciidoctor's observable behavior.
+acdc decodes include bytes before it selects lines or tags.
+A byte order mark (BOM) identifies UTF-8, UTF-16LE, or UTF-16BE.
+Explicit UTF-16LE and UTF-16BE labels also work without a BOM.
+The parser accepts WHATWG single-byte encoding labels and aliases through `encoding_rs` and converts their text to UTF-8.
+If an encoding label is unknown, acdc uses BOM detection or UTF-8, as Asciidoctor does.
 
-Malformed UTF-16 under an explicit local encoding produces a located unreadable-file
-warning, preserves an unresolved directive, and continues. Invalid UTF-8 without
-transcoding remains fatal. Because acdc decodes the complete target before selection,
-BOM detection also works for `lines=` and `tag=`; Asciidoctor 2.0.26 instead changes
-to a line-reader path whose BOM-only UTF-16 behavior differs.
+For local files with an explicit UTF-16 encoding, invalid text produces an unreadable-file warning at the include directive.
+The parser keeps the unresolved directive and continues.
+Invalid UTF-8 without transcoding stops parsing if it occurs in the text that the selector must read.
+
+A finite `lines=` selection ignores invalid bytes after its last requested line, even in the same read buffer.
+acdc keeps the same decoder across reads, so BOM detection also works with `lines=` and `tag=`.
+Asciidoctor 2.0.26 uses a separate line reader for selections.
+Its UTF-16 behavior differs when only a BOM specifies the encoding.
+
 [#parser-fixtures]
 == Parser fixtures
 
@@ -1003,9 +1046,9 @@ tables.
 * *Uppercase checklist marker*: acdc treats `++[++X++]++` as checked, alongside `++[++x++]++`
 and `++[*]++`. Asciidoctor leaves `++[++X++]++` in the item's text. This acceptance
 difference is an intentional acdc extension.
-* *Remote include response limit*: Each decoded HTTP(S) include response is limited
-to 10 MiB. See <<remote-includes,Remote includes>> for the authority requirements
-and limit behavior.
+* *Include source limit*: Each include can select up to 10 MiB of UTF-8 text.
+The built-in HTTP(S) loader also limits bytes read after decompression to 10 MiB.
+See <<include-source-size-limit,Include source size limit>>.
 * *Remote include transport*: We use `ureq` and don't try to reproduce the URI
 transport behavior that Asciidoctor's Ruby implementation inherits from OpenURI.
 URI classification uses the portable ASCII scheme syntax and Asciidoctor's
@@ -1013,11 +1056,11 @@ two-character Windows-path carve-out. MRI Asciidoctor also accepts non-ASCII
 scheme-like prefixes as a side effect of Ruby's Unicode-aware regular expressions;
 acdc treats those prefixes as paths. Only HTTP(S) is fetched; FTP and other ASCII
 schemes take URI recovery and never local-file handling.
-Request and response-body I/O failures recover without processing partial content.
+If a request or read fails before selection completes, the parser discards partial text and keeps the unresolved directive.
 See <<remote-includes,Remote includes>>.
-* *Include encoding labels and selection*: acdc uses the WHATWG-oriented
-`encoding_rs` label set rather than Ruby's exact aliases and decodes a complete
-target before selecting lines or tags. See <<include-encodings,Include encodings>>.
+* *Include encoding labels and selection*: acdc uses the WHATWG-oriented `encoding_rs` label set rather than Ruby's exact aliases.
+The parser decodes bytes in chunks. Finite line selections ignore encoding errors after the last requested line.
+See <<include-encodings,Include encodings>>.
 * *Include indentation limit*: As an intentional acdc security policy,
 `include::file++[++indent=N++]++` accepts at most `4096` spaces instead of allowing an
 unbounded allocation. AsciiDoc does not require this cap, and asciidoctor does not

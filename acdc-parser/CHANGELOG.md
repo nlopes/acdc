@@ -15,6 +15,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   caller attribute policy, and source recovery also apply to custom providers.
   Existing defaults remain Unsafe with system loading.
 
+### Changed
+
+- Each include can select up to 10 MiB of normalized UTF-8 text, before and after `indent=`.
+  Use `lines=`, `tag=`, or `tags=` to select a small part of a larger source.
+  Larger selections fail with `Error::IncludeSourceTooLarge`.
+  Excess tag metadata causes `Error::IncludeSelectionTooComplex`.
+  The built-in HTTP(S) loader also limits bytes read after decompression to 10 MiB.
+  These fixed limits differ from Asciidoctor and do not apply to the entry document.
+- Finite `lines=` selections stop at the highest requested line, as Asciidoctor does for local files.
+  Errors after that line do not affect the result, and HTTP responses close early.
+  Each line loses its trailing whitespace independently, so later text cannot change the selected text or its source locations.
+  This includes Unicode whitespace, which Asciidoctor preserves.
+  Selected blank final lines count the same whether more lines follow or not.
+  Full includes, open-ended ranges, and tag selections still read to the end of the source.
+
 ## [0.10.0] - 2026-10-08
 
 ### Breaking changes

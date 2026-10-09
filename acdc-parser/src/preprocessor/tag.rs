@@ -109,122 +109,172 @@ pub(crate) fn is_tag_directive_line(line: &str) -> bool {
     extract_tag_directive(line).is_some()
 }
 
-/// Select source-line indices with Asciidoctor's tag-stack state machine.
-///
-/// Marker lines are never selected. Recoverable malformed-boundary and
-/// missing-selection issues are reported in reference order through `report`.
+/// Select tagged lines as the reader supplies them.
+/// Report tag issues in the same order as Asciidoctor.
+pub(super) struct Selector<'a> {
+    order: Vec<&'a str>,
+    requested: FxHashMap<&'a str, bool>,
+    select: bool,
+    base_select: bool,
+    wildcard: Option<bool>,
+    tag_stack: Vec<(String, bool, usize)>,
+    selected_tags: HashSet<String>,
+    stack_bytes: usize,
+}
+
+impl<'a> Selector<'a> {
+    pub(super) fn new(filters: &'a [Filter]) -> Self {
+        // Ruby Hash keeps insertion order when a duplicate key changes its value.
+        // Keep that order for missing-tag diagnostics. Use the last value of each
+        // duplicate selector.
+        let mut order = Vec::new();
+        let mut requested: FxHashMap<&str, bool> = FxHashMap::default();
+        for filter in filters {
+            if !requested.contains_key(filter.name.as_str()) {
+                order.push(filter.name.as_str());
+            }
+            requested.insert(filter.name.as_str(), filter.selected);
+        }
+
+        let first_name = order.first().copied();
+        let (select, base_select, wildcard) = if let Some(double_wildcard) = requested.remove("**")
+        {
+            let wildcard = requested.remove("*").or_else(|| {
+                let first_remaining = order.iter().find_map(|name| requested.get(*name).copied());
+                (!double_wildcard && first_remaining == Some(false)).then_some(true)
+            });
+            (double_wildcard, double_wildcard, wildcard)
+        } else if let Some(wildcard) = requested.remove("*") {
+            if first_name == Some("*") {
+                (!wildcard, !wildcard, Some(wildcard))
+            } else {
+                (false, false, Some(wildcard))
+            }
+        } else {
+            let base_select = !requested.values().any(|selected| *selected);
+            (base_select, base_select, None)
+        };
+
+        Self {
+            order,
+            requested,
+            select,
+            base_select,
+            wildcard,
+            tag_stack: Vec::new(),
+            selected_tags: HashSet::new(),
+            stack_bytes: 0,
+        }
+    }
+
+    pub(super) const fn selected(&self) -> bool {
+        self.select
+    }
+    pub(super) const fn stack_bytes(&self) -> usize {
+        self.stack_bytes
+    }
+
+    pub(super) fn marker(
+        &mut self,
+        directive: &str,
+        tag_name: &str,
+        source_line: usize,
+        mut report: impl FnMut(Issue),
+    ) {
+        if directive == "end" {
+            if self
+                .tag_stack
+                .last()
+                .is_some_and(|(active, _, _)| active == tag_name)
+            {
+                if let Some((name, _, _)) = self.tag_stack.pop() {
+                    self.stack_bytes -= name.len() + std::mem::size_of::<(String, bool, usize)>();
+                }
+                self.select = self
+                    .tag_stack
+                    .last()
+                    .map_or(self.base_select, |(_, selected, _)| *selected);
+            } else if self.requested.contains_key(tag_name) {
+                if let Some(idx) = self
+                    .tag_stack
+                    .iter()
+                    .rposition(|(open_name, _, _)| open_name == tag_name)
+                {
+                    let expected = self
+                        .tag_stack
+                        .last()
+                        .map_or_else(String::new, |(name, _, _)| name.clone());
+                    let (name, _, _) = self.tag_stack.remove(idx);
+                    self.stack_bytes -= name.len() + std::mem::size_of::<(String, bool, usize)>();
+                    report(Issue::MismatchedEnd {
+                        expected,
+                        found: tag_name.to_string(),
+                        line: source_line,
+                    });
+                } else {
+                    report(Issue::UnexpectedEnd {
+                        name: tag_name.to_string(),
+                        line: source_line,
+                    });
+                }
+            }
+        } else if let Some(tag_select) = self.requested.get(tag_name).copied() {
+            self.select = tag_select;
+            if self.select {
+                self.selected_tags.insert(tag_name.to_string());
+            }
+            self.stack_bytes += tag_name.len() + std::mem::size_of::<(String, bool, usize)>();
+            self.tag_stack
+                .push((tag_name.to_string(), self.select, source_line));
+        } else if let Some(wildcard_select) = self.wildcard {
+            self.select = if self.tag_stack.last().is_some() && !self.select {
+                false
+            } else {
+                wildcard_select
+            };
+            self.stack_bytes += tag_name.len() + std::mem::size_of::<(String, bool, usize)>();
+            self.tag_stack
+                .push((tag_name.to_string(), self.select, source_line));
+        }
+    }
+
+    pub(super) fn finish(self, mut report: impl FnMut(Issue)) {
+        for (name, _, line) in self.tag_stack {
+            report(Issue::Unclosed { name, line });
+        }
+
+        let missing = self
+            .order
+            .into_iter()
+            .filter(|name| {
+                self.requested.get(*name).copied() == Some(true)
+                    && !self.selected_tags.contains(*name)
+            })
+            .map(str::to_string)
+            .collect::<Vec<_>>();
+        if !missing.is_empty() {
+            report(Issue::Missing { names: missing });
+        }
+    }
+}
+
+#[cfg(test)]
 pub(crate) fn select_tagged_lines(
     lines: &[&str],
     filters: &[Filter],
     mut report: impl FnMut(Issue),
 ) -> Vec<usize> {
-    // Ruby Hash insertion order is stable and assigning a duplicate key updates
-    // its value without moving it. Keep the order separately so missing-tag
-    // diagnostics remain deterministic while duplicate selectors are last-wins.
-    let mut order = Vec::new();
-    let mut requested: FxHashMap<&str, bool> = FxHashMap::default();
-    for filter in filters {
-        if !requested.contains_key(filter.name.as_str()) {
-            order.push(filter.name.as_str());
-        }
-        requested.insert(filter.name.as_str(), filter.selected);
-    }
-
-    let first_name = order.first().copied();
-    let (mut select, base_select, wildcard) = if let Some(double_wildcard) = requested.remove("**")
-    {
-        let wildcard = requested.remove("*").or_else(|| {
-            let first_remaining = order.iter().find_map(|name| requested.get(*name).copied());
-            (!double_wildcard && first_remaining == Some(false)).then_some(true)
-        });
-        (double_wildcard, double_wildcard, wildcard)
-    } else if let Some(wildcard) = requested.remove("*") {
-        if first_name == Some("*") {
-            (!wildcard, !wildcard, Some(wildcard))
-        } else {
-            (false, false, Some(wildcard))
-        }
-    } else {
-        let base_select = !requested.values().any(|selected| *selected);
-        (base_select, base_select, None)
-    };
-
-    // (tag name, selection state established by that tag, opening line)
-    let mut tag_stack: Vec<(String, bool, usize)> = Vec::new();
-    let mut selected_tags = HashSet::new();
-    let mut selected_lines = Vec::new();
-
-    for (line_idx, line) in lines.iter().enumerate() {
-        let source_line = line_idx + 1;
-        if let Some((directive, tag_name)) = extract_tag_directive(line) {
-            if directive == "end" {
-                if tag_stack
-                    .last()
-                    .is_some_and(|(active, _, _)| active == tag_name)
-                {
-                    tag_stack.pop();
-                    select = tag_stack
-                        .last()
-                        .map_or(base_select, |(_, selected, _)| *selected);
-                } else if requested.contains_key(tag_name) {
-                    if let Some(idx) = tag_stack
-                        .iter()
-                        .rposition(|(open_name, _, _)| open_name == tag_name)
-                    {
-                        let expected = tag_stack
-                            .last()
-                            .map_or_else(String::new, |(name, _, _)| name.clone());
-                        tag_stack.remove(idx);
-                        report(Issue::MismatchedEnd {
-                            expected,
-                            found: tag_name.to_string(),
-                            line: source_line,
-                        });
-                    } else {
-                        report(Issue::UnexpectedEnd {
-                            name: tag_name.to_string(),
-                            line: source_line,
-                        });
-                    }
-                }
-            } else if let Some(tag_select) = requested.get(tag_name).copied() {
-                select = tag_select;
-                if select {
-                    selected_tags.insert(tag_name.to_string());
-                }
-                tag_stack.push((tag_name.to_string(), select, source_line));
-            } else if let Some(wildcard_select) = wildcard {
-                select = if tag_stack.last().is_some() && !select {
-                    false
-                } else {
-                    wildcard_select
-                };
-                tag_stack.push((tag_name.to_string(), select, source_line));
-            }
-            continue;
-        }
-
-        if select {
-            selected_lines.push(line_idx);
+    let mut state = Selector::new(filters);
+    let mut selected = Vec::new();
+    for (index, line) in lines.iter().enumerate() {
+        if let Some((directive, name)) = extract_tag_directive(line) {
+            state.marker(directive, name, index + 1, &mut report);
+        } else if state.selected() {
+            selected.push(index);
         }
     }
-
-    for (name, _, line) in tag_stack {
-        report(Issue::Unclosed { name, line });
-    }
-
-    let missing = order
-        .into_iter()
-        .filter(|name| {
-            requested.get(*name).copied() == Some(true) && !selected_tags.contains(*name)
-        })
-        .map(str::to_string)
-        .collect::<Vec<_>>();
-    if !missing.is_empty() {
-        report(Issue::Missing { names: missing });
-    }
-
-    selected_lines
+    state.finish(report);
+    selected
 }
 
 #[cfg(test)]

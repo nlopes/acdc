@@ -186,8 +186,9 @@ impl fmt::Debug for IncludeLoader {
 /// Local targets are opened from the operating-system filesystem. With the
 /// `network` feature enabled, authorized HTTP(S) targets use `ureq`; without it,
 /// URI loading reports [`IncludeSourceErrorKind::Unsupported`].
-/// The parser limits built-in HTTP(S) response bodies to 10 MiB after transport
-/// decompression. Custom providers manage their own transport limits.
+/// HTTP(S) reads have a separate 10 MiB limit after decompression.
+/// A finite line selection closes the response when complete.
+/// The parser does not read or check the rest of the response.
 #[derive(Clone, Copy, Debug, Default)]
 struct SystemIncludeSourceProvider;
 

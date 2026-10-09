@@ -78,13 +78,32 @@
 //!
 //! # Remote includes
 //!
-//! HTTP(S) includes require a safe mode below [`SafeMode::Secure`] and caller-supplied
-//! `allow-uri-read` authority. A document cannot grant itself this authority. The
-//! built-in transport also requires `network`; custom providers supply their own
-//! transport. Built-in HTTP responses are limited to 10 MiB after transport
-//! decoding; larger responses return an HTTP request error. This fixed,
-//! per-response limit is not controlled by a document attribute and intentionally
-//! diverges from `asciidoctor`.
+//! HTTP(S) includes need a safe mode below [`SafeMode::Secure`] and the caller's
+//! `allow-uri-read` attribute. A document cannot grant itself this permission.
+//! [`IncludeLoader::System`] also needs the `network` feature.
+//! A custom [`IncludeSourceProvider`] can supply permitted URI content through
+//! another transport.
+//!
+//! # Include source size limit
+//!
+//! Each include can select up to 10 MiB of normalized UTF-8 text, including newlines.
+//! The parser checks this limit before and after `indent=`.
+//! Use `lines=`, `tag=`, or `tags=` to select a small part of a larger source.
+//! If the selected text exceeds the limit, parsing fails with [`Error::IncludeSourceTooLarge`].
+//! Excess tag metadata causes [`Error::IncludeSelectionTooComplex`].
+//!
+//! A finite `lines=` selection stops at its highest requested line.
+//! Errors after that line do not affect the result.
+//! The parser removes trailing whitespace from each line independently.
+//! Full includes, open-ended ranges, and tag selections read to the end of the source.
+//!
+//! The built-in HTTP(S) loader has a separate 10 MiB limit for bytes read after decompression.
+//! This includes bytes read ahead of the selection.
+//! When a finite line selection is complete, the loader closes the response without reading the rest.
+//!
+//! These fixed limits differ from `asciidoctor`.
+//! They do not limit scan time or the total text from nested or repeated includes.
+//! They do not apply to the entry document.
 //!
 //! # Include indentation
 //!

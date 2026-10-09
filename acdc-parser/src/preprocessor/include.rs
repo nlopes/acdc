@@ -1,90 +1,70 @@
-//! Built-in include handling.
+//! Include processing and source locations.
 //!
-//! The important part of this module is the order in which we do the work. An
-//! include target has to be read before we can inspect its lines, but it must not
-//! be recursively preprocessed before `lines`, `tag`, or `tags` has selected the
-//! content the caller asked for.
+//! Select content before you process nested directives. Otherwise, an include in
+//! excluded text can read a file or produce a warning.
 //!
 //! # Processing order
 //!
-//! Keep the include pipeline in this order:
+//! 1. Parse the directive and select the applicable content selector.
+//! 2. Read and decode the source in chunks.
+//! 3. Keep the selected lines within the size limit.
+//! 4. Apply `indent` to these lines.
+//! 5. Process nested directives in the selected `AsciiDoc` text.
+//! 6. Add the source and `leveloffset` ranges to the parent include.
 //!
-//! 1. parse the directive and resolve one effective content selector;
-//! 2. read and decode the local or remote target;
-//! 3. select lines from the original target;
-//! 4. apply `indent` to the selected lines;
-//! 5. recursively preprocess only the selected `AsciiDoc` content;
-//! 6. merge the resulting source and `leveloffset` ranges into the parent.
-//!
-//! This is deliberately "select before preprocessing", not "select before I/O".
-//! A remote target still has to be downloaded before we can find a requested
-//! line or tag.
-//!
-//! The ordering matters because excluded content may contain includes,
-//! conditionals, or other directives. Those directives must not run and must not
-//! produce warnings. Moving recursive preprocessing above selection would make a
-//! missing include outside a selected tag observable again.
+//! The reader must read through the source to reach the requested lines or tags.
+//! A finite line selection stops at its highest requested line.
+//! Full includes, open-ended ranges, and tag selections read to the end of the source.
 //!
 //! # Content selection
 //!
-//! [`ContentSelection`] represents the one selector that applies after parsing
-//! the attribute list. The precedence is `lines` over `tag` over `tags`,
-//! regardless of attribute order. Repeating the same selector uses its last
-//! value. An ignored lower-precedence selector is not evaluated, so it cannot
-//! produce a missing-tag warning.
+//! [`ContentSelection`] holds the applicable selector.
+//! `lines` takes priority over `tag`, and `tag` takes priority over `tags`.
+//! Attribute order does not change this priority. If a selector occurs more than
+//! once, its last value applies. Ignored selectors cannot produce warnings.
 //!
-//! Line selections refer to the original target. We deduplicate and sort their
-//! zero-based indices before copying content, and any negative range end means
-//! the end of the file.
+//! Line numbers refer to the original source. Each selected line appears once,
+//! in source order. A negative range end means the end of the source.
 //!
 //! # Tag selection
 //!
-//! Tagged content is selected in one pass by
-//! [`select_tagged_lines`](super::tag::select_tagged_lines). A stack is required:
-//! a map of named regions cannot represent nested tags with the same name or
-//! recover correctly from mismatched closing markers. The stack stores the tag
-//! name, the selection state established by that tag, and its opening line.
+//! [`Selector`](super::tag::Selector) selects tagged text in one pass.
+//! It uses a stack to track nested tags, including tags with the same name.
+//! The stack also lets it handle closing markers that do not match the current tag.
+//! Each entry stores the tag name, selection state, and opening line number.
 //!
-//! The tag scanner reports private [`TagIssue`] values for missing, unexpected,
-//! mismatched, and unclosed tags. This is not a second diagnostics system. The
-//! scanner does not know the including directive's source location or how the
-//! target should be described, so [`Include::report_tag_issue`] immediately
-//! converts each scanner fact into the existing parser [`crate::Warning`].
+//! The tag scanner reports missing tags and invalid tag boundaries as [`TagIssue`]
+//! values. It does not know the include directive's location.
+//! [`Include::report_tag_issue`] adds that location and creates a [`crate::Warning`].
 //!
-//! # Mapping selected lines back to the target
+//! # Source locations
 //!
-//! Selection compacts the input. If original lines 6, 8, and 10 survive, the
-//! recursive preprocessor sees them as input lines 1, 2, and 3. We cannot use
-//! those compacted line numbers for diagnostics or AST locations.
+//! Selected lines need their original locations. For example, source lines 6, 8,
+//! and 10 become input lines 1, 2, and 3 when we process the selected text.
+//! Diagnostics and AST locations must still refer to lines 6, 8, and 10.
 //!
-//! Each selected line therefore carries a private [`SourceLineOrigin`] containing
-//! its original line, byte offset, and any column shift introduced by `indent`.
-//! The preprocessor uses the compacted input line to read and emit content, and
-//! the original source line to report diagnostics and build source ranges.
+//! Each selected line has a [`SourceLineOrigin`]. It stores the original line number,
+//! byte offset, and column change from `indent`. The preprocessor uses these values
+//! for diagnostics and source ranges.
 //!
-//! Included content returns complete source ranges. A parent include only shifts
-//! those ranges to its output offset and prepends its own target to the include
-//! chain. This keeps nested mappings composable instead of rebuilding them from
-//! several parallel fields after the fact.
+//! A nested include returns complete source ranges. The parent adjusts their output
+//! offsets and adds its target to the start of each include chain.
+//! This preserves the locations in nested includes without rebuilding each range.
 //!
-//! Non-AsciiDoc targets do not run the recursive preprocessor, but they use the
-//! same selected-line origins to build their source ranges directly.
+//! For sources other than `AsciiDoc`, we build source ranges from the same original
+//! locations. We do not process nested directives in those sources.
 //!
-//! # Fallbacks and the fast path
+//! # Fallbacks and text without directives
 //!
-//! A synthesized link or unresolved-directive fallback belongs to the including
-//! directive, not to target content that was never read. [`IncludeResult`] marks
-//! that case with `synthetic` so the parent anchors the line to the directive.
+//! Fallback links and unresolved directives refer to the include directive's
+//! location. [`IncludeResult::synthetic`] tells the parent to use that location.
 //!
-//! Finally, selected `AsciiDoc` content with no preprocessing triggers takes the
-//! mapped fast path. It keeps the text unchanged and only builds source ranges.
-//! Do not send that content through the full conditional/include/comment loop
-//! merely to preserve locations.
+//! If the selected `AsciiDoc` text needs no preprocessing, we only build source
+//! ranges. This keeps the text unchanged and avoids unnecessary processing.
 
 use std::{
     cell::RefCell,
     collections::HashSet,
-    io::Read,
     mem::take,
     path::{Component, Path, PathBuf},
     rc::Rc,
@@ -94,46 +74,21 @@ use std::{
 use url::Url;
 
 use crate::{
-    IncludeSource, IncludeSourceErrorKind, IncludeSourceProvider, IncludeSourceTarget, Location,
-    Options, Preprocessor, SafeMode, Warning,
+    IncludeSourceErrorKind, IncludeSourceProvider, IncludeSourceTarget, Location, Options,
+    Preprocessor, SafeMode, Warning,
     error::{Error, SourceLocation},
     model::{HEADER, LeveloffsetRange, Position, SourceRange, substitute},
 };
 
 use super::{
     IncludeContext, SourceLineOrigin, SourceOrigin, absolute_normalized,
-    tag::{Filter as TagFilter, Issue as TagIssue, select_tagged_lines},
+    tag::{Filter as TagFilter, Issue as TagIssue},
 };
 
-#[cfg(all(feature = "network", test))]
-const MAX_REMOTE_INCLUDE_BYTES: usize = 10 * 1024 * 1024;
-/// Maximum number of spaces one include directive may prepend to each non-empty
-/// line. This bounds the allocation controlled by a single `indent` value; a
-/// parse-wide expansion budget remains a separate concern.
+mod reader;
+
+/// Maximum number of spaces that a directive can add before each non-empty line.
 const MAX_INCLUDE_INDENT: usize = 4 * 1024;
-
-#[cfg(feature = "network")]
-fn read_remote_include(reader: impl Read, limit: usize) -> Result<Vec<u8>, Error> {
-    let read_limit = u64::try_from(limit.saturating_add(1))?;
-    let mut bytes = Vec::new();
-    reader.take(read_limit).read_to_end(&mut bytes)?;
-    if bytes.len() > limit {
-        return Err(Error::HttpRequest(
-            "remote include response exceeds the 10 MiB limit".to_string(),
-        ));
-    }
-    Ok(bytes)
-}
-
-fn read_source_bytes(source: IncludeSource) -> Result<Vec<u8>, Error> {
-    #[cfg(feature = "network")]
-    if let Some(limit) = source.read_limit {
-        return read_remote_include(source.into_reader(), limit);
-    }
-    let mut bytes = Vec::new();
-    source.into_reader().read_to_end(&mut bytes)?;
-    Ok(bytes)
-}
 
 /**
 The format of an include directive is the following:
@@ -472,7 +427,7 @@ enum UrlReadError {
 }
 
 enum UrlIncludeOutcome {
-    Content(String),
+    Content(reader::Selected),
     Fallback(Box<IncludeResult>),
 }
 
@@ -718,26 +673,6 @@ impl<'a> Include<'a> {
         ))
     }
 
-    /// Choose original target lines before any nested preprocessing occurs.
-    fn select_content_lines(&self, content_lines: &[&str], resolved_source: &Path) -> Vec<usize> {
-        match &self.selection {
-            ContentSelection::All => (0..content_lines.len()).collect(),
-            ContentSelection::Lines(ranges) => {
-                let mut selected = self
-                    .collect_line_range_indices(ranges, content_lines.len())
-                    .into_iter()
-                    .collect::<Vec<_>>();
-                selected.sort_unstable();
-                selected
-            }
-            ContentSelection::Tags(filters) => {
-                select_tagged_lines(content_lines, filters, |issue| {
-                    self.report_tag_issue(issue, resolved_source);
-                })
-            }
-        }
-    }
-
     fn report_tag_issue(&self, issue: TagIssue, resolved_source: &Path) {
         let target_type = match &self.target {
             Target::Path(_) => "file",
@@ -771,17 +706,29 @@ impl<'a> Include<'a> {
         self.warn_located(message);
     }
 
-    /// Strip common leading whitespace and add `indent` spaces to nonblank lines.
-    /// Returns the rewritten text and the byte shift used by source remapping.
-    fn apply_indent(lines: &[&str], indent: usize) -> (String, isize) {
+    /// Remove common leading whitespace and add `indent` spaces to nonblank lines.
+    /// Return the text and its column change. Return `None` if the text exceeds the size limit.
+    fn apply_indent(lines: &[&str], indent: usize) -> Option<(String, isize)> {
         let min_indent = lines
             .iter()
             .filter(|line| !line.trim().is_empty())
             .map(|line| line.len() - line.trim_start().len())
             .min()
             .unwrap_or(0);
+        let length = lines
+            .iter()
+            .try_fold(lines.len().saturating_sub(1), |length, line| {
+                let extra = if line.trim().is_empty() {
+                    0
+                } else {
+                    line.len() - min_indent + indent
+                };
+                length
+                    .checked_add(extra)
+                    .filter(|length| *length <= reader::MAX_SELECTED_BYTES)
+            })?;
         let prefix = " ".repeat(indent);
-        let mut content = String::new();
+        let mut content = String::with_capacity(length);
         for (index, line) in lines.iter().enumerate() {
             if index > 0 {
                 content.push('\n');
@@ -793,7 +740,7 @@ impl<'a> Include<'a> {
         }
         let column_shift =
             isize::try_from(indent).unwrap_or(0) - isize::try_from(min_indent).unwrap_or(0);
-        (content, column_shift)
+        Some((content, column_shift))
     }
 
     fn has_asciidoc_extension(path: &Path) -> bool {
@@ -865,22 +812,29 @@ impl<'a> Include<'a> {
         Ok(resolved)
     }
 
-    /// Select original target lines, apply `indent`, then recursively preprocess
-    /// only the selected content.
+    /// Apply `indent`, then process nested directives in the selected text.
     fn process_selected_content(
         &self,
-        content: &str,
+        selected: reader::Selected,
         source_origin: &SourceOrigin,
         resolved_source: &Path,
         is_asciidoc: bool,
     ) -> Result<IncludeResult, Error> {
-        let normalized = Preprocessor::normalize(content);
-        let content_lines = normalized.lines().collect::<Vec<_>>();
-        let mut selected_indices = self.select_content_lines(&content_lines, resolved_source);
-        let mut selected_lines = selected_indices
-            .iter()
-            .filter_map(|idx| content_lines.get(*idx).copied())
-            .collect::<Vec<_>>();
+        for issue in selected.issues {
+            self.report_tag_issue(issue, resolved_source);
+        }
+        if let ContentSelection::Lines(ranges) = &self.selection {
+            for range in ranges {
+                let (LinesRange::Single(start) | LinesRange::Range(start, _)) = range;
+                self.validate_line_number(*start);
+            }
+        }
+        let mut selected_lines = if selected.origins.is_empty() {
+            Vec::new()
+        } else {
+            selected.text.split('\n').collect::<Vec<_>>()
+        };
+        let mut line_origins = selected.origins;
         if is_asciidoc
             && self
                 .options
@@ -889,22 +843,18 @@ impl<'a> Include<'a> {
             && let Some(front_matter) = super::skim_front_matter(selected_lines.iter().copied())
         {
             selected_lines.drain(..front_matter.lines_consumed);
-            selected_indices.drain(..front_matter.lines_consumed);
+            line_origins.drain(..front_matter.lines_consumed);
         }
         let (selected_content, column_shift) = if let Some(indent) = self.indent {
-            Self::apply_indent(&selected_lines, indent)
+            Self::apply_indent(&selected_lines, indent).ok_or_else(|| {
+                Error::IncludeSourceTooLarge(resolved_source.display().to_string())
+            })?
         } else {
             (selected_lines.join("\n"), 0)
         };
-        let line_starts = Self::line_start_offsets(&content_lines);
-        let line_origins = selected_indices
-            .iter()
-            .map(|&idx| SourceLineOrigin {
-                line: idx + 1,
-                offset: line_starts.get(idx).copied().unwrap_or(0),
-                column_shift,
-            })
-            .collect::<Vec<_>>();
+        for origin in &mut line_origins {
+            origin.column_shift = column_shift;
+        }
         let mut included = IncludeResult {
             content: selected_content,
             synthetic: false,
@@ -983,12 +933,12 @@ impl<'a> Include<'a> {
         ranges
     }
 
-    /// Read and decode URI content without recursively preprocessing it.
+    /// Read and select URI content. Do not process nested directives yet.
     fn read_content_from_url(
         &self,
         url: &str,
         source_provider: &dyn IncludeSourceProvider,
-    ) -> Result<String, UrlReadError> {
+    ) -> Result<reader::Selected, UrlReadError> {
         let source = source_provider
             .open(&IncludeSourceTarget::Uri(url.to_string()))
             .map_err(|error| match error.kind() {
@@ -998,15 +948,14 @@ impl<'a> Include<'a> {
                 }
                 IncludeSourceErrorKind::Fatal => UrlReadError::Other(Error::IncludeSource(error)),
             })?;
-        let bytes = read_source_bytes(source).map_err(|error| {
+        reader::read(source, self.encoding.as_deref(), url, &self.selection).map_err(|error| {
             // Discard partial content when the response cannot be read.
             if let Error::Io(error) = error {
                 UrlReadError::Retrieval(error.to_string())
             } else {
                 UrlReadError::Other(error)
             }
-        })?;
-        super::decode_bytes(&bytes, self.encoding.as_deref(), url).map_err(UrlReadError::from)
+        })
     }
 
     fn read_url_content_or_fallback(
@@ -1046,13 +995,13 @@ impl<'a> Include<'a> {
         }
     }
 
-    /// Read and decode one resolved local file without preprocessing it.
+    /// Read and select text from the resolved local file. Do not preprocess it yet.
     fn read_local_content(
         &self,
         path: &Path,
         optional: bool,
         source_provider: &dyn IncludeSourceProvider,
-    ) -> Result<Option<String>, Error> {
+    ) -> Result<Option<reader::Selected>, Error> {
         let source = match source_provider.open(&IncludeSourceTarget::File(path.to_path_buf())) {
             Ok(source) => source,
             Err(error) if error.kind() == IncludeSourceErrorKind::NotFound => {
@@ -1082,9 +1031,12 @@ impl<'a> Include<'a> {
         };
 
         let display_path = path.display().to_string();
-        let decoded = match read_source_bytes(source)
-            .and_then(|bytes| super::decode_bytes(&bytes, self.encoding.as_deref(), &display_path))
-        {
+        let decoded = match reader::read(
+            source,
+            self.encoding.as_deref(),
+            &display_path,
+            &self.selection,
+        ) {
             Ok(content) => content,
             Err(Error::Io(error)) => {
                 if optional {
@@ -1203,7 +1155,7 @@ impl<'a> Include<'a> {
                 return Ok(self.unresolved_directive(attribute_list_as_written));
             }
         };
-        self.process_selected_content(&content, &source_origin, &resolved_source, is_asciidoc)
+        self.process_selected_content(content, &source_origin, &resolved_source, is_asciidoc)
     }
 
     /// Calculate the effective leveloffset for this include.
@@ -1249,6 +1201,7 @@ impl<'a> Include<'a> {
         self.warnings.borrow_mut().push(warning);
     }
 
+    #[cfg(test)]
     fn resolve_end_line(end: isize, max_size: usize) -> Option<usize> {
         match end {
             n if n < 0 => max_size.checked_sub(1),
@@ -1267,6 +1220,7 @@ impl<'a> Include<'a> {
     }
 
     /// Collects all line indices that would be selected by the line ranges.
+    #[cfg(test)]
     fn collect_line_range_indices(
         &self,
         ranges: &[LinesRange],
@@ -1307,6 +1261,7 @@ impl<'a> Include<'a> {
     /// Byte offset of each line's first byte within the file's normalized content
     /// (lines joined with a single `\n`), so a surviving line can carry its true
     /// origin-file byte offset.
+    #[cfg(test)]
     fn line_start_offsets(content_lines: &[&str]) -> Vec<usize> {
         let mut starts = Vec::with_capacity(content_lines.len());
         let mut offset = 0;
@@ -1323,7 +1278,7 @@ mod tests {
     use super::*;
     use std::path::PathBuf;
 
-    fn parse_include<'a>(
+    pub(super) fn parse_include<'a>(
         path: &Path,
         line: &str,
         options: &Options<'a>,
@@ -1589,55 +1544,42 @@ mod tests {
         Ok(())
     }
 
-    #[cfg(feature = "network")]
     #[test]
-    fn remote_include_response_is_limited_to_ten_mib() -> Result<(), Box<dyn std::error::Error>> {
-        let accepted = read_remote_include(
-            std::io::repeat(b'a').take(u64::try_from(MAX_REMOTE_INCLUDE_BYTES)?),
-            MAX_REMOTE_INCLUDE_BYTES,
-        )?;
-        assert_eq!(accepted.len(), MAX_REMOTE_INCLUDE_BYTES);
-        drop(accepted);
-
-        let Err(error) = read_remote_include(std::io::repeat(b'a'), MAX_REMOTE_INCLUDE_BYTES)
-        else {
-            return Err("expected an oversized remote include to be rejected".into());
-        };
-        let Error::HttpRequest(message) = error else {
-            return Err(format!("expected an HTTP request error, got {error:?}").into());
-        };
-        assert_eq!(message, "remote include response exceeds the 10 MiB limit");
+    fn test_apply_indent_basic() -> Result<(), Box<dyn std::error::Error>> {
+        let (text, shift) = Include::apply_indent(&["def hello", "  puts \"Hello\"", "end"], 4)
+            .ok_or("unexpected indent limit")?;
+        assert_eq!(text, "    def hello\n      puts \"Hello\"\n    end");
+        assert_eq!(shift, 4);
         Ok(())
     }
 
     #[test]
-    fn test_apply_indent_basic() {
-        let (text, shift) = Include::apply_indent(&["def hello", "  puts \"Hello\"", "end"], 4);
-        assert_eq!(text, "    def hello\n      puts \"Hello\"\n    end");
-        assert_eq!(shift, 4);
-    }
-
-    #[test]
-    fn test_apply_indent_zero() {
+    fn test_apply_indent_zero() -> Result<(), Box<dyn std::error::Error>> {
         let (text, shift) =
-            Include::apply_indent(&["  def hello", "    puts \"Hello\"", "  end"], 0);
+            Include::apply_indent(&["  def hello", "    puts \"Hello\"", "  end"], 0)
+                .ok_or("unexpected indent limit")?;
         assert_eq!(text, "def hello\n  puts \"Hello\"\nend");
         assert_eq!(shift, -2);
+        Ok(())
     }
 
     #[test]
-    fn test_apply_indent_empty_lines() {
+    fn test_apply_indent_empty_lines() -> Result<(), Box<dyn std::error::Error>> {
         let (text, shift) =
-            Include::apply_indent(&["def hello", "", "  puts \"Hello\"", "   ", "end"], 2);
+            Include::apply_indent(&["def hello", "", "  puts \"Hello\"", "   ", "end"], 2)
+                .ok_or("unexpected indent limit")?;
         assert_eq!(text, "  def hello\n\n    puts \"Hello\"\n\n  end");
         assert_eq!(shift, 2);
+        Ok(())
     }
 
     #[test]
-    fn test_apply_indent_mixed_whitespace() {
+    fn test_apply_indent_mixed_whitespace() -> Result<(), Box<dyn std::error::Error>> {
         let (text, shift) =
-            Include::apply_indent(&["\tdef hello", "\t\tputs \"Hello\"", "\tend"], 2);
+            Include::apply_indent(&["\tdef hello", "\t\tputs \"Hello\"", "\tend"], 2)
+                .ok_or("unexpected indent limit")?;
         assert_eq!(text, "  def hello\n  \tputs \"Hello\"\n  end");
         assert_eq!(shift, 1);
+        Ok(())
     }
 }

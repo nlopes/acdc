@@ -66,6 +66,12 @@ pub enum Error {
     #[error("Include source error: {0}")]
     IncludeSource(#[from] IncludeSourceError),
 
+    #[error("Selected include text exceeds the 10 MiB limit: {0}")]
+    IncludeSourceTooLarge(String),
+
+    #[error("Include tag metadata exceeds the 10 MiB limit: {0}")]
+    IncludeSelectionTooComplex(String),
+
     #[error("URL error: {0}")]
     Url(#[from] url::ParseError),
 
@@ -128,6 +134,8 @@ impl Error {
             Self::ParseGrammar(_)
             | Self::Io(_)
             | Self::IncludeSource(_)
+            | Self::IncludeSourceTooLarge(_)
+            | Self::IncludeSelectionTooComplex(_)
             | Self::Url(_)
             | Self::ParseInt(_)
             | Self::UnknownEncoding(_)
@@ -203,6 +211,12 @@ impl Error {
             ),
             Self::NonConformingManpageTitle(..) => Some(
                 "Manpage document titles must be in the format 'name(volume)', e.g., 'git-commit(1)'. Remove --strict flag to use fallback values.",
+            ),
+            Self::IncludeSourceTooLarge(..) => Some(
+                "Use lines=, tag=, or tags= to select less text. You can also split the include into smaller files.",
+            ),
+            Self::IncludeSelectionTooComplex(..) => Some(
+                "Use shorter tag names or fewer nested tags. Correct invalid tag markers in the include source.",
             ),
             Self::ParseGrammar(_)
             | Self::Io(_)
