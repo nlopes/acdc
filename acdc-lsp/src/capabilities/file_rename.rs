@@ -1,17 +1,20 @@
-//! File rename: update cross-file references when files are renamed or moved
+//! Update cross-file references after a file rename or move.
 
-use std::collections::HashMap;
-use std::path::{Component, Path};
+use std::{
+    collections::HashMap,
+    path::{Component, Path},
+};
 
 use tower_lsp_server::ls_types::{FileRename, TextEdit, Uri, WorkspaceEdit};
 
-use crate::convert::{location_to_range, resolve_relative_uri};
-use crate::state::{Workspace, XrefTarget};
+use crate::{
+    convert::{location_to_range, resolve_relative_uri},
+    state::{Workspace, XrefTarget},
+};
 
-/// Compute workspace edits to update references when files are renamed.
+/// Compute edits for cross-references and include directives after a file rename.
 ///
-/// Scans all open documents for xrefs, includes, and link macros that reference
-/// any of the renamed files, and returns text edits to rewrite the paths.
+/// Check open documents and closed workspace files for paths that refer to renamed files.
 #[must_use]
 pub(crate) fn compute_file_rename_edits(
     workspace: &Workspace,
@@ -121,7 +124,7 @@ pub(crate) fn update_workspace_after_rename(workspace: &Workspace, renames: &[Fi
     }
 }
 
-/// Scan non-open workspace files on disk for references to renamed files.
+/// Scan closed workspace files for references to renamed files.
 fn scan_workspace_files_for_renames(
     workspace: &Workspace,
     rename_map: &HashMap<Uri, Uri>,
@@ -152,8 +155,10 @@ fn scan_workspace_files_for_renames(
             continue;
         };
 
-        // Parse and scan for references
-        let options = acdc_parser::Options::default();
+        // Do not expand includes here. Each edit must use an offset in the file being scanned.
+        let mut options = acdc_parser::Options::default();
+        options.safe_mode = acdc_parser::SafeMode::Server;
+        options.include_loader = acdc_parser::IncludeLoader::Disabled;
         let Ok(parsed) = acdc_parser::parse(&text, &options) else {
             continue;
         };
@@ -537,6 +542,50 @@ mod tests {
         );
 
         let _ = std::fs::remove_dir_all(&tmp);
+        Ok(())
+    }
+
+    #[test]
+    fn disk_scan_does_not_edit_the_parent_of_an_included_reference()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory =
+            std::env::temp_dir().join(format!("acdc-rename-includes-{}", std::process::id()));
+        std::fs::create_dir(&directory)?;
+        let main_path = directory.join("main.adoc");
+        let part_path = directory.join("part.adoc");
+        std::fs::write(
+            &main_path,
+            format!("= Main\n\ninclude::{}[]\n", part_path.display()),
+        )?;
+        std::fs::write(&part_path, "See xref:guide.adoc#intro[Guide].\n")?;
+        let root = Uri::from_file_path(&directory).ok_or("bad root URI")?;
+        let main_uri = Uri::from_file_path(&main_path).ok_or("bad main URI")?;
+        let part_uri = Uri::from_file_path(&part_path).ok_or("bad part URI")?;
+        let old_uri = Uri::from_file_path(directory.join("guide.adoc")).ok_or("bad old URI")?;
+        let new_uri = Uri::from_file_path(directory.join("renamed.adoc")).ok_or("bad new URI")?;
+        let workspace = Workspace::new();
+        workspace.initialize_analysis(crate::config::AnalysisBackend::Html5, vec![root]);
+        let edits = compute_file_rename_edits(
+            &workspace,
+            &[FileRename {
+                old_uri: old_uri.to_string(),
+                new_uri: new_uri.to_string(),
+            }],
+        )
+        .ok_or("missing edits")?
+        .changes
+        .ok_or("missing changes")?;
+        assert!(
+            !edits.contains_key(&main_uri),
+            "parent must not receive edits for included content"
+        );
+        let part_edits = edits.get(&part_uri).ok_or("missing included-file edit")?;
+        assert_eq!(part_edits.len(), 1);
+        assert_eq!(
+            part_edits.first().ok_or("missing edit")?.new_text,
+            "renamed.adoc#intro"
+        );
+        std::fs::remove_dir_all(directory)?;
         Ok(())
     }
 }
