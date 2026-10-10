@@ -29,6 +29,17 @@ Or convert from stdin to stdout:
 cat document.adoc | acdc convert --stdin
 ....
 
+[[html-output-trust]]
+== HTML output trust
+
+Generated HTML preserves intentional raw HTML from passthroughs, custom
+substitutions, and permitted docinfo. Safe modes control resource access; they
+do not sanitize output, matching
+https://docs.asciidoctor.org/asciidoctor/latest/safe-modes/[Asciidoctor].
+Browser hosts must trust their input or sanitize or isolate the HTML before they
+display it. The bundled editor demo sanitizes its preview, while Copy HTML
+returns the original output. See link:../../acdc-editor-wasm/README.md#html-trust[the editor's trust note].
+
 == Features
 
 === Index Catalogs

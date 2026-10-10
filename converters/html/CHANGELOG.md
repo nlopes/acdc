@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- Clarify the HTML trust contract. Safe modes do not sanitize raw
+  HTML, matching Asciidoctor. Hosts must isolate or sanitize untrusted embedded
+  output and choose their browser resource policy.
+
 ### Fixed
 
 - Passthroughs with character escaping before replacements, such as

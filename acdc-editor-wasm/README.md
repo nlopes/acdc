@@ -14,22 +14,15 @@ Download the latest release from [GitHub Releases](https://github.com/nlopes/acd
 
 ### HTML structure
 
-The editor requires these DOM elements with specific IDs:
-
-```html
-<textarea id="editor"></textarea>
-<div id="editor-backdrop">
-  <pre id="highlight"></pre>
-</div>
-<div id="preview"></div>
-<div id="status"></div>
-```
+Use `www/index.html` as the host template. These elements are required:
 
 - `#editor` - The textarea where users type AsciiDoc source
 - `#editor-backdrop` - Container for the syntax highlighting overlay
 - `#highlight` - Pre element that receives highlighted HTML (overlays the textarea)
 - `#preview` - Container for the rendered HTML output
-- `#status` - Displays parse status ("OK" or error messages)
+- `#parse-status` - Displays parse errors and structured warnings
+- `#line-numbers` - Container with a `pre` element for line numbers
+- `#resize-handle` - Handle between the two panes
 
 ### JavaScript initialization
 
@@ -101,20 +94,39 @@ Entry point called automatically when the WASM module loads. Sets up the editor 
 - Scroll synchronization between textarea and highlight overlay
 - Tab key handling (inserts 2 spaces)
 
-Returns an error if any required DOM element is missing.
+Returns an error if a required DOM element is missing or has the wrong type.
 
-### `parse_and_render(input: string): ParseResult`
+## HTML trust
 
-Manually parse AsciiDoc source and get both highlighted source HTML and rendered preview HTML. Useful if you want to control when parsing happens rather than using the automatic editor setup.
+Secure mode prevents include reads. It does not sanitize generated HTML.
+Passthroughs and custom substitutions can still produce active HTML, matching
+[Asciidoctor](https://docs.asciidoctor.org/asciidoctor/latest/safe-modes/).
 
-```typescript
-interface ParseResult {
-  highlight_html: string;  // Source with <span class="adoc-*"> highlighting
-  preview_html: string;    // Rendered HTML preview
-}
+The bundled demo uses DOMPurify before it inserts HTML into the preview div.
+It removes scripts, handlers, global CSS, forms, and unsupported frames. It keeps
+highlighting, internal links, images, and YouTube and Vimeo embeds. The warning
+badge reports removed content. Copy HTML returns the original converter output.
+
+Other hosts can enable the same policy before WASM initialization:
+
+```javascript
+import {sanitizePreviewHtml} from './preview.js';
+window.sanitizePreviewHtml = sanitizePreviewHtml;
 ```
 
-Returns an error string if parsing fails.
+The callback is optional and returns `[html, removed]`. The editor captures it
+at startup. If it fails, the editor reports an error and keeps the last preview.
+Hosts without a callback display the original HTML and must trust their input
+or provide their own display policy. The pinned dependency and update steps are
+in [vendor/README.md](www/vendor/README.md).
+
+## Rust rendering API
+
+Rust callers can use `parse_and_render(input: &str)` to get highlighted source
+HTML, unsanitized preview HTML, the resolved STEM flag, and parser/converter
+warnings in a `ParseResult`. The function returns `Result<ParseResult, String>`.
+Parsing or conversion failures return an error string. The WASM entry point is
+`init()`, which sets up the editor DOM.
 
 ## CSS classes
 
@@ -188,6 +200,17 @@ wasm-pack build --target web --release
 ```
 
 Output goes to `pkg/` directory.
+
+### Browser regression tests
+
+Build the editor and run the offline checks in headless Chrome. The runner needs
+Node.js 22 or later. Set `CHROME_BIN` if Chrome is not at the default macOS path
+or available as `google-chrome` on Linux.
+
+```console
+wasm-pack build --target web --dev -- --all-features
+node tests/run-browser-tests.mjs
+```
 
 ## Example syntax highlighting theme
 
