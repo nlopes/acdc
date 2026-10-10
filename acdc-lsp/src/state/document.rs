@@ -150,10 +150,13 @@ pub(crate) struct DocumentState {
     pub(crate) parsed: ParsedText,
     /// Version from the editor (for sync validation)
     pub(crate) version: i32,
-    /// Parse errors converted to diagnostics
+    /// Current parser and workspace diagnostics for the entry file.
     pub(crate) diagnostics: Vec<Diagnostic>,
     /// Diagnostics from included files, owned by this document's analysis.
     pub(super) included_diagnostics: HashMap<Uri, Vec<Diagnostic>>,
+    /// Retain parser diagnostics when workspace references are checked again.
+    pub(super) parse_diagnostics: Vec<(Option<SourceLocation>, Diagnostic)>,
+    pub(super) check_raw_includes: bool,
     /// Anchor definitions with their original source files and positions.
     pub(crate) anchors: HashMap<String, SourceLocation>,
     /// Cross-references with their original source files and positions.
@@ -239,6 +242,12 @@ impl DocumentState {
         Self {
             parsed,
             version,
+            parse_diagnostics: diagnostics
+                .iter()
+                .cloned()
+                .map(|item| (None, item))
+                .collect(),
+            check_raw_includes: true,
             diagnostics,
             included_diagnostics: HashMap::new(),
             anchors: HashMap::new(),

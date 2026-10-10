@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Changing the analysis backend now refreshes cross-file diagnostics in all open
+  documents after the workspace indexes are updated. References to conditional
+  anchors no longer keep stale diagnostics, including anchors from unsaved includes.
 - Windows documents with canonical file paths now resolve local `include::` targets
   without false errors that the target is outside the document directory.
 - File links and included source locations use normal Windows drive URIs.

@@ -3,13 +3,49 @@
 //! Spawns the `acdc-lsp` binary and communicates over stdin/stdout
 //! using JSON-RPC messages per the LSP specification.
 
-use std::io::{BufRead, BufReader, Read, Write};
-use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
-use std::time::Duration;
+use std::{
+    fs,
+    io::{BufRead, BufReader, Read, Write},
+    path::PathBuf,
+    process::{Child, ChildStdin, ChildStdout, Command, Stdio},
+    time::Duration,
+};
 
 use serde_json::{Value, json};
+use tower_lsp_server::ls_types::Uri;
 
 type ServerRequestHandler = dyn FnMut(&str, &Value) -> Value;
+
+pub(crate) struct Project(PathBuf);
+
+impl Project {
+    pub(crate) fn new(name: &str) -> Result<Self, Box<dyn std::error::Error>> {
+        let path =
+            std::env::temp_dir().join(format!("acdc-lsp-protocol-{name}-{}", std::process::id()));
+        fs::create_dir(&path)?;
+        // Editors use drive paths. Windows canonicalization adds a verbatim prefix.
+        #[cfg(windows)]
+        return Ok(Self(path));
+        #[cfg(not(windows))]
+        Ok(Self(path.canonicalize()?))
+    }
+
+    pub(crate) fn uri(&self, name: &str) -> Result<String, Box<dyn std::error::Error>> {
+        Uri::from_file_path(self.0.join(name))
+            .map(|uri| uri.as_str().to_owned())
+            .ok_or_else(|| "invalid file URI".into())
+    }
+
+    pub(crate) fn path(&self) -> &std::path::Path {
+        &self.0
+    }
+}
+
+impl Drop for Project {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.0);
+    }
+}
 
 /// Errors from the LSP test harness.
 #[derive(Debug)]
@@ -266,12 +302,23 @@ impl LspTestClient {
         &mut self,
         expected_method: &str,
     ) -> Result<(), HarnessError> {
+        self.notifications_until_server_request(expected_method)
+            .map(|_| ())
+    }
+
+    /// Collect notifications until the named server request has been answered.
+    pub(crate) fn notifications_until_server_request(
+        &mut self,
+        expected_method: &str,
+    ) -> Result<Vec<Value>, HarnessError> {
+        let mut notifications = Vec::new();
         loop {
             let message = self.read_message()?;
             let Some(method) = message.get("method").and_then(Value::as_str) else {
                 continue;
             };
             let Some(id) = message.get("id").cloned() else {
+                notifications.push(message);
                 continue;
             };
             let params = message.get("params").unwrap_or(&Value::Null);
@@ -285,7 +332,7 @@ impl LspTestClient {
                 "result": result
             }))?;
             if method == expected_method {
-                return Ok(());
+                return Ok(notifications);
             }
         }
     }

@@ -1,12 +1,131 @@
 //! Integration tests for backend-aware language-server analysis.
 
-use std::cell::Cell;
-use std::rc::Rc;
+use std::{cell::Cell, rc::Rc};
 
-use crate::common::LspTestClient;
+use crate::common::{LspTestClient, Project};
 use serde_json::{Value, json};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+fn client_with_scoped_backend(
+    configured_backend: Rc<Cell<&'static str>>,
+    project: &Project,
+) -> Result<LspTestClient, Box<dyn std::error::Error>> {
+    let source_root = project.uri("source")?;
+    let target_root = project.uri("target")?;
+    let configured_root = target_root.clone();
+    let mut client = LspTestClient::new()?;
+    client.set_server_request_handler(move |method, params| {
+        if method != "workspace/configuration" {
+            return Value::Null;
+        }
+        params
+            .get("items")
+            .and_then(Value::as_array)
+            .map_or(Value::Null, |items| {
+                Value::Array(
+                    items
+                        .iter()
+                        .map(|item| {
+                            let backend = if item.get("scopeUri").and_then(Value::as_str)
+                                == Some(configured_root.as_str())
+                            {
+                                configured_backend.get()
+                            } else {
+                                "html5"
+                            };
+                            json!({ "backend": backend })
+                        })
+                        .collect(),
+                )
+            })
+    });
+    client.initialize_with_params(json!({
+        "processId": null,
+        "capabilities": { "workspace": {
+            "configuration": true,
+            "workspaceFolders": true,
+            "semanticTokens": { "refreshSupport": true },
+            "codeLens": { "refreshSupport": true },
+            "inlayHint": { "refreshSupport": true }
+        }},
+        "workspaceFolders": [
+            { "uri": source_root, "name": "source" },
+            { "uri": target_root, "name": "target" }
+        ]
+    }))?;
+    client.wait_for_server_request("workspace/inlayHint/refresh")?;
+    Ok(client)
+}
+
+#[test]
+fn target_backend_change_publishes_final_diagnostics_once_with_current_versions() -> TestResult {
+    let project = Project::new("backend-refresh")?;
+    let backend = Rc::new(Cell::new("html5"));
+    let mut client = client_with_scoped_backend(Rc::clone(&backend), &project)?;
+    let source_uri = project.uri("source/index.adoc")?;
+    let target_uri = project.uri("target/index.adoc")?;
+    let source = source_uri.as_str();
+    let target = target_uri.as_str();
+    for (uri, version, text) in [
+        (
+            target,
+            8,
+            "ifdef::backend-pdf[]\n[[pdf-only]]\n== PDF\nendif::[]\n",
+        ),
+        (source, 5, "See xref:../target/index.adoc#pdf-only[].\n"),
+    ] {
+        client.send_notification(
+            "textDocument/didOpen",
+            json!({ "textDocument": {
+                "uri": uri, "languageId": "asciidoc", "version": version, "text": text
+            }}),
+        )?;
+        client.wait_for_diagnostics(uri)?;
+    }
+
+    for selected_backend in ["pdf", "html5"] {
+        backend.set(selected_backend);
+        client.send_notification(
+            "workspace/didChangeConfiguration",
+            json!({ "settings": {} }),
+        )?;
+        let messages = client.notifications_until_server_request("workspace/inlayHint/refresh")?;
+        let published: Vec<_> = messages
+            .iter()
+            .filter(|message| {
+                message.get("method").and_then(Value::as_str)
+                    == Some("textDocument/publishDiagnostics")
+            })
+            .filter_map(|message| message.get("params"))
+            .collect();
+        assert_eq!(published.len(), 2, "{published:?}");
+        for (uri, version) in [(source, 5), (target, 8)] {
+            let matching: Vec<_> = published
+                .iter()
+                .filter(|params| params.get("uri").and_then(Value::as_str) == Some(uri))
+                .collect();
+            assert_eq!(matching.len(), 1, "{published:?}");
+            assert!(
+                matching
+                    .iter()
+                    .all(|params| params.get("version") == Some(&json!(version)))
+            );
+        }
+        let source_diagnostics = published
+            .iter()
+            .find(|params| params.get("uri").and_then(Value::as_str) == Some(source))
+            .and_then(|params| params.get("diagnostics"))
+            .and_then(Value::as_array)
+            .ok_or("missing source diagnostics")?;
+        assert_eq!(
+            source_diagnostics.len(),
+            usize::from(selected_backend == "html5")
+        );
+    }
+    client.shutdown();
+    Ok(())
+}
 
 #[test]
 fn default_backend_indexes_html5_conditionals() -> TestResult {

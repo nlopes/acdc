@@ -18,16 +18,23 @@ use crate::limits::MAX_INDEXABLE_FILE_BYTES;
 
 impl Workspace {
     pub(super) fn update_with_includes(&self, uri: Uri, text: String, version: i32) -> Vec<Uri> {
+        let diagnostic_uri = uri.clone();
+        let mut affected = self.index_with_includes(uri, text, version);
+        affected.extend(self.refresh_document_diagnostics(&diagnostic_uri));
+        affected
+    }
+
+    pub(super) fn index_with_includes(&self, uri: Uri, text: String, version: i32) -> Vec<Uri> {
         let mut options = self.parser_profiles.get(self.backend_for(&uri)).clone();
         self.include_dependencies.remove(&uri);
         if u64::try_from(text.len()).unwrap_or(u64::MAX) > MAX_INDEXABLE_FILE_BYTES {
-            return self.update_document_with_options(uri, text, version, &options);
+            return self.index_document_with_options(uri, text, version, &options);
         }
         let Some(path) = file_path(&uri) else {
-            return self.update_document_with_options(uri, text, version, &options);
+            return self.index_document_with_options(uri, text, version, &options);
         };
         let Some(directory) = path.parent() else {
-            return self.update_document_with_options(uri, text, version, &options);
+            return self.index_document_with_options(uri, text, version, &options);
         };
 
         // Snapshot text before parsing. The provider must not keep workspace
@@ -52,7 +59,7 @@ impl Workspace {
         let source_provider = Arc::clone(&provider);
         options.include_loader =
             IncludeLoader::custom(move |target: &IncludeSourceTarget| source_provider.open(target));
-        let affected = self.update_document_with_options(uri.clone(), text, version, &options);
+        let affected = self.index_document_with_options(uri.clone(), text, version, &options);
         self.include_dependencies.insert(
             uri,
             provider

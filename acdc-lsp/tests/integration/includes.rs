@@ -1,38 +1,10 @@
-use std::{cell::RefCell, error::Error, fs, path::PathBuf, rc::Rc};
+use std::{cell::RefCell, error::Error, fs, rc::Rc};
 
 use serde_json::{Value, json};
-use tower_lsp_server::ls_types::Uri;
 
-use crate::common::LspTestClient;
+use crate::common::{LspTestClient, Project};
 
 type TestResult = Result<(), Box<dyn Error>>;
-
-struct Project(PathBuf);
-
-impl Project {
-    fn new(name: &str) -> Result<Self, Box<dyn Error>> {
-        let path =
-            std::env::temp_dir().join(format!("acdc-lsp-protocol-{name}-{}", std::process::id()));
-        fs::create_dir(&path)?;
-        // Editors use drive paths. Windows canonicalization adds a verbatim prefix.
-        #[cfg(windows)]
-        return Ok(Self(path));
-        #[cfg(not(windows))]
-        Ok(Self(path.canonicalize()?))
-    }
-
-    fn uri(&self, name: &str) -> Result<String, Box<dyn Error>> {
-        Uri::from_file_path(self.0.join(name))
-            .map(|uri| uri.as_str().to_owned())
-            .ok_or_else(|| "invalid file URI".into())
-    }
-}
-
-impl Drop for Project {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.0);
-    }
-}
 
 fn definition(client: &mut LspTestClient, uri: &str) -> Result<Value, Box<dyn Error>> {
     Ok(client.send_request(
@@ -49,7 +21,7 @@ fn unsaved_include_changes_rename_and_close_refresh_navigation_and_diagnostics()
     let project = Project::new("buffers")?;
     let book = project.uri("book.adoc")?;
     let child = project.uri("child.adoc")?;
-    fs::write(project.0.join("child.adoc"), "[[disk]]\n== Disk\n")?;
+    fs::write(project.path().join("child.adoc"), "[[disk]]\n== Disk\n")?;
     let mut client = LspTestClient::new()?;
     let initialized = client.initialize()?;
     assert!(
@@ -139,7 +111,7 @@ fn unsaved_include_changes_rename_and_close_refresh_navigation_and_diagnostics()
 #[test]
 fn watched_file_events_refresh_nested_includes_and_request_editor_refresh() -> TestResult {
     let project = Project::new("watcher")?;
-    fs::write(project.0.join("middle.adoc"), "include::leaf.adoc[]\n")?;
+    fs::write(project.path().join("middle.adoc"), "include::leaf.adoc[]\n")?;
     let book = project.uri("book.adoc")?;
     let leaf = project.uri("leaf.adoc")?;
     let requests = Rc::new(RefCell::new(Vec::<(String, Value)>::new()));
@@ -169,7 +141,10 @@ fn watched_file_events_refresh_nested_includes_and_request_editor_refresh() -> T
     client.wait_for_diagnostics(&book)?;
     client.wait_for_server_request("workspace/semanticTokens/refresh")?;
 
-    fs::write(project.0.join("leaf.adoc"), "[[created]]\n== Created\n")?;
+    fs::write(
+        project.path().join("leaf.adoc"),
+        "[[created]]\n== Created\n",
+    )?;
     client.send_notification(
         "workspace/didChangeWatchedFiles",
         json!({
@@ -188,7 +163,7 @@ fn watched_file_events_refresh_nested_includes_and_request_editor_refresh() -> T
         Some(leaf.as_str())
     );
 
-    fs::remove_file(project.0.join("leaf.adoc"))?;
+    fs::remove_file(project.path().join("leaf.adoc"))?;
     client.send_notification(
         "workspace/didChangeWatchedFiles",
         json!({

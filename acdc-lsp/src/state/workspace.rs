@@ -88,8 +88,8 @@ impl Workspace {
             .roots()
     }
 
-    /// Apply configuration atomically, then reparse only resources whose
-    /// effective backend or workspace membership changed.
+    /// Apply configuration and refresh diagnostics against the final indexes.
+    /// Reparse open documents only when their effective backend changes.
     pub(crate) fn apply_analysis_configuration(
         &self,
         configuration: &AnalysisConfiguration,
@@ -141,12 +141,26 @@ impl Workspace {
             }
         }
 
-        let diagnostic_uris = open_documents
-            .into_iter()
-            .flat_map(|(uri, text, version)| self.update_document(uri, text, version))
-            .collect();
-
+        let mut diagnostic_uris = Vec::new();
+        // A reference can depend on a document parsed later in this batch.
+        // Replace all changed anchors before checking any references.
+        for (uri, text, version) in open_documents {
+            diagnostic_uris.extend(self.index_with_includes(uri, text, version));
+        }
         self.scan_roots(&added_roots);
+
+        // Unchanged documents can refer to anchors that the new backend hides
+        // or exposes. Check every open document without reparsing its source.
+        let uris: Vec<_> = self
+            .documents
+            .iter()
+            .map(|entry| entry.key().clone())
+            .collect();
+        for uri in uris {
+            diagnostic_uris.extend(self.refresh_document_diagnostics(&uri));
+        }
+        diagnostic_uris.sort_by(|a, b| a.as_str().cmp(b.as_str()));
+        diagnostic_uris.dedup();
 
         Reconfiguration {
             changed: true,
@@ -171,7 +185,21 @@ impl Workspace {
         affected
     }
 
+    #[cfg(test)]
     fn update_document_with_options(
+        &self,
+        uri: Uri,
+        text: String,
+        version: i32,
+        options: &acdc_parser::Options,
+    ) -> Vec<Uri> {
+        let diagnostic_uri = uri.clone();
+        let mut affected = self.index_document_with_options(uri, text, version, options);
+        affected.extend(self.refresh_document_diagnostics(&diagnostic_uri));
+        affected
+    }
+
+    fn index_document_with_options(
         &self,
         uri: Uri,
         text: String,
@@ -189,7 +217,7 @@ impl Workspace {
         // Remove old anchors for this URI from the global index
         self.remove_anchors_for_uri(&uri);
 
-        let mut state = Self::parse_and_index(&uri, text, version, options);
+        let state = Self::parse_and_index(text, version, options);
 
         // Insert new anchors into the global index
         for (id, loc) in &state.anchors {
@@ -199,11 +227,6 @@ impl Workspace {
                 .push((uri.clone(), loc.clone()));
         }
 
-        self.compute_diagnostics(
-            &uri,
-            &mut state,
-            matches!(options.include_loader, acdc_parser::IncludeLoader::Disabled),
-        );
         affected.extend(state.diagnostic_uris(&uri));
         affected.sort_by(|a, b| a.as_str().cmp(b.as_str()));
         affected.dedup();
@@ -212,7 +235,24 @@ impl Workspace {
         affected
     }
 
-    fn compute_diagnostics(&self, uri: &Uri, state: &mut DocumentState, check_raw_includes: bool) {
+    fn refresh_document_diagnostics(&self, uri: &Uri) -> Vec<Uri> {
+        // Reference lookup must not run while a document-map lock is held.
+        let Some((_, mut state)) = self.documents.remove(uri) else {
+            return Vec::new();
+        };
+        let mut affected = state.diagnostic_uris(uri);
+        self.compute_diagnostics(uri, &mut state);
+        affected.extend(state.diagnostic_uris(uri));
+        self.documents.insert(uri.clone(), state);
+        affected
+    }
+
+    fn compute_diagnostics(&self, uri: &Uri, state: &mut DocumentState) {
+        state.diagnostics.clear();
+        state.included_diagnostics.clear();
+        for (source, diagnostic) in state.parse_diagnostics.clone() {
+            state.push_diagnostic(uri, source, diagnostic);
+        }
         // Compute diagnostics with workspace context for cross-file xref validation
         let cross_file_resolver = |source_uri: &Uri, parsed: &crate::state::XrefTarget| -> bool {
             // Check global anchor index first (open documents)
@@ -227,6 +267,10 @@ impl Workspace {
                     crate::convert::resolve_relative_uri(source_uri, file_path)
             {
                 if let Some(anchor_id) = &parsed.anchor {
+                    // An open buffer is authoritative even when it has no anchor.
+                    if target_uri == *uri || self.has_document(&target_uri) {
+                        return false;
+                    }
                     return self
                         .find_anchor_in_file_on_disk(&target_uri, anchor_id)
                         .is_some();
@@ -270,7 +314,7 @@ impl Workspace {
 
         // When a provider is active, parser warnings account for buffers,
         // attributes, optional targets, and inactive conditional branches.
-        if check_raw_includes
+        if state.check_raw_includes
             && let Some(doc_path) = uri.to_file_path()
             && let Some(doc_dir) = doc_path.parent()
         {
@@ -621,7 +665,6 @@ impl Workspace {
 
     /// Parse document and extract all navigation data
     fn parse_and_index(
-        uri: &Uri,
         text: String,
         version: i32,
         options: &acdc_parser::Options,
@@ -695,11 +738,16 @@ impl Workspace {
             crate::state::document::extract_conditionals(raw_text, options.document_attributes())
         };
 
-        let mut state = DocumentState {
+        DocumentState {
             parsed,
             version,
             diagnostics: Vec::new(),
             included_diagnostics: HashMap::new(),
+            parse_diagnostics,
+            check_raw_includes: matches!(
+                options.include_loader,
+                acdc_parser::IncludeLoader::Disabled
+            ),
             anchors,
             xrefs,
             includes: raw_includes,
@@ -707,11 +755,7 @@ impl Workspace {
             attribute_defs: definitions,
             media_sources,
             conditionals: raw_conditionals,
-        };
-        for (source, diagnostic) in parse_diagnostics {
-            state.push_diagnostic(uri, source, diagnostic);
         }
-        state
     }
 }
 
@@ -768,6 +812,9 @@ mod document_features;
 
 #[cfg(test)]
 mod source_locations;
+
+#[cfg(test)]
+mod reconfiguration;
 
 #[cfg(test)]
 mod tests {
@@ -986,7 +1033,7 @@ mod tests {
         let result = workspace.apply_analysis_configuration(&configuration);
 
         assert!(result.changed);
-        assert_eq!(result.diagnostic_uris, [html_uri]);
+        assert_eq!(result.diagnostic_uris, [html_uri, pdf_uri.clone()]);
         assert!(
             workspace
                 .get_document(&pdf_uri)
