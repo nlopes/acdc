@@ -31,7 +31,8 @@
 //! A read can return a limited number of bytes after the requested line.
 //! These bytes count toward the HTTP transfer limit. When a finite selection is
 //! complete, we close the response without reading the rest.
-//! The text limit does not limit scan time or the size of nested includes.
+//! The per-source text limit does not limit scan time. The caller checks the
+//! shared include budget before it processes nested directives.
 
 use std::{
     collections::BinaryHeap,

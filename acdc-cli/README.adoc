@@ -140,6 +140,23 @@ Use `-S secure` or `--safe-mode secure` to prevent include reads.
 `execute` defaults to Safe. This mode restricts include paths but does not sandbox commands.
 The parser library defaults to Secure.
 
+Includes share a 64 MiB budget per input document, separate from safe mode.
+Use `--max-total-include-bytes BYTES` to change it on `convert`, `lint`, `inspect`, or `execute`.
+For example, this permits 256 MiB of selected include text for a trusted build:
+
+[source,console]
+....
+acdc convert --max-total-include-bytes 268435456 book.adoc
+....
+
+The budget counts selected text after indentation, including nested and repeated includes.
+It excludes the entry document. Comments and inactive conditionals count before they are removed.
+Zero permits only empty include selections; it does not mean unlimited.
+Document attributes and `-a` cannot change the budget.
+The 10 MiB per-include limit still applies, and small line selections from larger files still work.
+See link:../acdc-parser/README.adoc#include-source-size-limit[Include source size limit] for the counting rules.
+These resource limits deliberately differ from Asciidoctor.
+
 Use `--timings` for parse/conversion timings, `--strict` to turn supported fallbacks into errors, `--safe` or `--safe-mode` for parser safety policy, and `--embedded` to suppress enclosing document structure where the backend supports embedded output.
 Values passed with `-a` or `--attribute` take precedence over matching attribute entries in the document.
 Use `-a name`, `-a name=value`, or `-a name!` to set, assign, or unset a locked value.

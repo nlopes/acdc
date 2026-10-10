@@ -32,6 +32,12 @@ pub struct Args {
     #[arg(short = 'S', long, default_value = "unsafe")]
     pub safe_mode: acdc_parser::SafeMode,
 
+    /// Maximum selected include text per document, in bytes (64 MiB by default)
+    ///
+    /// Zero permits only empty selections. The 10 MiB per-include limit still applies.
+    #[arg(long, value_name = "BYTES", default_value_t = acdc_parser::Options::default().max_total_include_bytes())]
+    pub max_total_include_bytes: usize,
+
     /// Input from stdin
     #[arg(long, conflicts_with = "files")]
     pub stdin: bool,
@@ -86,7 +92,9 @@ pub struct Args {
 }
 
 pub fn run(args: &Args, matches: &ArgMatches) -> miette::Result<()> {
-    let options = LintOptions::new(ordered_overrides(matches)?).with_safe_mode(args.safe_mode);
+    let options = LintOptions::new(ordered_overrides(matches)?)
+        .with_safe_mode(args.safe_mode)
+        .with_max_total_include_bytes(args.max_total_include_bytes);
 
     if args.stdin {
         let mut source = String::new();

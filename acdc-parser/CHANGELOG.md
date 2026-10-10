@@ -23,6 +23,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- All includes in one parse now share a budget, with a default of 64 MiB. Each include counts
+  its selected UTF-8 text after `indent=`, plus a separating newline for nonempty
+  text. Nested and repeated includes use the same budget. Exceeding it stops
+  parsing with `Error::IncludeExpansionTooLarge` at the include directive.
+  Set `OptionsBuilder::with_max_total_include_bytes()` to change the budget in
+  bytes. Document attributes cannot change it. The entry document does not count
+  toward this budget; safe modes and the per-include limit still apply.
+  This limit deliberately differs from Asciidoctor.
 - Each include can select up to 10 MiB of normalized UTF-8 text, before and after `indent=`.
   Use `lines=`, `tag=`, or `tags=` to select a small part of a larger source.
   Larger selections fail with `Error::IncludeSourceTooLarge`.

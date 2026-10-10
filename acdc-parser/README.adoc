@@ -83,7 +83,8 @@ It does not sanitize rendered HTML or sandbox commands.
 Safe and Server restrict include paths to the base directory, but do not resolve symlinks.
 A symlink can point outside that directory.
 The 10 MiB limit applies to selected text from each include.
-It does not limit total expanded input or total parser memory use.
+All includes in one parse also share a budget after indentation, with a default of 64 MiB.
+These limits do not cap total parser memory use or scan time.
 
 [#migrating-from-09]
 == Migrating from 0.9
@@ -978,7 +979,20 @@ A finite `lines=` selection stops at its highest requested line, as Asciidoctor 
 Encoding errors or read failures after that line do not affect the result.
 Full includes, open-ended ranges such as `lines=100..-1`, and tag selections read to the end of the source.
 A tag can occur again later in the source.
-The text limit does not limit scan time or the total text from nested or repeated includes.
+The text limit does not limit scan time.
+
+All includes in one parse share a budget, with a default of 64 MiB.
+Each include counts its selected UTF-8 text after `indent=`, plus one byte for a separating newline if the text is not empty.
+The parser counts this text before it processes nested directives or removes comments and inactive conditionals.
+Repeated includes count each time. Nested includes use the same budget; their expanded output is not counted again in the parent.
+The entry document does not count toward this budget.
+If an include exceeds the remaining budget, parsing fails with `Error::IncludeExpansionTooLarge` at that directive.
+Set `OptionsBuilder::with_max_total_include_bytes(bytes)` to change the budget.
+For example, `.with_max_total_include_bytes(256 * 1024 * 1024)` permits 256 MiB for trusted input.
+Zero permits only empty include selections. Read the limit with `Options::max_total_include_bytes()`.
+Document attributes cannot change this setting, and it does not change safe-mode permissions or the 10 MiB per-include limit.
+The CLI exposes this setting as `--max-total-include-bytes BYTES` on `convert`, `lint`, `inspect`, and `execute`.
+The LSP uses the default 64 MiB budget.
 
 Line selections remove trailing whitespace from each line independently.
 This includes Unicode whitespace such as U+2003, which Asciidoctor preserves.
@@ -1101,6 +1115,7 @@ tables.
 and `++[*]++`. Asciidoctor leaves `++[++X++]++` in the item's text. This acceptance
 difference is an intentional acdc extension.
 * *Include source limit*: Each include can select up to 10 MiB of UTF-8 text.
+All includes in one parse also share a configurable budget after indentation, with a default of 64 MiB.
 The built-in HTTP(S) loader also limits bytes read after decompression to 10 MiB.
 See <<include-source-size-limit,Include source size limit>>.
 * *Remote include transport*: We use `ureq` and don't try to reproduce the URI

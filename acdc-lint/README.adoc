@@ -23,6 +23,11 @@ For trusted sources with includes, use
 `LintOptions::default().with_safe_mode(acdc_parser::SafeMode::Safe)`.
 The CLI defaults to Unsafe. Use `acdc lint --safe-mode secure` to prevent include reads.
 
+Includes share a 64 MiB budget per parse.
+Use `LintOptions::with_max_total_include_bytes(bytes)` to change it for trusted input,
+or `acdc lint --max-total-include-bytes BYTES` on the command line.
+The parser's link:../acdc-parser/README.adoc#include-source-size-limit[include counting rules] and 10 MiB per-include limit still apply.
+
 == Lint levels
 
 The command-line model follows `rustc` and Clippy:

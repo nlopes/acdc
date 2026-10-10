@@ -58,6 +58,12 @@ pub struct Args {
     /// This limits document reads and includes; it does not sandbox commands.
     #[arg(short = 'S', long, value_parser = clap::value_parser!(SafeMode), default_value = "safe")]
     pub safe_mode: SafeMode,
+
+    /// Maximum selected include text per document, in bytes (64 MiB by default)
+    ///
+    /// Zero permits only empty selections. The 10 MiB per-include limit still applies.
+    #[arg(long, value_name = "BYTES", default_value_t = acdc_parser::Options::default().max_total_include_bytes())]
+    pub max_total_include_bytes: usize,
 }
 
 fn parse_environment(value: &str) -> Result<(OsString, OsString), String> {
@@ -73,6 +79,7 @@ fn parse_environment(value: &str) -> Result<(OsString, OsString), String> {
 pub fn run(args: &Args) -> miette::Result<()> {
     let parser_options = acdc_parser::Options::builder()
         .with_safe_mode(args.safe_mode)
+        .with_max_total_include_bytes(args.max_total_include_bytes)
         .build()
         .map_err(parser_report)?;
     let parsed = acdc_parser::parse_file(&args.file, &parser_options).map_err(parser_report)?;

@@ -415,6 +415,7 @@ fn oversized_file_source_is_rejected() -> TestResult {
     )]));
     let options = Options::builder()
         .with_safe_mode(SafeMode::Unsafe)
+        .with_max_total_include_bytes(128 * 1024 * 1024)
         .with_include_loader(loader(&provider))
         .with_base_dir(base_dir)
         .build()?;
@@ -438,6 +439,7 @@ fn oversized_uri_source_is_rejected() -> TestResult {
     )]));
     let options = Options::builder()
         .with_safe_mode(SafeMode::Unsafe)
+        .with_max_total_include_bytes(128 * 1024 * 1024)
         .with_include_loader(loader(&provider))
         .with_attribute("allow-uri-read", true)
         .build()?;
@@ -449,6 +451,151 @@ fn oversized_uri_source_is_rejected() -> TestResult {
         return Err(format!("unexpected error: {error:?}").into());
     };
     assert_eq!(source, uri);
+    Ok(())
+}
+
+#[test]
+fn include_budget_defaults_and_overrides_survive_option_transforms() -> TestResult {
+    assert_eq!(
+        Options::default().max_total_include_bytes(),
+        64 * 1024 * 1024
+    );
+    assert_eq!(
+        Options::builder().build()?.max_total_include_bytes(),
+        64 * 1024 * 1024
+    );
+    for bytes in [0, 17, 128 * 1024 * 1024, usize::MAX] {
+        let options = Options::builder()
+            .with_max_total_include_bytes(bytes)
+            .build()?;
+        assert_eq!(options.max_total_include_bytes(), bytes);
+        assert_eq!(
+            options.clone().into_static().max_total_include_bytes(),
+            bytes
+        );
+        assert_eq!(
+            options
+                .clone()
+                .into_builder()
+                .build()?
+                .max_total_include_bytes(),
+            bytes
+        );
+        assert_eq!(
+            options
+                .into_builder()
+                .with_max_total_include_bytes(3)
+                .build()?
+                .max_total_include_bytes(),
+            3
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn include_budget_override_applies_to_all_input_kinds_and_loading_modes() -> TestResult {
+    let directory = TempDirectory::new()?;
+    let entry = directory.0.join("entry.adoc");
+    let input = "include::part.adoc[]\ninclude::part.adoc[]";
+    fs::write(&entry, input)?;
+    let provider = Arc::new(MapSourceProvider::new([(
+        file_target(directory.0.join("part.adoc")),
+        b"abc".to_vec(),
+    )]));
+    for safe_mode in [SafeMode::Unsafe, SafeMode::Safe, SafeMode::Server] {
+        for bytes in [7, 8] {
+            let options = Options::builder()
+                .with_safe_mode(safe_mode)
+                .with_base_dir(&directory.0)
+                .with_include_loader(loader(&provider))
+                .with_max_total_include_bytes(bytes)
+                .build()?;
+            for result in [
+                parse(input, &options),
+                parse_from_reader(Cursor::new(input), &options),
+                parse_file(&entry, &options),
+            ] {
+                if bytes == 8 {
+                    let parsed = result?;
+                    assert_eq!(parsed.warnings(), []);
+                    assert_eq!(parsed.document().blocks.len(), 1);
+                } else {
+                    let Err(acdc_parser::Error::IncludeExpansionTooLarge(location, limit)) = result
+                    else {
+                        return Err("expected the configured include limit to stop parsing".into());
+                    };
+                    assert_eq!(limit, bytes);
+                    assert_eq!(location.location.start.line, 2);
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn include_budget_attributes_cannot_change_the_caller_limit() -> TestResult {
+    let directory = TempDirectory::new()?;
+    let provider = Arc::new(MapSourceProvider::new([(
+        file_target(directory.0.join("part.adoc")),
+        b"abc".to_vec(),
+    )]));
+    for (bytes, attribute) in [(3, "999999999"), (4, "0")] {
+        let options = Options::builder()
+            .with_safe_mode(SafeMode::Safe)
+            .with_base_dir(&directory.0)
+            .with_include_loader(loader(&provider))
+            .with_max_total_include_bytes(bytes)
+            .with_attribute("max-total-include-bytes", attribute)
+            .build()?;
+        let input = format!(":max-total-include-bytes: {attribute}\n\ninclude::part.adoc[]");
+        let result = parse(&input, &options);
+        if bytes == 4 {
+            assert_eq!(paragraph_text(&result?)?, "abc");
+        } else {
+            let Err(error) = result else {
+                return Err("document attributes raised the include limit".into());
+            };
+            assert!(matches!(
+                error,
+                acdc_parser::Error::IncludeExpansionTooLarge(_, 3)
+            ));
+            assert!(error.to_string().contains("limit of 3 bytes"));
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn include_budget_zero_keeps_secure_fallbacks_and_empty_selections() -> TestResult {
+    let directory = TempDirectory::new()?;
+    let provider = Arc::new(MapSourceProvider::new([(
+        file_target(directory.0.join("part.adoc")),
+        b"abc".to_vec(),
+    )]));
+    let options = Options::builder()
+        .with_base_dir(&directory.0)
+        .with_include_loader(loader(&provider))
+        .with_max_total_include_bytes(0)
+        .build()?;
+    let parsed = parse("include::part.adoc[]", &options)?;
+    assert_eq!(parsed.document().blocks.len(), 1);
+    assert_eq!(provider.requests(), []);
+    let options = options
+        .into_builder()
+        .with_safe_mode(SafeMode::Safe)
+        .build()?;
+    assert_eq!(
+        parse("include::part.adoc[lines=2]", &options)?
+            .document()
+            .blocks,
+        []
+    );
+    assert!(matches!(
+        parse("include::part.adoc[]", &options),
+        Err(acdc_parser::Error::IncludeExpansionTooLarge(_, 0))
+    ));
     Ok(())
 }
 

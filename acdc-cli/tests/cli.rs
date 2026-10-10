@@ -59,6 +59,140 @@ fn output_text(bytes: &[u8]) -> String {
     String::from_utf8_lossy(bytes).into_owned()
 }
 
+#[cfg(any(
+    feature = "html",
+    feature = "lint",
+    feature = "inspect",
+    feature = "execute"
+))]
+fn include_budget_commands() -> &'static [&'static [&'static str]] {
+    &[
+        #[cfg(feature = "html")]
+        &["convert", "--backend", "html", "--out-file", "-"],
+        #[cfg(feature = "lint")]
+        &["lint", "--output-style", "compact"],
+        #[cfg(feature = "inspect")]
+        &["inspect"],
+        #[cfg(feature = "execute")]
+        &["execute", "--list"],
+    ]
+}
+
+#[cfg(any(
+    feature = "html",
+    feature = "lint",
+    feature = "inspect",
+    feature = "execute"
+))]
+#[test]
+fn include_budget_override_applies_to_each_document_command() -> Result<(), Box<dyn Error>> {
+    let directory = tempfile::tempdir()?;
+    let entry = directory.path().join("entry.adoc");
+    fs::write(directory.path().join("part.adoc"), "abc")?;
+    fs::write(&entry, "include::part.adoc[]\ninclude::part.adoc[]\n")?;
+    let entry = entry.to_str().ok_or("non-UTF-8 temporary path")?;
+    for command in include_budget_commands() {
+        for bytes in ["7", "8"] {
+            let mut args = command.to_vec();
+            args.extend(["--max-total-include-bytes", bytes, entry]);
+            let output = run_acdc(&args, None)?;
+            let stderr = output_text(&output.stderr);
+            if bytes == "8" {
+                assert!(output.status.success(), "{args:?}: {stderr}");
+            } else {
+                assert_eq!(output.status.code(), Some(1), "{args:?}: {stderr}");
+                assert!(stderr.contains("limit of 7 bytes"), "{args:?}: {stderr}");
+            }
+        }
+    }
+    Ok(())
+}
+
+#[cfg(any(
+    feature = "html",
+    feature = "lint",
+    feature = "inspect",
+    feature = "execute"
+))]
+#[test]
+fn include_budget_rejects_invalid_cli_values() -> Result<(), Box<dyn Error>> {
+    for command in include_budget_commands() {
+        for value in ["invalid", "-1", "18446744073709551616"] {
+            let mut args = command.to_vec();
+            args.extend(["--max-total-include-bytes", value, "unused.adoc"]);
+            let output = run_acdc(&args, None)?;
+            assert_eq!(
+                output.status.code(),
+                Some(2),
+                "{args:?}: {}",
+                output_text(&output.stderr)
+            );
+        }
+    }
+    Ok(())
+}
+
+#[cfg(any(feature = "html", feature = "lint"))]
+#[test]
+fn include_budget_override_applies_to_stdin() -> Result<(), Box<dyn Error>> {
+    let directory = tempfile::tempdir()?;
+    fs::write(directory.path().join("part.adoc"), "abc")?;
+    let input = "include::part.adoc[]\ninclude::part.adoc[]\n";
+    let commands: &[&[&str]] = &[
+        #[cfg(feature = "html")]
+        &["convert", "--out-file", "-"],
+        #[cfg(feature = "lint")]
+        &["lint"],
+    ];
+    for command in commands {
+        for bytes in ["7", "8"] {
+            let mut args = command.to_vec();
+            args.extend(["--stdin", "--max-total-include-bytes", bytes]);
+            let output = run_acdc_in(directory.path(), &args, Some(input))?;
+            let stderr = output_text(&output.stderr);
+            if bytes == "8" {
+                assert!(output.status.success(), "{args:?}: {stderr}");
+            } else {
+                assert_eq!(output.status.code(), Some(1), "{args:?}: {stderr}");
+                assert!(stderr.contains("limit of 7 bytes"), "{args:?}: {stderr}");
+            }
+        }
+    }
+    Ok(())
+}
+
+#[cfg(feature = "html")]
+#[test]
+fn include_budget_resets_for_each_file_in_a_conversion_batch() -> Result<(), Box<dyn Error>> {
+    let directory = tempfile::tempdir()?;
+    fs::write(directory.path().join("part.adoc"), "abc")?;
+    for name in ["a", "b"] {
+        fs::write(
+            directory.path().join(format!("{name}.adoc")),
+            "include::part.adoc[]\n",
+        )?;
+    }
+    let output = run_acdc_in(
+        directory.path(),
+        &[
+            "convert",
+            "--max-total-include-bytes",
+            "4",
+            "a.adoc",
+            "b.adoc",
+        ],
+        None,
+    )?;
+    assert!(output.status.success(), "{}", output_text(&output.stderr));
+    for name in ["a", "b"] {
+        assert!(
+            fs::read_to_string(directory.path().join(format!("{name}.html")))?
+                .contains("<p>abc</p>")
+        );
+    }
+    Ok(())
+}
+
 #[cfg(not(any(
     feature = "html",
     feature = "manpage",

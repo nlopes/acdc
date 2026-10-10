@@ -100,9 +100,11 @@ folder. Remote includes are disabled, including when a document sets
 `:allow-uri-read:`. Untitled documents and other URI schemes do not load includes.
 The background symbol scan also leaves includes disabled.
 
-The parser limits selected include text to 10 MiB per include. A line selection
-from a larger file works if the selected text fits that limit. This is not a limit
-on the total expanded document.
+The parser limits selected include text to 10 MiB per include. Editor analysis
+uses its default 64 MiB budget per parse, after indentation. Repeated and nested
+includes count toward that budget. A line selection from a larger file works if
+the selected text fits both limits. See the parser's
+[include limits](../acdc-parser/README.md#include-source-size-limit) for details.
 
 Opening, changing, or closing an included buffer refreshes its open parent
 documents. Closing a buffer restores its disk contents, if the file exists.

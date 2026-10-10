@@ -9,8 +9,9 @@
 //! 2. Read and decode the source in chunks.
 //! 3. Keep the selected lines within the size limit.
 //! 4. Apply `indent` to these lines.
-//! 5. Process nested directives in the selected `AsciiDoc` text.
-//! 6. Add the source and `leveloffset` ranges to the parent include.
+//! 5. Count the selected text against the shared budget for this parse.
+//! 6. Process nested directives in the selected `AsciiDoc` text.
+//! 7. Add the source and `leveloffset` ranges to the parent include.
 //!
 //! The reader must read through the source to reach the requested lines or tags.
 //! A finite line selection stops at its highest requested line.
@@ -752,7 +753,7 @@ impl<'a> Include<'a> {
         Ok(resolved)
     }
 
-    /// Apply `indent`, then process nested directives in the selected text.
+    /// Apply `indent` and check the shared budget before processing nested directives.
     fn process_selected_content(
         &self,
         selected: reader::Selected,
@@ -792,6 +793,15 @@ impl<'a> Include<'a> {
         } else {
             (selected_lines.join("\n"), 0)
         };
+        if !self.context.consume_include_bytes(&selected_content) {
+            return Err(Error::IncludeExpansionTooLarge(
+                Box::new(SourceLocation::at_position(
+                    self.current_file.clone(),
+                    Position::from_line_col(self.line_number, 1),
+                )),
+                self.options.max_total_include_bytes(),
+            ));
+        }
         for origin in &mut line_origins {
             origin.column_shift = column_shift;
         }

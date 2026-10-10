@@ -2,7 +2,7 @@
 //! include directives.
 use std::{
     borrow::Cow,
-    cell::RefCell,
+    cell::{Cell, RefCell},
     collections::HashSet,
     ops::Range,
     path::{Component, Path, PathBuf},
@@ -23,6 +23,8 @@ mod attribute;
 mod comment;
 mod conditional;
 mod include;
+#[cfg(test)]
+mod include_budget_tests;
 mod tag;
 
 use comment::CommentScanner;
@@ -203,12 +205,14 @@ fn is_escaped_directive(line: &str) -> bool {
     })
 }
 
-/// Caller authority, recursion and block state shared by one include-processing chain.
+/// Caller permissions, include limits, and block state for one parse.
 #[derive(Debug, Clone)]
 pub(super) struct IncludeContext {
     allows_uri_read: bool,
     depth: usize,
     max_depth: usize,
+    // Clones share one counter across all sibling and nested includes.
+    remaining_include_bytes: Rc<Cell<usize>>,
     block_context: comment::BlockContext,
 }
 
@@ -224,6 +228,7 @@ impl IncludeContext {
             allows_uri_read: options.document_attributes.contains_key("allow-uri-read"),
             depth: 0,
             max_depth,
+            remaining_include_bytes: Rc::new(Cell::new(options.max_total_include_bytes())),
             block_context: comment::BlockContext::default(),
         }
     }
@@ -233,6 +238,20 @@ impl IncludeContext {
             depth: self.depth.saturating_add(1),
             ..self
         }
+    }
+
+    /// Count each selection before processing its nested directives. Repeated
+    /// includes count each time; a child's output is not counted again in its parents.
+    /// Nonempty selections reserve a newline for separation from adjacent text.
+    fn consume_include_bytes(&self, content: &str) -> bool {
+        let bytes = content
+            .len()
+            .saturating_add(usize::from(!content.is_empty()));
+        let Some(remaining) = self.remaining_include_bytes.get().checked_sub(bytes) else {
+            return false;
+        };
+        self.remaining_include_bytes.set(remaining);
+        true
     }
 
     /// The limit that stops this include from being expanded, if it is blocked:

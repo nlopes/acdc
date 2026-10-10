@@ -20,6 +20,12 @@ pub struct Args {
     #[arg(short = 'S', long, default_value = "unsafe")]
     pub safe_mode: acdc_parser::SafeMode,
 
+    /// Maximum selected include text per document, in bytes (64 MiB by default)
+    ///
+    /// Zero permits only empty selections. The 10 MiB per-include limit still applies.
+    #[arg(long, value_name = "BYTES", default_value_t = Options::default().max_total_include_bytes())]
+    pub max_total_include_bytes: usize,
+
     /// Input `AsciiDoc` file
     pub file: PathBuf,
 
@@ -466,7 +472,10 @@ impl<'a, W: Write> Visitor<'a> for TreeVisitor<W> {
 }
 
 pub fn run(args: &Args) -> Result<(), Box<dyn Error>> {
-    let options = Options::builder().with_safe_mode(args.safe_mode).build()?;
+    let options = Options::builder()
+        .with_safe_mode(args.safe_mode)
+        .with_max_total_include_bytes(args.max_total_include_bytes)
+        .build()?;
     let parsed = parse_file(&args.file, &options)?;
 
     let stdout = io::stdout();

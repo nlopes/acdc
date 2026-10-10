@@ -1105,6 +1105,7 @@ impl LintOverrideSelector {
 pub struct LintOptions {
     overrides: Vec<LintOverride>,
     safe_mode: acdc_parser::SafeMode,
+    max_total_include_bytes: Option<usize>,
 }
 
 impl LintOptions {
@@ -1125,6 +1126,23 @@ impl LintOptions {
     pub fn with_safe_mode(mut self, safe_mode: acdc_parser::SafeMode) -> Self {
         self.safe_mode = safe_mode;
         self
+    }
+
+    /// Set the selected include text limit per parse, in bytes. Defaults to 64 MiB.
+    ///
+    /// See [`acdc_parser::OptionsBuilder::with_max_total_include_bytes`] for what counts.
+    #[must_use]
+    pub fn with_max_total_include_bytes(mut self, bytes: usize) -> Self {
+        self.max_total_include_bytes = Some(bytes);
+        self
+    }
+
+    fn parser_options(&self) -> Result<acdc_parser::Options<'static>, acdc_parser::Error> {
+        let mut builder = acdc_parser::Options::builder().with_safe_mode(self.safe_mode);
+        if let Some(bytes) = self.max_total_include_bytes {
+            builder = builder.with_max_total_include_bytes(bytes);
+        }
+        builder.build()
     }
 
     /// Returns the configured command-line overrides.
@@ -1338,9 +1356,7 @@ pub trait Lintable {
 impl Lintable for Path {
     fn lint(&self, options: &LintOptions) -> Result<LintReport, Error> {
         let source = fs::read_to_string(self)?;
-        let parser_options = acdc_parser::Options::builder()
-            .with_safe_mode(options.safe_mode)
-            .build()?;
+        let parser_options = options.parser_options()?;
         let parsed = acdc_parser::parse_file(self, &parser_options)?;
         Ok(runner::lint_parsed(
             Some(self.to_path_buf()),
@@ -1354,9 +1370,7 @@ impl Lintable for Path {
 
 impl Lintable for str {
     fn lint(&self, options: &LintOptions) -> Result<LintReport, Error> {
-        let parser_options = acdc_parser::Options::builder()
-            .with_safe_mode(options.safe_mode)
-            .build()?;
+        let parser_options = options.parser_options()?;
         let parsed = acdc_parser::parse(self, &parser_options)?;
         Ok(runner::lint_parsed(None, None, self, &parsed, options))
     }
@@ -1365,6 +1379,40 @@ impl Lintable for str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn include_budget_applies_to_file_and_string_linting() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let directory = tempfile::tempdir()?;
+        let included = directory.path().join("part.adoc");
+        let entry = directory.path().join("main.adoc");
+        fs::write(&included, "abc")?;
+        let source = format!(
+            "include::{}[]\ninclude::{}[]",
+            included.display(),
+            included.display()
+        );
+        fs::write(&entry, &source)?;
+        for bytes in [7, 8] {
+            let options = LintOptions::default()
+                .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+                .with_max_total_include_bytes(bytes);
+            for result in [source.lint(&options), entry.as_path().lint(&options)] {
+                if bytes == 8 {
+                    result?;
+                } else {
+                    assert!(matches!(
+                        result,
+                        Err(Error::Parser(acdc_parser::Error::IncludeExpansionTooLarge(
+                            _,
+                            7
+                        )))
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
 
     #[test]
     fn includes_require_explicit_library_permission() -> Result<(), Box<dyn std::error::Error>> {

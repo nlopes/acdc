@@ -75,7 +75,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   as a fallback. Parent documents refresh when included buffers open, change, or
   close, and when the client reports file changes. Missing files are tracked too.
   Selected include text is limited to 10 MiB; smaller line selections from larger
-  files remain supported.
+  files remain supported. All includes in one parse also share a 64 MiB budget.
+  Exceeding it stops analysis with a diagnostic at the include directive.
   Analysis uses Server mode and rejects symlinks outside the entry document's
   folder. Remote includes remain disabled. Untitled documents and the background
   symbol scan do not load includes.

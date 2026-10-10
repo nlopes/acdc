@@ -11,6 +11,8 @@ use crate::{
     model::RawAttributes,
 };
 
+const DEFAULT_MAX_TOTAL_INCLUDE_BYTES: usize = 64 * 1024 * 1024;
+
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
 pub struct Options<'a> {
@@ -23,6 +25,7 @@ pub struct Options<'a> {
     /// Defaults to [`IncludeLoader::System`], subject to `safe_mode`. Set
     /// [`IncludeLoader::Disabled`] to preserve directives in modes below Secure.
     pub include_loader: IncludeLoader,
+    pub(crate) max_total_include_bytes: Option<usize>,
     /// Directory used to resolve relative includes from the entry input.
     ///
     /// Only consulted when include loading is enabled. String and reader input
@@ -95,6 +98,15 @@ impl<'a> Options<'a> {
         &self.document_attributes
     }
 
+    /// Maximum selected include text per parse, in bytes. Defaults to 64 MiB.
+    ///
+    /// See [`OptionsBuilder::with_max_total_include_bytes`] for what counts.
+    #[must_use]
+    pub fn max_total_include_bytes(&self) -> usize {
+        self.max_total_include_bytes
+            .unwrap_or(DEFAULT_MAX_TOTAL_INCLUDE_BYTES)
+    }
+
     /// Consume the options and return their validated attribute collection.
     #[must_use]
     pub fn into_document_attributes(self) -> DocumentAttributes<'a> {
@@ -121,6 +133,7 @@ impl<'a> Options<'a> {
             safe_mode: self.safe_mode,
             timings: self.timings,
             include_loader: self.include_loader,
+            max_total_include_bytes: self.max_total_include_bytes,
             base_dir: self.base_dir,
             strict: self.strict,
             #[cfg(feature = "setext")]
@@ -141,6 +154,7 @@ impl<'a> Options<'a> {
             timings: self.timings,
             document_attributes: self.document_attributes.into_static(),
             include_loader: self.include_loader,
+            max_total_include_bytes: self.max_total_include_bytes,
             base_dir: self.base_dir,
             strict: self.strict,
             #[cfg(feature = "setext")]
@@ -174,6 +188,7 @@ pub struct OptionsBuilder<'a> {
     attributes: RawAttributes<'a>,
     defaults: RawAttributes<'a>,
     include_loader: IncludeLoader,
+    max_total_include_bytes: Option<usize>,
     base_dir: Option<PathBuf>,
     strict: bool,
     #[cfg(feature = "setext")]
@@ -238,6 +253,33 @@ impl<'a> OptionsBuilder<'a> {
     #[must_use]
     pub fn with_include_loader(mut self, include_loader: IncludeLoader) -> Self {
         self.include_loader = include_loader;
+        self
+    }
+
+    /// Set the total selected include text allowed per parse, in bytes.
+    ///
+    /// Defaults to 64 MiB. Each selection counts after `indent=`, plus one byte
+    /// for a separating newline if the text is not empty. This count precedes
+    /// nested processing and removal of comments and inactive conditionals.
+    /// Nested and repeated includes share the limit. The entry text does not count.
+    ///
+    /// Zero permits only empty selections. Document attributes cannot change this
+    /// limit. The 10 MiB per-include limit and safe-mode permissions still apply.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use acdc_parser::{Options, SafeMode};
+    ///
+    /// let options = Options::builder()
+    ///     .with_safe_mode(SafeMode::Safe)
+    ///     .with_max_total_include_bytes(256 * 1024 * 1024)
+    ///     .build()?;
+    /// # Ok::<(), acdc_parser::Error>(())
+    /// ```
+    #[must_use]
+    pub fn with_max_total_include_bytes(mut self, bytes: usize) -> Self {
+        self.max_total_include_bytes = Some(bytes);
         self
     }
 
@@ -401,6 +443,7 @@ impl<'a> OptionsBuilder<'a> {
             timings: self.timings,
             document_attributes,
             include_loader: self.include_loader,
+            max_total_include_bytes: self.max_total_include_bytes,
             base_dir: self.base_dir,
             strict: self.strict,
             #[cfg(feature = "setext")]

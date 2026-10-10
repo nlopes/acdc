@@ -69,6 +69,11 @@ pub enum Error {
     #[error("Selected include text exceeds the 10 MiB limit: {0}")]
     IncludeSourceTooLarge(String),
 
+    /// Selected text from repeated or nested includes exceeded the per-parse budget.
+    /// Carries the directive's location and the configured limit in bytes.
+    #[error("Total selected include text exceeds the limit of {1} bytes, position: {0}")]
+    IncludeExpansionTooLarge(Box<SourceLocation>, usize),
+
     #[error("Include tag metadata exceeds the 10 MiB limit: {0}")]
     IncludeSelectionTooComplex(String),
 
@@ -127,6 +132,7 @@ impl Error {
             | Self::InvalidIncludeDirective(detail, ..)
             | Self::InvalidIndent(detail, ..)
             | Self::IncludeIndentTooLarge(detail, ..)
+            | Self::IncludeExpansionTooLarge(detail, ..)
             | Self::InvalidLevelOffset(detail, ..)
             | Self::InvalidIfEvalDirectiveMismatchedTypes(detail)
             | Self::NonConformingManpageTitle(detail, ..) => Some(detail),
@@ -217,6 +223,9 @@ impl Error {
             ),
             Self::IncludeSelectionTooComplex(..) => Some(
                 "Use shorter tag names or fewer nested tags. Correct invalid tag markers in the include source.",
+            ),
+            Self::IncludeExpansionTooLarge(..) => Some(
+                "Select less include text with lines=, tag=, or tags=. For trusted input, the caller can raise max_total_include_bytes (CLI: --max-total-include-bytes).",
             ),
             Self::ParseGrammar(_)
             | Self::Io(_)

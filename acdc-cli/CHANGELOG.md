@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `--max-total-include-bytes BYTES` sets the total selected include text allowed
+  per input document on `convert`, `lint`, `inspect`, and `execute`. The default
+  is 64 MiB. Raise it for large, trusted builds. Safe modes and the 10 MiB
+  per-include limit still apply. Document attributes cannot change this budget.
+  This resource limit deliberately differs from Asciidoctor.
+
 ### Changed
 
 - `execute --list` now prints one bullet per command with labeled ids,

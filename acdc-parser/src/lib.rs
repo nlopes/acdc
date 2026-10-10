@@ -99,6 +99,18 @@
 //! If the selected text exceeds the limit, parsing fails with [`Error::IncludeSourceTooLarge`].
 //! Excess tag metadata causes [`Error::IncludeSelectionTooComplex`].
 //!
+//! All includes in one parse share a budget, with a default of 64 MiB.
+//! Each include counts its selected UTF-8 text after `indent=`, plus one byte
+//! for a separating newline if the text is not empty. This count precedes
+//! nested processing and removal of comments and inactive conditionals.
+//! Repeated includes count each time.
+//! Nested includes share the budget; their expanded output is not counted again
+//! in the parent. Exceeding the budget causes [`Error::IncludeExpansionTooLarge`]
+//! at the include directive. Set [`OptionsBuilder::with_max_total_include_bytes`]
+//! to change the budget in bytes. Zero permits only empty selections.
+//! Document attributes cannot change it.
+//! Safe-mode permissions and the per-include limit still apply.
+//!
 //! A finite `lines=` selection stops at its highest requested line.
 //! Errors after that line do not affect the result.
 //! The parser removes trailing whitespace from each line independently.
@@ -108,8 +120,8 @@
 //! This includes bytes read ahead of the selection.
 //! When a finite line selection is complete, the loader closes the response without reading the rest.
 //!
-//! These fixed limits differ from `asciidoctor`.
-//! They do not limit scan time or the total text from nested or repeated includes.
+//! These resource limits differ from `asciidoctor`.
+//! They do not limit scan time.
 //! They do not apply to the entry document.
 //!
 //! # Include indentation
