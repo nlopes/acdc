@@ -258,6 +258,12 @@ jobs:
         run: cargo check -p acdc-parser --target wasm32-unknown-unknown --all-features --locked
       - name: Check WASM parser without default features
         run: cargo check -p acdc-parser --target wasm32-unknown-unknown --no-default-features --locked
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - name: Build editor for browser tests
+        run: wasm-pack build acdc-editor-wasm --target web --dev -- --all-features --locked
+      - name: Test browser preview sanitization
+        run: node acdc-editor-wasm/tests/run-browser-tests.mjs
 
   proptests:
     needs: changes

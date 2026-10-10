@@ -3,12 +3,13 @@
 //! Moves all event handling, debouncing, scroll sync, clipboard, and Tab key
 //! logic from JavaScript into Rust/WASM via `web-sys`.
 
-use std::cell::Cell;
-use std::fmt::Write as _;
-use std::rc::Rc;
+use std::{
+    cell::{Cell, RefCell},
+    fmt::Write as _,
+    rc::Rc,
+};
 
-use wasm_bindgen::closure::Closure;
-use wasm_bindgen::prelude::*;
+use wasm_bindgen::{closure::Closure, prelude::*};
 use web_sys::{
     Document, Element, Event, HtmlElement, HtmlTextAreaElement, KeyboardEvent, MouseEvent, Window,
 };
@@ -17,9 +18,7 @@ use crate::EditorWarning;
 
 #[wasm_bindgen]
 extern "C" {
-    /// Re-typeset math in the preview pane via MathJax.
-    ///
-    /// Defined in `index.html`; silently no-ops if MathJax has not loaded yet.
+    /// Host hook to typeset math in the preview pane.
     #[wasm_bindgen(js_name = typesetMathPreview)]
     fn typeset_math_preview();
 }
@@ -32,13 +31,15 @@ const PANE_RATIO_KEY: &str = "acdc-pane-ratio";
 const DEFAULT_PANE_RATIO: f64 = 50.0;
 const MIN_PANE_WIDTH: f64 = 300.0;
 
-/// Cached references to the DOM elements the editor interacts with.
+/// Editor controls and state shared by event handlers.
 struct EditorState {
     window: Window,
     editor: HtmlTextAreaElement,
     highlight: Element,
     backdrop: Element,
     preview: Element,
+    sanitizer: Option<js_sys::Function>,
+    preview_html: RefCell<String>,
     parse_status: HtmlElement,
     line_numbers_pre: Element,
     line_numbers_container: Element,
@@ -96,6 +97,17 @@ impl EditorState {
             .ok_or("missing .main-container")?
             .dyn_into()?;
         let body: HtmlElement = doc.body().ok_or("missing body")?;
+        // Capture once so later edits cannot disable an enabled sanitizer.
+        let sanitizer = js_sys::Reflect::get(window.as_ref(), &"sanitizePreviewHtml".into())?;
+        let sanitizer = if sanitizer.is_undefined() {
+            None
+        } else {
+            Some(
+                sanitizer
+                    .dyn_into()
+                    .map_err(|_| "sanitizePreviewHtml must be a function")?,
+            )
+        };
 
         Ok(Self {
             window,
@@ -103,6 +115,8 @@ impl EditorState {
             highlight,
             backdrop,
             preview,
+            sanitizer,
+            preview_html: RefCell::new(String::new()),
             parse_status,
             line_numbers_pre,
             line_numbers_container,
@@ -262,31 +276,56 @@ const fn digit_count(n: usize) -> u32 {
     d
 }
 
+fn sanitize_preview(state: &EditorState, html: &str) -> Result<(String, bool), JsValue> {
+    let Some(sanitizer) = &state.sanitizer else {
+        return Ok((html.to_owned(), false));
+    };
+    let result: js_sys::Array = sanitizer
+        .call1(state.window.as_ref(), &html.into())?
+        .dyn_into()?;
+    let html = result.get(0).as_string().ok_or("missing sanitized HTML")?;
+    let removed = result.get(1).as_bool().ok_or("missing sanitizer status")?;
+    Ok((html, removed))
+}
+
 // ---------------------------------------------------------------------------
 // Unified parse + highlight + preview
 // ---------------------------------------------------------------------------
 
 /// Parse the editor content once and update both the highlight overlay and the
-/// preview pane. On parse error, keeps the last-good highlight and shows an
-/// error in the parse status badge.
+/// preview pane. On error, shows escaped source and keeps the last preview.
 fn parse_and_update_both(state: &EditorState) {
     let input = state.editor.value();
 
-    match crate::parse_and_render(&input) {
-        Ok(result) => {
+    let rendered = crate::parse_and_render(&input).and_then(|result| {
+        let preview = sanitize_preview(state, &result.preview_html)
+            .map_err(|_| "Cannot sanitize the browser preview.".to_string())?;
+        Ok((result, preview))
+    });
+    match rendered {
+        Ok((mut result, (preview, removed))) => {
             // Trailing newline keeps the pre height in sync with the textarea
             // when the last line is empty.
             state
                 .highlight
                 .set_inner_html(&(result.highlight_html + "\n"));
-            state.preview.set_inner_html(&result.preview_html);
-            if result.has_stem {
-                typeset_math_preview();
+            state.preview.set_inner_html(&preview);
+            *state.preview_html.borrow_mut() = result.preview_html;
+            if removed {
+                result.warnings.push(EditorWarning {
+                    message: "Some HTML was removed from the preview.".into(),
+                    advice: Some("Use standalone HTML output for trusted active content.".into()),
+                    line: None,
+                    column: None,
+                });
             }
             if result.warnings.is_empty() {
                 set_parse_status(state, &ParseStatus::Ok);
             } else {
                 set_parse_status(state, &ParseStatus::Warnings(&result.warnings));
+            }
+            if result.has_stem {
+                typeset_math_preview();
             }
             if let Some(pane) = state.preview.parent_element() {
                 let _ = pane.class_list().remove_1("preview-stale");
@@ -488,7 +527,7 @@ fn attach_copy_listener(state: &Rc<EditorState>, doc: &Document) -> Result<(), J
     let copy_el = copy_btn.clone();
 
     let copy_cb: Closure<dyn Fn(Event)> = Closure::new(move |_: Event| {
-        let html = s.preview.inner_html();
+        let html = s.preview_html.borrow().clone();
         let nav = s.window.navigator();
         let clipboard = nav.clipboard();
         let btn_ref = copy_el.clone();

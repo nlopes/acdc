@@ -11,7 +11,8 @@ use acdc_parser::AttributeValue;
 pub struct ParseResult {
     /// Source text with `<span class="adoc-*">` highlighting.
     pub highlight_html: String,
-    /// Rendered HTML preview.
+    /// Rendered HTML. This can contain active content and is not sanitized.
+    /// Browser hosts must apply their own display policy.
     pub preview_html: String,
     /// Whether STEM is enabled in the document, including body and nested content.
     pub has_stem: bool,

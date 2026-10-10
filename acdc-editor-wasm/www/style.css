@@ -460,8 +460,8 @@ body.resizing .preview-pane {
 
 /* Lead paragraph */
 #preview .paragraph.lead > p,
-#preview section#preamble > .paragraph:first-of-type p,
-#preview section#preamble > section.paragraph:first-of-type p {
+#preview section:is(#preamble, #user-content-preamble) > .paragraph:first-of-type p,
+#preview section:is(#preamble, #user-content-preamble) > section.paragraph:first-of-type p {
     font-size: 1.21875em;
     line-height: 1.6;
     color: rgba(0, 0, 0, .85);
@@ -1169,20 +1169,20 @@ body.resizing .preview-pane {
 
 #preview sup.footnote a, #preview sup.footnoteref a { text-decoration: none; }
 
-#preview #footnotes {
+#preview :is(#footnotes, #user-content-footnotes) {
     padding-top: .75em;
     padding-bottom: .75em;
     margin-bottom: .625em;
 }
 
-#preview #footnotes hr {
+#preview :is(#footnotes, #user-content-footnotes) hr {
     width: 20%;
     min-width: 6.25em;
     margin: -.25em 0 .75em;
     border-width: 1px 0 0;
 }
 
-#preview #footnotes .footnote {
+#preview :is(#footnotes, #user-content-footnotes) .footnote {
     padding: 0 .375em 0 .225em;
     line-height: 1.3334;
     font-size: .875em;
@@ -1190,7 +1190,7 @@ body.resizing .preview-pane {
     margin-bottom: .2em;
 }
 
-#preview #footnotes .footnote a:first-of-type {
+#preview :is(#footnotes, #user-content-footnotes) .footnote a:first-of-type {
     font-weight: bold;
     text-decoration: none;
     margin-left: -1.05em;
@@ -1279,21 +1279,21 @@ body.resizing .preview-pane {
 
 /* --- Table of Contents (semantic: ol.toc-list) --- */
 
-#preview #toc { border-bottom: 1px solid #e7e7e9; padding-bottom: .5em; }
-#preview #toc > ul { margin-left: .125em; }
-#preview #toc ul { font-family: "Open Sans", "DejaVu Sans", sans-serif; list-style-type: none; }
-#preview #toc ol.toc-list { font-family: "Open Sans", "DejaVu Sans", sans-serif; list-style-type: none; margin-left: .125em; padding-left: 0; }
-#preview #toc ol.toc-list li { line-height: 1.3334; margin-top: .3334em; }
-#preview #toc ol.toc-list ol.toc-list { margin-left: 0; padding-left: 1em; }
-#preview #toc li { line-height: 1.3334; margin-top: .3334em; }
-#preview #toc a { text-decoration: none; }
-#preview #toc a:active { text-decoration: underline; }
-#preview #toctitle { color: #7a2518; font-size: 1.2em; }
+#preview :is(#toc, #user-content-toc) { border-bottom: 1px solid #e7e7e9; padding-bottom: .5em; }
+#preview :is(#toc, #user-content-toc) > ul { margin-left: .125em; }
+#preview :is(#toc, #user-content-toc) ul { font-family: "Open Sans", "DejaVu Sans", sans-serif; list-style-type: none; }
+#preview :is(#toc, #user-content-toc) ol.toc-list { font-family: "Open Sans", "DejaVu Sans", sans-serif; list-style-type: none; margin-left: .125em; padding-left: 0; }
+#preview :is(#toc, #user-content-toc) ol.toc-list li { line-height: 1.3334; margin-top: .3334em; }
+#preview :is(#toc, #user-content-toc) ol.toc-list ol.toc-list { margin-left: 0; padding-left: 1em; }
+#preview :is(#toc, #user-content-toc) li { line-height: 1.3334; margin-top: .3334em; }
+#preview :is(#toc, #user-content-toc) a { text-decoration: none; }
+#preview :is(#toc, #user-content-toc) a:active { text-decoration: underline; }
+#preview :is(#toctitle, #user-content-toctitle) { color: #7a2518; font-size: 1.2em; }
 
-/* Macro-placed TOC (inside #content) */
-#preview #content #toc { border: 1px solid #e0e0dc; margin-bottom: 1.25em; padding: 1.25em; background: #f8f8f7; border-radius: 4px; }
-#preview #content #toc > :first-child { margin-top: 0; }
-#preview #content #toc > :last-child { margin-bottom: 0; }
+/* TOC from the macro */
+#preview :is(#content, #user-content-content) :is(#toc, #user-content-toc) { border: 1px solid #e0e0dc; margin-bottom: 1.25em; padding: 1.25em; background: #f8f8f7; border-radius: 4px; }
+#preview :is(#content, #user-content-content) :is(#toc, #user-content-toc) > :first-child { margin-top: 0; }
+#preview :is(#content, #user-content-content) :is(#toc, #user-content-toc) > :last-child { margin-bottom: 0; }
 
 /* --- Utility classes --- */
 
@@ -1447,7 +1447,7 @@ body.resizing .preview-pane {
     #preview aside.sidebar > h6.block-title,
     #preview section.quote-block blockquote::before,
     #preview .quoteblock blockquote::before,
-    #preview #toctitle,
+    #preview :is(#toctitle, #user-content-toctitle),
     #preview .audioblock > .title,
     #preview .listingblock > .title,
     #preview .literalblock > .title,
@@ -1464,8 +1464,8 @@ body.resizing .preview-pane {
 
     /* Text that must override light-mode rgba(0,0,0,.85) at higher specificity */
     #preview .paragraph.lead > p,
-    #preview section#preamble > .paragraph:first-of-type p,
-    #preview section#preamble > section.paragraph:first-of-type p,
+    #preview section:is(#preamble, #user-content-preamble) > .paragraph:first-of-type p,
+    #preview section:is(#preamble, #user-content-preamble) > section.paragraph:first-of-type p,
     #preview section.quote-block blockquote,
     #preview section.quote-block p,
     #preview .quoteblock blockquote,
@@ -1536,11 +1536,11 @@ body.resizing .preview-pane {
     #preview .conum[data-value] { background: rgba(255, 255, 255, .8); color: #1a1a1a !important; }
 
     /* TOC + section dividers + footnotes */
-    #preview #toc { border-bottom-color: #3a3a3a; }
-    #preview #content #toc { border-color: #3a3a3a; background: #252525; }
+    #preview :is(#toc, #user-content-toc) { border-bottom-color: #3a3a3a; }
+    #preview :is(#content, #user-content-content) :is(#toc, #user-content-toc) { border-color: #3a3a3a; background: #252525; }
     #preview section.doc-section + section.doc-section { border-top-color: #3a3a3a; }
     #preview section.footnotes hr,
-    #preview #footnotes hr { border-color: #3a3a3a; }
+    #preview :is(#footnotes, #user-content-footnotes) hr { border-color: #3a3a3a; }
 
     /* Text color roles (brightened for dark bg) */
     #preview .aqua { color: #00e5e5; }

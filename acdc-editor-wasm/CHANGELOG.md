@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The bundled demo sanitizes preview HTML and reports removed content in the
+  warning badge. Scripts and global CSS cannot affect the editor. Images,
+  highlighting, internal links, and YouTube and Vimeo embeds still work.
+- Copy HTML returns the original converter output. Other hosts can enable
+  preview sanitization with the optional callback described in the README.
+
 ## [0.6.0] - 2026-10-10
 
 ### Fixed
