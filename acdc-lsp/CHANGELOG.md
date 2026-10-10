@@ -39,6 +39,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Anchor and file renames preserve brackets, macro prefixes, and link labels.
+  Rename leaves generated and attribute-derived anchor IDs unchanged.
+- Cursor positions account for UTF-16 characters and CRLF line endings.
 - File renames no longer change unrelated text in closed workspace files.
   References in an included file produce edits only in that file.
 - Navigation and section symbols use the unique IDs assigned to repeated section

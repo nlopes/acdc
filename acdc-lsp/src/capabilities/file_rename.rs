@@ -8,7 +8,7 @@ use std::{
 use tower_lsp_server::ls_types::{FileRename, TextEdit, Uri, WorkspaceEdit};
 
 use crate::{
-    convert::{location_to_range, resolve_relative_uri},
+    convert::{location_to_range, resolve_relative_uri, source_uri},
     state::{Workspace, XrefTarget},
 };
 
@@ -44,13 +44,30 @@ pub(crate) fn compute_file_rename_edits(
         };
 
         // Update xref targets
-        for (target, location) in &doc_state.xrefs {
-            let parsed = XrefTarget::parse(target);
+        for (_, location) in &doc_state.xrefs {
+            let Some(source_uri) = source_uri(doc_uri, location) else {
+                continue;
+            };
+            let Some(source_path) = source_uri.to_file_path() else {
+                continue;
+            };
+            let Some(source_dir) = source_path.parent() else {
+                continue;
+            };
+            let Some((target, range)) = workspace
+                .with_document_text(&source_uri, |text| {
+                    super::rename_target::xref_target(text, &location.location)
+                })
+                .flatten()
+            else {
+                continue;
+            };
+            let parsed = XrefTarget::parse(&target);
             let Some(file_part) = &parsed.file else {
                 continue;
             };
 
-            let Some(resolved) = crate::convert::resolve_relative_uri(doc_uri, file_part) else {
+            let Some(resolved) = resolve_relative_uri(&source_uri, file_part) else {
                 continue;
             };
 
@@ -62,14 +79,14 @@ pub(crate) fn compute_file_rename_edits(
                 continue;
             };
 
-            let new_relative = compute_relative_path(doc_dir, &new_path);
+            let new_relative = compute_relative_path(source_dir, &new_path);
             let new_target = match &parsed.anchor {
                 Some(anchor) => format!("{new_relative}#{anchor}"),
                 None => new_relative,
             };
 
-            changes.entry(doc_uri.clone()).or_default().push(TextEdit {
-                range: location_to_range(location),
+            changes.entry(source_uri).or_default().push(TextEdit {
+                range,
                 new_text: new_target,
             });
         }
@@ -99,6 +116,11 @@ pub(crate) fn compute_file_rename_edits(
 
     // Also scan non-open workspace files
     scan_workspace_files_for_renames(workspace, &rename_map, &mut changes);
+
+    for edits in changes.values_mut() {
+        edits.sort_by_key(|edit| (edit.range.start, edit.range.end));
+        edits.dedup();
+    }
 
     if changes.is_empty() {
         return None;
@@ -164,8 +186,11 @@ fn scan_workspace_files_for_renames(
         };
 
         let xrefs = super::definition::collect_xrefs(parsed.document());
-        for (target, location) in &xrefs {
-            let parsed = XrefTarget::parse(target);
+        for (_, location) in &xrefs {
+            let Some((target, range)) = super::rename_target::xref_target(&text, location) else {
+                continue;
+            };
+            let parsed = XrefTarget::parse(&target);
             let Some(file_part) = &parsed.file else {
                 continue;
             };
@@ -184,7 +209,7 @@ fn scan_workspace_files_for_renames(
                 None => new_relative,
             };
             changes.entry(file_uri.clone()).or_default().push(TextEdit {
-                range: location_to_range(location),
+                range,
                 new_text: new_target,
             });
         }

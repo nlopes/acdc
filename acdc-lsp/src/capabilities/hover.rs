@@ -142,7 +142,7 @@ fn build_xref_hover_content(
     } else if let Some(anchor_id) = &parsed.anchor {
         // Local xref
         if let Some(anchor_loc) = doc.anchors.get(anchor_id) {
-            if let Some(title) = find_section_title_at_location(ast, anchor_loc) {
+            if let Some(title) = find_section_title_at_location(ast, &anchor_loc.location) {
                 format!("**Cross-reference**\n\nTarget: `{anchor_id}`\n\nSection: {title}")
             } else {
                 format!("**Cross-reference**\n\nTarget: `{anchor_id}`")
@@ -319,8 +319,8 @@ pub(crate) fn find_anchor_at_offset(
 ) -> Option<(String, Location)> {
     // Check if the offset is within any anchor location
     for (id, loc) in &doc_state.anchors {
-        if offset_in_location(offset, loc) {
-            return Some((id.clone(), loc.clone()));
+        if offset_in_location(offset, &loc.location) {
+            return Some((id.clone(), loc.location.clone()));
         }
     }
 

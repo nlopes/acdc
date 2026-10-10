@@ -569,8 +569,8 @@ fn resolve_xref_target(
         if let Some(target_uri) = crate::convert::resolve_relative_uri(doc_uri, file_path) {
             tracing::info!(target_uri = target_uri.as_str(), "resolved xref file URI");
             if let Some(anchor_id) = &parsed.anchor {
-                if let Some(loc) = workspace.find_anchor_in_document(&target_uri, anchor_id) {
-                    return Some((target_uri, loc));
+                if let Some(target) = workspace.find_anchor_in_document(&target_uri, anchor_id) {
+                    return Some(target);
                 }
                 tracing::info!(
                     anchor_id,
@@ -607,7 +607,10 @@ fn resolve_xref_target(
     // Local target
     if let Some(anchor_id) = &parsed.anchor {
         if let Some(loc) = doc_state.anchors.get(anchor_id) {
-            return Some((doc_uri.clone(), loc.clone()));
+            return Some((
+                crate::convert::source_uri(doc_uri, loc)?,
+                loc.location.clone(),
+            ));
         }
         let global = workspace.find_anchor_globally(anchor_id);
         if let Some((uri, loc)) = global.into_iter().next() {

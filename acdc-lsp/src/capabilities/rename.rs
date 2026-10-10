@@ -4,8 +4,12 @@ use std::collections::HashMap;
 
 use tower_lsp_server::ls_types::{Position, PrepareRenameResponse, TextEdit, Uri, WorkspaceEdit};
 
-use crate::convert::{location_to_range, position_to_offset};
-use crate::state::{DocumentState, Workspace, XrefTarget};
+use crate::{
+    convert::{position_to_offset, source_uri},
+    state::{DocumentState, Workspace, XrefTarget},
+};
+
+use super::rename_target::{anchor_range, xref_anchor_range};
 
 /// Prepare for rename operation - validate the position is on an anchor or xref.
 ///
@@ -20,17 +24,22 @@ pub(crate) fn prepare_rename(
     let ast = ast_guard.document();
 
     // Check if cursor is on an xref
-    if let Some((target_id, xref_loc)) = super::hover::find_xref_at_offset(ast, offset) {
+    if let Some((target, xref_loc)) = super::hover::find_xref_at_offset(ast, offset)
+        && let Some(target_id) = XrefTarget::parse(&target).anchor
+        && let Some(range) = xref_anchor_range(doc.text(), &xref_loc, &target_id)
+    {
         return Some(PrepareRenameResponse::RangeWithPlaceholder {
-            range: location_to_range(&xref_loc),
+            range,
             placeholder: target_id,
         });
     }
 
     // Check if cursor is on an anchor
-    if let Some((anchor_id, anchor_loc)) = super::hover::find_anchor_at_offset(ast, offset, doc) {
+    if let Some((anchor_id, anchor_loc)) = super::hover::find_anchor_at_offset(ast, offset, doc)
+        && let Some(range) = anchor_range(doc.text(), &anchor_loc, &anchor_id)
+    {
         return Some(PrepareRenameResponse::RangeWithPlaceholder {
-            range: location_to_range(&anchor_loc),
+            range,
             placeholder: anchor_id,
         });
     }
@@ -40,8 +49,8 @@ pub(crate) fn prepare_rename(
 
 /// Compute the workspace edit for renaming an anchor/xref.
 ///
-/// Returns edits for the anchor definition and all xrefs pointing to it,
-/// across all open documents.
+/// Edit literal anchor IDs and references in their original files.
+/// Return `None` when no declaration has an editable ID.
 #[must_use]
 pub(crate) fn compute_rename(
     doc: &DocumentState,
@@ -62,63 +71,60 @@ pub(crate) fn compute_rename(
     } else {
         super::hover::find_anchor_at_offset(ast, offset, doc).map(|(id, _)| id)?
     };
+    drop(ast_guard);
 
     let mut changes: HashMap<Uri, Vec<TextEdit>> = HashMap::new();
 
     // Add edits for anchor declarations across all documents
     for (anchor_uri, anchor_loc) in workspace.find_anchor_globally(&target_id) {
+        let range = if anchor_uri == *uri {
+            anchor_range(doc.text(), &anchor_loc, &target_id)
+        } else {
+            workspace
+                .with_document_text(&anchor_uri, |text| {
+                    anchor_range(text, &anchor_loc, &target_id)
+                })
+                .flatten()
+        };
+        let Some(range) = range else { continue };
         changes.entry(anchor_uri).or_default().push(TextEdit {
-            range: location_to_range(&anchor_loc),
+            range,
             new_text: new_name.to_string(),
         });
     }
 
-    // Add edits for all xrefs pointing to this target across all documents
+    // Generated IDs and substituted anchor names have no literal name to edit.
+    // Changing only their references would leave broken links.
+    if changes.is_empty() {
+        return None;
+    }
+
     workspace.for_each_document(|doc_uri, doc_state| {
-        for (xref_target, xref_loc) in &doc_state.xrefs {
-            let parsed = XrefTarget::parse(xref_target);
-            let anchor = parsed.anchor.as_deref().unwrap_or(xref_target.as_str());
-            if anchor == target_id {
-                changes.entry(doc_uri.clone()).or_default().push(TextEdit {
-                    range: location_to_range(xref_loc),
-                    new_text: if parsed.is_cross_file() {
-                        // Preserve the file path, only rename the anchor part
-                        if let Some(file) = &parsed.file {
-                            format!("{file}#{new_name}")
-                        } else {
-                            new_name.to_string()
-                        }
-                    } else {
-                        new_name.to_string()
-                    },
+        for (target, xref_loc) in &doc_state.xrefs {
+            let parsed = XrefTarget::parse(target);
+            let anchor = parsed.anchor.as_deref().unwrap_or(target.as_str());
+            if anchor == target_id
+                && let Some(source_uri) = source_uri(doc_uri, xref_loc)
+            {
+                let Some(range) = workspace
+                    .with_document_text(&source_uri, |text| {
+                        xref_anchor_range(text, &xref_loc.location, &target_id)
+                    })
+                    .flatten()
+                else {
+                    continue;
+                };
+                changes.entry(source_uri).or_default().push(TextEdit {
+                    range,
+                    new_text: new_name.to_string(),
                 });
             }
         }
     });
 
-    // If no edits were found via workspace, fall back to current document only
-    if changes.is_empty() {
-        let mut edits = Vec::new();
-
-        if let Some(anchor_loc) = doc.anchors.get(&target_id) {
-            edits.push(TextEdit {
-                range: location_to_range(anchor_loc),
-                new_text: new_name.to_string(),
-            });
-        }
-
-        for (xref_target, xref_loc) in &doc.xrefs {
-            if xref_target == &target_id {
-                edits.push(TextEdit {
-                    range: location_to_range(xref_loc),
-                    new_text: new_name.to_string(),
-                });
-            }
-        }
-
-        if !edits.is_empty() {
-            changes.insert(uri.clone(), edits);
-        }
+    for edits in changes.values_mut() {
+        edits.sort_by_key(|edit| (edit.range.start, edit.range.end));
+        edits.dedup();
     }
 
     Some(WorkspaceEdit {

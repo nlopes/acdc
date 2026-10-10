@@ -1,6 +1,6 @@
 //! Type conversions between acdc-parser and LSP types
 
-use acdc_parser::Location;
+use acdc_parser::{Location, SourceLocation};
 use tower_lsp_server::ls_types::{Position, Range, Uri};
 
 /// Convert usize to u32 for LSP types, saturating at `u32::MAX`.
@@ -22,26 +22,69 @@ pub(crate) fn position_to_offset(source: &str, position: Position) -> Option<usi
     let target_char = position.character as usize;
 
     let mut current_offset = 0;
-    for (line_idx, line) in source.lines().enumerate() {
+    for (line_idx, line_with_ending) in source.split_inclusive('\n').enumerate() {
         if line_idx == target_line {
-            // Count characters (not bytes) up to column
-            let char_offset: usize = line.chars().take(target_char).map(char::len_utf8).sum();
-            return Some(current_offset + char_offset);
+            let line = line_with_ending
+                .strip_suffix("\r\n")
+                .or_else(|| line_with_ending.strip_suffix('\n'))
+                .unwrap_or(line_with_ending);
+            let mut units = 0;
+            for (byte_offset, character) in line.char_indices() {
+                if units == target_char {
+                    return Some(current_offset + byte_offset);
+                }
+                units += character.len_utf16();
+                if units > target_char {
+                    return None;
+                }
+            }
+            return (units == target_char).then_some(current_offset + line.len());
         }
-        current_offset += line.len() + 1; // +1 for newline
+        current_offset += line_with_ending.len();
     }
 
-    // Position is beyond end of document
-    None
+    (position.character == 0 && target_line == source.bytes().filter(|&byte| byte == b'\n').count())
+        .then_some(source.len())
 }
 
-/// Check if a byte offset falls within a `Location`.
+/// Check a cursor offset in the primary input against an AST location.
 ///
 /// The parser's `absolute_end` is inclusive (points to the last byte of the
 /// span), so we use `<=` for the upper bound.
 #[must_use]
 pub(crate) fn offset_in_location(offset: usize, location: &Location) -> bool {
-    offset >= location.absolute_start && offset <= location.absolute_end
+    location
+        .start
+        .file
+        .as_ref()
+        .is_none_or(|chain| chain.is_empty())
+        && location
+            .end
+            .file
+            .as_ref()
+            .is_none_or(|chain| chain.is_empty())
+        && offset >= location.absolute_start
+        && offset <= location.absolute_end
+}
+
+/// Resolve a single-file span to a URI. Unknown include sources have no fallback.
+pub(crate) fn source_uri(document_uri: &Uri, source: &SourceLocation) -> Option<Uri> {
+    if source.location.start.file != source.location.end.file {
+        return None;
+    }
+    match &source.file {
+        Some(path) => Uri::from_file_path(path),
+        None if source
+            .location
+            .start
+            .file
+            .as_ref()
+            .is_none_or(|chain| chain.is_empty()) =>
+        {
+            Some(document_uri.clone())
+        }
+        None => None,
+    }
 }
 
 /// Convert acdc-parser Location to LSP Range
@@ -124,6 +167,33 @@ mod tests {
 
         let offset = position_to_offset(source, pos);
         assert_eq!(offset, Some(7)); // "héllo\n" = 7 bytes (é is 2 bytes)
+    }
+
+    #[test]
+    fn position_to_offset_uses_utf16_and_preserves_crlf() {
+        let text = "😀 first\r\nnext\r\n";
+        assert_eq!(position_to_offset(text, Position::new(0, 1)), None);
+        assert_eq!(position_to_offset(text, Position::new(0, 2)), Some(4));
+        assert_eq!(position_to_offset(text, Position::new(0, 99)), None);
+        assert_eq!(position_to_offset(text, Position::new(1, 0)), Some(12));
+        assert_eq!(
+            position_to_offset(text, Position::new(2, 0)),
+            Some(text.len())
+        );
+    }
+
+    #[test]
+    fn source_uri_rejects_unknown_and_cross_file_spans() -> Result<(), Box<dyn std::error::Error>> {
+        let uri: Uri = "file:///book.adoc".parse()?;
+        let mut location = Location::default();
+        location.start.file = Some(std::sync::Arc::new(vec!["unknown.adoc".into()]));
+        location.end.file = location.start.file.clone();
+        let mut source = SourceLocation::at_location(None, location);
+        assert_eq!(source_uri(&uri, &source), None);
+        source.file = uri.to_file_path().map(std::borrow::Cow::into_owned);
+        source.location.end.file = None;
+        assert_eq!(source_uri(&uri, &source), None);
+        Ok(())
     }
 
     #[test]

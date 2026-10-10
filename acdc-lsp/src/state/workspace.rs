@@ -6,10 +6,10 @@ use std::{
     sync::{PoisonError, RwLock},
 };
 
-use acdc_parser::{Location, parse};
+use acdc_parser::{Location, SourceLocation, parse};
 use dashmap::{DashMap, mapref::one::Ref};
 
-use tower_lsp_server::ls_types::Uri;
+use tower_lsp_server::ls_types::{Diagnostic, Uri};
 
 use crate::{
     capabilities::{
@@ -17,6 +17,7 @@ use crate::{
         workspace_symbols::{IndexedSymbol, extract_workspace_symbols},
     },
     config::{AnalysisBackend, AnalysisConfiguration, ParserProfiles},
+    convert::{location_to_range, source_uri},
     limits::{MAX_INDEXABLE_FILE_BYTES, read_bounded},
     state::{DocumentState, document::ParsedText},
 };
@@ -25,8 +26,9 @@ use crate::{
 pub(crate) struct Workspace {
     /// Open documents: URI -> `DocumentState`
     documents: DashMap<Uri, DocumentState>,
-    /// Global anchor index: `anchor_id` -> [(`file_uri`, location)]
-    anchor_index: DashMap<String, Vec<(Uri, Location)>>,
+    /// Each entry keeps the document that indexed it and the anchor's source.
+    /// Several documents can index the same included anchor.
+    anchor_index: DashMap<String, Vec<(Uri, SourceLocation)>>,
     /// Cached symbols for non-open files (populated by workspace scan)
     symbol_index: DashMap<Uri, Vec<IndexedSymbol>>,
     /// Resource-scoped analysis configuration.
@@ -38,7 +40,7 @@ pub(crate) struct Workspace {
 /// Result of applying a runtime analysis configuration change.
 pub(crate) struct Reconfiguration {
     pub(crate) changed: bool,
-    pub(crate) reparsed_documents: Vec<Uri>,
+    pub(crate) diagnostic_uris: Vec<Uri>,
 }
 
 impl Workspace {
@@ -91,7 +93,7 @@ impl Workspace {
         if previous == *configuration {
             return Reconfiguration {
                 changed: false,
-                reparsed_documents: Vec::new(),
+                diagnostic_uris: Vec::new(),
             };
         }
 
@@ -134,19 +136,16 @@ impl Workspace {
             }
         }
 
-        let reparsed_documents = open_documents
+        let diagnostic_uris = open_documents
             .into_iter()
-            .map(|(uri, text, version)| {
-                self.update_document(uri.clone(), text, version);
-                uri
-            })
+            .flat_map(|(uri, text, version)| self.update_document(uri, text, version))
             .collect();
 
         self.scan_roots(&added_roots);
 
         Reconfiguration {
             changed: true,
-            reparsed_documents,
+            diagnostic_uris,
         }
     }
 
@@ -157,15 +156,31 @@ impl Workspace {
             .backend_for(uri)
     }
 
-    /// Update document on open/change
-    pub(crate) fn update_document(&self, uri: Uri, text: String, version: i32) {
+    /// Update document state and return files whose diagnostics must be published.
+    pub(crate) fn update_document(&self, uri: Uri, text: String, version: i32) -> Vec<Uri> {
+        let options = self.parser_profiles.get(self.backend_for(&uri));
+        self.update_document_with_options(uri, text, version, options)
+    }
+
+    fn update_document_with_options(
+        &self,
+        uri: Uri,
+        text: String,
+        version: i32,
+        options: &acdc_parser::Options,
+    ) -> Vec<Uri> {
+        let mut affected = self
+            .documents
+            .get(&uri)
+            .map(|state| state.diagnostic_uris(&uri))
+            .unwrap_or_default();
         // Remove from symbol_index — live AST takes over
         self.symbol_index.remove(&uri);
 
         // Remove old anchors for this URI from the global index
         self.remove_anchors_for_uri(&uri);
 
-        let mut state = self.parse_and_index(&uri, text, version);
+        let mut state = Self::parse_and_index(&uri, text, version, options);
 
         // Insert new anchors into the global index
         for (id, loc) in &state.anchors {
@@ -175,8 +190,18 @@ impl Workspace {
                 .push((uri.clone(), loc.clone()));
         }
 
+        self.compute_diagnostics(&uri, &mut state);
+        affected.extend(state.diagnostic_uris(&uri));
+        affected.sort_by(|a, b| a.as_str().cmp(b.as_str()));
+        affected.dedup();
+
+        self.documents.insert(uri, state);
+        affected
+    }
+
+    fn compute_diagnostics(&self, uri: &Uri, state: &mut DocumentState) {
         // Compute diagnostics with workspace context for cross-file xref validation
-        let cross_file_resolver = |parsed: &crate::state::XrefTarget| -> bool {
+        let cross_file_resolver = |source_uri: &Uri, parsed: &crate::state::XrefTarget| -> bool {
             // Check global anchor index first (open documents)
             if let Some(anchor_id) = &parsed.anchor
                 && self.anchor_index.contains_key(anchor_id.as_str())
@@ -185,7 +210,8 @@ impl Workspace {
             }
             // Try resolving the file and checking on disk
             if let Some(file_path) = &parsed.file
-                && let Some(target_uri) = crate::convert::resolve_relative_uri(&uri, file_path)
+                && let Some(target_uri) =
+                    crate::convert::resolve_relative_uri(source_uri, file_path)
             {
                 if let Some(anchor_id) = &parsed.anchor {
                     return self
@@ -197,39 +223,61 @@ impl Workspace {
             }
             false
         };
-        let mut new_diagnostics = state.diagnostics;
-        new_diagnostics.extend(diagnostics::compute_warnings(
-            &state.anchors,
-            &state.xrefs,
-            Some(&cross_file_resolver),
-        ));
-        state.diagnostics = new_diagnostics;
+        let mut source_diagnostics = Vec::new();
+        for (target, source) in &state.xrefs {
+            let Some(source_uri) = source_uri(uri, source) else {
+                continue;
+            };
+            let resolver =
+                |parsed: &crate::state::XrefTarget| cross_file_resolver(&source_uri, parsed);
+            for diagnostic in diagnostics::compute_warnings(
+                &state.anchors,
+                &[(target.clone(), source.location.clone())],
+                Some(&resolver),
+            ) {
+                source_diagnostics.push((source.clone(), diagnostic));
+            }
+        }
 
-        // Compute link diagnostics (missing images, audio, video, includes)
+        for (media, source) in &state.media_sources {
+            if let Some(source_uri) = source_uri(uri, source)
+                && let Some(path) = source_uri.to_file_path()
+                && let Some(directory) = path.parent()
+            {
+                for diagnostic in diagnostics::compute_link_diagnostics(
+                    &[(media.clone(), source.location.clone())],
+                    &[],
+                    directory,
+                    None,
+                ) {
+                    source_diagnostics.push((source.clone(), diagnostic));
+                }
+            }
+        }
+
+        // Include directives and conditionals come from the editor's original text.
         if let Some(doc_path) = uri.to_file_path()
             && let Some(doc_dir) = doc_path.parent()
         {
-            let link_diags = diagnostics::compute_link_diagnostics(
-                &state.media_sources,
-                &state.includes,
-                doc_dir,
-                None,
-            );
+            let link_diags =
+                diagnostics::compute_link_diagnostics(&[], &state.includes, doc_dir, None);
             state.diagnostics.extend(link_diags);
         }
 
-        // Compute conditional diagnostics (inactive ifdef/ifndef graying)
         let conditional_diags = diagnostics::compute_conditional_diagnostics(&state.conditionals);
         state.diagnostics.extend(conditional_diags);
 
         // Compute section level diagnostics (skipped heading levels)
-        let section_diags = state
-            .ast()
-            .map(|ast| diagnostics::compute_section_level_diagnostics(ast.document()))
-            .unwrap_or_default();
-        state.diagnostics.extend(section_diags);
-
-        self.documents.insert(uri, state);
+        if let Some(ast) = state.ast() {
+            source_diagnostics.extend(
+                diagnostics::compute_section_level_diagnostics(ast.document())
+                    .into_iter()
+                    .map(|(location, diagnostic)| (ast.source_location(&location), diagnostic)),
+            );
+        }
+        for (source, diagnostic) in source_diagnostics {
+            state.push_diagnostic(uri, Some(source), diagnostic);
+        }
     }
 
     /// Get a reference to a document's state
@@ -238,21 +286,73 @@ impl Workspace {
         self.documents.get(uri)
     }
 
-    /// Remove a document from the workspace
-    pub(crate) fn remove_document(&self, uri: &Uri) {
+    /// Read editor text when open, or a bounded disk file when closed.
+    pub(crate) fn with_document_text<T>(
+        &self,
+        uri: &Uri,
+        read: impl FnOnce(&str) -> T,
+    ) -> Option<T> {
+        if let Some(document) = self.documents.get(uri) {
+            return Some(read(document.text()));
+        }
+        let path = uri.to_file_path()?;
+        let text = read_bounded(&path)?;
+        Some(read(&text))
+    }
+
+    /// Remove a document and return files whose diagnostics must be published again.
+    pub(crate) fn remove_document(&self, uri: &Uri) -> Vec<Uri> {
         self.remove_anchors_for_uri(uri);
-        self.documents.remove(uri);
+        let affected = self.documents.remove(uri).map_or_else(
+            || vec![uri.clone()],
+            |(_, state)| state.diagnostic_uris(uri),
+        );
         // Re-index from disk for workspace symbols
         self.reindex_file_from_disk(uri);
+        affected
+    }
+
+    /// Collect current diagnostics for one physical file across all open documents.
+    pub(crate) fn diagnostics_for(&self, uri: &Uri) -> (Vec<Diagnostic>, Option<i32>) {
+        let mut diagnostics = Vec::new();
+        let mut version = None;
+        for entry in &self.documents {
+            let state = entry.value();
+            let items = if entry.key() == uri {
+                version = Some(state.version);
+                Some(&state.diagnostics)
+            } else {
+                state.included_diagnostics.get(uri)
+            };
+            if let Some(items) = items {
+                for item in items {
+                    if !diagnostics.contains(item) {
+                        diagnostics.push(item.clone());
+                    }
+                }
+            }
+        }
+        (diagnostics, version)
     }
 
     /// Find an anchor across all open documents
     #[must_use]
     pub(crate) fn find_anchor_globally(&self, anchor_id: &str) -> Vec<(Uri, Location)> {
-        self.anchor_index
-            .get(anchor_id)
-            .map(|entry| entry.value().clone())
-            .unwrap_or_default()
+        let mut result = Vec::new();
+        if let Some(entries) = self.anchor_index.get(anchor_id) {
+            for (owner, source) in entries.value() {
+                let Some(uri) = source_uri(owner, source) else {
+                    continue;
+                };
+                if !result.iter().any(|(existing_uri, location)| {
+                    existing_uri == &uri
+                        && location_to_range(location) == location_to_range(&source.location)
+                }) {
+                    result.push((uri, source.location.clone()));
+                }
+            }
+        }
+        result
     }
 
     /// Find an anchor in a specific document (open or on-disk)
@@ -260,18 +360,20 @@ impl Workspace {
     /// First checks open documents. If the document isn't open, attempts to read
     /// and parse the file from disk to resolve the anchor.
     #[must_use]
-    pub(crate) fn find_anchor_in_document(&self, uri: &Uri, anchor_id: &str) -> Option<Location> {
+    pub(crate) fn find_anchor_in_document(
+        &self,
+        uri: &Uri,
+        anchor_id: &str,
+    ) -> Option<(Uri, Location)> {
         // Check open documents first
-        if let Some(loc) = self
-            .documents
-            .get(uri)
-            .and_then(|doc| doc.anchors.get(anchor_id).cloned())
-        {
-            return Some(loc);
+        if let Some(doc) = self.documents.get(uri) {
+            let source = doc.anchors.get(anchor_id)?;
+            return Some((source_uri(uri, source)?, source.location.clone()));
         }
 
         // Try reading from disk if not open
         self.find_anchor_in_file_on_disk(uri, anchor_id)
+            .map(|location| (uri.clone(), location))
     }
 
     /// Read a file from disk and search for an anchor without indexing it
@@ -298,8 +400,13 @@ impl Workspace {
     pub(crate) fn all_anchors(&self) -> Vec<(String, Uri)> {
         let mut result = Vec::new();
         for entry in &self.anchor_index {
-            for (uri, _loc) in entry.value() {
-                result.push((entry.key().clone(), uri.clone()));
+            for (owner, source) in entry.value() {
+                if let Some(uri) = source_uri(owner, source) {
+                    let anchor = (entry.key().clone(), uri);
+                    if !result.contains(&anchor) {
+                        result.push(anchor);
+                    }
+                }
             }
         }
         result
@@ -478,14 +585,16 @@ impl Workspace {
     }
 
     /// Parse document and extract all navigation data
-    fn parse_and_index(&self, uri: &Uri, text: String, version: i32) -> DocumentState {
-        let backend = self.backend_for(uri);
-        let options = self.parser_profiles.get(backend);
-
-        let mut anchors: HashMap<String, Location> = HashMap::new();
-        let mut xrefs: Vec<(String, Location)> = Vec::new();
-        let mut media_sources: Vec<(crate::state::document::OwnedSource, Location)> = Vec::new();
-        let mut parse_diagnostics: Vec<tower_lsp_server::ls_types::Diagnostic> = Vec::new();
+    fn parse_and_index(
+        uri: &Uri,
+        text: String,
+        version: i32,
+        options: &acdc_parser::Options,
+    ) -> DocumentState {
+        let mut anchors: HashMap<String, SourceLocation> = HashMap::new();
+        let mut xrefs: Vec<(String, SourceLocation)> = Vec::new();
+        let mut media_sources = Vec::new();
+        let mut parse_diagnostics = Vec::new();
         let mut ast_attributes: Option<acdc_parser::DocumentAttributes<'static>> = None;
 
         // Skip parsing oversized open documents: the parser arena pre-sizes
@@ -497,28 +606,45 @@ impl Workspace {
                 limit = MAX_INDEXABLE_FILE_BYTES,
                 "document exceeds LSP indexing size limit; skipping parse"
             );
-            parse_diagnostics.push(Self::oversized_document_diagnostic(text.len()));
+            parse_diagnostics.push((None, Self::oversized_document_diagnostic(text.len())));
             ParsedText::from_source(text.into_boxed_str())
         } else {
             match parse(&text, options) {
                 Ok(mut parse_result) => {
                     {
                         let doc = parse_result.document();
-                        anchors = definition::collect_anchors(doc);
-                        xrefs = definition::collect_xrefs(doc);
-                        media_sources = definition::collect_media_sources(doc);
+                        anchors = definition::collect_anchors(doc)
+                            .into_iter()
+                            .map(|(id, location)| (id, parse_result.source_location(&location)))
+                            .collect();
+                        xrefs = definition::collect_xrefs(doc)
+                            .into_iter()
+                            .map(|(id, location)| (id, parse_result.source_location(&location)))
+                            .collect();
+                        media_sources = definition::collect_media_sources(doc)
+                            .into_iter()
+                            .map(|(source, location)| {
+                                (source, parse_result.source_location(&location))
+                            })
+                            .collect();
                         ast_attributes = Some(doc.attributes.to_static());
                     }
                     // Drain warnings into LSP diagnostics before handing the
                     // (warning-free) `ParseResult` to `ParsedText`, which will
                     // hold it behind a `Mutex`.
                     for warning in parse_result.take_warnings() {
-                        parse_diagnostics.push(diagnostics::warning_to_diagnostic(&warning));
+                        parse_diagnostics.push((
+                            warning.source_location().cloned(),
+                            diagnostics::warning_to_diagnostic(&warning),
+                        ));
                     }
                     ParsedText::from_parsed(text.clone().into_boxed_str(), parse_result)
                 }
                 Err(error) => {
-                    parse_diagnostics.push(diagnostics::error_to_diagnostic(&error));
+                    parse_diagnostics.push((
+                        error.source_location().cloned(),
+                        diagnostics::error_to_diagnostic(&error),
+                    ));
                     ParsedText::from_source(text.into_boxed_str())
                 }
             }
@@ -534,10 +660,11 @@ impl Workspace {
             crate::state::document::extract_conditionals(raw_text, options.document_attributes())
         };
 
-        DocumentState {
+        let mut state = DocumentState {
             parsed,
             version,
-            diagnostics: parse_diagnostics,
+            diagnostics: Vec::new(),
+            included_diagnostics: HashMap::new(),
             anchors,
             xrefs,
             includes: raw_includes,
@@ -545,7 +672,11 @@ impl Workspace {
             attribute_defs: definitions,
             media_sources,
             conditionals: raw_conditionals,
+        };
+        for (source, diagnostic) in parse_diagnostics {
+            state.push_diagnostic(uri, source, diagnostic);
         }
+        state
     }
 }
 
@@ -596,6 +727,9 @@ impl Default for Workspace {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod source_locations;
 
 #[cfg(test)]
 mod tests {
@@ -814,7 +948,7 @@ mod tests {
         let result = workspace.apply_analysis_configuration(&configuration);
 
         assert!(result.changed);
-        assert_eq!(result.reparsed_documents, [html_uri]);
+        assert_eq!(result.diagnostic_uris, [html_uri]);
         assert!(
             workspace
                 .get_document(&pdf_uri)
@@ -850,7 +984,7 @@ mod tests {
         let result = workspace.apply_analysis_configuration(&configuration);
 
         assert_eq!(
-            result.reparsed_documents.as_slice(),
+            result.diagnostic_uris.as_slice(),
             std::slice::from_ref(&uri)
         );
         let document = workspace
@@ -871,7 +1005,7 @@ mod tests {
         let result = workspace.apply_analysis_configuration(&configuration);
 
         assert!(!result.changed);
-        assert_eq!(result.reparsed_documents, []);
+        assert_eq!(result.diagnostic_uris, []);
         Ok(())
     }
 
@@ -902,7 +1036,7 @@ mod tests {
         let result = workspace.apply_analysis_configuration(&configuration);
 
         assert!(result.changed);
-        assert_eq!(result.reparsed_documents, []);
+        assert_eq!(result.diagnostic_uris, []);
         assert!(workspace.query_workspace_symbols("HTML Only").is_empty());
         assert!(
             workspace

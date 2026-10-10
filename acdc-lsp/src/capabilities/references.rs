@@ -2,8 +2,10 @@
 
 use tower_lsp_server::ls_types::{Position, Uri};
 
-use crate::convert::{location_to_range, position_to_offset};
-use crate::state::{DocumentState, Workspace, XrefTarget};
+use crate::{
+    convert::{location_to_range, position_to_offset, source_uri},
+    state::{DocumentState, Workspace, XrefTarget},
+};
 
 /// Find all references to the symbol at the given position.
 ///
@@ -71,10 +73,11 @@ fn collect_cross_file_references(
                 && let Some(file_path) = &parsed.file
                 && let Some(target_uri) =
                     crate::convert::resolve_relative_uri(current_uri, file_path)
-                && let Some(loc) = workspace.find_anchor_in_document(&target_uri, anchor_id)
+                && let Some((source_uri, loc)) =
+                    workspace.find_anchor_in_document(&target_uri, anchor_id)
             {
                 locations.push(tower_lsp_server::ls_types::Location {
-                    uri: target_uri,
+                    uri: source_uri,
                     range: location_to_range(&loc),
                 });
             }
@@ -93,11 +96,16 @@ fn collect_cross_file_references(
         for (xref_target, xref_loc) in &doc.xrefs {
             let parsed = XrefTarget::parse(xref_target);
             let target_anchor = parsed.anchor.as_deref().unwrap_or(xref_target.as_str());
-            if target_anchor == anchor_id {
-                locations.push(tower_lsp_server::ls_types::Location {
-                    uri: uri.clone(),
-                    range: location_to_range(xref_loc),
-                });
+            if target_anchor == anchor_id
+                && let Some(uri) = source_uri(uri, xref_loc)
+            {
+                let location = tower_lsp_server::ls_types::Location {
+                    uri,
+                    range: location_to_range(&xref_loc.location),
+                };
+                if !locations.contains(&location) {
+                    locations.push(location);
+                }
             }
         }
     });

@@ -4,19 +4,18 @@
 //! - Parse errors: converted from acdc-parser errors
 //! - Validation warnings: unresolved xrefs, duplicate anchors, etc.
 
-use std::collections::HashMap;
-use std::hash::BuildHasher;
+use std::{collections::HashMap, hash::BuildHasher, path::Path};
 
-use std::path::Path;
-
-use acdc_parser::{Block, Document, Error, Location, Warning};
+use acdc_parser::{Block, Document, Error, Location, SourceLocation, Warning};
 use tower_lsp_server::ls_types::{Diagnostic, DiagnosticSeverity, DiagnosticTag, Range};
 
-use crate::state::{ConditionalBlock, ConditionalDirectiveKind, ConditionalOperation};
-
-use crate::convert::location_to_range;
-use crate::state::XrefTarget;
-use crate::state::document::OwnedSource;
+use crate::{
+    convert::location_to_range,
+    state::{
+        ConditionalBlock, ConditionalDirectiveKind, ConditionalOperation, XrefTarget,
+        document::OwnedSource,
+    },
+};
 
 /// Convert acdc-parser Error to LSP Diagnostic
 #[must_use]
@@ -83,7 +82,7 @@ pub(crate) fn warning_to_diagnostic(warning: &Warning) -> Diagnostic {
 /// Without it, cross-file xrefs get an info-level diagnostic.
 #[must_use]
 pub(crate) fn compute_warnings<S: BuildHasher, F>(
-    anchors: &HashMap<String, Location, S>,
+    anchors: &HashMap<String, SourceLocation, S>,
     xrefs: &[(String, Location)],
     cross_file_resolver: Option<&F>,
 ) -> Vec<Diagnostic>
@@ -219,7 +218,7 @@ fn collect_sections<'a>(blocks: &'a [Block<'_>]) -> Vec<(u8, &'a Location)> {
 /// levels don't jump by more than 1 (e.g., `==` followed by `====` skips `===`).
 /// Going back to a higher level is always fine.
 #[must_use]
-pub(crate) fn compute_section_level_diagnostics(ast: &Document) -> Vec<Diagnostic> {
+pub(crate) fn compute_section_level_diagnostics(ast: &Document) -> Vec<(Location, Diagnostic)> {
     let sections = collect_sections(&ast.blocks);
     let mut diagnostics = Vec::new();
     let mut last_level: u8 = 0;
@@ -231,7 +230,7 @@ pub(crate) fn compute_section_level_diagnostics(ast: &Document) -> Vec<Diagnosti
             let expected_markers = "=".repeat(expected as usize);
             let found_markers = "=".repeat(found as usize);
 
-            diagnostics.push(Diagnostic {
+            diagnostics.push((location.clone(), Diagnostic {
                 range: location_to_range(location),
                 severity: Some(DiagnosticSeverity::WARNING),
                 source: Some("acdc".to_string()),
@@ -239,7 +238,7 @@ pub(crate) fn compute_section_level_diagnostics(ast: &Document) -> Vec<Diagnosti
                     "Section level skipped: expected level {expected} (`{expected_markers}`) but found level {found} (`{found_markers}`)"
                 ),
                 ..Default::default()
-            });
+            }));
         }
         last_level = level;
     }
@@ -333,7 +332,7 @@ mod tests {
         let parsed = parse_doc("= Title\n\n=== Skipped First\n")?;
         let diags = compute_section_level_diagnostics(parsed.document());
         assert_eq!(diags.len(), 1, "expected 1 warning, got: {diags:?}");
-        let d = diags.first().ok_or("expected a diagnostic")?;
+        let (_, d) = diags.first().ok_or("expected a diagnostic")?;
         assert_eq!(d.severity, Some(DiagnosticSeverity::WARNING));
         assert!(
             d.message.contains("Section level skipped"),
@@ -365,7 +364,7 @@ mod tests {
         let parsed = parse_doc("= Title\n\n==== Big Skip\n")?;
         let diags = compute_section_level_diagnostics(parsed.document());
         assert_eq!(diags.len(), 1, "expected 1 warning, got: {diags:?}");
-        let d = diags.first().ok_or("expected a diagnostic")?;
+        let (_, d) = diags.first().ok_or("expected a diagnostic")?;
         assert_eq!(d.severity, Some(DiagnosticSeverity::WARNING));
         assert!(
             d.message.contains("`==`"),
@@ -400,7 +399,7 @@ mod tests {
         let parsed = parse_doc("= Title\n\n== Section\n\n==== Skipped\n")?;
         let diags = compute_section_level_diagnostics(parsed.document());
         assert_eq!(diags.len(), 1, "expected 1 warning, got: {diags:?}");
-        let diag = diags.first().ok_or("expected a diagnostic")?;
+        let (_, diag) = diags.first().ok_or("expected a diagnostic")?;
         assert_eq!(diag.severity, Some(DiagnosticSeverity::WARNING));
         assert!(
             diag.message.contains("Section level skipped"),
@@ -462,7 +461,10 @@ mod tests {
         let mut loc = Location::default();
         loc.start.line = 1;
         let mut anchors = HashMap::new();
-        anchors.insert("existing-target".to_string(), loc.clone());
+        anchors.insert(
+            "existing-target".to_string(),
+            SourceLocation::at_location(None, loc.clone()),
+        );
         let xrefs = vec![("existing-target".to_string(), loc)];
 
         let warnings = compute_warnings::<_, fn(&XrefTarget) -> bool>(&anchors, &xrefs, None);

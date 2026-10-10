@@ -6,8 +6,10 @@ use std::{
     sync::{Mutex, MutexGuard},
 };
 
-use acdc_parser::{Document, DocumentAttributes, Location, ParseResult, Position, Source};
-use tower_lsp_server::ls_types::Diagnostic;
+use acdc_parser::{
+    Document, DocumentAttributes, Location, ParseResult, Position, Source, SourceLocation,
+};
+use tower_lsp_server::ls_types::{Diagnostic, Uri};
 
 /// Owned counterpart to `acdc_parser::Source<'_>`, detached from the parser arena
 /// so it can live in `DocumentState` alongside other extracted index data.
@@ -28,22 +30,16 @@ impl OwnedSource {
     }
 }
 
-/// Parsed-document wrapper for the LSP state.
+/// Editor text and the optional parser result.
 ///
-/// Carries the preprocessed source text in an always-available `Box<str>`
-/// (so text-only features keep working even when parsing fails), and
-/// optionally the `acdc_parser::ParsedDocument` (arena + AST) when parsing
-/// succeeded.
+/// Keep the original text for cursor positions and edits. The parser's text
+/// has already expanded or removed preprocessor directives.
 ///
-/// Because `bumpalo::Bump` is not `Sync`, the `ParsedDocument` is kept
-/// behind a [`Mutex`] so `DocumentState` can be stored in a
-/// `DashMap<Uri, DocumentState>` without relying on unsafe `Sync` impls.
-/// AST access goes through [`Self::ast`] which returns an [`AstGuard`]
-/// holding the lock for the duration of the caller's use; the raw text is
-/// always accessible via [`Self::text`] without locking.
+/// The parser arena is not `Sync`. The mutex lets the workspace share a result
+/// while [`AstGuard`] limits AST access to one reader at a time.
 #[derive(Debug)]
 pub(crate) struct ParsedText {
-    /// Source text (preprocessed when available, raw otherwise).
+    /// Original text supplied by the editor.
     source: Box<str>,
     /// Parsed document, when available. Behind a `Mutex` purely to satisfy
     /// `Sync` — the inner value is only ever read.
@@ -61,6 +57,10 @@ impl AstGuard<'_> {
     /// this guard is dropped.
     pub(crate) fn document(&self) -> &Document<'_> {
         self.guard.document()
+    }
+
+    pub(super) fn source_location(&self, location: &Location) -> SourceLocation {
+        self.guard.source_location(location)
     }
 }
 
@@ -148,10 +148,12 @@ pub(crate) struct DocumentState {
     pub(crate) version: i32,
     /// Parse errors converted to diagnostics
     pub(crate) diagnostics: Vec<Diagnostic>,
-    /// Anchor definitions: id -> Location
-    pub(crate) anchors: HashMap<String, Location>,
-    /// Cross-references: (`target_id`, location)
-    pub(crate) xrefs: Vec<(String, Location)>,
+    /// Diagnostics from included files, owned by this document's analysis.
+    pub(super) included_diagnostics: HashMap<Uri, Vec<Diagnostic>>,
+    /// Anchor definitions with their original source files and positions.
+    pub(crate) anchors: HashMap<String, SourceLocation>,
+    /// Cross-references with their original source files and positions.
+    pub(crate) xrefs: Vec<(String, SourceLocation)>,
     /// Include directives: (`target_path`, location)
     pub(crate) includes: Vec<(String, Location)>,
     /// Attribute references: (`attr_name`, location) extracted from source text
@@ -159,12 +161,48 @@ pub(crate) struct DocumentState {
     /// Attribute definitions: (`attr_name`, location) extracted from source text
     pub(crate) attribute_defs: Vec<(String, Location)>,
     /// Media sources: (source, location) for images, audio, and video
-    pub(crate) media_sources: Vec<(OwnedSource, Location)>,
+    pub(crate) media_sources: Vec<(OwnedSource, SourceLocation)>,
     /// Conditional directive blocks (ifdef/ifndef) extracted from source text
     pub(crate) conditionals: Vec<ConditionalBlock>,
 }
 
 impl DocumentState {
+    pub(super) fn push_diagnostic(
+        &mut self,
+        document_uri: &Uri,
+        source: Option<SourceLocation>,
+        mut diagnostic: Diagnostic,
+    ) {
+        let uri = if let Some(mut source) = source {
+            // A diagnostic can mark the start of a span that crosses files.
+            // Its end cannot be used as a position in that same file.
+            if source.location.start.file != source.location.end.file {
+                diagnostic.range.end = diagnostic.range.start;
+                source.location.end = source.location.start.clone();
+            }
+            let Some(uri) = crate::convert::source_uri(document_uri, &source) else {
+                return;
+            };
+            uri
+        } else {
+            document_uri.clone()
+        };
+        if &uri == document_uri {
+            self.diagnostics.push(diagnostic);
+        } else {
+            self.included_diagnostics
+                .entry(uri)
+                .or_default()
+                .push(diagnostic);
+        }
+    }
+
+    pub(super) fn diagnostic_uris(&self, document_uri: &Uri) -> Vec<Uri> {
+        std::iter::once(document_uri.clone())
+            .chain(self.included_diagnostics.keys().cloned())
+            .collect()
+    }
+
     /// Borrow the source text.
     #[must_use]
     pub(crate) fn text(&self) -> &str {
@@ -198,6 +236,7 @@ impl DocumentState {
             parsed,
             version,
             diagnostics,
+            included_diagnostics: HashMap::new(),
             anchors: HashMap::new(),
             xrefs: vec![],
             includes: raw_includes,

@@ -71,7 +71,7 @@ pub struct Backend {
     client: Client,
     /// Workspace state management
     workspace: Workspace,
-    /// Serializes mutations that rebuild parsed workspace state.
+    /// Keeps workspace updates and edit generation from using different source versions.
     mutation: Mutex<()>,
     /// Client capabilities captured during initialization.
     client_features: RwLock<ClientFeatures>,
@@ -91,11 +91,10 @@ impl Backend {
 
     /// Publish diagnostics for a document
     async fn publish_diagnostics(&self, uri: Uri) {
-        if let Some(doc) = self.workspace.get_document(&uri) {
-            self.client
-                .publish_diagnostics(uri, doc.diagnostics.clone(), Some(doc.version))
-                .await;
-        }
+        let (diagnostics, version) = self.workspace.diagnostics_for(&uri);
+        self.client
+            .publish_diagnostics(uri, diagnostics, version)
+            .await;
     }
 
     fn features(&self) -> ClientFeatures {
@@ -223,7 +222,7 @@ impl Backend {
             return;
         }
 
-        for uri in result.reparsed_documents {
+        for uri in result.diagnostic_uris {
             self.publish_diagnostics(uri).await;
         }
 
@@ -437,11 +436,13 @@ impl LanguageServer for Backend {
         let uri = params.text_document.uri;
         let text = params.text_document.text;
         let version = params.text_document.version;
-        {
+        let affected = {
             let _mutation = self.mutation.lock().unwrap_or_else(PoisonError::into_inner);
-            self.workspace.update_document(uri.clone(), text, version);
+            self.workspace.update_document(uri, text, version)
+        };
+        for uri in affected {
+            self.publish_diagnostics(uri).await;
         }
-        self.publish_diagnostics(uri).await;
     }
 
     #[tracing::instrument(name = "lsp/didChange", level = "debug", skip_all, fields(uri = params.text_document.uri.as_str()))]
@@ -451,24 +452,26 @@ impl LanguageServer for Backend {
 
         // With FULL sync, we get the complete new text
         if let Some(change) = params.content_changes.into_iter().next() {
-            {
+            let affected = {
                 let _mutation = self.mutation.lock().unwrap_or_else(PoisonError::into_inner);
-                self.workspace
-                    .update_document(uri.clone(), change.text, version);
+                self.workspace.update_document(uri, change.text, version)
+            };
+            for uri in affected {
+                self.publish_diagnostics(uri).await;
             }
-            self.publish_diagnostics(uri).await;
         }
     }
 
     #[tracing::instrument(name = "lsp/didClose", level = "debug", skip_all, fields(uri = params.text_document.uri.as_str()))]
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
         let uri = params.text_document.uri;
-        {
+        let affected = {
             let _mutation = self.mutation.lock().unwrap_or_else(PoisonError::into_inner);
-            self.workspace.remove_document(&uri);
+            self.workspace.remove_document(&uri)
+        };
+        for uri in affected {
+            self.publish_diagnostics(uri).await;
         }
-        // Clear diagnostics for closed file
-        self.client.publish_diagnostics(uri, vec![], None).await;
     }
 
     #[tracing::instrument(name = "lsp/didChangeConfiguration", level = "debug", skip_all)]
@@ -723,6 +726,8 @@ impl LanguageServer for Backend {
         let position = params.text_document_position.position;
         let new_name = params.new_name;
 
+        let _mutation = self.mutation.lock().unwrap_or_else(PoisonError::into_inner);
+
         let response = if let Some(doc) = self.workspace.get_document(&uri) {
             rename::compute_rename(&doc, &uri, &self.workspace, position, &new_name)
         } else {
@@ -849,6 +854,7 @@ impl LanguageServer for Backend {
 
     #[tracing::instrument(name = "lsp/willRenameFiles", level = "debug", skip_all, fields(count = params.files.len()))]
     async fn will_rename_files(&self, params: RenameFilesParams) -> Result<Option<WorkspaceEdit>> {
+        let _mutation = self.mutation.lock().unwrap_or_else(PoisonError::into_inner);
         Ok(file_rename::compute_file_rename_edits(
             &self.workspace,
             &params.files,

@@ -15,6 +15,7 @@ pub(crate) mod inlay_hints;
 pub(crate) mod on_type_formatting;
 pub(crate) mod references;
 pub(crate) mod rename;
+mod rename_target;
 pub(crate) mod selection_range;
 pub(crate) mod semantic_tokens;
 pub(crate) mod signature_help;
