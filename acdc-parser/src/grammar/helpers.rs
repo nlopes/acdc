@@ -1,10 +1,9 @@
 use std::borrow::Cow;
 
 use crate::{
-    Anchor, AttributeValue, BlockMetadata, Location, ProcessedContent, Title,
-    document_attribute::AttributeDeclaration,
+    BlockMetadata, ProcessedContent, Title,
     grammar::{ParserState, passthrough_processing::replace_passthrough_placeholders},
-    model::{PositionalAttribute, SectionLevel, substitution::SubstitutionPlan},
+    model::{SectionLevel, substitution::SubstitutionPlan},
 };
 
 #[derive(Debug)]
@@ -19,27 +18,6 @@ pub(crate) enum MacroAttributeContext {
     Image,
 }
 
-// Used purely in the grammar to break down the block metadata lines into its different
-// types.
-#[derive(Debug)]
-pub(crate) enum BlockMetadataLine<'input> {
-    Anchor(Anchor<'input>),
-    Attributes((bool, Box<BlockMetadata<'input>>)),
-    Title {
-        source: &'input str,
-        start: usize,
-        end: usize,
-    },
-    DocumentAttribute(AttributeDeclaration<'input>, Location),
-}
-
-// Used purely in the grammar where only anchors and attribute lists are valid metadata.
-#[derive(Debug)]
-pub(crate) enum AttributeOrAnchorLine<'input> {
-    Anchor(Anchor<'input>),
-    Attributes((bool, Box<BlockMetadata<'input>>)),
-}
-
 // Used purely in the grammar to represent the parsed block details
 #[derive(Debug, Default)]
 pub(crate) struct BlockParsingMetadata<'input> {
@@ -52,13 +30,6 @@ pub(crate) struct BlockParsingMetadata<'input> {
     /// either via the `discrete`/`float` block style (`[discrete]`) or as a
     /// bare positional attribute (`[#id,discrete]`).
     pub(crate) discrete: bool,
-}
-
-/// Attribute shorthand syntax for inline formatting attributes.
-#[derive(Debug)]
-pub(crate) enum Shorthand<'input> {
-    Id(Cow<'input, str>),
-    Role(Cow<'input, str>),
 }
 
 pub(crate) const RESERVED_NAMED_ATTRIBUTE_ID: &str = "id";
@@ -132,107 +103,6 @@ pub(crate) fn parse_comma_separated_values<'a>(
         .filter(|s| !s.is_empty())
         .map(|s| state.intern_str(s))
         .collect()
-}
-
-/// Store parsed inline macro attributes in `BlockMetadata`.
-///
-/// Returns the title position if a `title=` attribute was found.
-pub(crate) fn process_attribute_list<'input>(
-    attrs: impl IntoIterator<
-        Item = Option<(
-            Cow<'input, str>,
-            AttributeValue<'input>,
-            Option<(usize, usize)>,
-        )>,
-    >,
-    metadata: &mut BlockMetadata<'input>,
-    state: &ParserState<'input>,
-    fallback_start: usize,
-    fallback_end: usize,
-    context: MacroAttributeContext,
-) -> Option<(usize, usize)> {
-    let mut title_position = None;
-    let mut first_positional = true;
-
-    for (key, value, pos) in attrs.into_iter().flatten() {
-        match key.as_ref() {
-            k if k == RESERVED_NAMED_ATTRIBUTE_ID && metadata.id.is_none() => {
-                let (id_start, id_end) = pos.unwrap_or((fallback_start, fallback_end));
-                let id: &'input str = match value {
-                    AttributeValue::String(s) => state.intern_cow(s),
-                    AttributeValue::Bool(_) | AttributeValue::None => {
-                        state.intern_fmt(format_args!("{value}"))
-                    }
-                };
-                metadata.id = Some(Anchor {
-                    bibliography_label: None,
-                    id,
-                    xreflabel: None,
-                    location: state.create_location(id_start, id_end),
-                    bibliography: false,
-                });
-            }
-            k if k == RESERVED_NAMED_ATTRIBUTE_ROLE => {
-                if let AttributeValue::String(ref s) = value {
-                    // Roles are space-separated (not comma-separated) per asciidoctor behavior.
-                    // `role='a b'` → two roles; `role='a,b'` → one role containing a comma.
-                    for role in s.split_whitespace() {
-                        if !role.is_empty() {
-                            metadata.roles.push(state.intern_str(role));
-                        }
-                    }
-                }
-            }
-            k if k == RESERVED_NAMED_ATTRIBUTE_OPTIONS => {
-                if let AttributeValue::String(ref s) = value {
-                    metadata
-                        .options
-                        .extend(parse_comma_separated_values(state, s));
-                }
-            }
-            // Skip subs= attribute - it's handled separately by the caller
-            // (block-specific, feature-gated, requires parse_subs_attribute)
-            k if k == RESERVED_NAMED_ATTRIBUTE_SUBS => {}
-            "title" => {
-                if let AttributeValue::String(ref s) = value {
-                    if pos.is_some() {
-                        title_position = pos;
-                    }
-                    metadata
-                        .attributes
-                        .insert(key, AttributeValue::String(s.clone()));
-                }
-            }
-            _ => {
-                if let AttributeValue::String(ref s) = value {
-                    if context == MacroAttributeContext::Image && key == "link" {
-                        metadata
-                            .attributes
-                            .set(key, AttributeValue::String(s.clone()));
-                    } else {
-                        metadata
-                            .attributes
-                            .insert(key, AttributeValue::String(s.clone()));
-                    }
-                } else if value == AttributeValue::None {
-                    // Positional attribute
-                    let key_str: &'input str = state.intern_cow(key);
-                    if first_positional {
-                        metadata.style = Some(key_str);
-                        first_positional = false;
-                    } else {
-                        metadata.positional_attributes.push(PositionalAttribute {
-                            value: key_str,
-                            substitutions: false,
-                            location: None,
-                        });
-                    }
-                }
-            }
-        }
-    }
-
-    title_position
 }
 
 /// Check if a title line looks like a description list item.

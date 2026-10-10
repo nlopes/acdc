@@ -2,7 +2,14 @@
 
 ## Architecture
 
-- **PEG grammar** in `src/grammar/` — `document.rs` is the main entry point
+- **PEG grammar** in `src/grammar/document/peg.rs`, `src/grammar/inlines/peg.rs`,
+  and `src/grammar/inline_preprocessor/peg.rs`.
+  Keep helpers used by one grammar in named sibling modules, such as
+  `document/lists.rs` or `inlines/links.rs`. Keep shared helpers at the
+  `src/grammar/` level. Put grammar tests in sibling `tests.rs` modules.
+- Keep each `peg::parser!` declaration in a dedicated `peg.rs` child module.
+  Put auxiliary functions, types, and tests outside that file. This also applies
+  to the preprocessor grammars.
 - **Two-pass inline markup** processing (see SDR-5 in `../ARCHITECTURE.adoc`)
   - Phase 1: Inline preprocessor — extracts passthroughs, expands attribute references
   - Phase 2: Inline parser — parses expanded text into inline node tree

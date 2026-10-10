@@ -1,13 +1,85 @@
-//! Manpage-specific parsing utilities for doctype=manpage documents.
-//!
-//! This module provides functions to derive manpage attributes from document content,
-//! following the asciidoctor pattern where these attributes are set during parsing
-//! (not conversion) so they're available for attribute substitution in the body.
+//! Manpage attributes derived from the document header and name section.
 
 use crate::{
     DocumentAttributes, Header, InlineNode,
+    document_attribute::AttributeDeclaration,
     error::{Error, SourceLocation},
+    grammar::{ParserState, document::doctype::is_manpage_doctype},
+    model::{strip_quotes, substitute, substitution::HEADER},
 };
+use std::rc::Rc;
+
+pub(super) struct ManpageNameSection<'input> {
+    pub(super) title: &'input str,
+    pub(super) attributes: NameSectionAttributes,
+    pub(super) metadata_attributes: Vec<AttributeDeclaration<'input>>,
+}
+
+pub(super) fn prepare_manpage_name_attributes<'input>(
+    state: &mut ParserState<'input>,
+    section: Option<ManpageNameSection<'input>>,
+) {
+    if !is_manpage_doctype(&state.document_attributes) {
+        return;
+    }
+
+    if let (Some(name), Some(purpose)) = (
+        state.document_attributes.text("manname").map(strip_quotes),
+        state
+            .document_attributes
+            .text("manpurpose")
+            .map(strip_quotes),
+    ) {
+        let name = state.intern_str(name);
+        let purpose = state.intern_str(purpose);
+        set_manpage_name_attributes(state, name, Some(purpose), Some("Name"));
+        return;
+    }
+
+    if let Some(section) = section {
+        let mut attributes = DocumentAttributes::clone(&state.document_attributes);
+        for AttributeDeclaration { name, value } in section.metadata_attributes {
+            let value = value.resolve(&attributes);
+            let _ = attributes.assign_document_value(name.into(), value, false, false, None);
+        }
+
+        let name = substitute(&section.attributes.name, HEADER, &attributes);
+        let name = name.split(',').next().unwrap_or_default().trim();
+        let name = state.intern_str(name);
+        let purpose = substitute(&section.attributes.purpose, HEADER, &attributes);
+        let purpose = state.intern_str(&purpose);
+        let title = substitute(section.title, HEADER, &attributes);
+        let title = state.intern_str(&title);
+        set_manpage_name_attributes(state, name, Some(purpose), Some(title));
+        return;
+    }
+
+    let fallback = state
+        .document_attributes
+        .text("docname")
+        .map_or("command", strip_quotes);
+    let fallback = state.intern_str(fallback);
+    set_manpage_name_attributes(state, fallback, None, None);
+}
+
+fn set_manpage_name_attributes<'input>(
+    state: &mut ParserState<'input>,
+    name: &'input str,
+    purpose: Option<&'input str>,
+    title: Option<&'input str>,
+) {
+    let attributes = Rc::make_mut(&mut state.document_attributes);
+    attributes.set_text("manname".into(), name.into());
+    if let Some(purpose) = purpose {
+        attributes.set_text("manpurpose".into(), purpose.into());
+    }
+    if let Some(title) = title {
+        attributes.insert_text("manname-title".into(), title.into());
+    }
+    if attributes.text("backend").map(strip_quotes) == Some("manpage") {
+        attributes.set_text("docname".into(), name.into());
+    }
+}
 
 /// Parsed manpage title components.
 #[derive(Debug, Clone)]
@@ -18,19 +90,9 @@ struct ManpageTitle {
     volume: String,
 }
 
-/// Parse a manpage title in the format `name(volume)`.
-///
-/// Volume must be a digit optionally followed by a letter (e.g., "1", "3p", "8").
-///
-/// # Arguments
-///
-/// * `title` - The raw title text (e.g., "git-commit(1)")
-///
-/// # Returns
-///
-/// The parsed title components, or None if the format is invalid.
+/// Parse `name(volume)`. The volume must be one digit with an optional letter.
+/// Return `None` if the title does not have this format.
 fn parse_manpage_title(title: &str) -> Option<ManpageTitle> {
-    // Find the last '(' and matching ')'
     let title = title.trim();
     if !title.ends_with(')') {
         return None;
@@ -47,7 +109,7 @@ fn parse_manpage_title(title: &str) -> Option<ManpageTitle> {
     }
 
     let volume = title[open_paren + 1..title.len() - 1].trim();
-    // Validate volume: must be digit optionally followed by a letter
+
     match volume.chars().collect::<Vec<char>>().as_slice() {
         [first] if first.is_ascii_digit() => {} // valid,
         [first, second] if first.is_ascii_digit() && second.is_ascii_alphabetic() => {}
@@ -64,7 +126,7 @@ fn parse_manpage_title(title: &str) -> Option<ManpageTitle> {
 }
 
 /// Extract plain text from inline nodes (for title parsing).
-pub(super) fn extract_plain_text(nodes: &[InlineNode]) -> String {
+fn extract_plain_text(nodes: &[InlineNode]) -> String {
     let mut result = String::new();
     for node in nodes {
         match node {
@@ -96,15 +158,9 @@ pub(super) fn extract_plain_text(nodes: &[InlineNode]) -> String {
     result
 }
 
-/// Sanitize a name for use as mantitle when the title doesn't conform to name(volume) format.
-///
-/// Transforms the input by:
-/// - Converting to lowercase
-/// - Replacing non-alphanumeric characters (except `-` and `_`) with hyphens
-/// - Collapsing multiple hyphens into one
-/// - Trimming leading/trailing hyphens
-///
-/// Used primarily to sanitize filenames (without extension) for mantitle fallback.
+/// Make a lowercase `mantitle` from a filename or nonconforming title.
+/// Replace characters other than letters, digits, `-`, and `_` with hyphens.
+/// Collapse repeated hyphens and remove them from the ends.
 fn sanitize_mantitle(name: &str) -> String {
     let sanitized: String = name
         .to_lowercase()
@@ -118,7 +174,6 @@ fn sanitize_mantitle(name: &str) -> String {
         })
         .collect();
 
-    // Collapse multiple hyphens and trim
     let mut result = String::new();
     let mut prev_hyphen = false;
     for c in sanitized.chars() {
@@ -135,31 +190,11 @@ fn sanitize_mantitle(name: &str) -> String {
     result.trim_end_matches('-').into()
 }
 
-/// Derive manpage attributes from the document header.
+/// Set `mantitle` and `manvolnum` after the header, before parsing body blocks.
+/// Preserve caller values. Return `false` when there is no header.
 ///
-/// This function should be called during parsing, after the header is parsed but
-/// before body blocks are processed. It sets:
-/// - `mantitle`: The program name from the document title (lowercase)
-/// - `manvolnum`: The volume number from the document title
-///
-/// Existing caller values are preserved.
-///
-/// When the title doesn't conform to `name(volume)` format:
-/// - In strict mode: returns an error
-/// - Otherwise: uses fallback values (filename without extension, volume "1")
-///
-/// # Arguments
-///
-/// * `header` - The parsed document header (may be None)
-/// * `attrs` - Mutable reference to document attributes
-/// * `strict` - Whether to fail on non-conforming titles
-/// * `source_file` - Optional source filename (used for mantitle fallback)
-///
-/// # Returns
-///
-/// `Ok(true)` if manpage attributes were derived,
-/// `Ok(false)` if no header was provided,
-/// `Err` if strict mode and title doesn't conform
+/// Strict mode rejects titles outside the `name(volume)` format. Otherwise,
+/// use the filename or cleaned title for `mantitle` and `1` for `manvolnum`.
 pub(super) fn derive_manpage_header_attrs<'a>(
     header: Option<&Header<'a>>,
     attrs: &mut DocumentAttributes<'a>,
@@ -173,13 +208,11 @@ pub(super) fn derive_manpage_header_attrs<'a>(
     let title_text = extract_plain_text(header.title.as_ref());
 
     if let Some(manpage_title) = parse_manpage_title(&title_text) {
-        // Conforming title: use parsed name and volume
         attrs.insert_text("mantitle".into(), manpage_title.name.to_lowercase().into());
         attrs.insert_text("manvolnum".into(), manpage_title.volume.into());
 
         tracing::debug!("derived manpage attributes from header");
     } else {
-        // Non-conforming title
         if strict {
             return Err(Error::NonConformingManpageTitle(
                 Box::new(SourceLocation {
@@ -222,8 +255,8 @@ pub(super) fn derive_manpage_header_attrs<'a>(
 /// Values read from the required first section of a manpage document.
 #[derive(Debug, PartialEq)]
 pub(super) struct NameSectionAttributes {
-    pub(super) name: String,
-    pub(super) purpose: String,
+    name: String,
+    purpose: String,
 }
 
 /// Derive manpage name metadata from the paragraph lines found by the grammar.

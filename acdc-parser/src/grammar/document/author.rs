@@ -1,10 +1,11 @@
-use std::borrow::Cow;
+//! Author names and header attributes.
 
+use crate::{
+    AttributeName, Author, DocumentAttributes, Header,
+    grammar::{ParserState, document_parser},
+};
 use bumpalo::Bump;
-
-use crate::{AttributeName, Author, DocumentAttributes, Header};
-
-use super::{ParserState, document::document_parser};
+use std::borrow::Cow;
 
 /// Build a full name string from an `Author`.
 fn build_author_full_name(author: &Author) -> String {
@@ -20,15 +21,10 @@ fn build_author_full_name(author: &Author) -> String {
     name
 }
 
-/// Bidirectional sync between `Header.authors` and document attributes.
-///
-/// When `:author:` is explicitly set as a document attribute, it overrides any author line.
-/// When no author line is present, populates `header.authors` from `:author:` and `:email:`
-/// document attributes.
-///
-/// Refresh derived name fields when an explicit author changes, retaining
-/// independently assigned fields and defaults when the author stays unchanged.
-pub(crate) fn derive_author_attrs<'a>(
+/// Keep header authors and document attributes consistent.
+/// An explicit `:author:` overrides the author line. A changed author refreshes
+/// derived name fields but preserves fields assigned independently.
+pub(super) fn derive_author_attrs<'a>(
     arena: &'a Bump,
     header: &mut Header<'a>,
     attrs: &mut DocumentAttributes<'a>,
@@ -38,7 +34,7 @@ pub(crate) fn derive_author_attrs<'a>(
 }
 
 /// Make implicit author metadata available to subsequent header entries.
-pub(crate) fn register_author_attrs<'a>(
+pub(super) fn register_author_attrs<'a>(
     authors: &[Author<'a>],
     attrs: &mut DocumentAttributes<'a>,
 ) {
@@ -121,10 +117,8 @@ fn ingest_author_attribute<'a>(
         }
         return false;
     }
-    // Parse the `:author:` value in a scratch arena. The returned authors
-    // borrow from that arena (which drops at end-of-scope), so re-intern
-    // every string into the outer arena before keeping them alongside
-    // `header`.
+    // Parsed names borrow from the temporary arena. Copy them to the document
+    // arena before the temporary arena is dropped.
     let scratch = Bump::new();
     let mut temp_state = ParserState::new(author, &scratch);
     let Ok(parsed) = document_parser::authors(author, &mut temp_state) else {
@@ -142,7 +136,7 @@ fn ingest_author_attribute<'a>(
             email: a.email.map(|e| &*arena.alloc_str(e)),
         })
         .collect();
-    // Apply :email: if present and the first author has no email yet.
+
     if let Some(first) = authors.first_mut()
         && first.email.is_none()
         && let Some(email) = attrs.text("email").map(crate::strip_quotes)
