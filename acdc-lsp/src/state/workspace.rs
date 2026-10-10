@@ -1,7 +1,7 @@
 //! Workspace-level state management
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     path::PathBuf,
     sync::{PoisonError, RwLock},
 };
@@ -22,6 +22,8 @@ use crate::{
     state::{DocumentState, document::ParsedText},
 };
 
+mod includes;
+
 /// Workspace-level state management
 pub(crate) struct Workspace {
     /// Open documents: URI -> `DocumentState`
@@ -31,6 +33,8 @@ pub(crate) struct Workspace {
     anchor_index: DashMap<String, Vec<(Uri, SourceLocation)>>,
     /// Cached symbols for non-open files (populated by workspace scan)
     symbol_index: DashMap<Uri, Vec<IndexedSymbol>>,
+    /// Resolved include paths attempted by each open document, including missing files.
+    include_dependencies: DashMap<Uri, HashSet<PathBuf>>,
     /// Resource-scoped analysis configuration.
     analysis_configuration: RwLock<AnalysisConfiguration>,
     /// Prebuilt parser options for every supported analysis backend.
@@ -51,6 +55,7 @@ impl Workspace {
             documents: DashMap::new(),
             anchor_index: DashMap::new(),
             symbol_index: DashMap::new(),
+            include_dependencies: DashMap::new(),
             analysis_configuration: RwLock::new(AnalysisConfiguration::default()),
             parser_profiles: ParserProfiles::new(),
         }
@@ -158,8 +163,12 @@ impl Workspace {
 
     /// Update document state and return files whose diagnostics must be published.
     pub(crate) fn update_document(&self, uri: Uri, text: String, version: i32) -> Vec<Uri> {
-        let options = self.parser_profiles.get(self.backend_for(&uri));
-        self.update_document_with_options(uri, text, version, options)
+        let changed = [uri.clone()];
+        let mut affected = self.update_with_includes(uri, text, version);
+        affected.extend(self.refresh_include_dependents(&changed, changed.first()));
+        affected.sort_by(|a, b| a.as_str().cmp(b.as_str()));
+        affected.dedup();
+        affected
     }
 
     fn update_document_with_options(
@@ -190,7 +199,11 @@ impl Workspace {
                 .push((uri.clone(), loc.clone()));
         }
 
-        self.compute_diagnostics(&uri, &mut state);
+        self.compute_diagnostics(
+            &uri,
+            &mut state,
+            matches!(options.include_loader, acdc_parser::IncludeLoader::Disabled),
+        );
         affected.extend(state.diagnostic_uris(&uri));
         affected.sort_by(|a, b| a.as_str().cmp(b.as_str()));
         affected.dedup();
@@ -199,7 +212,7 @@ impl Workspace {
         affected
     }
 
-    fn compute_diagnostics(&self, uri: &Uri, state: &mut DocumentState) {
+    fn compute_diagnostics(&self, uri: &Uri, state: &mut DocumentState, check_raw_includes: bool) {
         // Compute diagnostics with workspace context for cross-file xref validation
         let cross_file_resolver = |source_uri: &Uri, parsed: &crate::state::XrefTarget| -> bool {
             // Check global anchor index first (open documents)
@@ -255,8 +268,10 @@ impl Workspace {
             }
         }
 
-        // Include directives and conditionals come from the editor's original text.
-        if let Some(doc_path) = uri.to_file_path()
+        // When a provider is active, parser warnings account for buffers,
+        // attributes, optional targets, and inactive conditional branches.
+        if check_raw_includes
+            && let Some(doc_path) = uri.to_file_path()
             && let Some(doc_dir) = doc_path.parent()
         {
             let link_diags =
@@ -295,7 +310,7 @@ impl Workspace {
         if let Some(document) = self.documents.get(uri) {
             return Some(read(document.text()));
         }
-        let path = uri.to_file_path()?;
+        let path = includes::file_path(uri)?;
         let text = read_bounded(&path)?;
         Some(read(&text))
     }
@@ -303,12 +318,16 @@ impl Workspace {
     /// Remove a document and return files whose diagnostics must be published again.
     pub(crate) fn remove_document(&self, uri: &Uri) -> Vec<Uri> {
         self.remove_anchors_for_uri(uri);
-        let affected = self.documents.remove(uri).map_or_else(
+        self.include_dependencies.remove(uri);
+        let mut affected = self.documents.remove(uri).map_or_else(
             || vec![uri.clone()],
             |(_, state)| state.diagnostic_uris(uri),
         );
         // Re-index from disk for workspace symbols
         self.reindex_file_from_disk(uri);
+        affected.extend(self.refresh_include_dependents(std::slice::from_ref(uri), None));
+        affected.sort_by(|a, b| a.as_str().cmp(b.as_str()));
+        affected.dedup();
         affected
     }
 
@@ -506,25 +525,22 @@ impl Workspace {
     /// Rename a document's URI in all workspace indexes.
     ///
     /// Called after a file rename to keep internal state consistent.
-    pub(crate) fn rename_document_uri(&self, old_uri: &Uri, new_uri: &Uri) {
-        // Move document state
+    pub(crate) fn rename_document_uri(&self, old_uri: &Uri, new_uri: &Uri) -> Vec<Uri> {
+        self.remove_anchors_for_uri(old_uri);
+        self.include_dependencies.remove(old_uri);
+        self.symbol_index.remove(old_uri);
+        let mut affected = vec![old_uri.clone()];
         if let Some((_, state)) = self.documents.remove(old_uri) {
-            self.documents.insert(new_uri.clone(), state);
+            affected.extend(state.diagnostic_uris(old_uri));
+            affected.extend(self.update_with_includes(
+                new_uri.clone(),
+                state.text().to_owned(),
+                state.version,
+            ));
+        } else {
+            self.reindex_file_from_disk(new_uri);
         }
-
-        // Update anchor_index entries
-        for mut entry in self.anchor_index.iter_mut() {
-            for (uri, _) in entry.value_mut() {
-                if uri == old_uri {
-                    *uri = new_uri.clone();
-                }
-            }
-        }
-
-        // Move symbol_index entry
-        if let Some((_, symbols)) = self.symbol_index.remove(old_uri) {
-            self.symbol_index.insert(new_uri.clone(), symbols);
-        }
+        affected
     }
 
     /// Discover all `AsciiDoc` files in the workspace roots.
@@ -535,7 +551,8 @@ impl Workspace {
     }
 
     fn reindex_file_from_disk(&self, uri: &Uri) {
-        if let Some(path) = uri.to_file_path()
+        self.symbol_index.remove(uri);
+        if let Some(path) = includes::file_path(uri)
             && let Some(text) = read_bounded(path.as_ref())
         {
             let backend = self.backend_for(uri);

@@ -134,7 +134,12 @@ pub(crate) fn compute_file_rename_edits(
 }
 
 /// Update workspace state after files have been renamed.
-pub(crate) fn update_workspace_after_rename(workspace: &Workspace, renames: &[FileRename]) {
+pub(crate) fn update_workspace_after_rename(
+    workspace: &Workspace,
+    renames: &[FileRename],
+) -> Vec<Uri> {
+    let mut changed = Vec::new();
+    let mut affected = Vec::new();
     for rename in renames {
         let Some(old_uri) = rename.old_uri.parse::<Uri>().ok() else {
             continue;
@@ -142,8 +147,11 @@ pub(crate) fn update_workspace_after_rename(workspace: &Workspace, renames: &[Fi
         let Some(new_uri) = rename.new_uri.parse::<Uri>().ok() else {
             continue;
         };
-        workspace.rename_document_uri(&old_uri, &new_uri);
+        affected.extend(workspace.rename_document_uri(&old_uri, &new_uri));
+        changed.extend([old_uri, new_uri]);
     }
+    affected.extend(workspace.files_changed(&changed));
+    affected
 }
 
 /// Scan closed workspace files for references to renamed files.

@@ -3,7 +3,7 @@
 use std::{
     collections::HashMap,
     path::PathBuf,
-    sync::{Mutex, MutexGuard},
+    sync::{Arc, Mutex, MutexGuard},
 };
 
 use acdc_parser::{
@@ -39,8 +39,8 @@ impl OwnedSource {
 /// while [`AstGuard`] limits AST access to one reader at a time.
 #[derive(Debug)]
 pub(crate) struct ParsedText {
-    /// Original text supplied by the editor.
-    source: Box<str>,
+    /// Keep the original allocation when sharing editor text with include readers.
+    source: Arc<String>,
     /// Parsed document, when available. Behind a `Mutex` purely to satisfy
     /// `Sync` — the inner value is only ever read.
     parsed: Option<Mutex<ParseResult>>,
@@ -75,7 +75,7 @@ impl ParsedText {
     /// this, so the stored value carries the AST alone.
     pub(crate) fn from_parsed(raw_source: Box<str>, parsed: ParseResult) -> Self {
         Self {
-            source: raw_source,
+            source: Arc::new(raw_source.into_string()),
             parsed: Some(Mutex::new(parsed)),
         }
     }
@@ -83,7 +83,7 @@ impl ParsedText {
     /// Wrap raw source text (used when parsing failed).
     pub(crate) fn from_source(source: Box<str>) -> Self {
         Self {
-            source,
+            source: Arc::new(source.into_string()),
             parsed: None,
         }
     }
@@ -91,6 +91,10 @@ impl ParsedText {
     /// Borrow the source text without locking.
     pub(crate) fn text(&self) -> &str {
         &self.source
+    }
+
+    pub(super) fn text_snapshot(&self) -> Arc<String> {
+        Arc::clone(&self.source)
     }
 
     /// Obtain a locked handle to the parsed AST if parsing succeeded.

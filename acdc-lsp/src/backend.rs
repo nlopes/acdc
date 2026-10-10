@@ -2,7 +2,9 @@
 //!
 //! Contains the main `Backend` struct that implements the `LanguageServer` trait.
 
-use std::sync::{Mutex, PoisonError, RwLock};
+use std::sync::{Arc, PoisonError, RwLock};
+
+use tokio::sync::Mutex;
 
 use tower_lsp_server::{
     Client, LanguageServer,
@@ -13,23 +15,24 @@ use tower_lsp_server::{
         CallHierarchyServerCapability, CodeActionKind, CodeActionOptions, CodeActionParams,
         CodeActionProviderCapability, CodeActionResponse, CodeLens, CodeLensOptions,
         CodeLensParams, CompletionOptions, CompletionParams, CompletionResponse, ConfigurationItem,
-        DidChangeConfigurationParams, DidChangeTextDocumentParams, DidChangeWorkspaceFoldersParams,
-        DidCloseTextDocumentParams, DidOpenTextDocumentParams, DocumentFormattingParams,
-        DocumentLink, DocumentLinkOptions, DocumentLinkParams, DocumentOnTypeFormattingOptions,
-        DocumentOnTypeFormattingParams, DocumentRangeFormattingParams, DocumentSymbolParams,
-        DocumentSymbolResponse, FileOperationFilter, FileOperationPattern,
-        FileOperationPatternKind, FileOperationRegistrationOptions, FoldingRange,
-        FoldingRangeParams, FoldingRangeProviderCapability, GotoDefinitionParams,
-        GotoDefinitionResponse, Hover, HoverParams, HoverProviderCapability, InitializeParams,
-        InitializeResult, InitializedParams, InlayHint, InlayHintParams, Location, MessageType,
-        OneOf, PrepareRenameResponse, ReferenceParams, Registration, RenameFilesParams,
-        RenameOptions, RenameParams, SelectionRange, SelectionRangeParams,
-        SelectionRangeProviderCapability, SemanticTokensParams, SemanticTokensResult,
-        ServerCapabilities, ServerInfo, SignatureHelp, SignatureHelpOptions, SignatureHelpParams,
-        SymbolInformation, TextDocumentPositionParams, TextDocumentSyncCapability,
-        TextDocumentSyncKind, TextEdit, Uri, WorkDoneProgressOptions, WorkspaceEdit,
-        WorkspaceFileOperationsServerCapabilities, WorkspaceFoldersServerCapabilities,
-        WorkspaceServerCapabilities, WorkspaceSymbolParams, WorkspaceSymbolResponse,
+        DidChangeConfigurationParams, DidChangeTextDocumentParams, DidChangeWatchedFilesParams,
+        DidChangeWorkspaceFoldersParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
+        DidSaveTextDocumentParams, DocumentFormattingParams, DocumentLink, DocumentLinkOptions,
+        DocumentLinkParams, DocumentOnTypeFormattingOptions, DocumentOnTypeFormattingParams,
+        DocumentRangeFormattingParams, DocumentSymbolParams, DocumentSymbolResponse,
+        FileOperationFilter, FileOperationPattern, FileOperationPatternKind,
+        FileOperationRegistrationOptions, FoldingRange, FoldingRangeParams,
+        FoldingRangeProviderCapability, GotoDefinitionParams, GotoDefinitionResponse, Hover,
+        HoverParams, HoverProviderCapability, InitializeParams, InitializeResult,
+        InitializedParams, InlayHint, InlayHintParams, Location, MessageType, OneOf,
+        PrepareRenameResponse, ReferenceParams, Registration, RenameFilesParams, RenameOptions,
+        RenameParams, SelectionRange, SelectionRangeParams, SelectionRangeProviderCapability,
+        SemanticTokensParams, SemanticTokensResult, ServerCapabilities, ServerInfo, SignatureHelp,
+        SignatureHelpOptions, SignatureHelpParams, SymbolInformation, TextDocumentPositionParams,
+        TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions, TextEdit, Uri,
+        WorkDoneProgressOptions, WorkspaceEdit, WorkspaceFileOperationsServerCapabilities,
+        WorkspaceFoldersServerCapabilities, WorkspaceServerCapabilities, WorkspaceSymbolParams,
+        WorkspaceSymbolResponse,
     },
 };
 
@@ -50,6 +53,7 @@ use crate::{
 struct ClientFeatures {
     configuration: ConfigurationSupport,
     refresh: RefreshSupport,
+    watched_files: bool,
 }
 
 #[derive(Clone, Copy, Default)]
@@ -70,9 +74,9 @@ pub struct Backend {
     /// Client handle for sending messages back to the editor
     client: Client,
     /// Workspace state management
-    workspace: Workspace,
-    /// Keeps workspace updates and edit generation from using different source versions.
-    mutation: Mutex<()>,
+    workspace: Arc<Workspace>,
+    /// Keeps requests from reading source versions that a parser task is replacing.
+    mutation: Arc<Mutex<()>>,
     /// Client capabilities captured during initialization.
     client_features: RwLock<ClientFeatures>,
 }
@@ -83,15 +87,18 @@ impl Backend {
     pub fn new(client: Client) -> Self {
         Self {
             client,
-            workspace: Workspace::new(),
-            mutation: Mutex::new(()),
+            workspace: Arc::new(Workspace::new()),
+            mutation: Arc::new(Mutex::new(())),
             client_features: RwLock::new(ClientFeatures::default()),
         }
     }
 
     /// Publish diagnostics for a document
     async fn publish_diagnostics(&self, uri: Uri) {
-        let (diagnostics, version) = self.workspace.diagnostics_for(&uri);
+        let (diagnostics, version) = {
+            let _mutation = self.mutation.lock().await;
+            self.workspace.diagnostics_for(&uri)
+        };
         self.client
             .publish_diagnostics(uri, diagnostics, version)
             .await;
@@ -104,9 +111,31 @@ impl Backend {
             .unwrap_or_else(PoisonError::into_inner)
     }
 
+    /// Run blocking workspace work in order with updates and edit generation.
+    async fn with_workspace<T: Send + 'static>(
+        &self,
+        action: impl FnOnce(&Workspace) -> T + Send + 'static,
+    ) -> Result<T> {
+        let guard = Arc::clone(&self.mutation).lock_owned().await;
+        let workspace = Arc::clone(&self.workspace);
+        tokio::task::spawn_blocking(move || {
+            let _guard = guard;
+            action(&workspace)
+        })
+        .await
+        .map_err(|_| {
+            tracing::error!("workspace task did not complete");
+            Error::internal_error()
+        })
+    }
+
     fn capture_client_features(&self, params: &InitializeParams) {
         let workspace = params.capabilities.workspace.as_ref();
         let features = ClientFeatures {
+            watched_files: workspace
+                .and_then(|capabilities| capabilities.did_change_watched_files.as_ref())
+                .and_then(|capability| capability.dynamic_registration)
+                .unwrap_or(false),
             configuration: ConfigurationSupport {
                 pull: workspace
                     .and_then(|capabilities| capabilities.configuration)
@@ -214,9 +243,11 @@ impl Backend {
     }
 
     async fn apply_configuration(&self, configuration: AnalysisConfiguration) {
-        let result = {
-            let _mutation = self.mutation.lock().unwrap_or_else(PoisonError::into_inner);
-            self.workspace.apply_analysis_configuration(&configuration)
+        let Ok(result) = self
+            .with_workspace(move |workspace| workspace.apply_analysis_configuration(&configuration))
+            .await
+        else {
+            return;
         };
         if !result.changed {
             return;
@@ -226,6 +257,24 @@ impl Backend {
             self.publish_diagnostics(uri).await;
         }
 
+        self.refresh_features().await;
+    }
+
+    async fn publish_changes(&self, mut affected: Vec<Uri>, refresh: bool) {
+        if affected.is_empty() {
+            return;
+        }
+        affected.sort_by(|a, b| a.as_str().cmp(b.as_str()));
+        affected.dedup();
+        for uri in affected {
+            self.publish_diagnostics(uri).await;
+        }
+        if refresh {
+            self.refresh_features().await;
+        }
+    }
+
+    async fn refresh_features(&self) {
         let features = self.features();
         if features.refresh.semantic_tokens {
             let _ = self.client.semantic_tokens_refresh().await;
@@ -277,12 +326,25 @@ impl LanguageServer for Backend {
         }
         self.workspace.initialize_analysis(options.backend, roots);
 
+        let file_renames = FileOperationRegistrationOptions {
+            filters: vec![FileOperationFilter {
+                scheme: Some("file".to_string()),
+                pattern: FileOperationPattern {
+                    glob: "**/*.{adoc,asciidoc,asc}".to_string(),
+                    matches: Some(FileOperationPatternKind::File),
+                    options: None,
+                },
+            }],
+        };
+
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
-                // Full sync for MVP simplicity - we get complete document on each change
-                text_document_sync: Some(TextDocumentSyncCapability::Kind(
-                    TextDocumentSyncKind::FULL,
-                )),
+                text_document_sync: Some(TextDocumentSyncCapability::Options(TextDocumentSyncOptions {
+                    open_close: Some(true),
+                    change: Some(TextDocumentSyncKind::FULL),
+                    save: Some(true.into()),
+                    ..Default::default()
+                })),
                 // Enable document outline
                 document_symbol_provider: Some(OneOf::Left(true)),
                 // Enable go-to-definition for xrefs
@@ -363,16 +425,8 @@ impl LanguageServer for Backend {
                         change_notifications: Some(OneOf::Left(true)),
                     }),
                     file_operations: Some(WorkspaceFileOperationsServerCapabilities {
-                        will_rename: Some(FileOperationRegistrationOptions {
-                            filters: vec![FileOperationFilter {
-                                scheme: Some("file".to_string()),
-                                pattern: FileOperationPattern {
-                                    glob: "**/*.{adoc,asciidoc,asc}".to_string(),
-                                    matches: Some(FileOperationPatternKind::File),
-                                    options: None,
-                                },
-                            }],
-                        }),
+                        will_rename: Some(file_renames.clone()),
+                        did_rename: Some(file_renames),
                         ..Default::default()
                     }),
                 }),
@@ -389,6 +443,25 @@ impl LanguageServer for Backend {
     async fn initialized(&self, _params: InitializedParams) {
         tracing::info!("acdc-lsp initialized");
         let features = self.features();
+        if features.watched_files
+            && let Err(error) = self
+                .client
+                .register_capability(vec![Registration {
+                    id: "acdc-lsp-include-files".to_string(),
+                    method: "workspace/didChangeWatchedFiles".to_string(),
+                    register_options: Some(serde_json::json!({
+                        "watchers": [{ "globPattern": "**/*" }]
+                    })),
+                }])
+                .await
+        {
+            self.client
+                .log_message(
+                    MessageType::WARNING,
+                    format!("failed to watch include files: {error}"),
+                )
+                .await;
+        }
         if features.configuration.dynamic_registration
             && let Err(error) = self
                 .client
@@ -412,10 +485,7 @@ impl LanguageServer for Backend {
                 self.apply_configuration(configuration).await;
             }
         }
-        {
-            let _mutation = self.mutation.lock().unwrap_or_else(PoisonError::into_inner);
-            self.workspace.scan_workspace_files();
-        }
+        let _ = self.with_workspace(Workspace::scan_workspace_files).await;
         tracing::info!(
             indexed_files = self.workspace.symbol_index_len(),
             "workspace file scan complete"
@@ -427,6 +497,7 @@ impl LanguageServer for Backend {
         reason = "match the LanguageServer trait declaration and the other LSP handlers"
     )]
     async fn shutdown(&self) -> Result<()> {
+        let _mutation = self.mutation.lock().await;
         tracing::info!("Shutting down acdc-lsp");
         Ok(())
     }
@@ -436,13 +507,12 @@ impl LanguageServer for Backend {
         let uri = params.text_document.uri;
         let text = params.text_document.text;
         let version = params.text_document.version;
-        let affected = {
-            let _mutation = self.mutation.lock().unwrap_or_else(PoisonError::into_inner);
-            self.workspace.update_document(uri, text, version)
-        };
-        for uri in affected {
-            self.publish_diagnostics(uri).await;
-        }
+        let affected = self
+            .with_workspace(move |workspace| workspace.update_document(uri, text, version))
+            .await
+            .unwrap_or_default();
+        let refresh = affected.len() > 1;
+        self.publish_changes(affected, refresh).await;
     }
 
     #[tracing::instrument(name = "lsp/didChange", level = "debug", skip_all, fields(uri = params.text_document.uri.as_str()))]
@@ -452,26 +522,47 @@ impl LanguageServer for Backend {
 
         // With FULL sync, we get the complete new text
         if let Some(change) = params.content_changes.into_iter().next() {
-            let affected = {
-                let _mutation = self.mutation.lock().unwrap_or_else(PoisonError::into_inner);
-                self.workspace.update_document(uri, change.text, version)
-            };
-            for uri in affected {
-                self.publish_diagnostics(uri).await;
-            }
+            let affected = self
+                .with_workspace(move |workspace| {
+                    workspace.update_document(uri, change.text, version)
+                })
+                .await
+                .unwrap_or_default();
+            let refresh = affected.len() > 1;
+            self.publish_changes(affected, refresh).await;
         }
     }
 
     #[tracing::instrument(name = "lsp/didClose", level = "debug", skip_all, fields(uri = params.text_document.uri.as_str()))]
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
         let uri = params.text_document.uri;
-        let affected = {
-            let _mutation = self.mutation.lock().unwrap_or_else(PoisonError::into_inner);
-            self.workspace.remove_document(&uri)
-        };
-        for uri in affected {
-            self.publish_diagnostics(uri).await;
-        }
+        let affected = self
+            .with_workspace(move |workspace| workspace.remove_document(&uri))
+            .await
+            .unwrap_or_default();
+        let refresh = affected.len() > 1;
+        self.publish_changes(affected, refresh).await;
+    }
+
+    async fn did_save(&self, params: DidSaveTextDocumentParams) {
+        let affected = self
+            .with_workspace(move |workspace| workspace.files_changed(&[params.text_document.uri]))
+            .await
+            .unwrap_or_default();
+        self.publish_changes(affected, true).await;
+    }
+
+    async fn did_change_watched_files(&self, params: DidChangeWatchedFilesParams) {
+        let uris: Vec<_> = params
+            .changes
+            .into_iter()
+            .map(|change| change.uri)
+            .collect();
+        let affected = self
+            .with_workspace(move |workspace| workspace.files_changed(&uris))
+            .await
+            .unwrap_or_default();
+        self.publish_changes(affected, true).await;
     }
 
     #[tracing::instrument(name = "lsp/didChangeConfiguration", level = "debug", skip_all)]
@@ -545,6 +636,7 @@ impl LanguageServer for Backend {
         &self,
         params: DocumentSymbolParams,
     ) -> Result<Option<DocumentSymbolResponse>> {
+        let _mutation = self.mutation.lock().await;
         let uri = params.text_document.uri;
 
         // Get document and extract symbols while the guard is held
@@ -564,6 +656,7 @@ impl LanguageServer for Backend {
         &self,
         params: WorkspaceSymbolParams,
     ) -> Result<Option<WorkspaceSymbolResponse>> {
+        let _mutation = self.mutation.lock().await;
         let query = &params.query;
         let results = self.workspace.query_workspace_symbols(query);
 
@@ -594,6 +687,7 @@ impl LanguageServer for Backend {
         &self,
         params: GotoDefinitionParams,
     ) -> Result<Option<GotoDefinitionResponse>> {
+        let _mutation = self.mutation.lock().await;
         let uri = params.text_document_position_params.text_document.uri;
         let position = params.text_document_position_params.position;
         let response = if let Some(doc) = self.workspace.get_document(&uri) {
@@ -621,6 +715,7 @@ impl LanguageServer for Backend {
 
     #[tracing::instrument(name = "lsp/hover", level = "info", skip_all, fields(uri = params.text_document_position_params.text_document.uri.as_str()))]
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
+        let _mutation = self.mutation.lock().await;
         let uri = params.text_document_position_params.text_document.uri;
         let position = params.text_document_position_params.position;
 
@@ -635,6 +730,7 @@ impl LanguageServer for Backend {
 
     #[tracing::instrument(name = "lsp/references", level = "debug", skip_all, fields(uri = params.text_document_position.text_document.uri.as_str()))]
     async fn references(&self, params: ReferenceParams) -> Result<Option<Vec<Location>>> {
+        let _mutation = self.mutation.lock().await;
         let uri = params.text_document_position.text_document.uri;
         let position = params.text_document_position.position;
         let include_declaration = params.context.include_declaration;
@@ -650,6 +746,7 @@ impl LanguageServer for Backend {
 
     #[tracing::instrument(name = "lsp/completion", level = "info", skip_all, fields(uri = params.text_document_position.text_document.uri.as_str()))]
     async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
+        let _mutation = self.mutation.lock().await;
         let uri = params.text_document_position.text_document.uri;
         let position = params.text_document_position.position;
 
@@ -665,6 +762,7 @@ impl LanguageServer for Backend {
 
     #[tracing::instrument(name = "lsp/signatureHelp", level = "debug", skip_all, fields(uri = params.text_document_position_params.text_document.uri.as_str()))]
     async fn signature_help(&self, params: SignatureHelpParams) -> Result<Option<SignatureHelp>> {
+        let _mutation = self.mutation.lock().await;
         let uri = params.text_document_position_params.text_document.uri;
         let position = params.text_document_position_params.position;
 
@@ -679,6 +777,7 @@ impl LanguageServer for Backend {
 
     #[tracing::instrument(name = "lsp/documentLink", level = "debug", skip_all, fields(uri = params.text_document.uri.as_str()))]
     async fn document_link(&self, params: DocumentLinkParams) -> Result<Option<Vec<DocumentLink>>> {
+        let _mutation = self.mutation.lock().await;
         let uri = params.text_document.uri;
 
         let response = self
@@ -691,6 +790,7 @@ impl LanguageServer for Backend {
 
     #[tracing::instrument(name = "lsp/foldingRange", level = "debug", skip_all, fields(uri = params.text_document.uri.as_str()))]
     async fn folding_range(&self, params: FoldingRangeParams) -> Result<Option<Vec<FoldingRange>>> {
+        let _mutation = self.mutation.lock().await;
         let uri = params.text_document.uri;
 
         let response = if let Some(doc) = self.workspace.get_document(&uri) {
@@ -708,6 +808,7 @@ impl LanguageServer for Backend {
         &self,
         params: TextDocumentPositionParams,
     ) -> Result<Option<PrepareRenameResponse>> {
+        let _mutation = self.mutation.lock().await;
         let uri = params.text_document.uri;
         let position = params.position;
 
@@ -726,19 +827,17 @@ impl LanguageServer for Backend {
         let position = params.text_document_position.position;
         let new_name = params.new_name;
 
-        let _mutation = self.mutation.lock().unwrap_or_else(PoisonError::into_inner);
-
-        let response = if let Some(doc) = self.workspace.get_document(&uri) {
-            rename::compute_rename(&doc, &uri, &self.workspace, position, &new_name)
-        } else {
-            None
-        };
-
-        Ok(response)
+        self.with_workspace(move |workspace| {
+            workspace
+                .get_document(&uri)
+                .and_then(|doc| rename::compute_rename(&doc, &uri, workspace, position, &new_name))
+        })
+        .await
     }
 
     #[tracing::instrument(name = "lsp/codeAction", level = "debug", skip_all, fields(uri = params.text_document.uri.as_str()))]
     async fn code_action(&self, params: CodeActionParams) -> Result<Option<CodeActionResponse>> {
+        let _mutation = self.mutation.lock().await;
         let uri = params.text_document.uri;
 
         let response = self.workspace.get_document(&uri).map(|doc| {
@@ -750,6 +849,7 @@ impl LanguageServer for Backend {
 
     #[tracing::instrument(name = "lsp/codeLens", level = "debug", skip_all, fields(uri = params.text_document.uri.as_str()))]
     async fn code_lens(&self, params: CodeLensParams) -> Result<Option<Vec<CodeLens>>> {
+        let _mutation = self.mutation.lock().await;
         let uri = params.text_document.uri;
 
         let response = self
@@ -765,6 +865,7 @@ impl LanguageServer for Backend {
         &self,
         params: SemanticTokensParams,
     ) -> Result<Option<SemanticTokensResult>> {
+        let _mutation = self.mutation.lock().await;
         let uri = params.text_document.uri;
 
         let response = if let Some(doc) = self.workspace.get_document(&uri) {
@@ -784,6 +885,7 @@ impl LanguageServer for Backend {
 
     #[tracing::instrument(name = "lsp/formatting", level = "info", skip_all, fields(uri = params.text_document.uri.as_str()))]
     async fn formatting(&self, params: DocumentFormattingParams) -> Result<Option<Vec<TextEdit>>> {
+        let _mutation = self.mutation.lock().await;
         let uri = params.text_document.uri;
 
         let response = self
@@ -799,6 +901,7 @@ impl LanguageServer for Backend {
         &self,
         params: DocumentRangeFormattingParams,
     ) -> Result<Option<Vec<TextEdit>>> {
+        let _mutation = self.mutation.lock().await;
         let uri = params.text_document.uri;
 
         let response = self
@@ -814,6 +917,7 @@ impl LanguageServer for Backend {
         &self,
         params: DocumentOnTypeFormattingParams,
     ) -> Result<Option<Vec<TextEdit>>> {
+        let _mutation = self.mutation.lock().await;
         let uri = params.text_document_position.text_document.uri;
         let position = params.text_document_position.position;
 
@@ -827,6 +931,7 @@ impl LanguageServer for Backend {
 
     #[tracing::instrument(name = "lsp/inlayHint", level = "debug", skip_all, fields(uri = params.text_document.uri.as_str()))]
     async fn inlay_hint(&self, params: InlayHintParams) -> Result<Option<Vec<InlayHint>>> {
+        let _mutation = self.mutation.lock().await;
         let uri = params.text_document.uri;
 
         let response = self
@@ -842,6 +947,7 @@ impl LanguageServer for Backend {
         &self,
         params: SelectionRangeParams,
     ) -> Result<Option<Vec<SelectionRange>>> {
+        let _mutation = self.mutation.lock().await;
         let uri = params.text_document.uri;
 
         let response = self
@@ -854,17 +960,21 @@ impl LanguageServer for Backend {
 
     #[tracing::instrument(name = "lsp/willRenameFiles", level = "debug", skip_all, fields(count = params.files.len()))]
     async fn will_rename_files(&self, params: RenameFilesParams) -> Result<Option<WorkspaceEdit>> {
-        let _mutation = self.mutation.lock().unwrap_or_else(PoisonError::into_inner);
-        Ok(file_rename::compute_file_rename_edits(
-            &self.workspace,
-            &params.files,
-        ))
+        self.with_workspace(move |workspace| {
+            file_rename::compute_file_rename_edits(workspace, &params.files)
+        })
+        .await
     }
 
     #[tracing::instrument(name = "lsp/didRenameFiles", level = "debug", skip_all, fields(count = params.files.len()))]
     async fn did_rename_files(&self, params: RenameFilesParams) {
-        let _mutation = self.mutation.lock().unwrap_or_else(PoisonError::into_inner);
-        file_rename::update_workspace_after_rename(&self.workspace, &params.files);
+        let affected = self
+            .with_workspace(move |workspace| {
+                file_rename::update_workspace_after_rename(workspace, &params.files)
+            })
+            .await
+            .unwrap_or_default();
+        self.publish_changes(affected, true).await;
     }
 
     #[tracing::instrument(name = "lsp/prepareCallHierarchy", level = "debug", skip_all, fields(uri = params.text_document_position_params.text_document.uri.as_str()))]
@@ -872,6 +982,7 @@ impl LanguageServer for Backend {
         &self,
         params: CallHierarchyPrepareParams,
     ) -> Result<Option<Vec<CallHierarchyItem>>> {
+        let _mutation = self.mutation.lock().await;
         let uri = params.text_document_position_params.text_document.uri;
         let position = params.text_document_position_params.position;
 
@@ -889,6 +1000,7 @@ impl LanguageServer for Backend {
         &self,
         params: CallHierarchyIncomingCallsParams,
     ) -> Result<Option<Vec<CallHierarchyIncomingCall>>> {
+        let _mutation = self.mutation.lock().await;
         Ok(call_hierarchy::incoming_calls(
             &params.item,
             &self.workspace,
@@ -900,6 +1012,7 @@ impl LanguageServer for Backend {
         &self,
         params: CallHierarchyOutgoingCallsParams,
     ) -> Result<Option<Vec<CallHierarchyOutgoingCall>>> {
+        let _mutation = self.mutation.lock().await;
         Ok(call_hierarchy::outgoing_calls(
             &params.item,
             &self.workspace,

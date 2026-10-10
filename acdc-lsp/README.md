@@ -87,6 +87,30 @@ For debugging, you can enable trace logging:
 RUST_LOG=acdc_lsp=debug acdc-lsp
 ```
 
+### Includes
+
+Open documents with a local `file:` URI expand local includes. The server uses
+unsaved editor text when the target is open. Otherwise, it reads the target from
+disk. Nested includes and parser selectors such as `lines=`, `tag=`, and `tags=`
+use the same rules as the parser.
+
+Analysis uses Server safe mode. Each entry document's folder is the base directory
+and the include boundary. The LSP also rejects symlinks that point outside that
+folder. Remote includes are disabled, including when a document sets
+`:allow-uri-read:`. Untitled documents and other URI schemes do not load includes.
+The background symbol scan also leaves includes disabled.
+
+The parser limits selected include text to 10 MiB per include. A line selection
+from a larger file works if the selected text fits that limit. This is not a limit
+on the total expanded document.
+
+Opening, changing, or closing an included buffer refreshes its open parent
+documents. Closing a buffer restores its disk contents, if the file exists.
+Save and file-rename notifications also refresh parents. For changes made outside
+the editor, the server requests file-change notifications when the client supports
+them. These notifications cover file creation and deletion too. Without client
+file watching, an external change takes effect when the parent is parsed again.
+
 ## Editor setup
 
 ### Emacs (eglot)

@@ -290,6 +290,28 @@ impl LspTestClient {
         }
     }
 
+    /// Wait for diagnostics for one URI, while responding to client requests.
+    pub(crate) fn wait_for_diagnostics(&mut self, uri: &str) -> Result<Value, HarnessError> {
+        loop {
+            let message = self.read_message()?;
+            let Some(method) = message.get("method").and_then(Value::as_str) else {
+                continue;
+            };
+            let params = message.get("params").unwrap_or(&Value::Null);
+            if let Some(id) = message.get("id") {
+                let result = self
+                    .server_request_handler
+                    .as_mut()
+                    .map_or(Value::Null, |handler| handler(method, params));
+                self.write_message(&json!({ "jsonrpc": "2.0", "id": id, "result": result }))?;
+            } else if method == "textDocument/publishDiagnostics"
+                && params.get("uri").and_then(Value::as_str) == Some(uri)
+            {
+                return Ok(params.clone());
+            }
+        }
+    }
+
     /// Write a JSON-RPC message with `Content-Length` header to stdin.
     fn write_message(&mut self, message: &Value) -> Result<(), HarnessError> {
         let body = serde_json::to_string(message)?;

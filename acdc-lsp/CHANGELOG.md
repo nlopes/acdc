@@ -71,11 +71,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Workspace analysis preserves include directives without reading their targets.
-  Analysis also hides local directory and home attributes using Server mode.
+- Open local documents now expand includes from unsaved buffers, with disk files
+  as a fallback. Parent documents refresh when included buffers open, change, or
+  close, and when the client reports file changes. Missing files are tracked too.
+  Selected include text is limited to 10 MiB; smaller line selections from larger
+  files remain supported.
+  Analysis uses Server mode and rejects symlinks outside the entry document's
+  folder. Remote includes remain disabled. Untitled documents and the background
+  symbol scan do not load includes.
 
 - Narrowed tokio dependency from `full` to only the required features (`macros`,
-  `rt-multi-thread`, `io-std`)
+  `rt-multi-thread`, `io-std`, and `sync`)
 - Memory usage is now bounded by live open files instead of growing on every edit. Long
   editing sessions no longer leak memory.
 - Document-link tooltips for `link:` macros now flatten parsed inline markup via
