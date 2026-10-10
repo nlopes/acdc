@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-10
+
 ### Added
 
 - `--max-total-include-bytes BYTES` sets the total selected include text allowed
@@ -14,80 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is 64 MiB. Raise it for large, trusted builds. Safe modes and the 10 MiB
   per-include limit still apply. Document attributes cannot change this budget.
   This resource limit deliberately differs from Asciidoctor.
-
-### Changed
-
-- `execute --list` now prints one bullet per command with labeled ids,
-  interpreters, enclosing section titles, direct dependencies, and optional
-  descriptions. Commands outside sections omit the section title. Quoted
-  values escape control characters so each command stays on one line.
-
-### Fixed
-
-- Warning batches read each referenced source file once, reducing repeated I/O
-  for documents with many warnings, including commands that use `subs=attributes`.
-- `lint -D one-sentence-per-line` now rejects description-list values with
-  multiple sentences on one line or a sentence split across lines, including
-  values written after the term's delimiter.
-- `lint -D one-sentence-per-line` no longer rejects correctly separated
-  sentences or colon-terminated lead-ins that use inline formatting. Multiple
-  formatted sentences on one source line now fail the check.
-- Repeated `-a` options now use the final assignment's precedence, matching
-  Asciidoctor. A later default such as `-a name=value@` or `-a !name=@` cancels
-  an earlier override and lets the document assign that attribute.
-- `convert -a skip-front-matter` makes captured front matter available to
-  conditionals and includes. HTML conversion warns about excessive source
-  indentation instead of panicking.
-- Serialized parser output now keeps document attributes as an end-of-header
-  snapshot and reports accepted body set and unset entries in source order.
-- `convert -a` attributes now remain locked against matching set or unset
-  entries in the document. The Asciidoctor-compatible `@` suffix makes a value
-  a document-overridable default, including `name@=value`, `name=value@`, and
-  soft unset forms such as `!name=@`.
-- Implied and conversion-only values such as the default `lang=en`, `outdir`,
-  and `outfile` are no longer inserted into parser attributes. Converters keep
-  their output fallbacks, while an unresolved attribute reference stays
-  unresolved. `outdir` and `outfile` remain conversion-result metadata even
-  when matching `-a` options are supplied.
-- `convert` makes the selected backend's attributes and the converter's default
-  attributes available while the document is parsed, so backend conditionals such
-  as `ifdef::backend-pdf[]` and references to `backend`, `basebackend`, `filetype`,
-  `outfilesuffix`, and `htmlsyntax` reflect the chosen output during parsing —
-  consistently for stdin, single-file input, and multi-file batches.
-- CLI subcommand errors now exit with a non-zero status after rendering the
-  error message. This includes `acdc lint` runs with denied diagnostics.
-- Missing `convert` and `lint` inputs now produce normal command usage errors,
-  unsupported TCK input types return a regular command failure, and multi-file
-  conversion failures are reported without bypassing top-level error handling.
-- A warning that points into an `include::`d file (or any content shifted by the
-  preprocessor) now renders its source snippet against the correct file instead of
-  aborting with `Failed to read contents … OutOfBounds`.
-- Diagnostics for empty files, multi-byte UTF-8 text, and stale or out-of-range
-  locations now clamp to valid source spans instead of producing an invalid
-  source-snippet range.
-- `--no-default-features` builds no longer re-enable parser default features
-  through internal workspace dependencies.
-- Peak memory during multi-file conversion is now bounded by active work;
-  parsed documents are released after their conversion instead of being
-  retained for the complete input batch.
-- Terminal backend warnings are now visible. Parser and converter warnings
-  emitted during a `--backend terminal` run with a pager were previously
-  written to stderr before the pager took over the screen, leaving them
-  visually buried. They are now deferred until after the pager exits, and the
-  no-pager terminal paths also render converter warnings, including file input
-  converted with `--out-file`.
-- A PDF-only build (`--no-default-features --features pdf`) now exposes the
-  `convert` command instead of reporting that the binary has no subcommands.
-- Default builds now include the runtime `convert --setext` compatibility flag,
-  with `--enable-setext-compatibility` retained as an alias. The `highlighting`
-  build feature now also enables terminal-backend source highlighting when that
-  backend is selected.
-- `inspect` now resolves includes relative to the inspected file, handles long
-  Unicode text without panicking, renders accurate tree relationships, and
-  omits ANSI styling when output is redirected.
-
-### Added
-
 - Native binary release packaging for macOS ARM64/x86-64, Linux ARM64/x86-64,
   and Windows x86-64, with SHA-256 checksums. The binaries include all CLI
   features, including all five output backends, developer tools, and the TCK
@@ -170,6 +98,77 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   as errors: a yellow caret, framed source excerpt, span marker, and an optional
   `help:` line. Previously these were silent without a tracing subscriber.
 
+### Changed
+
+- `execute --list` now prints one bullet per command with labeled ids,
+  interpreters, enclosing section titles, direct dependencies, and optional
+  descriptions. Commands outside sections omit the section title. Quoted
+  values escape control characters so each command stays on one line.
+
+### Fixed
+
+- Warning batches read each referenced source file once, reducing repeated I/O
+  for documents with many warnings, including commands that use `subs=attributes`.
+- `lint -D one-sentence-per-line` now rejects description-list values with
+  multiple sentences on one line or a sentence split across lines, including
+  values written after the term's delimiter.
+- `lint -D one-sentence-per-line` no longer rejects correctly separated
+  sentences or colon-terminated lead-ins that use inline formatting. Multiple
+  formatted sentences on one source line now fail the check.
+- Repeated `-a` options now use the final assignment's precedence, matching
+  Asciidoctor. A later default such as `-a name=value@` or `-a !name=@` cancels
+  an earlier override and lets the document assign that attribute.
+- `convert -a skip-front-matter` makes captured front matter available to
+  conditionals and includes. HTML conversion warns about excessive source
+  indentation instead of panicking.
+- Serialized parser output now keeps document attributes as an end-of-header
+  snapshot and reports accepted body set and unset entries in source order.
+- `convert -a` attributes now remain locked against matching set or unset
+  entries in the document. The Asciidoctor-compatible `@` suffix makes a value
+  a document-overridable default, including `name@=value`, `name=value@`, and
+  soft unset forms such as `!name=@`.
+- Implied and conversion-only values such as the default `lang=en`, `outdir`,
+  and `outfile` are no longer inserted into parser attributes. Converters keep
+  their output fallbacks, while an unresolved attribute reference stays
+  unresolved. `outdir` and `outfile` remain conversion-result metadata even
+  when matching `-a` options are supplied.
+- `convert` makes the selected backend's attributes and the converter's default
+  attributes available while the document is parsed, so backend conditionals such
+  as `ifdef::backend-pdf[]` and references to `backend`, `basebackend`, `filetype`,
+  `outfilesuffix`, and `htmlsyntax` reflect the chosen output during parsing —
+  consistently for stdin, single-file input, and multi-file batches.
+- CLI subcommand errors now exit with a non-zero status after rendering the
+  error message. This includes `acdc lint` runs with denied diagnostics.
+- Missing `convert` and `lint` inputs now produce normal command usage errors,
+  unsupported TCK input types return a regular command failure, and multi-file
+  conversion failures are reported without bypassing top-level error handling.
+- A warning that points into an `include::`d file (or any content shifted by the
+  preprocessor) now renders its source snippet against the correct file instead of
+  aborting with `Failed to read contents … OutOfBounds`.
+- Diagnostics for empty files, multi-byte UTF-8 text, and stale or out-of-range
+  locations now clamp to valid source spans instead of producing an invalid
+  source-snippet range.
+- `--no-default-features` builds no longer re-enable parser default features
+  through internal workspace dependencies.
+- Peak memory during multi-file conversion is now bounded by active work;
+  parsed documents are released after their conversion instead of being
+  retained for the complete input batch.
+- Terminal backend warnings are now visible. Parser and converter warnings
+  emitted during a `--backend terminal` run with a pager were previously
+  written to stderr before the pager took over the screen, leaving them
+  visually buried. They are now deferred until after the pager exits, and the
+  no-pager terminal paths also render converter warnings, including file input
+  converted with `--out-file`.
+- A PDF-only build (`--no-default-features --features pdf`) now exposes the
+  `convert` command instead of reporting that the binary has no subcommands.
+- Default builds now include the runtime `convert --setext` compatibility flag,
+  with `--enable-setext-compatibility` retained as an alias. The `highlighting`
+  build feature now also enables terminal-backend source highlighting when that
+  backend is selected.
+- `inspect` now resolves includes relative to the inspected file, handles long
+  Unicode text without panicking, renders accurate tree relationships, and
+  omits ANSI styling when output is redirected.
+
 ## [0.2.0] - 2026-03-28
 
 ### Added
@@ -224,6 +223,7 @@ This is tagged but unreleased in crates.io for now.
 [#329]: https://github.com/nlopes/acdc/issues/329
 [#330]: https://github.com/nlopes/acdc/issues/330
 
-[Unreleased]: https://github.com/nlopes/acdc/compare/acdc-cli-v0.2.0...HEAD
+[Unreleased]: https://github.com/nlopes/acdc/compare/acdc-cli-v0.3.0...HEAD
+[0.3.0]: https://github.com/nlopes/acdc/compare/acdc-cli-v0.2.0...acdc-cli-v0.3.0
 [0.2.0]: https://github.com/nlopes/acdc/compare/acdc-cli-v0.1.0...acdc-cli-v0.2.0
 [0.1.0]: https://github.com/nlopes/acdc/releases/tag/acdc-cli-v0.1.0

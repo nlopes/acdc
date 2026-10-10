@@ -1,6 +1,6 @@
 [package]
 name = "acdc-cli"
-version = "0.2.0"
+version = "0.3.0"
 edition.workspace = true
 description = "Text processor for parsing AsciiDoc and converting it to HTML, PDF, manual pages, Markdown, or terminal output."
 readme = "README.adoc"
