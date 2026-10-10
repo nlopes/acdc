@@ -53,6 +53,13 @@ pub(crate) fn position_to_offset(source: &str, position: Position) -> Option<usi
 /// span), so we use `<=` for the upper bound.
 #[must_use]
 pub(crate) fn offset_in_location(offset: usize, location: &Location) -> bool {
+    is_primary_location(location)
+        && offset >= location.absolute_start
+        && offset <= location.absolute_end
+}
+
+/// Whether both endpoints belong to the text supplied by the editor.
+pub(crate) fn is_primary_location(location: &Location) -> bool {
     location
         .start
         .file
@@ -63,8 +70,6 @@ pub(crate) fn offset_in_location(offset: usize, location: &Location) -> bool {
             .file
             .as_ref()
             .is_none_or(|chain| chain.is_empty())
-        && offset >= location.absolute_start
-        && offset <= location.absolute_end
 }
 
 /// Resolve a single-file span to a URI. Unknown include sources have no fallback.

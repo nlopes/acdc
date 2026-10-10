@@ -3,8 +3,10 @@
 use acdc_parser::{Block, Document, InlineNode, Section};
 use tower_lsp_server::ls_types::{CodeLens, Command, Uri};
 
-use crate::convert::location_to_range;
-use crate::state::{DocumentState, Workspace, XrefTarget};
+use crate::{
+    convert::{is_primary_location, location_to_range},
+    state::{DocumentState, Workspace},
+};
 
 /// Compute code lenses for a document.
 ///
@@ -138,10 +140,14 @@ fn add_section_lens(
     workspace: &Workspace,
     lenses: &mut Vec<CodeLens>,
 ) {
+    let heading = super::definition::heading_line_location(section);
+    if !is_primary_location(&heading) {
+        return;
+    }
     let id = section.id().into_owned();
     let count = count_xrefs_to_anchor(&id, workspace);
 
-    let range = location_to_range(&section.location);
+    let range = location_to_range(&heading);
     // Zero-width range at start of heading line
     let range = tower_lsp_server::ls_types::Range {
         start: range.start,
@@ -164,6 +170,7 @@ fn collect_inline_anchor_lenses(
     for inline in inlines {
         match inline {
             InlineNode::InlineAnchor(anchor) => {
+                if !is_primary_location(&anchor.location) { continue; }
                 let count = count_xrefs_to_anchor(anchor.id, workspace);
                 let range = location_to_range(&anchor.location);
                 let range = tower_lsp_server::ls_types::Range {
@@ -235,18 +242,7 @@ fn collect_attribute_def_lenses(
 
 /// Count xrefs to a given anchor ID across all open documents.
 fn count_xrefs_to_anchor(anchor_id: &str, workspace: &Workspace) -> usize {
-    let mut count = 0usize;
-    workspace.for_each_document(|_uri, doc| {
-        count += doc
-            .xrefs
-            .iter()
-            .filter(|(target, _)| {
-                let parsed = XrefTarget::parse(target);
-                parsed.anchor.as_deref() == Some(anchor_id) || target == anchor_id
-            })
-            .count();
-    });
-    count
+    super::references::collect_xref_locations(workspace, anchor_id).len()
 }
 
 /// Count attribute references to a given attribute name across all open documents.

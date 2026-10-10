@@ -91,7 +91,16 @@ fn collect_cross_file_references(
         }
     }
 
-    // Collect all xrefs pointing to this target across all open documents
+    locations.extend(collect_xref_locations(workspace, anchor_id));
+    locations
+}
+
+/// Return each physical cross-reference once, even if several documents include it.
+pub(super) fn collect_xref_locations(
+    workspace: &Workspace,
+    anchor_id: &str,
+) -> Vec<tower_lsp_server::ls_types::Location> {
+    let mut locations = Vec::new();
     workspace.for_each_document(|uri, doc| {
         for (xref_target, xref_loc) in &doc.xrefs {
             let parsed = XrefTarget::parse(xref_target);

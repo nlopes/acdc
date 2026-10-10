@@ -4,8 +4,10 @@ use acdc_converters_core::inlines_to_string;
 use acdc_parser::{Block, DelimitedBlockType, InlineMacro, InlineNode, Location};
 use tower_lsp_server::ls_types::{DocumentLink, Uri};
 
-use crate::convert::{location_to_range, resolve_relative_uri};
-use crate::state::DocumentState;
+use crate::{
+    convert::{is_primary_location, location_to_range, resolve_relative_uri},
+    state::DocumentState,
+};
 
 /// Collected link information
 struct LinkInfo {
@@ -26,6 +28,7 @@ pub(crate) fn collect_document_links(doc: &DocumentState, doc_uri: &Uri) -> Vec<
 
     let mut result: Vec<DocumentLink> = links
         .into_iter()
+        .filter(|info| is_primary_location(&info.location))
         .filter_map(|info| {
             let target = if info.target.starts_with("http://")
                 || info.target.starts_with("https://")

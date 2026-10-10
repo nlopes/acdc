@@ -86,7 +86,7 @@ fn collect_block_anchors(block: &Block, anchors: &mut HashMap<String, Location>)
 
 /// Build a location covering just the section heading line (from section start
 /// to the end of the title text), rather than the full section span.
-fn heading_line_location(section: &Section) -> Location {
+pub(super) fn heading_line_location(section: &Section) -> Location {
     let mut loc = section.location.clone();
     if let Some(last_inline) = section.title.last() {
         let title_loc = last_inline.location();

@@ -17,8 +17,10 @@ use tower_lsp_server::ls_types::{
     WorkDoneProgressOptions,
 };
 
-use crate::convert::to_lsp_u32;
-use crate::state::ConditionalBlock;
+use crate::{
+    convert::{is_primary_location, to_lsp_u32},
+    state::ConditionalBlock,
+};
 
 /// Semantic token types used by this LSP
 pub(crate) const TOKEN_TYPES: &[SemanticTokenType] = &[
@@ -159,19 +161,11 @@ fn collect_tokens_from_blocks(blocks: &[Block], tokens: &mut Vec<RawToken>) {
 fn collect_tokens_from_block(block: &Block, tokens: &mut Vec<RawToken>) {
     match block {
         Block::Section(section) => {
-            // Section title as namespace
-            // The title is at the section location start
-            let title_len = section.title.iter().map(inline_text_len).sum::<usize>();
-
-            if title_len > 0 {
-                tokens.push(RawToken {
-                    line: section.location.start.line.saturating_sub(1),
-                    // Skip the = markers and space
-                    start_char: u32::from(section.level) + 2, // Skip = markers and space
-                    length: to_lsp_u32(title_len),
-                    token_type: 0, // NAMESPACE
-                    token_modifiers: if section.metadata.id.is_some() { 2 } else { 0 },
-                });
+            if let (Some(first), Some(last)) = (section.title.first(), section.title.last()) {
+                let mut title = first.location().clone();
+                title.end = last.location().end.clone();
+                title.absolute_end = last.location().absolute_end;
+                add_token_for_location(&title, 0, if section.metadata.id.is_some() { 2 } else { 0 }, tokens);
             }
 
             // Process section content
@@ -210,6 +204,7 @@ fn collect_tokens_from_block(block: &Block, tokens: &mut Vec<RawToken>) {
             add_token_for_location(&comment.location, 5, 0, tokens); // COMMENT
         }
         Block::DocumentAttribute(attr) => {
+            if !is_primary_location(&attr.location) { return; }
             // Attribute name as property
             tokens.push(RawToken {
                 line: attr.location.start.line.saturating_sub(1),
@@ -333,22 +328,17 @@ fn add_token_for_location(
     token_modifiers: u32,
     tokens: &mut Vec<RawToken>,
 ) {
+    if !is_primary_location(loc) {
+        return;
+    }
     // Calculate length from location. Parser locations have inclusive end positions.
-    let length = match loc.byte_len() {
-        // Cross-file span (start and end came through different `include::` chains): the
-        // columns and byte offsets live in different files' coordinate spaces, so neither
-        // delta is meaningful. `byte_len()` returns `None`; a semantic token is single-line
-        // anyway, so emit a minimal 1-char token rather than a bogus length.
-        None => 1,
-        // Same line (and same file): use the column span.
-        Some(_) if loc.start.line == loc.end.line => loc
-            .end
+    let length = if loc.start.line == loc.end.line {
+        loc.end
             .column
             .saturating_sub(loc.start.column)
-            .saturating_add(1),
-        // Multi-line within one file: use the byte length (simplified — first-line only
-        // would need the line width, which we don't have here).
-        Some(bytes) => to_lsp_u32(bytes),
+            .saturating_add(1)
+    } else {
+        to_lsp_u32(loc.byte_len().unwrap_or_default())
     };
 
     if length > 0 {
@@ -359,30 +349,6 @@ fn add_token_for_location(
             token_type,
             token_modifiers,
         });
-    }
-}
-
-/// Get approximate text length of an inline node
-fn inline_text_len(inline: &InlineNode) -> usize {
-    match inline {
-        InlineNode::PlainText(p) => p.content.len(),
-        InlineNode::BoldText(b) => b.content.iter().map(inline_text_len).sum(),
-        InlineNode::ItalicText(i) => i.content.iter().map(inline_text_len).sum(),
-        InlineNode::MonospaceText(m) => m.content.iter().map(inline_text_len).sum(),
-        InlineNode::HighlightText(h) => h.content.iter().map(inline_text_len).sum(),
-        InlineNode::SubscriptText(s) => s.content.iter().map(inline_text_len).sum(),
-        InlineNode::SuperscriptText(s) => s.content.iter().map(inline_text_len).sum(),
-        InlineNode::RawText(_)
-        | InlineNode::VerbatimText(_)
-        | InlineNode::CurvedQuotationText(_)
-        | InlineNode::CurvedApostropheText(_)
-        | InlineNode::StandaloneCurvedApostrophe(_)
-        | InlineNode::LineBreak(_)
-        | InlineNode::InlineAnchor(_)
-        | InlineNode::Macro(_)
-        | InlineNode::CalloutRef(_)
-        // non_exhaustive
-        | _ => 0,
     }
 }
 
@@ -421,13 +387,9 @@ mod tests {
     use acdc_parser::{Options, Position};
 
     #[test]
-    fn cross_file_token_length_is_safe() {
+    fn cross_file_tokens_are_omitted() {
         use std::sync::Arc;
 
-        // A token whose start and end came through different `include::` chains: the byte
-        // offsets live in different files' coordinate spaces, so `absolute_end -
-        // absolute_start` is meaningless. The guard must emit a minimal token, not a length
-        // derived from that cross-file delta (here 400 - 10 + 1 = 391 without the guard).
         let mut start = Position::new(2, 1);
         start.file = Some(Arc::new(vec!["a.adoc".to_string()]));
         let mut end = Position::new(8, 5);
@@ -440,11 +402,7 @@ mod tests {
         let mut tokens = Vec::new();
         add_token_for_location(&loc, 0, 0, &mut tokens);
 
-        assert_eq!(
-            tokens.first().map(|t| t.length),
-            Some(1),
-            "cross-file token must use the safe fallback length, not the byte delta",
-        );
+        assert_eq!(tokens.len(), 0);
     }
 
     #[test]

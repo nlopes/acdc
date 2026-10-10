@@ -4,7 +4,10 @@ use acdc_converters_core::{inlines_to_string, xref::reference_text};
 use acdc_parser::{Block, DelimitedBlockType, Document, InlineMacro, InlineNode};
 use tower_lsp_server::ls_types::{InlayHint, InlayHintLabel, Position, Range};
 
-use crate::{convert::location_to_range, state::DocumentState};
+use crate::{
+    convert::{is_primary_location, location_to_range},
+    state::DocumentState,
+};
 
 /// Maximum length for attribute value hints before truncation.
 const MAX_HINT_VALUE_LEN: usize = 50;
@@ -179,7 +182,7 @@ fn collect_xref_hint_in_inline(
 ) {
     match inline {
         InlineNode::Macro(InlineMacro::CrossReference(xref)) => {
-            if !xref.text.is_empty() {
+            if !is_primary_location(&xref.location) || !xref.text.is_empty() {
                 return;
             }
 

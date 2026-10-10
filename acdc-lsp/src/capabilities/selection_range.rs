@@ -7,8 +7,12 @@
 use acdc_parser::{Block, DelimitedBlockType, InlineNode};
 use tower_lsp_server::ls_types::{Position, Range, SelectionRange};
 
-use crate::convert::{location_to_range, offset_in_location, position_to_offset, to_lsp_u32};
-use crate::state::DocumentState;
+use crate::{
+    convert::{
+        is_primary_location, location_to_range, offset_in_location, position_to_offset, to_lsp_u32,
+    },
+    state::DocumentState,
+};
 
 /// Compute selection ranges for the given positions.
 ///
@@ -95,85 +99,81 @@ fn collect_block_ranges(blocks: &[Block], offset: usize, ranges: &mut Vec<Range>
 
 #[allow(clippy::too_many_lines)]
 fn collect_block_range(block: &Block, offset: usize, ranges: &mut Vec<Range>) {
+    // A foreign or mixed-source container can contain primary-input children.
+    if is_primary_location(block.location()) && !offset_in_location(offset, block.location()) {
+        return;
+    }
     match block {
         Block::Section(section) => {
-            if !offset_in_location(offset, &section.location) {
-                return;
+            if offset_in_location(offset, &section.location) {
+                ranges.push(location_to_range(&section.location));
             }
-            ranges.push(location_to_range(&section.location));
             collect_block_ranges(&section.content, offset, ranges);
         }
         Block::Paragraph(para) => {
-            if !offset_in_location(offset, &para.location) {
-                return;
+            if offset_in_location(offset, &para.location) {
+                ranges.push(location_to_range(&para.location));
             }
-            ranges.push(location_to_range(&para.location));
             collect_inline_ranges(&para.content, offset, ranges);
         }
         Block::DelimitedBlock(delimited) => {
-            if !offset_in_location(offset, &delimited.location) {
-                return;
+            if offset_in_location(offset, &delimited.location) {
+                ranges.push(location_to_range(&delimited.location));
             }
-            ranges.push(location_to_range(&delimited.location));
             collect_delimited_ranges(&delimited.inner, offset, ranges);
         }
         Block::UnorderedList(list) => {
-            if !offset_in_location(offset, &list.location) {
-                return;
+            if offset_in_location(offset, &list.location) {
+                ranges.push(location_to_range(&list.location));
             }
-            ranges.push(location_to_range(&list.location));
             for item in &list.items {
                 if offset_in_location(offset, &item.location) {
                     ranges.push(location_to_range(&item.location));
-                    collect_inline_ranges(&item.principal, offset, ranges);
-                    collect_block_ranges(&item.blocks, offset, ranges);
                 }
+                collect_inline_ranges(&item.principal, offset, ranges);
+                collect_block_ranges(&item.blocks, offset, ranges);
             }
         }
         Block::OrderedList(list) => {
-            if !offset_in_location(offset, &list.location) {
-                return;
+            if offset_in_location(offset, &list.location) {
+                ranges.push(location_to_range(&list.location));
             }
-            ranges.push(location_to_range(&list.location));
             for item in &list.items {
                 if offset_in_location(offset, &item.location) {
                     ranges.push(location_to_range(&item.location));
-                    collect_inline_ranges(&item.principal, offset, ranges);
-                    collect_block_ranges(&item.blocks, offset, ranges);
                 }
+                collect_inline_ranges(&item.principal, offset, ranges);
+                collect_block_ranges(&item.blocks, offset, ranges);
             }
         }
         Block::DescriptionList(list) => {
-            if !offset_in_location(offset, &list.location) {
-                return;
+            if offset_in_location(offset, &list.location) {
+                ranges.push(location_to_range(&list.location));
             }
-            ranges.push(location_to_range(&list.location));
             for item in &list.items {
                 if offset_in_location(offset, &item.location) {
                     ranges.push(location_to_range(&item.location));
-                    collect_inline_ranges(&item.principal_text, offset, ranges);
-                    collect_block_ranges(&item.description, offset, ranges);
                 }
+                collect_inline_ranges(&item.principal_text, offset, ranges);
+                collect_block_ranges(&item.description, offset, ranges);
             }
         }
         Block::CalloutList(list) => {
-            if !offset_in_location(offset, &list.location) {
-                return;
+            if offset_in_location(offset, &list.location) {
+                ranges.push(location_to_range(&list.location));
             }
-            ranges.push(location_to_range(&list.location));
             for item in &list.items {
                 if offset_in_location(offset, &item.location) {
                     ranges.push(location_to_range(&item.location));
-                    collect_inline_ranges(&item.principal, offset, ranges);
-                    collect_block_ranges(&item.blocks, offset, ranges);
                 }
+                collect_inline_ranges(&item.principal, offset, ranges);
+                collect_block_ranges(&item.blocks, offset, ranges);
             }
         }
         Block::Admonition(adm) => {
-            if !offset_in_location(offset, &adm.location) {
-                return;
+            if offset_in_location(offset, &adm.location) {
+                ranges.push(location_to_range(&adm.location));
             }
-            ranges.push(location_to_range(&adm.location));
             collect_block_ranges(&adm.blocks, offset, ranges);
         }
         Block::DiscreteHeader(h) => {
@@ -240,11 +240,13 @@ fn collect_delimited_ranges(inner: &DelimitedBlockType, offset: usize, ranges: &
 fn collect_inline_ranges(inlines: &[InlineNode], offset: usize, ranges: &mut Vec<Range>) {
     for inline in inlines {
         let loc = inline.location();
-        if !offset_in_location(offset, loc) {
+        if is_primary_location(loc) && !offset_in_location(offset, loc) {
             continue;
         }
 
-        ranges.push(location_to_range(loc));
+        if offset_in_location(offset, loc) {
+            ranges.push(location_to_range(loc));
+        }
 
         // Recurse into container inlines
         match inline {

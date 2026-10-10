@@ -15,7 +15,7 @@ use crate::{
 const CHAPTER: &str = "// omitted\n// omitted\n[[chapter]]\n== Chapter\n\nSee <<chapter>>.\n";
 const BOOK: &str = "See <<chapter>>.\n\ninclude::chapter.adoc[lines=3..6]\n";
 
-fn file_uri(name: &str) -> Result<Uri, Box<dyn Error>> {
+pub(super) fn file_uri(name: &str) -> Result<Uri, Box<dyn Error>> {
     Uri::from_file_path(
         std::env::temp_dir()
             .join("acdc-lsp-source-locations")
@@ -28,7 +28,9 @@ fn options() -> Result<Options<'static>, Box<dyn Error>> {
     options_with_sources(&[("chapter.adoc", CHAPTER)])
 }
 
-fn options_with_sources(sources: &[(&str, &str)]) -> Result<Options<'static>, Box<dyn Error>> {
+pub(super) fn options_with_sources(
+    sources: &[(&str, &str)],
+) -> Result<Options<'static>, Box<dyn Error>> {
     let base = file_uri("book.adoc")?
         .to_file_path()
         .and_then(|path| path.parent().map(PathBuf::from))

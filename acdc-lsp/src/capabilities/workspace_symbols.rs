@@ -145,22 +145,23 @@ fn extract_block_symbols(block: &Block, symbols: &mut Vec<IndexedSymbol>) {
 
 fn extract_section_symbols(section: &Section, symbols: &mut Vec<IndexedSymbol>) {
     let title_text = inlines_to_string(&section.title);
+    let heading = super::definition::heading_line_location(section);
     symbols.push(IndexedSymbol {
         name: title_text,
         kind: section_level_to_symbol_kind(section.level),
-        location: section.location.clone(),
+        location: heading.clone(),
         detail: Some(format!("Level {}", section.level)),
     });
 
     // Collect anchors from metadata
-    extract_metadata_anchors(&section.metadata, &section.location, symbols);
+    extract_metadata_anchors(&section.metadata, &heading, symbols);
 
     // Also add generated section ID as anchor
     let id = section.id().into_owned();
     symbols.push(IndexedSymbol {
         name: id,
         kind: SymbolKind::KEY,
-        location: section.location.clone(),
+        location: heading,
         detail: Some("Anchor".to_string()),
     });
 

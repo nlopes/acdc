@@ -4,7 +4,7 @@ use acdc_converters_core::inlines_to_string;
 use acdc_parser::{Block, DelimitedBlock, DelimitedBlockType, Document, Section, Title};
 use tower_lsp_server::ls_types::{DocumentSymbol, SymbolKind};
 
-use crate::convert::location_to_range;
+use crate::convert::{is_primary_location, location_to_range};
 
 /// Maximum length for paragraph preview text in symbol names
 const PARAGRAPH_PREVIEW_LEN: usize = 50;
@@ -15,7 +15,9 @@ pub(crate) fn document_symbols(doc: &Document) -> Vec<DocumentSymbol> {
     let mut symbols = vec![];
 
     // Add header as top-level symbol if present
-    if let Some(header) = &doc.header {
+    if let Some(header) = &doc.header
+        && is_primary_location(&header.location)
+    {
         let title_text = inlines_to_string(&header.title);
 
         symbols.push(DocumentSymbol {
@@ -32,9 +34,7 @@ pub(crate) fn document_symbols(doc: &Document) -> Vec<DocumentSymbol> {
 
     // Process blocks recursively
     for block in &doc.blocks {
-        if let Some(symbol) = block_to_symbol(block) {
-            symbols.push(symbol);
-        }
+        collect_block_symbols(block, &mut symbols);
     }
 
     symbols
@@ -42,7 +42,10 @@ pub(crate) fn document_symbols(doc: &Document) -> Vec<DocumentSymbol> {
 
 /// Convert children blocks to nested symbols, returning `None` if empty.
 fn children_from_blocks(blocks: &[Block]) -> Option<Vec<DocumentSymbol>> {
-    let children: Vec<DocumentSymbol> = blocks.iter().filter_map(block_to_symbol).collect();
+    let mut children = Vec::new();
+    for block in blocks {
+        collect_block_symbols(block, &mut children);
+    }
     if children.is_empty() {
         None
     } else {
@@ -108,6 +111,34 @@ fn title_or_source(title: &Title, source: &str) -> String {
     } else {
         inlines_to_string(title)
     }
+}
+
+fn collect_block_symbols(block: &Block, symbols: &mut Vec<DocumentSymbol>) {
+    let Some(mut symbol) = block_to_symbol(block) else {
+        return;
+    };
+    if is_primary_location(block.location()) {
+        symbols.push(symbol);
+        return;
+    }
+
+    // A section can start in this file and end in an include. Keep its heading
+    // and local children, but do not use the included endpoint for its range.
+    if let Block::Section(section) = block {
+        let heading = super::definition::heading_line_location(section);
+        if is_primary_location(&heading) {
+            symbol.range = location_to_range(&heading);
+            symbol.selection_range = symbol.range;
+            for child in symbol.children.iter().flatten() {
+                symbol.range.end = symbol.range.end.max(child.range.end);
+            }
+            symbols.push(symbol);
+            return;
+        }
+    }
+
+    // Included containers can hold text that resumes in the primary file.
+    symbols.extend(symbol.children.into_iter().flatten());
 }
 
 fn block_to_symbol(block: &Block) -> Option<DocumentSymbol> {
@@ -242,10 +273,10 @@ fn list_to_symbol(
     child_blocks: &[&Block],
     location: &acdc_parser::Location,
 ) -> DocumentSymbol {
-    let children: Vec<DocumentSymbol> = child_blocks
-        .iter()
-        .filter_map(|b| block_to_symbol(b))
-        .collect();
+    let mut children = Vec::new();
+    for block in child_blocks {
+        collect_block_symbols(block, &mut children);
+    }
     make_symbol(
         title_or_default(title, default_name),
         SymbolKind::ARRAY,

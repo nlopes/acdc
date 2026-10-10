@@ -3,6 +3,8 @@
 use acdc_parser::{Block, DelimitedBlockType, Document, Location};
 use tower_lsp_server::ls_types::{FoldingRange, FoldingRangeKind};
 
+use crate::convert::is_primary_location;
+
 /// Compute all folding ranges in a document
 ///
 /// Returns ranges for:
@@ -129,7 +131,7 @@ fn collect_ranges_from_delimited(inner: &DelimitedBlockType, ranges: &mut Vec<Fo
 /// Create a folding range if the location spans multiple lines
 fn make_folding_range(loc: &Location, kind: FoldingRangeKind) -> Option<FoldingRange> {
     // Only create folding range if it spans at least 2 lines
-    if loc.end.line > loc.start.line {
+    if is_primary_location(loc) && loc.end.line > loc.start.line {
         Some(FoldingRange {
             start_line: loc.start.line.saturating_sub(1),
             start_character: None,

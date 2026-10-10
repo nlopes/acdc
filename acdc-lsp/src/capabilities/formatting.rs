@@ -10,7 +10,7 @@ use std::ops;
 use acdc_parser::{Block, DelimitedBlockType, Document, Location};
 use tower_lsp_server::ls_types::{FormattingOptions, Position, Range, TextEdit};
 
-use crate::state::DocumentState;
+use crate::{convert::is_primary_location, state::DocumentState};
 
 /// A line range where formatting must not be applied (e.g., inside listing blocks).
 /// Lines are 0-indexed.
@@ -106,7 +106,7 @@ fn collect_protected_ranges_from_blocks(blocks: &[Block], ranges: &mut Vec<Prote
     for block in blocks {
         match block {
             Block::DelimitedBlock(db) => {
-                if is_verbatim_block_type(&db.inner) {
+                if is_verbatim_block_type(&db.inner) && is_primary_location(&db.location) {
                     // Location is 1-indexed, convert to 0-indexed
                     ranges.push(ProtectedRange {
                         start_line: db.location.start.line.saturating_sub(1) as usize,
@@ -363,6 +363,12 @@ fn ensure_block_separation(
         let (Some(prev_block), Some(curr_block)) = (pair.first(), pair.get(1)) else {
             continue;
         };
+
+        if !is_primary_location(block_location(prev_block))
+            || !is_primary_location(block_location(curr_block))
+        {
+            continue;
+        }
 
         // Convert 1-indexed AST locations to 0-indexed
         let prev_end_line = block_location(prev_block).end.line.saturating_sub(1) as usize;

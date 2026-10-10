@@ -37,23 +37,7 @@ pub(crate) fn compute_hover(
 
     // Check for anchor at this position
     if let Some((id, anchor_loc)) = find_anchor_at_offset(ast, offset, doc) {
-        // Count references to this anchor (local + cross-file)
-        let local_refs = doc.xrefs.iter().filter(|(t, _)| t == &id).count();
-        let mut cross_file_refs = 0usize;
-        workspace.for_each_document(|uri, other_doc| {
-            if uri != doc_uri {
-                cross_file_refs += other_doc
-                    .xrefs
-                    .iter()
-                    .filter(|(t, _)| {
-                        let parsed = XrefTarget::parse(t);
-                        parsed.anchor.as_deref() == Some(id.as_str())
-                    })
-                    .count();
-            }
-        });
-
-        let total_refs = local_refs + cross_file_refs;
+        let total_refs = super::references::collect_xref_locations(workspace, &id).len();
         let refs_text = match total_refs {
             0 => "No references".to_string(),
             1 => "1 reference".to_string(),
@@ -663,7 +647,7 @@ fn find_section_title_in_block(block: &Block, target_loc: &Location) -> Option<S
     match block {
         Block::Section(section) => {
             // Check if this section's location matches
-            if section.location.absolute_start == target_loc.absolute_start {
+            if section.location.start == target_loc.start {
                 return Some(inlines_to_string(&section.title));
             }
             // Recurse into children

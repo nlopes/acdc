@@ -459,8 +459,11 @@ impl Workspace {
             if let Some(ast) = entry.value().ast() {
                 let symbols = extract_workspace_symbols(ast.document());
                 for symbol in symbols {
-                    if query.is_empty() || symbol.name.to_lowercase().contains(&query_lower) {
-                        results.push((uri.clone(), symbol));
+                    if (query.is_empty() || symbol.name.to_lowercase().contains(&query_lower))
+                        && let Some(source_uri) =
+                            source_uri(uri, &ast.source_location(&symbol.location))
+                    {
+                        results.push((source_uri, symbol));
                     }
                 }
             }
@@ -476,6 +479,21 @@ impl Workspace {
             }
         }
 
+        let mut seen = HashMap::<_, Vec<_>>::new();
+        results.retain(|(uri, symbol)| {
+            let kinds = seen
+                .entry((
+                    uri.clone(),
+                    symbol.name.clone(),
+                    location_to_range(&symbol.location),
+                ))
+                .or_default();
+            if kinds.contains(&symbol.kind) {
+                return false;
+            }
+            kinds.push(symbol.kind);
+            true
+        });
         results
     }
 
@@ -727,6 +745,9 @@ impl Default for Workspace {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod document_features;
 
 #[cfg(test)]
 mod source_locations;
