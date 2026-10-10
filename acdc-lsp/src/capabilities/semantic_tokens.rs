@@ -82,6 +82,7 @@ pub(crate) fn compute_semantic_tokens(
 
     collect_tokens_from_blocks(&doc.blocks, &mut tokens);
     collect_conditional_tokens(conditionals, text, &mut tokens);
+    convert_token_columns(&mut tokens, text);
 
     // Sort by position for delta encoding
     tokens.sort_by(|a, b| a.line.cmp(&b.line).then(a.start_char.cmp(&b.start_char)));
@@ -93,6 +94,36 @@ pub(crate) fn compute_semantic_tokens(
         result_id: None,
         data: encoded,
     }
+}
+
+fn convert_token_columns(tokens: &mut Vec<RawToken>, text: &str) {
+    let lines: Vec<_> = text.lines().collect();
+    tokens.retain_mut(|token| {
+        let Some(line) = lines.get(token.line as usize) else {
+            return false;
+        };
+        let Some((start, _)) = line.char_indices().nth(token.start_char as usize) else {
+            return false;
+        };
+        // Parser columns count scalar values. LSP columns count UTF-16 units,
+        // and a token must not extend past the end of its physical line.
+        let Some(rest) = line.get(start..) else {
+            return false;
+        };
+        let end = rest
+            .char_indices()
+            .nth(token.length as usize)
+            .map_or(rest.len(), |(offset, _)| offset);
+        let Some(prefix) = line.get(..start) else {
+            return false;
+        };
+        let Some(content) = rest.get(..end) else {
+            return false;
+        };
+        token.start_char = to_lsp_u32(prefix.encode_utf16().count());
+        token.length = to_lsp_u32(content.encode_utf16().count());
+        token.length > 0
+    });
 }
 
 /// Emit semantic tokens for conditional directives and inactive content.
@@ -111,7 +142,7 @@ fn collect_conditional_tokens(
             tokens.push(RawToken {
                 line: to_lsp_u32(cond.start_line),
                 start_char: 0,
-                length: to_lsp_u32(line_text.len()),
+                length: to_lsp_u32(line_text.chars().count()),
                 token_type: 6, // KEYWORD
                 token_modifiers: 0,
             });
@@ -125,7 +156,7 @@ fn collect_conditional_tokens(
             tokens.push(RawToken {
                 line: to_lsp_u32(endif_line),
                 start_char: 0,
-                length: to_lsp_u32(line_text.len()),
+                length: to_lsp_u32(line_text.chars().count()),
                 token_type: 6, // KEYWORD
                 token_modifiers: 0,
             });
@@ -142,7 +173,7 @@ fn collect_conditional_tokens(
                     tokens.push(RawToken {
                         line: to_lsp_u32(line_idx),
                         start_char: 0,
-                        length: to_lsp_u32(line_text.len()),
+                        length: to_lsp_u32(line_text.chars().count()),
                         token_type: 5,      // COMMENT
                         token_modifiers: 4, // bit 2 = disabled
                     });
@@ -209,7 +240,7 @@ fn collect_tokens_from_block(block: &Block, tokens: &mut Vec<RawToken>) {
             tokens.push(RawToken {
                 line: attr.location.start.line.saturating_sub(1),
                 start_char: 1, // Skip leading :
-                length: to_lsp_u32(attr.name.len()),
+                length: to_lsp_u32(attr.name.chars().count()),
                 token_type: 2, // PROPERTY
                 token_modifiers: 0,
             });
@@ -338,7 +369,8 @@ fn add_token_for_location(
             .saturating_sub(loc.start.column)
             .saturating_add(1)
     } else {
-        to_lsp_u32(loc.byte_len().unwrap_or_default())
+        // The column conversion limits a multi-line span to its first line.
+        u32::MAX
     };
 
     if length > 0 {
@@ -385,6 +417,32 @@ fn delta_encode(tokens: Vec<RawToken>) -> Vec<SemanticToken> {
 mod tests {
     use super::*;
     use acdc_parser::{Options, Position};
+
+    #[test]
+    fn tokens_use_utf16_columns_and_stop_at_line_end() -> Result<(), Box<dyn std::error::Error>> {
+        let text = "😀 *bold*\n*multi\nline*\n";
+        let parsed = acdc_parser::parse(text, &Options::default())?;
+        let tokens = compute_semantic_tokens(parsed.document(), &[], text);
+        let first = tokens.data.first().ok_or("missing token")?;
+        assert_eq!(first.delta_start, 3);
+        assert_eq!(first.length, 6);
+        let mut line = 0;
+        let mut column = 0;
+        for token in tokens.data {
+            line += token.delta_line;
+            column = if token.delta_line == 0 {
+                column + token.delta_start
+            } else {
+                token.delta_start
+            };
+            let width = text
+                .lines()
+                .nth(line as usize)
+                .map_or(0, |line| line.encode_utf16().count());
+            assert!(column + token.length <= to_lsp_u32(width));
+        }
+        Ok(())
+    }
 
     #[test]
     fn cross_file_tokens_are_omitted() {
