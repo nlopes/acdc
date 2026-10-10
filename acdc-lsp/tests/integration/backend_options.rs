@@ -1,11 +1,93 @@
 //! Integration tests for backend-aware language-server analysis.
 
-use std::{cell::Cell, rc::Rc};
+use std::{cell::Cell, fs, rc::Rc};
 
 use crate::common::{LspTestClient, Project};
 use serde_json::{Value, json};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+#[test]
+fn closed_file_rename_uses_scoped_backends_and_physical_utf16_ranges() -> TestResult {
+    let project = Project::new("closed-rename-backends")?;
+    let reader = concat!(
+        "= Reader\r\n\r\n",
+        "ifdef::backend-pdf[]\r\n",
+        "😀 xref:../old.adoc#intro[PDF].\r\n",
+        "endif::[]\r\n\r\n",
+        "ifdef::backend-html5[]\r\n",
+        "😀 xref:../old.adoc#intro[HTML].\r\n",
+        "endif::[]\r\n\r\n",
+        "include::part.adoc[]\r\n",
+        "include::../old.adoc[]\r\n",
+    );
+    for folder in ["source", "target"] {
+        fs::create_dir(project.path().join(folder))?;
+        fs::write(project.path().join(folder).join("index.adoc"), reader)?;
+        fs::write(
+            project.path().join(folder).join("part.adoc"),
+            "See xref:../old.adoc#intro[Part].\r\n",
+        )?;
+    }
+    fs::write(
+        project.path().join("old.adoc"),
+        "[[intro]]\n== Introduction\n",
+    )?;
+    let backend = Rc::new(Cell::new("pdf"));
+    let mut client = client_with_scoped_backend(Rc::clone(&backend), &project)?;
+    let target_length = "../old.adoc#intro".encode_utf16().count();
+    for selected_backend in ["pdf", "html5"] {
+        if selected_backend != backend.get() {
+            backend.set(selected_backend);
+            client.send_notification(
+                "workspace/didChangeConfiguration",
+                json!({ "settings": {} }),
+            )?;
+            client.wait_for_server_request("workspace/inlayHint/refresh")?;
+        }
+        let result = client.send_request(
+            "workspace/willRenameFiles",
+            json!({ "files": [{
+                "oldUri": project.uri("old.adoc")?, "newUri": project.uri("new.adoc")?
+            }]}),
+        )?;
+        let changes = result
+            .get("changes")
+            .and_then(Value::as_object)
+            .ok_or("missing rename edits")?;
+        assert_eq!(changes.len(), 4, "{changes:?}");
+        for folder in ["source", "target"] {
+            let index = project.uri(&format!("{folder}/index.adoc"))?;
+            let line = if folder == "target" && selected_backend == "pdf" {
+                3
+            } else {
+                7
+            };
+            assert_eq!(
+                changes.get(&index),
+                Some(&json!([
+                    { "range": { "start": { "line": line, "character": 8 },
+                        "end": { "line": line, "character": 8 + target_length } },
+                        "newText": "../new.adoc#intro" },
+                    { "range": { "start": { "line": 11, "character": 9 },
+                    "end": { "line": 11, "character": 20 } },
+                        "newText": "../new.adoc" }
+                ]))
+            );
+            let part = project.uri(&format!("{folder}/part.adoc"))?;
+            assert_eq!(
+                changes.get(&part),
+                Some(&json!([
+                    { "range": { "start": { "line": 0, "character": 9 },
+                        "end": { "line": 0, "character": 9 + target_length } },
+                        "newText": "../new.adoc#intro" }
+                ]))
+            );
+        }
+    }
+    client.shutdown();
+    Ok(())
+}
 
 fn client_with_scoped_backend(
     configured_backend: Rc<Cell<&'static str>>,

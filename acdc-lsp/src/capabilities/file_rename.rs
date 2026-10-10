@@ -186,10 +186,7 @@ fn scan_workspace_files_for_renames(
         };
 
         // Do not expand includes here. Each edit must use an offset in the file being scanned.
-        let mut options = acdc_parser::Options::default();
-        options.safe_mode = acdc_parser::SafeMode::Server;
-        options.include_loader = acdc_parser::IncludeLoader::Disabled;
-        let Ok(parsed) = acdc_parser::parse(&text, &options) else {
+        let Ok(parsed) = acdc_parser::parse(&text, workspace.parser_options_for(&file_uri)) else {
             continue;
         };
 

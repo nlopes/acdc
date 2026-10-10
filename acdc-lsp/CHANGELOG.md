@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- File renames now update active cross-references in closed files using each
+  folder's analysis backend. PDF-only references are no longer skipped.
 - Changing the analysis backend now refreshes cross-file diagnostics in all open
   documents after the workspace indexes are updated. References to conditional
   anchors no longer keep stale diagnostics, including anchors from unsaved includes.

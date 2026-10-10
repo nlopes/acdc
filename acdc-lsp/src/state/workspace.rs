@@ -6,7 +6,7 @@ use std::{
     sync::{PoisonError, RwLock},
 };
 
-use acdc_parser::{Location, SourceLocation, parse};
+use acdc_parser::{Location, Options, SourceLocation, parse};
 use dashmap::{DashMap, mapref::one::Ref};
 
 use tower_lsp_server::ls_types::{Diagnostic, Uri};
@@ -173,6 +173,11 @@ impl Workspace {
             .read()
             .unwrap_or_else(PoisonError::into_inner)
             .backend_for(uri)
+    }
+
+    /// Return resource-scoped parser options with include loading disabled.
+    pub(crate) fn parser_options_for(&self, uri: &Uri) -> &Options<'static> {
+        self.parser_profiles.get(self.backend_for(uri))
     }
 
     /// Update document state and return files whose diagnostics must be published.
