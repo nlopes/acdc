@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-10
+
 ### Breaking changes
 
 - The parser API now defaults to `SafeMode::Secure`, matching the Asciidoctor API.
@@ -690,7 +692,8 @@ Initial release of acdc-parser, a PEG-based AsciiDoc parser with source location
 [#349]: https://github.com/nlopes/acdc/issues/349
 [#357]: https://github.com/nlopes/acdc/issues/357
 
-[Unreleased]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.10.0...HEAD
+[Unreleased]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.11.0...HEAD
+[0.11.0]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.10.0...acdc-parser-v0.11.0
 [0.10.0]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.9.0...acdc-parser-v0.10.0
 [0.9.0]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.8.0...acdc-parser-v0.9.0
 [0.8.0]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.7.0...acdc-parser-v0.8.0

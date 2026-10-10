@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-10
+
 ### Fixed
 
 - Preview parsing now uses the selected semantic HTML backend, so backend
@@ -147,7 +149,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions release workflow (`release-editor-wasm.yml`) for building
   with wasm-pack and publishing as GitHub Release assets
 
-[Unreleased]: https://github.com/nlopes/acdc/compare/acdc-editor-wasm-v0.5.0...HEAD
+[Unreleased]: https://github.com/nlopes/acdc/compare/acdc-editor-wasm-v0.6.0...HEAD
+[0.6.0]: https://github.com/nlopes/acdc/compare/acdc-editor-wasm-v0.5.0...acdc-editor-wasm-v0.6.0
 [0.5.0]: https://github.com/nlopes/acdc/compare/acdc-editor-wasm-v0.4.0...acdc-editor-wasm-v0.5.0
 [0.4.0]: https://github.com/nlopes/acdc/compare/acdc-editor-wasm-v0.3.0...acdc-editor-wasm-v0.4.0
 [0.3.0]: https://github.com/nlopes/acdc/compare/acdc-editor-wasm-v0.2.2...acdc-editor-wasm-v0.3.0
