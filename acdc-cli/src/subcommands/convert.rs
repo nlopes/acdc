@@ -179,6 +179,14 @@ pub struct Args {
     #[arg(long)]
     pub strict: bool,
 
+    /// Exit with status 1 if parsing or conversion emits a structured warning
+    ///
+    /// Successful output is retained. Warnings do not stop other selected inputs.
+    /// Pager warnings appear after the pager exits. This option can be used with
+    /// --strict.
+    #[arg(long)]
+    pub fail_on_warnings: bool,
+
     /// Suppress enclosing document structure and output an embedded document
     ///
     /// The exact wrapper content omitted depends on the selected backend.
@@ -272,7 +280,7 @@ pub fn run(args: &Args) -> MietteResult<()> {
         .build();
 
     let document_attributes = build_parser_options(args, &options);
-    let output_paths = match backend {
+    let summary = match backend {
         #[cfg(feature = "html")]
         Backend::Html(variant) => run_processor::<acdc_converters_html::Processor, _>(
             args,
@@ -324,10 +332,20 @@ pub fn run(args: &Args) -> MietteResult<()> {
         }
     };
 
-    let output_paths = output_paths?;
+    let summary = summary?;
+
+    if args.fail_on_warnings && summary.warning_count > 0 {
+        let count = summary.warning_count;
+        let label = if count == 1 { "warning" } else { "warnings" };
+        return Err(miette::miette!(
+            "conversion emitted {count} {label}; --fail-on-warnings is set"
+        ));
+    }
 
     if args.open {
-        open_output_files(&output_paths, &output_destination, |path| open::that(path));
+        open_output_files(&summary.output_paths, &output_destination, |path| {
+            open::that(path)
+        });
     }
 
     Ok(())
@@ -422,7 +440,7 @@ fn run_processor<P, F>(
     base_options: &Options,
     document_attributes: OptionsBuilder<'static>,
     make_processor: F,
-) -> MietteResult<Vec<PathBuf>>
+) -> MietteResult<ConversionSummary>
 where
     P: Converter<'static>,
     P::Error: Send + 'static,
@@ -437,11 +455,15 @@ where
         let mut reader = BufReader::new(stdin.lock());
         let parsed = acdc_parser::parse_from_reader(&mut reader, parser_options)
             .map_err(|error| error::display(&error))?;
-        let parsed = parsed.report_warnings(WarningRenderContext::new());
-        return processor
+        let mut summary = ConversionSummary {
+            warning_count: parsed.warnings().render(WarningRenderContext::new()),
+            ..ConversionSummary::default()
+        };
+        let result = processor
             .convert(parsed.document(), None)
-            .map(|result| result.report(WarningRenderContext::new()))
-            .map_err(|error| error::display(&error));
+            .map_err(|error| error::display(&error))?;
+        summary.record(result, WarningRenderContext::new());
+        return Ok(summary);
     }
 
     // When --out-file is specified with multiple files, only process the first file
@@ -465,25 +487,24 @@ where
         } else {
             parse_file(file, parser_options)
         };
-        let convert_result = match parse_result {
-            Ok(parsed) => {
-                let parsed = parsed.report_warnings(WarningRenderContext::new().with_file(file));
-                processor.convert(parsed.document(), Some(file))
-            }
-            Err(e) => Err(e.into()),
-        };
-        return vec![FileResult {
-            path: file.clone(),
-            result: convert_result,
-            parser_warnings: Vec::new(),
-            parse_dur: None,
-            convert_dur: None,
-        }]
-        .report();
+        let mut parser_warning_count = 0;
+        let parse_result = parse_result.map(|mut parsed| {
+            parser_warning_count = parsed
+                .take_warnings()
+                .render(WarningRenderContext::new().with_file(file));
+            parsed
+        });
+        let mut summary = vec![convert_parse_result(
+            (file.clone(), parse_result, None),
+            &processor,
+            false,
+        )]
+        .report()?;
+        summary.warning_count += parser_warning_count;
+        return Ok(summary);
     }
 
     run_multi_file::<P, _>(
-        args,
         base_options,
         &document_attributes,
         files_to_process,
@@ -492,12 +513,11 @@ where
 }
 
 fn run_multi_file<P, F>(
-    _args: &Args,
     base_options: &Options,
     document_attributes: &OptionsBuilder<'static>,
     files_to_process: &[PathBuf],
     make_processor: F,
-) -> MietteResult<Vec<PathBuf>>
+) -> MietteResult<ConversionSummary>
 where
     P: Converter<'static>,
     P::Error: Send + 'static,
@@ -601,29 +621,42 @@ impl<E> FileResult<E> {
     }
 }
 
+#[derive(Default)]
+struct ConversionSummary {
+    output_paths: Vec<PathBuf>,
+    warning_count: usize,
+}
+
+impl ConversionSummary {
+    fn record(&mut self, result: ConversionResult, context: WarningRenderContext<'_>) {
+        let (output_path, warnings) = result.into_parts();
+        self.warning_count += warnings.render(context);
+        self.output_paths.extend(output_path);
+    }
+}
+
 trait FileResultsReporter {
-    fn report(self) -> MietteResult<Vec<PathBuf>>;
+    fn report(self) -> MietteResult<ConversionSummary>;
 }
 
 impl<E> FileResultsReporter for Vec<FileResult<E>>
 where
     E: Error + 'static,
 {
-    fn report(self) -> MietteResult<Vec<PathBuf>> {
-        let mut output_paths = Vec::new();
+    fn report(self) -> MietteResult<ConversionSummary> {
+        let mut summary = ConversionSummary::default();
         let mut errors = Vec::new();
 
         for file_result in self {
-            file_result
+            summary.warning_count += file_result
                 .parser_warnings
                 .render(WarningRenderContext::new().with_file(&file_result.path));
             match file_result.result {
                 Ok(result) => {
-                    let (output_path, warnings) = result.into_parts();
-                    warnings.render(WarningRenderContext::new().with_file(&file_result.path));
-                    if let Some(output_path) = output_path {
-                        output_paths.push(output_path);
-                    }
+                    summary.record(
+                        result,
+                        WarningRenderContext::new().with_file(&file_result.path),
+                    );
                 }
                 Err(error) => errors.push((file_result.path, error)),
             }
@@ -642,7 +675,7 @@ where
             ));
         }
 
-        Ok(output_paths)
+        Ok(summary)
     }
 }
 
@@ -654,15 +687,6 @@ type TimedParseResult = (
     Option<Duration>,
 );
 
-/// Render the parser warnings to stderr with miette's rich-diagnostic
-/// treatment (colored squiggles under the offending span, source snippet,
-/// advice line). Returns the `ParseResult` by value so the caller can drive
-/// the converter and drop it when the conversion finishes.
-///
-/// Terminal pager paths drain warnings via `parsed.take_warnings()` instead
-/// — the pager's screen takeover would visually bury anything we
-/// `eprintln!` before it exits, so they stash the warnings and print them
-/// after `pager.wait()`.
 #[derive(Debug, Clone, Copy)]
 struct WarningRenderContext<'a> {
     file: Option<&'a Path>,
@@ -679,48 +703,27 @@ impl<'a> WarningRenderContext<'a> {
     }
 }
 
-trait ParseResultWarningReporter {
-    fn report_warnings(self, context: WarningRenderContext<'_>) -> Self;
-}
-
-impl ParseResultWarningReporter for ParseResult {
-    fn report_warnings(self, context: WarningRenderContext<'_>) -> Self {
-        self.warnings().render(context);
-        self
-    }
-}
-
 trait WarningRenderer {
-    fn render(&self, context: WarningRenderContext<'_>);
+    fn render(&self, context: WarningRenderContext<'_>) -> usize;
 }
 
 impl WarningRenderer for [Warning] {
-    fn render(&self, context: WarningRenderContext<'_>) {
+    fn render(&self, context: WarningRenderContext<'_>) -> usize {
         let mut context = WarningReportContext::new().with_optional_file(context.file);
         for warning in self {
             eprintln!("{:?}", warning.to_report(&mut context));
         }
+        self.len()
     }
 }
 
 impl WarningRenderer for [acdc_converters_core::Warning] {
-    fn render(&self, context: WarningRenderContext<'_>) {
+    fn render(&self, context: WarningRenderContext<'_>) -> usize {
         let mut context = WarningReportContext::new().with_optional_file(context.file);
         for warning in self {
             eprintln!("{:?}", warning.to_report(&mut context));
         }
-    }
-}
-
-trait ConversionResultReporter {
-    fn report(self, context: WarningRenderContext<'_>) -> Vec<PathBuf>;
-}
-
-impl ConversionResultReporter for ConversionResult {
-    fn report(self, context: WarningRenderContext<'_>) -> Vec<PathBuf> {
-        let (output_path, warnings) = self.into_parts();
-        warnings.render(context);
-        output_path.into_iter().collect()
+        self.len()
     }
 }
 
@@ -886,6 +889,49 @@ mod tests {
         });
 
         assert_eq!(opened, paths);
+    }
+
+    #[cfg(all(feature = "terminal", unix))]
+    #[test]
+    fn fail_on_warnings_counts_pager_diagnostics_after_all_inputs_finish()
+    -> Result<(), Box<dyn Error>> {
+        use std::process::{Command, Stdio};
+
+        let directory = tempfile::tempdir()?;
+        let warning = directory.path().join("warning.adoc");
+        let clean = directory.path().join("clean.adoc");
+        let captured = directory.path().join("pager.txt");
+        std::fs::write(
+            &warning,
+            "= Warnings\n\n== First\n\n==== Skipped\n\nRetained body.\n\n[source,php,options=mixed]\n----\n<?php echo 1; ?>\n----\n",
+        )?;
+        std::fs::write(&clean, "Clean pager body.\n")?;
+        let options = Options::builder()
+            .safe_mode(SafeMode::Unsafe)
+            .output_destination(OutputDestination::Stdout)
+            .build();
+        let processor =
+            acdc_converters_terminal::Processor::new(options.clone(), ParserOptions::builder())?;
+        let pager = Command::new("/bin/sh")
+            .args([
+                "-c",
+                r#"while IFS= read -r line; do printf '%s\n' "$line"; done > "$1"; printf 'pager finished\n' >> "$1""#,
+                "pager",
+            ])
+            .arg(&captured)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .spawn()?;
+
+        let warning_count =
+            run_terminal_through_pager(&processor, &options, &[warning, clean], pager)?;
+
+        assert_eq!(warning_count, 2);
+        let rendered = std::fs::read_to_string(captured)?;
+        assert!(rendered.contains("Retained body."));
+        assert!(rendered.contains("Clean pager body."));
+        assert!(rendered.ends_with("pager finished\n"));
+        Ok(())
     }
 
     #[test]
@@ -1077,15 +1123,14 @@ fn parse_terminal_file(
     }
 }
 
-/// Run terminal converter with optional pager support.
-/// When stdout is a TTY and pager is not disabled, pipes output through a pager.
+/// Convert stdin, using a pager for interactive stdout when enabled.
 #[cfg(feature = "terminal")]
 fn run_terminal_stdin(
     args: &Args,
     base_options: &Options,
     document_attributes: OptionsBuilder<'static>,
     output_to_file: bool,
-) -> Result<Vec<PathBuf>, TerminalError> {
+) -> Result<ConversionSummary, TerminalError> {
     use std::io::BufWriter;
 
     use acdc_converters_terminal::Processor;
@@ -1096,18 +1141,10 @@ fn run_terminal_stdin(
     let mut reader = BufReader::new(stdin.lock());
     let parsed = acdc_parser::parse_from_reader(&mut reader, parser_options)?;
 
-    // If writing to file, use the processor's convert method (respects output_path)
-    if output_to_file {
-        let parsed = parsed.report_warnings(WarningRenderContext::new());
-        return processor
-            .convert(parsed.document(), None)
-            .map(|result| result.report(WarningRenderContext::new()));
-    }
-
     // Try pager. The pager's screen takeover would visually bury anything we
     // eprintln! before it exits, so we drain warnings up front and print them
     // after pager.wait().
-    if let Some(mut pager) = spawn_pager(args.no_pager) {
+    if let Some(mut pager) = spawn_pager(args.no_pager || output_to_file) {
         let mut parsed = parsed;
         let parser_warnings = parsed.take_warnings();
         let mut converter_warnings = Vec::new();
@@ -1121,30 +1158,33 @@ fn run_terminal_stdin(
         // `parsed` and its arena drop here; the pager output is already in flight.
         drop(parsed);
         let _ = pager.wait()?;
-        parser_warnings.render(WarningRenderContext::new());
-        converter_warnings.render(WarningRenderContext::new());
-        return Ok(Vec::new());
+        let warning_count = parser_warnings.render(WarningRenderContext::new())
+            + converter_warnings.render(WarningRenderContext::new());
+        return Ok(ConversionSummary {
+            warning_count,
+            ..ConversionSummary::default()
+        });
     }
-    let parsed = parsed.report_warnings(WarningRenderContext::new());
-    let result = processor.convert(parsed.document(), None)?;
-    result.report(WarningRenderContext::new());
-    Ok(Vec::new())
+    let mut summary = ConversionSummary {
+        warning_count: parsed.warnings().render(WarningRenderContext::new()),
+        ..ConversionSummary::default()
+    };
+    summary.record(
+        processor.convert(parsed.document(), None)?,
+        WarningRenderContext::new(),
+    );
+    Ok(summary)
 }
 
-/// Drive the terminal converter through a spawned pager.
-///
-/// The pager's screen takeover would visually bury anything we eprintln!
-/// before it exits, so for each input we drain its parser warnings up front,
-/// write to the pager, drop the `ParseResult`, then print warnings after
-/// `pager.wait()`.
+/// Write terminal output through the pager. Show warnings after the pager exits
+/// so they remain visible.
 #[cfg(feature = "terminal")]
 fn run_terminal_through_pager(
     processor: &acdc_converters_terminal::Processor<'static>,
-    _args: &Args,
     base_options: &Options,
     files: &[PathBuf],
     mut pager: std::process::Child,
-) -> Result<(), TerminalError> {
+) -> Result<usize, TerminalError> {
     use std::io::BufWriter;
 
     let mut deferred: Vec<(Vec<Warning>, PathBuf)> = Vec::new();
@@ -1165,11 +1205,12 @@ fn run_terminal_through_pager(
     }
     // Wait for pager, ignore exit status (user may quit with 'q')
     let _ = pager.wait()?;
+    let mut warning_count = 0;
     for (warnings, file) in &deferred {
-        warnings.render(WarningRenderContext::new().with_file(file));
+        warning_count += warnings.render(WarningRenderContext::new().with_file(file));
     }
-    converter_warnings.render(WarningRenderContext::new());
-    Ok(())
+    warning_count += converter_warnings.render(WarningRenderContext::new());
+    Ok(warning_count)
 }
 
 #[cfg(feature = "terminal")]
@@ -1177,7 +1218,7 @@ fn run_terminal_with_pager(
     args: &Args,
     base_options: &Options,
     document_attributes: OptionsBuilder<'static>,
-) -> Result<Vec<PathBuf>, TerminalError> {
+) -> Result<ConversionSummary, TerminalError> {
     use acdc_converters_terminal::Processor;
 
     // Check if --out-file specifies a file (not stdout)
@@ -1193,38 +1234,26 @@ fn run_terminal_with_pager(
 
     let files_to_process = selected_input_files(args);
     let processor = Processor::new(base_options.clone(), document_attributes)?;
-
-    // If writing to file, use the processor's convert method (respects output_path)
-    if output_to_file {
-        let mut output_paths = Vec::new();
-        for file in files_to_process {
-            let parsed = parse_terminal_file(base_options, processor.parser_options(), file)?;
-            let parsed = parsed.report_warnings(WarningRenderContext::new().with_file(file));
-            let result = processor.convert(parsed.document(), Some(file))?;
-            let (output_path, warnings) = result.into_parts();
-            warnings.render(WarningRenderContext::new().with_file(file));
-            if let Some(output_path) = output_path {
-                output_paths.push(output_path);
-            }
-        }
-        return Ok(output_paths);
-    }
+    let mut summary = ConversionSummary::default();
 
     // Try to spawn pager.
-    if let Some(pager) = spawn_pager(args.no_pager) {
-        run_terminal_through_pager(&processor, args, base_options, files_to_process, pager)?;
+    if let Some(pager) = spawn_pager(args.no_pager || output_to_file) {
+        summary.warning_count =
+            run_terminal_through_pager(&processor, base_options, files_to_process, pager)?;
     } else {
-        // No pager - use convert() which writes to stdout
         for file in files_to_process {
             let parsed = parse_terminal_file(base_options, processor.parser_options(), file)?;
-            let parsed = parsed.report_warnings(WarningRenderContext::new().with_file(file));
-            let result = processor.convert(parsed.document(), Some(file))?;
-            let (_, warnings) = result.into_parts();
-            warnings.render(WarningRenderContext::new().with_file(file));
+            summary.warning_count += parsed
+                .warnings()
+                .render(WarningRenderContext::new().with_file(file));
+            summary.record(
+                processor.convert(parsed.document(), Some(file))?,
+                WarningRenderContext::new().with_file(file),
+            );
         }
     }
 
-    Ok(Vec::new())
+    Ok(summary)
 }
 
 /// CLI-local enum mirroring the surface form of `--backend`.

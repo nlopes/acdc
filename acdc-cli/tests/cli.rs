@@ -23,6 +23,7 @@ fn spawn_acdc(
     let mut command = Command::new(env!("CARGO_BIN_EXE_acdc"));
     command
         .args(args)
+        .env_remove("ACDC_LOG")
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     if let Some(working_dir) = working_dir {
@@ -425,6 +426,393 @@ fn converts_stdin_to_stdout() -> Result<(), Box<dyn Error>> {
     assert!(output.status.success());
     assert!(stdout.contains("<!DOCTYPE html>"));
     assert!(stdout.contains("Converted body."));
+    Ok(())
+}
+
+#[cfg(any(feature = "html", feature = "terminal"))]
+const WARNING_SOURCE: &str = "= Warnings\n\n== First\n\n==== Skipped\n\nRetained warning body.\n";
+#[cfg(any(feature = "html", feature = "terminal"))]
+const SECTION_WARNING: &str = "section title out of sequence";
+
+#[cfg(feature = "html")]
+#[test]
+fn fail_on_warnings_handles_stdin_and_remains_independent_of_strict() -> Result<(), Box<dyn Error>>
+{
+    for flags in [
+        vec![],
+        vec!["--strict"],
+        vec!["--fail-on-warnings"],
+        vec!["--strict", "--fail-on-warnings"],
+    ] {
+        let mut args = vec!["convert", "--stdin", "--embedded", "--out-file", "-"];
+        args.extend(&flags);
+        let output = run_acdc(&args, Some(WARNING_SOURCE))?;
+        let stderr = output_text(&output.stderr);
+        let failed = flags.contains(&"--fail-on-warnings");
+
+        assert_eq!(output.status.code(), Some(i32::from(failed)), "{stderr}");
+        assert!(output_text(&output.stdout).contains("Retained warning body."));
+        assert_eq!(stderr.matches(SECTION_WARNING).count(), 1, "{stderr}");
+        assert_eq!(
+            stderr.contains("conversion emitted 1 warning; --fail-on-warnings is set"),
+            failed,
+            "{stderr}"
+        );
+    }
+    Ok(())
+}
+
+#[cfg(feature = "html")]
+#[test]
+fn fail_on_warnings_allows_clean_conversion() -> Result<(), Box<dyn Error>> {
+    for flags in [
+        vec!["--fail-on-warnings"],
+        vec!["--strict", "--fail-on-warnings"],
+    ] {
+        let mut args = vec!["convert", "--stdin", "--embedded", "--out-file", "-"];
+        args.extend(flags);
+        let output = run_acdc(&args, Some("Clean conversion body.\n"))?;
+
+        assert!(output.status.success(), "{}", output_text(&output.stderr));
+        assert!(output_text(&output.stdout).contains("Clean conversion body."));
+        assert!(output.stderr.is_empty(), "{}", output_text(&output.stderr));
+    }
+    Ok(())
+}
+
+#[cfg(feature = "html")]
+#[test]
+fn fail_on_warnings_retains_file_and_stdout_output_for_file_input() -> Result<(), Box<dyn Error>> {
+    let directory = tempdir()?;
+    let input = directory.path().join("warning.adoc");
+    let explicit = directory.path().join("explicit.html");
+    fs::write(&input, WARNING_SOURCE)?;
+    let input_arg = input.to_string_lossy();
+    let explicit_arg = explicit.to_string_lossy();
+
+    for destination in [None, Some("-"), Some(explicit_arg.as_ref())] {
+        let mut args = vec!["convert", "--fail-on-warnings", input_arg.as_ref()];
+        if let Some(destination) = destination {
+            args.extend(["--out-file", destination]);
+        }
+        let output = run_acdc(&args, None)?;
+        let stderr = output_text(&output.stderr);
+        assert_eq!(output.status.code(), Some(1), "{stderr}");
+        assert_eq!(stderr.matches(SECTION_WARNING).count(), 1, "{stderr}");
+        let rendered = match destination {
+            Some("-") => output_text(&output.stdout),
+            Some(_) => fs::read_to_string(&explicit)?,
+            None => fs::read_to_string(input.with_extension("html"))?,
+        };
+        assert!(rendered.contains("Retained warning body."));
+    }
+    Ok(())
+}
+
+#[cfg(feature = "html")]
+#[test]
+fn fail_on_warnings_counts_preprocessor_warnings_once() -> Result<(), Box<dyn Error>> {
+    let directory = tempdir()?;
+    let input = "include::missing-sc-272.adoc[]\n\nPreprocessor body retained.\n";
+    for fail_on_warnings in [false, true] {
+        let mut args = vec!["convert", "--stdin", "--embedded", "--out-file", "-"];
+        if fail_on_warnings {
+            args.push("--fail-on-warnings");
+        }
+        let output = run_acdc_in(directory.path(), &args, Some(input))?;
+        let stderr = output_text(&output.stderr);
+        assert_eq!(
+            output.status.code(),
+            Some(i32::from(fail_on_warnings)),
+            "{stderr}"
+        );
+        assert_eq!(
+            stderr.matches("include file not found").count(),
+            1,
+            "{stderr}"
+        );
+        assert!(output_text(&output.stdout).contains("Preprocessor body retained."));
+        assert_eq!(
+            stderr.contains("conversion emitted 1 warning"),
+            fail_on_warnings,
+            "{stderr}"
+        );
+    }
+    Ok(())
+}
+
+#[cfg(feature = "html")]
+#[test]
+fn fail_on_warnings_counts_parser_and_converter_warnings_once() -> Result<(), Box<dyn Error>> {
+    let directory = tempdir()?;
+    let input = directory.path().join("styles.adoc");
+    let source = "= Styles\n:stylesheet: missing-sc-272.css\n\n== First\n\n==== Skipped\n\nStylesheet body retained.\n";
+    fs::write(&input, source)?;
+    let input_arg = input.to_string_lossy();
+    for from_stdin in [false, true] {
+        for fail_on_warnings in [false, true] {
+            let mut args = vec!["convert", "--out-file", "-"];
+            args.push(if from_stdin {
+                "--stdin"
+            } else {
+                input_arg.as_ref()
+            });
+            if fail_on_warnings {
+                args.push("--fail-on-warnings");
+            }
+            let output = run_acdc_in(directory.path(), &args, from_stdin.then_some(source))?;
+            let stderr = output_text(&output.stderr);
+            assert_eq!(
+                output.status.code(),
+                Some(i32::from(fail_on_warnings)),
+                "{stderr}"
+            );
+            assert_eq!(stderr.matches(SECTION_WARNING).count(), 1, "{stderr}");
+            assert_eq!(
+                stderr.matches("could not read custom stylesheet").count(),
+                1,
+                "{stderr}"
+            );
+            assert!(output_text(&output.stdout).contains("Stylesheet body retained."));
+            assert_eq!(
+                stderr.contains("conversion emitted 2 warnings"),
+                fail_on_warnings,
+                "{stderr}"
+            );
+        }
+    }
+    Ok(())
+}
+
+#[cfg(feature = "html")]
+#[test]
+fn fail_on_warnings_processes_all_selected_files_and_preserves_error_reporting()
+-> Result<(), Box<dyn Error>> {
+    for include_error in [false, true] {
+        let directory = tempdir()?;
+        let warning = directory.path().join("warning.adoc");
+        let clean = directory.path().join("clean.adoc");
+        let missing = directory.path().join("missing.adoc");
+        fs::write(&warning, WARNING_SOURCE)?;
+        fs::write(&clean, "Clean file body.\n")?;
+        let warning_arg = warning.to_string_lossy();
+        let clean_arg = clean.to_string_lossy();
+        let missing_arg = missing.to_string_lossy();
+        let mut args = vec!["convert", "--fail-on-warnings", "--timings"];
+        if include_error {
+            args.push(missing_arg.as_ref());
+        }
+        args.extend([warning_arg.as_ref(), clean_arg.as_ref()]);
+
+        let output = run_acdc(&args, None)?;
+        let stderr = output_text(&output.stderr);
+        assert_eq!(output.status.code(), Some(1), "{stderr}");
+        assert_eq!(stderr.matches(SECTION_WARNING).count(), 1, "{stderr}");
+        assert!(
+            fs::read_to_string(warning.with_extension("html"))?.contains("Retained warning body.")
+        );
+        assert!(fs::read_to_string(clean.with_extension("html"))?.contains("Clean file body."));
+        assert_eq!(
+            stderr.contains("failed to process 1 file(s)"),
+            include_error,
+            "{stderr}"
+        );
+        assert_eq!(
+            stderr.contains("conversion emitted 1 warning"),
+            !include_error,
+            "{stderr}"
+        );
+        assert!(stderr.contains("Wall clock"), "{stderr}");
+    }
+    Ok(())
+}
+
+#[cfg(feature = "html")]
+#[test]
+fn fail_on_warnings_keeps_explicit_output_first_file_policy() -> Result<(), Box<dyn Error>> {
+    let directory = tempdir()?;
+    let warning = directory.path().join("warning.adoc");
+    let clean = directory.path().join("clean.adoc");
+    let destination = directory.path().join("result.html");
+    fs::write(&warning, WARNING_SOURCE)?;
+    fs::write(&clean, "Clean file body.\n")?;
+    let warning_arg = warning.to_string_lossy();
+    let clean_arg = clean.to_string_lossy();
+    let destination_arg = destination.to_string_lossy();
+    for warning_first in [false, true] {
+        let files = if warning_first {
+            [warning_arg.as_ref(), clean_arg.as_ref()]
+        } else {
+            [clean_arg.as_ref(), warning_arg.as_ref()]
+        };
+        let mut args = vec![
+            "convert",
+            "--fail-on-warnings",
+            "--out-file",
+            destination_arg.as_ref(),
+        ];
+        args.extend(files);
+        let output = run_acdc(&args, None)?;
+        let stderr = output_text(&output.stderr);
+        assert_eq!(
+            output.status.code(),
+            Some(i32::from(warning_first)),
+            "{stderr}"
+        );
+        assert_eq!(
+            stderr.matches(SECTION_WARNING).count(),
+            usize::from(warning_first),
+            "{stderr}"
+        );
+        assert!(stderr.contains("only processing first file"), "{stderr}");
+        let rendered = fs::read_to_string(&destination)?;
+        assert_eq!(rendered.contains("Retained warning body."), warning_first);
+        assert_eq!(rendered.contains("Clean file body."), !warning_first);
+    }
+    Ok(())
+}
+
+#[cfg(feature = "html")]
+#[test]
+fn fail_on_warnings_ignores_tracing_and_cli_notices() -> Result<(), Box<dyn Error>> {
+    let directory = tempdir()?;
+    let input = directory.path().join("clean.adoc");
+    fs::write(&input, "Clean file body.\n")?;
+    let output = Command::new(env!("CARGO_BIN_EXE_acdc"))
+        .args(["convert", "--fail-on-warnings", "--open", "--out-file", "-"])
+        .arg(&input)
+        .env("ACDC_LOG", "warn")
+        .output()?;
+    let stderr = output_text(&output.stderr);
+
+    assert!(output.status.success(), "{stderr}");
+    assert_eq!(
+        stderr
+            .matches("--open ignored when output is stdout")
+            .count(),
+        2,
+        "{stderr}"
+    );
+    assert!(output_text(&output.stdout).contains("Clean file body."));
+    Ok(())
+}
+
+#[cfg(feature = "terminal")]
+#[test]
+fn fail_on_warnings_covers_terminal_stdin_files_and_outputs() -> Result<(), Box<dyn Error>> {
+    let directory = tempdir()?;
+    let input = directory.path().join("warning.adoc");
+    let destination = directory.path().join("result.txt");
+    let source =
+        format!("{WARNING_SOURCE}\n[source,php,options=mixed]\n----\n<?php echo 1; ?>\n----\n");
+    fs::write(&input, &source)?;
+    let input_arg = input.to_string_lossy();
+    let destination_arg = destination.to_string_lossy();
+    for from_stdin in [false, true] {
+        for to_file in [false, true] {
+            let mut args = vec![
+                "convert",
+                "--backend",
+                "terminal",
+                "--no-pager",
+                "--fail-on-warnings",
+            ];
+            args.push(if from_stdin {
+                "--stdin"
+            } else {
+                input_arg.as_ref()
+            });
+            if to_file {
+                args.extend(["--out-file", destination_arg.as_ref()]);
+            }
+            let output = run_acdc(&args, from_stdin.then_some(source.as_str()))?;
+            let stderr = output_text(&output.stderr);
+            assert_eq!(output.status.code(), Some(1), "{stderr}");
+            assert_eq!(stderr.matches(SECTION_WARNING).count(), 1, "{stderr}");
+            assert_eq!(
+                stderr
+                    .matches("PHP source block mixed-mode highlighting")
+                    .count(),
+                1,
+                "{stderr}"
+            );
+            assert!(stderr.contains("conversion emitted 2 warnings"), "{stderr}");
+            let rendered = if to_file {
+                fs::read_to_string(&destination)?
+            } else {
+                output_text(&output.stdout)
+            };
+            assert!(rendered.contains("Retained warning body."));
+        }
+    }
+
+    let clean = directory.path().join("clean.adoc");
+    fs::write(&clean, "Clean terminal body.\n")?;
+    let clean_arg = clean.to_string_lossy();
+    let output = run_acdc(
+        &[
+            "convert",
+            "--backend",
+            "terminal",
+            "--no-pager",
+            "--fail-on-warnings",
+            input_arg.as_ref(),
+            clean_arg.as_ref(),
+        ],
+        None,
+    )?;
+    let stderr = output_text(&output.stderr);
+    assert_eq!(output.status.code(), Some(1), "{stderr}");
+    assert!(stderr.contains("conversion emitted 2 warnings"), "{stderr}");
+    assert!(output_text(&output.stdout).contains("Clean terminal body."));
+    Ok(())
+}
+
+#[cfg(feature = "pdf")]
+#[test]
+fn fail_on_warnings_keeps_strict_asset_errors_fatal() -> Result<(), Box<dyn Error>> {
+    let directory = tempfile::tempdir()?;
+    let input = directory.path().join("assets.adoc");
+    std::fs::write(&input, "= Assets\n\nimage::missing-sc-272.svg[]\n")?;
+    let input_arg = input.to_string_lossy();
+    for strict in [false, true] {
+        for fail_on_warnings in [false, true] {
+            let mut args = vec![
+                "convert",
+                "--backend",
+                "pdf",
+                "--out-file",
+                "-",
+                input_arg.as_ref(),
+            ];
+            if strict {
+                args.push("--strict");
+            }
+            if fail_on_warnings {
+                args.push("--fail-on-warnings");
+            }
+            let output = run_acdc(&args, None)?;
+            let stderr = output_text(&output.stderr);
+
+            assert_eq!(
+                output.status.code(),
+                Some(i32::from(strict || fail_on_warnings)),
+                "{stderr}"
+            );
+            if strict {
+                assert_eq!(output.stdout, [] as [u8; 0]);
+                assert!(stderr.contains("failed to resolve 1 image(s)"), "{stderr}");
+                assert!(!stderr.contains("conversion emitted"), "{stderr}");
+            } else {
+                assert!(output.stdout.starts_with(b"%PDF-"));
+                assert_eq!(
+                    stderr.contains("conversion emitted 1 warning"),
+                    fail_on_warnings,
+                    "{stderr}"
+                );
+            }
+        }
+    }
     Ok(())
 }
 

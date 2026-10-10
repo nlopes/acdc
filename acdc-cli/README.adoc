@@ -405,6 +405,26 @@ A build with no command-enabling features exits with a diagnostic that lists the
 == Diagnostics and exit status
 
 Parser and converter warnings are written to stderr with source snippets when available.
+
+Use `acdc convert --fail-on-warnings` to exit with status 1 when parsing,
+preprocessing, or conversion emits a structured warning. Each warning is shown
+once. Warnings do not stop processing of other selected inputs. Terminal pager
+warnings appear after the pager exits. Logging and CLI notices do not affect
+this option.
+
+Successful output is retained, including files, stdout, and pager output.
+`--open` does not open generated files when warnings make the command fail.
+Without this flag, warnings keep their existing behavior and permit status 0.
+`--strict` still makes its selected non-conformance and asset fallbacks fatal;
+the two flags can be used together. The warning exit and output retention are
+similar to Asciidoctor's `--failure-level WARN`.
+
+[source,console]
+....
+acdc convert --fail-on-warnings guide.adoc
+acdc convert --strict --fail-on-warnings -o - guide.adoc
+....
+
 Lint diagnostics use the selected output style.
 Command-line usage errors exit with status 2; processing failures and denied lint diagnostics exit with status 1; successful commands exit with status 0.
 

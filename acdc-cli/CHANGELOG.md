@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `convert --fail-on-warnings` exits with status 1 for structured parser,
+  preprocessor, or converter warnings. Each warning is shown once, and
+  successful output is retained in files, stdout, and the terminal pager.
+  Multi-file runs keep their existing input selection and processing policy.
+  The flag can be used with `--strict`, which keeps its current behavior.
+  This warning exit and output retention are similar to Asciidoctor's
+  `--failure-level WARN`.
+
 ### Fixed
 
 - Restore native Windows CLI release builds.
