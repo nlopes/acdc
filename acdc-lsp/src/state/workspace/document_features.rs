@@ -279,3 +279,23 @@ fn hover_distinguishes_section_offsets_in_different_files() -> Result<(), Box<dy
     );
     Ok(())
 }
+
+#[test]
+fn formatting_preserves_raw_listing_text_when_an_include_closes_the_parsed_block()
+-> Result<(), Box<dyn Error>> {
+    let workspace = Workspace::new();
+    let uri = file_uri("book.adoc")?;
+    let text = "----\nkeep spaces  \ninclude::child.adoc[]\nkeep these too  \n----\n";
+    workspace.update_document_with_options(
+        uri.clone(),
+        text.into(),
+        1,
+        &options_with_sources(&[("child.adoc", "----\n")])?,
+    );
+    let doc = workspace.get_document(&uri).ok_or("missing book")?;
+    assert_eq!(
+        formatting::format_document(&doc, &FormattingOptions::default()),
+        []
+    );
+    Ok(())
+}

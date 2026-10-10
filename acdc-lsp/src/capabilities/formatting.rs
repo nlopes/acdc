@@ -27,7 +27,7 @@ pub(crate) fn format_document(doc: &DocumentState, options: &FormattingOptions) 
     let line_count = lines.len();
 
     let protected = if let Some(ast) = doc.ast() {
-        collect_protected_ranges(ast.document())
+        collect_protected_ranges(ast.document(), doc.text())
     } else {
         collect_protected_ranges_from_text(doc.text())
     };
@@ -39,7 +39,12 @@ pub(crate) fn format_document(doc: &DocumentState, options: &FormattingOptions) 
     edits.extend(collapse_blank_lines(&lines, &protected, range.clone()));
 
     if let Some(ast) = doc.ast() {
-        edits.extend(ensure_block_separation(&lines, ast.document(), range));
+        edits.extend(ensure_block_separation(
+            &lines,
+            ast.document(),
+            &protected,
+            range,
+        ));
     }
 
     edits.extend(normalize_final_newline(doc.text(), options));
@@ -64,7 +69,7 @@ pub(crate) fn format_range(
     let line_range = start_line..end_line + 1;
 
     let protected = if let Some(ast) = doc.ast() {
-        collect_protected_ranges(ast.document())
+        collect_protected_ranges(ast.document(), doc.text())
     } else {
         collect_protected_ranges_from_text(doc.text())
     };
@@ -82,6 +87,7 @@ pub(crate) fn format_range(
         edits.extend(ensure_block_separation(
             &lines,
             ast.document(),
+            &protected,
             line_range.clone(),
         ));
     }
@@ -94,9 +100,9 @@ pub(crate) fn format_range(
     edits
 }
 
-/// Collect protected line ranges from the AST by finding verbatim delimited blocks.
-pub(crate) fn collect_protected_ranges(ast: &Document) -> Vec<ProtectedRange> {
-    let mut ranges = Vec::new();
+/// Protect verbatim blocks in the original text and primary-source AST ranges.
+pub(crate) fn collect_protected_ranges(ast: &Document, text: &str) -> Vec<ProtectedRange> {
+    let mut ranges = collect_protected_ranges_from_text(text);
     collect_protected_ranges_from_blocks(&ast.blocks, &mut ranges);
     ranges
 }
@@ -354,6 +360,7 @@ fn block_location<'a>(block: &'a Block<'_>) -> &'a Location {
 fn ensure_block_separation(
     lines: &[&str],
     ast: &Document,
+    protected: &[ProtectedRange],
     range: ops::Range<usize>,
 ) -> Vec<TextEdit> {
     let mut edits = Vec::new();
@@ -373,6 +380,15 @@ fn ensure_block_separation(
         // Convert 1-indexed AST locations to 0-indexed
         let prev_end_line = block_location(prev_block).end.line.saturating_sub(1) as usize;
         let curr_start_line = block_location(curr_block).start.line.saturating_sub(1) as usize;
+
+        // An include can close a parsed block before its closing delimiter in
+        // the editor text. Do not add separators inside that original block.
+        if protected
+            .iter()
+            .any(|span| span.start_line <= prev_end_line && prev_end_line < span.end_line)
+        {
+            continue;
+        }
 
         // Only process blocks within our range
         if prev_end_line < range.start || curr_start_line >= range.end {

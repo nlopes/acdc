@@ -42,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Syntax highlighting uses UTF-16 columns and stops at line boundaries.
   Heading highlights cover the written title.
 - Workspace symbol search no longer repeats the same symbol at the same location.
+- Formatting does not insert blank lines inside verbatim blocks.
 - Anchor and file renames preserve brackets, macro prefixes, and link labels.
   Rename leaves generated and attribute-derived anchor IDs unchanged.
 - Cursor positions account for UTF-16 characters and CRLF line endings.
