@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Restore native Windows CLI release builds.
+
 ## [0.3.0] - 2026-10-10
 
 ### Added

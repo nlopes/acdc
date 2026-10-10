@@ -223,7 +223,13 @@ fn convert_requires_an_input() -> Result<(), Box<dyn Error>> {
 
     assert_eq!(output.status.code(), Some(2));
     assert!(stderr.contains("required arguments were not provided"));
-    assert!(stderr.contains("Usage: acdc convert"));
+    assert!(
+        stderr.contains(&format!(
+            "Usage: acdc{} convert",
+            std::env::consts::EXE_SUFFIX
+        )),
+        "{stderr}"
+    );
     Ok(())
 }
 
@@ -235,7 +241,10 @@ fn lint_requires_an_input() -> Result<(), Box<dyn Error>> {
 
     assert_eq!(output.status.code(), Some(2));
     assert!(stderr.contains("required arguments were not provided"));
-    assert!(stderr.contains("Usage: acdc lint"));
+    assert!(
+        stderr.contains(&format!("Usage: acdc{} lint", std::env::consts::EXE_SUFFIX)),
+        "{stderr}"
+    );
     Ok(())
 }
 
