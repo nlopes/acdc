@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- On Unix, terminal conversion starts faster without an attached terminal.
+  It uses an 80-column fallback when the terminal width is unavailable.
+  Explicit width settings still take precedence.
+
 - `pass:c,r[->]` renders an arrow in prose and code, matching Asciidoctor's
   HTML and manpage behavior. Reversed lists and escaped arrows remain literal,
   including highlighted code.

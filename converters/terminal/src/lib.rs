@@ -144,8 +144,15 @@ impl<'a> Converter<'a> for Processor<'a> {
             TERMINAL_BACKEND.apply(parser_options, options.doctype(), options.embedded());
         let appearance = Appearance::detect();
 
-        let terminal_width = crossterm::terminal::size()
-            .map_or(FALLBACK_TERMINAL_WIDTH, |(cols, _)| usize::from(cols))
+        // On Unix, `size()` can launch `tput` when no terminal is available.
+        // Query the terminal directly and use our fallback if that fails.
+        #[cfg(unix)]
+        let terminal_width = crossterm::terminal::window_size().map(|size| size.columns);
+        // `window_size()` is not implemented for the Windows console API.
+        #[cfg(not(unix))]
+        let terminal_width = crossterm::terminal::size().map(|(columns, _)| columns);
+        let terminal_width = terminal_width
+            .map_or(FALLBACK_TERMINAL_WIDTH, usize::from)
             .min(MAX_TERMINAL_WIDTH);
 
         let parser_options = parser_options.build()?;
