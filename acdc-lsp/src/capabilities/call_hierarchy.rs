@@ -11,11 +11,14 @@ use tower_lsp_server::ls_types::{
     SymbolKind, Uri,
 };
 
-use crate::convert::{
-    location_to_range, offset_in_location, position_to_offset, resolve_relative_uri, uri_filename,
+use crate::{
+    convert::{
+        file_path_to_uri, location_to_range, offset_in_location, position_to_offset,
+        resolve_relative_uri, uri_filename,
+    },
+    limits::{count_lines_bounded, read_bounded},
+    state::{DocumentState, Workspace, extract_includes},
 };
-use crate::limits::{count_lines_bounded, read_bounded};
-use crate::state::{DocumentState, Workspace, extract_includes};
 
 /// Build a `CallHierarchyItem` representing an `AsciiDoc` file.
 fn make_call_hierarchy_item(uri: Uri, line_count: usize) -> CallHierarchyItem {
@@ -106,7 +109,7 @@ pub(crate) fn incoming_calls(
 
     // Scan non-open workspace files
     for path in workspace.discover_workspace_files() {
-        let Some(file_uri) = Uri::from_file_path(&path) else {
+        let Some(file_uri) = file_path_to_uri(&path) else {
             continue;
         };
         if workspace.has_document(&file_uri) {

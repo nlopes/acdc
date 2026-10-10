@@ -133,7 +133,15 @@ pub(super) fn file_path(uri: &Uri) -> Option<Cow<'_, Path>> {
     {
         return None;
     }
-    uri.to_file_path().filter(|path| path.is_absolute())
+    let path = uri.to_file_path().filter(|path| path.is_absolute())?;
+    #[cfg(windows)]
+    {
+        // Match the parser's lexical normalization before checking containment.
+        // URI decoding can leave a canonical Windows prefix with forward slashes.
+        std::path::absolute(&path).ok().map(Cow::Owned)
+    }
+    #[cfg(not(windows))]
+    Some(path)
 }
 
 struct EditorIncludeProvider {

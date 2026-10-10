@@ -1,5 +1,7 @@
 //! Type conversions between acdc-parser and LSP types
 
+use std::path::Path;
+
 use acdc_parser::{Location, SourceLocation};
 use tower_lsp_server::ls_types::{Position, Range, Uri};
 
@@ -72,13 +74,31 @@ pub(crate) fn is_primary_location(location: &Location) -> bool {
             .is_none_or(|chain| chain.is_empty())
 }
 
+/// Convert a file path to a URI with normal Windows drive syntax.
+pub(crate) fn file_path_to_uri(path: &Path) -> Option<Uri> {
+    #[cfg(windows)]
+    {
+        use std::path::{Component, PathBuf, Prefix};
+
+        if let Some(Component::Prefix(prefix)) = path.components().next()
+            && let Prefix::VerbatimDisk(drive) = prefix.kind()
+        {
+            // File URIs use drive paths; the verbatim prefix is a filesystem detail.
+            let mut path_without_prefix = PathBuf::from(format!("{}:", char::from(drive)));
+            path_without_prefix.extend(path.components().skip(1));
+            return Uri::from_file_path(path_without_prefix);
+        }
+    }
+    Uri::from_file_path(path)
+}
+
 /// Resolve a single-file span to a URI. Unknown include sources have no fallback.
 pub(crate) fn source_uri(document_uri: &Uri, source: &SourceLocation) -> Option<Uri> {
     if source.location.start.file != source.location.end.file {
         return None;
     }
     match &source.file {
-        Some(path) => Uri::from_file_path(path),
+        Some(path) => file_path_to_uri(path),
         None if source
             .location
             .start
@@ -136,6 +156,20 @@ pub(crate) fn uri_filename(uri: &Uri) -> &str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(windows)]
+    #[test]
+    fn canonical_windows_paths_use_drive_uris() -> Result<(), Box<dyn std::error::Error>> {
+        let canonical = Path::new(r"\\?\C:\docs\child with spaces.adoc");
+        let normal = Path::new(r"C:\docs\child with spaces.adoc");
+        let uri = file_path_to_uri(canonical).ok_or("invalid canonical file URI")?;
+        assert_eq!(uri, Uri::from_file_path(normal).ok_or("invalid drive URI")?);
+        assert_eq!(uri.to_file_path().as_deref(), Some(normal));
+        let mut source = SourceLocation::at_location(None, Location::default());
+        source.file = Some(canonical.into());
+        assert_eq!(source_uri(&uri, &source), Some(uri));
+        Ok(())
+    }
 
     #[test]
     fn test_location_to_range_default_is_zero() {
