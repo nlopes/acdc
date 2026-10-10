@@ -14,6 +14,10 @@ impl Project {
         let path =
             std::env::temp_dir().join(format!("acdc-lsp-protocol-{name}-{}", std::process::id()));
         fs::create_dir(&path)?;
+        // Editors use drive paths. Windows canonicalization adds a verbatim prefix.
+        #[cfg(windows)]
+        return Ok(Self(path));
+        #[cfg(not(windows))]
         Ok(Self(path.canonicalize()?))
     }
 

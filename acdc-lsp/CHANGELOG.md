@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Windows documents with canonical file paths now resolve local `include::` targets
+  without false errors that the target is outside the document directory.
+- File links and included source locations use normal Windows drive URIs.
+
 ## [0.3.0] - 2026-10-10
 
 ### Added

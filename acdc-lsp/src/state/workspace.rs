@@ -17,7 +17,7 @@ use crate::{
         workspace_symbols::{IndexedSymbol, extract_workspace_symbols},
     },
     config::{AnalysisBackend, AnalysisConfiguration, ParserProfiles},
-    convert::{location_to_range, source_uri},
+    convert::{file_path_to_uri, location_to_range, source_uri},
     limits::{MAX_INDEXABLE_FILE_BYTES, read_bounded},
     state::{DocumentState, document::ParsedText},
 };
@@ -441,7 +441,7 @@ impl Workspace {
         let files = discover_adoc_files(roots);
 
         for path in files {
-            let Some(uri) = Uri::from_file_path(&path) else {
+            let Some(uri) = file_path_to_uri(&path) else {
                 continue;
             };
             // Skip files that are already open in the editor

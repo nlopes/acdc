@@ -48,6 +48,7 @@ jobs:
               - '.github/workflows/ci.yml'
               - 'acdc-lsp/**'
               - 'acdc-parser/**'
+              - 'converters/core/**'
               - 'Cargo.toml'
               - 'Cargo.lock'
             pdf:
@@ -224,7 +225,11 @@ jobs:
   test-lsp:
     needs: changes
     if: needs.changes.outputs.lsp == 'true'
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-2025]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable

@@ -9,7 +9,7 @@ use std::{
 use tower_lsp_server::ls_types::{DiagnosticSeverity, Uri};
 
 use super::super::Workspace;
-use crate::limits::MAX_INDEXABLE_FILE_BYTES;
+use crate::{convert::file_path_to_uri, limits::MAX_INDEXABLE_FILE_BYTES};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -28,7 +28,7 @@ impl Project {
     }
 
     fn uri(&self, name: &str) -> Result<Uri, Box<dyn Error>> {
-        Uri::from_file_path(self.0.join(name)).ok_or_else(|| "invalid file URI".into())
+        file_path_to_uri(&self.0.join(name)).ok_or_else(|| "invalid file URI".into())
     }
 
     fn write(&self, name: &str, text: &str) -> TestResult {
@@ -47,6 +47,53 @@ fn has_anchor(workspace: &Workspace, uri: &Uri, anchor: &str) -> bool {
     workspace
         .get_document(uri)
         .is_some_and(|document| document.anchors.contains_key(anchor))
+}
+
+#[cfg(windows)]
+#[test]
+fn canonical_windows_uri_paths_use_native_separators() -> TestResult {
+    let path = std::path::Path::new(r"\\?\C:\docs\unsaved.adoc");
+    let uri = Uri::from_file_path(path).ok_or("invalid canonical file URI")?;
+    assert_eq!(super::file_path(&uri).as_deref(), Some(path));
+    let normal = std::path::Path::new(r"C:\docs\unsaved.adoc");
+    let uri = file_path_to_uri(path).ok_or("invalid drive URI")?;
+    assert_eq!(super::file_path(&uri).as_deref(), Some(normal));
+    Ok(())
+}
+
+#[cfg(windows)]
+#[test]
+fn canonical_windows_uris_load_disk_and_buffer_includes() -> TestResult {
+    let project = Project::new()?;
+    project.write("child.adoc", "== Disk\n")?;
+    let workspace = Workspace::new();
+    // Preserve the upstream conversion that caused the Windows release failure.
+    let book =
+        Uri::from_file_path(project.0.join("book.adoc")).ok_or("invalid canonical file URI")?;
+    workspace.update_document(book.clone(), "include::child.adoc[]\n".into(), 1);
+    assert!(has_anchor(&workspace, &book, "_disk"));
+    assert_eq!(workspace.diagnostics_for(&book).0, []);
+
+    let child = project.uri("child.adoc")?;
+    let affected = workspace.update_document(child.clone(), "== Buffer\n".into(), 1);
+    assert!(affected.contains(&book));
+    assert!(has_anchor(&workspace, &book, "_buffer"));
+    workspace.remove_document(&child);
+    assert!(has_anchor(&workspace, &book, "_disk"));
+    assert_eq!(workspace.diagnostics_for(&book).0, []);
+    Ok(())
+}
+
+#[test]
+fn include_paths_reject_non_file_relative_and_remote_uris() -> TestResult {
+    for uri in [
+        "untitled:book",
+        "file:relative.adoc",
+        "file://remote/share/book.adoc",
+    ] {
+        assert!(super::file_path(&uri.parse()?).is_none(), "{uri}");
+    }
+    Ok(())
 }
 
 #[test]

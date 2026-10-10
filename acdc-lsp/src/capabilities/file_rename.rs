@@ -8,7 +8,7 @@ use std::{
 use tower_lsp_server::ls_types::{FileRename, TextEdit, Uri, WorkspaceEdit};
 
 use crate::{
-    convert::{location_to_range, resolve_relative_uri, source_uri},
+    convert::{file_path_to_uri, location_to_range, resolve_relative_uri, source_uri},
     state::{Workspace, XrefTarget},
 };
 
@@ -163,7 +163,7 @@ fn scan_workspace_files_for_renames(
     let files = workspace.discover_workspace_files();
 
     for file_path in files {
-        let Some(file_uri) = Uri::from_file_path(&file_path) else {
+        let Some(file_uri) = file_path_to_uri(&file_path) else {
             continue;
         };
 
