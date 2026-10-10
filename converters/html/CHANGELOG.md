@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- Explain that safe modes do not sanitize HTML output, matching Asciidoctor.
+  Use trusted documents or sanitize or isolate the output before embedding it
+  in a page.
+
 ### Fixed
 
 - Passthroughs with character escaping before replacements, such as
