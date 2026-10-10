@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A note in the editor pane explains that embedded HTML can run code or
+  change the page. Use content you trust.
+
 ## [0.6.0] - 2026-10-10
 
 ### Fixed
