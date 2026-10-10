@@ -119,7 +119,6 @@ impl Workspace {
                         ADOC_EXTENSIONS.contains(&extension.to_string_lossy().as_ref())
                     })
                 })
-                && self.analysis_configuration().contains(uri)
             {
                 self.reindex_file_from_disk(uri);
             }

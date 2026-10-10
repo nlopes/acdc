@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Closing a document no longer restores symbols from a removed workspace folder.
+  Moving a closed file outside active folders also removes its workspace symbols.
+  Open documents and their include updates still work after a folder is removed.
 - File renames now update active cross-references in closed files using each
   folder's analysis backend. PDF-only references are no longer skipped.
 - Changing the analysis backend now refreshes cross-file diagnostics in all open

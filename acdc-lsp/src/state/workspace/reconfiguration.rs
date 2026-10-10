@@ -8,15 +8,171 @@ use std::{
     },
 };
 
-use tower_lsp_server::ls_types::Uri;
+use tower_lsp_server::ls_types::{FileRename, Uri};
 
 use super::Workspace;
 use crate::{
+    capabilities::file_rename,
     config::{AnalysisBackend, RootConfiguration},
     convert::file_path_to_uri,
 };
 
 type TestResult = Result<(), Box<dyn Error>>;
+
+#[test]
+fn closing_a_document_after_root_removal_does_not_restore_disk_symbols() -> TestResult {
+    let project = Project::new()?;
+    fs::write(project.0.join("doc.adoc"), "== Disk\n")?;
+    let workspace = Workspace::new();
+    let uri = project.uri("doc.adoc")?;
+    workspace.initialize_analysis(AnalysisBackend::Html5, vec![project.uri("")?]);
+    workspace.update_document(uri.clone(), "== Buffer\n".into(), 3);
+    let mut configuration = workspace.analysis_configuration();
+    configuration.replace_roots(Vec::new());
+    workspace.apply_analysis_configuration(&configuration);
+    assert!(workspace.has_document(&uri));
+    assert!(!workspace.query_workspace_symbols("Buffer").is_empty());
+    workspace.remove_document(&uri);
+    assert_eq!(workspace.symbol_index_len(), 0);
+    assert!(workspace.query_workspace_symbols("").is_empty());
+    Ok(())
+}
+
+#[test]
+fn closing_a_document_reindexes_when_either_overlapping_root_remains() -> TestResult {
+    for keep_nested in [false, true] {
+        let project = Project::new()?;
+        fs::create_dir(project.0.join("nested"))?;
+        fs::write(project.0.join("nested/doc.adoc"), "== Disk\n")?;
+        let root = project.uri("")?;
+        let nested_root = project.uri("nested")?;
+        let uri = project.uri("nested/doc.adoc")?;
+        let workspace = Workspace::new();
+        workspace.initialize_analysis(
+            AnalysisBackend::Html5,
+            vec![root.clone(), nested_root.clone()],
+        );
+        workspace.update_document(uri.clone(), "== Buffer\n".into(), 4);
+        let mut configuration = workspace.analysis_configuration();
+        configuration.replace_roots(vec![RootConfiguration {
+            uri: if keep_nested { nested_root } else { root },
+            backend: None,
+        }]);
+        workspace.apply_analysis_configuration(&configuration);
+        workspace.remove_document(&uri);
+        assert_eq!(workspace.symbol_index_len(), 1);
+        let symbols: Vec<_> = workspace
+            .query_workspace_symbols("Disk")
+            .into_iter()
+            .filter(|(_, symbol)| symbol.name == "Disk")
+            .collect();
+        assert_eq!(symbols.len(), 1);
+        assert_eq!(symbols.first().ok_or("missing symbol")?.0, uri);
+        assert!(workspace.query_workspace_symbols("Buffer").is_empty());
+    }
+    Ok(())
+}
+
+#[test]
+fn closed_file_moves_reindex_only_destinations_in_active_roots() -> TestResult {
+    let project = Project::new()?;
+    fs::create_dir(project.0.join("active"))?;
+    fs::create_dir(project.0.join("outside"))?;
+    let inside_path = project.0.join("active/doc.adoc");
+    let outside_path = project.0.join("outside/doc.adoc");
+    fs::write(&inside_path, "== Moved\n")?;
+    let inside = project.uri("active/doc.adoc")?;
+    let outside = project.uri("outside/doc.adoc")?;
+    let workspace = Workspace::new();
+    workspace.initialize_analysis(AnalysisBackend::Html5, vec![project.uri("active")?]);
+    workspace.scan_workspace_files();
+    assert_eq!(workspace.symbol_index_len(), 1);
+    fs::rename(&inside_path, &outside_path)?;
+    file_rename::update_workspace_after_rename(
+        &workspace,
+        &[FileRename {
+            old_uri: inside.to_string(),
+            new_uri: outside.to_string(),
+        }],
+    );
+    assert!(workspace.query_workspace_symbols("Moved").is_empty());
+    assert_eq!(workspace.symbol_index_len(), 0);
+    fs::rename(outside_path, inside_path)?;
+    file_rename::update_workspace_after_rename(
+        &workspace,
+        &[FileRename {
+            old_uri: outside.to_string(),
+            new_uri: inside.to_string(),
+        }],
+    );
+    assert_eq!(workspace.symbol_index_len(), 1);
+    let symbols: Vec<_> = workspace
+        .query_workspace_symbols("Moved")
+        .into_iter()
+        .filter(|(_, symbol)| symbol.name == "Moved")
+        .collect();
+    assert_eq!(symbols.len(), 1);
+    assert_eq!(symbols.first().ok_or("missing symbol")?.0, inside);
+    Ok(())
+}
+
+#[test]
+fn closing_an_included_buffer_after_root_removal_still_refreshes_its_parent() -> TestResult {
+    let project = Project::new()?;
+    fs::write(project.0.join("child.adoc"), "== Disk\n")?;
+    let workspace = Workspace::new();
+    workspace.initialize_analysis(AnalysisBackend::Html5, vec![project.uri("")?]);
+    let child = project.uri("child.adoc")?;
+    let book = project.uri("book.adoc")?;
+    workspace.update_document(child.clone(), "== Buffer\n".into(), 3);
+    workspace.update_document(book.clone(), "include::child.adoc[]\n".into(), 7);
+    let mut configuration = workspace.analysis_configuration();
+    configuration.replace_roots(Vec::new());
+    workspace.apply_analysis_configuration(&configuration);
+    assert!(
+        workspace
+            .get_document(&book)
+            .is_some_and(|state| state.anchors.contains_key("_buffer"))
+    );
+    let affected = workspace.remove_document(&child);
+    assert!(affected.contains(&book));
+    assert!(workspace.get_document(&book).is_some_and(
+        |state| state.anchors.contains_key("_disk") && !state.anchors.contains_key("_buffer")
+    ));
+    assert_eq!(workspace.diagnostics_for(&book).1, Some(7));
+    assert_eq!(workspace.symbol_index_len(), 0);
+    Ok(())
+}
+
+#[test]
+fn closing_non_file_uris_does_not_index_a_matching_disk_path() -> TestResult {
+    let project = Project::new()?;
+    fs::write(project.0.join("doc.adoc"), "== Disk\n")?;
+    let root = project.uri("")?;
+    let file = project.uri("doc.adoc")?;
+    let virtual_root: Uri = format!(
+        "memfs:{}",
+        root.as_str()
+            .strip_prefix("file:")
+            .ok_or("missing file scheme")?
+    )
+    .parse()?;
+    let virtual_file: Uri = format!(
+        "memfs:{}",
+        file.as_str()
+            .strip_prefix("file:")
+            .ok_or("missing file scheme")?
+    )
+    .parse()?;
+    let workspace = Workspace::new();
+    workspace.initialize_analysis(AnalysisBackend::Html5, vec![virtual_root]);
+    for uri in [virtual_file, "untitled:notes".parse()?] {
+        workspace.update_document(uri.clone(), "== Buffer\n".into(), 1);
+        workspace.remove_document(&uri);
+        assert_eq!(workspace.symbol_index_len(), 0);
+    }
+    Ok(())
+}
 
 struct Project(PathBuf);
 

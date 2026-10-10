@@ -602,6 +602,7 @@ impl Workspace {
     fn reindex_file_from_disk(&self, uri: &Uri) {
         self.symbol_index.remove(uri);
         if let Some(path) = includes::file_path(uri)
+            && self.analysis_configuration().contains(uri)
             && let Some(text) = read_bounded(path.as_ref())
         {
             let backend = self.backend_for(uri);

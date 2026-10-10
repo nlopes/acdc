@@ -8,6 +8,45 @@ use serde_json::{Value, json};
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
 #[test]
+fn removing_a_workspace_folder_keeps_open_documents_without_restoring_closed_symbols() -> TestResult
+{
+    let project = Project::new("removed-root-close")?;
+    fs::write(project.path().join("doc.adoc"), "== Disk\n")?;
+    let root = project.uri("")?;
+    let uri = project.uri("doc.adoc")?;
+    let mut client = LspTestClient::new()?;
+    client.initialize_with_params(json!({
+        "processId": null,
+        "capabilities": { "workspace": {
+            "workspaceFolders": true,
+            "semanticTokens": { "refreshSupport": true }
+        }},
+        "workspaceFolders": [{ "uri": root, "name": "project" }]
+    }))?;
+    client.open_document(&uri, "== Buffer\n")?;
+    client.wait_for_diagnostics(&uri)?;
+    client.send_notification(
+        "workspace/didChangeWorkspaceFolders",
+        json!({
+            "event": { "added": [], "removed": [{ "uri": root, "name": "project" }] }
+        }),
+    )?;
+    client.wait_for_server_request("workspace/semanticTokens/refresh")?;
+    let open = client.send_request("workspace/symbol", json!({ "query": "Buffer" }))?;
+    assert!(open.as_array().is_some_and(|symbols| !symbols.is_empty()));
+    client.send_notification(
+        "textDocument/didClose",
+        json!({ "textDocument": { "uri": uri } }),
+    )?;
+    let diagnostics = client.wait_for_diagnostics(&uri)?;
+    assert_eq!(diagnostics.get("diagnostics"), Some(&json!([])));
+    let closed = client.send_request("workspace/symbol", json!({ "query": "Disk" }))?;
+    assert_eq!(closed, Value::Null);
+    client.shutdown();
+    Ok(())
+}
+
+#[test]
 fn closed_file_rename_uses_scoped_backends_and_physical_utf16_ranges() -> TestResult {
     let project = Project::new("closed-rename-backends")?;
     let reader = concat!(
