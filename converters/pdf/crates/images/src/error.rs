@@ -46,6 +46,14 @@ pub enum Error {
     #[error("{}", too_large_message(*limit, *actual))]
     TooLarge { limit: u64, actual: Option<u64> },
 
+    /// No more distinct sources can be attempted in this resolve call.
+    #[error("document image source limit of {limit} reached")]
+    SourceLimit { limit: usize },
+
+    /// An image would exceed the shared byte allowance, or that allowance is used.
+    #[error("document image byte limit of {limit} bytes reached")]
+    TotalBytesLimit { limit: u64 },
+
     #[error("image data was empty")]
     Empty,
 

@@ -50,6 +50,13 @@ pub struct ResolveConfig {
     /// Maximum bytes accepted for a single image, from any source (local file,
     /// remote response, or `data:` URI). Anything larger is a per-image failure.
     pub max_bytes: u64,
+    /// Maximum distinct source strings attempted in one [`resolve`] call.
+    /// Failed attempts count. Repeated strings count once. Defaults to 1,024.
+    pub max_sources: usize,
+    /// Maximum accepted encoded image bytes in one [`resolve`] call.
+    /// Different source strings each count, even if their bytes match.
+    /// Failed images do not count. Defaults to 100 MiB.
+    pub max_total_bytes: u64,
     /// Sources the resolver may access.
     pub source_policy: SourcePolicy,
 }
@@ -64,6 +71,8 @@ impl ResolveConfig {
             spool_dir: spool_dir.into(),
             timeout: Duration::from_secs(30),
             max_bytes: 20 * 1024 * 1024,
+            max_sources: 1024,
+            max_total_bytes: 100 * 1024 * 1024,
             source_policy: SourcePolicy::Unrestricted,
         }
     }
@@ -89,22 +98,51 @@ pub struct Resolved {
 /// Repeated references to the same source string are resolved once: a document
 /// that uses one logo in fifty places fetches and decodes it a single time, and
 /// a broken reference is reported once rather than once per occurrence.
+///
+/// Sources are processed in input order. After a quota is reached, or an image
+/// would exceed the remaining byte allowance, later sources fail without being
+/// fetched. Images already resolved remain available. Different source strings
+/// count separately toward both quotas, even when they share a snapshot.
 #[must_use]
 pub fn resolve(urls: &[&str], config: &ResolveConfig) -> Resolved {
     let fetcher = fetch::Fetcher::new(config);
     let mut assets = ImageMap::new();
     let mut failures = Vec::new();
     let mut seen: HashSet<&str> = HashSet::new();
+    let mut accepted_bytes = 0;
+    let mut bytes_exhausted = false;
     for &url in urls {
         if !seen.insert(url) {
             continue;
         }
-        match resolve_one(&fetcher, url, &config.spool_dir) {
-            Ok(image) => assets.insert(url.to_string(), image),
-            Err(error) => failures.push(ResolveFailure {
-                url: url.to_string(),
-                error,
-            }),
+        let result = if seen.len() > config.max_sources {
+            Err(Error::SourceLimit {
+                limit: config.max_sources,
+            })
+        } else if bytes_exhausted || accepted_bytes == config.max_total_bytes {
+            Err(Error::TotalBytesLimit {
+                limit: config.max_total_bytes,
+            })
+        } else {
+            resolve_one(
+                &fetcher,
+                url,
+                config,
+                config.max_total_bytes - accepted_bytes,
+            )
+        };
+        match result {
+            Ok((image, size)) => {
+                accepted_bytes += size;
+                assets.insert(url.to_string(), image);
+            }
+            Err(error) => {
+                bytes_exhausted |= matches!(error, Error::TotalBytesLimit { .. });
+                failures.push(ResolveFailure {
+                    url: url.to_string(),
+                    error,
+                });
+            }
         }
     }
     Resolved { assets, failures }
@@ -113,14 +151,26 @@ pub fn resolve(urls: &[&str], config: &ResolveConfig) -> Resolved {
 fn resolve_one(
     fetcher: &fetch::Fetcher,
     url: &str,
-    spool_dir: &std::path::Path,
-) -> Result<ResolvedImage, Error> {
-    let raw = fetcher.fetch(url)?;
+    config: &ResolveConfig,
+    remaining_bytes: u64,
+) -> Result<(ResolvedImage, u64), Error> {
+    let raw = fetcher
+        .fetch(url, config.max_bytes.min(remaining_bytes))
+        .map_err(|error| {
+            if remaining_bytes < config.max_bytes && matches!(error, Error::TooLarge { .. }) {
+                Error::TotalBytesLimit {
+                    limit: config.max_total_bytes,
+                }
+            } else {
+                error
+            }
+        })?;
     let detected = detect::detect(&raw)?;
     let name = path::content_name(&raw, detected.extension);
     let virtual_path = path::virtual_path(&name);
-    let path = spool::write(spool_dir, &name, &raw)?;
-    Ok(ResolvedImage { virtual_path, path })
+    let path = spool::write(&config.spool_dir, &name, &raw)?;
+    // Charge every accepted source, including content that already has a snapshot.
+    Ok((ResolvedImage { virtual_path, path }, raw.len() as u64))
 }
 
 #[cfg(test)]
@@ -560,6 +610,16 @@ mod tests {
                 .first()
                 .is_some_and(|failure| { matches!(failure.error, Error::TooLarge { .. }) })
         );
+
+        config.max_bytes = 20 * 1024 * 1024;
+        config.max_total_bytes = 100;
+        let data = format!("data:image/png;base64,{PNG_1X1_B64}");
+        let resolved = resolve(&[&data, url.as_str()], &config);
+        assert!(resolved.assets.get(&data).is_some());
+        assert_eq!(resolved.failures.len(), 1);
+        assert!(resolved.failures.first().is_some_and(|failure| {
+            matches!(failure.error, Error::TotalBytesLimit { limit: 100 })
+        }));
         Ok(())
     }
 

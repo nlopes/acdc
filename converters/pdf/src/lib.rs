@@ -4071,6 +4071,68 @@ mod tests {
     }
 
     #[test]
+    fn image_quotas_keep_partial_results_and_use_structured_asset_failures()
+    -> Result<(), Box<dyn StdError>> {
+        let root = tempfile::tempdir()?;
+        std::fs::write(
+            root.path().join("first.svg"),
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>"#,
+        )?;
+        let parsed = parse(
+            "image::first.svg[]\n\nimage::second.svg[]\n",
+            &ParserOptions::default(),
+        )?;
+        let preparation = collect_pdf_preparation(parsed.document());
+        let urls = preparation
+            .image_urls
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>();
+        let mut config = ResolveConfig::new(root.path(), root.path().join("spool"));
+        config.max_sources = 1;
+        let resolved = resolve(&urls, &config);
+        assert!(resolved.assets.get("first.svg").is_some());
+        assert!(resolved.assets.get("second.svg").is_none());
+
+        let processor = Processor::new(Options::default(), ParserOptions::builder())?;
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        {
+            let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+            processor.report_image_failures(&preparation, resolved.failures, &mut diagnostics)?;
+        }
+        assert_eq!(warnings.len(), 1);
+        let warning = warnings.first().ok_or("quota warning missing")?;
+        assert_eq!(
+            warning.message,
+            "image second.svg could not be embedded: document image source limit of 1 reached"
+        );
+        assert_eq!(
+            warning
+                .source_location()
+                .map(|location| location.location.start.line),
+            Some(3)
+        );
+        assert_eq!(
+            warning.advice(),
+            Some("The PDF will render fallback text for that image.")
+        );
+
+        let processor = processor.with_pdf_options(PdfOptions {
+            strict_assets: true,
+            ..PdfOptions::default()
+        });
+        let resolved = resolve(&urls, &config);
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        assert!(matches!(
+            processor.report_image_failures(&preparation, resolved.failures, &mut diagnostics),
+            Err(Error::AssetResolution(message)) if message.contains("document image source limit of 1 reached")
+        ));
+        assert_eq!(warnings.len(), 1);
+        Ok(())
+    }
+
+    #[test]
     fn image_collection_matches_rendered_titles_and_skips_verbatim_content()
     -> Result<(), Box<dyn StdError>> {
         let parsed = parse(

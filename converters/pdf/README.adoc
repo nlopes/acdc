@@ -276,6 +276,14 @@ An attribute list makes `#...#` a generic attributed span, matching Asciidoctor 
 
 == Options
 
+Document images have limits of 1,024 distinct source attempts and 100 MiB of
+accepted image data, plus a 20 MiB limit per image. Failed attempts count toward
+the source limit. Different source strings each use bytes, even when their
+content matches. Images beyond a quota produce warnings and fallback text;
+`--strict` / `strict_assets` makes these failures fatal. These are acdc limits.
+See link:crates/images/README.adoc[the image resolver] for the accounting rules
+and library configuration.
+
 The CLI flags map to fields on `PdfOptions` for library callers.
 
 [cols="1,1,3",options="header"]

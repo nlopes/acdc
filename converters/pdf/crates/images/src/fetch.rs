@@ -9,12 +9,11 @@ use percent_encoding::percent_decode_str;
 use crate::{ResolveConfig, SourcePolicy, error::Error};
 
 /// Fetches image bytes for a batch of references. It holds the resolver policy
-/// (`base_dir`, size cap) and, when the `network` feature is on, a single HTTP
+/// (`base_dir`, source access) and, when the `network` feature is on, a single HTTP
 /// agent reused across every remote fetch, so N remote images from one host
 /// share a connection pool instead of rebuilding it each time.
 pub(super) struct Fetcher {
     base_dir: PathBuf,
-    max_bytes: u64,
     source_policy: SourcePolicy,
     #[cfg(feature = "network")]
     agent: ureq::Agent,
@@ -24,7 +23,6 @@ impl Fetcher {
     pub(super) fn new(config: &ResolveConfig) -> Self {
         Fetcher {
             base_dir: config.base_dir.clone(),
-            max_bytes: config.max_bytes,
             source_policy: config.source_policy,
             #[cfg(feature = "network")]
             agent: {
@@ -42,8 +40,7 @@ impl Fetcher {
     /// Scheme matching is case-insensitive. Every path enforces `max_bytes` as
     /// early as it can so no single image can blow up memory or the render; the
     /// final check here is a safety net for the boundary case.
-    ///
-    pub(super) fn fetch(&self, url: &str) -> Result<Vec<u8>, Error> {
+    pub(super) fn fetch(&self, url: &str, max_bytes: u64) -> Result<Vec<u8>, Error> {
         if self.source_policy == SourcePolicy::DenyAll {
             return Err(Error::AccessDenied(
                 "all document image sources are disabled".to_string(),
@@ -51,7 +48,7 @@ impl Fetcher {
         }
 
         let bytes = if starts_with_ci(url, "data:") {
-            decode_data_uri(url.get(5..).unwrap_or_default(), self.max_bytes)?
+            decode_data_uri(url.get(5..).unwrap_or_default(), max_bytes)?
         } else if starts_with_ci(url, "http://") || starts_with_ci(url, "https://") {
             if matches!(
                 self.source_policy,
@@ -63,18 +60,18 @@ impl Fetcher {
                     "remote image access is disabled".to_string(),
                 ));
             }
-            self.fetch_remote(url)?
+            self.fetch_remote(url, max_bytes)?
         } else if starts_with_ci(url, "file://") {
             let path = self.allowed_local_path(file_url_path(url)?)?;
-            read_file_capped(&path, self.max_bytes)?
+            read_file_capped(&path, max_bytes)?
         } else {
             let decoded = percent_decode_str(url).decode_utf8_lossy();
             let path = self.allowed_local_path(self.base_dir.join(decoded.as_ref()))?;
-            read_file_capped(&path, self.max_bytes)?
+            read_file_capped(&path, max_bytes)?
         };
-        if bytes.len() as u64 > self.max_bytes {
+        if bytes.len() as u64 > max_bytes {
             return Err(Error::TooLarge {
-                limit: self.max_bytes,
+                limit: max_bytes,
                 actual: Some(bytes.len() as u64),
             });
         }
@@ -99,12 +96,12 @@ impl Fetcher {
     }
 
     #[cfg(feature = "network")]
-    fn fetch_remote(&self, url: &str) -> Result<Vec<u8>, Error> {
+    fn fetch_remote(&self, url: &str, max_bytes: u64) -> Result<Vec<u8>, Error> {
         let mut response = self
             .agent
             .get(url)
             .call()
-            .map_err(|error| classify_network_error(error, self.max_bytes))?;
+            .map_err(|error| classify_network_error(error, max_bytes))?;
         // ureq applies its built-in limit before content decoding. Cap the
         // reader again after gzip/brotli decoding so compressed responses cannot
         // expand past the configured image limit.
@@ -112,7 +109,7 @@ impl Fetcher {
         response
             .body_mut()
             .as_reader()
-            .take(self.max_bytes.saturating_add(1))
+            .take(max_bytes.saturating_add(1))
             .read_to_end(&mut bytes)
             .map_err(|error| Error::Network(error.to_string()))?;
         Ok(bytes)
@@ -122,7 +119,7 @@ impl Fetcher {
     /// becomes a per-image failure and the rest of the document still renders.
     #[cfg(not(feature = "network"))]
     #[allow(clippy::unused_self)]
-    fn fetch_remote(&self, _url: &str) -> Result<Vec<u8>, Error> {
+    fn fetch_remote(&self, _url: &str, _max_bytes: u64) -> Result<Vec<u8>, Error> {
         Err(Error::NetworkDisabled)
     }
 }
@@ -230,8 +227,15 @@ fn decode_base64_capped(data: &str, max_bytes: u64) -> Result<Vec<u8>, Error> {
     } else {
         data.len()
     };
-    // Base64 expands 3 bytes into 4 characters, so decoded length ≈ chars / 4 * 3.
-    let approx_decoded = significant as u64 / 4 * 3;
+    // Padding represents no bytes. Subtract it so an exact size limit is accepted.
+    let padding = data
+        .bytes()
+        .rev()
+        .filter(|b| !b.is_ascii_whitespace())
+        .take(2)
+        .take_while(|&b| b == b'=')
+        .count() as u64;
+    let approx_decoded = (significant as u64 / 4 * 3).saturating_sub(padding);
     if approx_decoded > max_bytes {
         return Err(Error::TooLarge {
             limit: max_bytes,

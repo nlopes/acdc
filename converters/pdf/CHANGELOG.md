@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Document images now have limits of 1,024 distinct source attempts and 100 MiB
+  of accepted image data. Failed attempts use source slots. Different source
+  strings each use bytes, even when their content matches. Images beyond a
+  quota produce structured warnings and fallback text, or errors with
+  `--strict` / `strict_assets`. These limits are specific to acdc.
+
 - Library conversion now defaults to Secure and does not load document images.
   Select a lower converter safe mode explicitly for trusted resources. The CLI
   retains its Unsafe default.
@@ -20,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   content, reducing copies of attribute names and values.
 
 ### Fixed
+
+- Padded base64 image data is accepted at the exact image byte limit.
 
 - `pass:c,r[->]` renders an arrow in prose and code, matching Asciidoctor PDF.
   Reversed lists and escaped arrows retain literal text. Passthrough profiles

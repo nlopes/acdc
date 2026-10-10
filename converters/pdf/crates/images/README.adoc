@@ -27,7 +27,37 @@ The map holds a *path* per image, never its bytes. Every validated source is cop
 . **Detect and validate** the format from the bytes themselves (magic bytes, not the URL extension). Raster images are fully decoded with a 256 MiB allocation cap. SVGs are parsed with `usvg` without loading external file references; inline data images remain supported.
 . **Content-hash** the validated bytes into a stable `/images/<hash>.<ext>` virtual path and atomically persist a snapshot under `spool_dir` (identical bytes are written once). The `ResolvedImage` carries the resulting path, not the bytes.
 
-A reference that fails any step is recorded in `failures` and resolution continues, so one broken image never aborts the document. Failures are categorised (timeout, HTTP status, too large, unsupported format, decode failure, invalid SVG, local read error) so the caller can render specific warnings. The caller decides policy: `converters/pdf` turns failures into structured warnings, or hard errors under `strict_assets`.
+A reference that fails any step is recorded in `failures`. Ordinary image failures
+do not stop resolution. Quota failures stop new fetches and leave earlier images
+available. The caller decides policy: `converters/pdf` turns failures into
+structured warnings, or hard errors under `strict_assets`.
+
+=== Document limits
+
+Each `resolve` call attempts at most 1,024 distinct source strings and accepts
+up to 100 MiB of encoded image data by default. The per-image limit remains
+20 MiB. These limits are specific to acdc.
+
+Sources are processed in input order. A failed attempt uses one source slot.
+Repeated identical strings use one slot and are reported once. Different
+strings each use a slot and charge their full accepted image size, even when
+their content matches. Matching content still shares one snapshot on disk.
+This accounting also applies when the snapshot already exists.
+
+The byte limit applies after base64, percent, or HTTP content decoding, before
+image decoding. Each read is capped at the smaller of the per-image limit and
+the remaining total allowance. Failed images do not use accepted bytes. Once
+the total allowance is used, or an image would exceed it, later sources fail
+without being fetched. Earlier images remain available. A zero source or byte
+limit prevents all fetches.
+
+For example, a source limit of two permits two distinct image attempts. A
+missing first image still uses a slot. A byte limit of 10 MiB permits two
+5 MiB sources, including two URLs with identical content. A third source is
+not fetched.
+
+Limits restart on each call. Trusted callers can raise `max_sources` and
+`max_total_bytes` on `ResolveConfig` before calling `resolve`.
 
 == The `network` feature
 
@@ -43,6 +73,8 @@ With the feature off, a remote reference resolves to a `NetworkDisabled` per-ima
 | `spool_dir` | Private caller-owned directory where every validated image snapshot is written. The caller cleans it up after rendering.
 | `timeout` | Per-request timeout for remote fetches (has no effect without `network`).
 | `max_bytes` | Size cap enforced per image across *every* source; anything larger is a per-image failure. Default 20 MiB.
+| `max_sources` | Maximum distinct source strings attempted per call, including failures. Default 1,024.
+| `max_total_bytes` | Maximum accepted encoded image bytes per call. Different source strings each count, including matching content. Default 100 MiB.
 | `source_policy` | `Unrestricted`, `Confined { allow_network }`, or `DenyAll`. Confined local paths must remain beneath `base_dir` after canonicalisation.
 |===
 
