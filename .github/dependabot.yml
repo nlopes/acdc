@@ -3,17 +3,7 @@ updates:
   - package-ecosystem: "cargo"
     directories:
       - "/"
-      - "/acdc-cli"
-      - "/acdc-editor-wasm"
-      - "/acdc-lsp"
-      - "/acdc-parser"
       - "/acdc-parser/fuzz"
-      - "/converters/core"
-      - "/converters/dev"
-      - "/converters/html"
-      - "/converters/manpage"
-      - "/converters/markdown"
-      - "/converters/terminal"
     schedule:
       interval: "weekly"
     groups:
