@@ -12,6 +12,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A note in the editor pane explains that embedded HTML can run code or
   change the page. Use content you trust.
 
+- Warnings retain their source filenames. The status badge shows named
+  locations as `file:line:column`. Rust callers that construct `EditorWarning`
+  must supply its new `file` field. Use `None` for unnamed input.
+
+### Fixed
+
+- Highlighting skips included-file ranges and ranges that cross source files.
+  These ranges no longer apply styles to unrelated entry text. Entry-file
+  children still receive highlighting. Include loading remains disabled.
+
 ## [0.6.0] - 2026-10-10
 
 ### Fixed

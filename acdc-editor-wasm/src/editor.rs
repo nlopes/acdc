@@ -3,12 +3,9 @@
 //! Moves all event handling, debouncing, scroll sync, clipboard, and Tab key
 //! logic from JavaScript into Rust/WASM via `web-sys`.
 
-use std::cell::Cell;
-use std::fmt::Write as _;
-use std::rc::Rc;
+use std::{cell::Cell, fmt::Write as _, rc::Rc};
 
-use wasm_bindgen::closure::Closure;
-use wasm_bindgen::prelude::*;
+use wasm_bindgen::{closure::Closure, prelude::*};
 use web_sys::{
     Document, Element, Event, HtmlElement, HtmlTextAreaElement, KeyboardEvent, MouseEvent, Window,
 };
@@ -203,17 +200,28 @@ fn set_parse_status(state: &EditorState, status: &ParseStatus<'_>) {
     }
 }
 
-/// Render the warnings list as `<li>` items. Locations render as `Lline:col`
-/// when known; advice (when present) goes on its own line beneath the message.
+/// Named locations use `file:line:column`. Unnamed input uses `Lline:column`.
 fn render_warnings_list(warnings: &[EditorWarning]) -> String {
     let mut html = String::new();
     for w in warnings {
         html.push_str("<li>");
-        if let (Some(line), Some(col)) = (w.line, w.column) {
-            let _ = write!(
-                html,
-                r#"<span class="parse-status-loc">L{line}:{col}</span> "#
-            );
+        if w.file.is_some() || w.line.is_some() {
+            html.push_str(r#"<span class="parse-status-loc">"#);
+            if let Some(file) = &w.file {
+                html.push_str(&crate::ast_highlight::escape_html(file));
+                if w.line.is_some() {
+                    html.push(':');
+                }
+            } else {
+                html.push('L');
+            }
+            if let Some(line) = w.line {
+                let _ = write!(html, "{line}");
+                if let Some(column) = w.column {
+                    let _ = write!(html, ":{column}");
+                }
+            }
+            html.push_str("</span> ");
         }
         html.push_str(&crate::ast_highlight::escape_html(&w.message));
         if let Some(advice) = &w.advice {
@@ -695,4 +703,41 @@ pub fn setup() -> Result<(), JsValue> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod warning_tests {
+    use super::*;
+
+    #[test]
+    fn warnings_show_escaped_source_files_and_positions() {
+        let html = render_warnings_list(&[
+            EditorWarning {
+                message: "Missing <target>".to_string(),
+                advice: Some("Add an & anchor".to_string()),
+                file: Some("chapters/π&<intro>.adoc".to_string()),
+                line: Some(4),
+                column: Some(9),
+            },
+            EditorWarning {
+                message: "Entry warning".to_string(),
+                advice: None,
+                file: None,
+                line: Some(5),
+                column: Some(2),
+            },
+            EditorWarning {
+                message: "File warning".to_string(),
+                advice: None,
+                file: Some("book.adoc".to_string()),
+                line: None,
+                column: None,
+            },
+        ]);
+        assert!(html.contains("chapters/π&amp;&lt;intro&gt;.adoc:4:9</span>"));
+        assert!(html.contains("Missing &lt;target&gt;"));
+        assert!(html.contains("Add an &amp; anchor"));
+        assert!(html.contains("L5:2</span>"));
+        assert!(html.contains("book.adoc</span>"));
+    }
 }

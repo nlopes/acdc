@@ -118,6 +118,15 @@ warnings in a `ParseResult`. The function returns `Result<ParseResult, String>`.
 Parsing or conversion failures return an error string. The WASM entry point is
 `init()`, which sets up the editor DOM.
 
+Each `EditorWarning` retains its source filename in `file`, when known. Line
+and column numbers refer to that source. They start at 1; columns count Unicode
+scalar values. The status badge shows named locations as `file:line:column` and
+unnamed input as `Lline:column`.
+
+Highlighting applies only to ranges from the entry text. It skips included-file
+ranges and ranges that cross source files. Entry-file children of these ranges
+can still be highlighted. Include loading remains disabled in the current API.
+
 ## CSS classes
 
 The syntax highlighter wraps source text in `<span>` elements with these classes:

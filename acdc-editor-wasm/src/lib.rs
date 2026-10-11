@@ -1,6 +1,9 @@
 mod ast_highlight;
 mod editor;
 
+#[cfg(test)]
+mod test_sources;
+
 use wasm_bindgen::prelude::*;
 
 use acdc_converters_core::{Converter, Diagnostics, Options, WarningSource};
@@ -22,13 +25,38 @@ pub struct ParseResult {
     pub warnings: Vec<EditorWarning>,
 }
 
-/// Parser- and converter-agnostic view of a non-fatal warning, ready to
-/// render in the editor's status badge.
+/// A non-fatal parser or converter warning with its original source position.
 pub struct EditorWarning {
     pub message: String,
     pub advice: Option<String>,
+    /// Source filename, when known. `None` for unnamed input.
+    pub file: Option<String>,
+    /// One-based line number in the source file.
     pub line: Option<u32>,
+    /// One-based column counted in Unicode scalar values.
     pub column: Option<u32>,
+}
+
+impl EditorWarning {
+    fn new(
+        message: String,
+        advice: Option<String>,
+        location: Option<&acdc_parser::SourceLocation>,
+        parsed: &acdc_parser::ParseResult,
+    ) -> Self {
+        let resolved = location.map(|loc| parsed.source_location(&loc.location));
+        let file = location
+            .and_then(|loc| loc.file.as_ref())
+            .or_else(|| resolved.as_ref().and_then(|loc| loc.file.as_ref()))
+            .map(|file| file.to_string_lossy().into_owned());
+        Self {
+            message,
+            advice,
+            file,
+            line: location.map(|loc| loc.location.start.line),
+            column: location.map(|loc| loc.location.start.column),
+        }
+    }
 }
 
 /// Initialize panic hook and set up the editor DOM orchestration.
@@ -66,21 +94,23 @@ where
         HtmlVariant::Semantic,
     )
     .map_err(|e| e.to_string())?;
-    let mut parsed =
+    let parsed =
         acdc_parser::parse(input, processor.parser_options()).map_err(|e| format!("{e}"))?;
 
+    render_parsed(input, parsed, &processor)
+}
+
+fn render_parsed(
+    input: &str,
+    mut parsed: acdc_parser::ParseResult,
+    processor: &Processor,
+) -> Result<ParseResult, String> {
     let mut warnings: Vec<EditorWarning> = parsed
         .take_warnings()
         .into_iter()
         .map(|w| {
             let advice = w.advice().map(str::to_owned);
-            let (line, column) = location_line_col(w.source_location());
-            EditorWarning {
-                message: w.kind.to_string(),
-                advice,
-                line,
-                column,
-            }
+            EditorWarning::new(w.kind.to_string(), advice, w.source_location(), &parsed)
         })
         .collect();
 
@@ -102,13 +132,12 @@ where
     let preview_html = String::from_utf8(output).map_err(|e| format!("{e}"))?;
 
     warnings.extend(converter_warnings.into_iter().map(|w| {
-        let (line, column) = location_line_col(w.source_location());
-        EditorWarning {
-            message: w.message.into_owned(),
-            advice: w.advice.map(std::borrow::Cow::into_owned),
-            line,
-            column,
-        }
+        EditorWarning::new(
+            w.message.to_string(),
+            w.advice.map(std::borrow::Cow::into_owned),
+            w.location.as_ref(),
+            &parsed,
+        )
     }));
 
     let has_stem = acdc_converters_html::uses_stem(document);
@@ -121,21 +150,96 @@ where
     })
 }
 
-fn location_line_col(loc: Option<&acdc_parser::SourceLocation>) -> (Option<u32>, Option<u32>) {
-    let Some(loc) = loc else {
-        return (None, None);
-    };
-    (
-        Some(loc.location.start.line),
-        Some(loc.location.start.column),
-    )
-}
-
 #[cfg(test)]
 mod tests {
     use acdc_parser::DocumentAttributeValue;
 
     use super::*;
+
+    #[test]
+    fn warnings_keep_nested_source_files_and_unicode_positions()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let input = "= Entry\n\ninclude::chapters/outer.adoc[]\n\nπ 😀 <<entry-missing>>\n";
+        let options = test_sources::options(&[
+            (
+                "chapters/outer.adoc",
+                "include::inner.adoc[lines=2..4,indent=0]\n",
+            ),
+            (
+                "chapters/inner.adoc",
+                "Not selected.\n    Selected paragraph.\n\n    π 😀 <<included-missing>>\n",
+            ),
+        ])?;
+        let processor = Processor::new_with_variant(
+            Options::builder().embedded(true).build(),
+            options.into_builder(),
+            HtmlVariant::Semantic,
+        )?;
+        let parsed = acdc_parser::parse(input, processor.parser_options())?;
+        let result = render_parsed(input, parsed, &processor)?;
+        let included = result
+            .warnings
+            .iter()
+            .find(|warning| warning.message.contains("included-missing"))
+            .ok_or("missing included warning")?;
+        assert!(
+            included
+                .file
+                .as_deref()
+                .is_some_and(|file| file.ends_with("inner.adoc"))
+        );
+        assert_eq!((included.line, included.column), (Some(4), Some(9)));
+        let entry = result
+            .warnings
+            .iter()
+            .find(|warning| warning.message.contains("entry-missing"))
+            .ok_or("missing entry warning")?;
+        assert_eq!(entry.file, None);
+        assert_eq!((entry.line, entry.column), (Some(5), Some(5)));
+        Ok(())
+    }
+
+    #[test]
+    fn warning_locations_resolve_include_chains() -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "include::part.adoc[]",
+            &test_sources::options(&[("part.adoc", "π 😀 <<missing>>\n")])?,
+        )?;
+        let location = parsed
+            .document()
+            .blocks
+            .first()
+            .ok_or("missing block")?
+            .location();
+        let unresolved = acdc_parser::SourceLocation::at_location(None, location.clone());
+        let warning = EditorWarning::new(
+            "Converter warning".to_string(),
+            None,
+            Some(&unresolved),
+            &parsed,
+        );
+        assert!(
+            warning
+                .file
+                .as_deref()
+                .is_some_and(|file| file.ends_with("part.adoc"))
+        );
+        assert_eq!((warning.line, warning.column), (Some(1), Some(1)));
+        let unlocated = EditorWarning::new("Global warning".to_string(), None, None, &parsed);
+        assert_eq!(
+            (unlocated.file, unlocated.line, unlocated.column),
+            (None, None, None)
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn single_document_parsing_keeps_includes_disabled() -> Result<(), String> {
+        let result = parse_and_render("include::part.adoc[]")?;
+        assert!(result.preview_html.contains("part.adoc"));
+        assert!(result.warnings.iter().all(|warning| warning.file.is_none()));
+        Ok(())
+    }
 
     #[test]
     fn editor_uses_resolved_flags() -> Result<(), String> {

@@ -321,6 +321,7 @@ body.resizing .preview-pane {
     padding: 0 4px;
     border-radius: 3px;
     margin-right: 4px;
+    overflow-wrap: anywhere;
 }
 
 #parse-status .parse-status-advice {
