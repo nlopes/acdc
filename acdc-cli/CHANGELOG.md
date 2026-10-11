@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   This warning exit and output retention are similar to Asciidoctor's
   `--failure-level WARN`.
 
+### Changed
+
+- Manpage conversion keeps the effective `manpage` document type when
+  `--doctype article` or `--doctype book` is supplied. Output is unchanged.
+
 ### Fixed
 
 - Restore native Windows CLI release builds.

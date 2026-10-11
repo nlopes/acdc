@@ -256,15 +256,6 @@ pub fn run(args: &Args) -> MietteResult<()> {
         args.safe_mode
     };
 
-    #[cfg(feature = "manpage")]
-    let doctype = if matches!(backend, Backend::Manpage) {
-        Doctype::Manpage
-    } else {
-        args.doctype
-    };
-    #[cfg(not(feature = "manpage"))]
-    let doctype = args.doctype;
-
     let output_destination = args.output_destination();
 
     let options = Options::builder()
@@ -272,7 +263,7 @@ pub fn run(args: &Args) -> MietteResult<()> {
             env!("CARGO_BIN_NAME"),
             env!("CARGO_PKG_VERSION"),
         ))
-        .doctype(doctype)
+        .doctype(args.doctype)
         .safe_mode(safe_mode)
         .timings(args.timings)
         .embedded(args.embedded)
