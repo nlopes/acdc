@@ -1355,6 +1355,39 @@ fn convert_string_with_variant(
 }
 
 #[test]
+fn stem_formulas_are_literal_text_in_both_html_variants() -> Result<(), Error> {
+    let source = ":stem: tex\n:value: expanded\n\nstem:[{value} <x> & z]\n\n[asciimath]\n++++\na < b & c\n++++";
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        let html = convert_string_with_variant(source, &[], variant)?;
+        assert!(html.contains("\\({value} &lt;x&gt; &amp; z\\)"), "{html}");
+        assert!(html.contains("\\$a &lt; b &amp; c\\$"), "{html}");
+    }
+    Ok(())
+}
+
+#[cfg(feature = "pre-spec-subs")]
+#[test]
+fn stem_attribute_substitutions_do_not_turn_formula_text_into_html() -> Result<(), Error> {
+    let source = ":formula: x < y & z\n\n[stem,subs=\"+attributes\"]\n++++\n{formula}\n++++";
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        let html = convert_string_with_variant(source, &[], variant)?;
+        assert!(html.contains("\\$x &lt; y &amp; z\\$"), "{html}");
+    }
+    Ok(())
+}
+
+#[cfg(feature = "pre-spec-subs")]
+#[test]
+fn stem_block_substitution_none_retains_authored_html() -> Result<(), Error> {
+    let source = "[stem,subs=none]\n++++\n<i>x</i>\n++++";
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        let html = convert_string_with_variant(source, &[], variant)?;
+        assert!(html.contains("\\$<i>x</i>\\$"), "{html}");
+    }
+    Ok(())
+}
+
+#[test]
 fn standalone_description_and_keywords_are_escaped_when_present() -> Result<(), Error> {
     let populated = "= Metadata Test\n:description: Five < six & \"quoted\"\n:keywords: alpha, <beta>, gamma & delta\n\nBody.\n";
     let empty = "= Empty Metadata\n:description:\n:keywords:\n\nBody.\n";

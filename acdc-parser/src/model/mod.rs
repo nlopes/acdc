@@ -802,11 +802,21 @@ impl<'a> DelimitedBlock<'a> {
 }
 
 /// Notation type for mathematical expressions.
+/// Parsing accepts `latexmath`, `latex`, and `tex` for LaTeX, or `asciimath`.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum StemNotation {
     Latexmath,
     Asciimath,
+}
+
+impl StemNotation {
+    pub(crate) fn resolve(value: Option<&str>) -> Self {
+        match value {
+            Some("latexmath" | "latex" | "tex") => Self::Latexmath,
+            _ => Self::Asciimath,
+        }
+    }
 }
 
 impl Display for StemNotation {
@@ -823,7 +833,7 @@ impl FromStr for StemNotation {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "latexmath" => Ok(Self::Latexmath),
+            "latexmath" | "latex" | "tex" => Ok(Self::Latexmath),
             "asciimath" => Ok(Self::Asciimath),
             _ => Err(format!("unknown stem notation: {s}")),
         }

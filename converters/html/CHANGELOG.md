@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- HTML math output escapes `<`, `>` and `&` so formulas display those characters,
+  matching Asciidoctor. With `pre-spec-subs`, `[stem,subs=none]` still preserves
+  authored raw HTML.
+
 - Passthroughs with character escaping before replacements, such as
   `pass:c,r[->]`, render arrows in prose and code, matching Asciidoctor.
   Reversed lists and escaped arrows retain literal text, including highlighting.

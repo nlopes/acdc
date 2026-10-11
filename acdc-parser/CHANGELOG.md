@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- STEM notation now uses AsciiMath when `:stem:` is absent, empty, or unknown.
+  The `latex` and `tex` aliases select LaTeX. Explicit `[latexmath]` and
+  `[asciimath]` blocks and positional notation override the document value,
+  matching Asciidoctor.
+- Inline STEM keeps attribute references as formula text by default.
+  LaTeX removes one enclosing dollar pair. With `pre-spec-subs`,
+  `[stem,subs="+attributes"]` expands block attributes while retaining the
+  original source text and locations.
+
 ## [0.11.0] - 2026-10-10
 
 ### Breaking changes

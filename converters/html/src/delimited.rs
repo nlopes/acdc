@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::{borrow::Cow, io::Write};
 
 use acdc_converters_core::{
     TraversalContext,
@@ -22,8 +22,8 @@ use acdc_parser::{Location, Plain, Substitution, SubstitutionSpec};
 #[cfg(feature = "terminal")]
 use crate::terminal::{is_terminal_session, render_listing, render_session};
 use crate::{
-    Error, HtmlVariant, HtmlVisitor, build_class, write_attribution, write_id,
-    write_semantic_attribution,
+    Error, HtmlVariant, HtmlVisitor, build_class, inlines::escape_pcdata, write_attribution,
+    write_id, write_semantic_attribution,
 };
 
 /// Write the opening `<div>` tag with optional ID and class attributes.
@@ -919,6 +919,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 let processor = self.processor.clone();
                 render_stem_content(
                     stem,
+                    metadata,
                     &mut self.writer,
                     processor.variant() == HtmlVariant::Semantic,
                     traversal,
@@ -961,6 +962,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
 fn render_stem_content<W: Write + ?Sized>(
     stem: &StemContent,
+    metadata: &BlockMetadata,
     w: &mut W,
     semantic: bool,
     attributes: &TraversalContext<'_>,
@@ -974,13 +976,14 @@ fn render_stem_content<W: Write + ?Sized>(
         None
     };
     let notation = forced.as_ref().unwrap_or(&stem.notation);
+    let content = stem_html(stem, metadata);
     writeln!(w, "<div class=\"content\">")?;
     match notation {
         StemNotation::Latexmath => {
-            write!(w, "\\[{}\\]", stem.content)?;
+            write!(w, "\\[{content}\\]")?;
         }
         StemNotation::Asciimath => {
-            write!(w, "\\${}\\$", stem.content)?;
+            write!(w, "\\${content}\\$")?;
         }
     }
     writeln!(w, "</div>")?;
@@ -990,6 +993,7 @@ fn render_stem_content<W: Write + ?Sized>(
 /// Render stem content in semantic mode with `<div class="math" data-lang="...">`.
 fn render_stem_content_semantic<W: Write + ?Sized>(
     stem: &StemContent,
+    metadata: &BlockMetadata,
     w: &mut W,
     attributes: &TraversalContext<'_>,
 ) -> Result<(), Error> {
@@ -998,6 +1002,7 @@ fn render_stem_content_semantic<W: Write + ?Sized>(
         .and_then(|value| value.text())
         .and_then(|value| value.parse::<StemNotation>().ok());
     let notation = forced.as_ref().unwrap_or(&stem.notation);
+    let content = stem_html(stem, metadata);
     let data_lang = match notation {
         StemNotation::Latexmath => "tex",
         StemNotation::Asciimath => "asciimath",
@@ -1005,14 +1010,30 @@ fn render_stem_content_semantic<W: Write + ?Sized>(
     write!(w, "<div class=\"math\" data-lang=\"{data_lang}\">")?;
     match notation {
         StemNotation::Latexmath => {
-            write!(w, "\\[{}\\]", stem.content)?;
+            write!(w, "\\[{content}\\]")?;
         }
         StemNotation::Asciimath => {
-            write!(w, "\\${}\\$", stem.content)?;
+            write!(w, "\\${content}\\$")?;
         }
     }
     writeln!(w, "</div>")?;
     Ok(())
+}
+
+fn stem_html<'a>(stem: &StemContent<'a>, metadata: &BlockMetadata<'_>) -> Cow<'a, str> {
+    #[cfg(feature = "pre-spec-subs")]
+    let special_chars = metadata.substitutions.as_ref().is_none_or(|spec| {
+        spec.resolve(&[Substitution::SpecialChars])
+            .contains(&Substitution::SpecialChars)
+    });
+    #[cfg(not(feature = "pre-spec-subs"))]
+    let special_chars = true;
+    let _ = metadata;
+    if special_chars {
+        Cow::Owned(escape_pcdata(stem.content))
+    } else {
+        Cow::Borrowed(stem.content)
+    }
 }
 
 impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
@@ -1071,7 +1092,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 } else {
                     write_semantic_tag_open(&mut self.writer, "div", metadata, "stem-block")?;
                 }
-                render_stem_content_semantic(stem, &mut self.writer, traversal)?;
+                render_stem_content_semantic(stem, metadata, &mut self.writer, traversal)?;
                 if has_title {
                     writeln!(self.writer, "</figure>")?;
                 } else {

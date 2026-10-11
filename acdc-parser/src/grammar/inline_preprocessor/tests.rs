@@ -36,7 +36,7 @@ fn setup_state(content: &str) -> InlinePreprocessorParserState<'_> {
         substring_start_offset: Cell::new(0),
         warnings: RefCell::new(Vec::new()),
         macros_enabled: true,
-        attributes_enabled: true,
+        attributes_enabled: Cell::new(true),
         defer_monospace: true,
         attribute_value_ranges: Vec::new(),
     }
@@ -751,7 +751,7 @@ fn setup_state_macros_disabled(content: &str) -> InlinePreprocessorParserState<'
         substring_start_offset: Cell::new(0),
         warnings: RefCell::new(Vec::new()),
         macros_enabled: false,
-        attributes_enabled: true,
+        attributes_enabled: Cell::new(true),
         defer_monospace: true,
         attribute_value_ranges: Vec::new(),
     }

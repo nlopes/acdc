@@ -52,9 +52,9 @@ pub(crate) struct InlinePreprocessorParserState<'a> {
     /// Whether macro substitutions are enabled for this block.
     /// When `false`, `pass:[]` macros are not extracted by the preprocessor.
     pub(crate) macros_enabled: bool,
-    /// Whether attribute substitutions are enabled for this block.
+    /// Whether attribute substitutions are enabled in the current context.
     /// When `false`, `{attribute}` references are not expanded by the preprocessor.
-    pub(crate) attributes_enabled: bool,
+    pub(crate) attributes_enabled: Cell<bool>,
     pub(crate) defer_monospace: bool,
     pub(crate) attribute_value_ranges: Vec<Range<usize>>,
 }
@@ -89,7 +89,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
             substring_start_offset: Cell::new(0),
             warnings: RefCell::new(Vec::new()),
             macros_enabled,
-            attributes_enabled,
+            attributes_enabled: Cell::new(attributes_enabled),
             defer_monospace: true,
             attribute_value_ranges: Vec::new(),
         }
@@ -103,6 +103,25 @@ impl<'a> InlinePreprocessorParserState<'a> {
         arena: &'a Bump,
     ) -> Self {
         Self::new(input, line_map, full_input, arena, true, true)
+    }
+
+    fn preprocess_stem(
+        &self,
+        source: &'a str,
+        document_attributes: &DocumentAttributes<'a>,
+    ) -> Result<String, &'static str> {
+        // Passthroughs run before STEM, but formula attributes stay literal.
+        // Keep their replacements in the original document's source map.
+        let end = self.get_offset() + source.len();
+        let saved_input = self.input.replace(source);
+        let saved_start = self.substring_start_offset.replace(self.get_offset());
+        let saved_attributes = self.attributes_enabled.replace(false);
+        let result = inline_preprocessing::stem_content(source, document_attributes, self);
+        self.attributes_enabled.set(saved_attributes);
+        self.input.replace(saved_input);
+        self.substring_start_offset.set(saved_start);
+        self.current_offset.set(end);
+        result.map_err(|_| "could not preprocess STEM content")
     }
 
     /// Set the initial position for parsing a substring within the document.
@@ -293,7 +312,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
         source_start: usize,
         document_attributes: &DocumentAttributes<'a>,
     ) {
-        if !self.attributes_enabled {
+        if !self.attributes_enabled.get() {
             output.push_str(source);
             return;
         }
@@ -331,7 +350,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
         location: Location,
         document_attributes: &DocumentAttributes<'a>,
     ) -> String {
-        if !self.attributes_enabled {
+        if !self.attributes_enabled.get() {
             return format!("{{{attribute_name}}}");
         }
 
