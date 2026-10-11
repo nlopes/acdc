@@ -691,21 +691,24 @@ Both shorthand and long-form values are supported:
 
 For details on the icon macro syntax, see the https://docs.asciidoctor.org/asciidoc/latest/macros/icons/[AsciiDoc icon macro documentation]. For available icons per family, see the https://fontawesome.com/search[Font Awesome icon gallery].
 
-=== Mathematical Formulas (Stem)
+=== Mathematical formulas (STEM)
 
 Render mathematical formulas using MathJax 4. Enable it by setting the `:stem:` document attribute.
 
 [source,asciidoc]
 ....
 = My Document
-:stem: latexmath
+:stem:
 ....
 
 The `:stem:` attribute accepts:
 
-- `latexmath` - use LaTeX notation
+- `latexmath`, `latex`, or `tex` - use LaTeX notation
 - `asciimath` - use AsciiMath notation
-- _(empty)_ - defaults to `latexmath` for blocks, `asciimath` for inline
+- _(empty or unknown)_ - use AsciiMath for inline formulas and blocks
+
+Use `latexmath:[]`, `asciimath:[]`, `[latexmath]`, or `[asciimath]` to select
+notation for one formula. These override the document's `:stem:` value.
 
 **Inline formulas** use the `stem:[]` macro:
 

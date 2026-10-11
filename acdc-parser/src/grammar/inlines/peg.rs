@@ -41,7 +41,7 @@ use std::ops::Range;
 
 peg::parser! {
     pub(crate) grammar inline_parser(state: &mut ParserState<'input>) for str {
-        use std::{borrow::Cow, str::FromStr};
+        use std::borrow::Cow;
         use crate::model::{substitute, Substitution, substitution::parse_substitution};
 
         // Each action gets the byte range of its preceding sequence.
@@ -1169,13 +1169,14 @@ peg::parser! {
             let notation = match prefix {
                 "latexmath" => StemNotation::Latexmath,
                 "asciimath" => StemNotation::Asciimath,
-                _ => {
-                    // stem:[] — resolve from :stem: document attribute
-                    match state.document_attributes.text("stem") {
-                        Some(s) => StemNotation::from_str(s).unwrap_or(StemNotation::Asciimath),
-                        _ => StemNotation::Asciimath,
-                    }
-                }
+                _ => StemNotation::resolve(state.document_attributes.text("stem")),
+            };
+            // Match legacy inline LaTeX syntax without changing the source span.
+            let content = if notation == StemNotation::Latexmath {
+                content.strip_prefix('$').and_then(|content| content.strip_suffix('$'))
+                    .unwrap_or(content)
+            } else {
+                content
             };
 
             InlineNode::Macro(InlineMacro::Stem(Stem {

@@ -35,8 +35,30 @@ peg::parser! {
         pub rule content() -> String
             = parts:inlines()+ { parts.join("") }
 
+        pub rule stem_content() -> String
+            = parts:(
+                source:$(monospace_pattern()) { state.advance(source); Cow::Borrowed(source) }
+                / text:escaped_passthrough() { Cow::Owned(text) }
+                / text:passthrough() { Cow::Owned(text) }
+                / source:stem_text() { Cow::Borrowed(source) }
+            )+ {
+                let mut output = String::with_capacity(parts.iter().map(|part| part.len()).sum());
+                for part in parts {
+                    output.push_str(&part);
+                }
+                output
+            }
+
+        // Attribute references and their escapes are formula text in this context.
+        rule stem_text() -> &'input str
+            = source:$((
+                [^'+' | '`' | 'p' | '\\']+
+                / !(escaped_passthrough_pattern() / passthrough_pattern(false) / monospace_pattern()) [_]
+            )+) { state.advance(source); source }
+
         rule inlines() -> String = quiet!{
             inherited_attribute()
+            / stem_macro()
             /
             // Keyboard macros can contain plus signs that would otherwise start passthroughs.
             kbd_macro()
@@ -101,6 +123,11 @@ peg::parser! {
                 text.into()
             }
 
+        rule stem_macro() -> String
+            = source:$(stem_macro_pattern()) {?
+                state.preprocess_stem(source, document_attributes)
+            }
+
         /// Recognize unsupported counter references, remove them, and return a warning.
         rule counter_reference() -> String
             = &counter_reference_pattern() start:position!() start_offset:byte_offset() "{"
@@ -129,7 +156,7 @@ peg::parser! {
         rule escaped_attribute_reference() -> String
             = start:position() source:$(escaped_attribute_reference_pattern()) {
                 let location = state.calculate_location(start, source, 0);
-                let text = if state.attributes_enabled {
+                let text = if state.attributes_enabled.get() {
                     let text = source.strip_prefix('\\').unwrap_or(source);
                     if let Some(prefix) = text.strip_suffix("\\}") {
                         state.arena.alloc_str(&format!("{prefix}}}"))
@@ -160,7 +187,7 @@ peg::parser! {
         rule escaped_attribute_reference_pattern()
             = "\\{" attribute_name_pattern() "}"
             / "\\"? "{" attribute_name_pattern() "\\}"
-                {? state.attributes_enabled.then_some(()).ok_or("attribute substitutions disabled") }
+                {? state.attributes_enabled.get().then_some(()).ok_or("attribute substitutions disabled") }
 
         rule attribute_reference() -> String
             = start:position() "{" attribute_name:attribute_name() "}" {
@@ -313,18 +340,36 @@ peg::parser! {
 
         rule unprocessed_text() -> String
             = text:$((
-                [^'{' | '+' | '`' | 'k' | 'p' | '\\']+
+                stem_literal_pattern()
+                / [^'{' | '+' | '`' | 'k' | 'p' | 's' | 'a' | 'l' | '\\']+
                 /
-                !(escaped_passthrough_pattern() / escaped_attribute_reference_pattern() / passthrough_pattern(false) / counter_reference_pattern() / attribute_reference_pattern() / kbd_macro_pattern() / monospace_pattern()) [_]
+                !(stem_macro_pattern() / escaped_passthrough_pattern() / escaped_attribute_reference_pattern() / passthrough_pattern(false) / counter_reference_pattern() / attribute_reference_pattern() / kbd_macro_pattern() / monospace_pattern()) [_]
             )+) {
                 state.advance(text);
                 text.to_string()
             }
 
+        // Copy simple formulas with the surrounding text to avoid extra allocations.
+        // Formulas with passthroughs use the normal extraction rules instead.
+        rule stem_literal_pattern()
+            = source:$(stem_macro_pattern())
+              {? (!source.contains(['+', '`']) && !source.contains("pass:"))
+                  .then_some(()).ok_or("STEM content needs passthrough extraction") }
+
+        rule stem_macro_pattern()
+            = (check_macros()
+              {? state.attributes_enabled.get().then_some(()).ok_or("STEM attributes already protected") })
+              (start:position!()
+              {? (!state.input.borrow()[..start].ends_with('\\'))
+                  .then_some(()).ok_or("escaped STEM macro") })
+              ("latexmath" / "asciimath" / "stem") ":["
+              (escaped_passthrough_pattern() / passthrough_pattern(false)
+                / "\\\\" / "\\" ['[' | ']'] / [^(']' | '\\' | '+' | 'p')]+ / "\\" / ['+' | 'p'])* "]"
+
         /// Pattern for counter references: {counter:name} or {counter:name:initial} or {counter2:...}
         rule counter_reference_pattern()
             = "{" ("counter2" / "counter") ":" ['a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-']+ (":" ['a'..='z' | 'A'..='Z' | '0'..='9']+)? "}"
-              {? state.attributes_enabled.then_some(()).ok_or("attribute substitutions disabled") }
+              {? state.attributes_enabled.get().then_some(()).ok_or("attribute substitutions disabled") }
 
         rule attribute_reference_pattern() = "{" attribute_name_pattern() "}"
 

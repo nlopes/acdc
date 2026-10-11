@@ -238,6 +238,59 @@ The `ParseResult` ownership model is unchanged from 0.9.
 
 </details>
 
+## STEM notation
+
+STEM blocks and inline macros keep formula text for converters. The parser does
+not validate AsciiMath or LaTeX formulas. The converter decides how to handle
+unknown commands and incomplete formulas.
+
+The following cases were checked against Asciidoctor 2.0.26 with the `html5`
+backend. See [STEM syntax](https://docs.asciidoctor.org/asciidoc/latest/stem/).
+
+| Input | Selected notation |
+|-------|-------------------|
+| `stem:[...]` or `[stem]` without `:stem:` | AsciiMath |
+| Empty `:stem:` or an unknown value | AsciiMath |
+| `:stem: asciimath` | AsciiMath |
+| `:stem: latexmath`, `:stem: latex`, or `:stem: tex` | LaTeX |
+| `latexmath:[...]` or `[latexmath]` | LaTeX, overriding the document |
+| `asciimath:[...]` or `[asciimath]` | AsciiMath, overriding the document |
+| `[stem,latexmath]`, `[stem,latex]`, or `[stem,tex]` | LaTeX, overriding the document |
+| `[stem,asciimath]` or `[stem,unknown]` | AsciiMath, overriding the document |
+| `[stem,]` | The document notation |
+
+Body assignments change the notation for following content. Caller-supplied
+attribute values retain the normal attribute locking rules.
+
+By default, formula bodies keep attribute references and formatting markers
+as formula text. Inline passthroughs run before STEM macros: `stem:[x=+y+]`
+contains `x=y`, while a literal `+` remains part of the formula.
+With `pre-spec-subs`, a STEM block can opt in to attribute expansion with
+`[stem,subs="+attributes"]`. The original block body remains available through
+`source_text()`. HTML conversion escapes formula text by default. With
+`pre-spec-subs`, `[stem,subs=none]` preserves authored raw HTML.
+
+Source locations cover the original macro or block, including escaped brackets
+and dollar delimiters. Nested includes and line selections retain the source
+filename and positions.
+
+acdc keeps these differences from Asciidoctor 2.0.26:
+
+- Empty inline macros remain STEM nodes. Asciidoctor leaves an isolated empty
+  macro as plain text and can match a later closing bracket instead.
+- `\[` and `\]` become literal brackets, and `\\` becomes one backslash.
+  Asciidoctor only removes the escape before `]` and can reject a macro whose
+  closing bracket follows a doubled backslash.
+- Inline LaTeX removes one enclosing `$...$` pair. Additional dollar pairs
+  remain in the formula; Asciidoctor can also remove a nested pair.
+- Inline substitution lists such as `stem:attributes[...]` are not supported.
+  STEM block substitutions expand attributes; quote and macro substitutions
+  inside a block formula are not interpreted as inline nodes.
+- HTML character escaping runs on the final formula text, including text from
+  nested passthroughs. Asciidoctor keeps the escaping rules of nested
+  passthroughs. It can also escape an attribute value twice when an explicit
+  substitution list puts `attributes` before `specialchars`.
+
 ## Parser options
 
 * **Safe mode** - `Safe`, `Secure`, `Server`, `Unsafe`

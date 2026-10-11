@@ -323,30 +323,36 @@ fn sidebar_inner<'input>(
     Ok(DelimitedBlockType::DelimitedSidebar(blocks))
 }
 
-/// `++++` passthrough block, or a stem block when carrying a `[stem]` style.
+/// `++++` passthrough block, or math when its style selects STEM notation.
 fn pass_inner<'input>(
     state: &ParserState<'input>,
     metadata: &mut BlockMetadata<'input>,
     p: &DelimitedParams<'input>,
 ) -> DelimitedBlockType<'input> {
-    if metadata.style == Some("stem") {
+    if matches!(metadata.style, Some("stem" | "latexmath" | "asciimath")) {
         let [notation] = metadata.take_positional_attributes::<1>();
-        let notation = notation
-            .filter(|attribute| !attribute.value.is_empty())
-            .and_then(|attribute| attribute.value.parse::<StemNotation>().ok())
-            .or_else(|| {
-                state
-                    .document_attributes
-                    .text("stem")
-                    .and_then(|value| value.parse::<StemNotation>().ok())
-            })
-            .unwrap_or(StemNotation::Latexmath);
+        let notation = match metadata.style {
+            Some("latexmath") => StemNotation::Latexmath,
+            Some("asciimath") => StemNotation::Asciimath,
+            _ => StemNotation::resolve(
+                notation
+                    .filter(|attribute| !attribute.value.is_empty())
+                    .map(|attribute| attribute.value)
+                    .or_else(|| state.document_attributes.text("stem")),
+            ),
+        };
+        let content = p.content;
+        #[cfg(feature = "pre-spec-subs")]
+        let content = metadata.substitutions.as_ref().map_or(content, |spec| {
+            state.intern_cow(crate::substitute(
+                content,
+                &spec.resolve(&[crate::Substitution::SpecialChars]),
+                &state.document_attributes,
+            ))
+        });
         metadata.move_positional_attributes_to_attributes();
         metadata.style = None;
-        DelimitedBlockType::DelimitedStem(StemContent {
-            content: p.content,
-            notation,
-        })
+        DelimitedBlockType::DelimitedStem(StemContent { content, notation })
     } else {
         metadata.move_positional_attributes_to_attributes();
         let content_location =
