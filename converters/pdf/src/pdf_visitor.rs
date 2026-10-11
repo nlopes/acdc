@@ -28,19 +28,19 @@ use acdc_parser::{
     Anchor, AttributeValue, Autolink, Block, BlockMetadata, Caption, CaptionKind, ColumnStyle,
     ColumnWidth, CrossReference, DelimitedBlock, DelimitedBlockType, DescriptionList,
     DescriptionListItem, ElementAttributes, HorizontalAlignment, Icon, Image, IndexTerm,
-    IndexTermRelationship, InlineMacro, InlineNode, ListItem, Location, Menu, Paragraph, Raw,
-    Section, SectionKind, Source, Substitution, Table, TableColumn, TableFrame, TableGrid,
+    IndexTermRelationship, InlineMacro, InlineNode, ListItem, Location, Menu, PageBreak, Paragraph,
+    Raw, Section, SectionKind, Source, Substitution, Table, TableColumn, TableFrame, TableGrid,
     TableOfContents, TablePresentation, TableStripes, Title, TocEntry, VerticalAlignment,
 };
 use acdc_pdf_images::ImageMap;
 use acdc_pdf_theme::{
     Heading, PageBreakBefore, Palette, PartBreakAfter, Table as TableTheme, TableAlignment,
 };
-use acdc_pdf_typst::Writer;
+use acdc_pdf_typst::{PageLayout, PageSize, Writer};
 use unicode_width::UnicodeWidthChar;
 
 use crate::{
-    Error, PageNumberingPlan, Processor, TypstSourceConfig,
+    Error, PageNumberingPlan, PageSetup, Processor, TypstSourceConfig,
     anchors::Anchors,
     code_wrap_columns, encode_bibliography_reference_label, encode_footnote_label, encode_label,
     has_autofit_option,
@@ -249,6 +249,8 @@ pub(crate) struct PdfVisitor<'a, 'd, 'm> {
     pub(crate) anchors: Anchors<'a>,
 
     assets: &'m ImageMap,
+    config: TypstSourceConfig<'m>,
+    page_layout: PageLayout,
     diagnostics: Diagnostics<'d>,
     pub(crate) heading: Heading,
     code_wrap_columns: usize,
@@ -465,6 +467,8 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             processor,
 
             assets,
+            config,
+            page_layout: emit_options.page_layout,
             diagnostics,
             heading: theme.heading,
             code_wrap_columns,
@@ -2420,6 +2424,91 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         }
         #[cfg(not(feature = "pre-spec-subs"))]
         self.writer.string_literal(text);
+    }
+
+    pub(crate) fn write_page_layout_change(&mut self, br: &PageBreak<'_>) {
+        let layout = if let Some(value) = br
+            .metadata
+            .attributes
+            .get_string("page-layout")
+            .filter(|value| !value.is_empty())
+        {
+            match value.as_ref() {
+                "portrait" => Some(PageLayout::Portrait),
+                "landscape" => Some(PageLayout::Landscape),
+                _ => {
+                    warn_with_advice_at(
+                        &mut self.diagnostics,
+                        br.metadata.location.as_ref().or(Some(&br.location)),
+                        format!(
+                            "unsupported page-break layout '{value}', keeping the current page layout"
+                        ),
+                        "Set `page-layout` to `portrait` or `landscape`, or remove it to keep the current layout.",
+                    );
+                    None
+                }
+            }
+        } else {
+            // Asciidoctor ignores repeated role names before selecting a layout.
+            let portrait = br
+                .metadata
+                .roles
+                .iter()
+                .position(|role| *role == "portrait");
+            let landscape = br
+                .metadata
+                .roles
+                .iter()
+                .position(|role| *role == "landscape");
+            match (portrait, landscape) {
+                (Some(portrait), Some(landscape)) if portrait > landscape => {
+                    Some(PageLayout::Portrait)
+                }
+                (_, Some(_)) => Some(PageLayout::Landscape),
+                (Some(_), None) => Some(PageLayout::Portrait),
+                (None, None) => None,
+            }
+        };
+        let Some(layout) = layout.filter(|layout| *layout != self.page_layout) else {
+            return;
+        };
+
+        let page = self.config.emit_options.page;
+        if let Some(margin) = self.config.emit_options.page_margin
+            && PageSetup::with_margin(page, layout, margin).is_none()
+        {
+            warn_with_advice_at(
+                &mut self.diagnostics,
+                br.metadata.location.as_ref().or(Some(&br.location)),
+                "page-break layout leaves no room inside the configured margins, keeping the current page layout",
+                "Reduce `pdf-page-margin` or choose a larger page size before switching the layout.",
+            );
+            return;
+        }
+        if let PageSize::Custom(_) = page {
+            // The preamble writes custom sizes with the initial orientation applied.
+            let dimensions = page.dimensions(layout);
+            let _ = writeln!(
+                self.writer,
+                "#set page(width: {}pt, height: {}pt, flipped: false)\n",
+                dimensions.width_points(),
+                dimensions.height_points(),
+            );
+        } else {
+            let _ = writeln!(
+                self.writer,
+                "#set page(flipped: {})\n",
+                layout == PageLayout::Landscape,
+            );
+        }
+        self.page_layout = layout;
+        self.page_width_pt = page.width_points(layout);
+        self.code_wrap_columns = code_wrap_columns(
+            self.config.theme,
+            page,
+            layout,
+            self.config.emit_options.page_margin,
+        );
     }
 
     pub(crate) fn write_stem_fallback(

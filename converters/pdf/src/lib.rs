@@ -111,7 +111,7 @@ pub struct PdfOptions {
     pub watermark_timestamp: Option<String>,
     /// Optional page size override. Document `:pdf-page-size:` is used next.
     pub page: Option<PageSize>,
-    /// Optional page layout override. Document `:pdf-page-layout:` is used next.
+    /// Optional initial page layout. Document `:pdf-page-layout:` is used next.
     pub page_layout: Option<PageLayout>,
     /// Optional page margin override. Document `:pdf-page-margin:` is used next.
     pub page_margin: Option<PageMargins>,

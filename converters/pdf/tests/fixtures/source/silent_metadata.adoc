@@ -113,14 +113,14 @@ Inline line fit image:inline-image-dimensions.svg[Line fit,fit=line] and inline 
 |Second row
 |===
 
-== Page layout fallback
+== Page layout changes
 
 [page-layout=landscape]
 <<<
 
-The landscape request keeps the document layout and produces a diagnostic.
+The landscape request changes the following pages to landscape.
 
 [.portrait]
 <<<
 
-The portrait request also keeps the document layout.
+The portrait request restores portrait for the following pages.

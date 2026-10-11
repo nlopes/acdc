@@ -9,9 +9,298 @@ use std::{
 use acdc_converters_core::{
     Converter, Diagnostics, Options as ConverterOptions, Warning, WarningSource,
 };
-use acdc_converters_pdf::{PdfOptions, Processor};
+use acdc_converters_pdf::{PageLayout, PageSize, PdfOptions, Processor};
 
 type Error = Box<dyn std::error::Error>;
+
+#[test]
+fn page_break_layout_changes_preserve_pdf_structure() -> Result<(), Error> {
+    let pdf = render_input(include_str!("fixtures/source/page_layout.adoc"))?;
+    assert_pdf_page_layouts(
+        &pdf,
+        PageSize::A4,
+        &[
+            PageLayout::Portrait,
+            PageLayout::Landscape,
+            PageLayout::Landscape,
+            PageLayout::Portrait,
+            PageLayout::Landscape,
+            PageLayout::Portrait,
+        ],
+    )?;
+    assert_eq!(internal_link_pages(&pdf, 1)?, [2, 4]);
+
+    let destinations = named_destinations(&pdf)?;
+    for (name, page) in [("wide", 2), ("restored", 4)] {
+        let target = destinations
+            .get(name)
+            .ok_or("missing section destination")?;
+        let target = resolve_destination(&pdf, &destinations, target)?;
+        assert_eq!(
+            destination_page_id(&pdf, target)?,
+            *pdf.get_pages().get(&page).ok_or("missing section page")?,
+        );
+    }
+    for (page, title, marker) in [
+        (1, "Portrait introduction", "FirstPageMarker."),
+        (2, "Landscape section", "SecondPageMarker."),
+        (3, "Landscape continued", "ThirdPageMarker."),
+        (4, "Restored portrait", "FourthPageMarker."),
+        (5, "Attribute precedence", "FifthPageMarker."),
+        (6, "Last matching role", "SixthPageMarker."),
+    ] {
+        let text = pdf.extract_text(&[page])?;
+        assert!(
+            text.contains("Page layouts"),
+            "missing header on page {page}: {text}"
+        );
+        assert!(text.contains(marker), "missing body on page {page}: {text}");
+        assert_eq!(
+            text.split_whitespace().last(),
+            Some(page.to_string().as_str())
+        );
+        let (left, _) = text_origin(&pdf, page, marker)?;
+        assert!(
+            (left - 18.0).abs() < 0.01,
+            "page {page}: left margin {left}"
+        );
+
+        let outline = pdf
+            .objects
+            .values()
+            .find_map(|object| {
+                let dictionary = object.as_dict().ok()?;
+                let outline_title = decode_text_string(dictionary.get(b"Title").ok()?).ok()?;
+                (outline_title == title).then_some(dictionary)
+            })
+            .ok_or("missing section outline")?;
+        assert_eq!(
+            destination_page_id(&pdf, outline.get(b"Dest")?)?,
+            *pdf.get_pages().get(&page).ok_or("missing outline page")?,
+        );
+    }
+    Ok(())
+}
+
+#[rstest::rstest]
+#[case::empty_first("[.landscape]\n<<<\n\nContent.\n", &[PageLayout::Landscape])]
+#[case::end("Content.\n\n[.landscape]\n<<<\n", &[PageLayout::Portrait])]
+#[case::empty_switch("First.\n\n<<<\n\n[.landscape]\n<<<\n\nSecond.\n", &[PageLayout::Portrait, PageLayout::Landscape])]
+#[case::empty_restore("First.\n\n[.landscape]\n<<<\n\n[.portrait]\n<<<\n\nSecond.\n", &[PageLayout::Portrait, PageLayout::Portrait])]
+#[case::force_switch("First.\n\n<<<\n\n[.landscape%always]\n<<<\n\nSecond.\n", &[PageLayout::Portrait, PageLayout::Portrait, PageLayout::Landscape])]
+#[case::force_restore("First.\n\n[.landscape]\n<<<\n\n[.portrait%always]\n<<<\n\nSecond.\n", &[PageLayout::Portrait, PageLayout::Landscape, PageLayout::Portrait])]
+#[case::repeat_force("First.\n\n[.landscape%always]\n<<<\n\n[.portrait%always]\n<<<\n\nSecond.\n", &[PageLayout::Portrait, PageLayout::Landscape, PageLayout::Portrait])]
+#[case::repeated_landscape_role("First.\n\n[.landscape.portrait.landscape]\n<<<\n\nSecond.\n", &[PageLayout::Portrait, PageLayout::Portrait])]
+#[case::repeated_portrait_role("First.\n\n[.portrait.landscape.portrait]\n<<<\n\nSecond.\n", &[PageLayout::Portrait, PageLayout::Landscape])]
+fn page_break_layout_changes_preserve_empty_page_rules(
+    #[case] source: &str,
+    #[case] layouts: &[PageLayout],
+) -> Result<(), Error> {
+    let pdf = render_input(source)?;
+    assert_pdf_page_layouts(&pdf, PageSize::A4, layouts)
+}
+
+#[rstest::rstest]
+#[case::named_portrait("A3", "portrait", PageSize::A3, &[PageLayout::Portrait, PageLayout::Landscape, PageLayout::Portrait])]
+#[case::named_landscape("A5", "landscape", PageSize::A5, &[PageLayout::Landscape, PageLayout::Landscape, PageLayout::Portrait])]
+#[case::custom_portrait("[8.5in, 11in]", "portrait", PageSize::Letter, &[PageLayout::Portrait, PageLayout::Landscape, PageLayout::Portrait])]
+#[case::custom_landscape("[8.5in, 11in]", "landscape", PageSize::Letter, &[PageLayout::Landscape, PageLayout::Landscape, PageLayout::Portrait])]
+fn page_break_layout_changes_preserve_document_page_size(
+    #[case] size: &str,
+    #[case] initial: &str,
+    #[case] expected_size: PageSize,
+    #[case] layouts: &[PageLayout],
+) -> Result<(), Error> {
+    let source = format!(
+        "= Document page size\n:pdf-page-size: {size}\n:pdf-page-layout: {initial}\n\nFirst.\n\n[page-layout=landscape]\n<<<\n\nSecond.\n\n[page-layout=portrait]\n<<<\n\nThird.\n"
+    );
+    let pdf = render_input(&source)?;
+    assert_pdf_page_layouts(&pdf, expected_size, layouts)
+}
+
+#[test]
+fn page_break_layout_changes_keep_layout_and_warn_on_invalid_values() -> Result<(), Error> {
+    let parsed = parse(
+        ":pdf-page-layout: landscape\n\nFirst.\n\n[page-layout=invalid,role=portrait]\n<<<\n\nSecond.\n\n[page-layout=,role=portrait]\n<<<\n\nThird.\n\n[.portrait.landscape]\n<<<\n\nFourth.\n",
+        &Options::default(),
+    )?;
+    let (pdf, warnings) = render_document_with_warnings(parsed.document())?;
+    assert_pdf_page_layouts(
+        &pdf,
+        PageSize::A4,
+        &[
+            PageLayout::Landscape,
+            PageLayout::Landscape,
+            PageLayout::Portrait,
+            PageLayout::Landscape,
+        ],
+    )?;
+    let [warning] = warnings.as_slice() else {
+        return Err("expected one invalid page-layout warning".into());
+    };
+    assert_eq!(
+        warning.message,
+        "unsupported page-break layout 'invalid', keeping the current page layout"
+    );
+    assert!(
+        warning
+            .advice()
+            .is_some_and(|advice| advice.contains("portrait") && advice.contains("landscape"))
+    );
+    assert_eq!(
+        warning
+            .source_location()
+            .ok_or("missing warning location")?
+            .location
+            .start
+            .line,
+        5
+    );
+    Ok(())
+}
+
+#[test]
+fn page_break_layout_changes_keep_layout_when_margins_do_not_fit() -> Result<(), Error> {
+    let parsed = parse(
+        ":pdf-page-size: A5\n:pdf-page-layout: landscape\n:pdf-page-margin: [0.5in, 3in, 0.5in, 3in]\n\nFirst.\n\n[.portrait]\n<<<\n\nSecond.\n",
+        &Options::default(),
+    )?;
+    let (pdf, warnings) = render_document_with_warnings(parsed.document())?;
+    assert_pdf_page_layouts(
+        &pdf,
+        PageSize::A5,
+        &[PageLayout::Landscape, PageLayout::Landscape],
+    )?;
+    let [warning] = warnings.as_slice() else {
+        return Err("expected one page-margin warning".into());
+    };
+    assert_eq!(
+        warning.message,
+        "page-break layout leaves no room inside the configured margins, keeping the current page layout"
+    );
+    assert!(
+        warning
+            .advice()
+            .is_some_and(|advice| advice.contains("pdf-page-margin"))
+    );
+    Ok(())
+}
+
+#[test]
+fn page_break_layout_changes_update_image_widths_and_code_wrapping() -> Result<(), Error> {
+    let image = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/source/inline-image-dimensions.svg");
+    let line = "abcdefghij".repeat(11);
+    let content = format!(
+        "[source]\n----\n{line}\n----\n\nimage::{}[Layout image,pdfwidth=50vw,opts=align-to-page]\n",
+        image.display(),
+    );
+    let input = format!(
+        "= Layout sizing\n\n{content}\n[.landscape]\n<<<\n\n{content}\n[.portrait]\n<<<\n\n{content}"
+    );
+    let parsed = parse(&input, &Options::default())?;
+    let output_dir = tempfile::tempdir()?;
+    let typst_path = output_dir.path().join("layout.typ");
+    let processor = cli_fixture_processor(
+        Options::builder().with_attributes(parsed.document().attributes.clone().into_inputs()),
+    )?
+    .with_pdf_options(PdfOptions {
+        emit_typst: Some(typst_path.clone()),
+        ..PdfOptions::default()
+    });
+    let mut output = Vec::new();
+    let mut warnings = Vec::new();
+    let source = WarningSource::new("pdf");
+    processor.write_to(
+        parsed.document(),
+        &mut output,
+        None,
+        None,
+        &mut Diagnostics::new(&source, &mut warnings),
+    )?;
+    assert!(warnings.is_empty(), "{warnings:?}");
+    let typst = read_to_string(typst_path)?;
+    assert_eq!(
+        typst.matches("block(width: 595.276pt").count(),
+        2,
+        "{typst}"
+    );
+    assert_eq!(typst.matches("block(width: 841.89pt").count(), 1, "{typst}");
+    assert_eq!(typst.matches("width: 297.638pt)").count(), 2, "{typst}");
+    assert_eq!(typst.matches("width: 420.945pt)").count(), 1, "{typst}");
+    assert_eq!(
+        typst
+            .matches(&format!("#raw(block: true, \"{line}\")"))
+            .count(),
+        1,
+        "{typst}"
+    );
+    let pdf = PdfDocument::load_mem(&output)?;
+    assert_pdf_page_layouts(
+        &pdf,
+        PageSize::A4,
+        &[
+            PageLayout::Portrait,
+            PageLayout::Landscape,
+            PageLayout::Portrait,
+        ],
+    )
+}
+
+#[test]
+fn page_break_layout_changes_preserve_page_size_before_first_content() -> Result<(), Error> {
+    let pdf = render_input(":pdf-page-size: A3\n\n[.landscape]\n<<<\n\nContent.\n")?;
+    assert_pdf_page_layouts(&pdf, PageSize::A3, &[PageLayout::Landscape])
+}
+
+#[test]
+fn page_break_layout_changes_keep_book_page_numbering() -> Result<(), Error> {
+    let pdf = render_input(
+        "= Book layouts\n:doctype: book\n\n== First chapter\n\nFirst.\n\n[.landscape]\n<<<\n\n== Wide chapter\n\nSecond.\n\n[.portrait]\n<<<\n\n== Last chapter\n\nThird.\n",
+    )?;
+    assert_pdf_page_layouts(
+        &pdf,
+        PageSize::A4,
+        &[
+            PageLayout::Portrait,
+            PageLayout::Portrait,
+            PageLayout::Landscape,
+            PageLayout::Portrait,
+        ],
+    )?;
+    for (page, number) in [(2, "1"), (3, "2"), (4, "3")] {
+        let text = pdf.extract_text(&[page])?;
+        assert_eq!(text.split_whitespace().last(), Some(number), "{text}");
+    }
+    Ok(())
+}
+
+fn assert_pdf_page_layouts(
+    pdf: &PdfDocument,
+    size: PageSize,
+    layouts: &[PageLayout],
+) -> Result<(), Error> {
+    let pages = pdf.get_pages();
+    assert_eq!(pages.len(), layouts.len());
+    for ((page, id), layout) in pages.iter().zip(layouts) {
+        let dimensions = size.dimensions(*layout);
+        let media_box = pdf.get_dictionary(*id)?.get(b"MediaBox")?.as_array()?;
+        let [left, bottom, right, top] = media_box.as_slice() else {
+            return Err("invalid PDF media box".into());
+        };
+        let width = f64::from(right.as_float()? - left.as_float()?);
+        let height = f64::from(top.as_float()? - bottom.as_float()?);
+        assert!(
+            (width - dimensions.width_points()).abs() < 0.01,
+            "page {page}: width {width}, layout {layout:?}"
+        );
+        assert!(
+            (height - dimensions.height_points()).abs() < 0.01,
+            "page {page}: height {height}, layout {layout:?}"
+        );
+    }
+    Ok(())
+}
 
 #[rstest::rstest]
 #[case::plain("")]
@@ -2954,7 +3243,6 @@ fn run_typst_fixture(path: &Path) -> Result<(), Error> {
             [
                 "inline image `fit=none` page-height sizing is not supported by the PDF backend; rendering with normal intrinsic sizing",
                 "PHP source block mixed-mode highlighting is not supported by the PDF backend; rendering with Typst's normal PHP highlighter",
-                "page-break layout changes are not supported by the PDF backend; keeping the document page layout",
             ]
         );
         assert!(warnings.iter().all(|warning| warning.advice.is_some()));
@@ -2964,7 +3252,7 @@ fn run_typst_fixture(path: &Path) -> Result<(), Error> {
                 .filter_map(|warning| warning.source_location())
                 .map(|location| location.location.start.line)
                 .collect::<Vec<_>>(),
-            [97, 101, 118]
+            [97, 101]
         );
     }
 

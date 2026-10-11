@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Page breaks now switch the following PDF pages between portrait and landscape
+  with `page-layout=portrait|landscape` or the matching roles. Plain page breaks
+  keep the current layout. Empty-page handling and `%always` match Asciidoctor
+  PDF. Invalid layout values keep the current layout and produce a structured
+  warning. The configured paper size is retained when a layout change replaces
+  an empty first page; Asciidoctor PDF 2.3.15 resets that page to Letter size.
+
 - Document images now have limits of 1,024 distinct source attempts and 100 MiB
   of accepted image data. Failed attempts use source slots. Different source
   strings each use bytes, even when their content matches. Images beyond a

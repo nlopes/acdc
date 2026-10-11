@@ -102,7 +102,7 @@
 #_acdc_toc_entry(<id-5f696d6167655f73697a696e675f616e645f66697474696e67>, 0, [#text("Image sizing and fitting")])
 #_acdc_toc_entry(<id-5f736f757263655f686967686c69676874696e675f66616c6c6261636b>, 0, [#text("Source highlighting fallback")])
 #_acdc_toc_entry(<id-5f627265616b61626c655f7461626c65>, 0, [#text("Breakable table")])
-#_acdc_toc_entry(<id-5f706167655f6c61796f75745f66616c6c6261636b>, 0, [#text("Page layout fallback")])
+#_acdc_toc_entry(<id-5f706167655f6c61796f75745f6368616e676573>, 0, [#text("Page layout changes")])
 #pagebreak()
 
 ]
@@ -291,12 +291,16 @@
 
 ])
 
-#heading(level: 1)[#text("Page layout fallback")] <id-5f706167655f6c61796f75745f66616c6c6261636b>
+#heading(level: 1)[#text("Page layout changes")] <id-5f706167655f6c61796f75745f6368616e676573>
 
 #pagebreak(weak: true)
 
-#text("The landscape request keeps the document layout and produces a diagnostic.")
+#set page(flipped: true)
+
+#text("The landscape request changes the following pages to landscape.")
 
 #pagebreak(weak: true)
 
-#text("The portrait request also keeps the document layout.")
+#set page(flipped: false)
+
+#text("The portrait request restores portrait for the following pages.")

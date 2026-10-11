@@ -1,0 +1,64 @@
+= Page layouts
+:pdf-page-size: A4
+:pdf-page-margin: [1in, 0.5in, 0.75in, 0.25in]
+:pagenums:
+
+== Portrait introduction
+
+FirstPageMarker.
+
+See <<wide>> and <<restored>>.
+
+[page-layout=landscape]
+<<<
+
+[[wide]]
+== Landscape section
+
+SecondPageMarker.
+
+* A list on the landscape page.
+
+[cols="1,2",options="header"]
+|===
+|Column |Content
+|Layout |Landscape
+|===
+
+<<<
+
+== Landscape continued
+
+ThirdPageMarker.
+
+A plain page break keeps the current layout.
+
+<<<
+
+[.portrait]
+<<<
+
+[[restored]]
+== Restored portrait
+
+FourthPageMarker.
+
+The layout change replaces the empty page.
+
+[page-layout=landscape,role=portrait]
+<<<
+
+== Attribute precedence
+
+FifthPageMarker.
+
+The layout attribute takes precedence over the role.
+
+[.landscape.portrait]
+<<<
+
+== Last matching role
+
+SixthPageMarker.
+
+The last matching role selects portrait.

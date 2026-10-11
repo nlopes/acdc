@@ -121,7 +121,7 @@ pub struct EmitOptions {
     pub locale: DocumentLocale,
     /// Standard or custom size used for every document page.
     pub page: PageSize,
-    /// Portrait or landscape layout used for every document page.
+    /// Initial portrait or landscape page layout.
     pub page_layout: PageLayout,
     /// Page margins that override the theme when set.
     pub page_margin: Option<PageMargins>,

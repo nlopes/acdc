@@ -81,9 +81,21 @@ Examples marked `%collapsible` always render expanded with a disclosure marker a
 The `%open` and `%closed` options therefore produce the same PDF output.
 
 Normal page breaks do not add a blank page when they occur at an existing page boundary; add `%always` to force another page.
-The document-level `pdf-page-layout` attribute selects portrait or landscape output.
-The `page-layout` attribute and the `portrait` and `landscape` roles on individual page breaks do not switch orientation.
-Those page breaks keep the configured document layout.
+The document-level `pdf-page-layout` attribute selects the initial orientation.
+Use `[page-layout=landscape]` or `[.landscape]` before `<<<` to switch the following pages to landscape.
+Use `portrait` to switch back.
+A plain `<<<` keeps the current layout.
+The page size, margins, headers, footers, and page numbering remain configured across each switch.
+
+A non-empty `page-layout` attribute takes precedence over the roles.
+Repeated role names are ignored.
+When only roles select the layout, the last distinct `portrait` or `landscape` role wins.
+An invalid layout value keeps the current layout and produces a structured warning.
+These selection rules match Asciidoctor PDF.
+A switch that leaves no room inside `pdf-page-margin` also keeps the current layout and produces a warning.
+
+acdc keeps the configured paper size when a layout change replaces an empty first page.
+Asciidoctor PDF 2.3.15 resets that page to Letter size.
 
 Asciidoctor PDF's default theme renders the first laid-out line of an abstract in bold italic.
 acdc uses a consistent italic weight for the full abstract body because Typst cannot style a line after layout.
@@ -322,7 +334,7 @@ The CLI flags map to fields on `PdfOptions` for library callers.
 
 | `--page-layout`
 | `page_layout`
-| Set `portrait` or `landscape`.
+| Set the initial layout to `portrait` or `landscape`.
   `:pdf-page-layout:` is consulted next; portrait is the fallback.
 
 | `--theme`

@@ -619,20 +619,6 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
         br: &PageBreak<'_>,
     ) -> Result<(), Self::Error> {
         self.write_block_anchor(&br.metadata);
-        if br.metadata.attributes.get_string("page-layout").is_some()
-            || br
-                .metadata
-                .roles
-                .iter()
-                .any(|role| matches!(*role, "landscape" | "portrait"))
-        {
-            self.warn_unsupported_once(
-                "page-layout-change",
-                "page-break layout changes are not supported by the PDF backend; keeping the document page layout",
-                "Use Asciidoctor PDF when a document must switch between portrait and landscape pages.",
-                br.metadata.location.as_ref().or(Some(&br.location)),
-            );
-        }
         if br.metadata.options.contains(&"always") {
             if self.explicit_page_break_state == ExplicitPageBreakState::Weak {
                 self.writer.raw("#pagebreak()\n");
@@ -643,6 +629,8 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
             self.writer.raw("#pagebreak(weak: true)\n\n");
             self.explicit_page_break_state = ExplicitPageBreakState::Weak;
         }
+        // Apply the layout after the break so an empty page gets the new geometry.
+        self.write_page_layout_change(br);
         Ok(())
     }
 
