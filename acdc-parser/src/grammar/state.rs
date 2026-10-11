@@ -740,7 +740,7 @@ impl<'a> ParserState<'a> {
     }
 
     /// Create a `SourceLocation` for an error/warning, resolving the correct
-    /// file and adjusting line numbers for included content.
+    /// file and original line/column numbers for included content.
     pub(crate) fn create_error_source_location(&self, location: Location) -> SourceLocation {
         if let Some(range) =
             SourceRange::find_containing(&self.source_ranges, location.absolute_start)
@@ -761,8 +761,17 @@ impl<'a> ParserState<'a> {
                     absolute_end: location.absolute_end,
                     // The authoritative file for a diagnostic lives on the enclosing
                     // `SourceLocation`; these positions don't carry it.
-                    start: crate::Position::new(adjusted_start_line, location.start.column),
-                    end: crate::Position::new(adjusted_end_line, location.end.column),
+                    start: crate::Position::new(
+                        adjusted_start_line,
+                        super::source_remap::shift_column(
+                            location.start.column,
+                            range.column_shift,
+                        ),
+                    ),
+                    end: crate::Position::new(
+                        adjusted_end_line,
+                        super::source_remap::shift_column(location.end.column, range.column_shift),
+                    ),
                 },
             }
         } else {
@@ -1032,5 +1041,31 @@ mod tests {
         assert_eq!(src_loc.file, Some(PathBuf::from("main.adoc")));
         assert_eq!(src_loc.location.start.line, loc.start.line);
         assert_eq!(src_loc.location.end.line, loc.end.line);
+    }
+
+    #[test]
+    fn diagnostic_columns_undo_include_indentation() -> Result<(), Box<dyn std::error::Error>> {
+        for (input, shift, expected) in [
+            ("π 😀 <<missing>>\n", -4, 9),
+            ("  π 😀 <<missing>>\n", 2, 5),
+        ] {
+            let mut state = ParserState::new_for_test(input);
+            state.source_ranges.push(SourceRange {
+                start_offset: 0,
+                end_offset: input.len(),
+                file: Some(PathBuf::from("inner.adoc")),
+                file_chain: vec!["outer.adoc".to_string(), "inner.adoc".to_string()],
+                start_line: 4,
+                source_start_offset: 0,
+                column_shift: shift,
+            });
+            let start = input.find("<<").ok_or("missing reference")?;
+            let location = state.create_location(start, input.len() - 2);
+            let warning = state.create_error_source_location(location);
+            assert_eq!(warning.file, Some(PathBuf::from("inner.adoc")));
+            assert_eq!(warning.location.start.line, 4);
+            assert_eq!(warning.location.start.column, expected);
+        }
+        Ok(())
     }
 }

@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Errors and warnings in reindented includes report columns in the original
+  source, including nested and selected includes.
+
 - STEM notation now uses AsciiMath when `:stem:` is absent, empty, or unknown.
   The `latex` and `tex` aliases select LaTeX. Explicit `[latexmath]` and
   `[asciimath]` blocks and positional notation override the document value,

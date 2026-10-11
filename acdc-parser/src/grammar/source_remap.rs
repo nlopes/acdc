@@ -296,7 +296,7 @@ fn covering_range_index(
 
 /// Subtract a re-indent's `column_shift` from a preprocessed `column` to recover the
 /// origin column, clamped to a minimum of 1. A `0` shift returns `column` unchanged.
-fn shift_column(column: u32, column_shift: isize) -> u32 {
+pub(super) fn shift_column(column: u32, column_shift: isize) -> u32 {
     if column_shift == 0 {
         return column;
     }
