@@ -6,6 +6,11 @@ use std::sync::{Arc, PoisonError, RwLock};
 
 use tokio::sync::Mutex;
 
+#[cfg(feature = "preview")]
+use tower_lsp_server::ls_types::{
+    CodeActionOrCommand, ExecuteCommandOptions, ExecuteCommandParams, ShowDocumentParams,
+};
+
 use tower_lsp_server::{
     Client, LanguageServer,
     jsonrpc::{Error, Result},
@@ -54,6 +59,8 @@ struct ClientFeatures {
     configuration: ConfigurationSupport,
     refresh: RefreshSupport,
     watched_files: bool,
+    #[cfg(feature = "preview")]
+    show_document: bool,
 }
 
 #[derive(Clone, Copy, Default)]
@@ -79,6 +86,8 @@ pub struct Backend {
     mutation: Arc<Mutex<()>>,
     /// Client capabilities captured during initialization.
     client_features: RwLock<ClientFeatures>,
+    #[cfg(feature = "preview")]
+    previews: Arc<Mutex<crate::preview::PreviewStore>>,
 }
 
 impl Backend {
@@ -90,6 +99,8 @@ impl Backend {
             workspace: Arc::new(Workspace::new()),
             mutation: Arc::new(Mutex::new(())),
             client_features: RwLock::new(ClientFeatures::default()),
+            #[cfg(feature = "preview")]
+            previews: Arc::new(Mutex::new(crate::preview::PreviewStore::default())),
         }
     }
 
@@ -132,6 +143,13 @@ impl Backend {
     fn capture_client_features(&self, params: &InitializeParams) {
         let workspace = params.capabilities.workspace.as_ref();
         let features = ClientFeatures {
+            #[cfg(feature = "preview")]
+            show_document: params
+                .capabilities
+                .window
+                .as_ref()
+                .and_then(|window| window.show_document.as_ref())
+                .is_some_and(|capability| capability.support),
             watched_files: workspace
                 .and_then(|capabilities| capabilities.did_change_watched_files.as_ref())
                 .and_then(|capability| capability.dynamic_registration)
@@ -339,6 +357,11 @@ impl LanguageServer for Backend {
 
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
+                #[cfg(feature = "preview")]
+                execute_command_provider: self.features().show_document.then(|| ExecuteCommandOptions {
+                    commands: vec![crate::preview::COMMAND.into(), crate::preview::HTML_COMMAND.into()],
+                    work_done_progress_options: WorkDoneProgressOptions::default(),
+                }),
                 text_document_sync: Some(TextDocumentSyncCapability::Options(TextDocumentSyncOptions {
                     open_close: Some(true),
                     change: Some(TextDocumentSyncKind::FULL),
@@ -498,6 +521,10 @@ impl LanguageServer for Backend {
     )]
     async fn shutdown(&self) -> Result<()> {
         let _mutation = self.mutation.lock().await;
+        #[cfg(feature = "preview")]
+        {
+            *self.previews.lock().await = crate::preview::PreviewStore::default();
+        }
         tracing::info!("Shutting down acdc-lsp");
         Ok(())
     }
@@ -841,10 +868,87 @@ impl LanguageServer for Backend {
         let uri = params.text_document.uri;
 
         let response = self.workspace.get_document(&uri).map(|doc| {
-            code_actions::compute_code_actions(&doc, &uri, params.range, &params.context)
+            let actions =
+                code_actions::compute_code_actions(&doc, &uri, params.range, &params.context);
+            #[cfg(feature = "preview")]
+            let actions = {
+                let mut actions = actions;
+                if self.features().show_document
+                    && doc.text().len() as u64 <= crate::limits::MAX_INDEXABLE_FILE_BYTES
+                {
+                    actions.extend(
+                        crate::preview::code_actions(
+                            &uri,
+                            &params.context,
+                            self.workspace.analysis_configuration().backend_for(&uri),
+                        )
+                        .into_iter()
+                        .map(CodeActionOrCommand::CodeAction),
+                    );
+                }
+                actions
+            };
+            actions
         });
 
         Ok(response.filter(|actions| !actions.is_empty()))
+    }
+
+    #[cfg(feature = "preview")]
+    #[tracing::instrument(name = "lsp/executeCommand", level = "debug", skip_all)]
+    async fn execute_command(
+        &self,
+        params: ExecuteCommandParams,
+    ) -> Result<Option<serde_json::Value>> {
+        if params.command != crate::preview::COMMAND
+            && params.command != crate::preview::HTML_COMMAND
+        {
+            return Err(Error::invalid_params("Unknown acdc-lsp command"));
+        }
+        if !self.features().show_document {
+            return Err(crate::preview::request_failed(
+                "The editor does not support window/showDocument",
+            ));
+        }
+        let [argument] = params.arguments.as_slice() else {
+            return Err(Error::invalid_params("Preview requires one document URI"));
+        };
+        let uri: Uri = serde_json::from_value(argument.clone())
+            .map_err(|_| Error::invalid_params("Preview requires a valid document URI"))?;
+        let force_html = params.command == crate::preview::HTML_COMMAND;
+        let input = self
+            .with_workspace(move |workspace| workspace.preview_input(uri, force_html))
+            .await?
+            .map_err(Error::invalid_params)?;
+        let mut previews = Arc::clone(&self.previews).lock_owned().await;
+        let rendered = tokio::task::spawn_blocking(move || previews.render(&input))
+            .await
+            .map_err(|_| Error::internal_error())?
+            .map_err(crate::preview::request_failed)?;
+        if let Some(first) = rendered.warnings.first() {
+            self.client.show_message(MessageType::WARNING, format!(
+                "Preview produced {} warning(s): {first}. See the language server log for details.",
+                rendered.warnings.len(),
+            )).await;
+            for warning in rendered.warnings {
+                self.client.log_message(MessageType::WARNING, warning).await;
+            }
+        }
+        let shown = self
+            .client
+            .show_document(ShowDocumentParams {
+                uri: rendered.uri,
+                external: Some(true),
+                take_focus: Some(true),
+                selection: None,
+            })
+            .await?;
+        if !shown {
+            return Err(crate::preview::request_failed(
+                "The editor could not open the preview in the system's external viewer",
+            ));
+        }
+        Ok(None)
     }
 
     #[tracing::instrument(name = "lsp/codeLens", level = "debug", skip_all, fields(uri = params.text_document.uri.as_str()))]

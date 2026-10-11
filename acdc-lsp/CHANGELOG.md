@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Preview code actions render the current unsaved buffer as PDF, HTML5, or
+  semantic HTML according to its configured backend, then open it with the
+  system's URL handler. An explicit HTML5 preview is also available. Local includes
+  use unsaved buffers when available and follow the existing include limits.
+  PDF preview includes PDF-specific content and page layout. Requires an editor
+  with `window/showDocument` support; the `preview` and `preview-pdf` features
+  are enabled by default.
+
 ### Fixed
 
 - Closing a document no longer restores symbols from a removed workspace folder.
@@ -64,6 +74,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cursor positions account for UTF-16 characters and CRLF line endings.
 - File renames no longer change unrelated text in closed workspace files.
   References in an included file produce edits only in that file.
+- Correct the Zed setup instructions: an AsciiDoc extension that registers
+  `acdc-lsp` is required before Zed can start the server.
 - Navigation and section symbols use the unique IDs assigned to repeated section
   titles, matching the parser and rendered output.
 

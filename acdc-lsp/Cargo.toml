@@ -20,23 +20,32 @@ doc = false
 path = "src/lib.rs"
 
 [features]
-default = ["pre-spec-subs"]
+default = ["pre-spec-subs", "preview", "preview-pdf"]
+preview = ["dep:acdc-converters-html", "dep:lol_html", "dep:tempfile"]
+preview-pdf = ["preview", "dep:acdc-converters-pdf"]
 # Asciidoctor-compatible subs= attribute. Experimental - may be removed when AsciiDoc spec finalizes.
-pre-spec-subs = ["acdc-parser/pre-spec-subs", "acdc-converters-core/pre-spec-subs"]
+pre-spec-subs = ["acdc-parser/pre-spec-subs", "acdc-converters-core/pre-spec-subs", "acdc-converters-html?/pre-spec-subs", "acdc-converters-pdf?/pre-spec-subs"]
 
 [dependencies]
 acdc-converters-core.workspace = true
+acdc-converters-html = { workspace = true, optional = true, features = ["highlighting"] }
+acdc-converters-pdf = { workspace = true, optional = true }
 acdc-parser.workspace = true
 dashmap = "6"
 self_cell = "1"
 fluent-uri = "0.4.1"
+lol_html = { version = "3.0.1", optional = true }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
+tempfile = { workspace = true, optional = true }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "io-std", "sync"] }
 tower-lsp-server = "0.23"
 tracing.workspace = true
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[dev-dependencies]
+lopdf.workspace = true
 
 [lints.rust]
 unsafe_code = "forbid"

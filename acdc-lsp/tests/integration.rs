@@ -5,5 +5,6 @@ mod integration {
     mod backend_options;
     mod includes;
     mod inlay_hints;
+    mod preview;
     mod selection_range;
 }

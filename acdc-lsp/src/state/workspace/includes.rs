@@ -30,32 +30,10 @@ impl Workspace {
         if u64::try_from(text.len()).unwrap_or(u64::MAX) > MAX_INDEXABLE_FILE_BYTES {
             return self.index_document_with_options(uri, text, version, &options);
         }
-        let Some(path) = file_path(&uri) else {
+        let Some(provider) = self.include_provider(&uri, Arc::new(text.clone())) else {
             return self.index_document_with_options(uri, text, version, &options);
         };
-        let Some(directory) = path.parent() else {
-            return self.index_document_with_options(uri, text, version, &options);
-        };
-
-        // Snapshot text before parsing. The provider must not keep workspace
-        // locks while the parser reads nested includes.
-        let mut buffers: HashMap<_, _> = self
-            .documents
-            .iter()
-            .filter_map(|entry| {
-                let path = file_path(entry.key())?;
-                Some((resolve_path(&path).ok()?, entry.parsed.text_snapshot()))
-            })
-            .collect();
-        if let Ok(path) = resolve_path(&path) {
-            buffers.insert(path, Arc::new(text.clone()));
-        }
-        let provider = Arc::new(EditorIncludeProvider {
-            directory: directory.to_path_buf(),
-            buffers,
-            dependencies: Mutex::new(HashSet::new()),
-        });
-        options.base_dir = Some(directory.to_path_buf());
+        options.base_dir = Some(provider.directory.clone());
         let source_provider = Arc::clone(&provider);
         options.include_loader =
             IncludeLoader::custom(move |target: &IncludeSourceTarget| source_provider.open(target));
@@ -69,6 +47,66 @@ impl Workspace {
                 .clone(),
         );
         affected
+    }
+
+    fn include_provider(&self, uri: &Uri, text: Arc<String>) -> Option<Arc<EditorIncludeProvider>> {
+        let path = file_path(uri)?;
+        let directory = path.parent()?;
+
+        // Snapshot text before parsing. The provider must not keep workspace
+        // locks while the parser reads nested includes.
+        let mut buffers: HashMap<_, _> = self
+            .documents
+            .iter()
+            .filter_map(|entry| {
+                let path = file_path(entry.key())?;
+                Some((resolve_path(&path).ok()?, entry.parsed.text_snapshot()))
+            })
+            .collect();
+        if let Ok(path) = resolve_path(&path) {
+            buffers.insert(path, text);
+        }
+        Some(Arc::new(EditorIncludeProvider {
+            directory: directory.to_path_buf(),
+            buffers,
+            dependencies: Mutex::new(HashSet::new()),
+        }))
+    }
+
+    #[cfg(feature = "preview")]
+    pub(crate) fn preview_input(
+        &self,
+        uri: Uri,
+        force_html: bool,
+    ) -> Result<crate::preview::PreviewInput, &'static str> {
+        let text = {
+            let document = self
+                .documents
+                .get(&uri)
+                .ok_or("The preview document must be open in the editor")?;
+            if document.text().len() as u64 > MAX_INDEXABLE_FILE_BYTES {
+                return Err("Preview is limited to documents of 10 MiB");
+            }
+            document.parsed.text_snapshot()
+        };
+        let format = if force_html {
+            crate::preview::PreviewFormat::Html
+        } else {
+            crate::preview::PreviewFormat::for_backend(self.backend_for(&uri))
+                .ok_or("Preview supports HTML5, semantic HTML, and PDF; use acdc.previewHtml for other backends")?
+        };
+        let provider = self.include_provider(&uri, Arc::clone(&text));
+        let base_dir = provider.as_ref().map(|provider| provider.directory.clone());
+        let include_loader = provider.map_or(IncludeLoader::Disabled, |provider| {
+            IncludeLoader::custom(move |target: &IncludeSourceTarget| provider.open(target))
+        });
+        Ok(crate::preview::PreviewInput {
+            format,
+            source_uri: uri,
+            text,
+            base_dir,
+            include_loader,
+        })
     }
 
     /// Reparse each affected parent once. Each parse records nested targets too.

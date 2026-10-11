@@ -20,6 +20,7 @@ A Language Server Protocol (LSP) implementation for AsciiDoc documents, powered 
 - **Completion** - Suggestions for xref targets, attribute references, and includes
 - **Document Links** - Clickable URLs and file references
 - **Folding Ranges** - Collapse sections, delimited blocks, and lists
+- **Document Preview** - Render the current unsaved document as HTML or PDF and open it in the system's viewer
 
 ### Syntax
 
@@ -115,6 +116,71 @@ file watching, an external change takes effect when the parent is parsed again.
 
 ## Editor setup
 
+### Document preview
+
+Use the **Preview AsciiDoc as PDF** or **Preview AsciiDoc as HTML** code action
+to render the current editor buffer, including unsaved changes. The main action
+uses the document's configured backend: `pdf`, `html5`, or `html5s` (semantic HTML).
+PDF previews include PDF-specific conditionals and page layout. An explicit HTML5
+action remains available when another backend is configured. Other analysis
+backends offer only that HTML5 action.
+
+The server sends
+[`window/showDocument`](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#window_showDocument)
+with `external: true`; the editor asks the system's URL handler to open the file.
+HTML usually opens in a browser. PDF opens in the user's default PDF application,
+which can be a browser or a dedicated viewer. Actions are available only when
+the client advertises support for that request.
+
+Both formats use the same local-include provider and limits as editor analysis,
+including unsaved included buffers. Preview does not change diagnostics or the
+analysis settings. Untitled buffers can be previewed, but have no base directory
+for local resources.
+
+HTML previews use acdc's built-in styles and syntax highlighting. Relative images
+and other resources resolve against the source document's location. Section and
+table-of-contents links stay within the preview. Custom stylesheets and docinfo
+files are not loaded; the HTML includes a Content Security Policy.
+The browser can load resources referenced by the document, such as local images,
+remote images, web fonts, and MathJax. This is a browser preview, not a sandbox for
+untrusted HTML.
+
+PDF previews use acdc's bundled fonts and default theme. Local image paths must
+resolve within the source document's directory; remote images are disabled,
+including when the document sets `allow-uri-read`. Untitled PDF previews disable
+image loading. CLI-specific font directories, themes, and other CLI options are
+not applied by the language server.
+
+Run the action again to render a new snapshot. The server reuses the document's
+preview URL for each format; refresh or reopen an existing viewer if needed.
+HTML and PDF snapshots have separate files. Preview files live in a
+temporary directory until the language server shuts down, even if the source
+buffer is closed. The action does not write generated files into the project.
+The viewer must be able to access the server's local files; this does not provide
+preview transport for a remote language server.
+
+The default-enabled `preview` and `preview-pdf` Cargo features link the HTML and
+PDF converters directly into `acdc-lsp`. Release binaries include both. No separate
+`acdc` executable or Node.js runtime is required. To build with HTML preview only:
+
+```bash
+cargo build -p acdc-lsp --no-default-features --features pre-spec-subs,preview
+```
+
+To build without preview while retaining default parser compatibility:
+
+```bash
+cargo build -p acdc-lsp --no-default-features --features pre-spec-subs
+```
+
+Clients may also call `workspace/executeCommand` with command `acdc.preview`
+to use the current backend, or `acdc.previewHtml` to request HTML5 explicitly.
+Both commands take one argument: an open document's URI. Closed documents and
+buffers larger than 10 MiB are rejected. Conversion errors and viewer-opening
+failures are returned to the client; conversion warnings are reported separately.
+Requesting PDF without `preview-pdf` returns an error; it does not produce HTML
+silently. The explicit HTML action remains available in that build.
+
 ### Emacs (eglot)
 
 Add to your Emacs config:
@@ -148,7 +214,15 @@ during an active session, reload the directory-local variables and run
 
 ### Zed
 
-Add to your Zed settings (`~/.config/zed/settings.json`):
+Zed requires an extension to register a language server. Settings alone cannot
+register `acdc-lsp`. AsciiDoc syntax support is supplied by the community
+[AsciiDoc extension](https://github.com/dunyakirkali/zed-asciidoc).
+
+The published AsciiDoc extension 0.5.10 does not include acdc support. Until the
+integration is published, install a checkout containing the acdc adapter with
+**Extensions → Install Dev Extension**. This replaces the published extension
+locally. Install the server from this repository as described above, or point
+Zed at a local build:
 
 ```json
 {
@@ -160,28 +234,56 @@ Add to your Zed settings (`~/.config/zed/settings.json`):
   "lsp": {
     "acdc-lsp": {
       "binary": {
-        "path": "acdc-lsp"
+        "path": "/absolute/path/to/acdc/target/release/acdc-lsp"
       }
     }
   }
 }
 ```
 
-If `acdc-lsp` isn't in your PATH, use the full path:
+The server identifier is `acdc-lsp`, with a hyphen. The adapter also finds
+`acdc-lsp` on the project environment's `PATH` when no binary path is set.
+
+For a project that targets PDF, put this in `.zed/settings.json`:
 
 ```json
 {
   "lsp": {
     "acdc-lsp": {
-      "binary": {
-        "path": "/path/to/acdc-lsp"
+      "settings": {
+        "backend": "pdf"
       }
     }
   }
 }
 ```
 
-Zed recognizes `.adoc` and `.asciidoc` files as AsciiDoc by default.
+The adapter supplies these settings through `workspace/configuration` and
+forwards `initialization_options` as a fallback. See [Analysis backend](#analysis-backend).
+
+Tree-sitter highlighting, snippets, and editing rules remain available. These
+optional language settings enable the corresponding LSP features:
+
+```json
+{
+  "languages": {
+    "AsciiDoc": {
+      "semantic_tokens": "combined",
+      "document_symbols": "on",
+      "document_folding_ranges": "on"
+    }
+  }
+}
+```
+
+The LSP outline includes paragraphs and blocks as well as headings. Leave
+`document_symbols` off for the extension's heading-only outline. In Zed 1.22,
+changing the backend refreshes diagnostics and semantic tokens, but the outline
+can retain old symbols until the document is edited. Zed also skips LSP symbol
+requests for Git-ignored files.
+
+If the server does not start, check the project's trust status and use
+**dev: open language server logs** or **zed: open log** from the command palette.
 
 ### Neovim
 

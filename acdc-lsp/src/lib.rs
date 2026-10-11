@@ -11,6 +11,8 @@ pub(crate) mod capabilities;
 pub(crate) mod config;
 pub(crate) mod convert;
 pub(crate) mod limits;
+#[cfg(feature = "preview")]
+pub(crate) mod preview;
 pub(crate) mod state;
 
 pub use backend::Backend;
