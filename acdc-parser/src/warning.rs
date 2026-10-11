@@ -42,6 +42,7 @@ impl Warning {
             WarningKind::DuplicateId { .. } => "duplicate-id",
             WarningKind::ConflictingFootnote { .. } => "conflicting-footnote",
             WarningKind::LegacyFloatDiscreteHeading => "legacy-float-discrete-heading",
+            WarningKind::DeprecatedToc2Attribute => "deprecated-toc2-attribute",
             WarningKind::InvalidDocumentAttribute { .. } => "invalid-document-attribute",
             WarningKind::ContentRecovery { .. } => "content-recovery",
             WarningKind::Other(_) => "other",
@@ -114,6 +115,9 @@ impl Warning {
             WarningKind::LegacyFloatDiscreteHeading => Some(
                 "Replace the `float` attribute with `discrete` (e.g. `[discrete]`). `float` here does not control layout; it is an older name for a discrete (free-floating) heading.",
             ),
+            WarningKind::DeprecatedToc2Attribute => {
+                Some("Use `:toc: left` in the document or `-a toc=left` on the command line.")
+            }
             WarningKind::InvalidDocumentAttribute { .. } => {
                 Some("Use a value in the attribute's documented domain")
             }
@@ -289,6 +293,10 @@ pub enum WarningKind {
     /// prefers `discrete`.
     #[error("`float` is a legacy alias for a discrete heading; prefer `discrete`")]
     LegacyFloatDiscreteHeading,
+
+    /// An explicit `toc2` setting uses the deprecated left-sidebar TOC alias.
+    #[error("`toc2` is deprecated; use `:toc: left` instead")]
+    DeprecatedToc2Attribute,
 
     /// A document attribute value did not match its documented domain.
     /// The previous effective value remains active.

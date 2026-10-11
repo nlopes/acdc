@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Explicit `toc2` settings now produce one deprecation warning per parse.
+  Use `:toc: left` or supply `toc=left` through the API or CLI. TOC behavior is
+  unchanged. Unsets, ignored assignments, and the `toc2` CSS class do not warn.
+  Asciidoctor accepts the deprecated alias without this warning.
+
 ### Fixed
 
 - Errors and warnings in reindented includes report columns in the original

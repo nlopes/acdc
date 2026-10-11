@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Explicit `toc2` settings now warn once per input document. Use `:toc: left`
+  or `-a toc=left`. TOC output is unchanged. With `--fail-on-warnings`, this
+  warning gives exit status 1 and retains the output.
 - Manpage conversion keeps the effective `manpage` document type when
   `--doctype article` or `--doctype book` is supplied. Output is unchanged.
 

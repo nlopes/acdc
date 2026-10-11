@@ -517,6 +517,12 @@ impl<'a> ParserState<'a> {
                 return None;
             }
         };
+        if key == "toc2" && set {
+            self.add_warning(Warning::new(
+                WarningKind::DeprecatedToc2Attribute,
+                Some(self.create_error_source_location(location.clone())),
+            ));
+        }
         // A locked or invalid assignment must not warn about a value that was ignored.
         if let Some(message) = profile_warning {
             self.add_warning(Warning::new(
@@ -709,11 +715,15 @@ impl<'a> ParserState<'a> {
         ));
     }
 
-    /// Collect a typed warning. Deduplicates against previously collected
-    /// warnings (PEG backtracking can fire the same warning repeatedly).
+    /// Collect a typed warning. Identical warnings are deduplicated because PEG
+    /// backtracking can repeat them. Report deprecated `toc2` once per parse.
     pub(crate) fn add_warning(&self, warning: Warning) {
         let mut warnings = self.warnings.borrow_mut();
-        if !warnings.contains(&warning) {
+        let repeated_toc2 = matches!(warning.kind, WarningKind::DeprecatedToc2Attribute)
+            && warnings
+                .iter()
+                .any(|previous| matches!(previous.kind, WarningKind::DeprecatedToc2Attribute));
+        if !repeated_toc2 && !warnings.contains(&warning) {
             warnings.push(warning);
         }
     }

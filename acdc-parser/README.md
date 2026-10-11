@@ -527,6 +527,13 @@ not available to source substitution.
 
 ## Recoverable document warnings
 
+An accepted `toc2` setting produces one `WarningKind::DeprecatedToc2Attribute`
+warning per parse. Use `:toc: left` in the document or set `toc` to `left`
+through the API or CLI. TOC behavior is unchanged. The warning identifies the
+first setting, with a source location for document entries and no location for
+caller input. Unsets, ignored assignments, and the valid `toc2` CSS class do
+not warn. Asciidoctor accepts the deprecated alias without this warning.
+
 A section directly nested in a `[bibliography]` section remains in the AST and
 adds a located warning to `ParseResult::warnings()`. Parsing and conversion
 continue. Asciidoctor keeps the same content but reports the condition at error

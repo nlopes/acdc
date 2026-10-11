@@ -583,6 +583,9 @@ fn parse_input(
         state.source_ranges = source_ranges;
         state.included_files = included_files;
         state.warnings = warnings_for_state;
+        if state.document_attributes.contains_key("toc2") {
+            state.add_warning(Warning::new(WarningKind::DeprecatedToc2Attribute, None));
+        }
         let result = match grammar::document_parser::document(&owner.source, &mut state) {
             Ok(Ok(mut doc)) => {
                 // Rewrite every node's location from preprocessed coordinates to the

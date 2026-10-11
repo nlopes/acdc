@@ -974,6 +974,75 @@ fn selected_backend_attributes_are_available_during_parsing() -> Result<(), Box<
 
 #[cfg(feature = "html")]
 #[test]
+fn toc2_document_and_cli_settings_warn_once_and_keep_sidebar_output() -> Result<(), Box<dyn Error>>
+{
+    const INPUT: &str = "= T\n:toc2:\n:toc2:\n\n== Section\n\nBody.\n\n:toc2:\n\nMore.\n";
+    for attribute in [None, Some("toc2"), Some("toc2@")] {
+        let mut args = vec!["convert", "--stdin", "--out-file", "-"];
+        if let Some(attribute) = attribute {
+            args.extend(["-a", attribute]);
+        }
+        let output = run_acdc(&args, Some(INPUT))?;
+        let stderr = output_text(&output.stderr);
+        assert!(output.status.success(), "{stderr}");
+        assert_eq!(
+            stderr.matches("`toc2` is deprecated").count(),
+            1,
+            "{stderr}"
+        );
+        assert!(stderr.contains("-a toc=left"), "{stderr}");
+        assert!(output_text(&output.stdout).contains("class=\"article toc2 toc-left\""));
+    }
+    Ok(())
+}
+
+#[cfg(feature = "html")]
+#[test]
+fn toc2_warning_obeys_fail_on_warnings_and_retains_output() -> Result<(), Box<dyn Error>> {
+    let output = run_acdc(
+        &[
+            "convert",
+            "--stdin",
+            "--out-file",
+            "-",
+            "--fail-on-warnings",
+            "-a",
+            "toc2",
+        ],
+        Some("= T\n\n== Section\n\nBody.\n"),
+    )?;
+    let stderr = output_text(&output.stderr);
+    assert_eq!(output.status.code(), Some(1), "{stderr}");
+    assert_eq!(
+        stderr.matches("`toc2` is deprecated").count(),
+        1,
+        "{stderr}"
+    );
+    assert!(output_text(&output.stdout).contains("class=\"article toc2 toc-left\""));
+    Ok(())
+}
+
+#[cfg(feature = "html")]
+#[test]
+fn toc2_caller_unset_and_modern_toc_settings_do_not_warn() -> Result<(), Box<dyn Error>> {
+    for (attribute, input) in [
+        ("toc2!", "= T\n:toc2:\n\nBody.\n"),
+        ("toc=left", "= T\n\nBody.\n"),
+        ("toc-class=toc2", "= T\n:toc: left\n\nBody.\n"),
+    ] {
+        let output = run_acdc(
+            &["convert", "--stdin", "--out-file", "-", "-a", attribute],
+            Some(input),
+        )?;
+        let stderr = output_text(&output.stderr);
+        assert!(output.status.success(), "{stderr}");
+        assert!(!stderr.contains("`toc2` is deprecated"), "{stderr}");
+    }
+    Ok(())
+}
+
+#[cfg(feature = "html")]
+#[test]
 fn converts_multiple_files_with_a_timing_summary() -> Result<(), Box<dyn Error>> {
     let temp = tempdir()?;
     let first = temp.path().join("first.adoc");
