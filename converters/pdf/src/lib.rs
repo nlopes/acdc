@@ -642,8 +642,7 @@ impl Processor<'_> {
             self.options.safe_mode(),
             doc.attributes.get("allow-uri-read").is_some(),
         );
-        let mut config = ResolveConfig::new(base_dir, spool_dir);
-        config.source_policy = source_policy;
+        let config = ResolveConfig::new(base_dir, spool_dir).with_source_policy(source_policy);
         let url_refs: Vec<&str> = preparation.image_urls.iter().map(String::as_str).collect();
         let resolved = resolve(&url_refs, &config);
         self.report_image_failures(preparation, resolved.failures, diagnostics)?;
@@ -4088,8 +4087,7 @@ mod tests {
             .iter()
             .map(String::as_str)
             .collect::<Vec<_>>();
-        let mut config = ResolveConfig::new(root.path(), root.path().join("spool"));
-        config.max_sources = 1;
+        let config = ResolveConfig::new(root.path(), root.path().join("spool")).with_max_sources(1);
         let resolved = resolve(&urls, &config);
         assert!(resolved.assets.get("first.svg").is_some());
         assert!(resolved.assets.get("second.svg").is_none());

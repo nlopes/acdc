@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
 /// A resolved image, ready to embed: the on-disk file its bytes live in plus the
 /// stable virtual path both the emitter (which references it) and the renderer
@@ -17,7 +16,7 @@ pub struct ResolvedImage {
     /// and as the file-resolver key. Content-hashed, so identical images share
     /// a path.
     pub virtual_path: String,
-    /// The validated snapshot under `ResolveConfig::spool_dir`.
+    /// The validated snapshot in the caller-owned spool directory.
     pub path: PathBuf,
 }
 

@@ -17,13 +17,22 @@ The converter walks the document tree and hands this crate a list of image refer
 
 === Memory
 
-The map holds a *path* per image, never its bytes. Every validated source is copied into the caller-owned `ResolveConfig::spool_dir`, including local files, so changing a source after resolution cannot change what the renderer sees. The renderer (and, through it, Typst) reads each snapshot only when it lays the image out, so this crate never pins every image's bytes in memory at once — at most one image is held transiently while it is fetched, validated, hashed, and spooled. Typst becomes the sole holder of an image's bytes once it loads one.
+The map stores a *path* for each image. Every validated source is copied into
+the caller-owned spool directory, including local files. Changing a source
+after resolution cannot change the snapshot used by the renderer. This crate
+holds at most one image's bytes while it fetches, validates, hashes, and writes
+the image. The renderer and Typst load each snapshot when needed for layout.
 
 == What it does
 
 `resolve(urls, config)` processes each reference and returns a `Resolved { assets, failures }`. Repeated references to the same source string are resolved once:
 
-. **Fetch** the raw bytes by scheme (matched case-insensitively) — inline `data:`, remote `http(s)`, a `file://` URL, or a bare local path (relative paths resolve against `ResolveConfig::base_dir`). `SourcePolicy` can deny all sources or confine local paths to `base_dir`, including resolving symlinks before the containment check. The encoded size cap is enforced while reading, including after HTTP content decompression.
+. **Fetch** source bytes from `data:`, remote `http(s)`, `file://`, or a bare
+  local path. Scheme matching is case-insensitive. Relative paths resolve
+  against the configured `base_dir`. `SourcePolicy` can deny all sources or
+  confine local paths to `base_dir`. Confined paths are checked after resolving
+  symlinks. Reads enforce the encoded size cap, including after HTTP content
+  decompression.
 . **Detect and validate** the format from the bytes themselves (magic bytes, not the URL extension). Raster images are fully decoded with a 256 MiB allocation cap. SVGs are parsed with `usvg` without loading external file references; inline data images remain supported.
 . **Content-hash** the validated bytes into a stable `/images/<hash>.<ext>` virtual path and atomically persist a snapshot under `spool_dir` (identical bytes are written once). The `ResolvedImage` carries the resulting path, not the bytes.
 
@@ -56,8 +65,8 @@ missing first image still uses a slot. A byte limit of 10 MiB permits two
 5 MiB sources, including two URLs with identical content. A third source is
 not fetched.
 
-Limits restart on each call. Trusted callers can raise `max_sources` and
-`max_total_bytes` on `ResolveConfig` before calling `resolve`.
+Limits restart on each call. Trusted callers can raise them with
+`with_max_sources` and `with_max_total_bytes` before calling `resolve`.
 
 == The `network` feature
 
@@ -71,15 +80,39 @@ With the feature off, a remote reference resolves to a `NetworkDisabled` per-ima
 |===
 | `base_dir` | Directory relative image paths resolve against.
 | `spool_dir` | Private caller-owned directory where every validated image snapshot is written. The caller cleans it up after rendering.
-| `timeout` | Per-request timeout for remote fetches (has no effect without `network`).
-| `max_bytes` | Size cap enforced per image across *every* source; anything larger is a per-image failure. Default 20 MiB.
-| `max_sources` | Maximum distinct source strings attempted per call, including failures. Default 1,024.
-| `max_total_bytes` | Maximum accepted encoded image bytes per call. Different source strings each count, including matching content. Default 100 MiB.
-| `source_policy` | `Unrestricted`, `Confined { allow_network }`, or `DenyAll`. Confined local paths must remain beneath `base_dir` after canonicalisation.
+| `with_timeout` | Per-request timeout for remote fetches. Default 30 seconds. Has no effect without `network`.
+| `with_max_bytes` | Size cap enforced per image across *every* source; anything larger is a per-image failure. Default 20 MiB.
+| `with_max_sources` | Maximum distinct source strings attempted per call, including failures. Default 1,024.
+| `with_max_total_bytes` | Maximum accepted encoded image bytes per call. Different source strings each count, including matching content. Default 100 MiB.
+| `with_source_policy` | `Unrestricted` (default), `Confined { allow_network }`, or `DenyAll`. Confined local paths must remain beneath `base_dir` after canonicalisation.
 |===
 
 Construct the configuration with `ResolveConfig::new(base_dir, spool_dir)` so
-the spool location is always an explicit caller decision.
+both paths are explicit. Chain the `with_...` methods to set optional values.
+The fields are private. The caller owns the spool directory and removes it
+after rendering finishes.
+
+[source,rust]
+----
+use std::time::Duration;
+use acdc_pdf_images::{ResolveConfig, SourcePolicy};
+
+let unrestricted = ResolveConfig::new("project", "private-spool");
+
+let confined = ResolveConfig::new("project", "private-spool")
+    .with_source_policy(SourcePolicy::Confined { allow_network: false })
+    .with_timeout(Duration::from_secs(10))
+    .with_max_bytes(5 * 1024 * 1024)
+    .with_max_sources(100)
+    .with_max_total_bytes(25 * 1024 * 1024);
+
+let disabled = ResolveConfig::new("project", "private-spool")
+    .with_source_policy(SourcePolicy::DenyAll);
+----
+
+To migrate field assignments, replace `config.max_sources = 100` with
+`config = config.with_max_sources(100)`, or set the value in the constructor
+chain. Keep the directory paths in the caller if they are needed later.
 
 == Testing
 

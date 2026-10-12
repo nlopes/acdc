@@ -17,10 +17,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Breaking:** `ResolveConfig` fields are private. Keep both directory
+  arguments in `ResolveConfig::new` and set optional values with
+  `with_timeout`, `with_max_bytes`, `with_max_sources`, `with_max_total_bytes`,
+  and `with_source_policy`. Defaults and image resolution behavior are unchanged.
+
 - Image resolution now limits each call to 1,024 distinct source attempts and
-  100 MiB of accepted image data by default. Raise `max_sources` or
-  `max_total_bytes` for trusted inputs. Failed attempts use source slots;
-  different source strings each use bytes even when their content matches.
+  100 MiB of accepted image data by default. Use `with_max_sources` or
+  `with_max_total_bytes` to raise the limits for trusted inputs. Failed attempts
+  use source slots; different source strings each use bytes even when their
+  content matches.
   Later images are not fetched after a quota is reached or would be exceeded.
   Earlier images remain available. These limits are specific to acdc.
 

@@ -29,7 +29,7 @@ pub use map::{ImageMap, ResolvedImage};
 pub enum SourcePolicy {
     /// Allow local files, `data:` URIs, and remote URLs.
     Unrestricted,
-    /// Restrict local files to [`ResolveConfig::base_dir`] and optionally allow
+    /// Restrict local files to the configured base directory and optionally allow
     /// remote URLs. `data:` URIs remain available.
     Confined { allow_network: bool },
     /// Reject every image source.
@@ -37,33 +37,43 @@ pub enum SourcePolicy {
 }
 
 /// Options controlling image resolution.
+///
+/// Both directories are required by [`Self::new`]. Use the `with_...` methods
+/// to set optional limits and source access. The caller owns the spool directory
+/// and must keep it until rendering finishes, then clean it up.
+///
+/// # Examples
+///
+/// ```
+/// use std::time::Duration;
+/// use acdc_pdf_images::{ResolveConfig, SourcePolicy};
+///
+/// let unrestricted = ResolveConfig::new("project", "private-spool");
+///
+/// let confined = ResolveConfig::new("project", "private-spool")
+///     .with_source_policy(SourcePolicy::Confined { allow_network: false })
+///     .with_timeout(Duration::from_secs(10))
+///     .with_max_bytes(5 * 1024 * 1024)
+///     .with_max_sources(100)
+///     .with_max_total_bytes(25 * 1024 * 1024);
+///
+/// let disabled = ResolveConfig::new("project", "private-spool")
+///     .with_source_policy(SourcePolicy::DenyAll);
+/// ```
 #[derive(Debug)]
 pub struct ResolveConfig {
-    /// Directory relative image paths are resolved against.
-    pub base_dir: PathBuf,
-    /// Directory that validated image snapshots are spooled into. The caller
-    /// owns this directory and is responsible for cleaning it up once rendering
-    /// is done.
-    pub spool_dir: PathBuf,
-    /// Per-request timeout for remote fetches.
-    pub timeout: Duration,
-    /// Maximum bytes accepted for a single image, from any source (local file,
-    /// remote response, or `data:` URI). Anything larger is a per-image failure.
-    pub max_bytes: u64,
-    /// Maximum distinct source strings attempted in one [`resolve`] call.
-    /// Failed attempts count. Repeated strings count once. Defaults to 1,024.
-    pub max_sources: usize,
-    /// Maximum accepted encoded image bytes in one [`resolve`] call.
-    /// Different source strings each count, even if their bytes match.
-    /// Failed images do not count. Defaults to 100 MiB.
-    pub max_total_bytes: u64,
-    /// Sources the resolver may access.
-    pub source_policy: SourcePolicy,
+    base_dir: PathBuf,
+    spool_dir: PathBuf,
+    timeout: Duration,
+    max_bytes: u64,
+    max_sources: usize,
+    max_total_bytes: u64,
+    source_policy: SourcePolicy,
 }
 
 impl ResolveConfig {
-    /// Create a resolver configuration with an explicit base and private spool
-    /// directory.
+    /// Create a configuration that resolves relative image paths against
+    /// `base_dir` and writes validated snapshots into `spool_dir`.
     #[must_use]
     pub fn new(base_dir: impl Into<PathBuf>, spool_dir: impl Into<PathBuf>) -> Self {
         ResolveConfig {
@@ -75,6 +85,49 @@ impl ResolveConfig {
             max_total_bytes: 100 * 1024 * 1024,
             source_policy: SourcePolicy::Unrestricted,
         }
+    }
+
+    /// Set the per-request timeout for remote fetches. Defaults to 30 seconds.
+    /// This setting has no effect without the `network` feature.
+    #[must_use]
+    pub fn with_timeout(mut self, timeout: Duration) -> Self {
+        self.timeout = timeout;
+        self
+    }
+
+    /// Set the maximum encoded bytes accepted for one image, from any source.
+    /// Larger images fail individually. Defaults to 20 MiB.
+    #[must_use]
+    pub fn with_max_bytes(mut self, max_bytes: u64) -> Self {
+        self.max_bytes = max_bytes;
+        self
+    }
+
+    /// Set the maximum distinct source strings attempted in one [`resolve`] call.
+    /// Failed attempts count. Repeated strings count once. Defaults to 1,024.
+    /// A zero limit prevents all fetches.
+    #[must_use]
+    pub fn with_max_sources(mut self, max_sources: usize) -> Self {
+        self.max_sources = max_sources;
+        self
+    }
+
+    /// Set the maximum accepted encoded image bytes in one [`resolve`] call.
+    /// Different source strings each count, even if their bytes match.
+    /// Failed images do not count. Defaults to 100 MiB.
+    /// A zero limit prevents all fetches.
+    #[must_use]
+    pub fn with_max_total_bytes(mut self, max_total_bytes: u64) -> Self {
+        self.max_total_bytes = max_total_bytes;
+        self
+    }
+
+    /// Set which image sources the resolver may access.
+    /// Defaults to [`SourcePolicy::Unrestricted`].
+    #[must_use]
+    pub fn with_source_policy(mut self, source_policy: SourcePolicy) -> Self {
+        self.source_policy = source_policy;
+        self
     }
 }
 
@@ -226,10 +279,11 @@ mod tests {
         let base = tempfile::tempdir()?;
         std::fs::write(base.path().join("pic.png"), png_bytes()?)?;
         let spool = spool()?;
-        let mut config = ResolveConfig::new(base.path(), spool.path());
-        config.source_policy = SourcePolicy::Confined {
-            allow_network: false,
-        };
+        let config = ResolveConfig::new(base.path(), spool.path()).with_source_policy(
+            SourcePolicy::Confined {
+                allow_network: false,
+            },
+        );
         let resolved = resolve(&["pic.png"], &config);
         assert!(resolved.failures.is_empty(), "{:?}", resolved.failures);
         assert!(resolved.assets.get("pic.png").is_some());
@@ -294,8 +348,7 @@ mod tests {
         let base = tempfile::tempdir()?;
         std::fs::write(base.path().join("big.png"), png_bytes()?)?;
         let spool = spool()?;
-        let mut config = ResolveConfig::new(base.path(), spool.path());
-        config.max_bytes = 4;
+        let config = ResolveConfig::new(base.path(), spool.path()).with_max_bytes(4);
         let resolved = resolve(&["big.png"], &config);
         assert_eq!(resolved.failures.len(), 1);
         assert!(assets_are_empty(&resolved.assets));
@@ -399,8 +452,7 @@ mod tests {
     fn deny_all_policy_rejects_data_uris() -> Result<(), Box<dyn std::error::Error>> {
         let url = format!("data:image/png;base64,{PNG_1X1_B64}");
         let spool = spool()?;
-        let mut config = spooled_config(&spool);
-        config.source_policy = SourcePolicy::DenyAll;
+        let config = spooled_config(&spool).with_source_policy(SourcePolicy::DenyAll);
         let resolved = resolve(&[url.as_str()], &config);
 
         assert!(
@@ -421,10 +473,11 @@ mod tests {
         let outside_url = url::Url::from_file_path(&outside_image)
             .map_err(|()| std::io::Error::other("could not build file URL"))?;
         let spool = spool()?;
-        let mut config = ResolveConfig::new(base.path(), spool.path());
-        config.source_policy = SourcePolicy::Confined {
-            allow_network: true,
-        };
+        let config = ResolveConfig::new(base.path(), spool.path()).with_source_policy(
+            SourcePolicy::Confined {
+                allow_network: true,
+            },
+        );
         let resolved = resolve(&[outside_url.as_str()], &config);
 
         assert!(
@@ -445,10 +498,11 @@ mod tests {
         std::fs::write(&outside_image, png_bytes()?)?;
         std::os::unix::fs::symlink(&outside_image, base.path().join("link.png"))?;
         let spool = spool()?;
-        let mut config = ResolveConfig::new(base.path(), spool.path());
-        config.source_policy = SourcePolicy::Confined {
-            allow_network: true,
-        };
+        let config = ResolveConfig::new(base.path(), spool.path()).with_source_policy(
+            SourcePolicy::Confined {
+                allow_network: true,
+            },
+        );
         let resolved = resolve(&["link.png"], &config);
 
         assert!(
@@ -463,10 +517,9 @@ mod tests {
     #[test]
     fn confined_policy_can_disable_network() -> Result<(), Box<dyn std::error::Error>> {
         let spool = spool()?;
-        let mut config = spooled_config(&spool);
-        config.source_policy = SourcePolicy::Confined {
+        let config = spooled_config(&spool).with_source_policy(SourcePolicy::Confined {
             allow_network: false,
-        };
+        });
         let resolved = resolve(&["https://example.com/pic.png"], &config);
 
         assert!(
@@ -483,8 +536,7 @@ mod tests {
         // The oversized payload is rejected from its length before it is decoded.
         let url = format!("data:image/png;base64,{PNG_1X1_B64}");
         let spool = spool()?;
-        let mut config = spooled_config(&spool);
-        config.max_bytes = 4;
+        let config = spooled_config(&spool).with_max_bytes(4);
         let resolved = resolve(&[url.as_str()], &config);
         assert_eq!(resolved.failures.len(), 1, "{:?}", resolved.failures);
         assert!(
@@ -562,8 +614,7 @@ mod tests {
             .create();
         let url = format!("{}/big.png", server.url());
         let spool = spool()?;
-        let mut config = spooled_config(&spool);
-        config.max_bytes = 4;
+        let config = spooled_config(&spool).with_max_bytes(4);
 
         let resolved = resolve(&[url.as_str()], &config);
         assert_eq!(resolved.failures.len(), 1, "{:?}", resolved.failures);
@@ -600,8 +651,7 @@ mod tests {
             .create();
         let url = format!("{}/large.svg", server.url());
         let spool = spool()?;
-        let mut config = spooled_config(&spool);
-        config.max_bytes = 100;
+        let config = spooled_config(&spool).with_max_bytes(100);
         let resolved = resolve(&[url.as_str()], &config);
 
         assert!(
@@ -611,8 +661,9 @@ mod tests {
                 .is_some_and(|failure| { matches!(failure.error, Error::TooLarge { .. }) })
         );
 
-        config.max_bytes = 20 * 1024 * 1024;
-        config.max_total_bytes = 100;
+        let config = config
+            .with_max_bytes(20 * 1024 * 1024)
+            .with_max_total_bytes(100);
         let data = format!("data:image/png;base64,{PNG_1X1_B64}");
         let resolved = resolve(&[&data, url.as_str()], &config);
         assert!(resolved.assets.get(&data).is_some());

@@ -17,8 +17,7 @@ fn source_limit_accepts_exact_count_and_counts_repeated_strings_once()
     fs::write(root.path().join("one.svg"), SVG)?;
     fs::write(root.path().join("two.svg"), SVG)?;
     fs::write(root.path().join("three.svg"), SVG)?;
-    let mut config = config(&root);
-    config.max_sources = 2;
+    let config = config(&root).with_max_sources(2);
 
     let resolved = resolve(
         &["one.svg", "one.svg", "two.svg", "three.svg", "three.svg"],
@@ -39,8 +38,7 @@ fn source_limit_accepts_exact_count_and_counts_repeated_strings_once()
 fn failed_sources_count_toward_source_limit() -> Result<(), Box<dyn StdError>> {
     let root = tempfile::tempdir()?;
     fs::write(root.path().join("invalid.svg"), "not an image")?;
-    let mut config = config(&root);
-    config.max_sources = 2;
+    let config = config(&root).with_max_sources(2);
     let data = format!("data:image/svg+xml,{SVG}");
 
     let resolved = resolve(
@@ -68,14 +66,14 @@ fn failed_sources_count_toward_source_limit() -> Result<(), Box<dyn StdError>> {
             .last()
             .is_some_and(|failure| matches!(failure.error, Error::SourceLimit { limit: 2 }))
     );
-    assert!(!config.spool_dir.exists());
+    assert!(!root.path().join("spool").exists());
     Ok(())
 }
 
 #[test]
 fn zero_quotas_reject_sources_without_creating_snapshots() -> Result<(), Box<dyn StdError>> {
     let root = tempfile::tempdir()?;
-    let mut config = config(&root);
+    let config = config(&root).with_max_sources(0);
     let data = format!("data:image/svg+xml,{SVG}");
     let urls = [
         "missing.svg",
@@ -83,7 +81,6 @@ fn zero_quotas_reject_sources_without_creating_snapshots() -> Result<(), Box<dyn
         "https://example.invalid/image.svg",
     ];
 
-    config.max_sources = 0;
     let resolved = resolve(&urls, &config);
     assert_eq!(resolved.failures.len(), 3);
     assert!(
@@ -93,8 +90,7 @@ fn zero_quotas_reject_sources_without_creating_snapshots() -> Result<(), Box<dyn
             .all(|failure| matches!(failure.error, Error::SourceLimit { limit: 0 }))
     );
 
-    config.max_sources = 3;
-    config.max_total_bytes = 0;
+    let config = config.with_max_sources(3).with_max_total_bytes(0);
     let resolved = resolve(&urls, &config);
     assert_eq!(resolved.failures.len(), 3);
     assert!(
@@ -103,7 +99,7 @@ fn zero_quotas_reject_sources_without_creating_snapshots() -> Result<(), Box<dyn
             .iter()
             .all(|failure| matches!(failure.error, Error::TotalBytesLimit { limit: 0 }))
     );
-    assert!(!config.spool_dir.exists());
+    assert!(!root.path().join("spool").exists());
     Ok(())
 }
 
@@ -118,9 +114,9 @@ fn byte_limit_accepts_exact_total_across_files_and_padded_base64() -> Result<(),
     fs::write(&file, &bytes)?;
     let file_url = url::Url::from_file_path(&file).map_err(|()| "could not make file URL")?;
     let data = format!("data:image/png;base64, {PNG_B64}\n");
-    let mut config = config(&root);
-    config.max_bytes = bytes.len() as u64;
-    config.max_total_bytes = 2 * bytes.len() as u64;
+    let config = config(&root)
+        .with_max_bytes(bytes.len() as u64)
+        .with_max_total_bytes(2 * bytes.len() as u64);
 
     let resolved = resolve(&[file_url.as_str(), &data, &data, "missing.svg"], &config);
 
@@ -130,7 +126,7 @@ fn byte_limit_accepts_exact_total_across_files_and_padded_base64() -> Result<(),
         .ok_or("file image missing")?;
     let second = resolved.assets.get(&data).ok_or("data image missing")?;
     assert_eq!(first.path, second.path);
-    assert_eq!(fs::read_dir(&config.spool_dir)?.count(), 1);
+    assert_eq!(fs::read_dir(root.path().join("spool"))?.count(), 1);
     assert_eq!(resolved.failures.len(), 1);
     assert!(
         resolved
@@ -150,8 +146,7 @@ fn byte_overflow_stops_later_sources_even_if_they_would_fit() -> Result<(), Box<
         SVG.replace("width=\"1\"", "width=\"2\""),
     )?;
     let small = format!("data:image/svg+xml,{SMALL_SVG}");
-    let mut config = config(&root);
-    config.max_total_bytes = 2 * SVG.len() as u64 - 1;
+    let config = config(&root).with_max_total_bytes(2 * SVG.len() as u64 - 1);
     assert!(SMALL_SVG.len() < SVG.len() - 1);
 
     let resolved = resolve(&["one.svg", "two.svg", &small], &config);
@@ -165,7 +160,7 @@ fn byte_overflow_stops_later_sources_even_if_they_would_fit() -> Result<(), Box<
             .iter()
             .all(|failure| matches!(failure.error, Error::TotalBytesLimit { .. }))
     );
-    assert_eq!(fs::read_dir(&config.spool_dir)?.count(), 1);
+    assert_eq!(fs::read_dir(root.path().join("spool"))?.count(), 1);
     Ok(())
 }
 
@@ -174,8 +169,7 @@ fn identical_content_at_different_sources_consumes_bytes_again() -> Result<(), B
     let root = tempfile::tempdir()?;
     let first = format!("data:image/svg+xml,{SVG}");
     let second = format!("DATA:image/svg+xml,{SVG}");
-    let mut config = config(&root);
-    config.max_total_bytes = 2 * SVG.len() as u64 - 1;
+    let config = config(&root).with_max_total_bytes(2 * SVG.len() as u64 - 1);
 
     let resolved = resolve(&[&first, &second], &config);
 
@@ -187,7 +181,7 @@ fn identical_content_at_different_sources_consumes_bytes_again() -> Result<(), B
             .first()
             .is_some_and(|failure| matches!(failure.error, Error::TotalBytesLimit { .. }))
     );
-    assert_eq!(fs::read_dir(&config.spool_dir)?.count(), 1);
+    assert_eq!(fs::read_dir(root.path().join("spool"))?.count(), 1);
     Ok(())
 }
 
@@ -196,14 +190,13 @@ fn percent_encoded_data_accepts_exact_bytes_and_rejects_one_less() -> Result<(),
 {
     let root = tempfile::tempdir()?;
     let data = format!("data:image/svg+xml,{}", SVG.replace('<', "%3C"));
-    let mut config = config(&root);
-    config.max_total_bytes = SVG.len() as u64;
+    let config = config(&root).with_max_total_bytes(SVG.len() as u64);
 
     let resolved = resolve(&[&data], &config);
     assert!(resolved.failures.is_empty(), "{:?}", resolved.failures);
     assert!(resolved.assets.get(&data).is_some());
 
-    config.max_total_bytes -= 1;
+    let config = config.with_max_total_bytes(SVG.len() as u64 - 1);
     let resolved = resolve(&[&data], &config);
     assert_eq!(resolved.assets.images().count(), 0);
     assert!(
@@ -222,9 +215,9 @@ fn invalid_and_oversized_images_do_not_spend_accepted_byte_allowance()
     let invalid = "data:image/svg+xml,not an image";
     let large = format!("data:image/svg+xml,{SVG}{}", " ".repeat(100));
     let valid = format!("data:image/svg+xml,{SVG}");
-    let mut config = config(&root);
-    config.max_bytes = SVG.len() as u64;
-    config.max_total_bytes = SVG.len() as u64;
+    let config = config(&root)
+        .with_max_bytes(SVG.len() as u64)
+        .with_max_total_bytes(SVG.len() as u64);
 
     let resolved = resolve(&[invalid, &large, &valid], &config);
 
@@ -251,15 +244,15 @@ fn quotas_restart_each_call_and_existing_snapshots_do_not_bypass_them()
     let root = tempfile::tempdir()?;
     fs::write(root.path().join("one.svg"), SVG)?;
     fs::write(root.path().join("two.svg"), SVG)?;
-    let mut config = config(&root);
-    config.max_sources = 1;
-    config.max_total_bytes = SVG.len() as u64;
+    let config = config(&root)
+        .with_max_sources(1)
+        .with_max_total_bytes(SVG.len() as u64);
 
     for _ in 0..2 {
         let resolved = resolve(&["one.svg"], &config);
         assert!(resolved.failures.is_empty(), "{:?}", resolved.failures);
     }
-    config.max_sources = 2;
+    let config = config.with_max_sources(2);
     let resolved = resolve(&["one.svg", "two.svg"], &config);
     assert!(resolved.assets.get("one.svg").is_some());
     assert!(resolved.assets.get("two.svg").is_none());
@@ -275,9 +268,9 @@ fn quotas_restart_each_call_and_existing_snapshots_do_not_bypass_them()
 #[test]
 fn source_policy_denials_count_as_attempts() -> Result<(), Box<dyn StdError>> {
     let root = tempfile::tempdir()?;
-    let mut config = config(&root);
-    config.source_policy = SourcePolicy::DenyAll;
-    config.max_sources = 1;
+    let config = config(&root)
+        .with_source_policy(SourcePolicy::DenyAll)
+        .with_max_sources(1);
     let data = format!("data:image/svg+xml,{SVG}");
 
     let resolved = resolve(&["one.svg", &data], &config);
@@ -294,7 +287,7 @@ fn source_policy_denials_count_as_attempts() -> Result<(), Box<dyn StdError>> {
             .last()
             .is_some_and(|failure| matches!(failure.error, Error::SourceLimit { limit: 1 }))
     );
-    assert!(!config.spool_dir.exists());
+    assert!(!root.path().join("spool").exists());
     Ok(())
 }
 
@@ -317,8 +310,7 @@ fn remote_failure_spends_source_allowance_and_later_urls_are_not_fetched()
     let first = format!("{}/missing.svg", server.url());
     let second = format!("{}/skipped.svg", server.url());
     let root = tempfile::tempdir()?;
-    let mut config = config(&root);
-    config.max_sources = 1;
+    let config = config(&root).with_max_sources(1);
 
     let resolved = resolve(&[&first, &first, &second], &config);
 
@@ -365,8 +357,7 @@ fn remote_byte_overflow_stops_requests_after_partial_success() -> Result<(), Box
     let second = format!("{}/overflow.svg", server.url());
     let third = format!("{}/skipped.svg", server.url());
     let root = tempfile::tempdir()?;
-    let mut config = config(&root);
-    config.max_total_bytes = 2 * SVG.len() as u64 - 1;
+    let config = config(&root).with_max_total_bytes(2 * SVG.len() as u64 - 1);
 
     let resolved = resolve(&[&first, &second, &third], &config);
 
@@ -382,7 +373,7 @@ fn remote_byte_overflow_stops_requests_after_partial_success() -> Result<(), Box
             .iter()
             .all(|failure| matches!(failure.error, Error::TotalBytesLimit { .. }))
     );
-    assert_eq!(fs::read_dir(&config.spool_dir)?.count(), 1);
+    assert_eq!(fs::read_dir(root.path().join("spool"))?.count(), 1);
     Ok(())
 }
 
@@ -406,8 +397,7 @@ fn remote_image_at_exact_byte_limit_succeeds_without_fetching_next_url()
     let first = format!("{}/first.svg", server.url());
     let second = format!("{}/skipped.svg", server.url());
     let root = tempfile::tempdir()?;
-    let mut config = config(&root);
-    config.max_total_bytes = SVG.len() as u64;
+    let config = config(&root).with_max_total_bytes(SVG.len() as u64);
 
     let resolved = resolve(&[&first, &second], &config);
 
