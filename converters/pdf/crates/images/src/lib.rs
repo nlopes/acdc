@@ -4,9 +4,9 @@
 //!
 //! The resolved bytes are **not** retained: every source is spooled to the
 //! caller-owned directory after validation. The renderer reads each snapshot on
-//! demand, so a document with many large images never pins them all in memory
-//! here — at most one image is held transiently while it is fetched, validated,
-//! hashed, and written.
+//! demand. Sequential resolution holds one image at a time. Parallel remote
+//! fetching holds one capped encoded response per worker in the batch;
+//! validation and snapshot writing remain sequential.
 //!
 //! This crate is IR-agnostic: it takes a slice of URL strings and returns a
 //! map. The tree walk that collects those URLs lives in the consuming converter.
@@ -48,7 +48,8 @@ pub enum SourcePolicy {
 /// use std::time::Duration;
 /// use acdc_pdf_images::{ResolveConfig, SourcePolicy};
 ///
-/// let unrestricted = ResolveConfig::new("project", "private-spool");
+/// let unrestricted = ResolveConfig::new("project", "private-spool")
+///     .with_remote_concurrency(4);
 ///
 /// let confined = ResolveConfig::new("project", "private-spool")
 ///     .with_source_policy(SourcePolicy::Confined { allow_network: false })
@@ -69,6 +70,7 @@ pub struct ResolveConfig {
     max_sources: usize,
     max_total_bytes: u64,
     source_policy: SourcePolicy,
+    remote_concurrency: usize,
 }
 
 impl ResolveConfig {
@@ -84,10 +86,13 @@ impl ResolveConfig {
             max_sources: 1024,
             max_total_bytes: 100 * 1024 * 1024,
             source_policy: SourcePolicy::Unrestricted,
+            remote_concurrency: 2,
         }
     }
 
-    /// Set the per-request timeout for remote fetches. Defaults to 30 seconds.
+    /// Set the per-request HTTP deadline, from DNS lookup through the response
+    /// body. Defaults to 30 seconds. Image validation and the complete document
+    /// have no deadline from this setting.
     /// This setting has no effect without the `network` feature.
     #[must_use]
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
@@ -129,6 +134,17 @@ impl ResolveConfig {
         self.source_policy = source_policy;
         self
     }
+
+    /// Set the maximum simultaneous remote image fetches. Defaults to two.
+    /// Zero or one selects sequential fetching. Local files and data URIs remain
+    /// sequential. Source and byte quotas can reduce the batch size.
+    /// Each batch waits for all its requests to finish or time out.
+    /// This setting has no effect without the `network` feature.
+    #[must_use]
+    pub fn with_remote_concurrency(mut self, count: usize) -> Self {
+        self.remote_concurrency = count.max(1);
+        self
+    }
 }
 
 /// A single image reference that could not be resolved.
@@ -156,15 +172,22 @@ pub struct Resolved {
 /// would exceed the remaining byte allowance, later sources fail without being
 /// fetched. Images already resolved remain available. Different source strings
 /// count separately toward both quotas, even when they share a snapshot.
+///
+/// Remote fetching can overlap when [`ResolveConfig::with_remote_concurrency`]
+/// permits it. Consecutive remote sources form bounded batches. Validation,
+/// snapshot writes, and failure reporting retain source-input order.
 #[must_use]
 pub fn resolve(urls: &[&str], config: &ResolveConfig) -> Resolved {
     let fetcher = fetch::Fetcher::new(config);
-    let mut assets = ImageMap::new();
-    let mut failures = Vec::new();
+    let mut resolved = Resolved {
+        assets: ImageMap::new(),
+        failures: Vec::new(),
+    };
     let mut seen: HashSet<&str> = HashSet::new();
     let mut accepted_bytes = 0;
     let mut bytes_exhausted = false;
-    for &url in urls {
+    let mut urls = urls.iter().copied().peekable();
+    while let Some(url) = urls.next() {
         if !seen.insert(url) {
             continue;
         }
@@ -177,6 +200,36 @@ pub fn resolve(urls: &[&str], config: &ResolveConfig) -> Resolved {
                 limit: config.max_total_bytes,
             })
         } else {
+            #[cfg(feature = "network")]
+            {
+                let remaining_bytes = config.max_total_bytes - accepted_bytes;
+                let limit = remote_batch_limit(config, remaining_bytes, seen.len());
+                if limit > 1 && fetch::is_remote(url) {
+                    let mut batch = vec![url];
+                    while batch.len() < limit {
+                        let Some(&next) = urls.peek().filter(|next| fetch::is_remote(next)) else {
+                            break;
+                        };
+                        urls.next();
+                        if seen.insert(next) {
+                            batch.push(next);
+                        }
+                    }
+                    let responses = fetcher.fetch_parallel(&batch, config.max_bytes);
+                    for (url, raw) in batch.into_iter().zip(responses) {
+                        let result =
+                            finish_image(raw, config, config.max_total_bytes - accepted_bytes);
+                        record_image(
+                            url,
+                            result,
+                            &mut resolved,
+                            &mut accepted_bytes,
+                            &mut bytes_exhausted,
+                        );
+                    }
+                    continue;
+                }
+            }
             resolve_one(
                 &fetcher,
                 url,
@@ -184,21 +237,60 @@ pub fn resolve(urls: &[&str], config: &ResolveConfig) -> Resolved {
                 config.max_total_bytes - accepted_bytes,
             )
         };
-        match result {
-            Ok((image, size)) => {
-                accepted_bytes += size;
-                assets.insert(url.to_string(), image);
-            }
-            Err(error) => {
-                bytes_exhausted |= matches!(error, Error::TotalBytesLimit { .. });
-                failures.push(ResolveFailure {
-                    url: url.to_string(),
-                    error,
-                });
-            }
+        record_image(
+            url,
+            result,
+            &mut resolved,
+            &mut accepted_bytes,
+            &mut bytes_exhausted,
+        );
+    }
+    resolved
+}
+
+#[cfg(feature = "network")]
+fn remote_batch_limit(config: &ResolveConfig, remaining_bytes: u64, seen: usize) -> usize {
+    if config.max_bytes == 0
+        || !matches!(
+            config.source_policy,
+            SourcePolicy::Unrestricted
+                | SourcePolicy::Confined {
+                    allow_network: true
+                }
+        )
+    {
+        return 1;
+    }
+    // Reserve the full per-image cap for each request before starting a batch.
+    // Its responses must fit the remaining document allowance, even if every
+    // image is accepted. A smaller allowance therefore stays sequential and
+    // can stop before fetching any later source.
+    config
+        .remote_concurrency
+        .min(usize::try_from(remaining_bytes / config.max_bytes).unwrap_or(usize::MAX))
+        .min(config.max_sources.saturating_sub(seen).saturating_add(1))
+}
+
+fn record_image(
+    url: &str,
+    result: Result<(ResolvedImage, u64), Error>,
+    resolved: &mut Resolved,
+    accepted_bytes: &mut u64,
+    bytes_exhausted: &mut bool,
+) {
+    match result {
+        Ok((image, size)) => {
+            *accepted_bytes += size;
+            resolved.assets.insert(url.to_string(), image);
+        }
+        Err(error) => {
+            *bytes_exhausted |= matches!(error, Error::TotalBytesLimit { .. });
+            resolved.failures.push(ResolveFailure {
+                url: url.to_string(),
+                error,
+            });
         }
     }
-    Resolved { assets, failures }
 }
 
 fn resolve_one(
@@ -207,17 +299,27 @@ fn resolve_one(
     config: &ResolveConfig,
     remaining_bytes: u64,
 ) -> Result<(ResolvedImage, u64), Error> {
-    let raw = fetcher
-        .fetch(url, config.max_bytes.min(remaining_bytes))
-        .map_err(|error| {
-            if remaining_bytes < config.max_bytes && matches!(error, Error::TooLarge { .. }) {
-                Error::TotalBytesLimit {
-                    limit: config.max_total_bytes,
-                }
-            } else {
-                error
+    finish_image(
+        fetcher.fetch(url, config.max_bytes.min(remaining_bytes)),
+        config,
+        remaining_bytes,
+    )
+}
+
+fn finish_image(
+    raw: Result<Vec<u8>, Error>,
+    config: &ResolveConfig,
+    remaining_bytes: u64,
+) -> Result<(ResolvedImage, u64), Error> {
+    let raw = raw.map_err(|error| {
+        if remaining_bytes < config.max_bytes && matches!(error, Error::TooLarge { .. }) {
+            Error::TotalBytesLimit {
+                limit: config.max_total_bytes,
             }
-        })?;
+        } else {
+            error
+        }
+    })?;
     let detected = detect::detect(&raw)?;
     let name = path::content_name(&raw, detected.extension);
     let virtual_path = path::virtual_path(&name);
@@ -678,7 +780,8 @@ mod tests {
     #[test]
     fn remote_url_without_network_feature_is_a_failure() -> Result<(), Box<dyn std::error::Error>> {
         let spool = spool()?;
-        let resolved = resolve(&["https://example.com/pic.png"], &spooled_config(&spool));
+        let config = spooled_config(&spool).with_remote_concurrency(4);
+        let resolved = resolve(&["https://example.com/pic.png"], &config);
         assert_eq!(resolved.failures.len(), 1);
         assert!(assets_are_empty(&resolved.assets));
         Ok(())

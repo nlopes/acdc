@@ -7,7 +7,7 @@ const SMALL_SVG: &str = r#"<svg xmlns="http://www.w3.org/2000/svg"/>"#;
 const PNG_B64: &str = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQMAAAAl21bKAAAAA1BMVEXyVTNpJlJjAAAACklEQVQI12NgAAAAAgAB4iG8MwAAAABJRU5ErkJggg==";
 
 fn config(root: &tempfile::TempDir) -> ResolveConfig {
-    ResolveConfig::new(root.path(), root.path().join("spool"))
+    ResolveConfig::new(root.path(), root.path().join("spool")).with_remote_concurrency(4)
 }
 
 #[test]

@@ -101,6 +101,11 @@ const UNBREAKABLE_HELPER: &str = r"#let _acdc_unbreakable(body) = layout(size =>
 pub struct PdfOptions {
     /// Explicitly trusted directories to search for sfnt fonts (`ttf`, `otf`, `ttc`, `otc`).
     pub font_dirs: Vec<PathBuf>,
+    /// Override the maximum simultaneous remote document-image fetches.
+    /// `None` uses the resolver default of two. `Some(1)` selects sequential
+    /// fetching, as does `Some(0)`. Source and byte quotas can reduce the batch size.
+    /// This setting has no effect without the `network` feature.
+    pub remote_image_concurrency: Option<usize>,
     /// Optional header logo. Resolved relative to the current working directory.
     pub logo: Option<PathBuf>,
     /// Optional page-header title. Defaults to the document title when absent.
@@ -643,6 +648,11 @@ impl Processor<'_> {
             doc.attributes.get("allow-uri-read").is_some(),
         );
         let config = ResolveConfig::new(base_dir, spool_dir).with_source_policy(source_policy);
+        let config = if let Some(count) = self.pdf_options.remote_image_concurrency {
+            config.with_remote_concurrency(count)
+        } else {
+            config
+        };
         let url_refs: Vec<&str> = preparation.image_urls.iter().map(String::as_str).collect();
         let resolved = resolve(&url_refs, &config);
         self.report_image_failures(preparation, resolved.failures, diagnostics)?;

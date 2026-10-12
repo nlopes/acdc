@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Remote image timeouts during response-body reads now return `Timeout`,
+  matching timeouts before the response headers arrive. Other images still
+  resolve after a timeout.
+
 - Padded base64 image data is accepted when its decoded file size is exactly
   the configured byte limit, including payloads with whitespace.
 
@@ -34,6 +38,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   component of `acdc-converters-pdf`; its Cargo package name remains unchanged.
 
 ### Added
+
+- Remote images use up to two simultaneous requests by default.
+  `with_remote_concurrency(1)` selects sequential fetching; larger values
+  permit more requests. Source and byte quotas can reduce the batch size.
+  Local sources, validation, and snapshot writes
+  remain sequential, and failures keep input order.
 
 - Initial release for a PDF image resolver for local, remote, `file://`, and `data:` URI
   images (scheme matching is case-insensitive). Each validated image is snapshotted into an

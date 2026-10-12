@@ -187,6 +187,10 @@ The `pdf-page-size` document attribute also accepts custom dimensions, and
 `--theme` selects a YAML theme, `--plain` removes page chrome, and `--emit-typst` writes the generated Typst markup for one input.
 `--strict` makes unresolved PDF images or logos fatal.
 Remote PDF assets additionally require the `network` feature and remain subject to the PDF converter's asset safety policy.
+Remote document images use up to two simultaneous requests by default.
+Use `--image-concurrency 1` for sequential fetching, or `--image-concurrency 4`
+to permit four requests. Source and byte quotas can reduce the batch size.
+Local images remain sequential, and warning order stays the same.
 
 ==== Terminal and HTML terminal previews
 

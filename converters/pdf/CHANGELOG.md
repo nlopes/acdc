@@ -7,7 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Remote images that time out during a response-body read now produce a
+  timeout warning. Other images still render. `--strict` keeps treating
+  image failures as errors.
+
+### Added
+
+- `--image-concurrency` and `PdfOptions::remote_image_concurrency` enable
+  bounded parallel fetching for remote document images. The default is two
+  requests. Use `--image-concurrency 1` or `Some(1)` for sequential fetching.
+  Source and byte quotas can reduce the batch size.
+  Local images, asset policy, and warning order keep their existing behavior.
+
 ### Changed
+
+- **Breaking for library callers:** full `PdfOptions` struct literals must
+  include `remote_image_concurrency`. Use `None` or `..Default::default()`
+  for the default of two requests, or `Some(1)` for sequential fetching.
 
 - Page breaks now switch the following PDF pages between portrait and landscape
   with `page-layout=portrait|landscape` or the matching roles. Plain page breaks

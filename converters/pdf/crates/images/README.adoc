@@ -1,6 +1,8 @@
 = `acdc-pdf-images`
 
-Resolves the images an `AsciiDoc` document references (local paths, `file://` and remote `http(s)` URLs, and `data:` URIs) to files on disk, keyed by a stable content-addressed virtual path, for acdc's PDF output. The map carries a *path* per image, not its bytes, so the renderer reads each file on demand and the images are never all held in memory at once.
+Resolves local paths, `file://` and remote `http(s)` URLs, and `data:` URIs for
+acdc's PDF output. The map contains paths to validated image snapshots. The
+renderer reads each file when needed for layout.
 
 This is an internal workspace crate. It is not published to crates.io and has no stability guarantees outside the `acdc-pdf-*` pipeline.
 
@@ -20,8 +22,9 @@ The converter walks the document tree and hands this crate a list of image refer
 The map stores a *path* for each image. Every validated source is copied into
 the caller-owned spool directory, including local files. Changing a source
 after resolution cannot change the snapshot used by the renderer. This crate
-holds at most one image's bytes while it fetches, validates, hashes, and writes
-the image. The renderer and Typst load each snapshot when needed for layout.
+holds one image at a time with sequential fetching. Parallel remote fetching
+holds one capped encoded response per worker in a batch. Validation and
+snapshot writes remain sequential. Typst loads the snapshots for layout.
 
 == What it does
 
@@ -74,17 +77,56 @@ Remote `http(s)` fetching lives behind the `network` feature, which is **off by 
 
 With the feature off, a remote reference resolves to a `NetworkDisabled` per-image failure; local files and `data:` URIs are unaffected.
 
+=== Parallel remote fetching
+
+Remote fetching permits two simultaneous HTTP(S) requests per `resolve` call
+by default. Use `with_remote_concurrency(1)` for sequential fetching, or
+`with_remote_concurrency(4)` to permit four requests. Zero also selects
+sequential fetching. This setting does not enable network access or change
+source policy. Local files and `data:` URIs remain sequential.
+
+Consecutive remote sources form batches. Each request reserves the full
+per-image byte allowance before it starts. Source slots and the remaining
+document byte allowance can reduce the batch size. For example, with a 20 MiB
+per-image cap and 35 MiB remaining, the next request stays sequential. When
+the document allowance is below the per-image cap, exceeding it stops later
+fetches. Validation, snapshots, and failures keep input order. A failed image
+does not cancel other permitted requests.
+
+Parallel fetching retains more encoded image data while the batch completes.
+The setting bounds request count; it does not bound total conversion memory.
+
+=== Worker failures
+
+Each remote request has a 30-second HTTP deadline by default. Use
+`with_timeout` to change it. The deadline covers DNS lookup, connection
+establishment, response headers, and the response body. Receiving more bytes
+does not restart it. Image validation and the complete document have no
+deadline from this setting.
+
+A batch waits for all its requests to finish or time out. A failed request
+records an image failure. Other permitted images remain available. Failed
+downloads do not create snapshots. Validation and snapshot writes start after
+the batch completes.
+
+The resolver waits for its image workers to exit. It cannot forcibly stop a
+deadlocked thread. In builds with `panic = "unwind"`, a worker panic becomes
+an image failure. The workspace release profile uses `panic = "abort"`, so
+a panic terminates the process. Cleanup is not guaranteed after process
+termination.
+
 == `ResolveConfig`
 
 [cols="1,3"]
 |===
 | `base_dir` | Directory relative image paths resolve against.
 | `spool_dir` | Private caller-owned directory where every validated image snapshot is written. The caller cleans it up after rendering.
-| `with_timeout` | Per-request timeout for remote fetches. Default 30 seconds. Has no effect without `network`.
+| `with_timeout` | Per-request HTTP deadline, from DNS lookup through the response body. Default 30 seconds. Has no effect without `network`.
 | `with_max_bytes` | Size cap enforced per image across *every* source; anything larger is a per-image failure. Default 20 MiB.
 | `with_max_sources` | Maximum distinct source strings attempted per call, including failures. Default 1,024.
 | `with_max_total_bytes` | Maximum accepted encoded image bytes per call. Different source strings each count, including matching content. Default 100 MiB.
 | `with_source_policy` | `Unrestricted` (default), `Confined { allow_network }`, or `DenyAll`. Confined local paths must remain beneath `base_dir` after canonicalisation.
+| `with_remote_concurrency` | Maximum simultaneous remote image requests. Default two. Zero or one selects sequential fetching. Quotas can reduce the batch size.
 |===
 
 Construct the configuration with `ResolveConfig::new(base_dir, spool_dir)` so
@@ -97,7 +139,8 @@ after rendering finishes.
 use std::time::Duration;
 use acdc_pdf_images::{ResolveConfig, SourcePolicy};
 
-let unrestricted = ResolveConfig::new("project", "private-spool");
+let unrestricted = ResolveConfig::new("project", "private-spool")
+    .with_remote_concurrency(4);
 
 let confined = ResolveConfig::new("project", "private-spool")
     .with_source_policy(SourcePolicy::Confined { allow_network: false })
@@ -124,3 +167,13 @@ cargo nextest run -p acdc-pdf-images --all-features
 ....
 
 Without the `network` feature the remote tests are compiled out and a test covering the disabled path runs instead.
+
+Run the manual latency check with controlled local responses. It compares
+one and four workers without asserting a timing ratio:
+
+[source,console]
+....
+cargo nextest run -p acdc-pdf-images --all-features \
+  --run-ignored ignored-only -E 'test(remote_fetch_measurements)' \
+  --success-output immediate
+....

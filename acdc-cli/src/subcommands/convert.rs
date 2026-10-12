@@ -103,6 +103,15 @@ pub struct Args {
     #[arg(long, value_name = "DIR")]
     pub font_dir: Vec<PathBuf>,
 
+    /// Maximum simultaneous remote PDF image fetches (default: 2).
+    ///
+    /// Use 1 for sequential fetching. Source and byte quotas can reduce the batch
+    /// size. Local images remain sequential. Remote fetching requires a build
+    /// with the network feature.
+    #[cfg(feature = "pdf")]
+    #[arg(long, value_name = "COUNT")]
+    pub image_concurrency: Option<std::num::NonZeroUsize>,
+
     /// Logo image (SVG or raster) shown in the PDF running header.
     #[cfg(feature = "pdf")]
     #[arg(long, value_name = "FILE")]
@@ -228,6 +237,7 @@ impl Args {
     #[cfg(feature = "pdf")]
     fn has_pdf_only_options(&self) -> bool {
         !self.font_dir.is_empty()
+            || self.image_concurrency.is_some()
             || self.logo.is_some()
             || self.title.is_some()
             || self.watermark.is_some()
@@ -356,8 +366,8 @@ fn validate_pdf_options(args: &Args, backend: Backend) -> MietteResult<()> {
     if args.has_pdf_only_options() {
         return Err(miette::miette!(
             "PDF-only options such as --font-dir, --logo, --title, --watermark, \
-             --watermark-timestamp, --page, --page-layout, --theme, --plain, --toc, and \
-             --emit-typst require `--backend pdf`"
+             --watermark-timestamp, --page, --page-layout, --theme, --plain, --toc, \
+             --emit-typst, and --image-concurrency require `--backend pdf`"
         ));
     }
     Ok(())
@@ -367,6 +377,7 @@ fn validate_pdf_options(args: &Args, backend: Backend) -> MietteResult<()> {
 fn pdf_options_from_args(args: &Args) -> PdfOptions {
     PdfOptions {
         font_dirs: args.font_dir.clone(),
+        remote_image_concurrency: args.image_concurrency.map(std::num::NonZeroUsize::get),
         logo: args.logo.clone(),
         title: args.title.clone(),
         watermark: args.watermark.clone(),
@@ -778,6 +789,8 @@ mod tests {
             "a3",
             "--page-layout",
             "landscape",
+            "--image-concurrency",
+            "4",
             "--theme",
             "theme.yml",
             "--plain",
@@ -802,11 +815,68 @@ mod tests {
         assert!(options.watermark_timestamp.is_some());
         assert_eq!(options.page, Some(PageSize::A3));
         assert_eq!(options.page_layout, Some(PageLayout::Landscape));
+        assert_eq!(options.remote_image_concurrency, Some(4));
         assert_eq!(options.theme, Some(PathBuf::from("theme.yml")));
         assert!(options.plain);
         assert!(options.toc);
         assert!(options.strict_assets);
         assert_eq!(options.emit_typst, Some(PathBuf::from("debug.typ")));
+        Ok(())
+    }
+
+    #[cfg(feature = "pdf")]
+    #[test]
+    fn pdf_image_concurrency_uses_default_or_sequential_override() -> MietteResult<()> {
+        let args = parse_pdf_args(["acdc", "convert", "--backend", "pdf", "document.adoc"])?;
+        assert_eq!(pdf_options_from_args(&args).remote_image_concurrency, None);
+
+        let args = parse_pdf_args([
+            "acdc",
+            "convert",
+            "--backend",
+            "pdf",
+            "--image-concurrency",
+            "1",
+            "document.adoc",
+        ])?;
+        assert_eq!(
+            pdf_options_from_args(&args).remote_image_concurrency,
+            Some(1)
+        );
+        Ok(())
+    }
+
+    #[cfg(feature = "pdf")]
+    #[test]
+    fn rejects_zero_image_concurrency() {
+        assert!(
+            parse_pdf_args([
+                "acdc",
+                "convert",
+                "--backend",
+                "pdf",
+                "--image-concurrency",
+                "0",
+                "document.adoc"
+            ])
+            .is_err()
+        );
+    }
+
+    #[cfg(all(feature = "pdf", feature = "html"))]
+    #[test]
+    fn image_concurrency_requires_pdf_backend() -> MietteResult<()> {
+        let args = parse_pdf_args([
+            "acdc",
+            "convert",
+            "--backend",
+            "html",
+            "--image-concurrency",
+            "2",
+            "document.adoc",
+        ])?;
+        let backend = args.backend.resolve(args.variant)?;
+        assert!(validate_pdf_options(&args, backend).is_err());
         Ok(())
     }
 

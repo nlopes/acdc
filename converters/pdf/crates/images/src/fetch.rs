@@ -78,6 +78,36 @@ impl Fetcher {
         Ok(bytes)
     }
 
+    #[cfg(feature = "network")]
+    pub(super) fn fetch_parallel(
+        &self,
+        urls: &[&str],
+        max_bytes: u64,
+    ) -> Vec<Result<Vec<u8>, Error>> {
+        std::thread::scope(|scope| {
+            let workers = urls
+                .iter()
+                .map(|url| {
+                    std::thread::Builder::new()
+                        .spawn_scoped(scope, move || self.fetch(url, max_bytes))
+                })
+                .collect::<Vec<_>>();
+            workers
+                .into_iter()
+                .map(|worker| match worker {
+                    // Worker panics reach join only when the build uses unwinding.
+                    // With panic = "abort", any panic terminates the process.
+                    Ok(worker) => worker.join().unwrap_or_else(|_| {
+                        Err(Error::Network("remote image worker panicked".to_string()))
+                    }),
+                    Err(error) => Err(Error::Network(format!(
+                        "could not start remote image worker: {error}"
+                    ))),
+                })
+                .collect()
+        })
+    }
+
     fn allowed_local_path(&self, path: PathBuf) -> Result<PathBuf, Error> {
         if !matches!(self.source_policy, SourcePolicy::Confined { .. }) {
             return Ok(path);
@@ -102,16 +132,15 @@ impl Fetcher {
             .get(url)
             .call()
             .map_err(|error| classify_network_error(error, max_bytes))?;
-        // ureq applies its built-in limit before content decoding. Cap the
-        // reader again after gzip/brotli decoding so compressed responses cannot
-        // expand past the configured image limit.
+        // Cap the reader after HTTP content decoding so compressed responses
+        // cannot expand past the configured image limit.
         let mut bytes = Vec::new();
         response
             .body_mut()
             .as_reader()
             .take(max_bytes.saturating_add(1))
             .read_to_end(&mut bytes)
-            .map_err(|error| Error::Network(error.to_string()))?;
+            .map_err(|error| classify_network_error(error.into(), max_bytes))?;
         Ok(bytes)
     }
 
@@ -148,6 +177,11 @@ fn classify_network_error(error: ureq::Error, limit: u64) -> Error {
 fn starts_with_ci(url: &str, prefix: &str) -> bool {
     url.get(..prefix.len())
         .is_some_and(|head| head.eq_ignore_ascii_case(prefix))
+}
+
+#[cfg(feature = "network")]
+pub(super) fn is_remote(url: &str) -> bool {
+    starts_with_ci(url, "http://") || starts_with_ci(url, "https://")
 }
 
 /// Resolve a `file://` URL to a local path, handling an empty or `localhost`

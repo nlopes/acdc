@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `convert --backend pdf --image-concurrency N` allows up to `N` simultaneous
+  remote document-image requests. The default is two. Use `1` for sequential
+  fetching. Source and byte quotas can reduce concurrency. Asset policy and
+  warning order stay the same.
+
 - `convert --fail-on-warnings` exits with status 1 for structured parser,
   preprocessor, or converter warnings. Each warning is shown once, and
   successful output is retained in files, stdout, and the terminal pager.

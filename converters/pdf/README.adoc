@@ -298,6 +298,13 @@ and library configuration.
 
 The CLI flags map to fields on `PdfOptions` for library callers.
 
+Remote document images use up to two simultaneous requests by default. Use
+`--image-concurrency 1` or set `PdfOptions::remote_image_concurrency` to `Some(1)`
+for sequential fetching. Use `4` or `Some(4)` to permit four requests. Source
+and byte quotas can reduce the batch size. Local images, validation, and
+snapshot writes remain sequential. Network policy, image limits, and warning
+order stay the same.
+
 [cols="1,1,3",options="header"]
 |===
 | CLI | `PdfOptions` field | Effect
@@ -306,6 +313,12 @@ The CLI flags map to fields on `PdfOptions` for library callers.
 | `font_dirs`
 | Add an explicitly trusted directory of `ttf`, `otf`, `ttc`, or `otc` fonts.
   Repeatable.
+
+| `--image-concurrency`
+| `remote_image_concurrency`
+| Maximum simultaneous remote document-image requests. CLI values must be
+  positive. The default is two. Library `None` uses this default; `Some(0)`
+  and `Some(1)` select sequential fetching.
 
 | `--logo`
 | `logo`
