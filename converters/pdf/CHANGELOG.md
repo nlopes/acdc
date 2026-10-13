@@ -19,6 +19,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `--emit-theme-config FILE` and `PdfOptions::emit_theme_config` save all resolved
+  native theme settings alongside PDF conversion, including page defaults. The
+  file can be reused without Asciidoctor compatibility loading. Document and
+  caller page overrides are not included. The CLI still requires a document or
+  `--stdin`. Library conversion rejects export paths that match the document,
+  theme, PDF, or Typst path, including path aliases, before opening the PDF.
+- Asciidoctor format without a theme file selects the bundled Asciidoctor default
+  theme. The CLI accepts this when `--emit-theme-config` is supplied.
+
 - Load supported Asciidoctor PDF 2.3.15 themes with `--theme-format asciidoctor`
   or `PdfOptions::theme_format = ThemeFormat::Asciidoctor`. Colours, type sizes,
   captions, tables, book page breaks, and page geometry are converted during
@@ -36,7 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Breaking for library callers:** exhaustive `PdfOptions` literals must include
-  `theme_format: ThemeFormat::Acdc`.
+  `theme_format: ThemeFormat::Acdc` and `emit_theme_config: None`.
   Use `..PdfOptions::default()` to keep the defaults.
 
 - **Breaking for library callers:** full `PdfOptions` struct literals must

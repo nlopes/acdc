@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `convert --backend pdf --emit-theme-config FILE` also saves the full resolved
+  theme as native acdc YAML during PDF conversion. It works with either theme
+  format and requires a document or `--stdin`. Exported Asciidoctor themes can
+  be reused with `--theme FILE` alone.
+  Theme page defaults are preserved; document and caller overrides are excluded.
+  Warnings still apply, and `--fail-on-warnings` retains the exported file.
+
 - `convert --backend pdf --theme FILE --theme-format asciidoctor` loads supported
   Asciidoctor PDF 2.3.15 theme settings without a separate migration step.
   Unsupported settings and known mapping differences produce converter warnings.

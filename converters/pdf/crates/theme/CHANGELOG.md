@@ -14,8 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Native themes can set page dimensions and margins in points, plus orientation,
-  under `page`. Omitted page settings keep the existing PDF defaults.
+- Export all resolved native theme settings with `Theme::to_yaml_string`.
+  Native themes can set page dimensions and margins in points, plus orientation,
+  under `page`. Omitted page settings keep the existing PDF defaults. These values
+  preserve Asciidoctor theme page settings when exporting and reloading a theme.
 
 - Convert supported Asciidoctor PDF 2.3.15 theme settings into native acdc themes
   and page defaults. Unsupported settings and differences are reported by source

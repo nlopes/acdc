@@ -1860,6 +1860,353 @@ fn asciidoctor_theme_requires_an_explicit_format_and_reports_warnings() -> Resul
 
 #[cfg(feature = "pdf")]
 #[test]
+fn theme_config_export_converts_the_document_and_keeps_page_settings() -> Result<(), Box<dyn Error>>
+{
+    let directory = tempdir()?;
+    let source = directory.path().join("asciidoctor.yml");
+    let native = directory.path().join("acdc.yml");
+    let document = directory.path().join("document.adoc");
+    fs::write(&document, "ThemeExportDocumentMarker.\n")?;
+    let input = "extends: default\nlink_font_color: '008800'\npage_size: [6in, 9in]\npage_layout: landscape\npage_margin: [12, 18, 24, 30]\nrole:\n  lead:\n    font_size: 16\n";
+    fs::write(&source, input)?;
+    let source_arg = source.to_str().ok_or("non-UTF-8 path")?;
+    let native_arg = native.to_str().ok_or("non-UTF-8 path")?;
+    let args = [
+        "convert",
+        "--backend",
+        "pdf",
+        "--theme",
+        source_arg,
+        "--theme-format",
+        "asciidoctor",
+        "--emit-theme-config",
+        native_arg,
+        document.to_str().ok_or("non-UTF-8 path")?,
+    ];
+    let exported = run_acdc(&args, None)?;
+    assert!(
+        exported.status.success(),
+        "{}",
+        output_text(&exported.stderr)
+    );
+    assert!(fs::read(document.with_extension("pdf"))?.starts_with(b"%PDF-"));
+    assert_eq!(fs::read_to_string(&source)?, input);
+    assert_eq!(
+        output_text(&exported.stderr)
+            .matches("role.lead.font_size")
+            .count(),
+        1
+    );
+    let yaml = fs::read_to_string(&native)?;
+    assert!(yaml.contains("size_pt:"));
+    assert!(yaml.contains("layout: landscape"));
+    assert!(yaml.contains("margin_pt:"));
+    assert!(yaml.contains("#008800"));
+    assert!(!yaml.contains("extends:"));
+
+    let mut strict = args.to_vec();
+    strict.push("--fail-on-warnings");
+    let strict = run_acdc(&strict, None)?;
+    assert_eq!(strict.status.code(), Some(1));
+    assert!(fs::read(document.with_extension("pdf"))?.starts_with(b"%PDF-"));
+    assert_eq!(fs::read_to_string(&native)?, yaml);
+
+    Ok(())
+}
+
+#[cfg(feature = "pdf")]
+#[test]
+fn theme_config_export_matches_native_rendering() -> Result<(), Box<dyn Error>> {
+    let directory = tempdir()?;
+    let source = directory.path().join("asciidoctor.yml");
+    let native = directory.path().join("acdc.yml");
+    fs::write(
+        &source,
+        "extends: default\nlink_font_color: '008800'\npage_size: [6in, 9in]\npage_layout: landscape\npage_margin: [12, 18, 24, 30]\n",
+    )?;
+    let source_arg = source.to_str().ok_or("non-UTF-8 path")?;
+    let native_arg = native.to_str().ok_or("non-UTF-8 path")?;
+    let mut sources = Vec::new();
+    for (name, theme, format) in [
+        ("compatible", source_arg, Some("asciidoctor")),
+        ("native", native_arg, None),
+    ] {
+        let pdf = directory.path().join(format!("{name}.pdf"));
+        let typst = directory.path().join(format!("{name}.typ"));
+        let mut args = vec![
+            "convert",
+            "--backend",
+            "pdf",
+            "--theme",
+            theme,
+            "--stdin",
+            "--out-file",
+            pdf.to_str().ok_or("non-UTF-8 path")?,
+            "--emit-typst",
+            typst.to_str().ok_or("non-UTF-8 path")?,
+        ];
+        if let Some(format) = format {
+            args.extend(["--theme-format", format, "--emit-theme-config", native_arg]);
+        }
+        let output = run_acdc(&args, Some("= Theme export\n\nExportThemeMarker.\n"))?;
+        assert!(output.status.success(), "{}", output_text(&output.stderr));
+        if format.is_none() {
+            assert!(output.stderr.is_empty(), "{}", output_text(&output.stderr));
+        }
+        assert!(fs::read(&pdf)?.starts_with(b"%PDF-"));
+        sources.push(fs::read_to_string(typst)?);
+    }
+    assert_eq!(sources.first(), sources.get(1));
+    Ok(())
+}
+
+#[cfg(feature = "pdf")]
+#[test]
+fn theme_config_export_can_start_from_asciidoctor_defaults() -> Result<(), Box<dyn Error>> {
+    let directory = tempdir()?;
+    let native = directory.path().join("acdc.yml");
+    let exported = run_acdc(
+        &[
+            "convert",
+            "--backend",
+            "pdf",
+            "--theme-format",
+            "asciidoctor",
+            "--emit-theme-config",
+            native.to_str().ok_or("non-UTF-8 path")?,
+            "--stdin",
+        ],
+        Some("ThemeExportDocumentMarker.\n"),
+    )?;
+    assert!(
+        exported.status.success(),
+        "{}",
+        output_text(&exported.stderr)
+    );
+    let yaml = fs::read_to_string(&native)?;
+    assert!(exported.stdout.starts_with(b"%PDF-"));
+    assert!(yaml.contains("body_size_pt: 10.5"));
+    assert!(yaml.contains("size_pt:"));
+    assert!(!yaml.contains("extends:"));
+    Ok(())
+}
+
+#[cfg(feature = "pdf")]
+#[test]
+fn theme_config_export_does_not_freeze_document_page_overrides() -> Result<(), Box<dyn Error>> {
+    let directory = tempdir()?;
+    let theme = directory.path().join("theme.yml");
+    fs::write(
+        &theme,
+        "page_size: [432, 648]\npage_layout: landscape\npage_margin: 12\n",
+    )?;
+    let output = directory.path().join("acdc.yml");
+    let pdf = directory.path().join("out.pdf");
+    let exported = run_acdc(
+        &[
+            "convert",
+            "--backend",
+            "pdf",
+            "--theme",
+            theme.to_str().ok_or("non-UTF-8 path")?,
+            "--theme-format",
+            "asciidoctor",
+            "--emit-theme-config",
+            output.to_str().ok_or("non-UTF-8 path")?,
+            "--page",
+            "letter",
+            "--page-layout",
+            "portrait",
+            "--out-file",
+            pdf.to_str().ok_or("non-UTF-8 path")?,
+            "--stdin",
+        ],
+        Some(":pdf-page-size: A4\n:pdf-page-layout: portrait\n:pdf-page-margin: 36\n\nText.\n"),
+    )?;
+    assert!(
+        exported.status.success(),
+        "{}",
+        output_text(&exported.stderr)
+    );
+    let yaml = fs::read_to_string(output)?;
+    assert!(yaml.contains("layout: landscape"));
+    for value in ["432.0", "648.0", "12.0"] {
+        assert!(yaml.contains(value), "{yaml}");
+    }
+    Ok(())
+}
+
+#[cfg(feature = "pdf")]
+#[test]
+fn theme_config_export_rejects_an_expanded_file_that_cannot_be_reloaded()
+-> Result<(), Box<dyn Error>> {
+    let directory = tempdir()?;
+    let source = directory.path().join("source.yml");
+    let output = directory.path().join("output.yml");
+    let yaml = include_str!("../../converters/pdf/crates/theme/assets/theme/default.yaml")
+        .replacen(
+            "fallback: [\"IBM Plex Serif\"]",
+            &format!("fallback: [&brand \"{}\"]", "A".repeat(400_000)),
+            1,
+        )
+        .replace("fallback: [\"IBM Plex Serif\"]", "fallback: [*brand]")
+        .replace("fallback: [\"IBM Plex Mono\"]", "fallback: [*brand]");
+    fs::write(&source, yaml)?;
+    fs::write(&output, "keep existing output\n")?;
+    let exported = run_acdc(
+        &[
+            "convert",
+            "--backend",
+            "pdf",
+            "--theme",
+            source.to_str().ok_or("non-UTF-8 path")?,
+            "--emit-theme-config",
+            output.to_str().ok_or("non-UTF-8 path")?,
+            "--stdin",
+        ],
+        Some("Text.\n"),
+    )?;
+    assert_eq!(exported.status.code(), Some(1));
+    assert!(
+        output_text(&exported.stderr).contains("1 MiB"),
+        "{}",
+        output_text(&exported.stderr)
+    );
+    assert_eq!(fs::read_to_string(output)?, "keep existing output\n");
+    Ok(())
+}
+
+#[cfg(feature = "pdf")]
+#[test]
+fn theme_config_export_handles_defaults_errors_and_output_collisions() -> Result<(), Box<dyn Error>>
+{
+    let directory = tempdir()?;
+    let native = directory.path().join("acdc.yml");
+    let native_arg = native.to_str().ok_or("non-UTF-8 path")?;
+    let base = [
+        "convert",
+        "--backend",
+        "pdf",
+        "--emit-theme-config",
+        native_arg,
+        "--stdin",
+    ];
+    let defaults = run_acdc(&base, Some("Text.\n"))?;
+    assert!(
+        defaults.status.success(),
+        "{}",
+        output_text(&defaults.stderr)
+    );
+    let initial = fs::read_to_string(&native)?;
+    assert!(initial.contains("page_numbering_start_at: body"));
+    assert!(initial.contains("brand: null"));
+
+    let source = directory.path().join("invalid.yml");
+    let source_arg = source.to_str().ok_or("non-UTF-8 path")?;
+    fs::write(&source, "base_font_size: -1\n")?;
+    let mut invalid = base.to_vec();
+    invalid.extend(["--theme", source_arg, "--theme-format", "asciidoctor"]);
+    let invalid = run_acdc(&invalid, Some("Text.\n"))?;
+    assert_eq!(invalid.status.code(), Some(1));
+    assert!(output_text(&invalid.stderr).contains("base_font_size"));
+    assert_eq!(fs::read_to_string(&native)?, initial);
+
+    let collision = run_acdc(
+        &[
+            "convert",
+            "--backend",
+            "pdf",
+            "--theme",
+            native_arg,
+            "--emit-theme-config",
+            native_arg,
+            "--stdin",
+        ],
+        Some("Text.\n"),
+    )?;
+    assert_eq!(collision.status.code(), Some(1));
+    assert!(output_text(&collision.stderr).contains("different path"));
+    assert_eq!(fs::read_to_string(&native)?, initial);
+
+    let collision = run_acdc(
+        &[
+            "convert",
+            "--backend",
+            "pdf",
+            "--stdin",
+            "--out-file",
+            native_arg,
+            "--emit-theme-config",
+            native_arg,
+        ],
+        Some("Text.\n"),
+    )?;
+    assert_eq!(collision.status.code(), Some(1));
+    assert_eq!(fs::read_to_string(&native)?, initial);
+
+    let missing = directory.path().join("missing/theme.yml");
+    let failed = run_acdc(
+        &[
+            "convert",
+            "--backend",
+            "pdf",
+            "--emit-theme-config",
+            missing.to_str().ok_or("non-UTF-8 path")?,
+            "--stdin",
+        ],
+        Some("Text.\n"),
+    )?;
+    assert_eq!(failed.status.code(), Some(1));
+    assert!(output_text(&failed.stderr).contains("could not write PDF theme config"));
+    #[cfg(feature = "html")]
+    {
+        let wrong_backend = run_acdc(
+            &[
+                "convert",
+                "--backend",
+                "html",
+                "--emit-theme-config",
+                native_arg,
+                "--stdin",
+            ],
+            Some("Text.\n"),
+        )?;
+        assert_eq!(wrong_backend.status.code(), Some(1));
+        assert!(output_text(&wrong_backend.stderr).contains("PDF-only"));
+    }
+    Ok(())
+}
+
+#[cfg(feature = "pdf")]
+#[test]
+fn theme_config_export_requires_document_input() -> Result<(), Box<dyn Error>> {
+    let directory = tempdir()?;
+    let config = directory.path().join("acdc.yml");
+    for format in [None, Some("asciidoctor")] {
+        let mut args = vec![
+            "convert",
+            "--backend",
+            "pdf",
+            "--emit-theme-config",
+            config.to_str().ok_or("non-UTF-8 path")?,
+        ];
+        if let Some(format) = format {
+            args.extend(["--theme-format", format]);
+        }
+        let output = run_acdc(&args, None)?;
+        assert_eq!(output.status.code(), Some(2));
+        assert!(
+            output_text(&output.stderr).contains("<FILES>"),
+            "{}",
+            output_text(&output.stderr)
+        );
+        assert!(!config.exists());
+    }
+    Ok(())
+}
+
+#[cfg(feature = "pdf")]
+#[test]
 fn asciidoctor_theme_cli_rejects_missing_theme_and_invalid_format() -> Result<(), Box<dyn Error>> {
     for args in [
         vec![

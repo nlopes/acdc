@@ -1,9 +1,9 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::Error;
 
 /// Orientation applied to a theme's page dimensions.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PageOrientation {
     /// Use the dimensions in their specified order.
@@ -13,7 +13,7 @@ pub enum PageOrientation {
 }
 
 /// Page defaults used below caller options and document attributes.
-#[derive(Clone, Debug, Default, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Page {
     /// Unrotated width and height in points. `None` keeps the renderer's page size.
@@ -46,7 +46,7 @@ impl Page {
 }
 
 /// Horizontal alignment of page-header content.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum HeaderAlignment {
     /// Align content with the left edge.
@@ -59,7 +59,7 @@ pub enum HeaderAlignment {
 }
 
 /// Horizontal footer slot used for the page number.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PageNumberPosition {
     /// Use the left footer slot.
@@ -72,7 +72,7 @@ pub enum PageNumberPosition {
 }
 
 /// Styling and placement of the page header.
-#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Header {
     /// Horizontal placement of the logo and title.
@@ -108,7 +108,7 @@ impl Header {
 }
 
 /// Styling and placement of the page footer.
-#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Footer {
     /// Footer text size, in points.

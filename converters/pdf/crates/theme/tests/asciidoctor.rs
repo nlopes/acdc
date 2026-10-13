@@ -1,4 +1,6 @@
-use acdc_pdf_theme::{CaptionFontStyle, Error, PageBreakBefore, PageOrientation, asciidoctor};
+use acdc_pdf_theme::{
+    CaptionFontStyle, Error, PageBreakBefore, PageOrientation, Theme, asciidoctor,
+};
 
 fn close(actual: f64, expected: f64) {
     assert!((actual - expected).abs() < 1e-9, "{actual} != {expected}");
@@ -90,6 +92,23 @@ fn asciidoctor_theme_custom_settings_keep_inherited_defaults() -> Result<(), Err
         asciidoctor::from_yaml_str("extends: default\nlink:\n  font_color: '008800'\n")?.theme;
     assert_eq!(custom, expected);
     assert_eq!(custom.typography.body_size_pt, 10.5);
+    Ok(())
+}
+
+#[test]
+fn asciidoctor_theme_export_preserves_tokens_and_page_defaults() -> Result<(), Error> {
+    for source in [
+        include_str!("fixtures/asciidoctor-brand.yml"),
+        "extends: default\nlink_font_color: '008800'\n",
+        "page_size: Letter\npage_margin: 36\n",
+    ] {
+        let theme = asciidoctor::from_yaml_str(source)?.theme;
+        let yaml = theme.to_yaml_string()?;
+        assert_eq!(Theme::from_yaml_str(&yaml)?, theme);
+        assert_eq!(theme.to_yaml_string()?, yaml);
+        assert!(!yaml.contains("extends:"));
+        assert!(!yaml.contains("$base_font_size"));
+    }
     Ok(())
 }
 

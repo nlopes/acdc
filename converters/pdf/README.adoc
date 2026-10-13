@@ -315,6 +315,25 @@ attributes, which override page defaults from the source theme.
 Start a custom Asciidoctor theme with `extends: default` to inherit supported
 defaults, then add only your overrides. Unmapped settings use acdc defaults.
 
+Export the full resolved native configuration and reuse it:
+
+[source,console]
+....
+acdc convert --backend pdf --theme brand-theme.yml --theme-format asciidoctor --emit-theme-config acdc.yml document.adoc
+acdc convert --backend pdf --theme acdc.yml document.adoc
+....
+
+The first command generates both the PDF and the native theme file.
+A document or `--stdin` is required. Without `--theme`, conversion uses the
+selected format's bundled default theme.
+The file includes all native tokens and theme page defaults. Document attributes
+and caller page overrides are excluded. Warnings still apply;
+`--fail-on-warnings` retains the file and returns status 1 when warnings occur.
+Fonts are not copied. Library callers can use `PdfOptions::emit_theme_config`
+during conversion.
+Use a path different from the document, theme, PDF, and Typst paths. Library
+conversion checks these paths before opening the PDF output.
+
 == Options
 
 Document images have limits of 1,024 distinct source attempts and 100 MiB of
@@ -387,6 +406,11 @@ order stay the same.
 | `--theme-format acdc\|asciidoctor`
 | `theme_format`
 | Select the input schema for `--theme`. The default is `ThemeFormat::Acdc`.
+
+| `--emit-theme-config FILE`
+| `emit_theme_config`
+| Also save the full resolved native theme during conversion, including theme
+  page defaults. The CLI still requires a document or `--stdin`.
 
 | `--plain`
 | `plain`

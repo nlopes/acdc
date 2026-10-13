@@ -17,7 +17,7 @@ mod typography;
 
 use std::sync::LazyLock;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 pub use caption::{Caption, CaptionAlignment, CaptionFontStyle};
 pub use color::Palette;
@@ -35,7 +35,7 @@ pub use typography::{FontStack, Typography};
 const DEFAULT_THEME_YAML: &str = include_str!("../assets/theme/default.yaml");
 
 /// A complete set of PDF design tokens.
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Theme {
     /// Page defaults used when caller options and document attributes omit them.
@@ -76,6 +76,15 @@ impl Theme {
         theme.table.normalize()?;
         theme.validate()?;
         Ok(theme)
+    }
+
+    /// Write all resolved design tokens and page defaults as native acdc YAML.
+    ///
+    /// # Errors
+    /// Returns an error if a theme value is invalid or YAML serialization fails.
+    pub fn to_yaml_string(&self) -> Result<String, Error> {
+        self.validate()?;
+        serde_saphyr::to_string(self).map_err(Error::Serialize)
     }
 
     fn validate(&self) -> Result<(), Error> {
@@ -131,6 +140,28 @@ mod tests {
     }
 
     #[test]
+    fn native_theme_export_preserves_all_page_numbering_starts()
+    -> Result<(), Box<dyn std::error::Error>> {
+        for start in [
+            PageNumberingStart::Cover,
+            PageNumberingStart::Title,
+            PageNumberingStart::Toc,
+            PageNumberingStart::AfterToc,
+            PageNumberingStart::Body,
+            PageNumberingStart::BodyPage(std::num::NonZeroUsize::try_from(3)?),
+        ] {
+            let theme = Theme {
+                page_numbering_start_at: start,
+                ..Theme::default()
+            };
+            let yaml = theme.to_yaml_string()?;
+            assert!(yaml.contains("brand: null"));
+            assert_eq!(Theme::from_yaml_str(&yaml)?, theme);
+        }
+        Ok(())
+    }
+
+    #[test]
     fn native_theme_page_defaults_reject_invalid_values() {
         for page in [
             "size_pt: [0, 792]",
@@ -150,6 +181,13 @@ mod tests {
                 "accepted {page}"
             );
         }
+    }
+
+    #[test]
+    fn native_theme_export_rejects_invalid_caller_values() {
+        let mut theme = Theme::default();
+        theme.page.size_pt = Some([f64::INFINITY, 792.0]);
+        assert!(theme.to_yaml_string().is_err());
     }
 
     #[test]

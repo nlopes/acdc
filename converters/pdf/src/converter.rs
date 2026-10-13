@@ -1,13 +1,16 @@
 use std::{
     cell::Cell,
-    io::Write,
+    io::{BufWriter, Write},
     path::{Path, PathBuf},
     rc::Rc,
+    time::Instant,
 };
 
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::SubsFlags;
-use acdc_converters_core::{Converter, Diagnostics, Options, WarningSource};
+use acdc_converters_core::{
+    ConversionResult, Converter, Diagnostics, Options, PrettyDuration, WarningSource,
+};
 use acdc_parser::Document;
 
 use crate::{Error, PDF_BACKEND, PdfOptions, Processor};
@@ -62,9 +65,10 @@ impl<'a> Converter<'a> for Processor<'a> {
         doc: &Document<'_>,
         mut writer: W,
         source_file: Option<&Path>,
-        _output_path: Option<&Path>,
+        output_path: Option<&Path>,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Self::Error> {
+        self.validate_theme_config_paths(source_file, output_path)?;
         let rendered = self.render_document(doc, source_file, diagnostics)?;
         if self.options().timings() {
             rendered
@@ -73,6 +77,39 @@ impl<'a> Converter<'a> for Processor<'a> {
         }
         writer.write_all(&rendered.pdf)?;
         Ok(())
+    }
+
+    fn convert_to_file(
+        &self,
+        doc: &Document<'_>,
+        source_file: Option<&Path>,
+        output_path: &Path,
+    ) -> Result<ConversionResult, Self::Error> {
+        // The default method opens the PDF before write_to can reject a collision.
+        self.validate_theme_config_paths(source_file, Some(output_path))?;
+        let start = self.options().timings().then(Instant::now);
+        if let Some(input) = source_file.filter(|_| self.options().timings()) {
+            println!("Input file: {}", input.display());
+        }
+        if let Some(parent) = output_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        let file = std::fs::File::create(output_path)?;
+        let source = self.warning_source();
+        let mut warnings = Vec::new();
+        self.write_to(
+            doc,
+            BufWriter::new(file),
+            source_file,
+            Some(output_path),
+            &mut Diagnostics::new(&source, &mut warnings),
+        )?;
+        if let Some(start) = start {
+            let elapsed = start.elapsed();
+            println!("  Time to convert document: {}", elapsed.pretty_print());
+        }
+        println!("Generated {} file: {}", self.name(), output_path.display());
+        Ok(ConversionResult::file(output_path.to_path_buf(), warnings))
     }
 
     fn name(&self) -> &'static str {

@@ -1,9 +1,9 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{Error, color::canonical_colour};
 
 /// Horizontal alignment of a block title or caption.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CaptionAlignment {
     /// Align with the left edge of the block.
@@ -16,7 +16,7 @@ pub enum CaptionAlignment {
 }
 
 /// Font style of a block title or caption.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CaptionFontStyle {
     /// Use upright text.
@@ -27,7 +27,7 @@ pub enum CaptionFontStyle {
 }
 
 /// Styling shared by block titles and captions.
-#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Caption {
     /// Text alignment within the block width.

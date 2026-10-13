@@ -14,6 +14,135 @@ use acdc_converters_pdf::{PageLayout, PageMargins, PageSize, PdfOptions, Process
 type Error = Box<dyn std::error::Error>;
 
 #[test]
+fn theme_config_export_rejects_library_input_and_output_collisions() -> Result<(), Error> {
+    let directory = tempfile::tempdir()?;
+    let input = directory.path().join("document.adoc");
+    let theme = directory.path().join("theme.yml");
+    let typst = directory.path().join("document.typ");
+    let pdf = directory.path().join("document.pdf");
+    let input_text = "= Keep this document\n\nOriginal text.\n";
+    let theme_text = acdc_pdf_theme::Theme::default().to_yaml_string()?;
+    let parsed = parse(input_text, &Options::default())?;
+    for collision in [&input, &theme, &typst, &pdf] {
+        std::fs::write(&input, input_text)?;
+        std::fs::write(&theme, &theme_text)?;
+        std::fs::write(&typst, "original Typst")?;
+        std::fs::write(&pdf, "original PDF")?;
+        let processor = Processor::new(ConverterOptions::default(), Options::builder())?
+            .with_pdf_options(PdfOptions {
+                theme: Some(theme.clone()),
+                emit_typst: Some(typst.clone()),
+                emit_theme_config: Some(collision.clone()),
+                ..PdfOptions::default()
+            });
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut bytes = Vec::new();
+        let result = processor.write_to(
+            parsed.document(),
+            &mut bytes,
+            Some(&input),
+            Some(&pdf),
+            &mut Diagnostics::new(&source, &mut warnings),
+        );
+        assert!(
+            matches!(
+                result,
+                Err(acdc_converters_pdf::Error::ThemeConfigPathCollision { .. })
+            ),
+            "expected an export collision: {collision:?}"
+        );
+        assert_eq!(bytes, [] as [u8; 0]);
+        assert_eq!(std::fs::read_to_string(&input)?, input_text);
+        assert_eq!(std::fs::read_to_string(&theme)?, theme_text);
+        assert_eq!(std::fs::read_to_string(&typst)?, "original Typst");
+        assert_eq!(std::fs::read_to_string(&pdf)?, "original PDF");
+    }
+    Ok(())
+}
+
+#[test]
+fn theme_config_export_rejects_library_collisions_before_opening_pdf() -> Result<(), Error> {
+    let directory = tempfile::tempdir()?;
+    let pdf = directory.path().join("document.pdf");
+    std::fs::write(&pdf, "original PDF")?;
+    let parsed = parse("Text.\n", &Options::default())?;
+    let processor = Processor::new(ConverterOptions::default(), Options::builder())?
+        .with_pdf_options(PdfOptions {
+            emit_theme_config: Some(directory.path().join("./document.pdf")),
+            ..PdfOptions::default()
+        });
+    assert!(
+        processor
+            .convert_to_file(parsed.document(), None, &pdf)
+            .is_err()
+    );
+    assert_eq!(std::fs::read_to_string(pdf)?, "original PDF");
+    let pdf = directory.path().join("new/document.pdf");
+    std::fs::create_dir(directory.path().join("existing"))?;
+    let processor = processor.with_pdf_options(PdfOptions {
+        emit_theme_config: Some(directory.path().join("existing/../new/document.pdf")),
+        ..PdfOptions::default()
+    });
+    assert!(
+        processor
+            .convert_to_file(parsed.document(), None, &pdf)
+            .is_err()
+    );
+    assert!(!pdf.exists());
+    assert!(!directory.path().join("new").exists());
+    Ok(())
+}
+
+#[test]
+fn theme_config_export_library_conversion_writes_pdf_and_native_theme() -> Result<(), Error> {
+    let directory = tempfile::tempdir()?;
+    let input = directory.path().join("document.adoc");
+    let pdf = directory.path().join("document.pdf");
+    let config = directory.path().join("acdc.yml");
+    let input_text = "Text.\n";
+    std::fs::write(&input, input_text)?;
+    let parsed = parse(input_text, &Options::default())?;
+    let processor = Processor::new(ConverterOptions::default(), Options::builder())?
+        .with_pdf_options(PdfOptions {
+            emit_theme_config: Some(config.clone()),
+            ..PdfOptions::default()
+        });
+    processor.convert_to_file(parsed.document(), Some(&input), &pdf)?;
+    assert!(std::fs::read(pdf)?.starts_with(b"%PDF-"));
+    assert_eq!(std::fs::read_to_string(input)?, input_text);
+    assert_eq!(
+        acdc_pdf_theme::Theme::from_yaml_str(&std::fs::read_to_string(config)?)?,
+        acdc_pdf_theme::Theme::default()
+    );
+    Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn theme_config_export_rejects_library_symlink_collisions() -> Result<(), Error> {
+    let directory = tempfile::tempdir()?;
+    let pdf = directory.path().join("document.pdf");
+    let config = directory.path().join("alias.yml");
+    std::fs::write(&pdf, "original PDF")?;
+    std::os::unix::fs::symlink(&pdf, &config)?;
+    let parsed = parse("Text.\n", &Options::default())?;
+    let processor = Processor::new(ConverterOptions::default(), Options::builder())?
+        .with_pdf_options(PdfOptions {
+            emit_theme_config: Some(config.clone()),
+            ..PdfOptions::default()
+        });
+    assert!(
+        processor
+            .convert_to_file(parsed.document(), None, &pdf)
+            .is_err()
+    );
+    assert_eq!(std::fs::read_to_string(pdf)?, "original PDF");
+    assert!(config.is_symlink());
+    Ok(())
+}
+
+#[test]
 fn asciidoctor_theme_heading_sizes_apply_to_pdf_section_levels() -> Result<(), Error> {
     let directory = tempfile::tempdir()?;
     let theme = directory.path().join("theme.yml");
@@ -58,8 +187,9 @@ fn invalid_page_margin_overrides_keep_loaded_theme_margins() -> Result<(), Error
     let theme = directory.path().join("theme.yml");
     for format in [ThemeFormat::Acdc, ThemeFormat::Asciidoctor] {
         let yaml = if format == ThemeFormat::Acdc {
-            include_str!("../crates/theme/assets/theme/default.yaml")
-                .replace("margin_pt: null", "margin_pt: [12, 18, 24, 30]")
+            let mut theme = acdc_pdf_theme::Theme::default();
+            theme.page.margin_pt = Some([12.0, 18.0, 24.0, 30.0]);
+            theme.to_yaml_string()?
         } else {
             "page_margin: [12, 18, 24, 30]\n".to_owned()
         };

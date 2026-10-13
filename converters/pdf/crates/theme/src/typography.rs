@@ -1,13 +1,13 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::Error;
 
 /// A font family with an optional brand face and one or more fallbacks.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct FontStack {
     /// Preferred brand family, used only when brand fonts are available.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub brand: Option<String>,
     /// Fallback families, in priority order.
     pub fallback: Vec<String>,
@@ -51,7 +51,7 @@ impl FontStack {
 }
 
 /// Font families and the type scale.
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Typography {
     pub body_font: FontStack,

@@ -6,6 +6,9 @@ pub enum Error {
     /// The YAML syntax or schema is invalid.
     #[error("invalid theme YAML: {0}")]
     Yaml(#[source] Box<serde_saphyr::Error>),
+    /// The resolved theme could not be written as YAML.
+    #[error("could not serialize theme YAML: {0}")]
+    Serialize(#[source] serde_saphyr::SerializeError),
     /// A value does not satisfy the constraints for its field.
     #[error("invalid theme field `{field}`: {message}")]
     Validation {

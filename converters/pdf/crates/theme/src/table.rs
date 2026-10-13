@@ -1,9 +1,9 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{Error, color::canonical_colour};
 
 /// Horizontal placement of a table within the available page width.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TableAlignment {
     /// Place the table against the left edge.
@@ -16,7 +16,7 @@ pub enum TableAlignment {
 }
 
 /// Styling for table rules and section backgrounds.
-#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Table {
     /// Default horizontal placement of tables.

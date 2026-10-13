@@ -8,7 +8,7 @@ publish = false
 
 [dependencies]
 serde.workspace = true
-serde-saphyr.workspace = true
+serde-saphyr = { workspace = true, features = ["serialize"] }
 thiserror.workspace = true
 
 [dev-dependencies]

@@ -17,7 +17,7 @@ The crate is *Typst-free*: it carries only data and bundled assets. The tokens c
 
 == What it provides
 
-- **`Theme`** — page defaults and design tokens (`palette`, `typography`, `spacing`, `caption`, `heading`, `header`, `footer`, `index`, and `table`). Tokens are *data*, loaded from YAML via `Theme::from_yaml_str`, so a caller can supply a brand theme without recompiling.
+- **`Theme`** — page defaults and design tokens (`palette`, `typography`, `spacing`, `caption`, `heading`, `header`, `footer`, `index`, and `table`). Tokens are *data*, loaded from YAML via `Theme::from_yaml_str`, so a caller can supply a brand theme without recompiling. `Theme::to_yaml_string` exports the full resolved configuration.
 - **`Theme::default`** — the bundled neutral theme (white page, grayscale, bundled fonts only). Its private embedded YAML remains the single source of truth and is parsed once per process, so the tokens cannot drift from a hand-written struct.
 - **`embedded_fonts`** — bytes for every bundled free font face (IBM Plex plus
   Noto Color Emoji).
@@ -43,7 +43,9 @@ for each mapping and its limits.
 
 Use `extends: default` in a custom Asciidoctor theme to inherit supported default
 settings and override only the required values. Unsupported styles use native
-defaults.
+defaults. `--emit-theme-config FILE` also saves the resolved native configuration
+during PDF conversion.
+The saved file can then be loaded without `--theme-format asciidoctor`.
 
 === Page defaults
 

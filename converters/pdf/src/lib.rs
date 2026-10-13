@@ -51,6 +51,7 @@ mod error;
 mod heading_index;
 mod index;
 mod pdf_visitor;
+mod theme_config;
 mod visitor;
 
 pub use acdc_pdf_typst::{PageDimensions, PageGeometryError, PageLayout, PageMargins, PageSize};
@@ -163,6 +164,10 @@ pub struct PdfOptions {
     /// warnings use the normal converter diagnostics. With no file, Asciidoctor
     /// format selects the bundled Asciidoctor default theme.
     pub theme_format: ThemeFormat,
+    /// Also write the resolved native theme to this file before rendering.
+    /// Document attributes and caller page overrides are not included.
+    /// The path must differ from the source document, theme, PDF, and Typst paths.
+    pub emit_theme_config: Option<PathBuf>,
     /// Strip the page background, header, and footer.
     pub plain: bool,
     /// Emit an automatic table of contents when the document does not set `:toc:`.
@@ -379,9 +384,14 @@ impl Processor<'_> {
         source_file: Option<&Path>,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<RenderedPdf, Error> {
+        self.validate_theme_config_paths(source_file, None)?;
         let loaded = self.load_theme(diagnostics)?;
         let theme = &loaded.theme;
         let page_numbering = self.page_numbering_plan(doc, theme);
+
+        if let Some(path) = &self.pdf_options.emit_theme_config {
+            Self::write_loaded_theme_config(path, theme)?;
+        }
 
         // Validated image snapshots are spooled here so their bytes are read on
         // demand and cannot change between validation and rendering. The

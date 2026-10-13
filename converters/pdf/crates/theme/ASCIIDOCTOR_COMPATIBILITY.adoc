@@ -23,6 +23,44 @@ Supported settings omitted from this file keep their inherited values.
 Settings without an acdc equivalent use native defaults and produce a warning.
 Without `extends: default`, the file does not inherit that theme's styles.
 
+== Export a native theme
+
+Use `--emit-theme-config FILE` to save the full resolved native configuration:
+
+[source,console]
+....
+acdc convert --backend pdf --theme custom.yml --theme-format asciidoctor --emit-theme-config acdc.yml document.adoc
+acdc convert --backend pdf --theme acdc.yml document.adoc
+....
+
+The first command generates both the PDF and the native theme file.
+A document or `--stdin` is required.
+Omit `--theme` to export the selected format's bundled defaults. For example:
+
+[source,console]
+....
+acdc convert --backend pdf --theme-format asciidoctor --emit-theme-config acdc.yml document.adoc
+....
+
+The file contains all native tokens, including defaults, resolved references,
+and page size, orientation, and margins supplied by the source theme.
+It contains no Asciidoctor keys or inheritance instructions.
+Document attributes and caller page overrides are not included.
+Page values are stored in points under `page.size_pt`, `page.layout`, and
+`page.margin_pt`. A `null` page value keeps the renderer's fallback.
+
+Unsupported source settings are reported during export and cannot be restored
+by loading the native file. `--fail-on-warnings` retains the exported file and
+returns status 1 when warnings occur. Export does not copy fonts; keep supplying
+custom fonts with `--font-dir`.
+
+The output replaces an existing file only after the complete YAML is written.
+Use a different path from the source theme, input document, and PDF or Typst output.
+The library also rejects these path collisions, including path aliases, before
+opening the PDF output.
+The exported file must fit the converter's 1 MiB theme input limit. If expanded
+values exceed that limit, export fails and keeps the existing output file.
+
 == Source rules
 
 References:

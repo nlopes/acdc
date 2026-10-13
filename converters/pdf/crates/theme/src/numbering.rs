@@ -1,6 +1,6 @@
 use std::num::NonZeroUsize;
 
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 /// Selects the page where Arabic page numbering starts.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -50,5 +50,21 @@ impl<'de> Deserialize<'de> for PageNumberingStart {
             PageNumberingStartValue::Named(NamedPageNumberingStart::Body) => Self::Body,
             PageNumberingStartValue::BodyPage(page) => Self::BodyPage(page),
         })
+    }
+}
+
+impl Serialize for PageNumberingStart {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            Self::Cover => serializer.serialize_str("cover"),
+            Self::Title => serializer.serialize_str("title"),
+            Self::Toc => serializer.serialize_str("toc"),
+            Self::AfterToc => serializer.serialize_str("after-toc"),
+            Self::Body => serializer.serialize_str("body"),
+            Self::BodyPage(page) => page.serialize(serializer),
+        }
     }
 }

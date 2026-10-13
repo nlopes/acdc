@@ -1,7 +1,7 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 /// Controls whether a heading starts on a new page.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PageBreakBefore {
     /// Let the heading follow the preceding content.
@@ -12,7 +12,7 @@ pub enum PageBreakBefore {
 }
 
 /// Controls the page break between a part and its first chapter.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PartBreakAfter {
     /// Follow the chapter's `break_before` policy.
@@ -25,7 +25,7 @@ pub enum PartBreakAfter {
 }
 
 /// Page-break settings for part headings.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct PartHeading {
     /// Controls whether each part starts on a new page.
@@ -35,7 +35,7 @@ pub struct PartHeading {
 }
 
 /// Page-break settings for chapter headings.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ChapterHeading {
     /// Controls whether each chapter starts on a new page.
@@ -43,7 +43,7 @@ pub struct ChapterHeading {
 }
 
 /// Book heading page-break settings.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Heading {
     /// Page-break settings for book parts.

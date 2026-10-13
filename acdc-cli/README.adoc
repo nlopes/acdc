@@ -227,6 +227,22 @@ for supported settings and fallback behavior. This command requires the `pdf` bu
 To inherit supported Asciidoctor defaults, start a custom theme with
 `extends: default` and add only your overrides. Unsupported styles use acdc defaults.
 
+Save the full resolved theme in native acdc format, then use it without the
+compatibility option:
+
+[source,console]
+....
+acdc convert --backend pdf --theme brand-theme.yml --theme-format asciidoctor --emit-theme-config acdc.yml document.adoc
+acdc convert --backend pdf --theme acdc.yml document.adoc
+....
+
+The first command generates both the PDF and the native theme file.
+A document or `--stdin` is required. Omit `--theme` to use the selected format's
+bundled defaults. The theme file includes all native tokens and theme page
+defaults. It excludes document attributes, caller page overrides, and font files.
+Conversion warnings still apply;
+`--fail-on-warnings` retains the exported file and returns status 1.
+
 === `lint`
 
 The default build includes the lint command:

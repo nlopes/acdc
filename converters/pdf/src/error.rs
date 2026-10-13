@@ -128,6 +128,33 @@ pub enum Error {
         source: acdc_pdf_theme::Error,
     },
 
+    /// The resolved native theme could not be serialized.
+    #[error("could not serialize PDF theme config for {path}: {source}")]
+    ThemeConfigSerialize {
+        /// Output path.
+        path: PathBuf,
+        /// Invalid theme value or serialization error.
+        source: acdc_pdf_theme::Error,
+    },
+
+    /// The resolved native theme could not be written.
+    #[error("could not write PDF theme config to {path}: {source}")]
+    ThemeConfigWrite {
+        /// Output path.
+        path: PathBuf,
+        /// I/O error.
+        source: std::io::Error,
+    },
+
+    /// Theme export would replace another conversion input or output.
+    #[error("PDF theme config {path} must use a different path from {other}")]
+    ThemeConfigPathCollision {
+        /// Requested theme export path.
+        path: PathBuf,
+        /// Conflicting document, theme, PDF, or Typst path.
+        other: PathBuf,
+    },
+
     /// Image or logo resolution failed in strict mode.
     #[error("{0}")]
     AssetResolution(String),

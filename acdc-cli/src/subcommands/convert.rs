@@ -36,6 +36,7 @@ type RawAttributes<'a> = std::collections::HashMap<Cow<'a, str>, AttributeValue<
 
 /// Convert `AsciiDoc` documents to various output formats
 #[derive(ClapArgs, Debug)]
+#[cfg_attr(feature = "pdf", command(group(clap::ArgGroup::new("theme_or_export").args(["theme", "emit_theme_config"]).multiple(true))))]
 #[allow(clippy::struct_excessive_bools)] // CLI flags are naturally booleans
 pub struct Args {
     /// Input from stdin
@@ -149,8 +150,16 @@ pub struct Args {
 
     /// PDF theme format. Asciidoctor settings are converted with warnings for unsupported styles.
     #[cfg(feature = "pdf")]
-    #[arg(long, value_enum, value_name = "FORMAT", requires = "theme")]
+    #[arg(long, value_enum, value_name = "FORMAT", requires = "theme_or_export")]
     pub theme_format: Option<PdfThemeFormatArg>,
+
+    /// Also write the full resolved PDF theme as native acdc YAML.
+    ///
+    /// Conversion still requires a document or --stdin. Document attributes
+    /// and caller page overrides are not included in the file.
+    #[cfg(feature = "pdf")]
+    #[arg(long, value_name = "FILE")]
+    pub emit_theme_config: Option<PathBuf>,
 
     /// Strip PDF branding chrome (page background, header, footer).
     #[cfg(feature = "pdf")]
@@ -251,6 +260,7 @@ impl Args {
             || self.page_layout.is_some()
             || self.theme.is_some()
             || self.theme_format.is_some()
+            || self.emit_theme_config.is_some()
             || self.plain
             || self.toc
             || self.emit_typst.is_some()
@@ -366,6 +376,35 @@ fn validate_pdf_options(args: &Args, backend: Backend) -> MietteResult<()> {
                 "--emit-typst can only be used with a single input file"
             ));
         }
+        if let Some(path) = &args.emit_theme_config {
+            for source in args
+                .files
+                .iter()
+                .chain(args.theme.iter())
+                .chain(args.emit_typst.iter())
+            {
+                if paths_match(path, source) {
+                    return Err(miette::miette!(
+                        "--emit-theme-config must use a different path from input and Typst files"
+                    ));
+                }
+            }
+            if args
+                .out_file
+                .as_deref()
+                .filter(|path| *path != "-")
+                .is_some_and(|output| paths_match(path, Path::new(output)))
+                || args.out_file.is_none()
+                    && args
+                        .files
+                        .iter()
+                        .any(|file| paths_match(path, &file.with_extension("pdf")))
+            {
+                return Err(miette::miette!(
+                    "--emit-theme-config must use a different path from PDF output"
+                ));
+            }
+        }
         return Ok(());
     }
 
@@ -373,7 +412,7 @@ fn validate_pdf_options(args: &Args, backend: Backend) -> MietteResult<()> {
         return Err(miette::miette!(
             "PDF-only options such as --font-dir, --logo, --title, --watermark, \
              --watermark-timestamp, --page, --page-layout, --theme, --plain, --toc, \
-             --emit-typst, and --image-concurrency require `--backend pdf`"
+             --emit-typst, --emit-theme-config, and --image-concurrency require `--backend pdf`"
         ));
     }
     Ok(())
@@ -397,11 +436,27 @@ fn pdf_options_from_args(args: &Args) -> PdfOptions {
         theme_format: args
             .theme_format
             .map_or(ThemeFormat::Acdc, PdfThemeFormatArg::to_theme_format),
+        emit_theme_config: args.emit_theme_config.clone(),
         plain: args.plain,
         toc: args.toc,
         strict_assets: args.strict,
         emit_typst: args.emit_typst.clone(),
     }
+}
+
+#[cfg(feature = "pdf")]
+fn paths_match(first: &Path, second: &Path) -> bool {
+    let resolved = |path: &Path| {
+        path.canonicalize().ok().or_else(|| {
+            let parent = path
+                .parent()
+                .filter(|parent| !parent.as_os_str().is_empty())
+                .unwrap_or_else(|| Path::new("."));
+            Some(parent.canonicalize().ok()?.join(path.file_name()?))
+        })
+    };
+    first == second
+        || matches!((resolved(first), resolved(second)), (Some(first), Some(second)) if first == second)
 }
 
 fn open_output_files<E>(
