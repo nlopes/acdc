@@ -3,7 +3,12 @@ use std::{
     io::{self, Write},
     process::{Command, Output, Stdio},
 };
-#[cfg(any(feature = "html", feature = "terminal", feature = "inspect"))]
+#[cfg(any(
+    feature = "html",
+    feature = "terminal",
+    feature = "inspect",
+    feature = "pdf"
+))]
 use tempfile::tempdir;
 
 #[cfg(any(
@@ -11,7 +16,8 @@ use tempfile::tempdir;
     feature = "terminal",
     feature = "inspect",
     feature = "execute",
-    feature = "lint"
+    feature = "lint",
+    feature = "pdf"
 ))]
 use std::fs;
 
@@ -1764,5 +1770,138 @@ fn inspect_include_access_is_controlled_by_safe_mode() -> Result<(), Box<dyn Err
     assert!(secure.status.success());
     assert!(output_text(&default.stdout).contains("PRIVATE CONTENT"));
     assert!(!output_text(&secure.stdout).contains("PRIVATE CONTENT"));
+    Ok(())
+}
+
+#[cfg(feature = "pdf")]
+#[test]
+fn asciidoctor_theme_valid_code_minimum_succeeds_with_fail_on_warnings()
+-> Result<(), Box<dyn Error>> {
+    let directory = tempdir()?;
+    let theme = directory.path().join("theme.yml");
+    fs::write(
+        &theme,
+        "base_font_size: 12\ncode_font_size: 5\ncode_font_size_min: 4\n",
+    )?;
+    let output = run_acdc(
+        &[
+            "convert",
+            "--backend",
+            "pdf",
+            "--theme",
+            theme.to_str().ok_or("non-UTF-8 path")?,
+            "--theme-format",
+            "asciidoctor",
+            "--fail-on-warnings",
+            "--stdin",
+        ],
+        Some("----\nCodeSizeMarker\n----\n"),
+    )?;
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "{}",
+        output_text(&output.stderr)
+    );
+    assert_eq!(output.stderr, [] as [u8; 0]);
+    assert!(output.stdout.starts_with(b"%PDF-"));
+    Ok(())
+}
+
+#[cfg(feature = "pdf")]
+#[test]
+fn asciidoctor_theme_requires_an_explicit_format_and_reports_warnings() -> Result<(), Box<dyn Error>>
+{
+    let directory = tempfile::tempdir()?;
+    let document = directory.path().join("source.adoc");
+    let theme = directory.path().join("theme.yml");
+    let pdf = directory.path().join("output.pdf");
+    std::fs::write(&document, "ThemeCompatibilityMarker.\n")?;
+    std::fs::write(
+        &theme,
+        "base_font_size: 12\nrole:\n  lead:\n    font_size: 16\n",
+    )?;
+    let document = document.to_str().ok_or("non-UTF-8 path")?;
+    let theme = theme.to_str().ok_or("non-UTF-8 path")?;
+    let pdf_path = pdf.to_str().ok_or("non-UTF-8 path")?;
+    let args = [
+        "convert",
+        "--backend",
+        "pdf",
+        "--theme",
+        theme,
+        "--out-file",
+        pdf_path,
+        document,
+    ];
+    let native = run_acdc(&args, None)?;
+    assert_eq!(native.status.code(), Some(1));
+    assert_eq!(std::fs::read(&pdf)?, [] as [u8; 0]);
+    assert!(output_text(&native.stderr).contains("unknown field"));
+    for fail in [false, true] {
+        let mut args = args.to_vec();
+        args.extend(["--theme-format", "asciidoctor"]);
+        if fail {
+            args.push("--fail-on-warnings");
+        }
+        let output = run_acdc(&args, None)?;
+        assert_eq!(
+            output.status.code(),
+            Some(i32::from(fail)),
+            "{}",
+            output_text(&output.stderr)
+        );
+        assert!(std::fs::read(&pdf)?.starts_with(b"%PDF-"));
+        let stderr = output_text(&output.stderr);
+        assert_eq!(stderr.matches("role.lead.font_size").count(), 1, "{stderr}");
+    }
+    Ok(())
+}
+
+#[cfg(feature = "pdf")]
+#[test]
+fn asciidoctor_theme_cli_rejects_missing_theme_and_invalid_format() -> Result<(), Box<dyn Error>> {
+    for args in [
+        vec![
+            "convert",
+            "--backend",
+            "pdf",
+            "--theme-format",
+            "asciidoctor",
+            "--stdin",
+        ],
+        vec![
+            "convert",
+            "--backend",
+            "pdf",
+            "--theme",
+            "theme.yml",
+            "--theme-format",
+            "unknown",
+            "--stdin",
+        ],
+    ] {
+        let output = run_acdc(&args, Some("Text.\n"))?;
+        assert_eq!(output.status.code(), Some(2));
+        assert!(output_text(&output.stderr).contains("--theme"));
+    }
+    #[cfg(feature = "html")]
+    {
+        let output = run_acdc(
+            &[
+                "convert",
+                "--backend",
+                "html",
+                "--theme",
+                "theme.yml",
+                "--theme-format",
+                "asciidoctor",
+                "--stdin",
+            ],
+            Some("Text.\n"),
+        )?;
+        assert_eq!(output.status.code(), Some(1));
+        assert!(output_text(&output.stderr).contains("PDF-only"));
+    }
     Ok(())
 }

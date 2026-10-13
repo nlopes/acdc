@@ -9,11 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Invalid or non-fitting `pdf-page-margin` overrides use the theme's page
+  margins when they fit the page. The same fallback applies to non-fitting
+  `PdfOptions::page_margin` values. Theme spacing margins apply if needed.
+
 - Remote images that time out during a response-body read now produce a
   timeout warning. Other images still render. `--strict` keeps treating
   image failures as errors.
 
 ### Added
+
+- Load supported Asciidoctor PDF 2.3.15 themes with `--theme-format asciidoctor`
+  or `PdfOptions::theme_format = ThemeFormat::Asciidoctor`. Colours, type sizes,
+  captions, tables, book page breaks, and page geometry are converted during
+  loading. Unsupported settings produce structured converter warnings. Native
+  themes remain the default, and exact layout parity is not promised.
+  `heading_h2_font_size` through `heading_h6_font_size` set section levels 1
+  through 5. Separate document-title and book-part sizes produce a warning.
 
 - `--image-concurrency` and `PdfOptions::remote_image_concurrency` enable
   bounded parallel fetching for remote document images. The default is two
@@ -22,6 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Local images, asset policy, and warning order keep their existing behavior.
 
 ### Changed
+
+- **Breaking for library callers:** exhaustive `PdfOptions` literals must include
+  `theme_format: ThemeFormat::Acdc`.
+  Use `..PdfOptions::default()` to keep the defaults.
 
 - **Breaking for library callers:** full `PdfOptions` struct literals must
   include `remote_image_concurrency`. Use `None` or `..Default::default()`

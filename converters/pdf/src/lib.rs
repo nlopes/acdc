@@ -40,7 +40,7 @@ use acdc_pdf_images::{
     Error as ImageError, ImageMap, ResolveConfig, ResolveFailure, SourcePolicy, resolve,
 };
 use acdc_pdf_render::{NamedDestination, RenderConfig, render_pdf};
-use acdc_pdf_theme::{PageNumberingStart, Theme};
+use acdc_pdf_theme::{PageNumberingStart, PageOrientation, Theme};
 use acdc_pdf_typst::{
     DocumentLocale, DocumentMetadata, EmitOptions, Error as TypstError, Writer, preamble,
 };
@@ -55,6 +55,43 @@ mod visitor;
 
 pub use acdc_pdf_typst::{PageDimensions, PageGeometryError, PageLayout, PageMargins, PageSize};
 pub use error::Error;
+
+/// Format used to load a PDF theme.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum ThemeFormat {
+    /// acdc's strict native design-token schema.
+    #[default]
+    Acdc,
+    /// Supported Asciidoctor PDF 2.3.15 settings, with conversion warnings.
+    Asciidoctor,
+}
+
+#[derive(Default)]
+struct LoadedTheme {
+    theme: Theme,
+    page: Option<PageSize>,
+    layout: Option<PageLayout>,
+    margin: Option<PageMargins>,
+}
+
+impl From<Theme> for LoadedTheme {
+    fn from(theme: Theme) -> Self {
+        Self {
+            page: theme
+                .page
+                .size_pt
+                .and_then(|[width, height]| PageSize::try_custom(width, height).ok()),
+            layout: theme.page.layout.map(|layout| match layout {
+                PageOrientation::Portrait => PageLayout::Portrait,
+                PageOrientation::Landscape => PageLayout::Landscape,
+            }),
+            margin: theme.page.margin_pt.and_then(|[top, right, bottom, left]| {
+                PageMargins::try_new(top, right, bottom, left).ok()
+            }),
+            theme,
+        }
+    }
+}
 
 pub(crate) const PDF_BACKEND: BackendProfile =
     BackendProfile::new("pdf", "html", "pdf", ".pdf").with_htmlsyntax("html");
@@ -120,8 +157,12 @@ pub struct PdfOptions {
     pub page_layout: Option<PageLayout>,
     /// Optional page margin override. Document `:pdf-page-margin:` is used next.
     pub page_margin: Option<PageMargins>,
-    /// Optional theme YAML file. Defaults to the bundled neutral theme.
+    /// Optional theme YAML file. Omission uses the selected format's bundled default.
     pub theme: Option<PathBuf>,
+    /// Format of `theme`. Native acdc YAML is the default. Compatibility
+    /// warnings use the normal converter diagnostics. With no file, Asciidoctor
+    /// format selects the bundled Asciidoctor default theme.
+    pub theme_format: ThemeFormat,
     /// Strip the page background, header, and footer.
     pub plain: bool,
     /// Emit an automatic table of contents when the document does not set `:toc:`.
@@ -304,17 +345,18 @@ impl Processor<'_> {
         doc: &Document<'_>,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<String, Error> {
-        let theme = self.load_theme()?;
-        let page_numbering = self.page_numbering_plan(doc, &theme);
+        let loaded = self.load_theme(diagnostics)?;
+        let theme = &loaded.theme;
+        let page_numbering = self.page_numbering_plan(doc, theme);
         let assets = ImageMap::new();
         let font_dirs = self.pdf_options.font_dirs.clone();
-        let emit_options = self.emit_options(doc, None, &font_dirs, diagnostics);
+        let emit_options = self.emit_options(doc, None, &font_dirs, &loaded, diagnostics);
         let preparation = collect_pdf_preparation(doc);
         self.emit_typst_source(
             doc,
             &assets,
             &preparation,
-            TypstSourceConfig::new(&theme, &emit_options, page_numbering),
+            TypstSourceConfig::new(theme, &emit_options, page_numbering),
             diagnostics,
         )
     }
@@ -337,8 +379,9 @@ impl Processor<'_> {
         source_file: Option<&Path>,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<RenderedPdf, Error> {
-        let theme = self.load_theme()?;
-        let page_numbering = self.page_numbering_plan(doc, &theme);
+        let loaded = self.load_theme(diagnostics)?;
+        let theme = &loaded.theme;
+        let page_numbering = self.page_numbering_plan(doc, theme);
 
         // Validated image snapshots are spooled here so their bytes are read on
         // demand and cannot change between validation and rendering. The
@@ -358,12 +401,12 @@ impl Processor<'_> {
         let asset_duration = asset_start.elapsed();
 
         let emit_start = Instant::now();
-        let emit_options = self.emit_options(doc, logo, &font_dirs, diagnostics);
+        let emit_options = self.emit_options(doc, logo, &font_dirs, &loaded, diagnostics);
         let typst = self.emit_typst_source(
             doc,
             &assets,
             &preparation,
-            TypstSourceConfig::new(&theme, &emit_options, page_numbering),
+            TypstSourceConfig::new(theme, &emit_options, page_numbering),
             diagnostics,
         )?;
         self.write_debug_typst(&typst)?;
@@ -484,15 +527,47 @@ impl Processor<'_> {
         Ok(source)
     }
 
-    fn load_theme(&self) -> Result<Theme, Error> {
-        let Some(path) = &self.pdf_options.theme else {
-            return Ok(Theme::default());
-        };
-        let yaml = read_theme_file(path)?;
-        Theme::from_yaml_str(&yaml).map_err(|source| Error::ThemeParse {
-            path: path.clone(),
-            source,
-        })
+    fn load_theme(&self, diagnostics: &mut Diagnostics<'_>) -> Result<LoadedTheme, Error> {
+        let yaml = self
+            .pdf_options
+            .theme
+            .as_deref()
+            .map(read_theme_file)
+            .transpose()?;
+        let path = self
+            .pdf_options
+            .theme
+            .as_deref()
+            .unwrap_or_else(|| Path::new("bundled Asciidoctor default"));
+        match self.pdf_options.theme_format {
+            ThemeFormat::Acdc => yaml.map_or_else(
+                || Ok(LoadedTheme::default()),
+                |yaml| {
+                    Theme::from_yaml_str(&yaml)
+                        .map(LoadedTheme::from)
+                        .map_err(|source| Error::ThemeParse {
+                            path: path.to_path_buf(),
+                            source,
+                        })
+                },
+            ),
+            ThemeFormat::Asciidoctor => {
+                let converted = acdc_pdf_theme::asciidoctor::from_yaml_str(
+                    yaml.as_deref().unwrap_or("extends: default\n"),
+                )
+                .map_err(|source| Error::ThemeParse {
+                    path: path.to_path_buf(),
+                    source,
+                })?;
+                for warning in converted.warnings {
+                    diagnostics.warn_with_advice(
+                        format!("PDF theme {}: {}: {}", path.display(), warning.key, warning.message),
+                        "See the Asciidoctor PDF theme compatibility map for supported settings and rendering differences.",
+                    );
+                }
+                Ok(LoadedTheme::from(converted.theme))
+            }
+        }
     }
 
     fn page_numbering_plan(&self, doc: &Document<'_>, theme: &Theme) -> PageNumberingPlan {
@@ -530,6 +605,7 @@ impl Processor<'_> {
         doc: &Document<'_>,
         logo: Option<String>,
         font_dirs: &[PathBuf],
+        theme: &LoadedTheme,
         diagnostics: &mut Diagnostics<'_>,
     ) -> EmitOptions {
         let metadata = document_metadata(doc);
@@ -538,7 +614,7 @@ impl Processor<'_> {
             .title
             .clone()
             .or_else(|| metadata.title.clone());
-        let page_setup = self.page_setup(doc, diagnostics);
+        let page_setup = self.page_setup(doc, theme, diagnostics);
         EmitOptions {
             metadata,
             locale: document_locale(doc, diagnostics),
@@ -554,12 +630,17 @@ impl Processor<'_> {
         }
     }
 
-    fn page_size(&self, doc: &Document<'_>, diagnostics: &mut Diagnostics<'_>) -> PageSize {
+    fn page_size(
+        &self,
+        doc: &Document<'_>,
+        theme: &LoadedTheme,
+        diagnostics: &mut Diagnostics<'_>,
+    ) -> PageSize {
         if let Some(page) = self.pdf_options.page {
             return page;
         }
         let Some(value) = document_attribute_text((doc.attributes).get("pdf-page-size")) else {
-            return PageSize::A4;
+            return theme.page.unwrap_or(PageSize::A4);
         };
         if let Some(page) = parse_page_size(value) {
             page
@@ -575,12 +656,15 @@ impl Processor<'_> {
     fn page_margin(
         &self,
         doc: &Document<'_>,
+        theme: &LoadedTheme,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Option<PageMargins> {
         if let Some(margin) = self.pdf_options.page_margin {
             return Some(margin);
         }
-        let value = document_attribute_text((doc.attributes).get("pdf-page-margin"))?;
+        let Some(value) = document_attribute_text((doc.attributes).get("pdf-page-margin")) else {
+            return theme.margin;
+        };
         if value.trim().is_empty() {
             return None;
         }
@@ -595,11 +679,20 @@ impl Processor<'_> {
         }
     }
 
-    fn page_setup(&self, doc: &Document<'_>, diagnostics: &mut Diagnostics<'_>) -> PageSetup {
-        let page = self.page_size(doc, diagnostics);
-        let page_layout = self.page_layout(doc, diagnostics);
-        let Some(page_margin) = self.page_margin(doc, diagnostics) else {
-            return PageSetup::with_theme_margin(page, page_layout);
+    fn page_setup(
+        &self,
+        doc: &Document<'_>,
+        theme: &LoadedTheme,
+        diagnostics: &mut Diagnostics<'_>,
+    ) -> PageSetup {
+        let page = self.page_size(doc, theme, diagnostics);
+        let page_layout = self.page_layout(doc, theme, diagnostics);
+        let theme_setup = theme
+            .margin
+            .and_then(|margin| PageSetup::with_margin(page, page_layout, margin))
+            .unwrap_or_else(|| PageSetup::with_theme_margin(page, page_layout));
+        let Some(page_margin) = self.page_margin(doc, theme, diagnostics) else {
+            return theme_setup;
         };
         if let Some(page_setup) = PageSetup::with_margin(page, page_layout, page_margin) {
             return page_setup;
@@ -608,15 +701,20 @@ impl Processor<'_> {
             "PDF page margins do not fit the selected page, using theme margins",
             "Reduce `:pdf-page-margin:` or select a larger `:pdf-page-size:`.",
         );
-        PageSetup::with_theme_margin(page, page_layout)
+        theme_setup
     }
 
-    fn page_layout(&self, doc: &Document<'_>, diagnostics: &mut Diagnostics<'_>) -> PageLayout {
+    fn page_layout(
+        &self,
+        doc: &Document<'_>,
+        theme: &LoadedTheme,
+        diagnostics: &mut Diagnostics<'_>,
+    ) -> PageLayout {
         if let Some(layout) = self.pdf_options.page_layout {
             return layout;
         }
         let Some(value) = document_attribute_text((doc.attributes).get("pdf-page-layout")) else {
-            return PageLayout::Portrait;
+            return theme.layout.unwrap_or(PageLayout::Portrait);
         };
         match value.to_ascii_lowercase().as_str() {
             "landscape" => PageLayout::Landscape,
@@ -2335,7 +2433,13 @@ mod tests {
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let emit_options = processor.emit_options(parsed.document(), None, &[], &mut diagnostics);
+        let emit_options = processor.emit_options(
+            parsed.document(),
+            None,
+            &[],
+            &LoadedTheme::default(),
+            &mut diagnostics,
+        );
         let page_numbering = processor.page_numbering_plan(parsed.document(), &theme);
 
         let typst = processor.emit_typst_source(
@@ -2696,7 +2800,13 @@ mod tests {
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let emit_options = processor.emit_options(parsed.document(), None, &[], &mut diagnostics);
+        let emit_options = processor.emit_options(
+            parsed.document(),
+            None,
+            &[],
+            &LoadedTheme::default(),
+            &mut diagnostics,
+        );
         let page_numbering = processor.page_numbering_plan(parsed.document(), &theme);
 
         let typst_with_default_gap = processor.emit_typst_source(
@@ -3543,7 +3653,13 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let options = processor.emit_options(parsed.document(), None, &[], &mut diagnostics);
+        let options = processor.emit_options(
+            parsed.document(),
+            None,
+            &[],
+            &LoadedTheme::default(),
+            &mut diagnostics,
+        );
 
         assert_eq!(
             options.page_header_title.as_deref(),
@@ -3606,7 +3722,13 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let options = processor.emit_options(parsed.document(), None, &[], &mut diagnostics);
+        let options = processor.emit_options(
+            parsed.document(),
+            None,
+            &[],
+            &LoadedTheme::default(),
+            &mut diagnostics,
+        );
 
         assert_eq!(options.locale, DocumentLocale::default());
         assert_eq!(warnings.len(), 1);
@@ -3957,7 +4079,13 @@ mod tests {
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
         let assets = ImageMap::new();
-        let emit_options = processor.emit_options(parsed.document(), None, &[], &mut diagnostics);
+        let emit_options = processor.emit_options(
+            parsed.document(),
+            None,
+            &[],
+            &LoadedTheme::default(),
+            &mut diagnostics,
+        );
         let page_numbering = processor.page_numbering_plan(parsed.document(), &theme);
         let typst = processor.emit_typst_source(
             parsed.document(),

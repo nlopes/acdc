@@ -14,6 +14,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Native themes can set page dimensions and margins in points, plus orientation,
+  under `page`. Omitted page settings keep the existing PDF defaults.
+
+- Convert supported Asciidoctor PDF 2.3.15 theme settings into native acdc themes
+  and page defaults. Unsupported settings and differences are reported by source
+  key path. References, numeric expressions, and the pinned `base` and `default`
+  parent themes are supported. External parent themes and font catalogs are not loaded.
+  Quoted RGB variables keep their leading zeros. Heading sizes follow section
+  roles: `heading_h2_font_size` through `heading_h6_font_size` set native levels
+  1 through 5. Separate document-title and book-part sizes are unsupported and
+  produce a warning.
+  Valid explicit code sizes and minima produce no adjustment warning. The
+  native fallback minimum is reduced only when needed to fit the normal size.
+
 - Bundled bold italic serif and sans fonts preserve both styles when emphasis
   and strong text are combined, including in headings and custom themes.
 - Bundle IBM Plex Math as a symbol fallback, so double arrows such as `⇒`,

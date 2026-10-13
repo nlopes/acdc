@@ -9,9 +9,170 @@ use std::{
 use acdc_converters_core::{
     Converter, Diagnostics, Options as ConverterOptions, Warning, WarningSource,
 };
-use acdc_converters_pdf::{PageLayout, PageSize, PdfOptions, Processor};
+use acdc_converters_pdf::{PageLayout, PageMargins, PageSize, PdfOptions, Processor, ThemeFormat};
 
 type Error = Box<dyn std::error::Error>;
+
+#[test]
+fn asciidoctor_theme_heading_sizes_apply_to_pdf_section_levels() -> Result<(), Error> {
+    let directory = tempfile::tempdir()?;
+    let theme = directory.path().join("theme.yml");
+    std::fs::write(
+        &theme,
+        "heading_h1_font_size: 36\nheading_h2_font_size: 20\nheading_h3_font_size: 10\n",
+    )?;
+    let parsed = parse(
+        "= TitleMarker\n\n== SectionMarker\n\nText.\n\n=== SubsectionMarker\n\nText.\n",
+        &Options::default(),
+    )?;
+    let processor = Processor::new(ConverterOptions::default(), Options::builder())?
+        .with_pdf_options(PdfOptions {
+            theme: Some(theme),
+            theme_format: ThemeFormat::Asciidoctor,
+            ..PdfOptions::default()
+        });
+    let source = WarningSource::new("pdf");
+    let mut warnings = Vec::new();
+    let mut bytes = Vec::new();
+    processor.write_to(
+        parsed.document(),
+        &mut bytes,
+        None,
+        None,
+        &mut Diagnostics::new(&source, &mut warnings),
+    )?;
+    let pdf = PdfDocument::load_mem(&bytes)?;
+    assert_eq!(text_font_size(&pdf, 1, "TitleMarker")?, 22.0);
+    assert_eq!(text_font_size(&pdf, 1, "SectionMarker")?, 20.0);
+    assert_eq!(text_font_size(&pdf, 1, "SubsectionMarker")?, 10.0);
+    assert!(warnings.iter().any(|warning| {
+        warning.message.contains("heading_h1_font_size")
+            && warning.message.contains("document-title")
+    }));
+    Ok(())
+}
+
+#[test]
+fn invalid_page_margin_overrides_keep_loaded_theme_margins() -> Result<(), Error> {
+    let directory = tempfile::tempdir()?;
+    let theme = directory.path().join("theme.yml");
+    for format in [ThemeFormat::Acdc, ThemeFormat::Asciidoctor] {
+        let yaml = if format == ThemeFormat::Acdc {
+            include_str!("../crates/theme/assets/theme/default.yaml")
+                .replace("margin_pt: null", "margin_pt: [12, 18, 24, 30]")
+        } else {
+            "page_margin: [12, 18, 24, 30]\n".to_owned()
+        };
+        std::fs::write(&theme, yaml)?;
+        for (value, caller_override, expects_warning) in [
+            ("not-a-margin", false, true),
+            ("[-1]", false, true),
+            ("400pt", false, true),
+            ("18pt", true, true),
+            ("", false, false),
+        ] {
+            let input = format!(":pdf-page-margin: {value}\n\nMarginFallbackMarker.\n");
+            let parsed = parse(&input, &Options::default())?;
+            let processor = Processor::new(ConverterOptions::default(), Options::builder())?
+                .with_pdf_options(PdfOptions {
+                    theme: Some(theme.clone()),
+                    theme_format: format,
+                    page_margin: caller_override
+                        .then(|| PageMargins::try_new(400.0, 400.0, 400.0, 400.0))
+                        .transpose()?,
+                    plain: true,
+                    ..PdfOptions::default()
+                });
+            let source = WarningSource::new("pdf");
+            let mut warnings = Vec::new();
+            let mut bytes = Vec::new();
+            processor.write_to(
+                parsed.document(),
+                &mut bytes,
+                None,
+                None,
+                &mut Diagnostics::new(&source, &mut warnings),
+            )?;
+            let pdf = PdfDocument::load_mem(&bytes)?;
+            let (left, _) = text_origin(&pdf, 1, "MarginFallbackMarker.")?;
+            assert!(
+                (left - 30.0).abs() < 0.01,
+                "{format:?} {value}: left margin {left}"
+            );
+            assert_eq!(warnings.len(), usize::from(expects_warning), "{warnings:?}");
+            if expects_warning {
+                assert!(
+                    warnings
+                        .first()
+                        .is_some_and(|warning| warning.message.contains("using theme margins"))
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn asciidoctor_theme_page_settings_respect_document_and_caller_overrides() -> Result<(), Error> {
+    let directory = tempfile::tempdir()?;
+    let theme = directory.path().join("theme.yml");
+    std::fs::write(
+        &theme,
+        "page:\n  size: A5\n  layout: landscape\n  margin: [36, 30, 24, 42]\n",
+    )?;
+    for (attributes, overrides, size, layout, margin) in [
+        ("", false, PageSize::A5, PageLayout::Landscape, 42.0),
+        (
+            ":pdf-page-size: Letter\n:pdf-page-layout: portrait\n:pdf-page-margin: 18\n",
+            false,
+            PageSize::Letter,
+            PageLayout::Portrait,
+            18.0,
+        ),
+        (
+            ":pdf-page-size: Letter\n:pdf-page-layout: landscape\n:pdf-page-margin: 18\n",
+            true,
+            PageSize::A4,
+            PageLayout::Portrait,
+            30.0,
+        ),
+    ] {
+        let input = format!("{attributes}\nThemeGeometryMarker.\n");
+        let parsed = parse(&input, &Options::default())?;
+        let mut options = PdfOptions {
+            theme: Some(theme.clone()),
+            theme_format: ThemeFormat::Asciidoctor,
+            plain: true,
+            ..PdfOptions::default()
+        };
+        if overrides {
+            options.page = Some(PageSize::A4);
+            options.page_layout = Some(PageLayout::Portrait);
+            options.page_margin = Some(PageMargins::try_new(30.0, 30.0, 30.0, 30.0)?);
+        }
+        let processor = Processor::new(
+            ConverterOptions::default(),
+            Options::builder().with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?
+        .with_pdf_options(options);
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut bytes = Vec::new();
+        processor.write_to(
+            parsed.document(),
+            &mut bytes,
+            None,
+            None,
+            &mut Diagnostics::new(&source, &mut warnings),
+        )?;
+        assert!(warnings.is_empty(), "{warnings:?}");
+        let pdf = PdfDocument::load_mem(&bytes)?;
+        assert_pdf_page_layouts(&pdf, size, &[layout])?;
+        let (left, _) = text_origin(&pdf, 1, "ThemeGeometryMarker.")?;
+        assert!((left - margin).abs() < 0.01, "left margin {left}");
+    }
+    Ok(())
+}
 
 #[test]
 fn page_break_layout_changes_preserve_pdf_structure() -> Result<(), Error> {
@@ -2793,6 +2954,47 @@ fn verbatim_index_locators_match_occurrences_at_page_boundaries() -> Result<(), 
         );
     }
     Ok(())
+}
+
+fn text_font_size(pdf: &PdfDocument, page: u32, needle: &str) -> Result<f32, Error> {
+    let page_id = *pdf.get_pages().get(&page).ok_or("missing page")?;
+    let encodings = pdf
+        .get_page_fonts(page_id)?
+        .into_iter()
+        .map(|(name, font)| Ok((name, font.get_font_encoding(pdf)?)))
+        .collect::<Result<HashMap<_, _>, Error>>()?;
+    let content = lopdf::content::Content::decode(&pdf.get_page_content(page_id))?;
+    let mut encoding = None;
+    let mut size = 0.0;
+    for operation in content.operations {
+        match (operation.operator.as_str(), operation.operands.as_slice()) {
+            ("Tf", [font, value]) => {
+                encoding = encodings.get(font.as_name()?);
+                size = value.as_float()?;
+            }
+            ("Tj", [Object::String(bytes, _)]) => {
+                if PdfDocument::decode_text(encoding.ok_or("missing font")?, bytes)? == needle {
+                    return Ok(size);
+                }
+            }
+            ("TJ", [Object::Array(parts)]) => {
+                let mut text = String::new();
+                for part in parts {
+                    if let Object::String(bytes, _) = part {
+                        text.push_str(&PdfDocument::decode_text(
+                            encoding.ok_or("missing font")?,
+                            bytes,
+                        )?);
+                    }
+                }
+                if text == needle {
+                    return Ok(size);
+                }
+            }
+            _ => {}
+        }
+    }
+    Err(format!("missing text {needle:?}").into())
 }
 
 fn text_origin(pdf: &PdfDocument, page: u32, needle: &str) -> Result<(f32, f32), Error> {

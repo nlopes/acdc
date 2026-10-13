@@ -202,6 +202,31 @@ See link:../converters/html/README.adoc[the HTML converter documentation] for th
 
 The `terminal-emulator` feature enables Ghostty-backed `[terminal]` session rendering in the terminal backend and requires the documented Zig build prerequisite.
 
+=== Asciidoctor PDF themes
+
+Pass an existing Asciidoctor PDF theme with an explicit format:
+
+[source,console]
+....
+acdc convert --backend pdf --theme brand-theme.yml --theme-format asciidoctor document.adoc
+....
+
+acdc converts supported Asciidoctor PDF 2.3.15 settings during theme loading.
+It reports unsupported settings and differences as converter warnings.
+Use `--fail-on-warnings` to get exit status 1 while retaining the generated PDF.
+The default theme format is still `acdc`; native theme validation stays strict.
+
+Supported settings include RGB colours, font families and sizes, captions, tables,
+book page breaks, and page geometry. The loader handles earlier-value references,
+numeric expressions, and the pinned `base` and `default` parent themes.
+External parent themes and theme font catalogs are not loaded. Supply custom
+fonts with `--font-dir`. The two PDF engines can produce different layouts.
+See link:../converters/pdf/crates/theme/ASCIIDOCTOR_COMPATIBILITY.adoc[the compatibility map]
+for supported settings and fallback behavior. This command requires the `pdf` build feature.
+
+To inherit supported Asciidoctor defaults, start a custom theme with
+`extends: default` and add only your overrides. Unsupported styles use acdc defaults.
+
 === `lint`
 
 The default build includes the lint command:

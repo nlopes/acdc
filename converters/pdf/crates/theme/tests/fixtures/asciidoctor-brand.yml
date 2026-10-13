@@ -1,0 +1,28 @@
+extends: default
+base:
+  font_family: IBM Plex Serif
+  font_size: 12
+  font_color: 000000
+link:
+  font_color: '008800'
+heading:
+  h2_font_size: $base_font_size * 1.5
+  chapter:
+    break_before: auto
+code:
+  font_family: IBM Plex Mono
+  font_size: 0.75em
+  padding: [6, 6, 6, 6]
+caption:
+  font_size: 10pt
+  font_style: bold_italic
+index:
+  columns: 3
+  column_gap: 0.5in
+page:
+  size: [6in, 9in]
+  layout: landscape
+  margin: [0.5in, 1cm, 0.75in, 2cm]
+table:
+  head:
+    background_color: 'eeeeee'

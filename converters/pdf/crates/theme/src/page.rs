@@ -2,6 +2,49 @@ use serde::Deserialize;
 
 use crate::Error;
 
+/// Orientation applied to a theme's page dimensions.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PageOrientation {
+    /// Use the dimensions in their specified order.
+    Portrait,
+    /// Swap the specified width and height.
+    Landscape,
+}
+
+/// Page defaults used below caller options and document attributes.
+#[derive(Clone, Debug, Default, PartialEq, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Page {
+    /// Unrotated width and height in points. `None` keeps the renderer's page size.
+    pub size_pt: Option<[f64; 2]>,
+    /// `None` keeps the renderer's portrait default.
+    pub layout: Option<PageOrientation>,
+    /// Top, right, bottom, and left margins in points. `None` uses spacing tokens.
+    pub margin_pt: Option<[f64; 4]>,
+}
+
+impl Page {
+    pub(super) fn validate(&self) -> Result<(), Error> {
+        if let Some(size) = self.size_pt {
+            for value in size {
+                positive("page.size_pt", value)?;
+            }
+        }
+        if let Some(margins) = self.margin_pt
+            && margins
+                .iter()
+                .any(|value| !value.is_finite() || *value < 0.0)
+        {
+            return Err(Error::validation(
+                "page.margin_pt",
+                "expected four finite non-negative margins",
+            ));
+        }
+        Ok(())
+    }
+}
+
 /// Horizontal alignment of page-header content.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "snake_case")]

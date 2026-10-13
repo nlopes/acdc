@@ -35,8 +35,9 @@ unitless values are PDF points.
 
 Use `pdf-page-margin` to override the theme margins for one document. It accepts
 one to four measurements in CSS order, such as `[1in, 0.75in, 1in, 0.75in]`.
-Invalid dimensions or margins produce a structured warning and use the standard
-page or theme fallback.
+Invalid dimensions produce a structured warning and use the standard page
+fallback. Invalid or non-fitting margins produce a warning and use the theme's
+page margins when they fit. Otherwise, theme spacing margins apply.
 
 == Current scope
 
@@ -286,6 +287,34 @@ Unknown roles are ignored without warnings and cannot yet be styled through PDF 
 Highlighted text keeps its default background only when it has neither an ID nor a role.
 An attribute list makes `#...#` a generic attributed span, matching Asciidoctor PDF.
 
+== Asciidoctor PDF themes
+
+Use an existing theme without a separate migration step:
+
+[source,console]
+....
+acdc convert --backend pdf --theme brand-theme.yml --theme-format asciidoctor document.adoc
+....
+
+The compatibility loader converts supported Asciidoctor PDF 2.3.15 settings into
+acdc's native theme. It handles common colours, font sizes, captions, tables,
+book page breaks, and page geometry. References use earlier assignments, and
+numeric expressions plus the pinned `base` and `default` parent themes are supported.
+The native format remains the default.
+
+Unsupported settings and differences produce converter warnings.
+`--fail-on-warnings` applies and retains a successful PDF. External parent themes
+and theme font catalogs are not loaded; supply fonts with `--font-dir`.
+The two PDF engines can produce different layouts. See
+link:crates/theme/ASCIIDOCTOR_COMPATIBILITY.adoc[the compatibility map] for each mapping.
+
+Library callers select `ThemeFormat::Asciidoctor` in `PdfOptions::theme_format`
+and supply the file in `PdfOptions::theme`. Page options override document
+attributes, which override page defaults from the source theme.
+
+Start a custom Asciidoctor theme with `extends: default` to inherit supported
+defaults, then add only your overrides. Unmapped settings use acdc defaults.
+
 == Options
 
 Document images have limits of 1,024 distinct source attempts and 100 MiB of
@@ -342,17 +371,22 @@ order stay the same.
 | `page`
 | Set A3, A4, A5, Executive, Legal, Letter, or Tabloid.
   `PageSize::try_custom` also accepts validated dimensions for library callers.
-  `:pdf-page-size:` is consulted next and accepts named or custom sizes; A4 is
-  the fallback.
+  `:pdf-page-size:` is consulted next and accepts named or custom sizes.
+  A theme can supply the next default; otherwise acdc uses A4.
 
 | `--page-layout`
 | `page_layout`
 | Set the initial layout to `portrait` or `landscape`.
-  `:pdf-page-layout:` is consulted next; portrait is the fallback.
+  `:pdf-page-layout:` is consulted next, then the theme's layout.
+  The fallback is portrait.
 
 | `--theme`
 | `theme`
 | Load a theme YAML file instead of the bundled neutral theme.
+
+| `--theme-format acdc\|asciidoctor`
+| `theme_format`
+| Select the input schema for `--theme`. The default is `ThemeFormat::Acdc`.
 
 | `--plain`
 | `plain`

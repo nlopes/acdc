@@ -16,7 +16,7 @@ use acdc_converters_html::HtmlVariant;
 #[cfg(feature = "markdown")]
 use acdc_converters_markdown::MarkdownVariant;
 #[cfg(feature = "pdf")]
-use acdc_converters_pdf::{PageLayout, PageSize, PdfOptions};
+use acdc_converters_pdf::{PageLayout, PageSize, PdfOptions, ThemeFormat};
 #[cfg(feature = "terminal")]
 use acdc_converters_terminal::Error as TerminalError;
 use acdc_parser::{
@@ -50,7 +50,7 @@ pub struct Args {
     #[arg(short = 'o', long = "out-file", value_name = "FILE")]
     pub out_file: Option<String>,
 
-    /// List of files to convert
+    /// Files to convert.
     #[arg(conflicts_with = "stdin", required_unless_present = "stdin")]
     pub files: Vec<PathBuf>,
 
@@ -146,6 +146,11 @@ pub struct Args {
     #[cfg(feature = "pdf")]
     #[arg(long, value_name = "FILE")]
     pub theme: Option<PathBuf>,
+
+    /// PDF theme format. Asciidoctor settings are converted with warnings for unsupported styles.
+    #[cfg(feature = "pdf")]
+    #[arg(long, value_enum, value_name = "FORMAT", requires = "theme")]
+    pub theme_format: Option<PdfThemeFormatArg>,
 
     /// Strip PDF branding chrome (page background, header, footer).
     #[cfg(feature = "pdf")]
@@ -245,6 +250,7 @@ impl Args {
             || self.page.is_some()
             || self.page_layout.is_some()
             || self.theme.is_some()
+            || self.theme_format.is_some()
             || self.plain
             || self.toc
             || self.emit_typst.is_some()
@@ -388,6 +394,9 @@ fn pdf_options_from_args(args: &Args) -> PdfOptions {
         page_layout: args.page_layout.map(PdfPageLayoutArg::to_page_layout),
         page_margin: None,
         theme: args.theme.clone(),
+        theme_format: args
+            .theme_format
+            .map_or(ThemeFormat::Acdc, PdfThemeFormatArg::to_theme_format),
         plain: args.plain,
         toc: args.toc,
         strict_assets: args.strict,
@@ -1339,6 +1348,24 @@ pub enum BackendArg {
     Markdown,
     #[cfg(feature = "pdf")]
     Pdf,
+}
+
+/// Input schema selected by `--theme-format`.
+#[cfg(feature = "pdf")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum PdfThemeFormatArg {
+    Acdc,
+    Asciidoctor,
+}
+
+#[cfg(feature = "pdf")]
+impl PdfThemeFormatArg {
+    const fn to_theme_format(self) -> ThemeFormat {
+        match self {
+            Self::Acdc => ThemeFormat::Acdc,
+            Self::Asciidoctor => ThemeFormat::Asciidoctor,
+        }
+    }
 }
 
 /// PDF page size parsed from `--page`.

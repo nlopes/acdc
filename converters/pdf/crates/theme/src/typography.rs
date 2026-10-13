@@ -65,7 +65,8 @@ pub struct Typography {
     /// Smallest block-code size that `%autofit` may select, relative to the body size.
     #[serde(default = "default_code_min_size_em")]
     pub code_min_size_em: f64,
-    /// Heading sizes H1 through H6, in points.
+    /// Section heading sizes for levels 1 through 6, in points.
+    /// Book parts share the level 1 size.
     pub heading_pt: [f64; 6],
     /// Letter spacing, in em.
     pub tracking_em: f64,

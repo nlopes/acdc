@@ -1,0 +1,147 @@
+= Asciidoctor PDF theme compatibility
+
+Use `acdc convert --backend pdf --theme FILE --theme-format asciidoctor` to
+load supported Asciidoctor PDF theme settings. acdc converts them into its native
+design tokens before rendering. The default format remains `acdc`.
+
+== Source version and defaults
+
+The compatibility loader targets Asciidoctor PDF *2.3.15*.
+The pinned `base` and `default` themes come from that release. Their source and
+MIT license are in `assets/asciidoctor`.
+
+To customise only a few settings, inherit the bundled default theme:
+
+[source,yaml]
+....
+extends: default
+link:
+  font_color: '008800'
+....
+
+Supported settings omitted from this file keep their inherited values.
+Settings without an acdc equivalent use native defaults and produce a warning.
+Without `extends: default`, the file does not inherit that theme's styles.
+
+== Source rules
+
+References:
+
+* https://github.com/asciidoctor/asciidoctor-pdf/tree/v2.3.15/data/themes[Asciidoctor PDF 2.3.15 themes]
+* https://docs.asciidoctor.org/pdf-converter/latest/theme/keys/[Theme key reference]
+* https://github.com/asciidoctor/asciidoctor-pdf/blob/v2.3.15/lib/asciidoctor/pdf/theme_loader.rb[Theme loading and expression rules]
+
+The loader accepts nested and flat keys, with hyphens or underscores. For example,
+the nested `base.font_size` property and the flat `base_font_size` and
+`base-font-size` keys select the same setting.
+A later assignment overrides an earlier assignment after key normalization.
+The loader reports that override when both assignments are in the input file.
+Duplicate YAML keys and multiple YAML documents are rejected.
+
+Missing body size and colour use Asciidoctor PDF's `12` pt and black defaults.
+Other unmapped settings use acdc's native defaults. The two PDF engines have
+different layout and font rules. This option does not promise identical PDFs.
+
+== References and inheritance
+
+A `$name` reference uses a value defined earlier in the theme. References in
+an inherited theme keep their resolved values when the child changes the variable.
+For example, changing `base.font_size` after `extends: default` does not recalculate
+all inherited heading sizes. This matches Asciidoctor PDF's assignment behavior.
+Quoted RGB variables keep their leading zeros. For example, `brand: '000000'`
+followed by `base_font_color: $brand` selects black.
+
+Numeric expressions support `+`, `-`, `*`, `/`, parentheses, and `round`, `floor`,
+and `ceil`. Measurements accept points, inches, centimetres, millimetres, pixels
+at 96 dpi, and picas. Font sizes also accept `em` relative to the body font size.
+Expressions are data. The loader does not execute theme text as Ruby or Typst.
+Numeric expressions are limited to 1024 bytes and 16 nested parentheses.
+Expanded references are limited to 4096 bytes. Exponents and other functions
+are not supported.
+
+`extends` accepts `base`, `default`, or an ordered list of these names.
+The ` !important` suffix reloads a built-in theme. Each built-in otherwise loads
+once. A warning states that unsupported inherited styles use acdc defaults.
+External parent themes are not loaded and produce a warning.
+
+Unknown references produce a warning. Their setting uses an acdc default.
+An invalid supported setting, such as a negative margin, stops conversion with
+its source key path. A setting without a mapping produces a converter warning.
+`--fail-on-warnings` applies and retains a successfully generated PDF.
+
+== Settings with a mapping
+
+Colours accept RGB hexadecimal values, with or without `#`. Quote values that
+start with `#`, as required by YAML. Numeric RGB values retain leading zeros.
+CMYK colours and transparent colours have no direct native palette equivalent.
+Asciidoctor PDF also accepts unquoted `#rgb` entries through its YAML preprocessing.
+This loader treats them as YAML comments. Quote these values when using the
+compatibility option.
+
+[cols="2,2,3",options="header"]
+|===
+|Asciidoctor PDF key |acdc setting |Conversion or difference
+|`page_background_color` |`palette.page_bg` |RGB colour.
+|`base_font_color` |`palette.body_text` |RGB colour. Also supplies the heading colour when omitted.
+|`heading_font_color` |`palette.heading` |Shared with strong and inline monospace text; warns about the wider scope.
+|`link_font_color` |`palette.link` |RGB colour.
+|`header_font_color` |`palette.accent` |Colour of acdc's header title.
+|`footer_font_color` |`palette.counter` |Shared with ordered-list counters; warns about the wider scope.
+|`quote_font_color` |`palette.quote_text` |Blockquote text.
+|`quote_border_color` |`palette.quote_rule` |acdc uses a left rule; warns about the difference.
+|`code_background_color`, `code_font_color` |`palette.code_bg`, `palette.code_fg` |Code blocks. Syntax highlighting can apply its own colours.
+|`base_font_family`, `heading_font_family` |`typography.body_font`, `typography.heading_font` |Preserves the family name. Headings inherit the body family when omitted.
+|`code_font_family`, `codespan_font_family` |`typography.mono_font` |One font serves block and inline monospace text. The code family takes precedence; differences are reported.
+|`base_font_size` |`typography.body_size_pt` |Positive point size.
+|`code_font_size`, `code_font_size_min` |`typography.code_size_em`, `typography.code_min_size_em` |Converted to body-relative sizes. An explicit minimum is preserved and must not exceed the normal size. An omitted minimum uses the native default, reduced with a warning only if necessary.
+|`heading_h2_font_size` through `heading_h6_font_size` |`typography.heading_pt[0]` through `[4]` |Section levels 1 through 5, including book chapters. Asciidoctor's h2 is the first section or chapter.
+|`heading_h1_font_size` |No separate native setting |Document-title and book-part sizes are unsupported and produce a warning. acdc keeps its 22 pt document title; book parts use the first section size.
+|`base_font_style`, `heading_font_style`, `table_head_font_style` |`typography.body_weight`, `typography.heading_weight`, `typography.table_header_weight` |Normal uses weight 400; bold uses 700. Italic is unsupported for these categories and produces a warning.
+|`block_margin_bottom` |`spacing.block_margin_bottom_pt` |Shared document block spacing; warns about the wider scope.
+|`code_border_radius` |`spacing.code_radius_pt` |Non-negative measurement.
+|`code_padding` |`spacing.code_pad_pt` |One value or equal values on all four sides. Asymmetric padding produces a warning and keeps the native default.
+|`quote_border_left_width` |`spacing.quote_rule_pt` |Non-negative measurement.
+|`caption_align`, `caption_text_align` |`caption.align` |One alignment serves placement and text; warns about the difference. Text alignment takes precedence.
+|`caption_font_color` |`caption.font_color` |RGB colour.
+|`caption_font_size` |`caption.font_size_em` |Converted to a body-relative size.
+|`caption_font_style` |`caption.font_style`, `caption.font_weight` |Preserves normal, italic, bold, and bold italic styles.
+|`caption_margin_inside`, `caption_margin_outside` |`caption.margin_inside_pt`, `caption.margin_outside_pt` |Non-negative measurements.
+|`heading_part_break_before`, `heading_part_break_after`, `heading_chapter_break_before` |`heading.part.break_before`, `heading.part.break_after`, `heading.chapter.break_before` |Preserves supported page-break policies.
+|`header_font_size`, `footer_font_size` |`header.font_size_pt`, `footer.font_size_pt` |Positive point sizes. acdc keeps its own header and footer content.
+|`index_columns`, `index_column_gap` |`index.columns`, `index.column_gap_pt` |Positive column count and non-negative gap.
+|`table_align` |`table.align` |Left, center, or right placement.
+|`table_border_color`, `table_border_width` |`table.border_color`, `table.border_width_pt` |One frame and grid style. Independent grid settings are unsupported and reported.
+|`table_head_border_bottom_width` |`table.header_divider_width_pt` |Non-negative measurement.
+|`table_head_background_color`, `table_body_stripe_background_color`, `table_foot_background_color` |`table.header_background`, `table.stripe_background`, `table.footer_background` |RGB colours.
+|`page_size`, `page_layout`, `page_margin` |`page.size_pt`, `page.layout`, `page.margin_pt` |Supported names become point dimensions; portrait or landscape; one to four margins become four point values. Caller options override document attributes, which override these theme defaults.
+|===
+
+Invalid or non-fitting document margin overrides use the theme's page margins
+when they fit the selected page. Otherwise, native theme spacing margins apply.
+
+== Native settings without a mapping
+
+These native fields retain their defaults. No source key maps to them:
+
+* `page_numbering_start_at`.
+* `palette.bullet`, `palette.border`, `palette.callout_bg`, and `palette.callout_title`.
+* `typography.tracking_em`, `typography.body_leading_em`, and `typography.strong_weight`.
+  Asciidoctor PDF's line height is not Typst's paragraph leading.
+* `typography.heading_pt[5]`. Asciidoctor PDF has no h7 setting.
+* `spacing.margin_x_cm` and `spacing.margin_y_cm`. Source page margins instead
+  use the PDF page defaults, including asymmetric margins.
+* `spacing.image_radius_pt`, `spacing.callout_radius_pt`, `spacing.callout_indent_pt`,
+  `spacing.callout_pad_x_pt`, `spacing.callout_pad_y_pt`, `spacing.quote_indent_pt`,
+  and `spacing.border_pt`.
+* `header.align`, `header.font_weight`, `header.logo_height_pt`, and `header.show_on_page_one`.
+* `footer.page_number_position`.
+
+The native font stacks keep their bundled fallbacks. An unbundled family becomes
+an optional brand family. Supply its fonts with `--font-dir`. Theme font catalogs
+and file paths are reported but are not loaded automatically. References to
+catalog paths remain data and cannot execute a program.
+
+All other source settings are reported by their original leaf paths. This includes
+role styles, title-page content, running-content templates, separate grid styles,
+font catalogs, and font fallback lists. Custom values can still serve as variables
+for a supported setting. A variable does not create a new native style setting.

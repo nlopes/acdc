@@ -1,6 +1,7 @@
 //! Design tokens plus bundled fonts and syntax highlighting for acdc's PDF converter.
 #![forbid(unsafe_code)]
 
+pub mod asciidoctor;
 mod caption;
 mod color;
 mod error;
@@ -25,7 +26,7 @@ pub use fonts::{EMOJI_FONT_FAMILY, embedded_fonts};
 pub use heading::{ChapterHeading, Heading, PageBreakBefore, PartBreakAfter, PartHeading};
 pub use index::Index;
 pub use numbering::PageNumberingStart;
-pub use page::{Footer, Header, HeaderAlignment, PageNumberPosition};
+pub use page::{Footer, Header, HeaderAlignment, Page, PageNumberPosition, PageOrientation};
 pub use spacing::Spacing;
 pub use syntax::{HIGHLIGHT_THEME_PATH, highlight_theme};
 pub use table::{Table, TableAlignment};
@@ -37,6 +38,9 @@ const DEFAULT_THEME_YAML: &str = include_str!("../assets/theme/default.yaml");
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Theme {
+    /// Page defaults used when caller options and document attributes omit them.
+    #[serde(default)]
+    pub page: Page,
     /// Page where Arabic numbering starts; earlier pages use lower-Roman labels.
     #[serde(default)]
     pub page_numbering_start_at: PageNumberingStart,
@@ -75,6 +79,7 @@ impl Theme {
     }
 
     fn validate(&self) -> Result<(), Error> {
+        self.page.validate()?;
         self.palette.validate()?;
         self.caption.validate()?;
         self.typography.validate()?;
@@ -123,6 +128,28 @@ mod tests {
         assert_eq!(theme.table, Table::default());
         assert_eq!(Theme::default(), theme);
         Ok(())
+    }
+
+    #[test]
+    fn native_theme_page_defaults_reject_invalid_values() {
+        for page in [
+            "size_pt: [0, 792]",
+            "size_pt: [612, .inf]",
+            "size_pt: [612]",
+            "margin_pt: [0, 0, -1, 0]",
+            "margin_pt: [0, 0, .nan, 0]",
+            "layout: sideways",
+            "unknown: 42",
+        ] {
+            assert!(
+                Theme::from_yaml_str(&DEFAULT_THEME_YAML.replace(
+                    "page:\n  size_pt: null\n  layout: null\n  margin_pt: null",
+                    &format!("page:\n  {page}"),
+                ))
+                .is_err(),
+                "accepted {page}"
+            );
+        }
     }
 
     #[test]

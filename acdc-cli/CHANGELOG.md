@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `convert --backend pdf --theme FILE --theme-format asciidoctor` loads supported
+  Asciidoctor PDF 2.3.15 theme settings without a separate migration step.
+  Unsupported settings and known mapping differences produce converter warnings.
+  `--fail-on-warnings` applies and retains the generated PDF. Native acdc theme
+  files remain the default.
+
 - `convert --backend pdf --image-concurrency N` allows up to `N` simultaneous
   remote document-image requests. The default is two. Use `1` for sequential
   fetching. Source and byte quotas can reduce concurrency. Asset policy and
@@ -31,6 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--doctype article` or `--doctype book` is supplied. Output is unchanged.
 
 ### Fixed
+
+- Valid Asciidoctor `code_font_size` and `code_font_size_min` values no longer
+  produce a false adjustment warning or fail with `--fail-on-warnings`.
 
 - Restore native Windows CLI release builds.
 

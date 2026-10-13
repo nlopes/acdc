@@ -17,7 +17,7 @@ The crate is *Typst-free*: it carries only data and bundled assets. The tokens c
 
 == What it provides
 
-- **`Theme`** — the design tokens (`palette`, `typography`, `spacing`, `caption`, `heading`, `header`, `footer`, `index`, and `table`). Tokens are *data*, loaded from YAML via `Theme::from_yaml_str`, so a caller can supply a brand theme without recompiling.
+- **`Theme`** — page defaults and design tokens (`palette`, `typography`, `spacing`, `caption`, `heading`, `header`, `footer`, `index`, and `table`). Tokens are *data*, loaded from YAML via `Theme::from_yaml_str`, so a caller can supply a brand theme without recompiling.
 - **`Theme::default`** — the bundled neutral theme (white page, grayscale, bundled fonts only). Its private embedded YAML remains the single source of truth and is parsed once per process, so the tokens cannot drift from a hand-written struct.
 - **`embedded_fonts`** — bytes for every bundled free font face (IBM Plex plus
   Noto Color Emoji).
@@ -27,6 +27,32 @@ The crate is *Typst-free*: it carries only data and bundled assets. The tokens c
 == Customising
 
 Supply a theme YAML file (via the CLI `--theme` flag or `PdfOptions::theme`) that deserialises into `Theme`; omit it to use `Theme::default`. The bundled `assets/theme/default.yaml` documents every available token. The parser does not impose an arbitrary document-size limit. The PDF converter applies a separate 1 MiB file-input limit before parsing. The schema is strict: unknown fields, invalid colours, invalid font stacks, invalid font weights, and non-finite or negative measurements are rejected with field-specific errors. Parsing uses the safe-Rust `serde-saphyr` backend, including its complexity and alias-expansion budgets.
+
+=== Asciidoctor PDF compatibility
+
+`asciidoctor::from_yaml_str` converts supported Asciidoctor PDF 2.3.15 settings
+into a validated `Theme` with page defaults, and warnings with source key paths.
+The PDF converter exposes this through `--theme-format asciidoctor` and
+`PdfOptions::theme_format`. Native YAML keeps its strict schema.
+
+The loader accepts common settings, references to earlier values, numeric
+expressions, and the pinned `base` and `default` themes. It does not load external
+parent themes or fonts from theme catalogs. Supply custom fonts through the
+converter's font directories. See link:ASCIIDOCTOR_COMPATIBILITY.adoc[the compatibility map]
+for each mapping and its limits.
+
+Use `extends: default` in a custom Asciidoctor theme to inherit supported default
+settings and override only the required values. Unsupported styles use native
+defaults.
+
+=== Page defaults
+
+Native themes can set `page.size_pt` to `[width, height]`, `page.layout` to
+`portrait` or `landscape`, and `page.margin_pt` to `[top, right, bottom, left]`.
+All measurements are points. Dimensions must be positive; margins must be
+non-negative. Omitted or `null` values keep the renderer's fallbacks: A4,
+portrait, and the spacing tokens' margins. Caller options and document page
+attributes take precedence over these theme values.
 
 === Document block spacing
 
