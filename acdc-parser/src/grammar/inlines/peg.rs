@@ -1364,7 +1364,7 @@ peg::parser! {
             if xref.resolve_natural_target {
                 xref.source_syntax = crate::model::XrefSourceSyntax::Shorthand;
             }
-            if state.options.force_local_file_xrefs {
+            if state.options.force_local_file_xrefs() {
                 force_local_file_xref(&mut xref);
             }
             xref.target_is_local = xref.source_syntax.target_is_local(xref.target);
@@ -1440,7 +1440,7 @@ peg::parser! {
             if !state.document_attributes.contains_key("compat-mode") {
                 xref.source_syntax = crate::model::XrefSourceSyntax::Macro;
             }
-            if state.options.force_local_file_xrefs {
+            if state.options.force_local_file_xrefs() {
                 force_local_file_xref(&mut xref);
             }
             xref.target_is_local = xref.source_syntax.target_is_local(xref.target);
