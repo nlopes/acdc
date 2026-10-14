@@ -193,6 +193,17 @@ pub struct Args {
     #[arg(long = "setext", alias = "enable-setext-compatibility")]
     pub enable_setext_compatibility: bool,
 
+    /// Force file-qualified cross-references to resolve within this document
+    ///
+    /// Use for combined or partial sources that keep references to the original
+    /// files. A nonempty fragment is required. Multi-letter URI schemes and //
+    /// prefixes keep normal behavior; single-letter prefixes are Windows drives.
+    /// Anchors must identify the intended local targets. This also redirects
+    /// genuine external file references. It does not scope duplicate IDs,
+    /// resolve Antora resource IDs, or change page-only references.
+    #[arg(long = "force-local-file-xrefs")]
+    pub force_local_file_xrefs: bool,
+
     /// Strict mode
     ///
     /// When enabled, some errors related with non-conformance (but still recoverable)
@@ -1721,6 +1732,10 @@ fn build_parser_options(args: &Args, base_options: &Options) -> OptionsBuilder<'
 
     if args.strict {
         builder = builder.with_strict();
+    }
+
+    if args.force_local_file_xrefs {
+        builder = builder.with_force_local_file_xrefs();
     }
 
     #[cfg(feature = "setext")]

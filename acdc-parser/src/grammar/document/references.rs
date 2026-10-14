@@ -295,7 +295,10 @@ pub(super) fn resolve_source_target<'a>(
 ) -> Option<&'a str> {
     use crate::model::XrefSourceSyntax;
 
-    if matches!(syntax, XrefSourceSyntax::Literal) {
+    if matches!(
+        syntax,
+        XrefSourceSyntax::Literal | XrefSourceSyntax::LocalFragment
+    ) {
         return None;
     }
     let (path, fragment) = match target.split_once('#') {
@@ -316,7 +319,7 @@ pub(super) fn resolve_source_target<'a>(
         XrefSourceSyntax::Macro => path
             .strip_suffix(".adoc")
             .or_else(|| (!path.rsplit('/').next().unwrap_or(path).contains('.')).then_some(path))?,
-        XrefSourceSyntax::Literal => return None,
+        XrefSourceSyntax::Literal | XrefSourceSyntax::LocalFragment => return None,
     };
     (state.document_attributes.text("docname") == Some(stem) || state.included_files.contains(stem))
         .then_some(fragment)

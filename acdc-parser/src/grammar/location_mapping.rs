@@ -587,6 +587,9 @@ fn map_inline_macro<'a>(
                     xref.target = state.intern_str(&restored);
                     xref.target_is_local = xref.source_syntax.target_is_local(xref.target);
                     xref.resolve_natural_target = false;
+                    if state.options.force_local_file_xrefs {
+                        super::inlines::force_local_file_xref(xref);
+                    }
                 }
             }
         }

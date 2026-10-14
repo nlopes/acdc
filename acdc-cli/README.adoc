@@ -163,6 +163,32 @@ Use `-a name`, `-a name=value`, or `-a name!` to set, assign, or unset a locked 
 Add `@` to the name or value, such as `-a name@=value`, `-a name=value@`, or
 `-a !name=@`, when the document must be allowed to replace that command-line default.
 
+==== Forced local file references
+
+Use `--force-local-file-xrefs` for combined or partially included documents whose
+references still name the original files:
+
+[source,console]
+....
+acdc convert --backend pdf --force-local-file-xrefs book.adoc
+....
+
+The flag resolves `<<chapter.adoc#installation>>` as `<<installation>>`.
+It also applies to `xref:chapter.adoc#installation[text]` and keeps custom text.
+A nonempty fragment is required. Multi-letter URI schemes and `//` prefixes
+retain normal behavior. A single letter before `:` is treated as a Windows drive.
+Page-only references are unchanged.
+
+Use this override only when the fragment identifies the intended local anchor.
+It also redirects genuine external file references and does not scope duplicate
+IDs. Missing anchors produce warnings; `--fail-on-warnings` can make these fatal.
+Cross-references never load their target files.
+
+This flag does not resolve Antora resource IDs. Antora Assembler scopes anchors
+and resolves references before conversion; its prepared source does not need this
+override. Complete includes already resolve locally without the flag.
+The flag is disabled by default for every backend, including PDF.
+
 ==== PDF
 
 Build with `pdf` (or `all-backends`) and select `--backend pdf`:

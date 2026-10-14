@@ -322,14 +322,16 @@ pub(crate) enum XrefSourceSyntax {
     Literal,
     Shorthand,
     Macro,
+    /// The forced local reference already contains an ID, including punctuation.
+    LocalFragment,
 }
 
 impl XrefSourceSyntax {
     pub(crate) fn target_is_local(self, target: &str) -> bool {
-        // Compatibility mode treats the entire target as an ID. Otherwise a
-        // colon is ID punctuation; only a path before # or a macro filename
-        // selects another document. Shorthand permits dots in local IDs.
-        if matches!(self, Self::Literal) {
+        // Compatibility mode and forced fragments treat the entire target as an ID.
+        // Otherwise a colon is ID punctuation; only a path before # or a macro
+        // filename selects another document. Shorthand permits dots in local IDs.
+        if matches!(self, Self::Literal | Self::LocalFragment) {
             return true;
         }
         match target.split_once('#') {

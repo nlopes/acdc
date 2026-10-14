@@ -7,4 +7,5 @@ mod peg;
 mod recognition;
 mod text;
 
+pub(super) use links::force_local_file_xref;
 pub(crate) use peg::inline_parser;

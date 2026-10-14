@@ -1,7 +1,7 @@
 //! Link attributes and cross-reference labels.
 
 use crate::{
-    ElementAttributes, InlineNode,
+    CrossReference, ElementAttributes, InlineNode,
     grammar::{
         ParserState,
         helpers::BlockParsingMetadata,
@@ -13,8 +13,37 @@ use crate::{
         },
         state::InlineRules,
     },
+    model::XrefSourceSyntax,
 };
 use std::{borrow::Cow, ops::Range};
+
+pub(in crate::grammar) fn force_local_file_xref(xref: &mut CrossReference<'_>) {
+    if let Some(fragment) = file_xref_fragment(xref.target) {
+        xref.target = fragment;
+        xref.target_is_local = true;
+        xref.source_syntax = XrefSourceSyntax::LocalFragment;
+    }
+}
+
+fn file_xref_fragment(target: &str) -> Option<&str> {
+    // Restore protected text before checking whether the prefix is a URL.
+    if target.contains("���") {
+        return None;
+    }
+    let (path, fragment) = target.split_once('#')?;
+    let has_scheme = path.split_once(':').is_some_and(|(scheme, _)| {
+        let Some((first, rest)) = scheme.as_bytes().split_first() else {
+            return false;
+        };
+        // A single letter is a Windows drive prefix, as it is for includes.
+        !rest.is_empty()
+            && first.is_ascii_alphabetic()
+            && rest
+                .iter()
+                .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'+' | b'-' | b'.'))
+    });
+    (!fragment.is_empty() && !path.starts_with("//") && !has_scheme).then_some(fragment)
+}
 
 /// The parts of `xref:target[...]` that decide what the link shows.
 pub(super) struct XrefMacroText<'s> {
