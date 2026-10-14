@@ -224,6 +224,81 @@ fn no_command_features_return_a_clear_diagnostic() -> Result<(), Box<dyn Error>>
 
 #[cfg(feature = "html")]
 #[test]
+fn force_local_file_xrefs_help_explains_the_limits() -> Result<(), Box<dyn Error>> {
+    let output = run_acdc(&["convert", "--help"], None)?;
+    assert!(output.status.success(), "{}", output_text(&output.stderr));
+    let help = output_text(&output.stdout)
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(help.contains("--force-local-file-xrefs"), "{help}");
+    assert!(help.contains("genuine external file references"), "{help}");
+    assert!(help.contains("Antora resource IDs"), "{help}");
+    assert!(!help.contains("--ifix"), "{help}");
+    Ok(())
+}
+
+#[cfg(feature = "html")]
+#[test]
+fn force_local_file_xrefs_resolves_the_anchor() -> Result<(), Box<dyn Error>> {
+    let document = "= Doc\n\nSee <<other.adoc#rule.1>> and xref:other.adoc#rule.1[custom].\n\n[[rule.1]]\n== Target\n";
+
+    let output = run_acdc(
+        &[
+            "convert",
+            "--stdin",
+            "-e",
+            "-o",
+            "-",
+            "--force-local-file-xrefs",
+        ],
+        Some(document),
+    )?;
+    let html = output_text(&output.stdout);
+    assert!(output.status.success(), "{}", output_text(&output.stderr));
+    assert!(
+        html.contains("See <a href=\"#rule.1\">Target</a> and <a href=\"#rule.1\">custom</a>."),
+        "{html}"
+    );
+
+    let output = run_acdc(&["convert", "--stdin", "-e", "-o", "-"], Some(document))?;
+    let html = output_text(&output.stdout);
+    assert!(output.status.success(), "{}", output_text(&output.stderr));
+    assert!(
+        html.contains("See <a href=\"other.html#rule.1\">other.html</a> and <a href=\"other.html#rule.1\">custom</a>."),
+        "{html}"
+    );
+    Ok(())
+}
+
+#[cfg(feature = "html")]
+#[test]
+fn force_local_file_xrefs_preserves_urls() -> Result<(), Box<dyn Error>> {
+    let document = "= Doc\n\n<<https://example.org/other.adoc#target,Remote>>\n\nxref:https://example.org/other.adoc#target[Remote]\n\n[[target]]\n== Local target\n";
+    let output = run_acdc(
+        &[
+            "convert",
+            "--stdin",
+            "-e",
+            "-o",
+            "-",
+            "--force-local-file-xrefs",
+        ],
+        Some(document),
+    )?;
+    let html = output_text(&output.stdout);
+    assert!(output.status.success(), "{}", output_text(&output.stderr));
+    assert_eq!(
+        html.matches("<a href=\"https://example.org/other.html#target\">Remote</a>")
+            .count(),
+        2,
+        "{html}"
+    );
+    Ok(())
+}
+
+#[cfg(feature = "html")]
+#[test]
 fn convert_requires_an_input() -> Result<(), Box<dyn Error>> {
     let output = run_acdc(&["convert"], None)?;
     let stderr = output_text(&output.stderr);

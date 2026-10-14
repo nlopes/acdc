@@ -15,6 +15,8 @@ const DEFAULT_MAX_TOTAL_INCLUDE_BYTES: usize = 64 * 1024 * 1024;
 
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
+// These options control independent parsing choices.
+#[allow(clippy::struct_excessive_bools)]
 pub struct Options<'a> {
     /// Defaults to [`SafeMode::Secure`], which prevents include reads.
     pub safe_mode: SafeMode,
@@ -38,6 +40,20 @@ pub struct Options<'a> {
     /// This does not promote all warnings to errors. Use
     /// [`crate::ParseResult::source_recovery`] to detect recovered content.
     pub strict: bool,
+    /// Force file-qualified cross-references to resolve within the parsed document.
+    ///
+    /// Use for combined or partially included sources whose references still
+    /// name the original files. `<<file.adoc#anchor>>` becomes `<<anchor>>`;
+    /// `xref:file.adoc#anchor[text]` keeps its text. A nonempty fragment is required.
+    /// Multi-letter URI schemes and `//` prefixes retain normal resolution.
+    /// A single letter before `:` is treated as a Windows drive.
+    ///
+    /// The fragment must identify the intended local anchor. This option also
+    /// redirects genuine external file references and does not scope duplicate
+    /// IDs. Missing anchors produce unresolved-reference warnings; no target
+    /// files are loaded. Antora resource IDs and page-only references are not
+    /// resolved by this option. Disabled by default.
+    pub force_local_file_xrefs: bool,
     /// Enable Setext-style (underlined) header parsing.
     ///
     /// When enabled, headers can use the legacy two-line syntax:
@@ -136,6 +152,7 @@ impl<'a> Options<'a> {
             max_total_include_bytes: self.max_total_include_bytes,
             base_dir: self.base_dir,
             strict: self.strict,
+            force_local_file_xrefs: self.force_local_file_xrefs,
             #[cfg(feature = "setext")]
             setext: self.setext,
         }
@@ -157,6 +174,7 @@ impl<'a> Options<'a> {
             max_total_include_bytes: self.max_total_include_bytes,
             base_dir: self.base_dir,
             strict: self.strict,
+            force_local_file_xrefs: self.force_local_file_xrefs,
             #[cfg(feature = "setext")]
             setext: self.setext,
         }
@@ -182,6 +200,8 @@ impl<'a> Options<'a> {
 /// ```
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
+// These options control independent parsing choices.
+#[allow(clippy::struct_excessive_bools)]
 pub struct OptionsBuilder<'a> {
     safe_mode: SafeMode,
     timings: bool,
@@ -191,6 +211,7 @@ pub struct OptionsBuilder<'a> {
     max_total_include_bytes: Option<usize>,
     base_dir: Option<PathBuf>,
     strict: bool,
+    force_local_file_xrefs: bool,
     #[cfg(feature = "setext")]
     setext: bool,
 }
@@ -312,6 +333,26 @@ impl<'a> OptionsBuilder<'a> {
     #[must_use]
     pub fn with_strict(mut self) -> Self {
         self.strict = true;
+        self
+    }
+
+    /// Force file-qualified cross-references to resolve within the parsed document.
+    ///
+    /// See [`Options::force_local_file_xrefs`].
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use acdc_parser::Options;
+    ///
+    /// let options = Options::builder()
+    ///     .with_force_local_file_xrefs()
+    ///     .build()?;
+    /// # Ok::<(), acdc_parser::Error>(())
+    /// ```
+    #[must_use]
+    pub fn with_force_local_file_xrefs(mut self) -> Self {
+        self.force_local_file_xrefs = true;
         self
     }
 
@@ -446,6 +487,7 @@ impl<'a> OptionsBuilder<'a> {
             max_total_include_bytes: self.max_total_include_bytes,
             base_dir: self.base_dir,
             strict: self.strict,
+            force_local_file_xrefs: self.force_local_file_xrefs,
             #[cfg(feature = "setext")]
             setext: self.setext,
         })

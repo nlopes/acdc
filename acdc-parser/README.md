@@ -493,12 +493,26 @@ both the document and conversion timestamps deterministic and formats them in UT
 
 Cross-references do not load source files. After explicit includes are expanded,
 references to the current file or fully included sources resolve within the same
-document. Partial includes remain external, as in Asciidoctor. `CrossReference::target`
+document. By default, partial includes remain external, as in Asciidoctor. `CrossReference::target`
 contains the effective fragment ID, and `target_is_local` distinguishes it from an
 external resource even when the ID contains punctuation. An empty local target
 addresses the document top; the empty entry in `Document::references` supplies its
 reference text. Converters must check the local flag before treating a target as
 a filename. When changing a destination, update both fields.
+
+For combined or partially included sources that keep file-qualified references,
+enable `Options::builder().with_force_local_file_xrefs()`.
+This turns `<<chapter.adoc#installation>>` into `<<installation>>` and keeps custom
+link text. It requires a nonempty fragment. Multi-letter URI schemes and `//`
+prefixes keep their normal behavior. A single letter before `:` is treated as a
+Windows drive. Page-only references are unchanged.
+
+Use this override only when the fragment identifies the intended local anchor.
+It also redirects genuine external file references and does not scope duplicate
+IDs. Missing anchors produce unresolved-reference warnings; target files are
+never loaded. This option does not resolve Antora resource IDs. Antora Assembler
+scopes anchors and resolves references before conversion; its prepared source
+does not need this override. The option is disabled by default.
 
 The parser records the effective attributes at the end of the document header in
 `Document::attributes`. Later accepted set and unset entries appear as ordered

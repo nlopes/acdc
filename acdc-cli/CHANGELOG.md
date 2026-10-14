@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `convert --force-local-file-xrefs` resolves file-qualified references by their
+  local anchors in combined or partially included documents. It preserves URLs
+  and custom text and requires a nonempty fragment. This opt-in override can
+  redirect genuine external file references. It does not scope duplicate IDs,
+  resolve Antora resource IDs, or change page-only references. It deliberately
+  differs from Asciidoctor for files that are not fully included.
+
 - `convert --backend pdf --emit-theme-config FILE` also saves the full resolved
   theme as native acdc YAML during PDF conversion. It works with either theme
   format and requires a document or `--stdin`. Exported Asciidoctor themes can
