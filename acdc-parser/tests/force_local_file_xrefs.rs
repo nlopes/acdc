@@ -64,6 +64,34 @@ fn the_filename_is_kept_by_default() -> Result<(), Error> {
 }
 
 #[test]
+fn reopening_options_preserves_file_xref_resolution() -> Result<(), Error> {
+    for force_local in [false, true] {
+        let mut builder = Options::builder();
+        if force_local {
+            builder = builder.with_force_local_file_xrefs();
+        }
+        let options = builder
+            .build()?
+            .into_static()
+            .into_builder()
+            .with_attribute("sectnums", true)
+            .build()?;
+        let parsed = parse_inline("xref:other.adoc#anchor[text]", &options)?;
+        let [InlineNode::Macro(InlineMacro::CrossReference(xref))] = parsed.inlines() else {
+            return Err("expected one cross-reference".into());
+        };
+        let expected = if force_local {
+            "anchor"
+        } else {
+            "other.adoc#anchor"
+        };
+        assert_eq!(xref.target, expected);
+        assert_eq!(xref.target_is_local, force_local);
+    }
+    Ok(())
+}
+
+#[test]
 fn the_filename_and_its_hash_are_dropped() -> Result<(), Error> {
     for source in [
         "<<other.adoc#anchor>>",
