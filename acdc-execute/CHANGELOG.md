@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Library users can observe command starts, outcomes, and skips as they occur,
+  and supply a process runner for terminal recording. An observer failure stops
+  further execution and retains completed outcomes. The existing execution
+  calls preserve their process results and dependency behavior.
 - Library callers can inspect a command's direct prerequisites and nearest
   enclosing section title.
 - Creating execution plans uses less temporary memory.

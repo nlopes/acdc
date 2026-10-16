@@ -1,8 +1,10 @@
 //! Command construction and execution.
 
 mod error;
+mod execution;
 
-pub use error::{BuildError, ExecError, InvalidCommandId, UnknownCommand};
+pub use error::{BuildError, ExecError, InvalidCommandId, ProcessError, UnknownCommand};
+pub use execution::{ExecutionEvent, ObservationError, RunOutcome, RunReport, Termination};
 
 use std::{
     borrow::{Borrow, Cow},
@@ -12,7 +14,7 @@ use std::{
     fmt,
     io::Write as _,
     path::{Path, PathBuf},
-    process::Command,
+    process::{Command, ExitStatus},
 };
 
 use acdc_parser::SourceLocation;
@@ -164,10 +166,20 @@ impl CommandBlock {
     /// if starting or waiting for the interpreter fails, or [`ExecError::Failed`] if the
     /// child exits unsuccessfully.
     pub fn execute_with(&self, options: &ProcessOptions) -> Result<(), ExecError> {
-        let mut tmp = tempfile::NamedTempFile::new().map_err(ExecError::TempFile)?;
+        self.execute_using(options, Command::status, ExitStatus::success)
+            .map_err(ExecError::from)
+    }
+
+    fn execute_using<Status>(
+        &self,
+        options: &ProcessOptions,
+        run: impl FnOnce(&mut Command) -> std::io::Result<Status>,
+        success: fn(&Status) -> bool,
+    ) -> Result<(), ProcessError<Status>> {
+        let mut tmp = tempfile::NamedTempFile::new().map_err(ProcessError::TempFile)?;
         tmp.write_all(self.script.as_bytes())
-            .map_err(ExecError::TempFile)?;
-        tmp.flush().map_err(ExecError::TempFile)?;
+            .map_err(ProcessError::TempFile)?;
+        tmp.flush().map_err(ProcessError::TempFile)?;
 
         let interpreter = Path::new(&self.metadata.interpreter);
         let resolved_interpreter = if options.current_dir.is_some()
@@ -176,7 +188,7 @@ impl CommandBlock {
         {
             Some(
                 std::env::current_dir()
-                    .map_err(ExecError::Process)?
+                    .map_err(ProcessError::Process)?
                     .join(interpreter),
             )
         } else {
@@ -189,14 +201,14 @@ impl CommandBlock {
         if let Some(directory) = &options.current_dir {
             child.current_dir(directory);
         }
-        let status = child.status().map_err(ExecError::Process)?;
+        let status = run(&mut child).map_err(ProcessError::Process)?;
 
         drop(tmp);
 
-        if status.success() {
+        if success(&status) {
             Ok(())
         } else {
-            Err(ExecError::Failed(status))
+            Err(ProcessError::Failed(status))
         }
     }
 }
@@ -488,59 +500,6 @@ impl<'graph> ExecutionPlan<'graph> {
     pub fn is_empty(&self) -> bool {
         self.order.is_empty()
     }
-
-    /// Run commands synchronously and return an outcome for every selected command.
-    ///
-    /// Commands with unsuccessful prerequisites are skipped. Independent commands continue
-    /// after ordinary nonzero exits unless [`ExecutionOptions::exit_on_failure`] is set.
-    /// Infrastructure errors and signal termination always stop all remaining commands.
-    #[must_use]
-    pub fn execute(&self, options: &ExecutionOptions) -> ExecutionReport<'graph> {
-        let mut outcomes = Vec::with_capacity(self.len());
-        let mut succeeded = vec![false; self.graph.graph.node_count()];
-        let mut stopped_after = None;
-
-        for &node in self.order.iter() {
-            let command = &self.graph.graph[node];
-            let state = if let Some(command) = stopped_after {
-                CommandState::Skipped(SkipReason::StoppedAfterFailure { command })
-            } else if let Some(dependency) = self
-                .graph
-                .graph
-                .neighbors_directed(node, Direction::Incoming)
-                .filter(|dependency| succeeded.get(dependency.index()) != Some(&true))
-                .min()
-            {
-                CommandState::Skipped(SkipReason::DependencyFailed {
-                    dependency: &self.graph.graph[dependency].metadata.id,
-                })
-            } else {
-                match command.execute_with(&options.process) {
-                    Ok(()) => {
-                        if let Some(success) = succeeded.get_mut(node.index()) {
-                            *success = true;
-                        }
-                        CommandState::Succeeded
-                    }
-                    Err(error) => {
-                        let must_stop = match &error {
-                            ExecError::Failed(status) => {
-                                options.exit_on_failure || status.code().is_none()
-                            }
-                            ExecError::TempFile(_) | ExecError::Process(_) => true,
-                        };
-                        if must_stop {
-                            stopped_after = Some(&command.metadata.id);
-                        }
-                        CommandState::Failed(error)
-                    }
-                }
-            };
-            outcomes.push(CommandOutcome { command, state });
-        }
-
-        ExecutionReport { outcomes }
-    }
 }
 
 /// Results in plan order, including commands that were skipped.
@@ -587,6 +546,17 @@ pub enum CommandState<'graph> {
     Succeeded,
     /// Preparing or running the child failed.
     Failed(ExecError),
+    /// The command was not started.
+    Skipped(SkipReason<'graph>),
+}
+
+/// Execution result using the process status supplied by its runner.
+#[derive(Debug)]
+pub enum OutcomeState<'graph, Status> {
+    /// The child exited successfully.
+    Succeeded,
+    /// Preparing or running the child failed.
+    Failed(ProcessError<Status>),
     /// The command was not started.
     Skipped(SkipReason<'graph>),
 }

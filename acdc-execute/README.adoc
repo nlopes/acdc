@@ -32,6 +32,51 @@ println!("All commands succeeded: {}", report.is_success());
 The report records which commands succeeded, failed, or were skipped.
 A failed command blocks its dependents; independent commands continue by default.
 
+== Observe execution or use another process runner
+
+Use `ExecutionPlan::execute_with` when a recorder or another host needs each
+command's start and outcome before the plan finishes:
+
+[source,rust]
+----
+use std::io;
+use acdc_execute::{ExecutionEvent, Termination};
+
+let report = graph.plan_all().execute_with(
+    &ExecutionOptions::default(),
+    |_, process| process.status().map(Termination::from),
+    |event| {
+        match event {
+            ExecutionEvent::CommandStarted { command } => {
+                println!("Starting {}", command.metadata.id);
+            }
+            ExecutionEvent::CommandFinished { outcome } => {
+                println!("{}: {:?}", outcome.command.metadata.id, outcome.state);
+            }
+        }
+        Ok::<(), io::Error>(())
+    },
+).map_err(|failure| failure.source)?;
+----
+
+The runner receives the prepared process, including the temporary script path,
+interpreter, working directory, and environment overrides. It must finish and
+clean up its child before returning. The temporary script is then removed.
+Return `Termination::Exited`, `Termination::Signaled`, or `Termination::Unknown`
+when adapting another process API. Signal and unknown termination stop the
+plan; ordinary nonzero exits follow `exit_on_failure`.
+
+The observer receives a finish event for skipped commands, with no start event.
+If the observer fails, execution stops and `ObservationError` retains its error
+and completed outcomes. A failed start event prevents that command from running;
+a failed finish event retains that command's outcome. Inspect `failure.report`
+when a partial report is needed. A successful prefix does not mean the aborted
+plan succeeded.
+
+`execute` and `CommandBlock::execute_with` retain inherited stdio and the
+standard library's exit statuses. This observation API does not record output
+or enable PTY execution by itself.
+
 Commands run with the caller's permissions, so only execute documents you trust.
 
 See the link:../acdc-cli/README.adoc[CLI guide] for command syntax and substitution rules, and the link:src/command/mod.rs[library API] for selection, process options, and result handling.

@@ -40,6 +40,30 @@ pub enum ExecError {
     Failed(std::process::ExitStatus),
 }
 
+/// A command failure with the process status supplied by its runner.
+#[derive(Debug, thiserror::Error)]
+pub enum ProcessError<Status> {
+    /// The temporary script file could not be created or written.
+    #[error("could not write temporary script file: {0}")]
+    TempFile(#[source] std::io::Error),
+    /// Starting or waiting for the interpreter failed.
+    #[error("could not run interpreter: {0}")]
+    Process(#[source] std::io::Error),
+    /// The child exited unsuccessfully, including termination by a signal.
+    #[error("exited with {0}")]
+    Failed(Status),
+}
+
+impl From<ProcessError<std::process::ExitStatus>> for ExecError {
+    fn from(error: ProcessError<std::process::ExitStatus>) -> Self {
+        match error {
+            ProcessError::TempFile(source) => Self::TempFile(source),
+            ProcessError::Process(source) => Self::Process(source),
+            ProcessError::Failed(status) => Self::Failed(status),
+        }
+    }
+}
+
 /// Error returned when building a [`CommandGraph`](super::CommandGraph) from a
 /// [`CommandGraphBuilder`](super::CommandGraphBuilder) fails.
 #[derive(Debug, thiserror::Error)]

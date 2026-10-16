@@ -5,7 +5,8 @@ pub mod discovery;
 
 pub use command::{
     BuildError, CommandBlock, CommandGraph, CommandGraphBuilder, CommandId, CommandMetadata,
-    CommandOutcome, CommandState, ExecError, ExecutionOptions, ExecutionPlan, ExecutionReport,
-    InvalidCommandId, ProcessOptions, SkipReason, UnknownCommand,
+    CommandOutcome, CommandState, ExecError, ExecutionEvent, ExecutionOptions, ExecutionPlan,
+    ExecutionReport, InvalidCommandId, ObservationError, OutcomeState, ProcessError,
+    ProcessOptions, RunOutcome, RunReport, SkipReason, Termination, UnknownCommand,
 };
 pub use discovery::DiscoveryError;
