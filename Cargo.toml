@@ -6,6 +6,7 @@ members = [
   "acdc-lint",
   "acdc-lsp",
   "acdc-parser",
+  "acdc-runbook",
   "converters/core",
   "converters/dev",
   "converters/html",
@@ -20,6 +21,7 @@ default-members = [
   "acdc-lint",
   "acdc-lsp",
   "acdc-parser",
+  "acdc-runbook",
   "converters/core",
   "converters/dev",
   "converters/html",
@@ -48,6 +50,8 @@ acdc-editor-wasm = { path = "acdc-editor-wasm" }
 acdc-execute = { path = "acdc-execute", default-features = false }
 acdc-lint = { path = "acdc-lint", default-features = false }
 acdc-parser = { path = "acdc-parser", default-features = false }
+acdc-runbook = { path = "acdc-runbook" }
+asciicast-rs = { version = "0.4", default-features = false }
 base64 = "0.23"
 chrono = "0.4"
 clap = { version = "4.5", features = ["derive"] }

@@ -283,6 +283,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "acdc-runbook"
+version = "0.1.0"
+dependencies = [
+ "asciicast-rs",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "addr2line"
 version = "0.25.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

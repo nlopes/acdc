@@ -40,6 +40,7 @@ jobs:
               - '.github/workflows/ci.yml'
               - 'acdc-cli/**'
               - 'acdc-execute/**'
+              - 'acdc-runbook/**'
               - 'acdc-parser/**'
               - 'converters/**'
               - 'Cargo.toml'
@@ -200,8 +201,8 @@ jobs:
         with:
           env-vars: ImageOS
       - uses: taiki-e/install-action@nextest
-      - name: Run CLI and execute library tests
-        run: cargo nextest run -p acdc-cli -p acdc-execute --all-features --verbose --no-tests warn --test-threads 1 # we've added this until https://github.com/nextest-rs/nextest/pull/3553 gets merged
+      - name: Run CLI, execute, and recording format tests
+        run: cargo nextest run -p acdc-cli -p acdc-execute -p acdc-runbook --all-features --verbose --no-tests warn --test-threads 1 # we've added this until https://github.com/nextest-rs/nextest/pull/3553 gets merged
       - name: Run execute-only tests
         run: cargo nextest run -p acdc-cli -p acdc-execute --no-default-features --features execute --verbose --test-threads 1
       - name: Test execute with parser-only substitution features
