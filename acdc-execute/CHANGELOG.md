@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A guide links dependency selection and custom-runner execution to the local
+  recording and HTML report demonstration.
+
 - Library users can observe command starts, outcomes, and skips as they occur,
   and supply a process runner for terminal recording. An observer failure stops
   further execution and retains completed outcomes. The existing execution

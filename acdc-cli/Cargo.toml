@@ -15,6 +15,11 @@ name = "acdc"
 path = "src/main.rs"
 doc = false
 
+[[example]]
+name = "runbook-demo"
+required-features = ["execute-recording"]
+test = true
+
 [dependencies]
 acdc-converters-core.workspace = true
 acdc-execute = { workspace = true, optional = true }

@@ -2,6 +2,7 @@ use std::{
     collections::VecDeque,
     io::{self, IsTerminal, Read, Write},
     os::fd::{AsRawFd, RawFd},
+    path::Path,
     process::Command,
     sync::{
         Arc,
@@ -169,7 +170,14 @@ pub(super) fn run_process<W: Write>(
     session: &mut Session<W>,
     terminal: &mut Terminal,
 ) -> io::Result<Termination> {
-    let mut command = CommandBuilder::new(process.get_program());
+    let program = Path::new(process.get_program());
+    let program = if program.is_relative() && program.as_os_str().as_encoded_bytes().contains(&b'/')
+    {
+        std::env::current_dir()?.join(program)
+    } else {
+        program.to_owned()
+    };
+    let mut command = CommandBuilder::new(program);
     command.args(process.get_args());
     // portable-pty defaults to the home directory and ignores invalid cwd values.
     let directory = process

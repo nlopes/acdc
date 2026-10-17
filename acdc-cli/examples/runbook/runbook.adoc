@@ -1,0 +1,49 @@
+= Local release runbook
+
+This demonstration changes no files and uses no external services.
+The publish step fails deliberately. Type `yes` when the review asks for approval.
+
+== Prepare
+
+[source,sh,role=command,id=prepare,description="Prepare the local preview"]
+----
+printf 'Local preview prepared. No remote services contacted.\n'
+----
+
+== Review
+
+The helper emits OSC 7501 progress and a child task that recovers from an error.
+It then requests permission to continue the local preview.
+
+[source,text,interpreter=target/debug/examples/runbook-demo,role=command,id=review,deps=prepare,description="Review and approve the preview"]
+----
+review
+----
+
+== Publish
+
+The reported task finishes, but the process exits with code 7.
+The command outcome remains failed.
+
+[source,text,interpreter=target/debug/examples/runbook-demo,role=command,id=publish,deps=review,description="Simulate a failed publish"]
+----
+publish
+----
+
+== Announce
+
+This command must be skipped because publishing failed.
+
+[source,sh,role=command,id=announce,deps=publish,description="Announce only after a successful publish"]
+----
+printf 'This announcement must not run.\n'
+----
+
+== Inspect
+
+This independent command still succeeds after the publish failure.
+
+[source,sh,role=command,id=inspect,description="Inspect the independent result"]
+----
+printf 'Independent inspection succeeded.\n'
+----

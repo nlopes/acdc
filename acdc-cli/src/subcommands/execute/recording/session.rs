@@ -277,8 +277,9 @@ fn steps(graph: &CommandGraph, plan: &ExecutionPlan<'_>, document: &Path) -> io:
                     .collect::<io::Result<_>>()?,
                 source: Source {
                     path: source.file.as_deref().map(|path| {
+                        let path = path.canonicalize().unwrap_or_else(|_| path.to_owned());
                         path.strip_prefix(base)
-                            .unwrap_or(path)
+                            .unwrap_or(&path)
                             .to_string_lossy()
                             .into_owned()
                     }),

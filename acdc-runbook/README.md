@@ -25,6 +25,12 @@ For a sample with a failed command and skipped dependent, run the `recording`
 example with a new destination path. It writes deterministic sample events;
 it does not execute the example commands.
 
+For a recording made by real commands, see the
+[local runbook demonstration](../acdc-cli/examples/runbook/README.adoc).
+Its CLI capture includes a task retry, an approval request, a failed process,
+a skipped dependent, and an independent success. The accompanying report
+embeds the recording beside the authored source blocks.
+
 ## Wire contract
 
 The [asciicast v3 specification](https://docs.asciinema.org/manual/asciicast/v3/)

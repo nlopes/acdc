@@ -1,0 +1,96 @@
+= Record, inspect, and share a runbook
+
+This local example shows a cache check recover from an error, pause for approval,
+and finish. A later publish command fails deliberately. Its dependent is skipped;
+an independent inspection still succeeds. No command publishes a release,
+changes project files, or contacts a service.
+
+The steps and task transitions are fixed. Recording times depend on the machine
+and when you answer the prompt. The helper uses the sibling osc7501 producer;
+there are no handwritten OSC frames in the runbook.
+
+== Build once
+
+Use a Unix terminal and run these commands from the acdc workspace root.
+Follow link:../../../CONTRIBUTING.md[the contributing guide] to install Zig and
+place `osc7501-rs` beside acdc at the CI baseline revision. Existing sibling
+work is safe to keep. The producer, parser, and store are local path dependencies.
+
+[source,console]
+----
+cargo build -p acdc-cli --bin acdc --example runbook-demo --all-features
+----
+
+The helper's relative interpreter path assumes Cargo's default `target`
+directory. If you use another target directory, update both interpreter
+attributes in link:runbook.adoc[runbook.adoc] to its helper path.
+
+== Inspect and run
+
+Select a step to list it with its transitive prerequisites. This runs nothing:
+
+[source,console]
+----
+target/debug/acdc execute acdc-cli/examples/runbook/runbook.adoc --id publish --list
+----
+
+The selected plan contains `prepare`, `review`, and `publish`. Omit the selector
+to include the skipped announcement and independent inspection in your recording:
+
+[source,console]
+----
+target/debug/acdc execute acdc-cli/examples/runbook/runbook.adoc --record acdc-cli/examples/runbook/local.cast
+----
+
+Type `yes` at the harmless approval prompt. The invocation exits unsuccessfully
+because `publish` returns 7. The recording still has complete capture and retains
+all five outcomes. A later run needs a new destination: acdc refuses to overwrite.
+Answering anything else declines approval and changes the expected outcomes.
+
+PTY capture merges stdout and stderr and can change terminal-sensitive output.
+Input events and environment overrides are omitted, but echoed answers and
+anything printed by a command remain in the file. A failed capture retains a
+readable prefix and stops further commands. Missing completion data is labelled
+incomplete. Recording requires terminal input and output; Windows capture is
+unsupported.
+
+== Share the report
+
+Convert your capture, or omit `-a recording=local.cast` to use the included
+link:release.cast[sample recording]:
+
+[source,console]
+----
+target/debug/acdc convert acdc-cli/examples/runbook/report.adoc --backend html -a recording=local.cast -o acdc-cli/examples/runbook/local-report.html
+----
+
+The HTML file is self-contained. Open it in a browser, choose *Permission requests*
+or *Command failures*, and use the event buttons. Seek backward to the reported
+cache error and forward to its retry. The terminal screen can remain unchanged
+while task state changes. Inspect the skipped-step reason, then use the report's
+source links to find the original command blocks.
+
+Without JavaScript, the final screen and step/task summary remain readable.
+Reduced motion disables autoplay and keeps manual controls. Conversion and
+playback do not execute commands. Asciidoctor renders the replay as a plain
+listing of the recording data. Ordinary asciinema players play terminal output
+and ignore the acdc lifecycle extension; they do not show the task outline.
+
+See the link:../../README.adoc[CLI guide] for capture behavior and the
+link:../../../converters/html/README.adoc[HTML guide] for player controls,
+safe modes, retention limits, and CSP.
+
+== Playback size
+
+On macOS ARM64 with headless Chrome 155, this sample produced about 65 KB of
+self-contained HTML. A separate status-only sample with 14,002 retained task
+changes produced about 6.5 MB. Across 100 seeks in each sample, the measured
+95th-percentile time for the seek handler and layout was 0.2 ms and 0.5 ms,
+respectively. These local measurements exclude page loading and do not establish
+performance on other browsers or machines.
+
+Replay retains at most 16,384 task changes and 16 MiB of task text; source
+recordings have separate limits of 100,000 events and 64 MiB of text. Exceeding
+a limit retains earlier history and reports a diagnostic. The status-heavy
+measurement stays below the task limit; these limits bound retained data,
+not the exact size of generated HTML.

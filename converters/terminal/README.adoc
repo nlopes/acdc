@@ -144,6 +144,12 @@ A missing completion trailer never implies successful execution.
 See link:../../CONTRIBUTING.md[the contributing guide] for the required sibling
 `osc7501-rs` checkout.
 
+The link:../../acdc-cli/examples/runbook/README.adoc[local runbook demonstration]
+provides a real CLI recording and an HTML report. It demonstrates that a task
+retry and approval request remain seekable even when the terminal screen does
+not change. Command outcomes and capture completeness remain separate from
+the reported task state.
+
 The terminal converter includes headless integration tests that feed converter
 output through Ghostty's virtual terminal emulator and assert on rendered cells.
 These tests use `libghostty-vt`, whose native build requires the prerequisites

@@ -409,6 +409,11 @@ program-supplied URLs are text, not links. Control and Unicode format characters
 in labels appear as replacement characters; terminal-grid content keeps its
 recorded rendering.
 
+To build and share a complete example, follow the
+link:../../acdc-cli/examples/runbook/README.adoc[local runbook demonstration].
+It includes a real CLI recording, a report, and links to the authored command
+blocks. The report also works with the supplied sample before you record a run.
+
 For `format=asciicast`, the recording is replayed at its own recorded size so
 its cursor movements render faithfully, then `rows` is the height of a window
 that follows the output like a scrolling terminal: when the recording is taller

@@ -3,7 +3,10 @@
 use std::{
     fs,
     io::{self, Read, Write},
-    os::fd::{AsRawFd, RawFd},
+    os::{
+        fd::{AsRawFd, RawFd},
+        unix::fs::PermissionsExt,
+    },
     path::Path,
     time::{Duration, Instant},
 };
@@ -14,6 +17,73 @@ use portable_pty::{Child, CommandBuilder, MasterPty, PtySize, native_pty_system}
 use serde_json::Value;
 
 type Result<T = ()> = std::result::Result<T, Box<dyn std::error::Error>>;
+
+#[test]
+fn shipped_runbook_recording_matches_the_authored_steps_and_source_locations() -> Result {
+    let document = Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/runbook/runbook.adoc");
+    let parsed = acdc_parser::parse_file(document, &acdc_parser::Options::default())?;
+    let graph = acdc_execute::CommandGraph::try_from(&parsed)?;
+    let events = parsed_events(include_bytes!("../examples/runbook/release.cast"), false)?;
+    let metadata = events
+        .iter()
+        .filter(|event| event.get(1).and_then(Value::as_str) == Some("acdc.runbook"))
+        .map(|event| {
+            serde_json::from_str::<Value>(
+                event
+                    .get(2)
+                    .and_then(Value::as_str)
+                    .ok_or("missing metadata")?,
+            )
+            .map_err(Into::into)
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let steps = metadata
+        .first()
+        .and_then(|event| event.get("steps"))
+        .and_then(Value::as_array)
+        .ok_or("missing steps")?;
+    let plan = graph.plan_all();
+    assert_eq!(plan.commands().count(), steps.len());
+    for (command, step) in plan.commands().zip(steps) {
+        assert_eq!(
+            step.get("id").and_then(Value::as_str),
+            Some(command.metadata.id.as_str())
+        );
+        assert_eq!(
+            step.pointer("/source/path").and_then(Value::as_str),
+            Some("runbook.adoc")
+        );
+        assert_eq!(
+            step.pointer("/source/start/line").and_then(Value::as_u64),
+            Some(u64::from(command.location.location.start.line))
+        );
+        assert_eq!(
+            step.pointer("/source/end/line").and_then(Value::as_u64),
+            Some(u64::from(command.location.location.end.line))
+        );
+    }
+    let outcomes = metadata
+        .iter()
+        .filter_map(|event| event.pointer("/outcome/kind").and_then(Value::as_str))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        outcomes,
+        ["succeeded", "succeeded", "failed", "skipped", "succeeded"]
+    );
+    assert_eq!(
+        metadata
+            .last()
+            .and_then(|event| event.pointer("/capture/kind"))
+            .and_then(Value::as_str),
+        Some("complete")
+    );
+    assert!(
+        !events
+            .iter()
+            .any(|event| event.get(1).and_then(Value::as_str) == Some("i"))
+    );
+    Ok(())
+}
 
 struct BorrowedMaster<'a> {
     _master: &'a dyn MasterPty,
@@ -89,7 +159,7 @@ fn run_with_limit(
         CommandBuilder::new(env!("CARGO_BIN_EXE_acdc"))
     };
     command.args(["execute", "--record", "run.cast"]);
-    command.arg(&document);
+    command.arg("runbook.adoc");
     command.args(flags);
     command.cwd(directory);
     command.env("TERM", "xterm-256color");
@@ -225,6 +295,13 @@ fn recording_preserves_command_policy_cwd_environment_and_output() -> Result {
     assert!(text.contains("final-output"));
     assert!(!text.contains("SHOULD-NOT-RUN"));
     let metadata = metadata(&recording)?;
+    assert_eq!(
+        metadata
+            .first()
+            .and_then(|event| event.pointer("/steps/0/source/path"))
+            .and_then(Value::as_str),
+        Some("runbook.adoc")
+    );
     assert!(
         metadata
             .iter()
@@ -483,6 +560,36 @@ fn failed_spawn_and_invalid_cwd_do_not_start_later_commands() -> Result {
                 .and_then(Value::as_str),
             Some("complete")
         );
+    }
+    Ok(())
+}
+
+#[test]
+fn relative_interpreters_resolve_from_the_callers_directory() -> Result {
+    for change_directory in [false, true] {
+        let directory = tempfile::tempdir()?;
+        fs::create_dir(directory.path().join("bin"))?;
+        fs::create_dir(directory.path().join("child"))?;
+        let interpreter = directory.path().join("bin/interpreter");
+        fs::write(&interpreter, "#!/bin/sh\nexec /bin/sh \"$@\"\n")?;
+        fs::set_permissions(&interpreter, fs::Permissions::from_mode(0o700))?;
+        let source = "[source,sh,role=command,id=relative,interpreter=bin/interpreter]\n----\nprintf relative-interpreter-ok\n----\n";
+        let recording = run(
+            source,
+            directory.path(),
+            if change_directory {
+                &["--cwd", "child"]
+            } else {
+                &[]
+            },
+            |_, _, _| Ok(()),
+        )?;
+        assert!(
+            recording.success,
+            "{}",
+            String::from_utf8_lossy(&recording.visible)
+        );
+        assert!(output(&recording).contains("relative-interpreter-ok"));
     }
     Ok(())
 }

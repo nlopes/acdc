@@ -22,6 +22,10 @@ cargo nextest run --workspace --all-features
 
 See link:./acdc-cli/README.adoc[acdc-cli README] for all CLI options, backends, and feature flags.
 
+To run an AsciiDoc procedure and share its terminal output, command outcomes,
+and OSC 7501 task history as HTML, try the
+link:./acdc-cli/examples/runbook/README.adoc[executable runbook demonstration].
+
 == Tooling
 
 * link:./acdc-cli[acdc-cli] - AsciiDoc processor (CLI)

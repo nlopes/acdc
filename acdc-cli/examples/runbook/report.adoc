@@ -1,0 +1,31 @@
+= Local release review
+:!webfonts:
+:csp:
+:recording: release.cast
+
+The example run failed deliberately. Capture is complete: `publish` exited
+with code 7, `announce` was skipped, and the independent `inspect` step succeeded.
+
+== Watch the recorded run
+
+[terminal%replay,format=asciicast,subs=none,rows=12]
+----
+include::{recording}[]
+----
+
+Select *Permission requests* to find the approval prompt. Select *Task errors*
+to find the cache miss, then move forward to its successful retry. Select
+*Command failures* to find the failed publish. The task saying *Done* does not
+change the command's exit code.
+
+The step outline shows why `announce` was skipped. Use the playback slider in
+both directions to compare the task state with the terminal screen.
+
+== Read the commands
+
+The original blocks are <<prepare,prepare>>, <<review,review>>,
+<<publish,publish>>, <<announce,announce>>, and <<inspect,inspect>> below.
+Recorded source locations remain text in the player; these document links
+refer to the authored block IDs.
+
+include::runbook.adoc[leveloffset=+1]

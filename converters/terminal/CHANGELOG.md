@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- Link to a local runbook capture that demonstrates task history and command
+  outcomes in an HTML report, including task changes with an unchanged screen.
+
 ### Added
 
 - With `emulator`, asciicast replay retains OSC 7501 task history, markers,

@@ -459,6 +459,11 @@ Conversion and playback do not run the recorded commands. Asciidoctor displays
 this acdc-specific block as a plain listing. See
 link:../converters/html/README.adoc[HTML terminal replay] for playback controls.
 
+The link:examples/runbook/README.adoc[local runbook demonstration] includes a
+sample recording and a report with the original command blocks. Follow it to
+record a task retry, approve a local preview, and inspect a failed command and
+its skipped dependent. The example contacts no external services.
+
 === `tck`
 
 The `tck` feature provides the JSON stdin/stdout adapter used by the AsciiDoc Test Compatibility Kit.

@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A local executable-runbook example includes a task retry, approval prompt,
+  deliberate command failure, skipped dependent, and independent success.
+  Its sample recording and HTML report connect playback to the original blocks.
+
 - `execute --record PATH` saves an interactive Unix run as an asciicast v3
   recording with command outcomes, source locations, and OSC 7501 task reports.
   Enable the `execute-recording` feature; native release builds include it.
@@ -60,6 +64,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--doctype article` or `--doctype book` is supplied. Output is unchanged.
 
 ### Fixed
+
+- Recorded commands accept relative interpreter paths from the caller's
+  directory, including when `--cwd` selects a different child directory.
+- Recording source locations use paths relative to the runbook directory
+  when the document was opened through a relative path.
 
 - Valid Asciidoctor `code_font_size` and `code_font_size_min` values no longer
   produce a false adjustment warning or fail with `--fail-on-warnings`.
