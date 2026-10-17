@@ -20,6 +20,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-osc7501
 
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable

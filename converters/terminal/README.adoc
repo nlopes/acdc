@@ -127,6 +127,23 @@ kind and document.
 
 ## Development
 
+With the `emulator` feature, `asciicast::Recording::activity()` provides OSC 7501
+task history independently of visible screen frames. `records_at()` reconstructs
+state at a playback time, including backward seeks. Raw times, markers, and valid
+acdc runbook command outcomes remain available separately. Input events are inert.
+
+The reader applies complete record replacement, inherited app names, subtree
+clearing, and bounded eviction through `osc7501-store`. Prompt, process exit, and
+RIS events apply the library's lifecycle rules. Runbook command occurrences have
+separate task scopes; recordings without valid metadata use one session scope.
+
+Malformed reports are ignored with a bounded diagnostic summary. Damaged event
+lines retain a readable prefix. Retained source data is limited to 100,000 events
+and 64 MiB of text; task history is limited to 16,384 changes and 16 MiB of text.
+A missing completion trailer never implies successful execution.
+See link:../../CONTRIBUTING.md[the contributing guide] for the required sibling
+`osc7501-rs` checkout.
+
 The terminal converter includes headless integration tests that feed converter
 output through Ghostty's virtual terminal emulator and assert on rendered cells.
 These tests use `libghostty-vt`, whose native build requires the prerequisites

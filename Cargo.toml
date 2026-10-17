@@ -61,6 +61,9 @@ image = { version = "0.25", default-features = false, features = ["png", "jpeg",
 libghostty-vt = { git = "https://github.com/Uzaaft/libghostty-rs", rev = "5988a0b78b4aa804d1c12e66bbfe662bd97d81c0" }
 lopdf = "0.45"
 mockito = "1"
+osc7501 = { package = "osc7501-rs", path = "../osc7501-rs/crates/osc7501" }
+osc7501-parser = { path = "../osc7501-rs/crates/osc7501-parser" }
+osc7501-store = { path = "../osc7501-rs/crates/osc7501-store", features = ["alloc"] }
 petgraph = { version = "0.8", default-features = false, features = ["std"] }
 pretty_assertions = "1.4"
 rayon = "1.11"
@@ -83,6 +86,7 @@ typst-pdf = "=0.15.1"
 unicode-width = "0.2"
 ureq = "3.3"
 url = "2"
+vte = { version = "0.15", default-features = false }
 percent-encoding = "2"
 usvg = "0.48.1"
 

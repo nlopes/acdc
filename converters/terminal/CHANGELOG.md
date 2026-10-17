@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- With `emulator`, asciicast replay retains OSC 7501 task history, markers,
+  command provenance, and raw timing independently of visible screen changes.
+  Tasks can be inspected at any playback position, including backward seeks.
+  Valid acdc runbook metadata gives each command a separate task scope.
+
+### Changed
+
+- Asciicast replay retains the readable prefix after a damaged event line and
+  reports incomplete or unsupported data through recording diagnostics. Source
+  data and task history have separate retention limits. Status-only recordings
+  use a blank screen and keep their full duration.
+
 ### Fixed
 
 - On Unix, terminal conversion starts faster without an attached terminal.

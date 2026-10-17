@@ -15,7 +15,16 @@ Thank you for your interest in contributing! This guide covers the essentials. F
    `0.16.0`; an older `zig@0.15` installation can take precedence on `PATH`.
    The pinned Ghostty revision supports the macOS 27 SDK without selecting an
    older SDK.
-4. **Build and test**:
+4. **Check out the local OSC 7501 libraries** beside acdc. These unpublished
+   crates are workspace path dependencies, so Cargo needs them even when
+   terminal emulation is disabled:
+   ```bash
+   git clone https://github.com/nlopes/osc7501-rs ../osc7501-rs
+   git -C ../osc7501-rs checkout c01969218814d7c77520228c49921fab4eea5e09
+   ```
+   Keep an existing checkout if it contains your work. The revision above is
+   the baseline used by CI in `.github/actions/setup-osc7501/action.yml`.
+5. **Build and test**:
    ```bash
    cargo build --workspace --all-features
    cargo nextest run --workspace --all-features

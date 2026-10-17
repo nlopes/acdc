@@ -1,0 +1,21 @@
+name: Set up local OSC 7501 libraries
+description: Provide the pinned sibling sources required by Cargo path dependencies.
+inputs:
+  destination:
+    description: Sibling source destination, relative to the job working directory.
+    default: ../osc7501-rs
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v7
+      with:
+        repository: nlopes/osc7501-rs
+        ref: c01969218814d7c77520228c49921fab4eea5e09
+        path: .osc7501-source
+        persist-credentials: false
+    - shell: bash
+      env:
+        OSC7501_DESTINATION: ${{ inputs.destination }}
+      run: |
+        test ! -e "$OSC7501_DESTINATION"
+        mv "$GITHUB_WORKSPACE/.osc7501-source" "$OSC7501_DESTINATION"

@@ -380,6 +380,12 @@ repeated line once and referencing it per frame. acdc draws no window chrome;
 the recorded title (asciicast only) is exposed as a `data-title` attribute so
 you can add your own.
 
+Asciicast duration includes trailing task reports, markers, and exit events,
+even when the visible screen does not change. A status-only recording uses a
+blank screen and retains its timing. Damaged event lines retain the readable
+prefix with a structured warning. Unknown acdc lifecycle metadata falls back
+to ordinary terminal playback with a warning.
+
 For `format=asciicast`, the recording is replayed at its own recorded size so
 its cursor movements render faithfully, then `rows` is the height of a window
 that follows the output like a scrolling terminal: when the recording is taller

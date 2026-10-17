@@ -197,13 +197,38 @@ pub struct Frame {
     pub grid: CellGrid,
 }
 
-/// Captured replay frames in playback order.
+/// Captured replay frames and independent task history in playback order.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Timeline {
     frames: Vec<Frame>,
+    activity: crate::activity::Timeline,
 }
 
 impl Timeline {
+    /// Task and command history, independent of visible frame deduplication.
+    #[must_use]
+    pub const fn activity(&self) -> &crate::activity::Timeline {
+        &self.activity
+    }
+
+    pub(crate) fn attach_activity(
+        &mut self,
+        activity: crate::activity::Timeline,
+        size: TerminalSize,
+    ) {
+        if self.frames.is_empty()
+            && (!activity.changes().is_empty() || activity.runbook().is_some())
+        {
+            self.frames.push(Frame {
+                at: Duration::ZERO,
+                grid: CellGrid::new(
+                    vec![crate::cell_grid::Cell::default(); size.cols.saturating_mul(size.rows)],
+                    size,
+                ),
+            });
+        }
+        self.activity = activity;
+    }
     /// Return the captured frames.
     #[must_use]
     pub fn frames(&self) -> &[Frame] {
@@ -343,7 +368,10 @@ where
         }
     }
 
-    Ok(Timeline { frames })
+    Ok(Timeline {
+        frames,
+        activity: crate::activity::Timeline::default(),
+    })
 }
 
 /// Capture replay frames from append-only recorded output without paying
@@ -427,7 +455,10 @@ where
         }
     }
 
-    Ok(Timeline { frames })
+    Ok(Timeline {
+        frames,
+        activity: crate::activity::Timeline::default(),
+    })
 }
 
 /// Extract a `viewport_rows`-tall window of `screen` whose bottom row aligns

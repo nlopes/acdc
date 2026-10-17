@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `[terminal%replay,format=asciicast]` keeps trailing task, marker, and exit
+  timing, including recordings with only OSC 7501 status reports. Damaged event
+  lines retain a playable prefix with a structured warning. Unsupported acdc
+  runbook metadata falls back to ordinary playback. This block style remains
+  an acdc extension; Asciidoctor displays it as a plain listing.
+
 - HTML math output escapes `<`, `>` and `&` so formulas display those characters,
   matching Asciidoctor. With `pre-spec-subs`, `[stem,subs=none]` still preserves
   authored raw HTML.

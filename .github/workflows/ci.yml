@@ -27,17 +27,21 @@ jobs:
           filters: |
             parser:
               - '.github/workflows/ci.yml'
+              - '.github/actions/setup-osc7501/**'
               - 'acdc-parser/**'
               - 'Cargo.toml'
               - 'Cargo.lock'
             converters:
               - '.github/workflows/ci.yml'
+              - '.github/actions/setup-osc7501/**'
               - 'converters/**'
+              - 'acdc-runbook/**'
               - 'acdc-parser/**'
               - 'Cargo.toml'
               - 'Cargo.lock'
             cli:
               - '.github/workflows/ci.yml'
+              - '.github/actions/setup-osc7501/**'
               - 'acdc-cli/**'
               - 'acdc-execute/**'
               - 'acdc-runbook/**'
@@ -47,6 +51,7 @@ jobs:
               - 'Cargo.lock'
             lsp:
               - '.github/workflows/ci.yml'
+              - '.github/actions/setup-osc7501/**'
               - 'acdc-lsp/**'
               - 'acdc-parser/**'
               - 'converters/core/**'
@@ -54,6 +59,7 @@ jobs:
               - 'Cargo.lock'
             pdf:
               - '.github/workflows/ci.yml'
+              - '.github/actions/setup-osc7501/**'
               - 'converters/core/**'
               - 'converters/pdf/**'
               - 'acdc-parser/**'
@@ -61,6 +67,7 @@ jobs:
               - 'Cargo.lock'
             wasm:
               - '.github/workflows/ci.yml'
+              - '.github/actions/setup-osc7501/**'
               - 'acdc-editor-wasm/**'
               - 'acdc-parser/**'
               - 'converters/core/**'
@@ -72,6 +79,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-osc7501
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
@@ -81,6 +89,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-osc7501
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
@@ -107,6 +116,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-osc7501
       - uses: dtolnay/rust-toolchain@1.88.0
       - uses: Swatinem/rust-cache@v2
         with:
@@ -122,6 +132,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-osc7501
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
@@ -148,6 +159,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-osc7501
       - uses: dtolnay/rust-toolchain@stable
       - uses: mlugg/setup-zig@v2
         with:
@@ -179,6 +191,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-osc7501
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
@@ -193,6 +206,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-osc7501
       - uses: dtolnay/rust-toolchain@stable
       - uses: mlugg/setup-zig@v2
         with:
@@ -233,6 +247,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-osc7501
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
@@ -247,6 +262,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-osc7501
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
@@ -266,6 +282,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-osc7501
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
@@ -280,6 +297,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-osc7501
       - uses: dtolnay/rust-toolchain@stable
       - uses: mlugg/setup-zig@v2
         with:

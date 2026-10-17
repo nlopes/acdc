@@ -527,6 +527,8 @@ pub(crate) fn extract_heading_text(
         .to_string(nodes)
 }
 
+#[cfg(feature = "emulator")]
+pub mod activity;
 mod admonition;
 mod appearance;
 #[cfg(feature = "emulator")]

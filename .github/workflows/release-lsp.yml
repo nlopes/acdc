@@ -7,6 +7,7 @@ on:
   pull_request:
     paths:
       - '.github/workflows/release-lsp.yml'
+      - '.github/actions/setup-osc7501/**'
   workflow_dispatch:
 
 permissions:
@@ -37,6 +38,7 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-osc7501
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}

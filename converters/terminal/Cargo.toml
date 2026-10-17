@@ -12,11 +12,15 @@ default = ["pre-spec-subs"]
 pre-spec-subs = ["acdc-parser/pre-spec-subs", "acdc-converters-core/pre-spec-subs"]
 images = ["dep:viuer"]
 highlighting = ["dep:syntect"]
-emulator = ["dep:libghostty-vt", "dep:asciicast-rs", "dep:serde", "dep:serde_json"]
+emulator = ["dep:libghostty-vt", "dep:asciicast-rs", "dep:serde", "dep:serde_json", "dep:acdc-runbook", "dep:osc7501-parser", "dep:osc7501-store", "dep:vte"]
 
 [dependencies]
 acdc-converters-core.workspace = true
 acdc-parser.workspace = true
+acdc-runbook = { workspace = true, optional = true }
+osc7501-parser = { workspace = true, optional = true }
+osc7501-store = { workspace = true, optional = true }
+vte = { workspace = true, optional = true }
 comfy-table = { version = "8.0", features = ["custom_styling"] }
 crossterm.workspace = true
 thiserror.workspace = true
@@ -34,6 +38,7 @@ syntect = { version = "5.3", optional = true }
 viuer = { version = "0.11", features = ["print-file"], optional = true }
 
 [dev-dependencies]
+osc7501.workspace = true
 acdc-converters-dev.workspace = true
 bumpalo = "3.20"
 pretty_assertions.workspace = true

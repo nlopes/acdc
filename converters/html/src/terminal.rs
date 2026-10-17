@@ -325,6 +325,7 @@ fn render_replay_ansi<W: Write>(
         preview_options.theme,
         None,
         None,
+        None,
         playback_duration,
     )
 }
@@ -363,6 +364,10 @@ fn render_replay_asciicast<W: Write>(
     // Block `cols`/`rows` override the recording; the asciicast header supplies
     // the size otherwise, so dimensions are never required on the block.
     let size = replay_size_with_default(attrs, metadata, recording.size(), diagnostics);
+    for issue in recording.activity().issues() {
+        diagnostics.warn(issue.to_string());
+    }
+    let recorded_duration = recording.duration();
     let playback_duration = replay_playback_override(metadata, diagnostics);
     // Header metadata paints the replay chrome; read it before `capture` consumes
     // the recording.
@@ -410,6 +415,7 @@ fn render_replay_asciicast<W: Write>(
         preview_options.theme,
         recorded_theme,
         title.as_deref(),
+        recorded_duration,
         playback_duration,
     )
 }
@@ -771,7 +777,7 @@ pub const REPLAY_PLAYER_SCRIPT_CSP_HASH: &str = env!("ACDC_REPLAY_PLAYER_CSP_HAS
 ///
 /// acdc emits no window chrome; the markup is class-based so a consumer (e.g. an
 /// embedding editor) can add its own. The stable seams are the base class
-/// `.terminal`, the `.terminal-view--replay` marker (also the player's JS hook), the
+/// `.terminal-view`, the `.terminal-view--replay` marker (also the player's JS hook), the
 /// inner `.terminal-view__viewport` > `.terminal-view__stream` > `.terminal-view__row`, and the
 /// `data-title` attribute (the recorded title, present only when the recording
 /// carried one, for building custom chrome via `::before{content:attr(data-title)}`).
@@ -792,6 +798,7 @@ fn render_replay_player<W: Write>(
     theme: Theme,
     recorded: Option<asciicast::ReplayTheme>,
     title: Option<&str>,
+    recorded_duration: Option<Duration>,
     playback_duration: Option<Duration>,
 ) -> Result<(), Error> {
     let rows = frames
@@ -814,7 +821,10 @@ fn render_replay_player<W: Write>(
 
     // Frame times scale to `replay-duration-ms` when set, else play at the
     // recording's own (idle-compressed) pace.
-    let record_ms = frames.last().map_or(0, |frame| frame.at.as_millis());
+    let record_ms = recorded_duration.map_or_else(
+        || frames.last().map_or(0, |frame| frame.at.as_millis()),
+        |duration| duration.as_millis(),
+    );
     let total_ms = playback_duration
         .map_or(record_ms, |d| d.as_millis())
         .max(1);
@@ -1763,6 +1773,40 @@ mod tests {
         assert!(html.contains("terminal-view terminal-view--replay"));
         assert!(html.contains("alpha"));
         assert!(html.contains("beta"));
+        Ok(())
+    }
+
+    #[test]
+    fn asciicast_status_only_replay_keeps_a_blank_screen_and_full_duration() -> TestResult {
+        let (html, warnings) = render_with_warnings(
+            "= Example\n\n[terminal%replay,format=asciicast,subs=none]\n----\n{\"version\":3,\"term\":{\"cols\":20,\"rows\":4}}\n[0,\"o\",\"\\u001b]7501;state=done\\u0007\"]\n[1,\"x\",\"0\"]\n----\n",
+            HtmlVariant::Standard,
+        )?;
+        assert!(html.contains("terminal-view terminal-view--replay"));
+        assert!(html.contains("data-frames=\"1\""));
+        assert!(html.contains("data-duration-ms=\"1000\""));
+        assert_eq!(warnings, []);
+        Ok(())
+    }
+
+    #[test]
+    fn asciicast_partial_recording_and_unknown_metadata_use_structured_warnings() -> TestResult {
+        let (html, warnings) = render_with_warnings(
+            "= Example\n\n[terminal%replay,format=asciicast,subs=none]\n----\n{\"version\":3,\"term\":{\"cols\":20,\"rows\":4}}\n[0,\"o\",\"readable prefix\\r\\n\"]\n[1,\"acdc.runbook\",\"{\\\"version\\\":99}\"]\n[1,\"o\",\"unfinished\n----\n",
+            HtmlVariant::Standard,
+        )?;
+        assert!(html.contains("terminal-view terminal-view--replay"));
+        assert!(html.contains("readable prefix"));
+        assert!(
+            warnings
+                .iter()
+                .any(|warning| warning.message.contains("unsupported schema version 99"))
+        );
+        assert!(
+            warnings
+                .iter()
+                .any(|warning| warning.message.contains("retained the readable prefix"))
+        );
         Ok(())
     }
 
