@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Terminal replays have play/pause, keyboard seeking, and step/event navigation.
+  Asciicast recordings with OSC 7501 reports show task state, progress, and
+  requests for permission, authentication, or an answer at the playback position.
+  acdc runbook metadata adds command outcomes, recorded durations, source
+  locations, and skipped-step reasons. The final summary remains readable
+  without JavaScript. Reduced motion disables autoplay and keeps manual controls.
+  These block styles remain acdc extensions; Asciidoctor shows the recording
+  as a plain listing.
+
 ### Documentation
 
 - Explain that safe modes do not sanitize HTML output, matching Asciidoctor.

@@ -5,9 +5,9 @@
 //!
 //! - **static** — a single snapshot: `[terminal]` session/literal blocks and
 //!   `:acdc-terminal:` source blocks. Rendered by [`render_static`].
-//! - **replay** — animated playback of recorded output (raw ANSI or asciicast)
-//!   via a small inline JS player ([`render_replay_player`]); the final frame is
-//!   server-rendered so no-JS / reduced-motion readers still see it.
+//! - **replay** — interactive playback of recorded output and task history
+//!   via [`render_replay_player`]. The final screen and task summary are
+//!   server-rendered. Reduced motion disables autoplay, keeping manual controls.
 //!
 //! Both modes share the base CSS class `.terminal-view` (the box, the
 //! `.terminal-view--light`/`--dark` theme colours, and the static `.terminal-view__screen`
@@ -30,6 +30,8 @@ use acdc_converters_terminal::{
 use acdc_parser::{AttributeValue, BlockMetadata, DocumentAttributes, InlineNode};
 
 use crate::Error;
+
+mod activity;
 
 const DEFAULT_COLS: usize = 80;
 const AUTO_ROW_PADDING: usize = 1;
@@ -322,11 +324,10 @@ fn render_replay_ansi<W: Write>(
     render_replay_player(
         writer,
         &frames,
-        preview_options.theme,
-        None,
-        None,
-        None,
-        playback_duration,
+        PlayerOptions {
+            playback_duration,
+            ..PlayerOptions::new(preview_options.theme)
+        },
     )
 }
 
@@ -372,7 +373,7 @@ fn render_replay_asciicast<W: Write>(
     // Header metadata paints the replay chrome; read it before `capture` consumes
     // the recording.
     let recorded_theme = recording.theme();
-    let title = recording.title().map(str::to_owned);
+    let title = recording.title().map(activity::display_text);
 
     // Replay at the recording's native height so its cursor positioning renders
     // the way it was recorded (a live progress region, full-screen TUI, etc.);
@@ -402,6 +403,7 @@ fn render_replay_asciicast<W: Write>(
     // Show a `size.rows`-tall window of each frame, anchoring the last line with
     // content to the bottom so the replay follows the output like a scrolling
     // terminal (and rests on the final lines, not a region the recording cleared).
+    let activity = activity::Player::new(timeline.activity());
     let frames = window_frames_to_bottom(timeline.into_frames(), size.rows);
 
     if frames.is_empty() {
@@ -412,11 +414,14 @@ fn render_replay_asciicast<W: Write>(
     render_replay_player(
         writer,
         &frames,
-        preview_options.theme,
-        recorded_theme,
-        title.as_deref(),
-        recorded_duration,
-        playback_duration,
+        PlayerOptions {
+            theme: preview_options.theme,
+            recorded: recorded_theme,
+            title: title.as_deref(),
+            recorded_duration,
+            playback_duration,
+            activity,
+        },
     )
 }
 
@@ -757,50 +762,62 @@ pub const REPLAY_PLAYER_SCRIPT: &str = concat!(
 /// matches the embedded script.
 pub const REPLAY_PLAYER_SCRIPT_CSP_HASH: &str = env!("ACDC_REPLAY_PLAYER_CSP_HASH");
 
-/// Render a recording as an interactive replay player. This is the single
-/// renderer for every replay block (raw ANSI and asciicast alike).
+struct PlayerOptions<'a> {
+    theme: Theme,
+    recorded: Option<asciicast::ReplayTheme>,
+    title: Option<&'a str>,
+    recorded_duration: Option<Duration>,
+    playback_duration: Option<Duration>,
+    activity: activity::Player,
+}
+
+impl PlayerOptions<'_> {
+    fn new(theme: Theme) -> Self {
+        Self {
+            theme,
+            recorded: None,
+            title: None,
+            recorded_duration: None,
+            playback_duration: None,
+            activity: activity::Player::default(),
+        }
+    }
+}
+
+/// Render screen frames, task history, and runbook steps on one playback clock.
 ///
-/// Every distinct visible screen is captured, but identical rows are pooled and
-/// emitted once; each frame is just a list of indices into that pool plus a
-/// timestamp. A small inline script swaps the visible rows on a clock. This
-/// reproduces in-place rewrites (progress bars, status lines, full-screen TUIs)
-/// faithfully and smoothly while keeping the payload compact: a long session
-/// costs one copy of each unique line, not one screen per frame.
+/// The final screen and task summary remain readable without JavaScript.
+/// Reduced motion disables autoplay but keeps manual controls. Each player has
+/// its own playback position. Backward seeks restore the matching task state.
 ///
-/// The player wears the recording's own colours when its header carried a theme
-/// (raw ANSI has none, so it uses the generic light/dark colours). The final
-/// frame is rendered into the DOM server-side, so readers with scripting
-/// disabled (or who prefer reduced motion) see the finished screen; only the
-/// animation is lost.
+/// Distinct screen rows are emitted once and shared between frames. Task and
+/// metadata labels are escaped text; source locations do not become links.
 ///
 /// # CSS contract
 ///
-/// acdc emits no window chrome; the markup is class-based so a consumer (e.g. an
-/// embedding editor) can add its own. The stable seams are the base class
-/// `.terminal-view`, the `.terminal-view--replay` marker (also the player's JS hook), the
-/// inner `.terminal-view__viewport` > `.terminal-view__stream` > `.terminal-view__row`, and the
-/// `data-title` attribute (the recorded title, present only when the recording
-/// carried one, for building custom chrome via `::before{content:attr(data-title)}`).
-/// A theme-less replay takes its colours from the `.terminal-view--{light,dark}` class
-/// (overridable with plain CSS); a recording's own theme is painted inline
-/// (override it with `!important`).
+/// The base class is `.terminal-view`; `.terminal-view--replay` is the JS hook.
+/// Screen rows use `.terminal-view__viewport` > `.terminal-view__stream` >
+/// `.terminal-view__row`. Controls, steps, tasks, and navigation use
+/// `.terminal-view__controls`, `__steps`, `__tasks`, and `__events` respectively.
+/// The optional `data-title` attribute contains the recording's title.
 ///
-/// Per-cell colours are emitted as inline `style` colours (resolved against the
-/// recording's own palette via [`resolve_cell_color`]), matching the static
-/// terminal preview. Under a strict CSP these inline styles need
-/// `style-src 'unsafe-inline'`; the inline player `<script>` can be allowlisted
-/// by hash ([`REPLAY_PLAYER_SCRIPT_CSP_HASH`]) for a script-src without
-/// `'unsafe-inline'`. With the script blocked, the server-rendered final frame
-/// still shows.
+/// Recorded theme and cell colours use inline styles, requiring
+/// `style-src 'unsafe-inline'` under CSP. The script can be allowed by
+/// [`REPLAY_PLAYER_SCRIPT_CSP_HASH`]. Without a recorded theme, the
+/// `.terminal-view--{light,dark}` class supplies the background and foreground.
 fn render_replay_player<W: Write>(
     mut writer: W,
     frames: &[replay::Frame],
-    theme: Theme,
-    recorded: Option<asciicast::ReplayTheme>,
-    title: Option<&str>,
-    recorded_duration: Option<Duration>,
-    playback_duration: Option<Duration>,
+    options: PlayerOptions<'_>,
 ) -> Result<(), Error> {
+    let PlayerOptions {
+        theme,
+        recorded,
+        title,
+        recorded_duration,
+        playback_duration,
+        mut activity,
+    } = options;
     let rows = frames
         .iter()
         .map(|frame| frame.grid.rows())
@@ -827,17 +844,15 @@ fn render_replay_player<W: Write>(
     );
     let total_ms = playback_duration
         .map_or(record_ms, |d| d.as_millis())
-        .max(1);
+        .clamp(1, 9_007_199_254_740_991);
+    let clock = activity::Clock {
+        record_ms,
+        total_ms,
+    };
+    activity.scale(clock);
     let times: Vec<u128> = frames
         .iter()
-        .map(|frame| {
-            frame
-                .at
-                .as_millis()
-                .saturating_mul(total_ms)
-                .checked_div(record_ms)
-                .unwrap_or(0)
-        })
+        .map(|frame| clock.at(frame.at.as_millis()))
         .collect();
 
     // A recording that carried its own theme is painted faithfully with an inline
@@ -876,6 +891,7 @@ fn render_replay_player<W: Write>(
         title_attr
     )?;
 
+    activity.controls(&mut writer, total_ms)?;
     // The screen holds one block per terminal row. The final frame is rendered
     // server-side (trimmed of trailing blank rows) so it shows without scripting;
     // the player builds the rest of the rows, resets to the first frame, and
@@ -893,6 +909,7 @@ fn render_replay_player<W: Write>(
         )?;
     }
     writeln!(writer, "</div></div>")?;
+    activity.render(&mut writer)?;
 
     // Payload as inline JSON. `<` is escaped to `<` inside strings, so no
     // recorded content can break out of the script element.
@@ -910,6 +927,7 @@ fn render_replay_player<W: Write>(
             times: &times,
             pool: &pool,
             frame_rows: &frame_rows,
+            activity: &activity,
         },
     )?;
     writeln!(writer, "</script>")?;
@@ -987,10 +1005,10 @@ struct ReplayData<'a> {
     times: &'a [u128],
     pool: &'a [String],
     frame_rows: &'a [Vec<usize>],
+    activity: &'a activity::Player,
 }
 
-/// Write the player payload as JSON: the unique-row pool, per-frame row indices,
-/// and frame times.
+/// Write script-safe JSON for screen frames, timing, tasks, and runbook steps.
 fn write_replay_json<W: Write>(writer: &mut W, data: &ReplayData<'_>) -> Result<(), Error> {
     let ReplayData {
         cols,
@@ -1000,6 +1018,7 @@ fn write_replay_json<W: Write>(writer: &mut W, data: &ReplayData<'_>) -> Result<
         times,
         pool,
         frame_rows,
+        activity,
     } = *data;
     write!(
         writer,
@@ -1032,7 +1051,9 @@ fn write_replay_json<W: Write>(writer: &mut W, data: &ReplayData<'_>) -> Result<
         }
         write!(writer, "]")?;
     }
-    write!(writer, "]}}")?;
+    write!(writer, "],\"activity\":")?;
+    activity.write_json(writer)?;
+    write!(writer, "}}")?;
     Ok(())
 }
 
@@ -1277,6 +1298,10 @@ fn escape_html(text: &str) -> String {
 }
 
 #[cfg(test)]
+#[path = "terminal/activity_tests.rs"]
+mod activity_tests;
+
+#[cfg(test)]
 mod tests {
     use super::estimate_rows;
     use acdc_converters_core::{
@@ -1289,12 +1314,12 @@ mod tests {
 
     type TestResult = Result<(), Box<dyn Error>>;
 
-    fn render(input: &str, variant: HtmlVariant) -> Result<String, Box<dyn Error>> {
+    pub(super) fn render(input: &str, variant: HtmlVariant) -> Result<String, Box<dyn Error>> {
         let (html, _) = render_with_warnings(input, variant)?;
         Ok(html)
     }
 
-    fn render_with_warnings(
+    pub(super) fn render_with_warnings(
         input: &str,
         variant: HtmlVariant,
     ) -> Result<(String, Vec<Warning>), Box<dyn Error>> {

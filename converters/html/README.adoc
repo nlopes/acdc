@@ -373,8 +373,15 @@ terminal preview with a structured warning.
 Both formats render as an animated HTML replay driven by a small,
 self-contained inline player. The final frame is rendered into the page
 server-side, so readers without JavaScript (or who prefer reduced motion) still
-see the finished screen; only the animation is lost. The raw-ANSI replay samples
-dense recordings so the generated HTML stays small even for long output;
+see the finished screen.
+
+With reduced motion, autoplay is disabled and the manual controls remain available.
+Use Play/Pause or the Playback position slider to inspect the recording.
+The slider supports the arrow keys, Home, and End. Playing from the end restarts
+the replay. Each block has its own controls and clock; playback pauses when
+the page becomes hidden.
+
+The raw-ANSI replay samples dense recordings so the generated HTML stays small even for long output;
 `format=asciicast` keeps every recorded frame and stays compact by emitting each
 repeated line once and referencing it per frame. acdc draws no window chrome;
 the recorded title (asciicast only) is exposed as a `data-title` attribute so
@@ -385,6 +392,22 @@ even when the visible screen does not change. A status-only recording uses a
 blank screen and retains its timing. Damaged event lines retain the readable
 prefix with a structured warning. Unknown acdc lifecycle metadata falls back
 to ordinary terminal playback with a warning.
+
+OSC 7501 task reports appear below the terminal screen, including changes that
+do not produce visible terminal text. The task list follows the playback
+position in both directions and retains task IDs, messages, progress, and
+inherited application names. Timeline events can be filtered by command
+failure, program-reported error, permission request, authentication request,
+question, other input request, task change, step start, or marker.
+
+With acdc runbook metadata, the replay also shows the selected steps and their
+source locations, interpreter, outcome, and recorded elapsed duration. Previous
+step and Next step move between command boundaries. Command outcomes remain
+separate from task reports: a program reporting `done` can still exit with a
+failure. Missing completion data is labelled incomplete. Source locations and
+program-supplied URLs are text, not links. Control and Unicode format characters
+in labels appear as replacement characters; terminal-grid content keeps its
+recorded rendering.
 
 For `format=asciicast`, the recording is replayed at its own recorded size so
 its cursor movements render faithfully, then `rows` is the height of a window
@@ -532,6 +555,9 @@ The output is class-based, so you can restyle it without forking the converter. 
 |===
 | Classes | Both share the base `.terminal-view` and a theme class (`.terminal-view--light` / `.terminal-view--dark`), and the block wrapper carries `.terminal-block`. Static preview adds `.terminal-view__screen` (the `<pre>`). Replay adds the `.terminal-view--replay` marker and `.terminal-view__viewport` > `.terminal-view__stream` > `.terminal-view__row`.
 | Attributes | `data-title` (the recorded title, asciicast only, present only when the recording carried one) for building your own title bar, e.g. `.terminal-view--replay::before{content:attr(data-title)}`
+| Controls | `.terminal-view__controls`, `.terminal-view__seek`, `.terminal-view__clock`; controls are disabled until the player script initializes.
+| Runbook and tasks | `.terminal-view__result`, `.terminal-view__steps`, `.terminal-view__step`, `.terminal-view__provenance`, `.terminal-view__tasks`, `.terminal-view__badge`; badges use `data-state` for their command or task state.
+| Event navigation | `.terminal-view__events` contains a filter and buttons for seeking to recorded events. `.terminal-view__announcement` provides brief screen-reader announcements after manual actions.
 |===
 
 * **Replace the whole stylesheet.** Use `:stylesheet: my.css` (see <<Custom stylesheet (`:stylesheet:`)>>), embedded or linked with `:linkcss:`. `:copycss:` copies the built-in CSS out as a starting point.

@@ -60,16 +60,21 @@ dependencies = [
  "acdc-converters-dev",
  "acdc-converters-terminal",
  "acdc-parser",
+ "acdc-runbook",
  "base64 0.23.1",
  "chrono",
+ "osc7501-rs",
  "pretty_assertions",
  "rstest",
+ "serde",
+ "serde_json",
  "sha2",
  "syntect",
  "tempfile",
  "thiserror",
  "tracing",
  "tracing-test",
+ "unicode-properties",
 ]
 
 [[package]]

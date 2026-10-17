@@ -528,6 +528,47 @@ aside.sidebar p,aside.sidebar dt,aside.sidebar td.content,p.tableblock{font-size
 .terminal-view__viewport{overflow:auto;max-width:100%;padding:0 18px 18px}
 .terminal-view__stream{margin:0;padding:0;width:max-content;font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;font-size:14px;line-height:1.2;white-space:normal;tab-size:4}
 .terminal-view__row{white-space:pre;min-height:1.2em}
+.terminal-view--replay{padding-top:12px}
+.terminal-view__controls,.terminal-view__event-controls{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:8px 18px 16px;font:13px/1.4 system-ui,sans-serif}
+.terminal-view button,.terminal-view select{color:inherit;background:transparent;border:1px solid currentColor;border-radius:4px;padding:5px 9px;font:inherit;line-height:1.4;cursor:pointer}
+.terminal-view button:disabled,.terminal-view select:disabled{opacity:.55;cursor:default}
+.terminal-view button:focus-visible,.terminal-view select:focus-visible,.terminal-view input:focus-visible,.terminal-view summary:focus-visible{outline:3px solid currentColor;outline-offset:3px}
+.terminal-view__seek{display:flex;align-items:center;gap:8px;flex:1;min-width:200px;font:inherit}
+.terminal-view__seek input{min-width:100px;flex:1;accent-color:currentColor}
+.terminal-view__clock{font:inherit;white-space:nowrap}
+.terminal-view__result,.terminal-view__elapsed,.terminal-view__note{padding:0 18px;margin:8px 0;font:13px/1.5 system-ui,sans-serif;overflow-wrap:anywhere}
+.terminal-view__result{font-weight:650}
+.terminal-view__note{border-left:3px solid currentColor;margin-left:18px;padding-left:10px}
+.terminal-view__steps{padding:8px 18px 8px 38px;margin:0;font:14px/1.5 system-ui,sans-serif}
+.terminal-view__step{padding:10px 0;border-top:1px solid color-mix(in srgb,currentColor 20%,transparent)}
+.terminal-view__step-heading{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.terminal-view__step-heading>button{font-weight:650;text-align:left;overflow-wrap:anywhere}
+.terminal-view__badge{display:inline-block;border:1px solid currentColor;border-radius:12px;padding:1px 7px;font:12px/1.5 system-ui,sans-serif;white-space:nowrap;margin:0 4px}
+.terminal-view__badge[data-state=error],.terminal-view__badge[data-state=failed]{border-color:#cf4444;border-width:2px}
+.terminal-view__badge[data-state=blocked]{border-color:#ae7c14;border-width:2px}
+.terminal-view__badge[data-state=done],.terminal-view__badge[data-state=succeeded]{border-color:#28874f}
+.terminal-view__provenance,.terminal-view__step-duration,.terminal-view__step-detail,.terminal-view__task-id,.terminal-view__task-app,.terminal-view__event-time{font:12px/1.5 system-ui,sans-serif;overflow-wrap:anywhere}
+.terminal-view__provenance,.terminal-view__step-detail{margin:5px 0}
+.terminal-view__tasks{list-style:none;margin:4px 0;padding:0;font:13px/1.5 system-ui,sans-serif}
+.terminal-view__tasks>li{margin:8px 0;overflow-wrap:anywhere}
+.terminal-view__tasks>li[data-depth="1"]{margin-left:12px}
+.terminal-view__tasks>li[data-depth="2"]{margin-left:24px}
+.terminal-view__tasks>li[data-depth="3"]{margin-left:36px}
+.terminal-view__tasks>li[data-depth="4"]{margin-left:48px}
+.terminal-view__tasks button{text-align:left}
+.terminal-view__tasks progress{width:72px;height:8px;margin:0 5px;accent-color:currentColor}
+.terminal-view__task-id,.terminal-view__task-app,.terminal-view__progress-value{margin-left:5px}
+.terminal-view__task-message{margin:4px 0;white-space:pre-wrap}
+.terminal-view__session{padding:8px 18px;font:14px/1.5 system-ui,sans-serif}
+.terminal-view__events{padding:12px 18px;font:13px/1.5 system-ui,sans-serif;border-top:1px solid color-mix(in srgb,currentColor 20%,transparent)}
+.terminal-view__events summary{cursor:pointer;font:inherit}
+.terminal-view__events ol{max-height:18em;overflow:auto;margin:0;padding-left:22px}
+.terminal-view__events li{padding:4px 0}
+.terminal-view__events button{text-align:left}
+.terminal-view__events .terminal-view__event-controls{padding:12px 0}
+.terminal-view__announcement{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.terminal-view [hidden]{display:none!important}
+@media print{.terminal-view__controls,.terminal-view__events,.terminal-view__announcement{display:none}.terminal-view button{border:0;padding:0;opacity:1!important}}
 .print-only{display:none!important}
 @page{margin:1.25cm .75cm}
 @media print{*{box-shadow:none!important;text-shadow:none!important}
