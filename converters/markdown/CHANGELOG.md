@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Block image `title=` attributes now produce visible figure captions.
+
 - Visible index shorthand and catalog entries retain complete balanced internal
   parentheses, including `((function(argument)))` and `((fn((x)) tail))`.
   Extra closing punctuation stays outside the term. Unlike Asciidoctor's legacy

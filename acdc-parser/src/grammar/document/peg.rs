@@ -28,9 +28,9 @@ use crate::{
             },
             metadata::{
                 AttributeOrAnchorLine, BlockAttributeMode, BlockMetadataLine, assign_block_caption,
-                extract_media_dimensions, finish_block_parsing_metadata, merge_attribute_metadata,
-                metadata_marks_discrete_heading, order_document_attribute_events,
-                parse_block_attribute_list, push_metadata_anchor,
+                attribute_list_title, extract_media_dimensions, finish_block_parsing_metadata,
+                merge_attribute_metadata, metadata_marks_discrete_heading,
+                order_document_attribute_events, parse_block_attribute_list, push_metadata_anchor,
             },
             references::{
                 ReferenceCatalog, collect_inline_references, collect_metadata_references,
@@ -1219,20 +1219,27 @@ peg::parser! {
         rule block_metadata_with_title(offset: usize, parent_section_level: Option<SectionLevel>, parse_title: bool) -> Result<BlockParsingMetadata<'input>, Error>
         = meta_start:position!() lines:(line:(
             anchor:anchor() { BlockMetadataLine::Anchor(anchor) }
-            / attr:attributes_line() { BlockMetadataLine::Attributes((attr.0, Box::new(attr.1))) }
+            / start:position!() attr:attributes_line() { BlockMetadataLine::Attributes((attr.0, Box::new(attr.1), start)) }
             / doc_attr:document_attribute_line(offset) { BlockMetadataLine::DocumentAttribute(doc_attr.0, doc_attr.1) }
             / title_line()
         ) end:position!() eol()* { (line, end) })*
+          block_start:position!() image_ahead:image_block_ahead()
         {
             let mut metadata = BlockMetadata::default();
             let mut discrete = false;
             let mut title_source = None;
+            let mut image_title_source = None;
             let meta_end = lines.last().map_or(meta_start, |(_, end)| *end);
 
             for (line, _) in lines {
                 match line {
                     BlockMetadataLine::Anchor(value) => push_metadata_anchor(&mut metadata, value),
-                    BlockMetadataLine::Attributes((attr_discrete, attr_metadata)) => {
+                    BlockMetadataLine::Attributes((attr_discrete, attr_metadata, start)) => {
+                        if image_ahead
+                            && let Some(title) = attribute_list_title(state, start, offset)
+                        {
+                            image_title_source = Some(title);
+                        }
                         discrete = attr_discrete;
                         merge_attribute_metadata(&mut metadata, *attr_metadata);
                     },
@@ -1247,8 +1254,13 @@ peg::parser! {
                     },
                     BlockMetadataLine::Title { source, start, end } => {
                         title_source = Some((source, start, end));
+                        image_title_source = title_source;
                     }
                 }
+            }
+            let image_ahead = image_ahead && !matches!(metadata.style, Some("listing" | "source" | "literal" | "verse"));
+            if image_ahead {
+                title_source = attribute_list_title(state, block_start, offset).or(image_title_source);
             }
             // Titles use the completed metadata attributes, including entries
             // after the title line. Only the last authored title is displayed.
@@ -1256,7 +1268,17 @@ peg::parser! {
                 match process_inlines(
                     state, &BlockParsingMetadata::default(), start, end, offset, source,
                 ) {
-                    Ok((title, _)) => title.into(),
+                    Ok((mut title, _)) => {
+                        // An explicit empty title still receives a figure caption.
+                        if title.is_empty() && image_ahead {
+                            title.push(InlineNode::PlainText(Plain {
+                                content: "",
+                                location: state.create_block_location(start, end, offset),
+                                escaped: false,
+                            }));
+                        }
+                        title.into()
+                    },
                     Err(error) => {
                         state.add_generic_warning(format!("failed to parse block title, skipping: {error:?}"));
                         Title::default()
@@ -1738,6 +1760,16 @@ peg::parser! {
                 Ok(())
             }
         }
+
+        // Select the image title before parsing macros in a preceding dot-title.
+        rule image_block_ahead() -> bool
+        = &("image::" source_match() "[" attribute_list_content()) { true }
+        / { false }
+
+        rule source_match()
+        = ("https" / "http" / "ftp" / "irc") "://" url_path_match()
+        / "mailto:" email_address()
+        / path_match()
 
         rule image(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
         = normal_paragraph_style(block_metadata)
@@ -3785,7 +3817,7 @@ peg::parser! {
         /// Supports query parameters, fragments, and percent escapes while excluding
         /// brackets that delimit the macro attributes.
         /// Spaces must be internal to the target.
-        rule url_path() -> String = path:$(url_path_char() (url_path_char() / internal_url_path_spaces())*)
+        rule url_path() -> String = path:$(url_path_match())
         {?
             let inline_state = InlinePreprocessorParserState::new_all_enabled(
                 path,
@@ -3809,6 +3841,7 @@ peg::parser! {
 
         rule url_path_char() = ['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '.' | '_' | '~' | ':' | '/' | '?' | '#' | '@' | '!' | '$' | '&' | '\'' | '(' | ')' | '*' | '+' | ',' | ';' | '=' | '%' | '\\' ]
         rule internal_url_path_spaces() = [' ']+ &url_path_char()
+        rule url_path_match() = url_path_char() (url_path_char() / internal_url_path_spaces())*
 
         /// URL for bare autolinks — avoids capturing trailing sentence punctuation
         /// (., ;, !, etc.) by only consuming punctuation when more URL chars follow.
@@ -3884,7 +3917,7 @@ peg::parser! {
         /// ASCII input uses a conservative filename set. Non-ASCII Unicode characters
         /// are accepted unchanged, and `{`/`}` permit `AsciiDoc` attribute substitution.
         /// Existing percent escapes and internal spaces are preserved.
-        pub rule path() -> String = path:$(path_char() (path_char() / internal_path_spaces())*)
+        pub rule path() -> String = path:$(path_match())
         {?
             let inline_state = InlinePreprocessorParserState::new_all_enabled(
                 path,
@@ -3908,6 +3941,7 @@ peg::parser! {
 
         rule path_char() = ['A'..='Z' | 'a'..='z' | '0'..='9' | '{' | '}' | '_' | '-' | '.' | '/' | '\\' | '%' | '\u{80}'..='\u{10FFFF}' ]
         rule internal_path_spaces() = [' ']+ &path_char()
+        rule path_match() = path_char() (path_char() / internal_path_spaces())*
 
 
         pub rule source() -> Source<'input>

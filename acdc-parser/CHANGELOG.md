@@ -24,6 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Block images accept `title=` captions in the macro or a preceding attribute
+  list. Macro titles override preceding titles, retain inline formatting, and
+  supply cross-reference text, matching Asciidoctor. Inline-image `title=`
+  tooltips are unchanged.
+
 - Errors and warnings in reindented includes report columns in the original
   source, including nested and selected includes.
 

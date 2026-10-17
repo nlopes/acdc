@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Block images accept `title=` captions in the macro or a preceding attribute
+  list. Macro titles override preceding titles, retain inline formatting, and
+  supply cross-reference text, matching Asciidoctor. Inline-image `title=`
+  tooltips are unchanged.
+
 - Invalid or non-fitting `pdf-page-margin` overrides use the theme's page
   margins when they fit the page. The same fallback applies to non-fitting
   `PdfOptions::page_margin` values. Theme spacing margins apply if needed.

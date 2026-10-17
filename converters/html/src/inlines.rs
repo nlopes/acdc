@@ -535,6 +535,9 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
+        if p.content.is_empty() {
+            return Ok(());
+        }
         // Attribute substitution already applied by the inline preprocessor during parsing.
         let content = &p.content;
         // Escaped text must also bypass typography replacements.

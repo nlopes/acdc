@@ -31,7 +31,7 @@ use crate::model::substitution::parse_subs_attribute;
 #[derive(Debug)]
 pub(super) enum BlockMetadataLine<'input> {
     Anchor(Anchor<'input>),
-    Attributes((bool, Box<BlockMetadata<'input>>)),
+    Attributes((bool, Box<BlockMetadata<'input>>, usize)),
     Title {
         source: &'input str,
         start: usize,
@@ -137,6 +137,65 @@ pub(super) fn merge_attribute_metadata<'input>(
     } else if attribute_metadata.citetitle_substitutions {
         metadata.citetitle_substitutions = true;
     }
+}
+
+fn attribute_title_source<'input>(
+    state: &ParserState<'input>,
+    value: &str,
+    start: usize,
+    end: usize,
+    offset: usize,
+) -> (&'input str, usize, usize) {
+    // Keep authored attribute references so inline processing can map them to source.
+    let raw = state.input.get(start + offset..end + offset);
+    let source = raw.filter(|raw| {
+        substitute(raw, &[Substitution::Attributes], &state.document_attributes) == value
+    });
+    (
+        source.unwrap_or_else(|| state.intern_str(value)),
+        start,
+        end,
+    )
+}
+
+pub(super) fn attribute_list_title<'input>(
+    state: &ParserState<'input>,
+    line_start: usize,
+    offset: usize,
+) -> Option<(&'input str, usize, usize)> {
+    let line = state.input.get(line_start + offset..)?.lines().next()?;
+    let start = line.find('[')? + 1;
+    let end = line.rfind(']')?;
+    let raw = line.get(start..end)?;
+    let substituted = substitute(raw, &[Substitution::Attributes], &state.document_attributes);
+    let attribute = scan_attribute_list(&substituted, &[])
+        .into_iter()
+        .rev()
+        .find(|attribute| {
+            attribute.name.as_deref() == Some("title")
+                && !(attribute.quote == AttributeQuote::Unquoted && attribute.value == "None")
+        })?;
+    let authored = scan_attribute_list(raw, &[])
+        .into_iter()
+        .rev()
+        .find(|candidate| {
+            candidate.name.as_deref() == Some("title")
+                && substitute(
+                    &candidate.value,
+                    &[Substitution::Attributes],
+                    &state.document_attributes,
+                ) == attribute.value
+        });
+    let (start, end) = authored.map_or((start, end), |attribute| {
+        (start + attribute.value_start, start + attribute.value_end)
+    });
+    Some(attribute_title_source(
+        state,
+        &attribute.value,
+        line_start + start,
+        line_start + end,
+        offset,
+    ))
 }
 
 pub(super) fn finish_block_parsing_metadata<'input>(
@@ -436,7 +495,8 @@ fn store_named_block_attribute<'input>(
             metadata.citetitle_substitutions = quote == AttributeQuote::Single;
         }
         _ => {
-            if context == Some(MacroAttributeContext::Image) && name == "link" {
+            if name == "title" || (context == Some(MacroAttributeContext::Image) && name == "link")
+            {
                 metadata.attributes.set(
                     Cow::Borrowed(name),
                     AttributeValue::String(Cow::Borrowed(value)),
