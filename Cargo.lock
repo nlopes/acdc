@@ -4274,7 +4274,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b8050abb251097357e24aff63ba2c52a6309ecb7d23a5474023df960a02694d8"
 dependencies = [
  "annotate-snippets",
- "base64 0.22.1",
+ "base64 0.23.1",
  "encoding_rs_io",
  "granit-parser",
  "nohash-hasher",
@@ -5187,9 +5187,9 @@ dependencies = [
 
 [[package]]
 name = "typst-as-lib"
-version = "0.16.0"
+version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7e4f56c8ff5c20714366765069d33e2e9f3786cd51c5e38d3c5675b280b16f2"
+checksum = "83771d795ff59eb1f198153120beb55cd0acf6200077b31c6aad928e954b5c53"
 dependencies = [
  "chrono",
  "comemo",
