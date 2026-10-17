@@ -409,6 +409,56 @@ A build with the `execute` feature only is available via `cargo build -p acdc-cl
 Add `pre-spec-subs` to that feature list to enable command attribute substitutions.
 Without this feature, documents that request any `subs` setting are rejected before execution.
 
+==== Record an executable runbook
+
+Use `execute --record PATH` to save an interactive run for replay. The
+`execute-recording` build feature includes `execute` and requires no converter
+or terminal-emulator feature. Native release builds include it.
+
+[source,console]
+....
+acdc execute runbook.adoc --id deploy --record deploy.cast
+....
+
+Recording currently requires Unix with terminal input and output. Redirected
+input or output and unsupported platforms are rejected before commands run.
+The destination must be new; acdc does not overwrite a recording. It creates
+the file with access restricted to its owner. Ordinary execution without
+`--record` retains inherited standard streams.
+
+Each command runs in a PTY. Stdout and stderr share one stream; buffering,
+colours, and terminal-sensitive output can differ from ordinary execution.
+Input reaches the active command and terminal resizes are recorded. Ctrl-C
+interrupts the child. A signal sent to the recorder cancels the run and restores
+the terminal. Failed capture stops further commands and retains the readable
+prefix. A child that leaves the PTY open after exit has a bounded drain period;
+missing output is labelled incomplete.
+
+The file contains terminal output, timing, resizes, command IDs, source
+locations, dependencies, and outcomes. It contains no input events, scripts,
+or environment overrides as metadata. Programs can echo input, print scripts,
+or reveal secrets in their output; that output is recorded without redaction.
+Non-UTF-8 output appears as replacement characters and makes capture incomplete.
+
+The recorder answers OSC 7501 support queries itself. It consumes those queries
+before forwarding output to the outer terminal, so a probing child receives
+one reply. Task reports and other terminal output pass through unchanged.
+
+Embed the recording in a report with the HTML terminal feature:
+
+[source,asciidoc]
+....
+[terminal%replay,format=asciicast,subs=none]
+----
+include::deploy.cast[]
+----
+....
+
+The HTML player shows command outcomes and OSC task changes on the same clock.
+Conversion and playback do not run the recorded commands. Asciidoctor displays
+this acdc-specific block as a plain listing. See
+link:../converters/html/README.adoc[HTML terminal replay] for playback controls.
+
 === `tck`
 
 The `tck` feature provides the JSON stdin/stdout adapter used by the AsciiDoc Test Compatibility Kit.
@@ -464,6 +514,10 @@ echo '{"contents":"= Hello","path":"test.adoc","type":"block"}' \
 | `execute`
 | no
 | `acdc execute` command: run command blocks defined in AsciiDoc documents.
+
+| `execute-recording`
+| no
+| Add `execute --record PATH` for interactive Unix PTY capture; includes `execute`.
 
 | `inspect`, `tck`
 | no

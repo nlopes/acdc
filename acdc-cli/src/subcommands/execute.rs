@@ -19,6 +19,9 @@ use regex::Regex;
 
 use crate::error::{LocatedError, SourceCache, WarningReport, WarningReportContext};
 
+#[cfg(feature = "execute-recording")]
+mod recording;
+
 /// Execute command blocks defined in an `AsciiDoc` file
 #[derive(ClapArgs, Debug)]
 pub struct Args {
@@ -40,6 +43,11 @@ pub struct Args {
     /// List command ids, interpreters, sections, dependencies, and descriptions without running them
     #[arg(long)]
     pub list: bool,
+
+    /// Record an interactive terminal session to a new asciicast file (Unix only)
+    #[cfg(feature = "execute-recording")]
+    #[arg(long, value_name = "PATH", conflicts_with_all = ["list", "dry_run"])]
+    pub record: Option<PathBuf>,
 
     /// Working directory for child processes (defaults to the caller's directory)
     #[arg(long, value_name = "DIRECTORY")]
@@ -105,13 +113,18 @@ pub fn run(args: &Args) -> miette::Result<()> {
         }
         stdout.flush().into_diagnostic()?;
     } else {
-        let report = selected.execute(&ExecutionOptions {
+        let execution_options = ExecutionOptions {
             exit_on_failure: args.exit_on_failure,
             process: ProcessOptions {
                 current_dir: args.cwd.clone(),
                 env: args.environment.clone(),
             },
-        });
+        };
+        #[cfg(feature = "execute-recording")]
+        if let Some(path) = &args.record {
+            return recording::run(&graph, &selected, &execution_options, path, &args.file);
+        }
+        let report = selected.execute(&execution_options);
         report_execution(report)?;
     }
     Ok(())
@@ -225,6 +238,13 @@ fn write_list(
 
 #[derive(Debug, thiserror::Error)]
 enum CommandIssue {
+    #[cfg(all(unix, feature = "execute-recording"))]
+    #[error("command `{id}` {error}")]
+    Recorded {
+        id: CommandId,
+        #[source]
+        error: acdc_execute::ProcessError<acdc_execute::Termination>,
+    },
     #[error("command `{id}` {error}")]
     Failed {
         id: CommandId,
@@ -370,6 +390,27 @@ mod tests {
     fn rejects_invalid_id_regex() {
         let err = TestCli::try_parse_from(["test", "README.adoc", "--id-regex", "["]);
         assert!(err.is_err());
+    }
+
+    #[cfg(feature = "execute-recording")]
+    #[test]
+    fn recording_requires_execution_and_a_destination() {
+        let cli = TestCli::try_parse_from(["test", "runbook.adoc", "--record", "run.cast"])
+            .unwrap_or_else(|error| panic!("{error}"));
+        assert_eq!(cli.args.record, Some(PathBuf::from("run.cast")));
+        for flag in ["--list", "--dry-run"] {
+            assert!(
+                TestCli::try_parse_from(["test", "runbook.adoc", "--record", "run.cast", flag])
+                    .is_err()
+            );
+        }
+        assert!(TestCli::try_parse_from(["test", "runbook.adoc", "--record"]).is_err());
+    }
+
+    #[cfg(not(feature = "execute-recording"))]
+    #[test]
+    fn recording_option_is_absent_without_the_recording_feature() {
+        assert!(TestCli::try_parse_from(["test", "runbook.adoc", "--record", "run.cast"]).is_err());
     }
 
     #[test]

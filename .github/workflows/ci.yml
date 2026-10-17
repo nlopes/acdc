@@ -219,6 +219,8 @@ jobs:
         run: cargo nextest run -p acdc-cli -p acdc-execute -p acdc-runbook --all-features --verbose --no-tests warn --test-threads 1 # we've added this until https://github.com/nextest-rs/nextest/pull/3553 gets merged
       - name: Run execute-only tests
         run: cargo nextest run -p acdc-cli -p acdc-execute --no-default-features --features execute --verbose --test-threads 1
+      - name: Run recording-only tests without converters
+        run: cargo nextest run -p acdc-cli --no-default-features --features execute-recording --verbose --test-threads 1
       - name: Test execute with parser-only substitution features
         run: cargo nextest run -p acdc-execute --no-default-features --features acdc-parser/pre-spec-subs -E 'test(substitution_follows_the_parser_feature_even_when_features_are_unified)' --verbose
       - name: Smoke-test backend-only CLI builds

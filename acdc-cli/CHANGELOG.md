@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `execute --record PATH` saves an interactive Unix run as an asciicast v3
+  recording with command outcomes, source locations, and OSC 7501 task reports.
+  Enable the `execute-recording` feature; native release builds include it.
+  Recordings require terminal input and output and never overwrite an existing
+  file. PTY output merges stdout and stderr. Input events and environment
+  overrides are omitted, but echoed input and secrets printed by programs remain
+  output. Capture errors stop the run and retain a partial file. Windows
+  recording reports an unsupported-platform error before running commands.
+
 - `convert --force-local-file-xrefs` resolves file-qualified references by their
   local anchors in combined or partially included documents. It preserves URLs
   and custom text and requires a nonempty fragment. This opt-in override can

@@ -2327,3 +2327,31 @@ fn asciidoctor_theme_cli_rejects_missing_theme_and_invalid_format() -> Result<()
     }
     Ok(())
 }
+
+#[cfg(feature = "execute-recording")]
+#[test]
+fn recording_rejects_redirected_stdio_before_execution_or_destination_creation()
+-> Result<(), Box<dyn Error>> {
+    let directory = tempfile::tempdir()?;
+    let document = directory.path().join("runbook.adoc");
+    let recording = directory.path().join("run.cast");
+    fs::write(
+        &document,
+        "[.command,id=first]\n----\ntouch UNEXPECTED\n----\n",
+    )?;
+    let output = Command::new(env!("CARGO_BIN_EXE_acdc"))
+        .arg("execute")
+        .arg(&document)
+        .arg("--record")
+        .arg(&recording)
+        .current_dir(directory.path())
+        .output()?;
+    assert!(!output.status.success());
+    assert!(!directory.path().join("UNEXPECTED").exists());
+    assert!(!recording.exists());
+    #[cfg(unix)]
+    assert!(output_text(&output.stderr).contains("interactive terminal input and output"));
+    #[cfg(not(unix))]
+    assert!(output_text(&output.stderr).contains("not supported on this platform"));
+    Ok(())
+}

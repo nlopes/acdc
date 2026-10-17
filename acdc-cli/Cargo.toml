@@ -18,6 +18,7 @@ doc = false
 [dependencies]
 acdc-converters-core.workspace = true
 acdc-execute = { workspace = true, optional = true }
+acdc-runbook = { workspace = true, optional = true }
 acdc-converters-html = { workspace = true, optional = true }
 acdc-lint = { workspace = true, optional = true }
 acdc-parser.workspace = true
@@ -38,8 +39,19 @@ thiserror.workspace = true
 tracing.workspace = true
 tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
 
+[target.'cfg(unix)'.dependencies]
+filedescriptor = { version = "0.8.3", optional = true }
+osc7501 = { workspace = true, optional = true }
+portable-pty = { version = "0.9.0", optional = true, default-features = false }
+rustix = { version = "1.1", optional = true, features = ["fs", "process"] }
+signal-hook = { version = "0.3", optional = true }
+vte = { workspace = true, optional = true }
+
 [dev-dependencies]
 tempfile.workspace = true
+
+[target.'cfg(unix)'.dev-dependencies]
+nix = { version = "0.28", features = ["term"] }
 
 [features]
 # Default features - HTML converter is always included as the primary output format
@@ -85,6 +97,7 @@ terminal-emulator = [
 
 # Development tools
 execute = ["dep:acdc-execute", "dep:regex"]  # Run command blocks from AsciiDoc documents
+execute-recording = ["execute", "dep:acdc-runbook", "dep:filedescriptor", "dep:osc7501", "dep:portable-pty", "dep:rustix", "dep:signal-hook", "dep:vte"]
 inspect = []  # AST inspection tool for debugging parser output
 tck = []      # Technology Compatibility Kit for spec compliance testing
 
