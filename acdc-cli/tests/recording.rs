@@ -8,12 +8,14 @@ use std::{
         unix::fs::PermissionsExt,
     },
     path::Path,
+    sync::mpsc,
+    thread,
     time::{Duration, Instant},
 };
 
-use filedescriptor::FileDescriptor;
+use filedescriptor::{FileDescriptor, POLLIN, poll, pollfd};
 use osc7501::{CapabilityReply, State, Status, write_query};
-use portable_pty::{Child, CommandBuilder, MasterPty, PtySize, native_pty_system};
+use portable_pty::{Child, CommandBuilder, MasterPty, PtyPair, PtySize, native_pty_system};
 use serde_json::Value;
 
 type Result<T = ()> = std::result::Result<T, Box<dyn std::error::Error>>;
@@ -95,14 +97,63 @@ impl AsRawFd for BorrowedMaster<'_> {
     }
 }
 
-struct ChildGuard(Box<dyn Child + Send + Sync>);
+struct ChildGuard {
+    child: Box<dyn Child + Send + Sync>,
+    pty: Option<PtyPair>,
+    terminal: Option<FileDescriptor>,
+}
 impl Drop for ChildGuard {
     fn drop(&mut self) {
-        if !matches!(self.0.try_wait(), Ok(Some(_))) {
-            let _ = self.0.kill();
+        if !matches!(self.child.try_wait(), Ok(Some(_))) {
+            let _ = self.child.kill();
         }
-        let _ = self.0.wait();
+        // Close every master handle before waiting: tty close can wait for output to drain.
+        drop(self.terminal.take());
+        drop(self.pty.take());
+        let _ = self.child.wait();
     }
+}
+
+#[test]
+fn pty_test_cleanup_does_not_wait_for_undrained_output() -> Result {
+    let pair = native_pty_system().openpty(PtySize::default())?;
+    let terminal = FileDescriptor::dup(&BorrowedMaster {
+        _master: &*pair.master,
+        fd: pair.master.as_raw_fd().ok_or("missing PTY descriptor")?,
+    })?;
+    let mut command = CommandBuilder::new("/bin/sh");
+    command.args([
+        "-c",
+        "trap '' HUP; while :; do printf 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'; done",
+    ]);
+    let guard = ChildGuard {
+        child: pair.slave.spawn_command(command)?,
+        pty: Some(pair),
+        terminal: Some(terminal),
+    };
+    let mut descriptors = [pollfd {
+        fd: guard
+            .terminal
+            .as_ref()
+            .ok_or("missing PTY I/O")?
+            .as_raw_fd(),
+        events: POLLIN,
+        revents: 0,
+    }];
+    poll(&mut descriptors, Some(Duration::from_secs(3)))?;
+    assert!(
+        descriptors
+            .first()
+            .is_some_and(|fd| fd.revents & POLLIN != 0)
+    );
+    let (finished, completion) = mpsc::channel();
+    let cleanup = thread::spawn(move || {
+        drop(guard);
+        let _ = finished.send(());
+    });
+    completion.recv_timeout(Duration::from_secs(3))?;
+    cleanup.join().map_err(|_| "PTY cleanup panicked")?;
+    Ok(())
 }
 
 struct Recorded {
@@ -164,7 +215,13 @@ fn run_with_limit(
     command.cwd(directory);
     command.env("TERM", "xterm-256color");
     command.env_remove("ACDC_LOG");
-    let mut child = ChildGuard(pair.slave.spawn_command(command)?);
+    let mut child = ChildGuard {
+        child: pair.slave.spawn_command(command)?,
+        pty: Some(pair),
+        terminal: Some(terminal),
+    };
+    let pair = child.pty.as_ref().ok_or("PTY was closed")?;
+    let terminal = child.terminal.as_mut().ok_or("PTY I/O was closed")?;
     let mut visible = Vec::new();
     let start = Instant::now();
     let mut buffer = [0; 16384];
@@ -181,8 +238,8 @@ fn run_with_limit(
                 Err(error) => return Err(error.into()),
             }
         }
-        action(&visible, &*pair.master, &mut terminal)?;
-        if let Some(status) = child.0.try_wait()? {
+        action(&visible, &*pair.master, terminal)?;
+        if let Some(status) = child.child.try_wait()? {
             break status;
         }
         std::thread::sleep(Duration::from_millis(5));
@@ -561,6 +618,35 @@ fn failed_spawn_and_invalid_cwd_do_not_start_later_commands() -> Result {
             Some("complete")
         );
     }
+    Ok(())
+}
+
+#[test]
+fn recording_spawn_errors_omit_environment_values_but_keep_live_diagnostics() -> Result {
+    let directory = tempfile::tempdir()?;
+    let source = "[source,acdc-missing-test-interpreter,role=command,id=missing]\n----\nprintf script-not-metadata\n----\n";
+    let recording = run(
+        source,
+        directory.path(),
+        &["--env", "PATH=private-recording-path-value"],
+        |_, _, _| Ok(()),
+    )?;
+    assert!(!recording.success);
+    assert!(
+        String::from_utf8_lossy(&recording.visible).contains("private-recording-path-value"),
+        "the live diagnostic must retain the full error"
+    );
+    let file = std::str::from_utf8(&recording.file)?;
+    assert!(!file.contains("private-recording-path-value"));
+    assert!(!file.contains("script-not-metadata"));
+    let events = metadata(&recording)?;
+    assert!(events.iter().any(|event| {
+        event.pointer("/outcome/stage").and_then(Value::as_str) == Some("process")
+            && event
+                .pointer("/outcome/message")
+                .and_then(Value::as_str)
+                .is_some_and(|message| !message.is_empty())
+    }));
     Ok(())
 }
 

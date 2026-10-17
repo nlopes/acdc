@@ -65,6 +65,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Recordings omit environment values from command preparation and process errors.
+  Full error details remain in the live terminal diagnostic.
 - Recorded commands accept relative interpreter paths from the caller's
   directory, including when `--cwd` selects a different child directory.
 - Recording source locations use paths relative to the runbook directory

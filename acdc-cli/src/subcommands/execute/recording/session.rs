@@ -297,6 +297,7 @@ fn steps(graph: &CommandGraph, plan: &ExecutionPlan<'_>, document: &Path) -> io:
         .collect()
 }
 
+// Custom I/O messages can contain environment values; record only the error kind.
 fn recorded_outcome(
     state: &OutcomeState<'_, Termination>,
     occurrences: &BTreeMap<String, u32>,
@@ -314,11 +315,11 @@ fn recorded_outcome(
         },
         OutcomeState::Failed(ProcessError::TempFile(error)) => Outcome::Error {
             stage: FailureStage::Preparation,
-            message: error.to_string(),
+            message: format!("could not prepare command script: {}", error.kind()),
         },
         OutcomeState::Failed(ProcessError::Process(error)) => Outcome::Error {
             stage: FailureStage::Process,
-            message: error.to_string(),
+            message: format!("could not run interpreter: {}", error.kind()),
         },
         OutcomeState::Skipped(SkipReason::DependencyFailed { dependency }) => Outcome::Skipped {
             reason: acdc_runbook::SkipReason::DependencyFailed {
@@ -379,11 +380,34 @@ fn report_execution(report: RunReport<'_>) -> miette::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Write;
+    use std::{
+        collections::BTreeMap,
+        io::{self, Write},
+    };
 
-    use super::{Capture, RunResult, Session, Writer};
+    use super::{
+        Capture, Outcome, OutcomeState, ProcessError, RunResult, Session, Termination, Writer,
+        recorded_outcome,
+    };
 
     type Result = std::result::Result<(), Box<dyn std::error::Error>>;
+
+    #[test]
+    fn recorded_errors_omit_custom_io_details() -> Result {
+        for error in [
+            ProcessError::<Termination>::TempFile(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                "private-preparation-environment-value",
+            )),
+            ProcessError::Process(io::Error::other("private-process-environment-value")),
+        ] {
+            let state = OutcomeState::Failed(error);
+            let outcome = recorded_outcome(&state, &BTreeMap::new())?;
+            assert!(matches!(&outcome, Outcome::Error { message, .. } if !message.is_empty()));
+            assert!(!serde_json::to_string(&outcome)?.contains("private-"));
+        }
+        Ok(())
+    }
 
     fn output(bytes: &[u8]) -> std::result::Result<String, Box<dyn std::error::Error>> {
         let mut text = String::new();
