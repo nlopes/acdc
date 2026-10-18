@@ -7,7 +7,7 @@ Native inline image: ![Native mark](media%20assets/icons/native.png "Native titl
 Inner link precedence: [![Nested mark](media%20assets/icons/nested.png)](https://images.example/nested).
 
 <a id="block-image"></a>
-[<img src="media%20assets/photos/view.png" alt="Scenic view" title="Block title" width="640" height="360">](https://images.example/view)
+[<img src="media%20assets/photos/view.png" alt="Scenic view" width="640" height="360">](https://images.example/view)
 
 <strong>Figure 1. Block title</strong>
 

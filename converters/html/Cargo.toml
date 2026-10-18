@@ -15,14 +15,21 @@ highlighting = ["dep:syntect"]
 # Render terminal-converter output into selectable HTML via libghostty-vt.
 terminal = ["dep:acdc-converters-terminal", "acdc-converters-terminal/emulator", "acdc-converters-terminal/highlighting"]
 
+network = ["dep:ureq", "acdc-parser/network"]
+
 [dependencies]
 acdc-converters-core.workspace = true
 acdc-converters-terminal = { workspace = true, optional = true }
 acdc-parser.workspace = true
+base64.workspace = true
 chrono.workspace = true
+percent-encoding.workspace = true
+quick-xml = "0.41"
 syntect = { version = "5.3", optional = true, default-features = false, features = ["default-fancy"] }
 thiserror.workspace = true
 tracing.workspace = true
+ureq = { workspace = true, optional = true }
+url.workspace = true
 
 [build-dependencies]
 # Compute CSP script-src hashes for embedded inline scripts at build time.
@@ -31,7 +38,6 @@ sha2 = "0.11"
 
 [dev-dependencies]
 acdc-converters-dev.workspace = true
-base64.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
 sha2 = "0.11"

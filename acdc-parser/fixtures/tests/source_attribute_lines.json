@@ -119,6 +119,23 @@
           ]
         }
       ],
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Named title",
+          "location": [
+            {
+              "line": 14,
+              "col": 16
+            },
+            {
+              "line": 14,
+              "col": 26
+            }
+          ]
+        }
+      ],
       "location": [
         {
           "line": 13,

@@ -1,0 +1,49 @@
+[title="Named *paragraph* title"]
+Text.
+
+[title="Named *listing* title"]
+----
+code
+----
+
+[title="Named *example* title"]
+====
+Example content.
+====
+
+[title="Named *table* title",cols="1,1"]
+|===
+|One |Two
+|===
+
+[title="Named *list* title"]
+* Item
+
+.Line title
+image::inline-image-dimensions.svg[Positional,alt="Named & alternate",title="Image *caption*",width=90,width=80,align=center,role=first,role=last,link=https://example.org/view,window=_blank]
+
+image::inline-image-dimensions.svg["",title="",width=40]
+
+Inline image:inline-image-dimensions.svg[Positional,alt="Named & alternate",title="A tooltip",width=40] and image:inline-image-dimensions.svg[title=Tooltip].
+
+Empty slots: image:inline-image-dimensions.svg[,40,20] and image:inline-image-dimensions.svg["",40,20] and image:inline-image-dimensions.svg[alt=].
+
+.Line title
+audio::sample.ogg[title="Audio *title*",end=12,opts="autoplay,loop,nocontrols"]
+
+[title="Video metadata"]
+video::sample.mp4[old.png,90,40,poster=new.png,width=80,title="Video *title*",end=12,align=center,float=right,opts="loop,muted"]
+
+video::abc/PL123[youtube,title="Playlist title",start=5,end=12,lang=fr,opts="related,loop,nofullscreen"]
+
+video::abc,def,ghi[youtube]
+
+video::12345/secret[vimeo,start=5,opts="autoplay,muted"]
+
+video::abc[poster=youtube]
+
+video::local.mp4[youtube,poster=thumb.png]
+
+image::inline-image-dimensions.svg[alt="A \"quote\"",title="Quoted alt"]
+
+Inline image:inline-image-dimensions.svg[alt="A \"quote\"",title="A \"tooltip\""].

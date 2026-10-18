@@ -3123,11 +3123,11 @@
           "location": [
             {
               "line": 63,
-              "col": 1
+              "col": 9
             },
             {
               "line": 63,
-              "col": 17
+              "col": 25
             }
           ]
         }
@@ -3564,6 +3564,11 @@
             {
               "name": "image",
               "type": "inline",
+              "metadata": {
+                "attributes": {
+                  "width": "20"
+                }
+              },
               "title": [
                 {
                   "name": "text",

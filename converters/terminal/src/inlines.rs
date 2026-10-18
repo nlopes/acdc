@@ -783,24 +783,11 @@ fn is_self_linked_image(node: &InlineNode<'_>) -> bool {
 }
 
 pub(crate) fn block_image_alt(image: &Image<'_>) -> String {
-    if let Some(alt) = image.metadata.attributes.get_string("alt") {
-        return alt.into_owned();
-    }
-    image
-        .source
-        .get_filename()
-        .and_then(|filename| std::path::Path::new(filename).file_stem())
-        .and_then(std::ffi::OsStr::to_str)
-        .unwrap_or_default()
-        .replace(['-', '_'], " ")
+    acdc_converters_core::media::image_alt(image, false).into_owned()
 }
 
 fn inline_image_alt(image: &Image<'_>) -> String {
-    if image.title.is_empty() {
-        block_image_alt(image)
-    } else {
-        inlines_to_string(&image.title)
-    }
+    acdc_converters_core::media::image_alt(image, true).into_owned()
 }
 
 fn render_inline_image<W: Write + ?Sized>(

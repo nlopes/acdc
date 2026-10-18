@@ -1,7 +1,11 @@
-use std::{fmt::Write as _, io::Write};
+use std::io::Write;
 
-use acdc_converters_core::{TraversalContext, media::resolve_target, visitor::WritableVisitor};
-use acdc_parser::{AttributeValue, Audio};
+use acdc_converters_core::{
+    TraversalContext,
+    media::{resolve_target, with_time_range},
+    visitor::WritableVisitor,
+};
+use acdc_parser::Audio;
 
 use crate::{Error, TerminalVisitor, inlines};
 
@@ -21,18 +25,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
             }
             return Ok(());
         }
-        match (
-            audio.metadata.attributes.get("start"),
-            audio.metadata.attributes.get("end"),
-        ) {
-            (Some(AttributeValue::String(start)), Some(AttributeValue::String(end))) => {
-                let _ = write!(target, "#t={start},{end}");
-            }
-            (Some(AttributeValue::String(start)), _) => {
-                let _ = write!(target, "#t={start}");
-            }
-            _ => {}
-        }
+        target = with_time_range(&target, &audio.metadata.attributes);
         let title = if audio.title.is_empty() {
             audio
                 .source

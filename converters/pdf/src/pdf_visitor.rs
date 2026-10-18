@@ -5090,30 +5090,12 @@ pub(crate) fn builtin_icon_glyph(name: &str) -> Option<&'static str> {
     }
 }
 
-fn block_image_default_alt(image: &Image<'_>) -> String {
-    image
-        .source
-        .get_filename()
-        .and_then(|filename| std::path::Path::new(filename).file_stem())
-        .and_then(std::ffi::OsStr::to_str)
-        .unwrap_or_default()
-        .replace(['-', '_'], " ")
-}
-
 fn block_image_alt<'a>(image: &Image<'a>) -> Cow<'a, str> {
-    image
-        .metadata
-        .attributes
-        .get_string("alt")
-        .unwrap_or_else(|| Cow::Owned(block_image_default_alt(image)))
+    acdc_converters_core::media::image_alt(image, false)
 }
 
 fn inline_image_alt<'a>(image: &Image<'a>) -> Cow<'a, str> {
-    if image.title.is_empty() {
-        block_image_alt(image)
-    } else {
-        Cow::Owned(inlines_to_string(&image.title))
-    }
+    acdc_converters_core::media::image_alt(image, true)
 }
 
 fn block_image_alignment(metadata: &BlockMetadata<'_>) -> BlockImageAlignment {

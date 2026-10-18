@@ -1,9 +1,12 @@
-use std::{fmt::Write as _, io::Write};
+use std::io::Write;
 
-use acdc_converters_core::{TraversalContext, media::resolve_target};
-use acdc_parser::{AttributeValue, Audio};
+use acdc_converters_core::{
+    TraversalContext,
+    media::{resolve_target, with_time_range},
+};
+use acdc_parser::Audio;
 
-use crate::{Error, HtmlVariant, HtmlVisitor, build_class, inlines::escape_href, write_id};
+use crate::{Error, HtmlVariant, HtmlVisitor, build_class, inlines::escape_attribute, write_id};
 
 impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     pub(crate) fn render_audio(
@@ -17,7 +20,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
         write!(self.writer, "<div")?;
         write_id(&mut self.writer, &audio.metadata)?;
-        let class = build_class("audioblock", &audio.metadata.roles);
+        let class = escape_attribute(&build_class("audioblock", &audio.metadata.roles));
         writeln!(self.writer, " class=\"{class}\">")?;
 
         if !audio.title.is_empty() {
@@ -28,8 +31,8 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
         writeln!(self.writer, "<div class=\"content\">")?;
 
-        let src = audio_target(audio, traversal)?;
-        write!(self.writer, "<audio src=\"{}\"", escape_href(&src))?;
+        let src = audio_target(audio, traversal);
+        write!(self.writer, "<audio src=\"{}\"", escape_attribute(&src))?;
 
         // Add autoplay option if present
         if audio.metadata.options.contains(&"autoplay") {
@@ -56,25 +59,11 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     }
 }
 
-fn audio_target(
-    audio: &Audio<'_>,
-    attributes: &TraversalContext<'_>,
-) -> Result<String, std::fmt::Error> {
-    let mut src = resolve_target(&audio.source.to_string(), attributes);
-    let start = audio.metadata.attributes.get("start");
-    let end = audio.metadata.attributes.get("end");
-
-    match (start, end) {
-        (Some(AttributeValue::String(s)), Some(AttributeValue::String(e))) => {
-            write!(src, "#t={s},{e}")?;
-        }
-        (Some(AttributeValue::String(s)), None) => {
-            write!(src, "#t={s}")?;
-        }
-        _ => {}
-    }
-
-    Ok(src)
+fn audio_target(audio: &Audio<'_>, attributes: &TraversalContext<'_>) -> String {
+    with_time_range(
+        &resolve_target(&audio.source.to_string(), attributes),
+        &audio.metadata.attributes,
+    )
 }
 
 fn render_audio_element(
@@ -82,9 +71,9 @@ fn render_audio_element(
     attributes: &TraversalContext<'_>,
     w: &mut dyn std::io::Write,
 ) -> Result<(), Error> {
-    let src = audio_target(audio, attributes)?;
+    let src = audio_target(audio, attributes);
 
-    write!(w, "<audio src=\"{}\"", escape_href(&src))?;
+    write!(w, "<audio src=\"{}\"", escape_attribute(&src))?;
 
     if audio.metadata.options.contains(&"autoplay") {
         write!(w, " autoplay")?;
@@ -113,7 +102,7 @@ fn visit_audio_semantic<'a, W: Write>(
     let has_title = !audio.title.is_empty();
 
     let tag = if has_title { "figure" } else { "div" };
-    let class = build_class("audio-block", &audio.metadata.roles);
+    let class = escape_attribute(&build_class("audio-block", &audio.metadata.roles));
     write!(visitor.writer, "<{tag}")?;
     write_id(&mut visitor.writer, &audio.metadata)?;
     write!(visitor.writer, " class=\"{class}\"")?;

@@ -1,26 +1,10 @@
 //! Shared helper functions for image rendering (block and inline).
 
-use std::{io::Write, path::PathBuf};
+use std::io::Write;
 
-use acdc_parser::{BlockMetadata, Source};
+use acdc_parser::BlockMetadata;
 
-use crate::Error;
-
-/// Generate alt text from filename by removing extension and replacing separators.
-///
-/// This is used as a fallback when no explicit alt text is provided.
-/// Converts hyphens and underscores to spaces for better readability.
-///
-/// # Examples
-///
-/// - `sunset.jpg` → `"sunset"`
-/// - `my-image_file.png` → `"my image file"`
-#[must_use]
-pub(crate) fn alt_text_from_filename(source: &Source) -> String {
-    let mut filepath = PathBuf::from(source.get_filename().unwrap_or(""));
-    filepath.set_extension("");
-    filepath.to_str().unwrap_or("").replace(['-', '_'], " ")
-}
+use crate::{Error, constants::escape_ampersands, inlines::escape_attribute};
 
 /// Write width and height attributes if present in metadata.
 ///
@@ -31,10 +15,18 @@ pub(crate) fn write_dimension_attributes<W: Write + ?Sized>(
     metadata: &BlockMetadata,
 ) -> Result<(), Error> {
     if let Some(width) = metadata.attributes.get("width") {
-        write!(w, " width=\"{width}\"")?;
+        write!(w, " width=\"{}\"", escape_attribute(&width.to_string()))?;
     }
     if let Some(height) = metadata.attributes.get("height") {
-        write!(w, " height=\"{height}\"")?;
+        write!(w, " height=\"{}\"", escape_attribute(&height.to_string()))?;
     }
     Ok(())
+}
+
+/// Escape authored image text without changing existing character references.
+pub(crate) fn escape_image_text(text: &str) -> String {
+    escape_ampersands(text)
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
 }

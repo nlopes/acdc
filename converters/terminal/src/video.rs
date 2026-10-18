@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use acdc_converters_core::{
-    TraversalContext, media::resolve_target, video::TryUrl, visitor::WritableVisitor,
+    TraversalContext, media::resolve_target, video::watch_urls, visitor::WritableVisitor,
 };
 use acdc_parser::{AttributeValue, Video};
 
@@ -34,18 +34,13 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
             acdc_converters_core::inlines_to_string(&video.title)
         };
         let processor = self.processor;
-        for (index, source) in video.sources.iter().enumerate() {
-            let mut single_source = video.clone();
-            single_source.sources = vec![source.clone()];
-            let target = resolve_target(&single_source.try_url(false)?, traversal);
-            let label = if video.sources.len() == 1 {
+        let targets = watch_urls(video)?;
+        for (index, target) in targets.iter().enumerate() {
+            let target = resolve_target(target, traversal);
+            let label = if targets.len() == 1 {
                 format!("[Video: {title}]")
             } else {
-                format!(
-                    "[Video source {}/{}: {title}]",
-                    index + 1,
-                    video.sources.len()
-                )
+                format!("[Video source {}/{}: {title}]", index + 1, targets.len())
             };
             inlines::maybe_render_osc8_link(&target, &label, self.writer_mut(), processor)?;
             writeln!(self.writer_mut())?;

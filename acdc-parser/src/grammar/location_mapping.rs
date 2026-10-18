@@ -876,7 +876,6 @@ mod tests {
             })
             .ok_or("expected an inline image")?;
 
-        // Inline image metadata is omitted from the JSON fixture.
         assert_eq!(image.metadata.roles, ["hot", "cool"]);
         assert_eq!(image.metadata.options, ["foo", "bar"]);
         assert_eq!(

@@ -15,7 +15,7 @@ use crate::{
         inline_preprocessor::InlinePreprocessorParserState,
         inline_processing::{process_inlines, process_inlines_no_autolinks},
         inlines::{
-            attributes::{Shorthand, process_attribute_list},
+            attributes::{Shorthand, process_attribute_list, process_image_attribute_list},
             index_terms::{
                 IndexTermForm, IndexTermMacroItem, IndexTermRelationshipSegments, IndexTermSegment,
                 expand_escaped_index_terms, parse_index_term, trimmed_index_term_segment,
@@ -1197,51 +1197,28 @@ peg::parser! {
         rule inline_image() -> InlineNode<'input>
         = "image:" source:media_source() attributes:image_macro_attributes()
         {?
-            let (_discrete, metadata, title_position) = attributes;
-            let mut metadata = metadata.clone();
+            let mut metadata = attributes;
+            let positional_alt = metadata.style.take();
+            let alt = metadata.attributes.get("alt")
+                .and_then(|value| if let AttributeValue::String(value) = value {
+                    Some(state.intern_str(value))
+                } else { None }).or(positional_alt);
             let mut title = Title::default();
-            if let Some(style) = metadata.style.take() {
-                // For inline images, the first positional attribute is the alt text (title)
+            if let Some(alt) = alt {
                 title = Title::new(vec![InlineNode::PlainText(Plain {
-                    content: style,
+                    content: alt,
                     location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
                     escaped: false,
                 })]);
             }
             let [width, height] = metadata.take_positional_attributes::<2>();
-            if let Some(height) = height {
+            if let Some(height) = height.filter(|value| !value.value.is_empty()) {
                 metadata.attributes.insert("height".into(), AttributeValue::String(Cow::Borrowed(height.value)));
             }
-            if let Some(width) = width {
+            if let Some(width) = width.filter(|value| !value.value.is_empty()) {
                 metadata.attributes.insert("width".into(), AttributeValue::String(Cow::Borrowed(width.value)));
             }
             metadata.move_positional_attributes_to_attributes();
-            // For inline images, if there's no first positional (no alt text in title field),
-            // check if there's a named title attribute. Only then should we use it to populate
-            // the title field for rendering purposes, but we keep it in attributes for the
-            // HTML title attribute (hover text).
-            if title.is_empty()
-                && metadata.attributes.get("title").is_some()
-                && let Some((title_start, title_end)) = title_position
-            {
-                // Get the title content directly from the input to avoid lifetime issues
-                // with local borrows from metadata.attributes
-                let content: &'input str = &state.input[title_start..title_end];
-                let bm = BlockParsingMetadata {
-                    substitutions: state.inline_ctx.substitutions,
-                    ..BlockParsingMetadata::default()
-                };
-                let title_start_pos = PositionWithOffset {
-                    offset: title_start,
-                    position: state.line_map.offset_to_position(title_start, state.input),
-                };
-                let (title_inlines, _) = process_inlines_or_err!(
-                    process_inlines(state, &bm, title_start_pos.offset, title_end, state.inline_ctx.offset, content),
-                    "could not process title in inline image macro"
-                )?;
-                title = Title::new(title_inlines);
-            }
-            // Note: We do NOT remove the title attribute - it's needed for the HTML title attribute
 
             Ok(InlineNode::Macro(InlineMacro::Image(Box::new(Image {
                 title,
@@ -2416,21 +2393,12 @@ peg::parser! {
             (false, metadata, title_position)
         }
 
-        rule image_macro_attributes() -> (bool, BlockMetadata<'input>, Option<(usize, usize)>)
-            = open_square_bracket()
-              attrs:(att:image_macro_attribute() comma()? { att })*
-              close_square_bracket()
+        rule image_macro_attributes() -> BlockMetadata<'input>
+            = "[" start:position!()
+              content:$(("\\" [_] / "\"" ("\\" [_] / [^'"'])* "\"" / "'" ("\\" [_] / [^'\''])* "'" / [^']'])*)
+              end:position!() "]"
         {
-            let mut metadata = BlockMetadata::default();
-            let title_position = process_attribute_list(
-                attrs,
-                &mut metadata,
-                state,
-                span_start,
-                span_end,
-                MacroAttributeContext::Image,
-            );
-            (false, metadata, title_position)
+            process_image_attribute_list(content, state, start, end)
         }
 
         /// Positional value in macro attributes - allows . # % as literal characters
@@ -2451,17 +2419,6 @@ peg::parser! {
             / val:macro_positional_value() {
                 val.map(|v| (v, AttributeValue::None, None))
             }
-
-        rule image_macro_attribute() -> Option<(Cow<'input, str>, AttributeValue<'input>, Option<(usize, usize)>)>
-            = whitespace()* "link" "=" start:position!() value:image_link_attribute_value() end:position!() {
-                let substituted = substitute(value, &[Substitution::Attributes], &state.document_attributes);
-                Some((Cow::Borrowed("link"), AttributeValue::String(substituted), Some((start, end))))
-            }
-            / macro_attribute()
-
-        rule image_link_attribute_value() -> &'input str
-            = value:named_attribute_value() { value }
-            / &("," / "]") { "" }
 
         rule open_square_bracket() = "["
         rule close_square_bracket() = "]"

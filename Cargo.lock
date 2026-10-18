@@ -62,7 +62,9 @@ dependencies = [
  "acdc-parser",
  "base64 0.23.1",
  "chrono",
+ "percent-encoding",
  "pretty_assertions",
+ "quick-xml 0.41.0",
  "rstest",
  "sha2",
  "syntect",
@@ -70,6 +72,8 @@ dependencies = [
  "thiserror",
  "tracing",
  "tracing-test",
+ "ureq",
+ "url",
 ]
 
 [[package]]

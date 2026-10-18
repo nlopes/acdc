@@ -317,6 +317,11 @@
             {
               "name": "image",
               "type": "inline",
+              "metadata": {
+                "attributes": {
+                  "width": "20"
+                }
+              },
               "title": [
                 {
                   "name": "text",

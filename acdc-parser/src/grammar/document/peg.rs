@@ -45,8 +45,8 @@ use crate::{
             verbatim::{get_literal_paragraph, resolve_verbatim_inlines, verbatim_substitutions},
         },
         helpers::{
-            BlockParsingMetadata, MacroAttributeContext, PositionWithOffset,
-            is_valid_bibliography_id, restore_url_path, title_looks_like_description_list,
+            BlockParsingMetadata, PositionWithOffset, is_valid_bibliography_id, restore_url_path,
+            title_looks_like_description_list,
         },
         inline_preprocessing,
         inline_preprocessor::InlinePreprocessorParserState,
@@ -1223,22 +1223,19 @@ peg::parser! {
             / doc_attr:document_attribute_line(offset) { BlockMetadataLine::DocumentAttribute(doc_attr.0, doc_attr.1) }
             / title_line()
         ) end:position!() eol()* { (line, end) })*
-          block_start:position!() image_ahead:image_block_ahead()
+          block_start:position!() media_ahead:media_block_ahead()
         {
             let mut metadata = BlockMetadata::default();
             let mut discrete = false;
             let mut title_source = None;
-            let mut image_title_source = None;
             let meta_end = lines.last().map_or(meta_start, |(_, end)| *end);
 
             for (line, _) in lines {
                 match line {
                     BlockMetadataLine::Anchor(value) => push_metadata_anchor(&mut metadata, value),
                     BlockMetadataLine::Attributes((attr_discrete, attr_metadata, start)) => {
-                        if image_ahead
-                            && let Some(title) = attribute_list_title(state, start, offset)
-                        {
-                            image_title_source = Some(title);
+                        if let Some(title) = attribute_list_title(state, start, offset) {
+                            title_source = Some(title);
                         }
                         discrete = attr_discrete;
                         merge_attribute_metadata(&mut metadata, *attr_metadata);
@@ -1254,13 +1251,12 @@ peg::parser! {
                     },
                     BlockMetadataLine::Title { source, start, end } => {
                         title_source = Some((source, start, end));
-                        image_title_source = title_source;
                     }
                 }
             }
-            let image_ahead = image_ahead && !matches!(metadata.style, Some("listing" | "source" | "literal" | "verse"));
-            if image_ahead {
-                title_source = attribute_list_title(state, block_start, offset).or(image_title_source);
+            let media_ahead = media_ahead && !matches!(metadata.style, Some("listing" | "source" | "literal" | "verse"));
+            if media_ahead {
+                title_source = attribute_list_title(state, block_start, offset).or(title_source);
             }
             // Titles use the completed metadata attributes, including entries
             // after the title line. Only the last authored title is displayed.
@@ -1269,8 +1265,8 @@ peg::parser! {
                     state, &BlockParsingMetadata::default(), start, end, offset, source,
                 ) {
                     Ok((mut title, _)) => {
-                        // An explicit empty title still receives a figure caption.
-                        if title.is_empty() && image_ahead {
+                        // Keep explicit empty titles distinct from an absent title.
+                        if title.is_empty() {
                             title.push(InlineNode::PlainText(Plain {
                                 content: "",
                                 location: state.create_block_location(start, end, offset),
@@ -1761,9 +1757,9 @@ peg::parser! {
             }
         }
 
-        // Select the image title before parsing macros in a preceding dot-title.
-        rule image_block_ahead() -> bool
-        = &("image::" source_match() "[" attribute_list_content()) { true }
+        // Select the media title before parsing macros in a preceding dot-title.
+        rule media_block_ahead() -> bool
+        = &(("image::" / "audio::" / "video::") (source_match() ** comma()) "[" attribute_list_content()) { true }
         / { false }
 
         rule source_match()
@@ -1784,9 +1780,9 @@ peg::parser! {
             metadata.merge(&metadata_from_attributes);
             if let Some(style) = metadata.style {
                 metadata.style = None; // Clear style to avoid confusion
-                metadata
-                    .attributes
-                    .set("alt".into(), AttributeValue::String(Cow::Borrowed(style)));
+                if !metadata_from_attributes.attributes.contains_key("alt") {
+                    metadata.attributes.set("alt".into(), AttributeValue::String(Cow::Borrowed(style)));
+                }
             }
             let _ = metadata.take_positional_attributes::<2>();
             metadata.move_positional_attributes_to_attributes();
@@ -1830,20 +1826,17 @@ peg::parser! {
             let title = block_metadata.title.clone();
             let mut metadata = block_metadata.metadata.clone();
             metadata.merge(&metadata_from_attributes);
-            if let Some(style) = metadata.style {
-                metadata.style = None;
-                if style == "youtube" || style == "vimeo" {
-                    tracing::debug!("transforming video metadata style into attribute");
-                    metadata
-                        .attributes
-                        .set(Cow::Borrowed(style), AttributeValue::Bool(true));
+            let positional_poster = metadata.style.take();
+            let poster = metadata_from_attributes.attributes.get_string("poster")
+                .map(|value| state.intern_str(&value))
+                .or(positional_poster)
+                .or_else(|| metadata.attributes.get_string("poster").map(|value| state.intern_str(&value)));
+            if let Some(poster) = poster {
+                if matches!(poster, "youtube" | "vimeo") {
+                    metadata.attributes.remove("poster");
+                    metadata.attributes.set(Cow::Borrowed(poster), AttributeValue::Bool(true));
                 } else {
-                    // assume poster
-                    tracing::debug!("transforming video metadata style into attribute, assuming poster");
-                    metadata.attributes.set(
-                        "poster".into(),
-                        AttributeValue::String(Cow::Borrowed(style)),
-                    );
+                    metadata.attributes.set("poster".into(), AttributeValue::String(Cow::Borrowed(poster)));
                 }
             }
             let _ = metadata.take_positional_attributes::<2>();
@@ -3540,16 +3533,7 @@ peg::parser! {
                 .0
             };
 
-            // Title should either be an attribute named title, or the title parsed from the block metadata
-            let title: Title = if let Some(AttributeValue::String(title)) = block_metadata.metadata.attributes.get("title") {
-                vec![InlineNode::PlainText(Plain {
-                    content: state.intern_cow(title.clone()),
-                    location: state.create_location(start+offset, (start+offset).saturating_add(title.len()).saturating_sub(1)),
-                    escaped: false,
-                })].into()
-            } else {
-                block_metadata.title.clone()
-            };
+            let title = block_metadata.title.clone();
 
             if let Some((variant, admonition_start, admonition_end)) = admonition {
                 let Ok(parsed_variant) = AdmonitionVariant::from_str(&variant) else {
@@ -3742,12 +3726,12 @@ peg::parser! {
         /// - `image::photo.jpg[.role]` -> alt=".role" (literal text, NOT a role)
         /// - `image::photo.jpg[Diablo 4 picture of Lilith.]` -> alt="Diablo 4 picture of Lilith."
         pub(crate) rule macro_attributes() -> (bool, BlockMetadata<'input>, Option<(usize, usize)>)
-            = macro_attributes_for(MacroAttributeContext::General)
+            = macro_attributes_for()
 
         rule image_macro_attributes() -> (bool, BlockMetadata<'input>, Option<(usize, usize)>)
-            = macro_attributes_for(MacroAttributeContext::Image)
+            = macro_attributes_for()
 
-        rule macro_attributes_for(context: MacroAttributeContext) -> (bool, BlockMetadata<'input>, Option<(usize, usize)>)
+        rule macro_attributes_for() -> (bool, BlockMetadata<'input>, Option<(usize, usize)>)
             = open_square_bracket()
               content_start:position!()
               content:attribute_list_content()
@@ -3757,7 +3741,7 @@ peg::parser! {
                     content,
                     content_start,
                     span_end,
-                    BlockAttributeMode::Macro(context),
+                    BlockAttributeMode::Macro,
                 )
             }
 

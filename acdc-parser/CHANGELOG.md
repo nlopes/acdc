@@ -24,6 +24,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Inline-image JSON now includes `metadata`, preserving `title=` tooltips,
+  dimensions, links, roles, options, IDs, and other authored attributes. Its
+  existing `title` array holds explicit alt text, not the tooltip.
+
+- Named `title=` attributes now supply formatted titles on paragraphs, lists,
+  delimited blocks, tables, audio, and video. Media macro titles override preceding
+  titles. Repeated named attributes use the last value; repeated `opts` accumulate.
+- Images honor named `alt` over positional alt text and retain literal quotes
+  and empty positional slots. Inline `title=` remains a tooltip and no longer supplies alt text.
+  Video `poster=` overrides its positional value, including platform names.
+
 - Block images accept `title=` captions in the macro or a preceding attribute
   list. Macro titles override preceding titles, retain inline formatting, and
   supply cross-reference text, matching Asciidoctor. Inline-image `title=`

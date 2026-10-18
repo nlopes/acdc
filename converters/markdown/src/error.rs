@@ -17,6 +17,10 @@ pub enum Error {
     #[error("Output path cannot be the same as input path: {0}")]
     OutputPathSameAsInput(PathBuf),
 
+    /// Video URL construction failed.
+    #[error(transparent)]
+    VideoUrl(#[from] acdc_converters_core::video::UrlError),
+
     /// Parser error.
     #[error("Parser error: {0}")]
     Parser(#[from] acdc_parser::Error),

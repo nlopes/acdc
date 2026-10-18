@@ -178,6 +178,11 @@
             {
               "name": "image",
               "type": "inline",
+              "metadata": {
+                "attributes": {
+                  "link": "https://example.com/inline"
+                }
+              },
               "title": [
                 {
                   "name": "text",
@@ -343,6 +348,11 @@
             {
               "name": "image",
               "type": "inline",
+              "metadata": {
+                "attributes": {
+                  "link": ""
+                }
+              },
               "title": [
                 {
                   "name": "text",
@@ -424,6 +434,11 @@
             {
               "name": "image",
               "type": "inline",
+              "metadata": {
+                "attributes": {
+                  "link": "https://example.com/last"
+                }
+              },
               "title": [
                 {
                   "name": "text",
@@ -505,6 +520,11 @@
             {
               "name": "image",
               "type": "inline",
+              "metadata": {
+                "attributes": {
+                  "link": "https://example.com/substituted"
+                }
+              },
               "title": [
                 {
                   "name": "text",
@@ -586,6 +606,13 @@
             {
               "name": "image",
               "type": "inline",
+              "metadata": {
+                "attributes": {
+                  "height": "20",
+                  "https://example.com/ignored": null,
+                  "width": "10"
+                }
+              },
               "title": [
                 {
                   "name": "text",
@@ -779,6 +806,11 @@
                 {
                   "name": "image",
                   "type": "inline",
+                  "metadata": {
+                    "attributes": {
+                      "link": "https://example.com/inner"
+                    }
+                  },
                   "title": [
                     {
                       "name": "text",

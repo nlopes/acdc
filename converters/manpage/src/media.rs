@@ -1,41 +1,26 @@
 //! Static media rendering for manpages.
 
-use std::{borrow::Cow, fmt::Write as _, io::Write, path::Path};
+use std::io::Write;
 
 use acdc_converters_core::{
-    InlineTextTransform, TraversalContext, media::resolve_target, video::TryUrl,
+    InlineTextTransform, TraversalContext,
+    media::{resolve_target, with_time_range},
+    video::watch_urls,
     visitor::WritableVisitor,
 };
-use acdc_parser::{AttributeValue, Audio, Image, InlineNode, Source, Video};
+use acdc_parser::{Audio, Image, InlineNode, Source, Video};
 
 use crate::{
     Error, ManpageVisitor,
     escape::{EscapeMode, escape_rendered_roff_macro_argument, escape_roff_macro_argument, manify},
 };
 
-fn image_filename_alt(source: &Source<'_>) -> String {
-    source
-        .get_filename()
-        .and_then(|filename| Path::new(filename).file_stem())
-        .and_then(std::ffi::OsStr::to_str)
-        .unwrap_or_default()
-        .replace(['-', '_'], " ")
-}
-
 fn block_image_alt(image: &Image<'_>) -> String {
-    image
-        .metadata
-        .attributes
-        .get_string("alt")
-        .map_or_else(|| image_filename_alt(&image.source), Cow::into_owned)
+    acdc_converters_core::media::image_alt(image, false).into_owned()
 }
 
 fn inline_image_alt(image: &Image<'_>) -> String {
-    if image.title.is_empty() {
-        block_image_alt(image)
-    } else {
-        InlineTextTransform::default().to_string(image.title.as_ref())
-    }
+    acdc_converters_core::media::image_alt(image, true).into_owned()
 }
 
 fn media_title(title: &[InlineNode<'_>], source: Option<&Source<'_>>, fallback: &str) -> String {
@@ -82,20 +67,18 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         self.write_sp()?;
         self.render_captioned_title(traversal, &video.title, &video.metadata)?;
         let title = media_title(&video.title, video.sources.first(), "video");
-        let source_count = video.sources.len();
+        let targets = watch_urls(video)?;
+        let source_count = targets.len();
         if source_count == 0 {
             self.write_static_link(None, "[Video]", false)?;
         }
 
         let mut has_link = false;
-        for (index, source) in video.sources.iter().enumerate() {
+        for (index, target) in targets.iter().enumerate() {
             if has_link {
                 writeln!(self.writer_mut(), ".br")?;
             }
-            let mut single_source = video.clone();
-            single_source.sources = vec![source.clone()];
-            let target = single_source.try_url(false)?;
-            let target = resolve_target(&target, traversal);
+            let target = resolve_target(target, traversal);
             let label = if source_count == 1 {
                 format!("[Video: {title}]")
             } else {
@@ -126,18 +109,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         self.render_captioned_title(traversal, &audio.title, &audio.metadata)?;
         let title = media_title(&audio.title, Some(&audio.source), "audio");
         let mut target = resolve_target(&audio.source.to_string(), traversal);
-        match (
-            audio.metadata.attributes.get("start"),
-            audio.metadata.attributes.get("end"),
-        ) {
-            (Some(AttributeValue::String(start)), Some(AttributeValue::String(end))) => {
-                let _ = write!(target, "#t={start},{end}");
-            }
-            (Some(AttributeValue::String(start)), _) => {
-                let _ = write!(target, "#t={start}");
-            }
-            _ => {}
-        }
+        target = with_time_range(&target, &audio.metadata.attributes);
         let label = format!("[Audio: {title}]");
         self.write_static_link(
             (!target.is_empty()).then_some(target.as_str()),

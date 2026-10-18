@@ -685,6 +685,35 @@
         {
           "name": "image",
           "type": "inline",
+          "metadata": {
+            "attributes": {
+              "link": "https://example.com",
+              "title": "title",
+              "width": "32",
+              "window": "frame"
+            },
+            "roles": [
+              "hot",
+              "cool"
+            ],
+            "options": [
+              "foo",
+              "bar"
+            ],
+            "id": {
+              "id": "image-id",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 102
+                },
+                {
+                  "line": 1,
+                  "col": 109
+                }
+              ]
+            }
+          },
           "title": [
             {
               "name": "text",
@@ -1595,23 +1624,12 @@
         {
           "name": "image",
           "type": "inline",
-          "title": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "my title",
-              "location": [
-                {
-                  "line": 1,
-                  "col": 36
-                },
-                {
-                  "line": 1,
-                  "col": 42
-                }
-              ]
+          "metadata": {
+            "attributes": {
+              "title": "my title"
             }
-          ],
+          },
+          "title": [],
           "target": {
             "type": "path",
             "value": "thing.png"

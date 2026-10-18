@@ -1,0 +1,105 @@
+'\" t
+.\"     Title: MEDIA-ATTRIBUTES
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-17
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "MEDIA\-ATTRIBUTES" "1" "2026-10-17" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+media\-attributes \- test media attributes
+.SH "CONTENT"
+.sp
+\fBNamed \fBparagraph\fB title\fR
+.br
+Text.
+.sp
+\fBNamed \fBlisting\fB title\fR
+.br
+.EX
+code
+.EE
+.sp
+\fBExample 1. Named \fBexample\fB title\fR
+.br
+.RS 4
+.sp
+Example content.
+.RE
+.sp
+\fBTable 1. Named \fBtable\fB title\fR
+.br
+.TS
+allbox tab(:);
+ltx ltx.
+One:Two
+.TE
+.sp
+\fBNamed \fBlist\fB title\fR
+.RS 0
+.IP \(bu 2
+Item
+.RE
+.sp
+\fBFigure 1. Image \fBcaption\fB\fR
+.br
+.URL "https://example.org/view" "[Named & alternate]" ""
+.sp
+\fBFigure 2. \fR
+.br
+[]
+.sp
+Inline [Named & alternate] and [sample]\&.
+.sp
+Empty slots: [sample] and [] and []\&.
+.sp
+\fBAudio \fBtitle\fB\fR
+.br
+.URL "sample.ogg#t=,12" "[Audio: Audio title]" ""
+.sp
+\fBVideo \fBtitle\fB\fR
+.br
+.URL "sample.mp4#t=,12" "[Video: Video title]" ""
+.br
+.URL "new.png" "[Poster: new.png]" ""
+.sp
+\fBPlaylist title\fR
+.br
+.URL "https://www.youtube.com/watch?v=abc&t=5&end=12&list=PL123" "[Video: Playlist title]" ""
+.sp
+.URL "https://www.youtube.com/watch?v=abc&playlist=abc,def,ghi" "[Video: abc]" ""
+.sp
+.URL "https://vimeo.com/12345/secret#t=5" "[Video: secret]" ""
+.sp
+.URL "https://www.youtube.com/watch?v=abc" "[Video: abc]" ""
+.sp
+.URL "local.mp4" "[Video: local.mp4]" ""
+.br
+.URL "thumb.png" "[Poster: thumb.png]" ""
+.sp
+\fBFigure 3. Quoted alt\fR
+.br
+[A "quote"]
+.sp
+Inline [A "quote"]\&.

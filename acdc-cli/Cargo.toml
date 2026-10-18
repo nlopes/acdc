@@ -90,7 +90,7 @@ tck = []      # Technology Compatibility Kit for spec compliance testing
 
 # Compatibility features
 setext = ["acdc-parser/setext", "acdc-execute?/setext", "acdc-lint?/setext"]  # Enable Setext-style (underlined) header parsing
-network = ["acdc-parser/network", "acdc-execute?/network", "acdc-lint?/network", "acdc-converters-pdf?/network"]  # Enable remote include parsing and remote PDF images
+network = ["acdc-parser/network", "acdc-execute?/network", "acdc-lint?/network", "acdc-converters-pdf?/network", "acdc-converters-html?/network"]  # Enable remote includes and embedded HTML/PDF images
 
 # Feature groups for convenience
 all-backends = ["html", "manpage", "markdown", "pdf", "terminal"]  # Enable all output converters

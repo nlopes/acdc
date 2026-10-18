@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Images honor named and empty alt text and retain literal quotes. Tooltips
+  no longer become image descriptions.
+  Named titles on audio, video, and other titled blocks retain formatting.
+- Static audio links retain end-only playback ranges, and YouTube links retain
+  list and dynamic-playlist attributes.
+
 - `pass:c,r[->]` renders an arrow in prose and code, matching Asciidoctor.
   Reversed lists and escaped arrows retain literal text. Passthrough profiles
   remain independent of surrounding block substitutions.

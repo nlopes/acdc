@@ -31,6 +31,7 @@ mod error;
 mod html_visitor;
 mod icon;
 mod image;
+mod image_assets;
 mod image_helpers;
 mod index;
 mod inlines;
@@ -371,7 +372,7 @@ pub struct RenderOptions {
     /// Em-dash boundary replacement at string start/end is suppressed inside spans,
     /// matching asciidoctor's behavior where quotes runs before replacements.
     pub in_inline_span: bool,
-    /// Directory of the source document, used to resolve relative `stylesdir` paths.
+    /// Directory of the source document, used to resolve stylesheets and image assets.
     pub source_dir: Option<PathBuf>,
     /// Stem of the source document filename (e.g., `"mydoc"` for `mydoc.adoc`),
     /// used to locate private docinfo files like `mydoc-docinfo.html`.
@@ -821,9 +822,9 @@ pub(crate) fn write_id<W: std::io::Write + ?Sized>(
     metadata: &BlockMetadata,
 ) -> Result<(), std::io::Error> {
     if let Some(id) = &metadata.id {
-        write!(w, " id=\"{}\"", id.id)?;
+        write!(w, " id=\"{}\"", inlines::escape_attribute(id.id))?;
     } else if let Some(anchor) = metadata.anchors.first() {
-        write!(w, " id=\"{}\"", anchor.id)?;
+        write!(w, " id=\"{}\"", inlines::escape_attribute(anchor.id))?;
     }
     Ok(())
 }

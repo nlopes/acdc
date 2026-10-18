@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Images honor named and empty alt text and retain literal quotes. Inline
+  tooltips no longer become PDF descriptions. Named titles on audio, video, paragraphs, lists, tables, and
+  delimited blocks retain formatting, matching Asciidoctor PDF.
+
 - Block images accept `title=` captions in the macro or a preceding attribute
   list. Macro titles override preceding titles, retain inline formatting, and
   supply cross-reference text, matching Asciidoctor. Inline-image `title=`

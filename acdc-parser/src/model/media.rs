@@ -271,10 +271,12 @@ impl<'a> Video<'a> {
     }
 }
 
-/// An `Image` represents an image block in a document.
+/// A block or inline image.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Image<'a> {
+    /// The block caption title, or the explicit alt text of an inline image.
+    /// An inline image's `title=` tooltip is in [`Self::metadata`]'s attributes.
     pub title: Title<'a>,
     pub source: Source<'a>,
     pub metadata: BlockMetadata<'a>,

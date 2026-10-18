@@ -3,11 +3,7 @@ use std::{io::Write, string::ToString};
 use acdc_converters_core::{TraversalContext, media::resolve_target};
 use acdc_parser::{BlockMetadata, CaptionKind, Image};
 
-use crate::{
-    Error, HtmlVariant, HtmlVisitor,
-    image_helpers::{alt_text_from_filename, write_dimension_attributes},
-    inlines::escape_href,
-};
+use crate::{Error, HtmlVariant, HtmlVisitor, inlines::escape_attribute};
 
 impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     pub(crate) fn render_image(
@@ -40,14 +36,13 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
         write!(self.writer, "<div")?;
         crate::write_id(&mut self.writer, &img.metadata)?;
-        write!(self.writer, " class=\"{}\">", classes.join(" "))?;
+        write!(
+            self.writer,
+            " class=\"{}\">",
+            escape_attribute(&classes.join(" "))
+        )?;
         write!(self.writer, "<div class=\"content\">")?;
         // Get alt text from attribute or generate from filename
-        let alt_text = img.metadata.attributes.get_string("alt").map_or_else(
-            || alt_text_from_filename(&img.source),
-            std::borrow::Cow::into_owned,
-        );
-        let source = escape_href(&resolve_target(&img.source.to_string(), traversal));
 
         // Wrap in link if link attribute exists
         let link = img.metadata.attributes.get("link");
@@ -56,13 +51,12 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             write!(
                 self.writer,
                 "<a class=\"image\" href=\"{}\"{link_controls}>",
-                escape_href(&link.to_string()),
+                escape_attribute(&link.to_string()),
             )?;
         }
 
-        write!(self.writer, "<img src=\"{source}\" alt=\"{alt_text}\"")?;
-        write_dimension_attributes(&mut self.writer, &img.metadata)?;
-        write!(self.writer, ">")?;
+        let markup = self.image_markup(traversal, img, false)?;
+        write!(self.writer, "{markup}")?;
 
         if link.is_some() {
             write!(self.writer, "</a>")?;
@@ -109,22 +103,26 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
         // Wrapper: figure for titled, div for untitled
         let tag = if has_title { "figure" } else { "div" };
-        write!(self.writer, "<{tag} class=\"{}\"", classes.join(" "))?;
+        write!(
+            self.writer,
+            "<{tag} class=\"{}\"",
+            escape_attribute(&classes.join(" "))
+        )?;
         if let Some(id) = &img.metadata.id {
-            write!(self.writer, " id=\"{}\"", id.id)?;
+            write!(self.writer, " id=\"{}\"", escape_attribute(id.id))?;
         } else if let Some(anchor) = img.metadata.anchors.first() {
-            write!(self.writer, " id=\"{}\"", anchor.id)?;
+            write!(self.writer, " id=\"{}\"", escape_attribute(anchor.id))?;
         }
         if !styles.is_empty() {
-            write!(self.writer, " style=\"{}\"", styles.join("; "))?;
+            write!(
+                self.writer,
+                " style=\"{}\"",
+                escape_attribute(&styles.join("; "))
+            )?;
         }
         writeln!(self.writer, ">")?;
 
-        let alt_text = img.metadata.attributes.get_string("alt").map_or_else(
-            || alt_text_from_filename(&img.source),
-            std::borrow::Cow::into_owned,
-        );
-        let source = escape_href(&resolve_target(&img.source.to_string(), traversal));
+        let source = escape_attribute(&resolve_target(&img.source.to_string(), traversal));
 
         // Check for link=self, link=none, or html5s-image-default-link=self
         let link = img.metadata.attributes.get("link");
@@ -152,7 +150,10 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             let label = traversal
                 .get("html5s-image-self-link-label")
                 .and_then(|value| value.text())
-                .map_or_else(|| "Open the image in full size".to_string(), str::to_owned);
+                .map_or_else(
+                    || "Open the image in full size".to_string(),
+                    escape_attribute,
+                );
             write!(
                 self.writer,
                 "<a class=\"image bare\" href=\"{source}\"{link_controls} title=\"{label}\" aria-label=\"{label}\">",
@@ -164,19 +165,12 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             write!(
                 self.writer,
                 "<a class=\"image\" href=\"{}\"{link_controls}>",
-                escape_href(link_str),
+                escape_attribute(link_str),
             )?;
         }
 
-        write!(self.writer, "<img src=\"{source}\" alt=\"{alt_text}\"")?;
-        write_dimension_attributes(&mut self.writer, &img.metadata)?;
-
-        // Add loading attribute if present
-        if let Some(loading) = img.metadata.attributes.get_string("loading") {
-            write!(self.writer, " loading=\"{loading}\"")?;
-        }
-
-        write!(self.writer, ">")?;
+        let markup = self.image_markup(traversal, img, false)?;
+        write!(self.writer, "{markup}")?;
 
         // Close link tag if we opened one
         let has_link = (use_self_link && !suppress_default_self)
@@ -212,7 +206,7 @@ pub(crate) fn image_link_control_attributes(metadata: &BlockMetadata<'_>) -> Str
         .is_some_and(|window| window == "_blank" || metadata.options.contains(&"noopener"));
 
     let mut attributes = window.map_or_else(String::new, |window| {
-        format!(" target=\"{}\"", escape_href(&window))
+        format!(" target=\"{}\"", escape_attribute(&window))
     });
     match (nofollow, noopener) {
         (true, true) => attributes.push_str(" rel=\"nofollow noopener\""),

@@ -52,6 +52,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- HTML output supports inline and interactive SVG images and `data-uri`
+  embedding. Builds with `network` also embed remote images when `allow-uri-read`
+  is supplied by the caller; safe modes still restrict resource access.
+
 - Valid Asciidoctor `code_font_size` and `code_font_size_min` values no longer
   produce a false adjustment warning or fail with `--fail-on-warnings`.
 

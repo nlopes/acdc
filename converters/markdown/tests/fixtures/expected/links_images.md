@@ -20,6 +20,6 @@ Inline image: ![Icon](small-icon.png) in text.
 
 Image with title:
 
-![Photo](photo.jpg "A beautiful photo")
+![Photo](photo.jpg)
 
 <strong>Figure 1. A beautiful photo</strong>

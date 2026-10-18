@@ -1,0 +1,34 @@
+Named [1mparagraph[22m titleText.
+
+Named [1mlisting[22m title
+[38;5;8m────────────────────────────────────────────────────────────────────────────────[39m
+code
+[38;5;8m────────────────────────────────────────────────────────────────────────────────[39m
+[38;5;14m┌─ Example 1. Named example title ─────────────────────────────────────────────┐[39m
+[38;5;14m│ [39mExample content.                                                            [38;5;14m │[39m
+[38;5;14m└──────────────────────────────────────────────────────────────────────────────┘[39m
+  Table 1. Named [1mtable[22m title
+╭─────┬─────╮
+│ One ┆ Two │
+│     ┆     │
+╰─────┴─────╯
+[3mNamed [1mlist[22m title[0m
+• Item
+[38;5;12m[Image: Named & alternate][39m[2m (https://example.org/view)[0m
+  Figure 1. Image [1mcaption[22m
+[3m[Image: ][0m[2m (sample.svg)[0m
+  Figure 2. 
+Inline [Image: Named & alternate] and [Image: sample].
+Empty slots: [Image: sample] and [Image: ] and [Image: ].
+[38;5;12m[Audio: Audio title][39m[2m (sample.ogg#t=,12)[0m
+[38;5;12m[Video: Video title][39m[2m (sample.mp4#t=,12)[0m
+[Poster: new.png]
+[38;5;12m[Video: Playlist title][39m[2m (https://www.youtube.com/watch?v=abc&t=5&end=12&list=PL123)[0m
+[38;5;12m[Video: abc][39m[2m (https://www.youtube.com/watch?v=abc&playlist=abc,def,ghi)[0m
+[38;5;12m[Video: secret][39m[2m (https://vimeo.com/12345/secret#t=5)[0m
+[38;5;12m[Video: abc][39m[2m (https://www.youtube.com/watch?v=abc)[0m
+[38;5;12m[Video: local.mp4][39m[2m (local.mp4)[0m
+[Poster: thumb.png]
+[3m[Image: A "quote"][0m[2m (sample.svg)[0m
+  Figure 3. Quoted alt
+Inline [Image: A "quote"].

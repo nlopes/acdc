@@ -121,6 +121,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Image descriptions preserve literal quotes in alt text across converters.
+
+- Media URLs retain end-only playback ranges. YouTube URLs support lists and
+  dynamic playlists, language, related videos, and fullscreen controls; Vimeo
+  embed URLs retain start positions and private-video hashes, matching Asciidoctor.
+
 - Passthrough arrows follow their substitution order: `pass:c,r[->]` renders
   `→`, while `pass:r,c[->]` and `pass:r[->]` remain literal, matching
   Asciidoctor. Already encoded arrows such as `pass:r[-&gt;]` also render as

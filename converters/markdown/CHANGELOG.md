@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Images honor named and empty alt text, retain literal quotes, and keep
+  dimensions in their positional slots. Block-image `title=` supplies a caption; only inline-image titles become tooltips.
+- Audio links retain start/end playback ranges, including end-only ranges.
+  Video links resolve YouTube and Vimeo targets and retain YouTube playlists.
+- Named titles on audio, video, paragraphs, lists, tables, and delimited blocks
+  retain formatting, matching Asciidoctor's title selection.
+
 - Block image `title=` attributes now produce visible figure captions.
 
 - Visible index shorthand and catalog entries retain complete balanced internal

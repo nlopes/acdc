@@ -3,7 +3,7 @@ use std::io::Write;
 use acdc_converters_core::{TraversalContext, media::resolve_target, video::TryUrl};
 use acdc_parser::{AttributeValue, Video};
 
-use crate::{Error, HtmlVariant, HtmlVisitor, build_class, inlines::escape_href, write_id};
+use crate::{Error, HtmlVariant, HtmlVisitor, build_class, inlines::escape_attribute, write_id};
 
 impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     pub(crate) fn render_video(
@@ -17,7 +17,16 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
         write!(self.writer, "<div")?;
         write_id(&mut self.writer, &video.metadata)?;
-        let class = build_class("videoblock", &video.metadata.roles);
+        let mut class = build_class("videoblock", &video.metadata.roles);
+        if let Some(align) = video.metadata.attributes.get_string("align") {
+            class.push_str(" text-");
+            class.push_str(&align);
+        }
+        if let Some(float) = video.metadata.attributes.get_string("float") {
+            class.push(' ');
+            class.push_str(&float);
+        }
+        let class = escape_attribute(&class);
         writeln!(self.writer, " class=\"{class}\">")?;
 
         if !video.title.is_empty() {
@@ -65,20 +74,33 @@ fn render_iframe_video<W: Write + ?Sized>(
     attributes: &TraversalContext<'_>,
     w: &mut W,
 ) -> Result<(), Error> {
-    let url = resolve_target(&video.try_url(true)?, attributes);
+    let mut url = resolve_target(&video.try_url(true)?, attributes);
+    if let Some(scheme) = attributes
+        .get("asset-uri-scheme")
+        .and_then(|value| value.text())
+    {
+        let prefix = if scheme.is_empty() {
+            String::new()
+        } else {
+            format!("{scheme}:")
+        };
+        if let Some(target) = url.strip_prefix("https:") {
+            url = format!("{prefix}{target}");
+        }
+    }
     let allow_fullscreen = !video.metadata.options.contains(&"nofullscreen");
 
     write!(w, "<iframe")?;
 
     if let Some(AttributeValue::String(width)) = video.metadata.attributes.get("width") {
-        write!(w, " width=\"{width}\"")?;
+        write!(w, " width=\"{}\"", escape_attribute(width))?;
     }
 
     if let Some(AttributeValue::String(height)) = video.metadata.attributes.get("height") {
-        write!(w, " height=\"{height}\"")?;
+        write!(w, " height=\"{}\"", escape_attribute(height))?;
     }
 
-    write!(w, " src=\"{}\"", escape_href(&url))?;
+    write!(w, " src=\"{}\" frameborder=\"0\"", escape_attribute(&url))?;
 
     if allow_fullscreen {
         write!(w, " allowfullscreen")?;
@@ -97,23 +119,33 @@ fn render_local_video<W: Write + ?Sized>(
 ) -> Result<(), Error> {
     let src = resolve_target(&video.try_url(false)?, attributes);
 
-    write!(w, "<video src=\"{}\"", escape_href(&src))?;
+    write!(w, "<video src=\"{}\"", escape_attribute(&src))?;
 
     if let Some(AttributeValue::String(width)) = video.metadata.attributes.get("width") {
-        write!(w, " width=\"{width}\"")?;
+        write!(w, " width=\"{}\"", escape_attribute(width))?;
     }
 
     if let Some(AttributeValue::String(height)) = video.metadata.attributes.get("height") {
-        write!(w, " height=\"{height}\"")?;
+        write!(w, " height=\"{}\"", escape_attribute(height))?;
     }
 
-    if let Some(AttributeValue::String(poster)) = video.metadata.attributes.get("poster") {
-        let poster = resolve_target(poster, attributes);
-        write!(w, " poster=\"{}\"", escape_href(&poster))?;
+    if let Some(poster) = video
+        .metadata
+        .attributes
+        .get_string("poster")
+        .filter(|value| !value.is_empty())
+    {
+        let poster = resolve_target(&poster, attributes);
+        write!(w, " poster=\"{}\"", escape_attribute(&poster))?;
     }
 
-    if let Some(AttributeValue::String(preload)) = video.metadata.attributes.get("preload") {
-        write!(w, " preload=\"{preload}\"")?;
+    if let Some(preload) = video
+        .metadata
+        .attributes
+        .get_string("preload")
+        .filter(|value| !value.is_empty())
+    {
+        write!(w, " preload=\"{}\"", escape_attribute(&preload))?;
     }
 
     if video.metadata.options.contains(&"autoplay") {
@@ -148,10 +180,24 @@ fn visit_video_semantic<'a, W: Write>(
     let has_title = !video.title.is_empty();
 
     let tag = if has_title { "figure" } else { "div" };
-    let class = build_class("video-block", &video.metadata.roles);
+    let class = escape_attribute(&build_class("video-block", &video.metadata.roles));
     write!(visitor.writer, "<{tag}")?;
     write_id(&mut visitor.writer, &video.metadata)?;
     write!(visitor.writer, " class=\"{class}\"")?;
+    let mut styles = Vec::new();
+    if let Some(align) = video.metadata.attributes.get_string("align") {
+        styles.push(format!("text-align: {align}"));
+    }
+    if let Some(float) = video.metadata.attributes.get_string("float") {
+        styles.push(format!("float: {float}"));
+    }
+    if !styles.is_empty() {
+        write!(
+            visitor.writer,
+            " style=\"{}\"",
+            escape_attribute(&styles.join("; "))
+        )?;
+    }
     writeln!(visitor.writer, ">")?;
 
     if video.sources.is_empty() {

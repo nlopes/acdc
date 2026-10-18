@@ -15,6 +15,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Block and inline SVG images support `opts=inline`, `opts=interactive`,
+  `fallback`, and `format=svg`. `data-uri` embeds local images; remote embedding
+  also requires the `network` feature and caller-supplied `allow-uri-read`.
+  Secure mode disables embedding. Safe and Server modes confine file reads to
+  the source directory. Unlike Asciidoctor, escaping paths are rejected instead
+  of rewritten, and image reads have a 20 MiB limit and 10-second HTTP timeout.
+- Media attributes are escaped in HTML. Inline images retain roles, floats,
+  explicit empty alt text, and dimensions when the alt slot is empty.
+- Audio and video accept formatted `title=` values and end-only playback ranges.
+  Video alignment, floats, named posters, YouTube lists, playlists, language,
+  related videos, and fullscreen controls now match Asciidoctor. Vimeo supports
+  start positions and private-video hashes; `asset-uri-scheme` controls iframe URLs.
+- Named block titles retain formatting on paragraphs, lists, tables, and delimited
+  blocks. Repeated image attributes use their last value.
+
 - Block images accept `title=` captions in the macro or a preceding attribute
   list. Macro titles override preceding titles, retain inline formatting, and
   supply cross-reference text, matching Asciidoctor. Inline-image `title=`

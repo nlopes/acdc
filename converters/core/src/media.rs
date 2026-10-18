@@ -1,5 +1,8 @@
 //! Media target resolution for URI-producing converters.
 
+use std::{borrow::Cow, path::Path};
+
+use acdc_parser::{AttributeValue, Image};
 use relative_path::RelativePath;
 
 use crate::TraversalContext;
@@ -85,6 +88,38 @@ pub fn resolve_target(target: &str, attributes: &TraversalContext<'_>) -> String
         normalize_target(&target)
     };
     encode_spaces(&target)
+}
+
+/// Image alternative text: selected inline alt text, named alt, then the filename.
+/// Block titles are captions and do not replace the alternative text.
+#[must_use]
+pub fn image_alt<'a>(image: &Image<'a>, inline: bool) -> Cow<'a, str> {
+    if inline && !image.title.is_empty() {
+        return Cow::Owned(crate::inlines_to_string(&image.title));
+    }
+    if let Some(AttributeValue::String(alt)) = image.metadata.attributes.get("alt") {
+        return alt.clone();
+    }
+    Cow::Owned(
+        image
+            .source
+            .get_filename()
+            .and_then(|filename| Path::new(filename).file_stem())
+            .and_then(std::ffi::OsStr::to_str)
+            .unwrap_or_default()
+            .replace(['-', '_'], " "),
+    )
+}
+
+/// Append the authored start/end playback range to a media URI.
+#[must_use]
+pub fn with_time_range(target: &str, attributes: &acdc_parser::ElementAttributes<'_>) -> String {
+    match (attributes.get_string("start"), attributes.get_string("end")) {
+        (Some(start), Some(end)) => format!("{target}#t={start},{end}"),
+        (Some(start), None) => format!("{target}#t={start}"),
+        (None, Some(end)) => format!("{target}#t=,{end}"),
+        (None, None) => target.to_owned(),
+    }
 }
 
 #[cfg(test)]

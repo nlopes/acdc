@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Images honor named and empty alt text and retain literal quotes. Tooltips
+  no longer become image descriptions.
+  Named titles on audio, video, and other titled blocks retain formatting.
+- Audio links retain end-only playback ranges, and YouTube links retain list and
+  dynamic-playlist attributes.
+
 - On Unix, terminal conversion starts faster without an attached terminal.
   It uses an 80-column fallback when the terminal width is unavailable.
   Explicit width settings still take precedence.

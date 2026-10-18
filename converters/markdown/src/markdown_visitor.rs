@@ -1,8 +1,6 @@
 //! Visitor implementation for Markdown conversion.
 
-use std::{
-    borrow::Cow, collections::HashSet, fmt::Write as _, io::Write, mem::take, path::Path, rc::Rc,
-};
+use std::{borrow::Cow, collections::HashSet, fmt::Write as _, io::Write, mem::take, rc::Rc};
 
 use acdc_converters_core::{
     Converter, Diagnostics, TraversalContext, Warning,
@@ -11,7 +9,7 @@ use acdc_converters_core::{
     inline_text::InlineTextTransform,
     link::{autolink_fallback, link_fallback, mailto_fallback, mailto_target},
     list::OrderedListNumbering,
-    media::resolve_target,
+    media::{resolve_target, with_time_range},
     section::{
         appendix_number_prefix, book_chapter_signifier, effective_section_level,
         part_number_prefix, section_number_prefix,
@@ -174,29 +172,12 @@ fn flatten_table_cell(text: &str) -> String {
         .join("<br>")
 }
 
-fn image_filename_alt(source: &Source<'_>) -> String {
-    source
-        .get_filename()
-        .and_then(|filename| Path::new(filename).file_stem())
-        .and_then(std::ffi::OsStr::to_str)
-        .unwrap_or_default()
-        .replace(['-', '_'], " ")
-}
-
 fn block_image_alt(image: &Image<'_>) -> String {
-    image
-        .metadata
-        .attributes
-        .get_string("alt")
-        .map_or_else(|| image_filename_alt(&image.source), Cow::into_owned)
+    acdc_converters_core::media::image_alt(image, false).into_owned()
 }
 
 fn inline_image_alt(image: &Image<'_>) -> String {
-    if image.title.is_empty() {
-        block_image_alt(image)
-    } else {
-        InlineTextTransform::default().to_string(image.title.as_ref())
-    }
+    acdc_converters_core::media::image_alt(image, true).into_owned()
 }
 
 fn is_linked_image(node: &InlineNode<'_>) -> bool {
@@ -1903,7 +1884,7 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
     ) -> Result<(), Self::Error> {
         self.write_metadata_anchor(&image.metadata)?;
         let alt = block_image_alt(image);
-        self.write_image(traversal, image, &alt)?;
+        self.write_image(traversal, image, &alt, false)?;
         writeln!(self.writer)?;
         if !image.title.is_empty() {
             writeln!(self.writer)?;
@@ -1948,9 +1929,10 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
                 writeln!(self.writer)?;
             }
         }
-        for (index, source) in video.sources.iter().enumerate() {
-            let target = Self::media_target(traversal, source);
-            let source_count = video.sources.len();
+        let targets = acdc_converters_core::video::watch_urls(video)?;
+        for (index, target) in targets.iter().enumerate() {
+            let target = resolve_target(target, traversal);
+            let source_count = targets.len();
             self.write_link(&target, |visitor| {
                 if source_count == 1 {
                     write!(visitor.writer, "Video: {}", Self::escape_markdown(&title))?;
@@ -1978,7 +1960,10 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
         self.write_metadata_anchor(&audio.metadata)?;
         self.write_block_title(traversal, &audio.title, &audio.metadata, None)?;
         self.warn_static_media_fallback();
-        let target = Self::media_target(traversal, &audio.source);
+        let target = with_time_range(
+            &Self::media_target(traversal, &audio.source),
+            &audio.metadata.attributes,
+        );
         let title = if audio.title.is_empty() {
             audio
                 .source
@@ -2333,7 +2318,7 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
             InlineMacro::Link(link) => self.write_link_macro_node(traversal, link)?,
             InlineMacro::Image(image) => {
                 let alt = inline_image_alt(image);
-                self.write_image(traversal, image, &alt)?;
+                self.write_image(traversal, image, &alt, true)?;
             }
             InlineMacro::Icon(icon_macro) => {
                 let alt = icon::alt(&icon_macro.target, &icon_macro.attributes);
@@ -2553,13 +2538,14 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         image: &Image<'_>,
         alt: &str,
+        inline: bool,
     ) -> Result<(), Error> {
         if let Some(link) = image.metadata.attributes.get_string("link") {
             self.write_link(&link, |visitor| {
-                visitor.write_image_markup(traversal, image, alt)
+                visitor.write_image_markup(traversal, image, alt, inline)
             })
         } else {
-            self.write_image_markup(traversal, image, alt)
+            self.write_image_markup(traversal, image, alt, inline)
         }
     }
 
@@ -2568,9 +2554,19 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         image: &Image<'_>,
         alt: &str,
+        inline: bool,
     ) -> Result<(), Error> {
         let target = Self::media_target(traversal, &image.source);
-        let title = image.metadata.attributes.get_string("title");
+        let title = inline
+            .then(|| image.metadata.attributes.get("title"))
+            .flatten()
+            .and_then(|value| {
+                if let acdc_parser::AttributeValue::String(value) = value {
+                    Some(value.as_ref())
+                } else {
+                    None
+                }
+            });
         let width = image.metadata.attributes.get_string("width");
         let height = image.metadata.attributes.get_string("height");
         if width.is_some() || height.is_some() {
@@ -2581,7 +2577,7 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
                 escape_html_attribute(alt)
             )?;
             if let Some(title) = title {
-                write!(self.writer, " title=\"{}\"", escape_html_attribute(&title))?;
+                write!(self.writer, " title=\"{}\"", escape_html_attribute(title))?;
             }
             if let Some(width) = width {
                 write!(self.writer, " width=\"{}\"", escape_html_attribute(&width))?;
@@ -2604,7 +2600,7 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
             escape_link_destination(&target)
         )?;
         if let Some(title) = title {
-            write!(self.writer, " \"{}\"", escape_link_title(&title))?;
+            write!(self.writer, " \"{}\"", escape_link_title(title))?;
         }
         write!(self.writer, ")")?;
         Ok(())

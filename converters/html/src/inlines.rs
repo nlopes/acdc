@@ -48,9 +48,8 @@ use std::{
 };
 
 use acdc_converters_core::{
-    InlineTextTransform, TraversalContext, inlines_to_string,
+    InlineTextTransform, TraversalContext,
     link::{autolink_fallback, link_fallback, mailto_fallback, mailto_target},
-    media::resolve_target,
     substitutions::{
         Replacements, TextBoundaries, apply_passthrough_replacements, protect_replacement_escapes,
         restore_escaped_patterns, strip_backslash_escapes,
@@ -71,7 +70,6 @@ use crate::{
     constants::{encode_html_entities, escape_ampersands},
     icon::write_icon,
     image::image_link_control_attributes,
-    image_helpers::{alt_text_from_filename, write_dimension_attributes},
 };
 
 fn replacements() -> Replacements<'static> {
@@ -862,22 +860,22 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         i: &Image<'_>,
     ) -> Result<(), Error> {
         let is_semantic = self.processor.variant() == HtmlVariant::Semantic;
-        let source = escape_href(&resolve_target(&i.source.to_string(), traversal));
-        let w = self.writer_mut();
-        // Inline images use a span wrapper (not in semantic mode)
-        if !is_semantic {
-            write!(w, "<span class=\"image\">")?;
+        let markup = self.image_markup(traversal, i, true)?;
+        let mut classes = vec!["image"];
+        if let Some(acdc_parser::AttributeValue::String(float)) = i.metadata.attributes.get("float")
+        {
+            classes.push(float.as_ref());
         }
-
-        // alt text: title (first positional) > `alt` attr > filename
-        let alt_text = if i.title.is_empty() {
-            i.metadata.attributes.get("alt").map_or_else(
-                || alt_text_from_filename(&i.source),
-                std::string::ToString::to_string,
-            )
-        } else {
-            inlines_to_string(&i.title)
-        };
+        classes.extend(&i.metadata.roles);
+        let has_wrapper = !is_semantic || classes.len() > 1;
+        let w = self.writer_mut();
+        if has_wrapper {
+            write!(
+                w,
+                "<span class=\"{}\">",
+                escape_attribute(&classes.join(" "))
+            )?;
+        }
 
         let link = i.metadata.attributes.get("link");
         let link_controls = image_link_control_attributes(&i.metadata);
@@ -885,21 +883,16 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             write!(
                 w,
                 "<a class=\"image\" href=\"{}\"{link_controls}>",
-                escape_href(&link.to_string()),
+                escape_attribute(&link.to_string()),
             )?;
         }
 
-        write!(w, "<img src=\"{source}\" alt=\"{alt_text}\"")?;
-        write_dimension_attributes(w, &i.metadata)?;
-        if let Some(title) = i.metadata.attributes.get("title") {
-            write!(w, " title=\"{title}\"")?;
-        }
-        write!(w, ">")?;
+        write!(w, "{markup}")?;
 
         if link.is_some() {
             write!(w, "</a>")?;
         }
-        if !is_semantic {
+        if has_wrapper {
             write!(w, "</span>")?;
         }
         Ok(())

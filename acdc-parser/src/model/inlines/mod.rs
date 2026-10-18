@@ -378,6 +378,9 @@ where
 {
     map.serialize_entry("name", "image")?;
     map.serialize_entry("type", "inline")?;
+    if !i.metadata.is_default() {
+        map.serialize_entry("metadata", &i.metadata)?;
+    }
     map.serialize_entry("title", &i.title)?;
     map.serialize_entry("target", &i.source)?;
     map.serialize_entry("location", &i.location)

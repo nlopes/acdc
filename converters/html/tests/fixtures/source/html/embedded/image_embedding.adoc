@@ -1,0 +1,17 @@
+= Embedded images
+:imagesdir: {docdir}/../../../assets
+:data-uri:
+
+image::media.svg[Embedded,title="Data URI"]
+
+image::media.svg[Inline SVG,opts=inline,width=80]
+
+image::media-no-extension[Inline format,format=svg,opts=inline,height=40]
+
+image::media.svg[Interactive,opts=interactive,fallback=media.svg,width=60]
+
+image::media.svg[Interactive without fallback,opts=interactive]
+
+Inline image:media.svg[Inline,opts=inline,width=30] and image:media.svg[Object,opts=interactive,fallback=media.svg,title=Tooltip,width=20].
+
+Inline data image:media.svg[Encoded,title=Tooltip,width=20].

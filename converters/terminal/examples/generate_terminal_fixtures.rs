@@ -1,5 +1,7 @@
 //! Generate expected Terminal output files for integration tests.
 //!
+//! Optional arguments select fixture stems; omit them to generate all fixtures.
+//!
 //! Usage:
 //!   `cargo run --all-features --example generate_terminal_fixtures`
 
@@ -20,11 +22,21 @@ include!("../tests/fixtures/catalog.rs");
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     crossterm::style::force_color_output(true);
 
-    generate(&FixtureGenerator::new("terminal", "txt"), false)?;
+    let arguments = std::env::args().skip(1).collect::<Vec<_>>();
+    let names = arguments.iter().map(String::as_str).collect::<Vec<_>>();
+    let generator = FixtureGenerator::new("terminal", "txt");
+    let generator = if names.is_empty() {
+        generator
+    } else {
+        generator.with_fixtures(&names)
+    };
+    generate(&generator, false)?;
 
     let osc8_fixtures = TERMINAL_FIXTURES
         .iter()
-        .filter_map(|(name, has_osc8_variant)| has_osc8_variant.then_some(*name))
+        .filter_map(|(name, has_osc8_variant)| {
+            (*has_osc8_variant && (names.is_empty() || names.contains(name))).then_some(*name)
+        })
         .collect::<Vec<_>>();
     let osc8_generator =
         FixtureGenerator::new("terminal", "osc8.txt").with_fixtures(osc8_fixtures.as_slice());

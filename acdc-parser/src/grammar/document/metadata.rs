@@ -8,9 +8,9 @@ use crate::{
         ParserState,
         attributes::{AttributeQuote, scan_attribute_list},
         helpers::{
-            BlockParsingMetadata, MacroAttributeContext, RESERVED_NAMED_ATTRIBUTE_ID,
-            RESERVED_NAMED_ATTRIBUTE_OPTIONS, RESERVED_NAMED_ATTRIBUTE_ROLE,
-            RESERVED_NAMED_ATTRIBUTE_SUBS, parse_comma_separated_values,
+            BlockParsingMetadata, RESERVED_NAMED_ATTRIBUTE_ID, RESERVED_NAMED_ATTRIBUTE_OPTIONS,
+            RESERVED_NAMED_ATTRIBUTE_ROLE, RESERVED_NAMED_ATTRIBUTE_SUBS,
+            parse_comma_separated_values,
         },
         inline_processing::process_inlines,
     },
@@ -268,7 +268,7 @@ pub(super) fn metadata_marks_discrete_heading(metadata: &str, state: &ParserStat
 #[derive(Clone, Copy)]
 pub(super) enum BlockAttributeMode {
     Block,
-    Macro(MacroAttributeContext),
+    Macro,
 }
 
 fn apply_block_style<'input>(
@@ -436,7 +436,6 @@ fn store_named_block_attribute<'input>(
     value: &'input str,
     quote: AttributeQuote,
     location: Option<Location>,
-    context: Option<MacroAttributeContext>,
 ) -> Option<(usize, usize)> {
     if quote == AttributeQuote::Unquoted && value == "None" {
         return None;
@@ -449,7 +448,7 @@ fn store_named_block_attribute<'input>(
         None
     };
     match name {
-        RESERVED_NAMED_ATTRIBUTE_ID if metadata.id.is_none() => {
+        RESERVED_NAMED_ATTRIBUTE_ID => {
             metadata.id = Some(Anchor {
                 id: value,
                 xreflabel: None,
@@ -459,9 +458,7 @@ fn store_named_block_attribute<'input>(
             });
         }
         RESERVED_NAMED_ATTRIBUTE_ROLE | "roles" => {
-            metadata
-                .roles
-                .extend(value.split_whitespace().filter(|role| !role.is_empty()));
+            metadata.roles = value.split_whitespace().collect();
         }
         RESERVED_NAMED_ATTRIBUTE_OPTIONS | "options" => {
             metadata
@@ -495,18 +492,10 @@ fn store_named_block_attribute<'input>(
             metadata.citetitle_substitutions = quote == AttributeQuote::Single;
         }
         _ => {
-            if name == "title" || (context == Some(MacroAttributeContext::Image) && name == "link")
-            {
-                metadata.attributes.set(
-                    Cow::Borrowed(name),
-                    AttributeValue::String(Cow::Borrowed(value)),
-                );
-            } else {
-                metadata.attributes.insert(
-                    Cow::Borrowed(name),
-                    AttributeValue::String(Cow::Borrowed(value)),
-                );
-            }
+            metadata.attributes.set(
+                Cow::Borrowed(name),
+                AttributeValue::String(Cow::Borrowed(value)),
+            );
         }
     }
     title_position
@@ -548,10 +537,6 @@ pub(super) fn parse_block_attribute_list<'input>(
                 value,
                 attribute.quote,
                 location,
-                match mode {
-                    BlockAttributeMode::Block => None,
-                    BlockAttributeMode::Macro(context) => Some(context),
-                },
             )
             .or(title_position);
         } else if slot == 0 {
@@ -559,8 +544,12 @@ pub(super) fn parse_block_attribute_list<'input>(
                 BlockAttributeMode::Block => {
                     discrete = apply_block_style(state, &mut metadata, value, location.as_ref());
                 }
-                BlockAttributeMode::Macro(_) if !value.is_empty() => metadata.style = Some(value),
-                BlockAttributeMode::Macro(_) => {}
+                BlockAttributeMode::Macro
+                    if !value.is_empty() || attribute.quote != AttributeQuote::Unquoted =>
+                {
+                    metadata.style = Some(value);
+                }
+                BlockAttributeMode::Macro => {}
             }
         } else {
             ensure_positional_slot(&mut metadata, slot);

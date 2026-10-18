@@ -6,6 +6,7 @@ use crate::{
     Anchor, AttributeValue, BlockMetadata,
     grammar::{
         ParserState,
+        attributes::{AttributeQuote, scan_attribute_list},
         helpers::{
             MacroAttributeContext, RESERVED_NAMED_ATTRIBUTE_ID, RESERVED_NAMED_ATTRIBUTE_OPTIONS,
             RESERVED_NAMED_ATTRIBUTE_ROLE, RESERVED_NAMED_ATTRIBUTE_SUBS,
@@ -44,7 +45,9 @@ pub(super) fn process_attribute_list<'input>(
 
     for (key, value, pos) in attrs.into_iter().flatten() {
         match key.as_ref() {
-            k if k == RESERVED_NAMED_ATTRIBUTE_ID && metadata.id.is_none() => {
+            k if k == RESERVED_NAMED_ATTRIBUTE_ID
+                && (metadata.id.is_none() || context == MacroAttributeContext::Image) =>
+            {
                 let (id_start, id_end) = pos.unwrap_or((fallback_start, fallback_end));
                 let id: &'input str = match value {
                     AttributeValue::String(s) => state.intern_cow(s),
@@ -62,6 +65,9 @@ pub(super) fn process_attribute_list<'input>(
             }
             k if k == RESERVED_NAMED_ATTRIBUTE_ROLE => {
                 if let AttributeValue::String(ref s) = value {
+                    if context == MacroAttributeContext::Image {
+                        metadata.roles.clear();
+                    }
                     // Roles are space-separated (not comma-separated) per asciidoctor behavior.
                     // `role='a b'` → two roles; `role='a,b'` → one role containing a comma.
                     for role in s.split_whitespace() {
@@ -87,12 +93,12 @@ pub(super) fn process_attribute_list<'input>(
                     }
                     metadata
                         .attributes
-                        .insert(key, AttributeValue::String(s.clone()));
+                        .set(key, AttributeValue::String(s.clone()));
                 }
             }
             _ => {
                 if let AttributeValue::String(ref s) = value {
-                    if context == MacroAttributeContext::Image && key == "link" {
+                    if context == MacroAttributeContext::Image {
                         metadata
                             .attributes
                             .set(key, AttributeValue::String(s.clone()));
@@ -120,4 +126,53 @@ pub(super) fn process_attribute_list<'input>(
     }
 
     title_position
+}
+
+/// Image attributes keep empty positional slots and let named values override them.
+pub(super) fn process_image_attribute_list<'input>(
+    source: &str,
+    state: &ParserState<'input>,
+    start: usize,
+    end: usize,
+) -> BlockMetadata<'input> {
+    let mut metadata = BlockMetadata::default();
+    let mut named = Vec::new();
+    for (slot, attribute) in scan_attribute_list(source, &[]).into_iter().enumerate() {
+        let value = state.intern_str(&attribute.value);
+        if let Some(name) = attribute.name {
+            if attribute.quote == AttributeQuote::Unquoted && value == "None" {
+                continue;
+            }
+            let name = match name.as_ref() {
+                "roles" => "role",
+                "options" => "opts",
+                name => name,
+            };
+            named.push(Some((
+                Cow::Borrowed(state.intern_str(name)),
+                AttributeValue::String(Cow::Borrowed(value)),
+                Some((start + attribute.value_start, start + attribute.value_end)),
+            )));
+        } else if slot == 0 {
+            if !value.is_empty() || attribute.quote != AttributeQuote::Unquoted {
+                metadata.style = Some(value);
+            }
+        } else {
+            metadata
+                .positional_attributes
+                .resize(slot, PositionalAttribute::default());
+            if let Some(positional) = metadata.positional_attributes.get_mut(slot - 1) {
+                positional.value = value;
+            }
+        }
+    }
+    process_attribute_list(
+        named,
+        &mut metadata,
+        state,
+        start,
+        end,
+        MacroAttributeContext::Image,
+    );
+    metadata
 }
