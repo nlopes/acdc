@@ -177,19 +177,24 @@ fn prompt_exit_and_ris_use_store_lifecycle_rules() -> Result {
 }
 
 #[test]
-fn eviction_and_update_age_come_from_the_library_store() -> Result {
+fn unchanged_reports_refresh_eviction_order_without_adding_history() -> Result {
     let mut output = Vec::new();
     for index in 0..256 {
         output.extend(report(
             Status::new(State::Done).id(RecordId::new(&format!("task{index}"))?),
         )?);
     }
-    output.extend(report(
-        Status::new(State::Error).id(RecordId::new("task0")?),
-    )?);
-    output.extend(report(Status::new(State::Done).id(RecordId::new("new")?))?);
-    let recording = recording(&[(0, output)])?;
-    let records = recording.activity().records_at(Duration::ZERO);
+    let duplicate = report(Status::new(State::Done).id(RecordId::new("task0")?))?;
+    let new = report(Status::new(State::Done).id(RecordId::new("new")?))?;
+    let recording = recording(&[(0, output), (100, duplicate), (200, new)])?;
+    assert!(
+        recording
+            .activity()
+            .changes()
+            .iter()
+            .all(|change| { change.at != Duration::from_millis(100) })
+    );
+    let records = recording.activity().records_at(Duration::from_millis(200));
     assert_eq!(records.len(), 256);
     assert!(
         records
@@ -204,6 +209,105 @@ fn eviction_and_update_age_come_from_the_library_store() -> Result {
     assert!(recording.activity().changes().iter().any(
         |change| matches!(&change.change, Change::Remove(key) if key.id.as_deref() == Some("task1"))
     ));
+    Ok(())
+}
+
+#[test]
+fn ancestor_eviction_records_only_final_inherited_apps() -> Result {
+    let mut initial = report(Status::new(State::Done).app(AppId::new("old")?))?;
+    initial.extend(report(
+        Status::new(State::Done).id(RecordId::new("a/leaf")?),
+    )?);
+    for index in 0..254 {
+        initial.extend(report(
+            Status::new(State::Done).id(RecordId::new(&format!("filler{index}"))?),
+        )?);
+    }
+    let parent = report(
+        Status::new(State::Done)
+            .id(RecordId::new("a")?)
+            .app(AppId::new("new")?),
+    )?;
+    let recording = recording(&[(0, initial), (100, parent)])?;
+    let changes: Vec<_> = recording
+        .activity()
+        .changes()
+        .iter()
+        .filter(|change| change.at == Duration::from_millis(100))
+        .map(|change| &change.change)
+        .collect();
+    assert_eq!(changes.len(), 257);
+    assert!(
+        matches!(changes.as_slice(), [Change::Remove(key), Change::Set(parent), Change::Set(child), ..]
+        if key.id.is_none()
+            && parent.key.id.as_deref() == Some("a")
+            && child.key.id.as_deref() == Some("a/leaf")
+            && child.effective_app.as_deref() == Some("new"))
+    );
+    assert!(
+        changes
+            .iter()
+            .skip(3)
+            .all(|change| matches!(change, Change::Set(record)
+        if record.key.id.as_deref().is_some_and(|id| id.starts_with("filler"))
+            && record.effective_app.is_none()))
+    );
+    let previous = recording.activity().records_at(Duration::ZERO);
+    assert!(
+        previous
+            .iter()
+            .any(|record| record.key.id.as_deref() == Some("a/leaf")
+                && record.effective_app.as_deref() == Some("old"))
+    );
+    Ok(())
+}
+
+#[test]
+fn lifecycle_changes_keep_surviving_children_and_history_in_key_order() -> Result {
+    for prompt in [false, true] {
+        let mut builder = crate::activity::Builder::new()?;
+        let mut initial = Vec::new();
+        for id in ["z", "a"] {
+            initial.extend(report(Status::new(State::Done).id(RecordId::new(id)?))?);
+        }
+        initial.extend(report(
+            Status::new(State::Working).app(AppId::new("cargo")?),
+        )?);
+        builder.output(&initial, Duration::ZERO, Duration::ZERO)?;
+        let raw_at = Duration::from_secs(10);
+        let at = Duration::from_secs(1);
+        if prompt {
+            builder.output(b"\x1b]133;A\x07", raw_at, at)?;
+        } else {
+            builder.process_exit(raw_at, at);
+        }
+        builder.output(b"\x1bc", Duration::from_secs(20), Duration::from_secs(2))?;
+        let timeline = builder.finish();
+        let cleanup: Vec<_> = timeline
+            .changes()
+            .iter()
+            .filter(|change| change.at == at)
+            .collect();
+        assert!(cleanup.iter().all(|change| change.raw_at == raw_at));
+        let changes: Vec<_> = cleanup.iter().map(|change| &change.change).collect();
+        assert!(
+            matches!(changes.as_slice(), [Change::Remove(root), Change::Set(a), Change::Set(z)]
+            if root.id.is_none() && a.key.id.as_deref() == Some("a") && z.key.id.as_deref() == Some("z")
+                && a.effective_app.is_none() && z.effective_app.is_none())
+        );
+        let before = timeline.records_at(Duration::ZERO);
+        assert_eq!(before.len(), 3);
+        assert!(
+            before
+                .iter()
+                .all(|record| record.effective_app.as_deref() == Some("cargo"))
+        );
+        assert_eq!(timeline.records_at(at).len(), 2);
+        assert_eq!(
+            timeline.records_at(Duration::from_secs(2)),
+            [] as [&crate::activity::Record; 0]
+        );
+    }
     Ok(())
 }
 
@@ -462,17 +566,33 @@ fn unsupported_metadata_falls_back_to_one_session_and_truncation_retains_history
 #[test]
 fn task_limit_keeps_a_bounded_prefix_with_one_diagnostic() -> Result {
     let mut output = Vec::new();
-    for index in 0..crate::activity::MAX_CHANGES + 2 {
+    for id in ["z", "a"] {
+        output.extend(report(Status::new(State::Done).id(RecordId::new(id)?))?);
+    }
+    for index in 0..crate::activity::MAX_CHANGES - 4 {
         output.extend(report(Status::new(if index % 2 == 0 {
             State::Working
         } else {
             State::Done
         }))?);
     }
+    output.extend(report(Status::new(State::Done).app(AppId::new("cargo")?))?);
     let recording = recording(&[(0, output)])?;
     assert_eq!(
         recording.activity().changes().len(),
         crate::activity::MAX_CHANGES
+    );
+    let retained = recording.activity().records_at(Duration::ZERO);
+    assert!(
+        retained
+            .iter()
+            .any(|record| record.key.id.as_deref() == Some("a")
+                && record.effective_app.as_deref() == Some("cargo"))
+    );
+    assert!(
+        retained
+            .iter()
+            .any(|record| record.key.id.as_deref() == Some("z") && record.effective_app.is_none())
     );
     assert_eq!(
         recording

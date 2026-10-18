@@ -21,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Task history copies only changed records while preserving inherited app names,
+  terminal cleanup, and the order of entries retained at history limits.
+
 - Asciicast replay retains the readable prefix after a damaged event line and
   reports incomplete or unsupported data through recording diagnostics. Source
   data and task history have separate retention limits. Status-only recordings

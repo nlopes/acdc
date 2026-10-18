@@ -6,7 +6,7 @@ mod runbook;
 use std::{collections::BTreeMap, fmt, time::Duration};
 
 use osc7501_parser::{Event as OscEvent, parse_sequence};
-use osc7501_store::{Record as StoredRecord, Store};
+use osc7501_store::{Change as StoreChange, Store};
 
 pub use osc7501_parser::{Kind, State};
 pub(crate) use runbook::validate;
@@ -56,6 +56,41 @@ pub struct Record {
 pub enum Change {
     Set(Record),
     Remove(Key),
+}
+
+impl Change {
+    fn from_store(change: StoreChange<'_>, scope: Scope) -> Option<Self> {
+        match change {
+            StoreChange::Set {
+                record,
+                effective_app,
+            } => Some(Self::Set(Record {
+                key: Key {
+                    scope,
+                    id: record.id().map(|id| id.as_str().to_owned()),
+                },
+                state: record.state(),
+                app: record.app().map(|app| app.as_str().to_owned()),
+                effective_app: effective_app.map(|app| app.as_str().to_owned()),
+                title: record.title().map(str::to_owned),
+                message: record.message().map(str::to_owned),
+                kind: record.kind(),
+                progress: record.progress().map(osc7501_parser::Progress::get),
+            })),
+            StoreChange::Remove(record) => Some(Self::Remove(Key {
+                scope,
+                id: record.id().map(|id| id.as_str().to_owned()),
+            })),
+            _ => None,
+        }
+    }
+
+    fn key(&self) -> &Key {
+        match self {
+            Self::Set(record) => &record.key,
+            Self::Remove(key) => key,
+        }
+    }
 }
 
 /// A task mutation with raw elapsed time and idle-compressed playback time.
@@ -232,8 +267,9 @@ impl Builder {
                 Some(Control::Osc(frame)) if frame.starts_with(b"\x1b]7501;") => {
                     match parse_sequence(&frame) {
                         Ok(Some(OscEvent::Report(report))) => {
-                            self.store.apply(report, |_| {})?;
-                            self.sync(raw_at, at);
+                            self.observe(raw_at, at, |store, receive| {
+                                store.apply_with_changes(report, receive)
+                            })?;
                         }
                         Ok(Some(OscEvent::Query | OscEvent::Capabilities(_) | _) | None) => {}
                         Err(_) => {
@@ -247,13 +283,15 @@ impl Builder {
                         .or_else(|| frame.strip_suffix(b"\x07"))
                         .unwrap_or_default();
                     if body == b"\x1b]133;A" || body.starts_with(b"\x1b]133;A;") {
-                        self.store.on_prompt(|_| {});
-                        self.sync(raw_at, at);
+                        self.observe(raw_at, at, |store, receive| {
+                            store.on_prompt_with_changes(receive);
+                        });
                     }
                 }
                 Some(Control::Reset) => {
-                    self.store.on_full_reset(|_| {});
-                    self.sync(raw_at, at);
+                    self.observe(raw_at, at, |store, receive| {
+                        store.on_full_reset_with_changes(receive);
+                    });
                 }
                 Some(Control::Oversized) => {
                     self.malformed = self.malformed.saturating_add(1);
@@ -265,14 +303,16 @@ impl Builder {
     }
 
     pub fn start_command(&mut self, occurrence: u32) {
-        self.store.on_full_reset(|_| {});
+        // A new scope keeps the previous command's results in the timeline.
+        self.store.on_full_reset();
         self.scope = Scope::Command(occurrence);
         self.framer.boundary();
     }
 
     pub fn process_exit(&mut self, raw_at: Duration, at: Duration) {
-        self.store.on_process_exit(|_| {});
-        self.sync(raw_at, at);
+        self.observe(raw_at, at, |store, receive| {
+            store.on_process_exit_with_changes(receive);
+        });
         self.framer.boundary();
     }
 
@@ -288,65 +328,34 @@ impl Builder {
         self.timeline
     }
 
-    fn sync(&mut self, raw_at: Duration, at: Duration) {
-        if self.limited {
-            return;
-        }
-        let records: BTreeMap<_, _> = self
-            .store
-            .iter()
-            .map(|record| {
-                let owned = self.own(record);
-                (owned.key.clone(), owned)
-            })
-            .collect();
-        let removed: Vec<_> = self
-            .current
-            .keys()
-            .filter(|key| key.scope == self.scope && !records.contains_key(*key))
-            .cloned()
-            .collect();
-        for key in removed {
-            self.push(Change::Remove(key), raw_at, at);
-        }
-        for (key, record) in records {
-            let unchanged = self
-                .current
-                .get(&key)
-                .and_then(|index| self.timeline.changes.get(*index))
-                .is_some_and(
-                    |entry| matches!(&entry.change, Change::Set(previous) if *previous == record),
-                );
-            if !unchanged {
-                self.push(Change::Set(record), raw_at, at);
+    fn observe<T>(
+        &mut self,
+        raw_at: Duration,
+        at: Duration,
+        operation: impl FnOnce(&mut Store<'static>, &mut dyn FnMut(StoreChange<'_>)) -> T,
+    ) -> T {
+        let mut changes = Vec::new();
+        let result = operation(&mut self.store, &mut |change| {
+            if !self.limited
+                && let Some(change) = Change::from_store(change, self.scope)
+            {
+                changes.push(change);
             }
+        });
+        // Preserve key order within removals and sets, including at history limits.
+        changes.sort_unstable_by(|left, right| {
+            matches!(left, Change::Set(_))
+                .cmp(&matches!(right, Change::Set(_)))
+                .then_with(|| left.key().cmp(right.key()))
+        });
+        for change in changes {
+            self.push(change, raw_at, at);
         }
-    }
-
-    fn own(&self, record: StoredRecord<'_>) -> Record {
-        Record {
-            key: Key {
-                scope: self.scope,
-                id: record.id().map(|id| id.as_str().to_owned()),
-            },
-            state: record.state(),
-            app: record.app().map(|app| app.as_str().to_owned()),
-            effective_app: self
-                .store
-                .effective_app(record.id())
-                .map(|app| app.as_str().to_owned()),
-            title: record.title().map(str::to_owned),
-            message: record.message().map(str::to_owned),
-            kind: record.kind(),
-            progress: record.progress().map(osc7501_parser::Progress::get),
-        }
+        result
     }
 
     fn push(&mut self, change: Change, raw_at: Duration, at: Duration) {
-        let key = match &change {
-            Change::Set(record) => &record.key,
-            Change::Remove(key) => key,
-        };
+        let key = change.key();
         let text = key.id.as_ref().map_or(0, String::len)
             + match &change {
                 Change::Set(record) => [
