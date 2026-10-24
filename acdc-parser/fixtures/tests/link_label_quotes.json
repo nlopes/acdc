@@ -3149,11 +3149,6 @@
           ]
         }
       ],
-      "metadata": {
-        "attributes": {
-          "title": "One \\\"quote\\\" two"
-        }
-      },
       "location": [
         {
           "line": 63,
@@ -3569,19 +3564,19 @@
                   "width": "20"
                 }
               },
-              "title": [
+              "alt": [
                 {
                   "name": "text",
                   "type": "string",
                   "value": "Linked image",
                   "location": [
                     {
-                      "line": 1,
-                      "col": 1
+                      "line": 75,
+                      "col": 60
                     },
                     {
-                      "line": 1,
-                      "col": 56
+                      "line": 75,
+                      "col": 71
                     }
                   ]
                 }

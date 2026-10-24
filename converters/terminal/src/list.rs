@@ -79,16 +79,13 @@ fn style_suppresses_marker(style: Option<&str>) -> bool {
 
 impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     /// Render a title with italic styling.
-    ///
-    /// This helper function renders inline nodes to a buffer, converts to a string,
-    /// trims whitespace, and applies italic styling for terminal output.
     #[tracing::instrument(skip(self, traversal))]
     fn render_styled_title(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &[InlineNode],
+        title: &acdc_parser::Title<'_>,
     ) -> Result<(), Error> {
-        if !title.is_empty() {
+        if title.is_present() {
             let processor = self.processor;
             let buffer = Vec::new();
             let inner = BufWriter::new(buffer);
@@ -331,7 +328,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         list: &'a CalloutList<'a>,
     ) -> Result<(), Error> {
         self.render_styled_title(traversal, &list.title)?;
-        if !list.title.is_empty() {
+        if list.title.is_present() {
             writeln!(self.writer)?;
         }
 
@@ -371,7 +368,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     ) -> Result<(), Error> {
         let indent = self.processor.list_indent.get();
         self.render_styled_title(traversal, &list.title)?;
-        if indent == 0 || !list.title.is_empty() {
+        if indent == 0 || list.title.is_present() {
             writeln!(self.writer)?;
         }
 

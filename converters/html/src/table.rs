@@ -237,24 +237,25 @@ where
 fn render_table_caption<'a, V>(
     traversal: &mut TraversalContext<'a>,
     visitor: &mut V,
-    title: &[InlineNode],
+    title: &acdc_parser::Title<'_>,
     processor: &Processor<'_>,
     metadata: &BlockMetadata,
 ) -> Result<(), Error>
 where
     V: WritableVisitor<'a, Error = Error>,
 {
-    if !title.is_empty() {
+    if title.is_present() {
         let prefix = processor
             .caption_prefix(metadata, Some(CaptionKind::Table))
             .unwrap_or_default();
 
-        visitor.render_title_with_wrapper(
-            traversal,
-            title,
-            &format!("<caption class=\"title\">{prefix}"),
-            "</caption>\n",
-        )?;
+        write!(visitor.writer_mut(), "<caption class=\"title\">")?;
+        if let Some(content) = metadata.caption_content() {
+            visitor.visit_inline_nodes(traversal, content)?;
+        } else {
+            write!(visitor.writer_mut(), "{prefix}")?;
+        }
+        visitor.render_title_with_wrapper(traversal, title, "", "</caption>\n")?;
     }
     Ok(())
 }
@@ -408,7 +409,7 @@ pub(crate) fn render_table<'a, V>(
     visitor: &mut V,
     processor: &Processor<'_>,
     metadata: &BlockMetadata,
-    title: &[InlineNode],
+    title: &acdc_parser::Title<'_>,
 ) -> Result<(), Error>
 where
     V: WritableVisitor<'a, Error = Error>,

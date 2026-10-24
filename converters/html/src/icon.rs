@@ -1,67 +1,16 @@
 use std::fmt::Write as _;
-use std::io::{self, Write};
 
 use acdc_converters_core::{
     TraversalContext,
-    icon::{IconMode, alt as icon_alt, image_source as icon_image_source},
+    icon::{IconMode, alt as icon_alt, image_source},
 };
-use acdc_parser::{AttributeValue, ElementAttributes, ICON_SIZES, Icon, Source};
+use acdc_parser::{BlockMetadata, ElementAttributes, Icon};
 
-/// Check if a positional attribute exists (stored as key with `AttributeValue::None`).
-fn has_positional_attr(attrs: &ElementAttributes, name: &str) -> bool {
-    matches!(attrs.get(name), Some(AttributeValue::None))
-}
-
-/// Get the icon size from attributes (either named `size=...` or positional like `2x`).
-fn get_icon_size(attrs: &ElementAttributes) -> Option<String> {
-    // First check named attribute
-    if let Some(size) = attrs.get_string("size") {
-        return Some(size.into_owned());
-    }
-    // Then check for positional size values
-    for size in ICON_SIZES {
-        if has_positional_attr(attrs, size) {
-            return Some((*size).to_string());
-        }
-    }
-    None
-}
-
-/// Write an icon macro to HTML output.
-///
-/// Handles three icon modes:
-/// - Font mode (`icons=font`): Uses Font Awesome icons
-/// - Image mode (`icons` set but not "font"): Uses image files
-/// - Text mode (no `icons` attribute): Uses text placeholders
-pub(crate) fn write_icon<W: Write + ?Sized>(
-    w: &mut W,
-    document_attributes: &TraversalContext<'_>,
-    icon: &Icon,
-) -> io::Result<()> {
-    let target = &icon.target;
-    let attrs = &icon.attributes;
-
-    // Build span class with optional role
-    let span_class = match attrs.get_string("role") {
-        Some(role) => format!("icon {role}"),
-        None => "icon".to_string(),
-    };
-
-    match IconMode::from_attributes(document_attributes) {
-        IconMode::Font => {
-            write_font_icon(w, target, attrs, document_attributes, &span_class)?;
-        }
-        IconMode::Image => {
-            write_image_icon(w, document_attributes, target, attrs, &span_class)?;
-        }
-        IconMode::Text | _ => {
-            let alt = icon_alt(target, attrs);
-            write!(w, "<span class=\"{span_class}\">[{alt}]</span>")?;
-        }
-    }
-
-    Ok(())
-}
+use crate::{
+    Error, HtmlVisitor,
+    image::image_link_control_attributes,
+    inlines::{escape_attribute, tooltip_attribute},
+};
 
 /// Resolve a Font Awesome family value to a CSS class prefix.
 ///
@@ -106,85 +55,80 @@ fn get_fa_family(attrs: &ElementAttributes, doc_attrs: &TraversalContext<'_>) ->
     "fa-solid".to_string()
 }
 
-/// Write a font-based icon (Font Awesome).
-fn write_font_icon<W: Write + ?Sized>(
-    w: &mut W,
-    target: &Source,
-    attrs: &ElementAttributes,
-    doc_attrs: &TraversalContext<'_>,
-    span_class: &str,
-) -> io::Result<()> {
-    let family = get_fa_family(attrs, doc_attrs);
-    let mut classes = format!("{family} fa-{target}");
-
-    if let Some(size) = get_icon_size(attrs) {
-        let _ = write!(classes, " fa-{size}");
-    }
-
-    // flip takes precedence over rotate (matches asciidoctor behavior)
-    if let Some(flip) = attrs.get_string("flip") {
-        let _ = write!(classes, " fa-flip-{flip}");
-    } else if let Some(rotate) = attrs.get_string("rotate") {
-        let _ = write!(classes, " fa-rotate-{rotate}");
-    }
-
-    // Build title attribute
-    let title_attr = attrs
-        .get_string("title")
-        .map(|t| format!(" title=\"{t}\""))
-        .unwrap_or_default();
-
-    // Build the <i> element
-    let i_elem = format!("<i class=\"{classes}\"{title_attr}></i>");
-
-    // Wrap with link if present
-    let inner = wrap_icon_with_link(&i_elem, attrs);
-
-    write!(w, "<span class=\"{span_class}\">{inner}</span>")
-}
-
-/// Write an image-based icon.
-fn write_image_icon<W: Write + ?Sized>(
-    w: &mut W,
-    document_attributes: &TraversalContext<'_>,
-    target: &Source,
-    attrs: &ElementAttributes,
-    span_class: &str,
-) -> io::Result<()> {
-    let source = icon_image_source(document_attributes, target);
-    let alt = icon_alt(target, attrs);
-
-    // Build img attributes
-    let mut img_attrs = format!("src=\"{source}\" alt=\"{alt}\"");
-
-    if let Some(width) = attrs.get_string("width") {
-        let _ = write!(img_attrs, " width=\"{width}\"");
-    }
-
-    if let Some(title) = attrs.get_string("title") {
-        let _ = write!(img_attrs, " title=\"{title}\"");
-    }
-
-    // Build the <img> element
-    let img_elem = format!("<img {img_attrs}>");
-
-    // Wrap with link if present
-    let inner = wrap_icon_with_link(&img_elem, attrs);
-
-    write!(w, "<span class=\"{span_class}\">{inner}</span>")
-}
-
-/// Wrap icon content with a link if the `link` attribute is present.
-fn wrap_icon_with_link(content: &str, attrs: &ElementAttributes) -> String {
-    if let Some(link) = attrs.get_string("link") {
-        // HTML-escape ampersands in URLs for valid HTML
-        let escaped_link = link.replace('&', "&amp;");
-        let window_attrs = attrs
-            .get_string("window")
-            .map(|w| format!(" target=\"{w}\" rel=\"noopener\""))
-            .unwrap_or_default();
-        format!("<a class=\"image\" href=\"{escaped_link}\"{window_attrs}>{content}</a>")
-    } else {
-        content.to_string()
+impl<'a, W: std::io::Write> HtmlVisitor<'a, '_, W> {
+    pub(crate) fn icon_markup(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        icon: &Icon<'_>,
+    ) -> Result<String, Error> {
+        let attrs = &icon.attributes;
+        let mut class = String::from("icon");
+        for name in ["float", "role"] {
+            if let Some(value) = attrs.get_string(name) {
+                write!(class, " {value}")?;
+            }
+        }
+        let tooltip = tooltip_attribute(icon.tooltip.as_ref());
+        let mut inner = match IconMode::from_attributes(traversal) {
+            IconMode::Font => {
+                let mut classes = format!("{} fa-{}", get_fa_family(attrs, traversal), icon.target);
+                if let Some(size) = attrs.get_string("size") {
+                    write!(classes, " fa-{size}")?;
+                }
+                if let Some(flip) = attrs.get_string("flip") {
+                    write!(classes, " fa-flip-{flip}")?;
+                } else if let Some(rotate) = attrs.get_string("rotate") {
+                    write!(classes, " fa-rotate-{rotate}")?;
+                }
+                format!("<i class=\"{}\"{tooltip}></i>", escape_attribute(&classes))
+            }
+            IconMode::Image => {
+                let target = attrs.get_string("icon").map_or_else(
+                    || image_source(traversal, &icon.target),
+                    |value| acdc_converters_core::icon::custom_image_source(traversal, &value),
+                );
+                let source = self.image_uri(&target, traversal);
+                let alt = icon_alt(&icon.target, icon.alt.as_ref());
+                let mut dimensions = String::new();
+                for name in ["width", "height"] {
+                    if let Some(value) = attrs.get_string(name) {
+                        write!(dimensions, " {name}=\"{}\"", escape_attribute(&value))?;
+                    }
+                }
+                format!(
+                    "<img src=\"{}\" alt=\"{}\"{dimensions}{tooltip}>",
+                    escape_attribute(&source),
+                    escape_attribute(&alt)
+                )
+            }
+            IconMode::Text | _ => {
+                let alt = match &icon.alt {
+                    Some(content) => self.content_html(traversal, content)?,
+                    None => escape_attribute(&icon_alt(&icon.target, None)),
+                };
+                format!("[{alt}]")
+            }
+        };
+        if let Some(link) = attrs.get_string("link") {
+            let mut metadata = BlockMetadata::new().with_attributes(attrs.clone());
+            if let Some(options) = attrs.get_string("options") {
+                metadata.options = options.split(',').map(str::trim).collect();
+                let controls = image_link_control_attributes(&metadata);
+                inner = format!(
+                    "<a class=\"image\" href=\"{}\"{controls}>{inner}</a>",
+                    escape_attribute(&link)
+                );
+            } else {
+                let controls = image_link_control_attributes(&metadata);
+                inner = format!(
+                    "<a class=\"image\" href=\"{}\"{controls}>{inner}</a>",
+                    escape_attribute(&link)
+                );
+            }
+        }
+        Ok(format!(
+            "<span class=\"{}\">{inner}</span>",
+            escape_attribute(&class)
+        ))
     }
 }

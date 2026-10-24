@@ -23,7 +23,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         let class = escape_attribute(&build_class("audioblock", &audio.metadata.roles));
         writeln!(self.writer, " class=\"{class}\">")?;
 
-        if !audio.title.is_empty() {
+        if audio.title.is_present() {
             write!(self.writer, "<div class=\"title\">")?;
             self.visit_title(traversal, &audio.title)?;
             writeln!(self.writer, "</div>")?;
@@ -99,7 +99,7 @@ fn visit_audio_semantic<'a, W: Write>(
     audio: &Audio,
     visitor: &mut HtmlVisitor<'a, '_, W>,
 ) -> Result<(), Error> {
-    let has_title = !audio.title.is_empty();
+    let has_title = audio.title.is_present();
 
     let tag = if has_title { "figure" } else { "div" };
     let class = escape_attribute(&build_class("audio-block", &audio.metadata.roles));

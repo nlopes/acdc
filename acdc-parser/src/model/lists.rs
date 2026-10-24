@@ -166,7 +166,7 @@ impl Serialize for UnorderedList<'_> {
         state.serialize_entry("type", "block")?;
         state.serialize_entry("variant", "unordered")?;
         state.serialize_entry("marker", &self.marker)?;
-        if !self.title.is_empty() {
+        if self.title.is_present() {
             state.serialize_entry("title", &self.title)?;
         }
         if !self.metadata.is_default() {
@@ -188,7 +188,7 @@ impl Serialize for OrderedList<'_> {
         state.serialize_entry("type", "block")?;
         state.serialize_entry("variant", "ordered")?;
         state.serialize_entry("marker", &self.marker)?;
-        if !self.title.is_empty() {
+        if self.title.is_present() {
             state.serialize_entry("title", &self.title)?;
         }
         if !self.metadata.is_default() {
@@ -209,7 +209,7 @@ impl Serialize for CalloutList<'_> {
         state.serialize_entry("name", "list")?;
         state.serialize_entry("type", "block")?;
         state.serialize_entry("variant", "callout")?;
-        if !self.title.is_empty() {
+        if self.title.is_present() {
             state.serialize_entry("title", &self.title)?;
         }
         if !self.metadata.is_default() {
@@ -229,7 +229,7 @@ impl Serialize for DescriptionList<'_> {
         let mut state = serializer.serialize_map(None)?;
         state.serialize_entry("name", "dlist")?;
         state.serialize_entry("type", "block")?;
-        if !self.title.is_empty() {
+        if self.title.is_present() {
             state.serialize_entry("title", &self.title)?;
         }
         if !self.metadata.is_default() {

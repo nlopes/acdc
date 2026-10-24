@@ -27,7 +27,7 @@
         },
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Alice",
             "location": [
@@ -44,7 +44,7 @@
         ],
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Book",
             "location": [
@@ -60,12 +60,10 @@
           }
         ]
       },
-      "sources": [
-        {
-          "type": "path",
-          "value": "sample.mp4"
-        }
-      ],
+      "source": {
+        "type": "path",
+        "value": "sample.mp4"
+      },
       "location": [
         {
           "line": 2,
@@ -101,12 +99,10 @@
           "poster": "Alt"
         }
       },
-      "sources": [
-        {
-          "type": "path",
-          "value": "sample.mp4"
-        }
-      ],
+      "source": {
+        "type": "path",
+        "value": "sample.mp4"
+      },
       "location": [
         {
           "line": 6,
@@ -144,12 +140,10 @@
           "width": "300"
         }
       },
-      "sources": [
-        {
-          "type": "path",
-          "value": "sample.mp4"
-        }
-      ],
+      "source": {
+        "type": "path",
+        "value": "sample.mp4"
+      },
       "location": [
         {
           "line": 10,
@@ -187,12 +181,10 @@
           "width": "300"
         }
       },
-      "sources": [
-        {
-          "type": "path",
-          "value": "sample.mp4"
-        }
-      ],
+      "source": {
+        "type": "path",
+        "value": "sample.mp4"
+      },
       "location": [
         {
           "line": 14,
@@ -229,12 +221,10 @@
           "poster": "Alt"
         }
       },
-      "sources": [
-        {
-          "type": "path",
-          "value": "sample.mp4"
-        }
-      ],
+      "source": {
+        "type": "path",
+        "value": "sample.mp4"
+      },
       "location": [
         {
           "line": 18,
@@ -272,12 +262,10 @@
           "width": "500"
         }
       },
-      "sources": [
-        {
-          "type": "path",
-          "value": "sample.mp4"
-        }
-      ],
+      "source": {
+        "type": "path",
+        "value": "sample.mp4"
+      },
       "location": [
         {
           "line": 22,
@@ -315,12 +303,10 @@
           "width": "100"
         }
       },
-      "sources": [
-        {
-          "type": "path",
-          "value": "sample.mp4"
-        }
-      ],
+      "source": {
+        "type": "path",
+        "value": "sample.mp4"
+      },
       "location": [
         {
           "line": 26,
@@ -358,12 +344,10 @@
           "width": "300"
         }
       },
-      "sources": [
-        {
-          "type": "path",
-          "value": "sample.mp4"
-        }
-      ],
+      "source": {
+        "type": "path",
+        "value": "sample.mp4"
+      },
       "location": [
         {
           "line": 30,

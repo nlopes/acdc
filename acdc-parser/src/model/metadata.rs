@@ -39,8 +39,15 @@ pub struct BlockMetadata<'a> {
     /// Caption behavior resolved from the document attributes in effect at this block's
     /// source position, and the ordinal assigned to it. `None` means caller-built metadata
     /// or a block that takes no caption.
-    #[serde(skip)]
+    #[serde(
+        skip_serializing_if = "caption_has_no_content",
+        serialize_with = "serialize_caption_content"
+    )]
     pub caption: Option<Caption<'a>>,
+    #[serde(skip)]
+    pub(crate) alt_source: Option<Box<super::content_attribute::PendingContentAttribute<'a>>>,
+    #[serde(skip)]
+    pub(crate) caption_source: Option<Box<super::content_attribute::PendingContentAttribute<'a>>>,
     #[serde(default, skip_serializing_if = "ElementAttributes::is_empty")]
     pub attributes: ElementAttributes<'a>,
     /// Parser working slots, consumed as attributes are routed to their block context.
@@ -89,6 +96,8 @@ impl PartialEq for BlockMetadata<'_> {
         let Self {
             document_attributes,
             caption,
+            alt_source: _,
+            caption_source: _,
             attributes,
             positional_attributes: _,
             retained_positional_attributes: _,
@@ -129,6 +138,15 @@ impl PartialEq for BlockMetadata<'_> {
 }
 
 impl<'a> BlockMetadata<'a> {
+    /// Explicit caption content, independent of generated labels and counters.
+    #[must_use]
+    pub fn caption_content(&self) -> Option<&super::ContentAttribute<'a>> {
+        match &self.caption {
+            Some(Caption::CustomContent(content)) => Some(content),
+            _ => None,
+        }
+    }
+
     /// Create a new block metadata with default values.
     #[must_use]
     pub fn new() -> Self {
@@ -315,8 +333,8 @@ impl<'a> BlockMetadata<'a> {
     /// Whether this metadata serializes to nothing.
     ///
     /// This gates `skip_serializing_if` on every block's `metadata` field, so it covers only
-    /// the serialized fields. `caption` is deliberately excluded: it carries `#[serde(skip)]`,
-    /// so counting it would make a block emit an empty `metadata` object.
+    /// the serialized fields. Only authored caption content is serialized; generated
+    /// caption labels and ordinals do not make metadata nonempty.
     #[must_use]
     pub fn is_default(&self) -> bool {
         #[cfg(feature = "pre-spec-subs")]
@@ -331,6 +349,7 @@ impl<'a> BlockMetadata<'a> {
             && self.attributes.is_empty()
             && self.positional_attributes.is_empty()
             && subs_default
+            && caption_has_no_content(&self.caption)
             && self.attribution.is_none()
             && self.citetitle.is_none()
     }
@@ -372,6 +391,15 @@ impl<'a> BlockMetadata<'a> {
         if other.substitutions.is_some() {
             self.substitutions.clone_from(&other.substitutions);
         }
+        if other.alt_source.is_some() {
+            self.alt_source.clone_from(&other.alt_source);
+        }
+        if other.caption_source.is_some() {
+            self.caption_source.clone_from(&other.caption_source);
+        }
+        if other.caption.is_some() {
+            self.caption.clone_from(&other.caption);
+        }
         if other.attribution.is_some() {
             self.attribution.clone_from(&other.attribution);
             self.attribution_substitutions = other.attribution_substitutions;
@@ -392,5 +420,22 @@ fn overlay_positional_slots<'a>(
     }
     for (destination, attribute) in destination.iter_mut().zip(source) {
         destination.clone_from(attribute);
+    }
+}
+
+#[expect(clippy::ref_option, reason = "Serde passes a reference to the field")]
+fn caption_has_no_content(caption: &Option<Caption<'_>>) -> bool {
+    !matches!(caption, Some(Caption::CustomContent(_)))
+}
+
+#[expect(clippy::ref_option, reason = "Serde passes a reference to the field")]
+fn serialize_caption_content<S: serde::Serializer>(
+    caption: &Option<Caption<'_>>,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    if let Some(Caption::CustomContent(content)) = caption {
+        content.serialize(serializer)
+    } else {
+        serializer.serialize_none()
     }
 }

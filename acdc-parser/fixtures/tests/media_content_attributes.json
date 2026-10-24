@@ -1,0 +1,701 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Media content attributes",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 26
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 2,
+        "col": 17
+      }
+    ]
+  },
+  "attributes": {
+    "desc": "*Inserted*"
+  },
+  "blocks": [
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Caption independent of alternative text",
+          "location": [
+            {
+              "line": 5,
+              "col": 2
+            },
+            {
+              "line": 5,
+              "col": 40
+            }
+          ]
+        }
+      ],
+      "alt": [
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Block",
+              "location": [
+                {
+                  "line": 4,
+                  "col": 8
+                },
+                {
+                  "line": 4,
+                  "col": 12
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 4,
+              "col": 7
+            },
+            {
+              "line": 4,
+              "col": 13
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " description",
+          "location": [
+            {
+              "line": 4,
+              "col": 14
+            },
+            {
+              "line": 4,
+              "col": 25
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "photo.png"
+      },
+      "location": [
+        {
+          "line": 4,
+          "col": 1
+        },
+        {
+          "line": 6,
+          "col": 18
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "image",
+          "type": "inline",
+          "alt": [
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Inline",
+                  "location": [
+                    {
+                      "line": 8,
+                      "col": 18
+                    },
+                    {
+                      "line": 8,
+                      "col": 23
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 8,
+                  "col": 17
+                },
+                {
+                  "line": 8,
+                  "col": 24
+                }
+              ]
+            }
+          ],
+          "tooltip": [
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "emphasis",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Tooltip",
+                  "location": [
+                    {
+                      "line": 8,
+                      "col": 34
+                    },
+                    {
+                      "line": 8,
+                      "col": 40
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 8,
+                  "col": 33
+                },
+                {
+                  "line": 8,
+                  "col": 41
+                }
+              ]
+            }
+          ],
+          "target": {
+            "type": "path",
+            "value": "photo.png"
+          },
+          "location": [
+            {
+              "line": 8,
+              "col": 1
+            },
+            {
+              "line": 8,
+              "col": 43
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 8,
+          "col": 1
+        },
+        {
+          "line": 8,
+          "col": 43
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "image",
+          "type": "inline",
+          "alt": [],
+          "tooltip": [],
+          "target": {
+            "type": "path",
+            "value": "photo.png"
+          },
+          "location": [
+            {
+              "line": 10,
+              "col": 1
+            },
+            {
+              "line": 10,
+              "col": 32
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 10,
+          "col": 1
+        },
+        {
+          "line": 10,
+          "col": 32
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "image",
+          "type": "inline",
+          "alt": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "*Inserted*",
+              "location": [
+                {
+                  "line": 12,
+                  "col": 21
+                },
+                {
+                  "line": 12,
+                  "col": 26
+                }
+              ]
+            }
+          ],
+          "target": {
+            "type": "path",
+            "value": "photo.png"
+          },
+          "location": [
+            {
+              "line": 12,
+              "col": 1
+            },
+            {
+              "line": 12,
+              "col": 27
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 12,
+          "col": 1
+        },
+        {
+          "line": 12,
+          "col": 27
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "tooltip": [
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "emphasis",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Tip",
+                  "location": [
+                    {
+                      "line": 14,
+                      "col": 50
+                    },
+                    {
+                      "line": 14,
+                      "col": 52
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 14,
+                  "col": 49
+                },
+                {
+                  "line": 14,
+                  "col": 53
+                }
+              ]
+            }
+          ],
+          "name": "icon",
+          "type": "inline",
+          "alt": [
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Named",
+                  "location": [
+                    {
+                      "line": 14,
+                      "col": 34
+                    },
+                    {
+                      "line": 14,
+                      "col": 38
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 14,
+                  "col": 33
+                },
+                {
+                  "line": 14,
+                  "col": 39
+                }
+              ]
+            }
+          ],
+          "target": {
+            "type": "name",
+            "value": "heart"
+          },
+          "attributes": {
+            "float": "right",
+            "height": "24",
+            "link": "https://example.org",
+            "options": "nofollow,noopener",
+            "size": "Other",
+            "window": "preview"
+          },
+          "location": [
+            {
+              "line": 14,
+              "col": 1
+            },
+            {
+              "line": 14,
+              "col": 142
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 14,
+          "col": 1
+        },
+        {
+          "line": 14,
+          "col": 142
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "tooltip": [
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Link tip",
+                  "location": [
+                    {
+                      "line": 16,
+                      "col": 40
+                    },
+                    {
+                      "line": 16,
+                      "col": 47
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 16,
+                  "col": 39
+                },
+                {
+                  "line": 16,
+                  "col": 48
+                }
+              ]
+            }
+          ],
+          "name": "ref",
+          "type": "inline",
+          "variant": "link",
+          "target": {
+            "type": "url",
+            "value": "https://example.org"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Label",
+              "location": [
+                {
+                  "line": 16,
+                  "col": 26
+                },
+                {
+                  "line": 16,
+                  "col": 30
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 16,
+              "col": 1
+            },
+            {
+              "line": 16,
+              "col": 50
+            }
+          ],
+          "attributes": {}
+        }
+      ],
+      "location": [
+        {
+          "line": 16,
+          "col": 1
+        },
+        {
+          "line": 16,
+          "col": 50
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "tooltip": [
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "emphasis",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "URL tip",
+                  "location": [
+                    {
+                      "line": 18,
+                      "col": 33
+                    },
+                    {
+                      "line": 18,
+                      "col": 39
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 18,
+                  "col": 32
+                },
+                {
+                  "line": 18,
+                  "col": 40
+                }
+              ]
+            }
+          ],
+          "name": "ref",
+          "type": "inline",
+          "variant": "link",
+          "target": {
+            "type": "url",
+            "value": "https://example.org"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "URL",
+              "location": [
+                {
+                  "line": 18,
+                  "col": 21
+                },
+                {
+                  "line": 18,
+                  "col": 23
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 18,
+              "col": 1
+            },
+            {
+              "line": 18,
+              "col": 42
+            }
+          ],
+          "attributes": {}
+        }
+      ],
+      "location": [
+        {
+          "line": 18,
+          "col": 1
+        },
+        {
+          "line": 18,
+          "col": 42
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "tooltip": [
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Mail tip",
+                  "location": [
+                    {
+                      "line": 20,
+                      "col": 38
+                    },
+                    {
+                      "line": 20,
+                      "col": 45
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 20,
+                  "col": 37
+                },
+                {
+                  "line": 20,
+                  "col": 46
+                }
+              ]
+            }
+          ],
+          "name": "ref",
+          "type": "inline",
+          "variant": "mailto",
+          "target": {
+            "type": "url",
+            "value": "mailto:user@example.org"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Mail",
+              "location": [
+                {
+                  "line": 20,
+                  "col": 25
+                },
+                {
+                  "line": 20,
+                  "col": 28
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 20,
+              "col": 1
+            },
+            {
+              "line": 20,
+              "col": 48
+            }
+          ],
+          "attributes": {}
+        }
+      ],
+      "location": [
+        {
+          "line": 20,
+          "col": 1
+        },
+        {
+          "line": 20,
+          "col": 48
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 20,
+      "col": 48
+    }
+  ]
+}

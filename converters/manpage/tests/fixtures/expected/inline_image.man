@@ -54,4 +54,6 @@ A linked inline image without alt text: \c
 .sp
 \fBFigure 2. A linked block image\fR
 .br
-.URL "https://example.com/architecture" "[System architecture]" ""
+\c
+.URL "https://example.com/architecture" "[System architecture]" "\fR\c"
+.br

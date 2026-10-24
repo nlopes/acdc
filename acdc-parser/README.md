@@ -1,9 +1,8 @@
 # acdc-parser
 
 AsciiDoc parser written in Rust. It parses source into an abstract syntax tree
-(AST), collects warnings, and can serialize the result as JSON based on the draft
-AsciiDoc Abstract Semantic Graph (ASG). Includes, conditionals, and document
-attributes are processed before block and inline parsing.
+(AST), collects warnings, and serializes the native AST as JSON. Includes,
+conditionals, and document attributes are processed before block and inline parsing.
 
 The implementation here follows from:
 
@@ -45,6 +44,39 @@ and recovered content. See [Source text and diagnostics](#source-text-and-diagno
 
 With `pre-spec-subs` disabled, explicit `subs=` settings are ignored with a
 source-recovery warning. Inline attribute substitution remains available.
+
+## Native AST JSON
+
+Native JSON preserves acdc's model; it is not a claim of ASG conformance.
+
+## Migrating from 0.11
+
+- `InlineMacro::Image` contains `InlineImage`; `Image` represents block images.
+  Both expose `alt: Option<ContentAttribute>`. Inline images and icons also expose
+  `tooltip: Option<ContentAttribute>`, as do links, URLs, and mailto macros.
+  `None` means absent; `Some(ContentAttribute::default())` means explicitly empty.
+  Alternative content is independent of caption titles. Filename defaults belong
+  to converters. Native JSON uses inline arrays for these fields and removes the
+  corresponding consumed metadata attributes.
+- Button labels, menu targets/items, and keyboard keys contain `ContentAttribute`
+  values. Iterate their inline nodes; retain the outer menu/key sequence.
+  Authored `caption=` content uses `Caption::CustomContent`; use
+  `BlockMetadata::caption_content()` to read it. Generated caption labels and
+  counters remain separate enum variants and are omitted from native JSON.
+- `Video::source` replaces `Video::sources`, including in native JSON and
+  `Video::new`. It preserves the complete target. Interpret commas only for a
+  provider that supports playlists. The `poster` attribute retains `youtube` or
+  `vimeo`; synthetic boolean provider attributes are no longer generated.
+- `InlineMacro::Link`, `Url`, and `Mailto` now contain boxed structs, keeping richer
+  attributes from increasing the memory used by ordinary inline nodes.
+- `Title::default()` means absent. `Title::new(Vec::new())` means present but
+  empty. Use `is_present()` for captions and `is_empty()` for inline content.
+  Native JSON omits absent block titles and writes present empty titles as `[]`.
+- Read named titles through `title`, rather than `metadata.attributes["title"]`.
+  Titles, attributions, and citation titles serialize only their parsed inline
+  content. Replacing or removing content cannot leave an old attribute value.
+- `Attribution` and `CiteTitle` are aliases of `ContentAttribute`. Existing
+  constructors and slice access remain available.
 
 ## Migrating from 0.10
 

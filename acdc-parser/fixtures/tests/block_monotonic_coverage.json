@@ -302,7 +302,7 @@
         "style": "quote",
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Author",
             "location": [
@@ -371,7 +371,7 @@
         "style": "verse",
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Poet",
             "location": [
@@ -1120,12 +1120,10 @@
       "name": "video",
       "type": "block",
       "form": "macro",
-      "sources": [
-        {
-          "type": "path",
-          "value": "video.mp4"
-        }
-      ],
+      "source": {
+        "type": "path",
+        "value": "video.mp4"
+      },
       "location": [
         {
           "line": 66,

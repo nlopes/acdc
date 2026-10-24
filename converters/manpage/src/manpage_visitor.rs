@@ -151,7 +151,7 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
     pub(crate) fn render_title_inlines(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &[InlineNode<'_>],
+        title: &acdc_parser::Title<'_>,
     ) -> Result<(), Error> {
         // Titles use collapsed whitespace; their bodies retain authored spacing.
         let previous = replace(&mut self.text_escape_mode, EscapeMode::Collapse);
@@ -164,10 +164,10 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
     pub(crate) fn render_captioned_title(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &[InlineNode<'_>],
+        title: &acdc_parser::Title<'_>,
         metadata: &BlockMetadata<'_>,
     ) -> Result<(), Error> {
-        if title.is_empty() {
+        if !title.is_present() {
             return Ok(());
         }
 
@@ -181,7 +181,9 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
             Some(_) | None => None,
         };
         self.render_font("\\fB", false, |visitor| {
-            if let Some(prefix) = prefix {
+            if let Some(content) = metadata.caption_content() {
+                visitor.visit_inline_nodes(traversal, content)?;
+            } else if let Some(prefix) = prefix {
                 write!(
                     visitor.writer_mut(),
                     "{}",

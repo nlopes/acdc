@@ -58,12 +58,10 @@
           "name": "video",
           "type": "block",
           "form": "macro",
-          "sources": [
-            {
-              "type": "path",
-              "value": "basic.mp4"
-            }
-          ],
+          "source": {
+            "type": "path",
+            "value": "basic.mp4"
+          },
           "location": [
             {
               "line": 5,
@@ -119,12 +117,10 @@
               "width": "640"
             }
           },
-          "sources": [
-            {
-              "type": "path",
-              "value": "demo.mp4"
-            }
-          ],
+          "source": {
+            "type": "path",
+            "value": "demo.mp4"
+          },
           "location": [
             {
               "line": 9,
@@ -180,12 +176,10 @@
               "start": "10"
             }
           },
-          "sources": [
-            {
-              "type": "path",
-              "value": "demo.mp4"
-            }
-          ],
+          "source": {
+            "type": "path",
+            "value": "demo.mp4"
+          },
           "location": [
             {
               "line": 13,
@@ -240,12 +234,10 @@
               "poster": "thumbnail.jpg"
             }
           },
-          "sources": [
-            {
-              "type": "path",
-              "value": "demo.mp4"
-            }
-          ],
+          "source": {
+            "type": "path",
+            "value": "demo.mp4"
+          },
           "location": [
             {
               "line": 17,
@@ -300,12 +292,10 @@
               "preload": "auto"
             }
           },
-          "sources": [
-            {
-              "type": "path",
-              "value": "test.mp4"
-            }
-          ],
+          "source": {
+            "type": "path",
+            "value": "test.mp4"
+          },
           "location": [
             {
               "line": 21,
@@ -360,12 +350,10 @@
               "lang": "en-US"
             }
           },
-          "sources": [
-            {
-              "type": "path",
-              "value": "demo.mp4"
-            }
-          ],
+          "source": {
+            "type": "path",
+            "value": "demo.mp4"
+          },
           "location": [
             {
               "line": 25,
@@ -438,12 +426,10 @@
               ]
             }
           ],
-          "sources": [
-            {
-              "type": "path",
-              "value": "demo.mp4"
-            }
-          ],
+          "source": {
+            "type": "path",
+            "value": "demo.mp4"
+          },
           "location": [
             {
               "line": 29,
@@ -510,12 +496,10 @@
               }
             ]
           },
-          "sources": [
-            {
-              "type": "path",
-              "value": "id-test.mp4"
-            }
-          ],
+          "source": {
+            "type": "path",
+            "value": "id-test.mp4"
+          },
           "location": [
             {
               "line": 34,
@@ -598,12 +582,10 @@
               ]
             }
           ],
-          "sources": [
-            {
-              "type": "path",
-              "value": "demo.mp4"
-            }
-          ],
+          "source": {
+            "type": "path",
+            "value": "demo.mp4"
+          },
           "location": [
             {
               "line": 39,
@@ -655,15 +637,13 @@
           "form": "macro",
           "metadata": {
             "attributes": {
-              "youtube": true
+              "poster": "youtube"
             }
           },
-          "sources": [
-            {
-              "type": "name",
-              "value": "rPQoq7ThGAU"
-            }
-          ],
+          "source": {
+            "type": "name",
+            "value": "rPQoq7ThGAU"
+          },
           "location": [
             {
               "line": 44,
@@ -716,16 +696,14 @@
           "metadata": {
             "attributes": {
               "height": "480",
-              "width": "640",
-              "youtube": true
+              "poster": "youtube",
+              "width": "640"
             }
           },
-          "sources": [
-            {
-              "type": "name",
-              "value": "rPQoq7ThGAU"
-            }
-          ],
+          "source": {
+            "type": "name",
+            "value": "rPQoq7ThGAU"
+          },
           "location": [
             {
               "line": 48,
@@ -778,17 +756,15 @@
           "metadata": {
             "attributes": {
               "end": "120",
+              "poster": "youtube",
               "start": "60",
-              "theme": "light",
-              "youtube": true
+              "theme": "light"
             }
           },
-          "sources": [
-            {
-              "type": "name",
-              "value": "rPQoq7ThGAU"
-            }
-          ],
+          "source": {
+            "type": "name",
+            "value": "rPQoq7ThGAU"
+          },
           "location": [
             {
               "line": 52,
@@ -840,7 +816,7 @@
           "form": "macro",
           "metadata": {
             "attributes": {
-              "youtube": true
+              "poster": "youtube"
             },
             "options": [
               "autoplay",
@@ -848,12 +824,10 @@
               "muted"
             ]
           },
-          "sources": [
-            {
-              "type": "name",
-              "value": "rPQoq7ThGAU"
-            }
-          ],
+          "source": {
+            "type": "name",
+            "value": "rPQoq7ThGAU"
+          },
           "location": [
             {
               "line": 56,
@@ -905,15 +879,13 @@
           "form": "macro",
           "metadata": {
             "attributes": {
-              "vimeo": true
+              "poster": "vimeo"
             }
           },
-          "sources": [
-            {
-              "type": "name",
-              "value": "67480300"
-            }
-          ],
+          "source": {
+            "type": "name",
+            "value": "67480300"
+          },
           "location": [
             {
               "line": 60,
@@ -966,16 +938,14 @@
           "metadata": {
             "attributes": {
               "height": "480",
-              "vimeo": true,
+              "poster": "vimeo",
               "width": "640"
             }
           },
-          "sources": [
-            {
-              "type": "name",
-              "value": "67480300"
-            }
-          ],
+          "source": {
+            "type": "name",
+            "value": "67480300"
+          },
           "location": [
             {
               "line": 64,
@@ -1027,7 +997,7 @@
           "form": "macro",
           "metadata": {
             "attributes": {
-              "vimeo": true
+              "poster": "vimeo"
             },
             "options": [
               "autoplay",
@@ -1035,12 +1005,10 @@
               "muted"
             ]
           },
-          "sources": [
-            {
-              "type": "name",
-              "value": "67480300"
-            }
-          ],
+          "source": {
+            "type": "name",
+            "value": "67480300"
+          },
           "location": [
             {
               "line": 68,

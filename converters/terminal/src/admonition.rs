@@ -58,6 +58,15 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
             .ok_or(Error::InvalidAdmonitionCaption(caption_attr.to_string()))?
             .to_string();
 
+        let caption = if let Some(content) = admon.metadata.caption_content() {
+            let mut visitor =
+                TerminalVisitor::new(Vec::new(), processor, self.diagnostics.reborrow());
+            visitor.visit_inline_nodes(traversal, content)?;
+            String::from_utf8(visitor.into_writer())?
+        } else {
+            caption
+        };
+
         // Border character based on terminal capabilities
         let border = if processor.appearance.capabilities.unicode {
             "│"
@@ -76,9 +85,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         QueueableCommand::queue(w, PrintStyledContent(styled_caption))?;
 
         // Title on same line if present
-        if admon.title.is_empty() {
-            writeln!(w)?;
-        } else {
+        if admon.title.is_present() {
             write!(w, " ")?;
             let mut title_buffer = Vec::new();
             let title_processor = processor;
@@ -92,6 +99,8 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
             let title_text = String::from_utf8_lossy(&title_buffer);
             let w = self.writer_mut();
             writeln!(w, "{}", title_text.trim())?;
+        } else {
+            writeln!(w)?;
         }
 
         // Render content blocks with left border

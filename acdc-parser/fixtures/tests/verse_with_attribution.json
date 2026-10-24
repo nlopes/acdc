@@ -11,7 +11,7 @@
         "style": "verse",
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Carl Sandburg",
             "location": [
@@ -28,7 +28,7 @@
         ],
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Fog",
             "location": [

@@ -369,11 +369,27 @@
           "form": "macro",
           "metadata": {
             "attributes": {
-              "alt": "A photo",
               "height": "300",
               "width": "400"
             }
           },
+          "alt": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "A photo",
+              "location": [
+                {
+                  "line": 27,
+                  "col": 23
+                },
+                {
+                  "line": 27,
+                  "col": 29
+                }
+              ]
+            }
+          ],
           "source": {
             "type": "path",
             "value": "photo.png"

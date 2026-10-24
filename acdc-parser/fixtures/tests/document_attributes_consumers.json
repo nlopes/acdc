@@ -52,9 +52,6 @@
       "type": "block",
       "form": "macro",
       "metadata": {
-        "attributes": {
-          "alt": "Before"
-        },
         "anchors": [
           {
             "id": "probe-converter-before",
@@ -71,6 +68,23 @@
           }
         ]
       },
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Before",
+          "location": [
+            {
+              "line": 18,
+              "col": 19
+            },
+            {
+              "line": 18,
+              "col": 24
+            }
+          ]
+        }
+      ],
       "source": {
         "type": "path",
         "value": "before.png"
@@ -211,9 +225,6 @@
       "type": "block",
       "form": "macro",
       "metadata": {
-        "attributes": {
-          "alt": "After"
-        },
         "anchors": [
           {
             "id": "probe-converter-after",
@@ -230,6 +241,23 @@
           }
         ]
       },
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "After",
+          "location": [
+            {
+              "line": 30,
+              "col": 18
+            },
+            {
+              "line": 30,
+              "col": 22
+            }
+          ]
+        }
+      ],
       "source": {
         "type": "path",
         "value": "after.png"

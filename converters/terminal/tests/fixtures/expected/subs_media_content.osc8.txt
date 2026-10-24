@@ -1,0 +1,4 @@
+[1m[4mSubstitutions in media content[0m
+[Image: *Literal*] [Icon: *Literal*] [38;5;15m[1m[*Literal*][0m
+[Image: [1mExpanded[22m]
+[Image: *Expanded*]

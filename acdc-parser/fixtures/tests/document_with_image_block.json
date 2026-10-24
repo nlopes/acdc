@@ -8,7 +8,6 @@
       "form": "macro",
       "metadata": {
         "attributes": {
-          "alt": "Sunset",
           "height": "400",
           "width": "300"
         }
@@ -74,6 +73,23 @@
             {
               "line": 1,
               "col": 21
+            }
+          ]
+        }
+      ],
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Sunset",
+          "location": [
+            {
+              "line": 2,
+              "col": 23
+            },
+            {
+              "line": 2,
+              "col": 28
             }
           ]
         }

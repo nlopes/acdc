@@ -256,7 +256,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         Ok(())
     }
 
-    fn with_link_label(
+    pub(crate) fn with_link_label(
         &mut self,
         target: String,
         mailto: bool,
@@ -793,44 +793,38 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     ) -> Result<(), Error> {
         match macro_node {
             InlineMacro::Image(img) => {
-                self.render_inline_image(img)?;
+                self.render_inline_image(traversal, img)?;
             }
 
             InlineMacro::Icon(icon) => {
-                let alt = acdc_converters_core::icon::alt(&icon.target, &icon.attributes);
-                let alt = manify(&alt, EscapeMode::Collapse);
-                write!(self.writer_mut(), "[{alt}]")?;
+                let fallback = acdc_converters_core::icon::alt(&icon.target, None);
+                self.render_media_label(
+                    traversal,
+                    icon.alt.as_ref(),
+                    &fallback,
+                    icon.attributes.get_string("link").as_deref(),
+                    true,
+                )?;
             }
 
             InlineMacro::Keyboard(kbd) => {
-                // Keyboard shortcut - render as bold
-                let w = self.writer_mut();
-                write!(w, "\\fB")?;
-                for (i, key) in kbd.keys.iter().enumerate() {
-                    if i > 0 {
-                        write!(w, "+")?;
+                for (index, key) in kbd.keys.iter().enumerate() {
+                    if index > 0 {
+                        write!(self.writer_mut(), "+")?;
                     }
-                    let key = manify(key, EscapeMode::Collapse);
-                    write!(w, "{key}")?;
+                    self.render_font_inlines(traversal, key, "\\fB")?;
                 }
-                write!(w, "\\fP")?;
             }
-
             InlineMacro::Button(btn) => {
-                // Button - render in brackets
-                let label = manify(btn.label, EscapeMode::Collapse);
-                let w = self.writer_mut();
-                write!(w, "[\\fB{label}\\fP]")?;
+                write!(self.writer_mut(), "[")?;
+                self.render_font_inlines(traversal, &btn.label, "\\fB")?;
+                write!(self.writer_mut(), "]")?;
             }
-
             InlineMacro::Menu(menu) => {
-                // Menu - render target and items with arrows between them
-                let target = manify(menu.target, EscapeMode::Collapse);
-                let w = self.writer_mut();
-                write!(w, "\\fB{target}\\fP")?;
+                self.render_font_inlines(traversal, &menu.target, "\\fB")?;
                 for item in &menu.items {
-                    let item = manify(item, EscapeMode::Collapse);
-                    write!(w, " \\(ra \\fB{item}\\fP")?;
+                    write!(self.writer_mut(), " \\(ra ")?;
+                    self.render_font_inlines(traversal, item, "\\fB")?;
                 }
             }
 

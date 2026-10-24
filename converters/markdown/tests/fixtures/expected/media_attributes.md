@@ -49,7 +49,7 @@ Empty slots: <img src="sample.svg" alt="sample" width="40" height="20"> and <img
 
 [Video: Playlist title](https://www.youtube.com/watch?v=abc&t=5&end=12&list=PL123)
 
-[Video: abc](https://www.youtube.com/watch?v=abc&playlist=abc,def,ghi)
+[Video: abc,def,ghi](https://www.youtube.com/watch?v=abc&playlist=abc,def,ghi)
 
 [Video: secret](https://vimeo.com/12345/secret#t=5)
 

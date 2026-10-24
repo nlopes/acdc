@@ -25,7 +25,9 @@ use acdc_converters_core::substitutions::SubsFlags;
 use acdc_converters_core::{
     BackendProfile, Converter, Diagnostics, InlineTextTransform, Options, PrettyDuration,
     TraversalContext, Warning, document_attribute_text,
-    icon::{IconMode, image_source as icon_image_source},
+    icon::{
+        IconMode, custom_image_source as admonition_icon_source, image_source as icon_image_source,
+    },
     media::resolve_target,
     toc::Config as TocConfig,
     visitor::Visitor,
@@ -527,7 +529,7 @@ impl Processor<'_> {
         if preparation.has_autofit_blocks {
             write_autofit_helper(&mut visitor.writer, config.theme);
         }
-        if preparation.admonition_image_icon_count > 0 {
+        if preparation.needs_admonition_label_helper {
             write_admonition_image_helper(&mut visitor.writer, config.theme);
         }
         visitor.visit_document(&mut traversal, doc)?;
@@ -1299,6 +1301,10 @@ fn collect_pdf_preparation(doc: &Document<'_>) -> PdfPreparation {
 }
 
 #[derive(Default)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "Independent document features select emitted helpers"
+)]
 struct PdfPreparation {
     image_urls: BTreeSet<String>,
     ordinary_image_locations: HashMap<String, Location>,
@@ -1307,7 +1313,7 @@ struct PdfPreparation {
     has_index_terms: bool,
     has_unbreakable_blocks: bool,
     has_autofit_blocks: bool,
-    admonition_image_icon_count: usize,
+    needs_admonition_label_helper: bool,
     populated_index_sections: HashSet<String>,
 }
 
@@ -1320,40 +1326,6 @@ struct ImageIconReference {
 struct UnsupportedFontIcon {
     name: String,
     location: Location,
-}
-
-pub(crate) fn admonition_icon_source(attributes: &TraversalContext<'_>, target: &str) -> String {
-    let target = if Path::new(target.split(['?', '#']).next().unwrap_or(target))
-        .extension()
-        .is_some()
-    {
-        Cow::Borrowed(target)
-    } else {
-        let extension = document_attribute_text((attributes).get("icontype"))
-            .or_else(|| {
-                document_attribute_text((attributes).get("icons"))
-                    .filter(|value| !value.is_empty() && *value != "image" && *value != "font")
-            })
-            .unwrap_or("png");
-        Cow::Owned(format!("{target}.{}", extension.trim_start_matches('.')))
-    };
-    if target.starts_with('/') || target.contains("://") {
-        return target.into_owned();
-    }
-    let directory = document_attribute_text((attributes).get("iconsdir")).map_or_else(
-        || {
-            document_attribute_text((attributes).get("imagesdir")).map_or_else(
-                || "./images/icons".to_string(),
-                |imagesdir| format!("{}/icons", imagesdir.trim_end_matches(['/', '\\'])),
-            )
-        },
-        |iconsdir| iconsdir.trim_end_matches(['/', '\\']).to_string(),
-    );
-    if directory.is_empty() {
-        target.into_owned()
-    } else {
-        format!("{directory}/{target}")
-    }
 }
 
 impl PdfPreparation {
@@ -1422,6 +1394,9 @@ impl<'doc> Visitor<'doc> for PreparationVisitor {
             }
             Block::Image(image) => {
                 collect_inline_preparation(&image.title, traversal, preparation);
+                if let Some(alt) = &image.alt {
+                    collect_inline_preparation(alt, traversal, preparation);
+                }
                 preparation.insert_image(
                     resolve_target(&image.source.to_string(), traversal),
                     &image.location,
@@ -1430,11 +1405,14 @@ impl<'doc> Visitor<'doc> for PreparationVisitor {
             Block::Audio(audio) => collect_inline_preparation(&audio.title, traversal, preparation),
             Block::Video(video) => {
                 collect_inline_preparation(&video.title, traversal, preparation);
-                if let Some(poster) = video
-                    .metadata
-                    .attributes
-                    .get_string("poster")
-                    .filter(|poster| !poster.is_empty())
+                if let Some(poster) =
+                    video
+                        .metadata
+                        .attributes
+                        .get_string("poster")
+                        .filter(|poster| {
+                            !poster.is_empty() && !matches!(poster.as_ref(), "youtube" | "vimeo")
+                        })
                 {
                     preparation.insert_image(resolve_target(&poster, traversal), &video.location);
                 }
@@ -1486,6 +1464,7 @@ fn collect_admonition_preparation<'a>(
     preparation: &mut PdfPreparation,
 ) {
     preparation.has_unbreakable_blocks |= admonition.metadata.options.contains(&"unbreakable");
+    preparation.needs_admonition_label_helper |= admonition.metadata.caption_content().is_some();
     if IconMode::from_attributes(attributes) != IconMode::Text
         && let Some(icon) = admonition
             .metadata
@@ -1493,7 +1472,7 @@ fn collect_admonition_preparation<'a>(
             .get_string("icon")
             .filter(|icon| !icon.is_empty())
     {
-        preparation.admonition_image_icon_count += 1;
+        preparation.needs_admonition_label_helper = true;
         preparation.insert_named_image_icon(
             admonition_icon_source(attributes, &icon),
             icon.into_owned(),
@@ -1565,6 +1544,9 @@ fn collect_metadata_preparation(
     attributes: &TraversalContext<'_>,
     preparation: &mut PdfPreparation,
 ) {
+    if let Some(caption) = metadata.caption_content() {
+        collect_inline_preparation(caption, attributes, preparation);
+    }
     if let Some(attribution) = &metadata.attribution {
         collect_inline_preparation(attribution, attributes, preparation);
     }
@@ -1579,6 +1561,11 @@ fn collect_inline_preparation(
     preparation: &mut PdfPreparation,
 ) {
     for node in nodes {
+        if let InlineNode::Macro(value) = node {
+            value.for_each_content_attribute(|content| {
+                collect_inline_preparation(content, attributes, preparation);
+            });
+        }
         match node {
             InlineNode::BoldText(text) => {
                 collect_inline_preparation(&text.content, attributes, preparation);
@@ -1613,7 +1600,12 @@ fn collect_inline_preparation(
             InlineNode::Macro(InlineMacro::Icon(icon)) => {
                 match IconMode::from_attributes(attributes) {
                     IconMode::Image => preparation.insert_image_icon(
-                        icon_image_source(attributes, &icon.target),
+                        icon.attributes.get_string("icon").map_or_else(
+                            || icon_image_source(attributes, &icon.target),
+                            |value| {
+                                acdc_converters_core::icon::custom_image_source(attributes, &value)
+                            },
+                        ),
                         &icon.target,
                         &icon.location,
                     ),
@@ -2980,14 +2972,16 @@ mod tests {
         let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
 
         for (target, kind) in [
-            ("media/clips/demo%20clip.mp4", "video"),
-            ("media/clips/demo%20clip.webm", "video"),
+            (
+                "media/clips/demo%20clip.mp4,clips/demo%20clip.webm",
+                "video",
+            ),
             ("https://media.example.test/demo%20clip.mp4", "video"),
             (
-                "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+                "https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=10&end=20",
                 "YouTube video",
             ),
-            ("https://vimeo.com/76979871", "Vimeo video"),
+            ("https://vimeo.com/76979871#t=10", "Vimeo video"),
         ] {
             assert!(
                 typst.contains(&format!(
@@ -2996,8 +2990,6 @@ mod tests {
                 "missing {target} in generated Typst",
             );
         }
-        assert!(!typst.contains("#t="));
-        assert!(!typst.contains("&t=10"));
         assert!(typst.contains("#imagecaption[#text(\"Local formats\")]"));
         assert_eq!(warnings.len(), 1);
         assert_eq!(
@@ -3013,10 +3005,9 @@ mod tests {
             external_link_targets(&pdf),
             [
                 "https://media.example.test/demo%20clip.mp4".to_string(),
-                "https://vimeo.com/76979871".to_string(),
-                "https://www.youtube.com/watch?v=dQw4w9WgXcQ".to_string(),
-                "media/clips/demo%20clip.mp4".to_string(),
-                "media/clips/demo%20clip.webm".to_string(),
+                "https://vimeo.com/76979871#t=10".to_string(),
+                "https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=10&end=20".to_string(),
+                "media/clips/demo%20clip.mp4,clips/demo%20clip.webm".to_string(),
             ]
         );
         Ok(())

@@ -41,7 +41,7 @@
         "style": "quote",
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Original Author",
             "location": [
@@ -58,7 +58,7 @@
         ],
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Named Citation",
             "location": [
@@ -127,7 +127,7 @@
         "style": "quote",
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Replacement Author",
             "location": [
@@ -144,7 +144,7 @@
         ],
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Original Citation",
             "location": [
@@ -213,7 +213,7 @@
         "style": "verse",
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Replacement Poet",
             "location": [
@@ -230,7 +230,7 @@
         ],
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Replacement Poem",
             "location": [
@@ -335,11 +335,27 @@
       "form": "macro",
       "metadata": {
         "attributes": {
-          "alt": "Inner",
           "height": "333",
           "width": "222"
         }
       },
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Inner",
+          "location": [
+            {
+              "line": 28,
+              "col": 18
+            },
+            {
+              "line": 28,
+              "col": 22
+            }
+          ]
+        }
+      ],
       "source": {
         "type": "path",
         "value": "photo.png"

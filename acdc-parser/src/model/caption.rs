@@ -31,6 +31,8 @@ pub enum Caption<'a> {
     },
     /// An explicit prefix, which takes no ordinal.
     Custom(Cow<'a, str>),
+    /// An explicitly authored caption prefix with parsed inline content.
+    CustomContent(super::ContentAttribute<'a>),
     /// Caption-capable, but no prefix applies.
     Unnumbered,
 }
@@ -206,6 +208,12 @@ impl<'a> Caption<'a> {
         attributes: &DocumentAttributes<'a>,
         kind: CaptionKind,
     ) -> Self {
+        if let Some(caption @ Self::CustomContent(_)) = &metadata.caption {
+            if kind == CaptionKind::Example && metadata.options.contains(&"collapsible") {
+                return Self::Custom(Cow::Borrowed(""));
+            }
+            return caption.clone();
+        }
         match caption_source(metadata, attributes, kind) {
             CaptionSource::Custom(value) => Self::Custom(borrowed_label(value)),
             CaptionSource::Numbered(value) => Self::Numbered {

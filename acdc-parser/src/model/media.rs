@@ -7,7 +7,7 @@ use serde::{
     ser::{SerializeMap, Serializer},
 };
 
-use crate::{Error, SourceLocation};
+use crate::{ContentAttribute, Error, SourceLocation};
 
 use super::location::{Location, Position};
 use super::metadata::BlockMetadata;
@@ -239,52 +239,13 @@ impl<'a> Audio<'a> {
 #[non_exhaustive]
 pub struct Video<'a> {
     pub title: Title<'a>,
-    pub sources: Vec<Source<'a>>,
-    pub metadata: BlockMetadata<'a>,
-    pub location: Location,
-}
-
-impl<'a> Video<'a> {
-    /// Create a new video with the given sources and location.
-    #[must_use]
-    pub fn new(sources: Vec<Source<'a>>, location: Location) -> Self {
-        Self {
-            title: Title::default(),
-            sources,
-            metadata: BlockMetadata::default(),
-            location,
-        }
-    }
-
-    /// Set the title.
-    #[must_use]
-    pub fn with_title(mut self, title: Title<'a>) -> Self {
-        self.title = title;
-        self
-    }
-
-    /// Set the metadata.
-    #[must_use]
-    pub fn with_metadata(mut self, metadata: BlockMetadata<'a>) -> Self {
-        self.metadata = metadata;
-        self
-    }
-}
-
-/// A block or inline image.
-#[derive(Clone, Debug, PartialEq)]
-#[non_exhaustive]
-pub struct Image<'a> {
-    /// The block caption title, or the explicit alt text of an inline image.
-    /// An inline image's `title=` tooltip is in [`Self::metadata`]'s attributes.
-    pub title: Title<'a>,
     pub source: Source<'a>,
     pub metadata: BlockMetadata<'a>,
     pub location: Location,
 }
 
-impl<'a> Image<'a> {
-    /// Create a new image with the given source and location.
+impl<'a> Video<'a> {
+    /// Create a new video with the given source and location.
     #[must_use]
     pub fn new(source: Source<'a>, location: Location) -> Self {
         Self {
@@ -310,6 +271,74 @@ impl<'a> Image<'a> {
     }
 }
 
+/// A block image with an optional caption title.
+#[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
+pub struct Image<'a> {
+    /// Explicit alternative content. `None` selects the filename fallback.
+    pub alt: Option<ContentAttribute<'a>>,
+    /// The block caption title, independent of alternative text.
+    pub title: Title<'a>,
+    pub source: Source<'a>,
+    pub metadata: BlockMetadata<'a>,
+    pub location: Location,
+}
+
+impl<'a> Image<'a> {
+    /// Create a new image with the given source and location.
+    #[must_use]
+    pub fn new(source: Source<'a>, location: Location) -> Self {
+        Self {
+            title: Title::default(),
+            alt: None,
+            source,
+            metadata: BlockMetadata::default(),
+            location,
+        }
+    }
+
+    /// Set the title.
+    #[must_use]
+    pub fn with_title(mut self, title: Title<'a>) -> Self {
+        self.title = title;
+        self
+    }
+
+    /// Set the metadata.
+    #[must_use]
+    pub fn with_metadata(mut self, metadata: BlockMetadata<'a>) -> Self {
+        self.metadata = metadata;
+        self
+    }
+}
+
+/// An inline image with distinct alternative text and hover text.
+#[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
+pub struct InlineImage<'a> {
+    /// Explicit alternative text. `None` selects the converter's filename fallback.
+    pub alt: Option<ContentAttribute<'a>>,
+    /// Hover text supplied by the inline macro's `title=` attribute.
+    pub tooltip: Option<ContentAttribute<'a>>,
+    pub source: Source<'a>,
+    pub metadata: BlockMetadata<'a>,
+    pub location: Location,
+}
+
+impl<'a> InlineImage<'a> {
+    /// Construct an image with no explicit alternative or hover text.
+    #[must_use]
+    pub fn new(source: Source<'a>, location: Location) -> Self {
+        Self {
+            alt: None,
+            tooltip: None,
+            source,
+            metadata: BlockMetadata::default(),
+            location,
+        }
+    }
+}
+
 impl Serialize for Audio<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -322,7 +351,7 @@ impl Serialize for Audio<'_> {
         if !self.metadata.is_default() {
             state.serialize_entry("metadata", &self.metadata)?;
         }
-        if !self.title.is_empty() {
+        if self.title.is_present() {
             state.serialize_entry("title", &self.title)?;
         }
         state.serialize_entry("source", &self.source)?;
@@ -343,8 +372,11 @@ impl Serialize for Image<'_> {
         if !self.metadata.is_default() {
             state.serialize_entry("metadata", &self.metadata)?;
         }
-        if !self.title.is_empty() {
+        if self.title.is_present() {
             state.serialize_entry("title", &self.title)?;
+        }
+        if let Some(alt) = &self.alt {
+            state.serialize_entry("alt", alt)?;
         }
         state.serialize_entry("source", &self.source)?;
         state.serialize_entry("location", &self.location)?;
@@ -364,12 +396,10 @@ impl Serialize for Video<'_> {
         if !self.metadata.is_default() {
             state.serialize_entry("metadata", &self.metadata)?;
         }
-        if !self.title.is_empty() {
+        if self.title.is_present() {
             state.serialize_entry("title", &self.title)?;
         }
-        if !self.sources.is_empty() {
-            state.serialize_entry("sources", &self.sources)?;
-        }
+        state.serialize_entry("source", &self.source)?;
         state.serialize_entry("location", &self.location)?;
         state.end()
     }

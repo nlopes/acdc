@@ -14,8 +14,8 @@ use acdc_converters_core::{
     xref::{XrefDisplay, resolve_xref},
 };
 use acdc_parser::{
-    Button, CrossReference, Image, IndexTerm, IndexTermRelationship, InlineMacro, InlineNode,
-    Keyboard, Raw, Substitution,
+    Button, CrossReference, Image, IndexTerm, IndexTermRelationship, InlineImage, InlineMacro,
+    InlineNode, Keyboard, Raw, Substitution,
 };
 use crossterm::{
     QueueableCommand,
@@ -195,7 +195,7 @@ fn render_inline_nodes_to_owned<'a>(
     Ok(String::from_utf8(buffer.into_inner()?)?)
 }
 
-fn render_inline_nodes_with_styles_to_owned<'a>(
+pub(crate) fn render_inline_nodes_with_styles_to_owned<'a>(
     nodes: &[InlineNode],
     processor: &Processor<'a>,
     traversal: &mut TraversalContext<'a>,
@@ -366,7 +366,7 @@ impl<'a, W: Write> crate::TerminalVisitor<'a, '_, W> {
             InlineNode::Macro(InlineMacro::Button(button)) => {
                 let experimental = traversal.contains_key("experimental");
                 let w = self.writer_mut();
-                render_button(button, w, experimental)?;
+                render_button(button, w, experimental, processor, traversal)?;
             }
             InlineNode::Macro(InlineMacro::IndexTerm(term)) => {
                 register_index_term(term, processor, traversal)?;
@@ -650,6 +650,37 @@ pub(crate) fn maybe_render_osc8_link<W: Write + ?Sized>(
     Ok(())
 }
 
+fn render_link_to_writer<'a, W: Write + ?Sized>(
+    l: &acdc_parser::Link<'_>,
+    w: &mut W,
+    processor: &Processor<'a>,
+    traversal: &mut TraversalContext<'a>,
+) -> Result<(), Error> {
+    let target = l.target.to_string();
+    if l.text.iter().any(is_self_linked_image) {
+        for node in &l.text {
+            if is_self_linked_image(node) {
+                render_inline_node_to_writer(node, w, processor, traversal)?;
+            } else {
+                let text = render_inline_nodes_to_string(
+                    std::slice::from_ref(node),
+                    processor,
+                    traversal,
+                )?;
+                maybe_render_osc8_link(&target, &text, w, processor)?;
+            }
+        }
+    } else {
+        let text = if l.text.is_empty() {
+            link_fallback(&target, l.hides_uri_scheme()).to_string()
+        } else {
+            render_inline_nodes_to_string(&l.text, processor, traversal)?
+        };
+        maybe_render_osc8_link(&target, &text, w, processor)?;
+    }
+    Ok(())
+}
+
 fn render_inline_macro_to_writer<'a, W: Write + ?Sized>(
     inline_macro: &InlineMacro<'_>,
     w: &mut W,
@@ -657,30 +688,7 @@ fn render_inline_macro_to_writer<'a, W: Write + ?Sized>(
     traversal: &mut TraversalContext<'a>,
 ) -> Result<(), Error> {
     match inline_macro {
-        InlineMacro::Link(l) => {
-            let target = l.target.to_string();
-            if l.text.iter().any(is_self_linked_image) {
-                for node in &l.text {
-                    if is_self_linked_image(node) {
-                        render_inline_node_to_writer(node, w, processor, traversal)?;
-                    } else {
-                        let text = render_inline_nodes_to_string(
-                            std::slice::from_ref(node),
-                            processor,
-                            traversal,
-                        )?;
-                        maybe_render_osc8_link(&target, &text, w, processor)?;
-                    }
-                }
-            } else {
-                let text = if l.text.is_empty() {
-                    link_fallback(&target, l.hides_uri_scheme()).to_string()
-                } else {
-                    render_inline_nodes_to_string(&l.text, processor, traversal)?
-                };
-                maybe_render_osc8_link(&target, &text, w, processor)?;
-            }
-        }
+        InlineMacro::Link(link) => render_link_to_writer(link, w, processor, traversal)?,
         InlineMacro::Url(u) => {
             let target = u.target.to_string();
             let text = if u.text.is_empty() {
@@ -716,7 +724,13 @@ fn render_inline_macro_to_writer<'a, W: Write + ?Sized>(
                 format!("[{}]", footnote.number).cyan().bold(),
             ))?;
         }
-        InlineMacro::Button(b) => render_button(b, w, traversal.contains_key("experimental"))?,
+        InlineMacro::Button(b) => render_button(
+            b,
+            w,
+            traversal.contains_key("experimental"),
+            processor,
+            traversal,
+        )?,
         InlineMacro::CrossReference(xref) => {
             render_cross_reference_to_writer(xref, w, processor, traversal)?;
         }
@@ -727,18 +741,36 @@ fn render_inline_macro_to_writer<'a, W: Write + ?Sized>(
             }
         }
         InlineMacro::Image(img) => {
-            render_inline_image(img, w, processor)?;
+            render_inline_image(img, w, processor, traversal)?;
         }
         InlineMacro::Icon(icon) => {
-            let alt = acdc_converters_core::icon::alt(&icon.target, &icon.attributes);
-            write!(w, "[Icon: {alt}]")?;
+            let alt = match &icon.alt {
+                Some(content) => {
+                    render_inline_nodes_with_styles_to_owned(content, processor, traversal)?
+                }
+                None => acdc_converters_core::icon::alt(&icon.target, None).into_owned(),
+            };
+            let label = format!("[Icon: {alt}]");
+            if let Some(target) = icon.attributes.get_string("link") {
+                maybe_render_osc8_link(&target, &label, w, processor)?;
+            } else {
+                write!(w, "{label}")?;
+            }
         }
-        InlineMacro::Keyboard(kbd) => render_keyboard_to_writer(kbd, w)?,
+        InlineMacro::Keyboard(kbd) => render_keyboard_to_writer(kbd, w, processor, traversal)?,
         InlineMacro::Menu(menu) => {
             // Show menu path
-            write!(w, "{}", menu.target)?;
+            write!(
+                w,
+                "{}",
+                render_inline_nodes_with_styles_to_owned(&menu.target, processor, traversal)?
+            )?;
             for item in &menu.items {
-                write!(w, " > {item}")?;
+                write!(
+                    w,
+                    " > {}",
+                    render_inline_nodes_with_styles_to_owned(item, processor, traversal)?
+                )?;
             }
         }
         InlineMacro::Stem(stem) => {
@@ -759,16 +791,22 @@ fn render_inline_macro_to_writer<'a, W: Write + ?Sized>(
     Ok(())
 }
 
-fn render_keyboard_to_writer<W: Write + ?Sized>(
+fn render_keyboard_to_writer<'a, W: Write + ?Sized>(
     keyboard: &Keyboard<'_>,
     w: &mut W,
+    processor: &Processor<'a>,
+    traversal: &mut TraversalContext<'a>,
 ) -> Result<(), Error> {
     write!(w, "[")?;
     for (index, key) in keyboard.keys.iter().enumerate() {
         if index > 0 {
             write!(w, "+")?;
         }
-        write!(w, "{key}")?;
+        write!(
+            w,
+            "{}",
+            render_inline_nodes_with_styles_to_owned(key, processor, traversal)?
+        )?;
     }
     write!(w, "]")?;
     Ok(())
@@ -783,19 +821,24 @@ fn is_self_linked_image(node: &InlineNode<'_>) -> bool {
 }
 
 pub(crate) fn block_image_alt(image: &Image<'_>) -> String {
-    acdc_converters_core::media::image_alt(image, false).into_owned()
+    acdc_converters_core::media::image_alt(&image.source, image.alt.as_ref()).into_owned()
 }
 
-fn inline_image_alt(image: &Image<'_>) -> String {
-    acdc_converters_core::media::image_alt(image, true).into_owned()
+fn inline_image_alt(image: &InlineImage<'_>) -> String {
+    acdc_converters_core::media::image_alt(&image.source, image.alt.as_ref()).into_owned()
 }
 
-fn render_inline_image<W: Write + ?Sized>(
-    image: &Image<'_>,
+fn render_inline_image<'a, W: Write + ?Sized>(
+    image: &InlineImage<'_>,
     w: &mut W,
-    processor: &Processor<'_>,
+    processor: &Processor<'a>,
+    traversal: &mut TraversalContext<'a>,
 ) -> Result<(), Error> {
-    let text = format!("[Image: {}]", inline_image_alt(image));
+    let alt = match &image.alt {
+        Some(content) => render_inline_nodes_with_styles_to_owned(content, processor, traversal)?,
+        None => inline_image_alt(image),
+    };
+    let text = format!("[Image: {alt}]");
     if let Some(target) = image.metadata.attributes.get_string("link") {
         maybe_render_osc8_link(&target, &text, w, processor)
     } else {
@@ -854,20 +897,19 @@ fn render_index_term_to_writer<'a, W: Write + ?Sized>(
     Ok(())
 }
 
-fn render_button<W: Write + ?Sized>(
+fn render_button<'a, W: Write + ?Sized>(
     button: &Button,
     w: &mut W,
     experimental: bool,
+    processor: &Processor<'a>,
+    traversal: &mut TraversalContext<'a>,
 ) -> Result<(), Error> {
+    let label = render_inline_nodes_with_styles_to_owned(&button.label, processor, traversal)?;
     if experimental {
-        w.queue(PrintStyledContent(
-            format!("[{}]", button.label).white().bold(),
-        ))?;
+        w.queue(PrintStyledContent(format!("[{label}]").white().bold()))?;
     } else {
         // If the no-button attribute is set, just render the label as plain text
-        w.queue(PrintStyledContent(
-            format!("btn:[{}]", button.label).white(),
-        ))?;
+        w.queue(PrintStyledContent(format!("btn:[{label}]").white()))?;
     }
     Ok(())
 }
@@ -929,9 +971,9 @@ mod tests {
 
     use acdc_converters_core::visitor::Visitor;
     use acdc_parser::{
-        Anchor, Bold, CrossReference, CurvedApostrophe, CurvedQuotation, Form, Highlight, Image,
-        InlineMacro, Italic, Keyboard, LineBreak, Link, Location, Monospace, Paragraph, Plain,
-        Source, StandaloneCurvedApostrophe, Subscript, Superscript,
+        Anchor, Bold, CrossReference, CurvedApostrophe, CurvedQuotation, Form, Highlight,
+        InlineImage, InlineMacro, Italic, Keyboard, LineBreak, Link, Location, Monospace,
+        Paragraph, Plain, Source, StandaloneCurvedApostrophe, Subscript, Superscript,
     };
 
     /// Create simple plain text inline node for testing
@@ -1230,10 +1272,10 @@ mod tests {
 
     #[test]
     fn test_link_macro() -> Result<(), Error> {
-        let link = InlineNode::Macro(InlineMacro::Link(Link::new(
+        let link = InlineNode::Macro(InlineMacro::Link(Box::new(Link::new(
             Source::Name("https://example.com"),
             Location::default(),
-        )));
+        ))));
 
         let output = render_paragraph(vec![link])?;
         assert!(
@@ -1245,7 +1287,7 @@ mod tests {
 
     #[test]
     fn test_image_macro_placeholder() -> Result<(), Error> {
-        let image = InlineNode::Macro(InlineMacro::Image(Box::new(Image::new(
+        let image = InlineNode::Macro(InlineMacro::Image(Box::new(InlineImage::new(
             Source::Name("logo.png"),
             Location::default(),
         ))));
@@ -1261,7 +1303,16 @@ mod tests {
     #[test]
     fn test_keyboard_macro() -> Result<(), Error> {
         let kbd = InlineNode::Macro(InlineMacro::Keyboard(Keyboard::new(
-            vec!["Ctrl", "C"],
+            ["Ctrl", "C"]
+                .into_iter()
+                .map(|content| {
+                    acdc_parser::ContentAttribute::new(vec![InlineNode::PlainText(Plain {
+                        content,
+                        location: Location::default(),
+                        escaped: false,
+                    })])
+                })
+                .collect(),
             Location::default(),
         )));
 

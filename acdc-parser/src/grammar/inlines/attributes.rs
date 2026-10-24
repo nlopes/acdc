@@ -3,7 +3,7 @@
 use std::borrow::Cow;
 
 use crate::{
-    Anchor, AttributeValue, BlockMetadata,
+    Anchor, AttributeValue, BlockMetadata, ContentAttribute, Error,
     grammar::{
         ParserState,
         attributes::{AttributeQuote, scan_attribute_list},
@@ -131,13 +131,17 @@ pub(super) fn process_attribute_list<'input>(
 /// Image attributes keep empty positional slots and let named values override them.
 pub(super) fn process_image_attribute_list<'input>(
     source: &str,
+    protected: &[std::ops::Range<usize>],
     state: &ParserState<'input>,
     start: usize,
     end: usize,
 ) -> BlockMetadata<'input> {
     let mut metadata = BlockMetadata::default();
     let mut named = Vec::new();
-    for (slot, attribute) in scan_attribute_list(source, &[]).into_iter().enumerate() {
+    for (slot, attribute) in scan_attribute_list(source, protected)
+        .into_iter()
+        .enumerate()
+    {
         let value = state.intern_str(&attribute.value);
         if let Some(name) = attribute.name {
             if attribute.quote == AttributeQuote::Unquoted && value == "None" {
@@ -175,4 +179,145 @@ pub(super) fn process_image_attribute_list<'input>(
         MacroAttributeContext::Image,
     );
     metadata
+}
+
+/// Parse a selected content value without losing its authored escape positions.
+pub(super) fn parse_content<'a>(
+    state: &mut ParserState<'a>,
+    source: &'a str,
+    start: usize,
+    quote: AttributeQuote,
+) -> Result<ContentAttribute<'a>, Error> {
+    use crate::grammar::{
+        helpers::BlockParsingMetadata, inline_processing::process_inlines_no_autolinks,
+        state::InlineRules,
+    };
+    let rules = state.inline_ctx.rules;
+    state.inline_ctx.rules.insert(InlineRules::BRACKET_LABEL);
+    state.inline_ctx.rules.set(
+        InlineRules::DOUBLE_QUOTED_LINK,
+        quote == AttributeQuote::Double,
+    );
+    state.inline_ctx.rules.set(
+        InlineRules::SINGLE_QUOTED_LINK,
+        quote == AttributeQuote::Single,
+    );
+    let metadata = BlockParsingMetadata {
+        substitutions: state.inline_ctx.substitutions,
+        ..BlockParsingMetadata::default()
+    };
+    let parsed = if source.contains("\\]") {
+        let mut mapping = crate::grammar::inline_preprocessor::SourceMap::default();
+        for (position, _) in source.match_indices("\\]") {
+            mapping.add_replacement(
+                position,
+                position + 2,
+                1,
+                crate::grammar::inline_preprocessor::ProcessedKind::Escape,
+            );
+        }
+        let text = state.intern_str(&source.replace("\\]", "]"));
+        super::text::process_unescaped_label(state, &metadata, text, start, &mapping)
+    } else {
+        process_inlines_no_autolinks(
+            state,
+            &metadata,
+            start,
+            start + source.len(),
+            state.inline_ctx.offset,
+            source,
+        )
+    };
+    state.inline_ctx.rules = rules;
+    parsed.map(ContentAttribute::new)
+}
+
+pub(super) struct MediaContent<'a> {
+    pub(super) metadata: BlockMetadata<'a>,
+    pub(super) alt: Option<ContentAttribute<'a>>,
+    pub(super) tooltip: Option<ContentAttribute<'a>>,
+}
+
+pub(super) fn process_media_content<'a>(
+    state: &mut ParserState<'a>,
+    content: &super::links::LinkContent<'a>,
+    start: usize,
+    icon: bool,
+) -> Result<MediaContent<'a>, Error> {
+    let mut metadata = process_image_attribute_list(
+        content.raw,
+        &content.protected,
+        state,
+        start,
+        start + content.raw.len(),
+    );
+    let mut alt = None;
+    let mut tooltip = None;
+    let attributes = scan_attribute_list(content.raw, &content.protected);
+    for (slot, attribute) in attributes.iter().enumerate() {
+        if attribute.quote == AttributeQuote::Unquoted
+            && attribute.name.is_some()
+            && attribute.value == "None"
+        {
+            continue;
+        }
+        match attribute.name.as_deref() {
+            Some("alt") => alt = Some(attribute),
+            Some("title") => tooltip = Some(attribute),
+            None if slot == 0
+                && !icon
+                && (!attribute.value.is_empty() || attribute.quote != AttributeQuote::Unquoted) =>
+            {
+                alt = alt.or(Some(attribute));
+            }
+            _ => {}
+        }
+    }
+    let mut parse = |attribute: &crate::grammar::attributes::ScannedAttribute| {
+        parse_content(
+            state,
+            &content.raw[attribute.value_start..attribute.value_end],
+            start + attribute.value_start,
+            attribute.quote,
+        )
+    };
+    let tooltip_first = matches!((alt, tooltip), (Some(alt), Some(tooltip)) if tooltip.value_start < alt.value_start);
+    let (alt, tooltip) = if tooltip_first {
+        let tooltip = tooltip.map(&mut parse).transpose()?;
+        (alt.map(parse).transpose()?, tooltip)
+    } else {
+        let alt = alt.map(&mut parse).transpose()?;
+        (alt, tooltip.map(parse).transpose()?)
+    };
+    metadata.attributes.remove("alt");
+    metadata.attributes.remove("title");
+    if icon {
+        if let Some(size) = metadata.style.take() {
+            metadata.attributes.insert("size".into(), size.into());
+        }
+        if !metadata.roles.is_empty() {
+            metadata
+                .attributes
+                .set("role".into(), metadata.roles.join(" ").into());
+        }
+        if !metadata.options.is_empty() {
+            metadata
+                .attributes
+                .set("options".into(), metadata.options.join(",").into());
+        }
+    } else {
+        metadata.style = None;
+        let [width, height] = metadata.take_positional_attributes::<2>();
+        for (name, value) in [("width", width), ("height", height)] {
+            if let Some(value) = value.filter(|value| !value.value.is_empty()) {
+                metadata.attributes.insert(name.into(), value.value.into());
+            }
+        }
+    }
+    metadata.move_positional_attributes_to_attributes();
+    Ok(MediaContent {
+        metadata,
+        alt,
+        tooltip,
+    })
 }

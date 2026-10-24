@@ -688,7 +688,6 @@
           "metadata": {
             "attributes": {
               "link": "https://example.com",
-              "title": "title",
               "width": "32",
               "window": "frame"
             },
@@ -714,19 +713,36 @@
               ]
             }
           },
-          "title": [
+          "alt": [
             {
               "name": "text",
               "type": "string",
               "value": "Alt",
               "location": [
                 {
-                  "line": 1,
-                  "col": 8
+                  "line": 24,
+                  "col": 24
                 },
                 {
-                  "line": 1,
-                  "col": 123
+                  "line": 24,
+                  "col": 26
+                }
+              ]
+            }
+          ],
+          "tooltip": [
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "title",
+              "location": [
+                {
+                  "line": 24,
+                  "col": 35
+                },
+                {
+                  "line": 24,
+                  "col": 39
                 }
               ]
             }
@@ -793,6 +809,23 @@
           ]
         },
         {
+          "tooltip": [
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "title",
+              "location": [
+                {
+                  "line": 26,
+                  "col": 25
+                },
+                {
+                  "line": 26,
+                  "col": 29
+                }
+              ]
+            }
+          ],
           "name": "icon",
           "type": "inline",
           "target": {
@@ -803,7 +836,6 @@
             "link": "https://example.com",
             "role": "hot",
             "size": "2x",
-            "title": "title",
             "window": "frame"
           },
           "location": [
@@ -1624,12 +1656,23 @@
         {
           "name": "image",
           "type": "inline",
-          "metadata": {
-            "attributes": {
-              "title": "my title"
+          "tooltip": [
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "my title",
+              "location": [
+                {
+                  "line": 44,
+                  "col": 37
+                },
+                {
+                  "line": 44,
+                  "col": 44
+                }
+              ]
             }
-          },
-          "title": [],
+          ],
           "target": {
             "type": "path",
             "value": "thing.png"

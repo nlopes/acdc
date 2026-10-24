@@ -5,10 +5,10 @@ use std::io::Write;
 use acdc_converters_core::{
     InlineTextTransform, TraversalContext,
     media::{resolve_target, with_time_range},
-    video::watch_urls,
-    visitor::WritableVisitor,
+    video::TryUrl,
+    visitor::{Visitor, WritableVisitor},
 };
-use acdc_parser::{Audio, Image, InlineNode, Source, Video};
+use acdc_parser::{Audio, Image, InlineImage, Source, Video};
 
 use crate::{
     Error, ManpageVisitor,
@@ -16,15 +16,21 @@ use crate::{
 };
 
 fn block_image_alt(image: &Image<'_>) -> String {
-    acdc_converters_core::media::image_alt(image, false).into_owned()
+    acdc_converters_core::media::image_alt(&image.source, image.alt.as_ref()).into_owned()
 }
 
-fn inline_image_alt(image: &Image<'_>) -> String {
-    acdc_converters_core::media::image_alt(image, true).into_owned()
+fn inline_image_alt(image: &InlineImage<'_>) -> String {
+    acdc_converters_core::media::image_alt(&image.source, image.alt.as_ref()).into_owned()
 }
 
-fn media_title(title: &[InlineNode<'_>], source: Option<&Source<'_>>, fallback: &str) -> String {
-    if title.is_empty() {
+fn media_title(
+    title: &acdc_parser::Title<'_>,
+    source: Option<&Source<'_>>,
+    fallback: &str,
+) -> String {
+    if title.is_present() {
+        InlineTextTransform::default().to_string(title)
+    } else {
         source.map_or_else(
             || fallback.to_string(),
             |source| {
@@ -33,8 +39,6 @@ fn media_title(title: &[InlineNode<'_>], source: Option<&Source<'_>>, fallback: 
                     .map_or_else(|| source.to_string(), str::to_string)
             },
         )
-    } else {
-        InlineTextTransform::default().to_string(title)
     }
 }
 
@@ -47,15 +51,61 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         self.write_sp()?;
         self.render_captioned_title(traversal, &image.title, &image.metadata)?;
         let alt = block_image_alt(image);
-        let label = format!("[{alt}]");
-        let link = image.metadata.attributes.get_string("link");
-        self.write_static_link(link.as_deref(), &label, false)
+        self.render_media_label(
+            traversal,
+            image.alt.as_ref(),
+            &alt,
+            image.metadata.attributes.get_string("link").as_deref(),
+            false,
+        )
     }
 
-    pub(crate) fn render_inline_image(&mut self, image: &Image<'_>) -> Result<(), Error> {
-        let label = format!("[{}]", inline_image_alt(image));
-        let link = image.metadata.attributes.get_string("link");
-        self.write_static_link(link.as_deref(), &label, true)
+    pub(crate) fn render_inline_image(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        image: &InlineImage<'_>,
+    ) -> Result<(), Error> {
+        let alt = inline_image_alt(image);
+        self.render_media_label(
+            traversal,
+            image.alt.as_ref(),
+            &alt,
+            image.metadata.attributes.get_string("link").as_deref(),
+            true,
+        )
+    }
+
+    pub(crate) fn render_media_label(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        content: Option<&acdc_parser::ContentAttribute<'_>>,
+        fallback: &str,
+        target: Option<&str>,
+        inline: bool,
+    ) -> Result<(), Error> {
+        let target = target.filter(|target| !target.is_empty());
+        let Some(content) = content else {
+            return self.write_static_link(target, &format!("[{fallback}]"), inline);
+        };
+        let mut render = |visitor: &mut Self| {
+            write!(visitor.writer_mut(), "[")?;
+            visitor.visit_inline_nodes(traversal, content)?;
+            write!(visitor.writer_mut(), "]")?;
+            Ok(())
+        };
+        if let Some(target) = target {
+            self.with_link_label(escape_roff_macro_argument(target), false, render)?;
+        } else {
+            render(self)?;
+        }
+        if !inline {
+            if target.is_some() {
+                writeln!(self.writer_mut(), ".br")?;
+            } else {
+                writeln!(self.writer_mut())?;
+            }
+        }
+        Ok(())
     }
 
     pub(crate) fn render_video(
@@ -66,32 +116,18 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         self.warn_static_media_fallback();
         self.write_sp()?;
         self.render_captioned_title(traversal, &video.title, &video.metadata)?;
-        let title = media_title(&video.title, video.sources.first(), "video");
-        let targets = watch_urls(video)?;
-        let source_count = targets.len();
-        if source_count == 0 {
-            self.write_static_link(None, "[Video]", false)?;
-        }
+        let title = media_title(&video.title, Some(&video.source), "video");
+        let target = resolve_target(&video.try_url(false)?, traversal);
+        let label = format!("[Video: {title}]");
+        self.write_static_link(Some(&target), &label, false)?;
 
-        let mut has_link = false;
-        for (index, target) in targets.iter().enumerate() {
-            if has_link {
-                writeln!(self.writer_mut(), ".br")?;
-            }
-            let target = resolve_target(target, traversal);
-            let label = if source_count == 1 {
-                format!("[Video: {title}]")
-            } else {
-                format!("[Video source {}/{source_count}: {title}]", index + 1)
-            };
-            self.write_static_link(Some(&target), &label, false)?;
-            has_link = true;
-        }
-
-        if let Some(poster) = video.metadata.attributes.get_string("poster") {
-            if has_link || source_count == 0 {
-                writeln!(self.writer_mut(), ".br")?;
-            }
+        if let Some(poster) = video
+            .metadata
+            .attributes
+            .get_string("poster")
+            .filter(|value| !matches!(value.as_ref(), "youtube" | "vimeo"))
+        {
+            writeln!(self.writer_mut(), ".br")?;
             let target = resolve_target(&poster, traversal);
             let label = format!("[Poster: {poster}]");
             self.write_static_link(Some(&target), &label, false)?;

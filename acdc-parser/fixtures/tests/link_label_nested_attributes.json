@@ -322,19 +322,19 @@
                   "width": "20"
                 }
               },
-              "title": [
+              "alt": [
                 {
                   "name": "text",
                   "type": "string",
                   "value": "Label",
                   "location": [
                     {
-                      "line": 1,
-                      "col": 1
+                      "line": 10,
+                      "col": 60
                     },
                     {
-                      "line": 1,
-                      "col": 49
+                      "line": 10,
+                      "col": 64
                     }
                   ]
                 }

@@ -52,6 +52,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `inspect` shows the complete video target, including commas and playlist slots.
+
 - HTML output supports inline and interactive SVG images and `data-uri`
   embedding. Builds with `network` also embed remote images when `allow-uri-read`
   is supplied by the caller; safe modes still restrict resource access.

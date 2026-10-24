@@ -180,7 +180,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     fn render_preformatted_block(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &[InlineNode],
+        title: &acdc_parser::Title<'_>,
         inlines: &[InlineNode],
         metadata: &BlockMetadata,
         caption_kind: Option<CaptionKind>,
@@ -248,19 +248,19 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     fn render_example_block(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &[InlineNode],
+        title: &acdc_parser::Title<'_>,
         blocks: &'a [Block<'a>],
         metadata: &BlockMetadata,
     ) -> Result<(), Error> {
         let processor = self.processor;
-        let label = if title.is_empty() {
-            String::new()
-        } else {
+        let label = if title.is_present() {
             let caption = processor
                 .caption_prefix(metadata, Some(CaptionKind::Example))
                 .unwrap_or_default();
             let title_text = extract_heading_text(title, &processor.references);
             format!("{caption}{title_text}")
+        } else {
+            String::new()
         };
 
         // Render content to buffer
@@ -293,7 +293,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     fn render_quote_block(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &[InlineNode],
+        title: &acdc_parser::Title<'_>,
         blocks: &'a [Block<'a>],
         metadata: &BlockMetadata<'_>,
     ) -> Result<(), Error> {
@@ -346,7 +346,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     fn render_open_block(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &[InlineNode],
+        title: &acdc_parser::Title<'_>,
         blocks: &'a [Block<'a>],
     ) -> Result<(), Error> {
         let processor = self.processor;
@@ -376,15 +376,15 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     fn render_sidebar_block(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &[InlineNode],
+        title: &acdc_parser::Title<'_>,
         blocks: &'a [Block<'a>],
     ) -> Result<(), Error> {
         let processor = self.processor;
 
-        let label = if title.is_empty() {
-            String::new()
-        } else {
+        let label = if title.is_present() {
             extract_heading_text(title, &processor.references)
+        } else {
+            String::new()
         };
 
         // Render content to buffer
@@ -417,7 +417,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     fn render_verse_block(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &[InlineNode],
+        title: &acdc_parser::Title<'_>,
         inlines: &[InlineNode],
         metadata: &BlockMetadata<'_>,
     ) -> Result<(), Error> {
@@ -457,7 +457,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     fn render_stem_block(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &[InlineNode],
+        title: &acdc_parser::Title<'_>,
         notation: &str,
         content: &str,
     ) -> Result<(), Error> {
@@ -484,11 +484,11 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         Ok(())
     }
 
-    /// Helper to render title if present.
+    /// Render an authored block title, including an explicitly empty title.
     fn render_title_if_present(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &[InlineNode],
+        title: &acdc_parser::Title<'_>,
     ) -> Result<(), Error> {
         self.render_title_with_wrapper(traversal, title, "  ", "\n")
     }

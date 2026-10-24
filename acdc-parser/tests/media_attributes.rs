@@ -19,22 +19,19 @@ fn inline_image_json_keeps_tooltips_separate_from_alt() -> Result<(), Error> {
         let parsed = parse(&source, &Options::default())?;
         let json = serde_json::to_value(parsed.document())?;
         let image = json.pointer("/blocks/0/inlines/0").ok_or("missing image")?;
-        assert_eq!(
-            json_text(image, "/metadata/attributes/title"),
-            Some("my title")
-        );
-        let title = image
-            .get("title")
-            .and_then(Value::as_array)
-            .ok_or("missing image title")?;
-        assert_eq!(title.len(), usize::from(alt.is_some()));
-        assert_eq!(json_text(image, "/title/0/value"), alt);
+        assert_eq!(json_text(image, "/tooltip/0/value"), Some("my title"));
+        match alt {
+            Some("") => assert_eq!(image.get("alt"), Some(&serde_json::json!([]))),
+            _ => assert_eq!(json_text(image, "/alt/0/value"), alt),
+        }
+        assert!(image.get("title").is_none());
     }
     Ok(())
 }
 
 #[test]
-fn media_and_named_block_json_preserve_authored_metadata() -> Result<(), Error> {
+fn media_and_named_blocks_serialize_content_separately_from_other_attributes() -> Result<(), Error>
+{
     let attributes = "title=\"Media *title*\",alt=Named,width=80,height=40,link=https://example.com,window=_blank,role=\"hot cool\",opts=\"inline,nofollow\",id=media-id,format=svg,fallback=fallback.png,align=center,float=right,loading=lazy,custom=kept";
     for (source, inline) in [
         (format!("image:sample.svg[{attributes}]"), true),
@@ -63,8 +60,8 @@ fn media_and_named_block_json_preserve_authored_metadata() -> Result<(), Error> 
             })
             .ok_or("missing node")?;
         let metadata = node.get("metadata").ok_or("missing metadata")?;
+        assert!(metadata.pointer("/attributes/title").is_none());
         for (key, value) in [
-            ("title", "Media *title*"),
             ("alt", "Named"),
             ("width", "80"),
             ("height", "40"),
@@ -77,6 +74,9 @@ fn media_and_named_block_json_preserve_authored_metadata() -> Result<(), Error> 
             ("loading", "lazy"),
             ("custom", "kept"),
         ] {
+            if (inline || source.starts_with("image::")) && key == "alt" {
+                continue;
+            }
             assert_eq!(
                 json_text(metadata, &format!("/attributes/{key}")),
                 Some(value),
@@ -104,7 +104,9 @@ fn media_and_named_block_json_preserve_authored_metadata() -> Result<(), Error> 
             );
         }
         if inline {
-            assert_eq!(json_text(node, "/title/0/value"), Some("Named"));
+            assert_eq!(json_text(node, "/alt/0/value"), Some("Named"));
+            assert_eq!(json_text(node, "/tooltip/0/value"), Some("Media "));
+            assert_eq!(json_text(node, "/tooltip/1/variant"), Some("strong"));
         } else {
             assert_eq!(json_text(node, "/title/0/value"), Some("Media "));
             assert_eq!(json_text(node, "/title/1/variant"), Some("strong"));
@@ -120,29 +122,33 @@ fn media_attributes_select_named_values_and_keep_empty_slots() -> Result<(), Err
         for prefix in ["image::", "Inline image:"] {
             let source = format!("{prefix}sample.svg[{attributes},title=Tooltip]\n");
             let parsed = parse(&source, &Options::default())?;
-            let image = match parsed.document().blocks.first() {
-                Some(Block::Image(image)) => image,
-                Some(Block::Paragraph(paragraph)) => paragraph
-                    .content
-                    .iter()
-                    .find_map(|node| {
-                        if let InlineNode::Macro(InlineMacro::Image(image)) = node {
-                            Some(image.as_ref())
-                        } else {
-                            None
-                        }
-                    })
-                    .ok_or("missing inline image")?,
+            match parsed.document().blocks.first() {
+                Some(Block::Image(image)) => assert_eq!(
+                    image.alt.as_ref().map(content_text).as_deref(),
+                    Some("Named")
+                ),
+                Some(Block::Paragraph(paragraph)) => {
+                    let image = paragraph
+                        .content
+                        .iter()
+                        .find_map(|node| {
+                            if let InlineNode::Macro(InlineMacro::Image(image)) = node {
+                                Some(image)
+                            } else {
+                                None
+                            }
+                        })
+                        .ok_or("missing inline image")?;
+                    assert_eq!(
+                        image.alt.as_ref().map(content_text).as_deref(),
+                        Some("Named")
+                    );
+                    assert_eq!(
+                        image.tooltip.as_ref().map(content_text).as_deref(),
+                        Some("Tooltip")
+                    );
+                }
                 _ => return Err("missing image".into()),
-            };
-            assert_eq!(
-                image.metadata.attributes.get_string("alt").as_deref(),
-                Some("Named")
-            );
-            if prefix == "Inline image:" {
-                assert!(
-                    matches!(image.title.as_ref(), [InlineNode::PlainText(text)] if text.content == "Named")
-                );
             }
         }
     }
@@ -168,7 +174,11 @@ fn media_attributes_select_named_values_and_keep_empty_slots() -> Result<(), Err
                 }
             })
             .ok_or("missing inline image")?;
-        assert_eq!(!image.title.is_empty(), empty_alt, "{attributes}");
+        assert_eq!(
+            image.alt.as_ref().map(content_text).as_deref(),
+            empty_alt.then_some(""),
+            "{attributes}"
+        );
         if attributes.contains("40") {
             assert_eq!(
                 image.metadata.attributes.get_string("width").as_deref(),
@@ -214,7 +224,7 @@ fn media_duplicate_attributes_use_last_value_except_accumulated_options() -> Res
         return Err("missing media blocks".into());
     };
     assert_eq!(
-        image.metadata.attributes.get_string("alt").as_deref(),
+        image.alt.as_ref().map(content_text).as_deref(),
         Some("Last")
     );
     assert_eq!(
@@ -247,4 +257,23 @@ fn inline_image_unquoted_apostrophes_do_not_end_the_attribute_list() -> Result<(
             .any(|node| matches!(node, InlineNode::Macro(InlineMacro::Image(_))))
     );
     Ok(())
+}
+
+fn content_text(value: &acdc_parser::ContentAttribute<'_>) -> String {
+    value
+        .iter()
+        .map(|node| {
+            assert!(matches!(
+                node,
+                InlineNode::PlainText(_) | InlineNode::RawText(_)
+            ));
+            if let InlineNode::PlainText(text) = node {
+                text.content
+            } else if let InlineNode::RawText(text) = node {
+                text.content
+            } else {
+                ""
+            }
+        })
+        .collect()
 }

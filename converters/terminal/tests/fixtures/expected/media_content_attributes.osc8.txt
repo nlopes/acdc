@@ -1,0 +1,10 @@
+[1m[4mMedia content attributes[0m
+[3m[Image: [1mBlock[22m description][0m[2m (photo.png)[0m
+  Figure 1. Caption independent of alternative text
+[Image: [1mInline[22m]
+[Image: ]
+[Image: *Inserted*]
+[38;5;12m]8;;https://example.org\[Icon: [1mNamed[22m]]8;;\[39m
+[38;5;12m]8;;https://example.org\Label]8;;\[39m
+[38;5;12m]8;;https://example.org\URL]8;;\[39m
+[38;5;12m]8;;mailto:user@example.org\Mail]8;;\[39m

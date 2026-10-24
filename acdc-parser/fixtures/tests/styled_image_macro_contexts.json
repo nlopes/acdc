@@ -245,11 +245,6 @@
       "name": "image",
       "type": "block",
       "form": "macro",
-      "metadata": {
-        "attributes": {
-          "alt": "Explicit alt"
-        }
-      },
       "title": [
         {
           "name": "text",
@@ -263,6 +258,23 @@
             {
               "line": 20,
               "col": 25
+            }
+          ]
+        }
+      ],
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Explicit alt",
+          "location": [
+            {
+              "line": 22,
+              "col": 20
+            },
+            {
+              "line": 22,
+              "col": 31
             }
           ]
         }
@@ -286,11 +298,6 @@
       "name": "image",
       "type": "block",
       "form": "macro",
-      "metadata": {
-        "attributes": {
-          "alt": "Explicit alt"
-        }
-      },
       "title": [
         {
           "name": "text",
@@ -304,6 +311,23 @@
             {
               "line": 24,
               "col": 23
+            }
+          ]
+        }
+      ],
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Explicit alt",
+          "location": [
+            {
+              "line": 26,
+              "col": 18
+            },
+            {
+              "line": 26,
+              "col": 29
             }
           ]
         }
@@ -327,11 +351,6 @@
       "name": "image",
       "type": "block",
       "form": "macro",
-      "metadata": {
-        "attributes": {
-          "alt": "custom"
-        }
-      },
       "title": [
         {
           "name": "text",
@@ -345,6 +364,23 @@
             {
               "line": 28,
               "col": 27
+            }
+          ]
+        }
+      ],
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "custom",
+          "location": [
+            {
+              "line": 29,
+              "col": 2
+            },
+            {
+              "line": 29,
+              "col": 7
             }
           ]
         }
@@ -477,11 +513,6 @@
       "name": "image",
       "type": "block",
       "form": "macro",
-      "metadata": {
-        "attributes": {
-          "alt": "Final alt"
-        }
-      },
       "title": [
         {
           "name": "text",
@@ -495,6 +526,23 @@
             {
               "line": 42,
               "col": 27
+            }
+          ]
+        }
+      ],
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Final alt",
+          "location": [
+            {
+              "line": 43,
+              "col": 18
+            },
+            {
+              "line": 43,
+              "col": 26
             }
           ]
         }

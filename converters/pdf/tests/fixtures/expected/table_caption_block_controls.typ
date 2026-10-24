@@ -100,7 +100,7 @@
 ])
 
 #block(sticky: true, above: 0pt, below: 0pt)[
-#blocktitle[#text("")#text("Block blank caption")]
+#blocktitle[#text("Block blank caption")]
 ]
 #table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Block blank")
 

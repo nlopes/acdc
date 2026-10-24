@@ -22,12 +22,9 @@
       "type": "block",
       "form": "macro",
       "metadata": {
-        "attributes": {
-          "alt": "Alt"
-        },
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Alice",
             "location": [
@@ -44,7 +41,7 @@
         ],
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Book",
             "location": [
@@ -60,6 +57,23 @@
           }
         ]
       },
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Alt",
+          "location": [
+            {
+              "line": 3,
+              "col": 19
+            },
+            {
+              "line": 3,
+              "col": 21
+            }
+          ]
+        }
+      ],
       "source": {
         "type": "path",
         "value": "sample.png"
@@ -94,11 +108,23 @@
       "name": "image",
       "type": "block",
       "form": "macro",
-      "metadata": {
-        "attributes": {
-          "alt": "Alt"
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Alt",
+          "location": [
+            {
+              "line": 7,
+              "col": 19
+            },
+            {
+              "line": 7,
+              "col": 21
+            }
+          ]
         }
-      },
+      ],
       "source": {
         "type": "path",
         "value": "sample.png"
@@ -135,11 +161,27 @@
       "form": "macro",
       "metadata": {
         "attributes": {
-          "alt": "Alt",
           "height": "400",
           "width": "300"
         }
       },
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Alt",
+          "location": [
+            {
+              "line": 11,
+              "col": 19
+            },
+            {
+              "line": 11,
+              "col": 21
+            }
+          ]
+        }
+      ],
       "source": {
         "type": "path",
         "value": "sample.png"
@@ -176,11 +218,27 @@
       "form": "macro",
       "metadata": {
         "attributes": {
-          "alt": "Alt",
           "height": "400",
           "width": "300"
         }
       },
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Alt",
+          "location": [
+            {
+              "line": 15,
+              "col": 19
+            },
+            {
+              "line": 15,
+              "col": 21
+            }
+          ]
+        }
+      ],
       "source": {
         "type": "path",
         "value": "sample.png"
@@ -217,10 +275,26 @@
       "form": "macro",
       "metadata": {
         "attributes": {
-          "alt": "Alt",
           "height": "400"
         }
       },
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Alt",
+          "location": [
+            {
+              "line": 19,
+              "col": 19
+            },
+            {
+              "line": 19,
+              "col": 21
+            }
+          ]
+        }
+      ],
       "source": {
         "type": "path",
         "value": "sample.png"
@@ -257,11 +331,27 @@
       "form": "macro",
       "metadata": {
         "attributes": {
-          "alt": "Alt",
           "height": "600",
           "width": "500"
         }
       },
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Alt",
+          "location": [
+            {
+              "line": 23,
+              "col": 19
+            },
+            {
+              "line": 23,
+              "col": 21
+            }
+          ]
+        }
+      ],
       "source": {
         "type": "path",
         "value": "sample.png"
@@ -298,11 +388,27 @@
       "form": "macro",
       "metadata": {
         "attributes": {
-          "alt": "Alt",
           "height": "200",
           "width": "100"
         }
       },
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Alt",
+          "location": [
+            {
+              "line": 27,
+              "col": 19
+            },
+            {
+              "line": 27,
+              "col": 21
+            }
+          ]
+        }
+      ],
       "source": {
         "type": "path",
         "value": "sample.png"
@@ -339,11 +445,27 @@
       "form": "macro",
       "metadata": {
         "attributes": {
-          "alt": "Alt",
           "height": "400",
           "width": "300"
         }
       },
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Alt",
+          "location": [
+            {
+              "line": 31,
+              "col": 19
+            },
+            {
+              "line": 31,
+              "col": 21
+            }
+          ]
+        }
+      ],
       "source": {
         "type": "path",
         "value": "sample.png"

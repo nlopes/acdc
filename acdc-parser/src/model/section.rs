@@ -921,13 +921,23 @@ impl<'a> Section<'a> {
                 Self::append_id_text(pass.text.unwrap_or_default(), out, last_was_underscore);
             }
             InlineMacro::Keyboard(keyboard) => {
-                Self::append_id_text(&keyboard.keys.join("+"), out, last_was_underscore);
+                for (index, key) in keyboard.keys.iter().enumerate() {
+                    if index > 0 {
+                        Self::append_id_text("+", out, last_was_underscore);
+                    }
+                    Self::append_id_from_inlines(key, out, last_was_underscore);
+                }
             }
             InlineMacro::Button(button) => {
-                Self::append_id_text(button.label, out, last_was_underscore);
+                Self::append_id_from_inlines(&button.label, out, last_was_underscore);
             }
             InlineMacro::Menu(menu) => {
-                Self::append_id_text(&menu.items.join(" > "), out, last_was_underscore);
+                for (index, item) in menu.items.iter().enumerate() {
+                    if index > 0 {
+                        Self::append_id_text(" > ", out, last_was_underscore);
+                    }
+                    Self::append_id_from_inlines(item, out, last_was_underscore);
+                }
             }
             InlineMacro::Image(_)
             | InlineMacro::Footnote(_)

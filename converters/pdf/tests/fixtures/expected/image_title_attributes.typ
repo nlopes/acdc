@@ -101,7 +101,7 @@
 
 #block(width: 100%, breakable: false)[
 #docimage("/images/de454d7e4e1cfda7.svg", alt: "Alt", width: 54pt)
-#imagecaption[#text("Figure 5. ")#text("")]
+#imagecaption[#text("Figure 5. ")]
 ]
 
 #block(width: 100%, breakable: false)[

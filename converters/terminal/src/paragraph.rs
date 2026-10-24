@@ -7,7 +7,7 @@ use std::io::{BufWriter, Write};
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::effective_subs_flags;
 use acdc_converters_core::{
-    InlineTextTransform, TraversalContext, inlines_to_string,
+    InlineTextTransform, TraversalContext,
     visitor::{Visitor, WritableVisitor},
 };
 use acdc_parser::{BlockMetadata, CaptionKind, InlineNode, Paragraph};
@@ -269,8 +269,17 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     }
 
     pub(crate) fn render_attribution(&mut self, metadata: &BlockMetadata<'_>) -> Result<(), Error> {
-        let attribution = metadata.attribution.as_ref().map(|a| inlines_to_string(a));
-        let citation = metadata.citetitle.as_ref().map(|c| inlines_to_string(c));
+        let transform = InlineTextTransform::default()
+            .rendered_replacements(true)
+            .decode_char_refs(true);
+        let attribution = metadata
+            .attribution
+            .as_ref()
+            .map(|content| transform.to_string(content));
+        let citation = metadata
+            .citetitle
+            .as_ref()
+            .map(|content| transform.to_string(content));
 
         if attribution.is_some() || citation.is_some() {
             let w = self.writer_mut();

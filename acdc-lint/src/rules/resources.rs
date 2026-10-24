@@ -4,7 +4,7 @@ use std::{
 };
 
 use acdc_converters_core::{TraversalContext, visitor::Visitor};
-use acdc_parser::{Document, Image, InlineMacro, InlineNode, Source};
+use acdc_parser::{Document, Image, InlineMacro, InlineNode, Location, Source};
 
 use crate::LintId;
 
@@ -31,12 +31,36 @@ struct ResourceVisitor<'emitter, 'source, 'path> {
 impl<'doc> Visitor<'doc> for ResourceVisitor<'_, '_, '_> {
     type Error = Infallible;
 
+    fn before_block(
+        &mut self,
+        traversal: &mut TraversalContext<'doc>,
+        block: &'doc acdc_parser::Block<'doc>,
+    ) -> Result<(), Self::Error> {
+        if let Some(content) = block
+            .metadata()
+            .and_then(acdc_parser::BlockMetadata::caption_content)
+        {
+            self.visit_inline_nodes(traversal, content)?;
+        }
+        Ok(())
+    }
+
     fn visit_image(
         &mut self,
         traversal: &mut TraversalContext<'doc>,
         image: &Image<'_>,
     ) -> Result<(), Self::Error> {
-        lint_image(self.emitter, traversal, image, self.source_path);
+        if let Some(alt) = &image.alt {
+            self.visit_inline_nodes(traversal, alt)?;
+        }
+        lint_image(
+            self.emitter,
+            traversal,
+            &image.source,
+            &image.location,
+            image.alt.as_ref(),
+            self.source_path,
+        );
         Ok(())
     }
 
@@ -57,6 +81,11 @@ fn lint_resource_inlines(
     source_path: Option<&Path>,
 ) {
     for node in nodes {
+        if let InlineNode::Macro(value) = node {
+            value.for_each_content_attribute(|content| {
+                lint_resource_inlines(emitter, attributes, content, source_path);
+            });
+        }
         match node {
             InlineNode::BoldText(text) => {
                 lint_resource_inlines(emitter, attributes, &text.content, source_path);
@@ -90,7 +119,14 @@ fn lint_resource_inlines(
                     lint_resource_inlines(emitter, attributes, &footnote.content, source_path);
                 }
                 InlineMacro::Image(image) => {
-                    lint_image(emitter, attributes, image, source_path);
+                    lint_image(
+                        emitter,
+                        attributes,
+                        &image.source,
+                        &image.location,
+                        image.alt.as_ref(),
+                        source_path,
+                    );
                 }
                 InlineMacro::Link(link) => {
                     lint_resource_inlines(emitter, attributes, &link.text, source_path);
@@ -126,19 +162,21 @@ fn lint_resource_inlines(
 fn lint_image(
     emitter: &mut LintEmitter<'_>,
     attributes: &mut TraversalContext<'_>,
-    image: &Image<'_>,
+    source: &Source<'_>,
+    location: &Location,
+    alt: Option<&acdc_parser::ContentAttribute<'_>>,
     source_path: Option<&Path>,
 ) {
-    lint_imagesdir(emitter, image);
-    lint_image_alt_text(emitter, image);
-    lint_image_target_exists(emitter, attributes, image, source_path);
+    lint_imagesdir(emitter, source, location);
+    lint_image_alt_text(emitter, alt, location);
+    lint_image_target_exists(emitter, attributes, source, location, source_path);
 }
 
-fn lint_imagesdir(emitter: &mut LintEmitter<'_>, image: &Image<'_>) {
-    let Some(target) = image_target_with_directory(&image.source) else {
+fn lint_imagesdir(emitter: &mut LintEmitter<'_>, source: &Source<'_>, location: &Location) {
+    let Some(target) = image_target_with_directory(source) else {
         return;
     };
-    let help = image_target_basename(&image.source).map_or_else(
+    let help = image_target_basename(source).map_or_else(
         || "set :imagesdir: and use a filename-only image target".to_string(),
         |name| format!("set :imagesdir: and use `{name}` as the image target"),
     );
@@ -146,16 +184,20 @@ fn lint_imagesdir(emitter: &mut LintEmitter<'_>, image: &Image<'_>) {
         LintId::Imagesdir,
         format!("image target `{target}` repeats a directory path"),
         Some(help),
-        Some(emitter.source_location(&image.location)),
+        Some(emitter.source_location(location)),
     );
 }
 
-fn lint_image_alt_text(emitter: &mut LintEmitter<'_>, image: &Image<'_>) {
-    let has_alt = image
-        .metadata
-        .attributes
-        .get_string("alt")
-        .is_some_and(|alt| !alt.trim().is_empty());
+fn lint_image_alt_text(
+    emitter: &mut LintEmitter<'_>,
+    alt: Option<&acdc_parser::ContentAttribute<'_>>,
+    location: &Location,
+) {
+    let has_alt = alt.is_some_and(|alt| {
+        !acdc_converters_core::inlines_to_string(alt)
+            .trim()
+            .is_empty()
+    });
     if has_alt {
         return;
     }
@@ -164,17 +206,18 @@ fn lint_image_alt_text(emitter: &mut LintEmitter<'_>, image: &Image<'_>) {
         LintId::ImageAltText,
         "image is missing alt text",
         None,
-        Some(emitter.source_location(&image.location)),
+        Some(emitter.source_location(location)),
     );
 }
 
 fn lint_image_target_exists(
     emitter: &mut LintEmitter<'_>,
     attributes: &mut TraversalContext<'_>,
-    image: &Image<'_>,
+    source: &Source<'_>,
+    location: &Location,
     source_path: Option<&Path>,
 ) {
-    let Some(path) = image_target_path(attributes, image, source_path) else {
+    let Some(path) = image_target_path(attributes, source, source_path) else {
         return;
     };
     if path.exists() {
@@ -183,19 +226,19 @@ fn lint_image_target_exists(
 
     emitter.emit(
         LintId::ImageTargetExists,
-        format!("image target `{}` does not exist", image.source),
+        format!("image target `{source}` does not exist"),
         None,
-        Some(emitter.source_location(&image.location)),
+        Some(emitter.source_location(location)),
     );
 }
 
 fn image_target_path(
     attributes: &TraversalContext<'_>,
-    image: &Image<'_>,
+    source: &Source<'_>,
     source_path: Option<&Path>,
 ) -> Option<PathBuf> {
     let source_path = source_path?;
-    let target = match &image.source {
+    let target = match source {
         Source::Url(_) => return None,
         Source::Path(path) => path.clone(),
         Source::Name(name) => PathBuf::from(name),
@@ -303,6 +346,16 @@ mod tests {
     }
 
     #[test]
+    fn inline_image_alt_text_uses_the_explicit_alt_field() -> Result<(), Error> {
+        for attributes in ["Photo", "alt=Photo", "Photo,title=Tooltip"] {
+            let source = format!("= Title\n\nInline image:photo.png[{attributes}].\n");
+            let report = report_for(&source)?;
+            assert!(!has_lint(&report, LintId::ImageAltText));
+        }
+        Ok(())
+    }
+
+    #[test]
     fn image_target_exists_flags_missing_file() -> Result<(), Error> {
         let doc = TempDoc::new("missing-image.adoc", "= Title\n\nimage::photo.png[Photo]\n")?;
         let report = doc.path().lint(&LintOptions::default())?;
@@ -333,7 +386,7 @@ mod tests {
         let attributes = TraversalContext::new(&parsed.document().attributes);
 
         assert_eq!(
-            image_target_path(&attributes, image, Some(source)),
+            image_target_path(&attributes, &image.source, Some(source)),
             Some(PathBuf::from("/tmp/media files/photo.png"))
         );
         Ok(())

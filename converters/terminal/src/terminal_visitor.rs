@@ -64,14 +64,19 @@ impl<'a, 'd, W: Write> TerminalVisitor<'a, 'd, W> {
     pub(crate) fn render_captioned_title_with_wrapper(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &[InlineNode],
+        title: &acdc_parser::Title<'_>,
         metadata: &BlockMetadata<'_>,
         fallback: Option<CaptionKind>,
         prefix: &str,
         suffix: &str,
     ) -> Result<(), Error> {
-        if title.is_empty() {
+        if !title.is_present() {
             return Ok(());
+        }
+        if let Some(caption) = metadata.caption_content() {
+            write!(self.writer_mut(), "{prefix}")?;
+            self.visit_inline_nodes(traversal, caption)?;
+            return self.render_title_with_wrapper(traversal, title, "", suffix);
         }
         let caption = self
             .processor

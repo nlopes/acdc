@@ -26,13 +26,13 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
             return Ok(());
         }
         target = with_time_range(&target, &audio.metadata.attributes);
-        let title = if audio.title.is_empty() {
+        let title = if audio.title.is_present() {
+            acdc_converters_core::inlines_to_string(&audio.title)
+        } else {
             audio
                 .source
                 .get_filename()
                 .map_or_else(|| audio.source.to_string(), str::to_string)
-        } else {
-            acdc_converters_core::inlines_to_string(&audio.title)
         };
         let text = format!("[Audio: {title}]");
         let processor = self.processor;

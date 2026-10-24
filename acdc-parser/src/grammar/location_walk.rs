@@ -174,9 +174,18 @@ where
             Block::Image(i) => {
                 self.metadata(&mut i.metadata);
                 self.inlines(i.title.inlines_mut());
+                if let Some(alt) = &mut i.alt {
+                    self.inlines(alt.inlines_mut());
+                }
             }
-            Block::Audio(a) => self.metadata(&mut a.metadata),
-            Block::Video(v) => self.metadata(&mut v.metadata),
+            Block::Audio(a) => {
+                self.metadata(&mut a.metadata);
+                self.inlines(a.title.inlines_mut());
+            }
+            Block::Video(v) => {
+                self.metadata(&mut v.metadata);
+                self.inlines(v.title.inlines_mut());
+            }
             // Own location already visited; no inline or block children.
             Block::TableOfContents(_)
             | Block::DocumentAttribute(_)
@@ -221,6 +230,7 @@ where
     }
 
     fn inline_macro(&mut self, m: &mut InlineMacro<'a>) {
+        m.for_each_content_attribute_mut(|nodes| self.inlines(nodes));
         // Own location already visited via `node.location_mut()`. Recurse into the
         // inline-bearing macro variants.
         match m {
@@ -277,6 +287,9 @@ where
 
     fn metadata(&mut self, metadata: &mut BlockMetadata<'a>) {
         self.optional_location(&mut metadata.location);
+        if let Some(crate::Caption::CustomContent(caption)) = &mut metadata.caption {
+            self.inlines(caption.inlines_mut());
+        }
         if let Some(anchor) = &mut metadata.id {
             (self.visit_location)(&mut anchor.location);
         }

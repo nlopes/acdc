@@ -28,7 +28,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         block: &'a DelimitedBlock<'a>,
     ) -> Result<(), Error> {
-        if shows_block_title(&block.inner) && !block.title.is_empty() {
+        if shows_block_title(&block.inner) && block.title.is_present() {
             let w = self.writer_mut();
             writeln!(w, ".sp")?;
             self.render_captioned_title(traversal, &block.title, &block.metadata)?;

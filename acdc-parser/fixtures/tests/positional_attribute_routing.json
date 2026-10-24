@@ -44,7 +44,7 @@
         "style": "source",
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Alice",
             "location": [
@@ -61,7 +61,7 @@
         ],
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Book",
             "location": [
@@ -118,7 +118,7 @@
         "style": "source",
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Alice",
             "location": [
@@ -135,7 +135,7 @@
         ],
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Book",
             "location": [
@@ -184,12 +184,9 @@
       "type": "block",
       "form": "macro",
       "metadata": {
-        "attributes": {
-          "alt": "Alt"
-        },
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Alice",
             "location": [
@@ -206,7 +203,7 @@
         ],
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Book",
             "location": [
@@ -222,6 +219,23 @@
           }
         ]
       },
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Alt",
+          "location": [
+            {
+              "line": 14,
+              "col": 14
+            },
+            {
+              "line": 14,
+              "col": 16
+            }
+          ]
+        }
+      ],
       "source": {
         "type": "path",
         "value": "a.png"
@@ -243,13 +257,12 @@
       "form": "macro",
       "metadata": {
         "attributes": {
-          "alt": "Alt",
           "height": "200",
           "width": "100"
         },
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Alice",
             "location": [
@@ -266,7 +279,7 @@
         ],
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Book",
             "location": [
@@ -282,6 +295,23 @@
           }
         ]
       },
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Alt",
+          "location": [
+            {
+              "line": 17,
+              "col": 14
+            },
+            {
+              "line": 17,
+              "col": 16
+            }
+          ]
+        }
+      ],
       "source": {
         "type": "path",
         "value": "a.png"
@@ -307,7 +337,7 @@
         },
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Alice",
             "location": [
@@ -324,7 +354,7 @@
         ],
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Book",
             "location": [
@@ -340,12 +370,10 @@
           }
         ]
       },
-      "sources": [
-        {
-          "type": "path",
-          "value": "a.mp4"
-        }
-      ],
+      "source": {
+        "type": "path",
+        "value": "a.mp4"
+      },
       "location": [
         {
           "line": 19,
@@ -369,7 +397,7 @@
         },
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Alice",
             "location": [
@@ -386,7 +414,7 @@
         ],
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Book",
             "location": [
@@ -402,12 +430,10 @@
           }
         ]
       },
-      "sources": [
-        {
-          "type": "path",
-          "value": "a.mp4"
-        }
-      ],
+      "source": {
+        "type": "path",
+        "value": "a.mp4"
+      },
       "location": [
         {
           "line": 22,
@@ -430,7 +456,7 @@
         "style": "quote",
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Alice",
             "location": [
@@ -447,7 +473,7 @@
         ],
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Book",
             "location": [

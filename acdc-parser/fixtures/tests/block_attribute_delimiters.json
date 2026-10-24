@@ -41,7 +41,7 @@
         "style": "quote",
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "A [x] B",
             "location": [
@@ -58,7 +58,7 @@
         ],
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Notes",
             "location": [
@@ -127,7 +127,7 @@
         "style": "quote",
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "A [x",
             "location": [
@@ -144,7 +144,7 @@
         ],
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Notes",
             "location": [
@@ -213,7 +213,7 @@
         "style": "quote",
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "A ] B",
             "location": [
@@ -230,7 +230,7 @@
         ],
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Notes",
             "location": [
@@ -302,7 +302,7 @@
         "style": "quote",
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "https://example.com[Someone",
             "location": [
@@ -319,7 +319,7 @@
         ],
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Part 1]",
             "location": [
@@ -388,7 +388,7 @@
         "style": "quote",
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "https://example.com[Someone, Part 1]",
             "location": [
@@ -405,7 +405,7 @@
         ],
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Final",
             "location": [
@@ -477,7 +477,7 @@
         "style": "quote",
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Quoted author",
             "location": [
@@ -494,7 +494,7 @@
         ],
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Adjacent citation",
             "location": [

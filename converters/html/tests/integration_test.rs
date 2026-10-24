@@ -1078,6 +1078,11 @@ fn render_fixture_document(
     )?;
     let render_options = RenderOptions {
         embedded,
+        source_dir: doc
+            .attributes
+            .get("docdir")
+            .and_then(|value| value.text())
+            .map(PathBuf::from),
         ..RenderOptions::default()
     };
 

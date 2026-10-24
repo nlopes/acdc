@@ -2499,6 +2499,23 @@
                   ]
                 },
                 {
+                  "tooltip": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "A * B",
+                      "location": [
+                        {
+                          "line": 38,
+                          "col": 75
+                        },
+                        {
+                          "line": 38,
+                          "col": 79
+                        }
+                      ]
+                    }
+                  ],
                   "name": "ref",
                   "type": "inline",
                   "variant": "link",
@@ -2567,8 +2584,7 @@
                     }
                   ],
                   "attributes": {
-                    "role": "label",
-                    "title": "A * B"
+                    "role": "label"
                   }
                 },
                 {

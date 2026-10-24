@@ -79,7 +79,7 @@
 [2m—[0m [2m[3mMargaret Hamilton[0m, [2m[3mApollo[0m
 [38;5;10m│ [39m[3mEscaped single quote.[0m
 [38;5;10m│[39m
-[2m—[0m [2m[3mA'B[0m, [2m[3mNotes[0m
+[2m—[0m [2m[3mA’B[0m, [2m[3mNotes[0m
 [38;5;10m│ [39m[3mUnquoted macros.[0m
 [38;5;10m│[39m
 [2m—[0m [2m[3mhttps://example.com[Literal Author][0m, [2m[3mhttps://example.org[Literal Work][0m

@@ -31,11 +31,22 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             .and_then(|value| value.text())
             .ok_or(Error::InvalidAdmonitionCaption(caption_attr.to_string()))?
             .to_string();
-        let font_icons = acdc_converters_core::icon::IconMode::from_attributes(traversal)
-            == acdc_converters_core::icon::IconMode::Font;
+        let plain_caption = admon.metadata.caption_content().map_or_else(
+            || caption.clone(),
+            |content| {
+                acdc_converters_core::InlineTextTransform::default()
+                    .rendered_replacements(true)
+                    .to_string(content)
+            },
+        );
+        let caption = match admon.metadata.caption_content() {
+            Some(content) => self.content_html(traversal, content)?,
+            None => crate::inlines::escape_attribute(&caption),
+        };
+        let icon = self.admonition_icon(traversal, admon, &plain_caption);
 
         if processor.variant() == HtmlVariant::Semantic {
-            return visit_admonition_semantic(traversal, self, admon, &caption, font_icons);
+            return visit_admonition_semantic(traversal, self, admon, &caption, icon.as_deref());
         }
 
         let class = build_class(
@@ -49,27 +60,14 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         writeln!(self.writer, "<tr>")?;
         writeln!(self.writer, "<td class=\"icon\">")?;
 
-        // Output icon based on `:icons:` document attribute
-        // - Font mode (`icons=font`): Use Font Awesome <i> element
-        // - Default: Use text label in <div class="title">
-        if font_icons {
-            let fa_icon = match admon.variant {
-                AdmonitionVariant::Note => "fa-circle-info",
-                AdmonitionVariant::Tip => "fa-lightbulb",
-                AdmonitionVariant::Important => "fa-circle-exclamation",
-                AdmonitionVariant::Warning => "fa-triangle-exclamation",
-                AdmonitionVariant::Caution => "fa-fire",
-            };
-            writeln!(
-                self.writer,
-                "<i class=\"fa-solid {fa_icon}\" title=\"{caption}\"></i>",
-            )?;
+        if let Some(icon) = icon {
+            writeln!(self.writer, "{icon}")?;
         } else {
             writeln!(self.writer, "<div class=\"title\">{caption}</div>")?;
         }
         writeln!(self.writer, "</td>")?;
         writeln!(self.writer, "<td class=\"content\">")?;
-        if !admon.title.is_empty() {
+        if admon.title.is_present() {
             write!(self.writer, "<div class=\"title\">")?;
             self.visit_title(traversal, &admon.title)?;
             writeln!(self.writer, "</div>")?;
@@ -112,7 +110,7 @@ fn visit_admonition_semantic<'a, W: Write>(
     visitor: &mut HtmlVisitor<'a, '_, W>,
     admon: &'a Admonition<'a>,
     caption: &str,
-    font_icons: bool,
+    icon: Option<&str>,
 ) -> Result<(), Error> {
     // Note/Tip use <aside> with role="note"/"doc-tip"
     // Warning/Important/Caution use <section> with role="doc-notice"
@@ -137,26 +135,16 @@ fn visit_admonition_semantic<'a, W: Write>(
     }
     writeln!(writer, " role=\"{role}\">")?;
 
-    if font_icons {
-        let fa_icon = match admon.variant {
-            AdmonitionVariant::Note => "fa-circle-info",
-            AdmonitionVariant::Tip => "fa-lightbulb",
-            AdmonitionVariant::Important => "fa-circle-exclamation",
-            AdmonitionVariant::Warning => "fa-triangle-exclamation",
-            AdmonitionVariant::Caution => "fa-fire",
-        };
-        writeln!(
-            writer,
-            "<h6 class=\"block-title label-only\"><i class=\"fa-solid {fa_icon}\" title=\"{caption}\"></i></h6>"
-        )?;
-        if !admon.title.is_empty() {
+    if let Some(icon) = icon {
+        writeln!(writer, "<h6 class=\"block-title label-only\">{icon}</h6>")?;
+        if admon.title.is_present() {
             write!(writer, "<h6 class=\"block-title\">")?;
             let _ = writer;
             visitor.visit_title(traversal, &admon.title)?;
             writer = visitor.writer_mut();
             writeln!(writer, "</h6>")?;
         }
-    } else if admon.title.is_empty() {
+    } else if !admon.title.is_present() {
         // Label-only: no trailing space after colon
         writeln!(
             writer,
@@ -198,4 +186,44 @@ fn visit_admonition_semantic<'a, W: Write>(
     let writer = visitor.writer_mut();
     writeln!(writer, "</{tag}>")?;
     Ok(())
+}
+
+impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
+    fn admonition_icon(
+        &mut self,
+        traversal: &TraversalContext<'a>,
+        admon: &Admonition<'_>,
+        caption: &str,
+    ) -> Option<String> {
+        use acdc_converters_core::icon::{IconMode, image_source};
+        let caption = crate::inlines::escape_attribute(caption);
+        let custom = admon.metadata.attributes.get_string("icon");
+        match IconMode::from_attributes(traversal) {
+            IconMode::Text => None,
+            IconMode::Font if custom.is_none() => {
+                let glyph = match admon.variant {
+                    AdmonitionVariant::Note => "fa-circle-info",
+                    AdmonitionVariant::Tip => "fa-lightbulb",
+                    AdmonitionVariant::Important => "fa-circle-exclamation",
+                    AdmonitionVariant::Warning => "fa-triangle-exclamation",
+                    AdmonitionVariant::Caution => "fa-fire",
+                };
+                Some(format!(
+                    "<i class=\"fa-solid {glyph}\" title=\"{caption}\"></i>"
+                ))
+            }
+            IconMode::Font | IconMode::Image | _ => {
+                let name = admon.variant.to_string();
+                let target = custom.map_or_else(
+                    || image_source(traversal, &acdc_parser::Source::Name(&name)),
+                    |value| acdc_converters_core::icon::custom_image_source(traversal, &value),
+                );
+                let source = self.image_uri(&target, traversal);
+                Some(format!(
+                    "<img src=\"{}\" alt=\"{caption}\">",
+                    crate::inlines::escape_attribute(&source)
+                ))
+            }
+        }
+    }
 }

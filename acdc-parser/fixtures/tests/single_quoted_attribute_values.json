@@ -89,11 +89,23 @@
           "name": "image",
           "type": "block",
           "form": "macro",
-          "metadata": {
-            "attributes": {
-              "alt": "A beautiful sunset"
+          "alt": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "A beautiful sunset",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 20
+                },
+                {
+                  "line": 7,
+                  "col": 37
+                }
+              ]
             }
-          },
+          ],
           "source": {
             "type": "path",
             "value": "sunset.jpg"
@@ -115,11 +127,27 @@
           "form": "macro",
           "metadata": {
             "attributes": {
-              "alt": "Sunset view",
               "height": "200",
               "width": "300"
             }
           },
+          "alt": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Sunset view",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 20
+                },
+                {
+                  "line": 9,
+                  "col": 30
+                }
+              ]
+            }
+          ],
           "source": {
             "type": "path",
             "value": "sunset.jpg"
@@ -166,12 +194,10 @@
               "poster": "How to test"
             }
           },
-          "sources": [
-            {
-              "type": "path",
-              "value": "tutorial.mp4"
-            }
-          ],
+          "source": {
+            "type": "path",
+            "value": "tutorial.mp4"
+          },
           "location": [
             {
               "line": 13,
@@ -239,19 +265,19 @@
             {
               "name": "image",
               "type": "inline",
-              "title": [
+              "alt": [
                 {
                   "name": "text",
                   "type": "string",
                   "value": "Settings icon",
                   "location": [
                     {
-                      "line": 1,
-                      "col": 15
+                      "line": 17,
+                      "col": 31
                     },
                     {
-                      "line": 1,
-                      "col": 45
+                      "line": 17,
+                      "col": 43
                     }
                   ]
                 }
@@ -305,19 +331,19 @@
             {
               "name": "image",
               "type": "inline",
-              "title": [
+              "alt": [
                 {
                   "name": "text",
                   "type": "string",
                   "value": "Sales data, Q1 2024",
                   "location": [
                     {
-                      "line": 1,
-                      "col": 19
+                      "line": 19,
+                      "col": 36
                     },
                     {
-                      "line": 1,
-                      "col": 56
+                      "line": 19,
+                      "col": 54
                     }
                   ]
                 }
@@ -377,19 +403,19 @@
                   "width": "500"
                 }
               },
-              "title": [
+              "alt": [
                 {
                   "name": "text",
                   "type": "string",
                   "value": "Mountain view",
                   "location": [
                     {
-                      "line": 1,
-                      "col": 24
+                      "line": 21,
+                      "col": 44
                     },
                     {
-                      "line": 1,
-                      "col": 66
+                      "line": 21,
+                      "col": 56
                     }
                   ]
                 }
@@ -448,7 +474,7 @@
                 "value": "heart"
               },
               "attributes": {
-                "alt": "Favorite"
+                "size": "Favorite"
               },
               "location": [
                 {

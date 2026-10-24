@@ -12,7 +12,7 @@ use crate::{
 };
 use std::ops::Range;
 
-pub(super) fn process_unescaped_xref_label<'a>(
+pub(super) fn process_unescaped_label<'a>(
     state: &mut ParserState<'a>,
     metadata: &BlockParsingMetadata<'_>,
     text: &'a str,

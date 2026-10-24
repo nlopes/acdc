@@ -5,7 +5,10 @@
 
 use std::io::Write;
 
-use acdc_converters_core::{TraversalContext, visitor::WritableVisitor};
+use acdc_converters_core::{
+    TraversalContext,
+    visitor::{Visitor, WritableVisitor},
+};
 use acdc_parser::Admonition;
 
 use crate::{Error, ManpageVisitor};
@@ -24,10 +27,18 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
 
         // Label (bold, uppercase)
         let label = format!("{:?}", admon.variant).to_uppercase();
-        write!(w, "\\fB{label}:\\fP")?;
+        if let Some(content) = admon.metadata.caption_content() {
+            let _ = w;
+            write!(self.writer_mut(), "\\fB")?;
+            self.visit_inline_nodes(traversal, content)?;
+            write!(self.writer_mut(), ":\\fP")?;
+        } else {
+            write!(w, "\\fB{label}:\\fP")?;
+        }
+        let w = self.writer_mut();
 
         // Optional title
-        if !admon.title.is_empty() {
+        if admon.title.is_present() {
             write!(w, " ")?;
             self.render_title_inlines(traversal, &admon.title)?;
         }

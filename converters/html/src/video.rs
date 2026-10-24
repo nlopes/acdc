@@ -29,7 +29,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         let class = escape_attribute(&class);
         writeln!(self.writer, " class=\"{class}\">")?;
 
-        if !video.title.is_empty() {
+        if video.title.is_present() {
             write!(self.writer, "<div class=\"title\">")?;
             self.visit_title(traversal, &video.title)?;
             writeln!(self.writer, "</div>")?;
@@ -37,23 +37,9 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
         writeln!(self.writer, "<div class=\"content\">")?;
 
-        // Video blocks can have multiple sources
-        if video.sources.is_empty() {
-            writeln!(self.writer, "</div>")?;
-            writeln!(self.writer, "</div>")?;
-            return Ok(());
-        }
-
-        // Check if this is a YouTube or Vimeo video
-        // The platform is stored as an attribute with boolean value
-        let is_youtube = matches!(
-            video.metadata.attributes.get("youtube"),
-            Some(AttributeValue::Bool(true))
-        );
-        let is_vimeo = matches!(
-            video.metadata.attributes.get("vimeo"),
-            Some(AttributeValue::Bool(true))
-        );
+        let is_youtube =
+            video.metadata.attributes.get_string("poster").as_deref() == Some("youtube");
+        let is_vimeo = video.metadata.attributes.get_string("poster").as_deref() == Some("vimeo");
 
         if is_youtube || is_vimeo {
             render_iframe_video(video, traversal, &mut self.writer)?;
@@ -177,7 +163,7 @@ fn visit_video_semantic<'a, W: Write>(
     video: &Video,
     visitor: &mut HtmlVisitor<'a, '_, W>,
 ) -> Result<(), Error> {
-    let has_title = !video.title.is_empty();
+    let has_title = video.title.is_present();
 
     let tag = if has_title { "figure" } else { "div" };
     let class = escape_attribute(&build_class("video-block", &video.metadata.roles));
@@ -200,19 +186,13 @@ fn visit_video_semantic<'a, W: Write>(
     }
     writeln!(visitor.writer, ">")?;
 
-    if video.sources.is_empty() {
+    if video.source.to_string().is_empty() {
         writeln!(visitor.writer, "</{tag}>")?;
         return Ok(());
     }
 
-    let is_youtube = matches!(
-        video.metadata.attributes.get("youtube"),
-        Some(AttributeValue::Bool(true))
-    );
-    let is_vimeo = matches!(
-        video.metadata.attributes.get("vimeo"),
-        Some(AttributeValue::Bool(true))
-    );
+    let is_youtube = video.metadata.attributes.get_string("poster").as_deref() == Some("youtube");
+    let is_vimeo = video.metadata.attributes.get_string("poster").as_deref() == Some("vimeo");
 
     if is_youtube || is_vimeo {
         render_iframe_video(video, traversal, &mut visitor.writer)?;

@@ -82,8 +82,40 @@
               "name": "keyboard",
               "type": "inline",
               "keys": [
-                "Ctrl",
-                "C"
+                [
+                  {
+                    "name": "text",
+                    "type": "string",
+                    "value": "Ctrl",
+                    "location": [
+                      {
+                        "line": 3,
+                        "col": 39
+                      },
+                      {
+                        "line": 3,
+                        "col": 42
+                      }
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "name": "text",
+                    "type": "string",
+                    "value": "C",
+                    "location": [
+                      {
+                        "line": 3,
+                        "col": 44
+                      },
+                      {
+                        "line": 3,
+                        "col": 44
+                      }
+                    ]
+                  }
+                ]
               ],
               "location": [
                 {

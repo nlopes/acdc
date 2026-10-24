@@ -91,21 +91,21 @@
 #verse[#text("image::verse.png[Verse alt]")]
 
 #block(width: 100%, breakable: false)[
-#text("[Explicit alt]")#text(" | example.png")
+#text("[")#text("Explicit alt")#text("]")#text(" | example.png")
 #imagecaption[#text("Figure 1. ")#text("Example positional value")]
 ]
 
 #block(width: 100%, breakable: false)[
-#text("[Explicit alt]")#text(" | quote.png")
+#text("[")#text("Explicit alt")#text("]")#text(" | quote.png")
 #imagecaption[#text("Figure 2. ")#text("Quote positional value")]
 ]
 
 #block(width: 100%, breakable: false)[
-#text("[custom]")#text(" | custom.png")
+#text("[")#text("custom")#text("]")#text(" | custom.png")
 #imagecaption[#text("Figure 3. ")#text("Custom positional fallback")]
 ]
 
-#text("[role]")#text(" | role.png")
+#text("[")#text("role")#text("]")#text(" | role.png")
 
 #raw(block: true, "image::untitled-listing.png[Untitled listing alt]")
 
@@ -113,6 +113,6 @@
 #raw(block: true, "plain listing text")
 
 #block(width: 100%, breakable: false)[
-#text("[Final alt]")#text(" | final.png")
+#text("[")#text("Final alt")#text("]")#text(" | final.png")
 #imagecaption[#text("Figure 4. ")#text("Figure after styled macros")]
 ]

@@ -476,14 +476,22 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
                 self.writer.raw("#_acdc_image_callout(image(");
                 self.writer.string_literal(&path);
                 self.writer.raw(", width: 36pt, alt: ");
-                self.writer.string_literal(kind);
+                let alt = admon
+                    .metadata
+                    .caption_content()
+                    .map(|content| acdc_converters_core::inlines_to_string(content));
+                self.writer.string_literal(alt.as_deref().unwrap_or(kind));
                 self.writer.raw("))[\n");
+            } else if let Some(content) = admon.metadata.caption_content() {
+                self.writer.raw("#_acdc_image_callout([");
+                self.write_inlines(traversal, content)?;
+                self.writer.raw("])[\n");
             } else {
                 self.writer.raw("#callout(");
                 self.writer.string_literal(kind);
                 self.writer.raw(")[\n");
             }
-            if !admon.title.is_empty() {
+            if admon.title.is_present() {
                 self.writer.raw("#admonitiontitle[");
                 self.write_title(traversal, &admon.title)?;
                 self.writer.raw("]\n");
@@ -523,36 +531,20 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
     ) -> Result<(), Self::Error> {
         self.write_block_anchor(&video.metadata);
         self.warn_static_media_fallback(&video.location);
-        let youtube = matches!(
-            video.metadata.attributes.get("youtube"),
-            Some(AttributeValue::Bool(true))
-        );
-        let is_vimeo = matches!(
-            video.metadata.attributes.get("vimeo"),
-            Some(AttributeValue::Bool(true))
-        );
-        let sources = video
-            .sources
-            .iter()
-            .map(|source| {
-                if youtube {
-                    (
-                        format!("https://www.youtube.com/watch?v={source}"),
-                        "YouTube video",
-                    )
-                } else if is_vimeo {
-                    (format!("https://vimeo.com/{source}"), "Vimeo video")
-                } else {
-                    (Self::static_media_source_target(traversal, source), "video")
-                }
-            })
-            .collect::<Vec<_>>();
+        let kind = match video.metadata.attributes.get_string("poster").as_deref() {
+            Some("youtube") => "YouTube video",
+            Some("vimeo") => "Vimeo video",
+            _ => "video",
+        };
+        let target = acdc_converters_core::video::TryUrl::try_url(video, false)
+            .map_err(|error| std::io::Error::other(error.to_string()))?;
+        let sources = [(Self::static_media_target(traversal, &target), kind)];
 
         let poster = video
             .metadata
             .attributes
             .get_string("poster")
-            .filter(|poster| !poster.is_empty());
+            .filter(|poster| !poster.is_empty() && !matches!(poster.as_ref(), "youtube" | "vimeo"));
         let poster_target = poster
             .as_deref()
             .map(|poster| Self::static_media_target(traversal, poster));

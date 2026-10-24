@@ -212,11 +212,27 @@
       "form": "macro",
       "metadata": {
         "attributes": {
-          "alt": "A [x] B",
           "height": "200",
           "width": "100"
         }
       },
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "A [x] B",
+          "location": [
+            {
+              "line": 26,
+              "col": 18
+            },
+            {
+              "line": 26,
+              "col": 24
+            }
+          ]
+        }
+      ],
       "source": {
         "type": "path",
         "value": "photo.png"
@@ -238,11 +254,27 @@
       "form": "macro",
       "metadata": {
         "attributes": {
-          "alt": "Alt, With Comma",
           "height": "400",
           "width": "300"
         }
       },
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Alt, With Comma",
+          "location": [
+            {
+              "line": 28,
+              "col": 19
+            },
+            {
+              "line": 28,
+              "col": 33
+            }
+          ]
+        }
+      ],
       "source": {
         "type": "path",
         "value": "photo.png"
@@ -264,10 +296,26 @@
       "form": "macro",
       "metadata": {
         "attributes": {
-          "alt": "Named",
           "height": "500"
         }
       },
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Named",
+          "location": [
+            {
+              "line": 30,
+              "col": 22
+            },
+            {
+              "line": 30,
+              "col": 26
+            }
+          ]
+        }
+      ],
       "source": {
         "type": "path",
         "value": "photo.png"
@@ -321,12 +369,10 @@
           "width": "640"
         }
       },
-      "sources": [
-        {
-          "type": "path",
-          "value": "movie.mp4"
-        }
-      ],
+      "source": {
+        "type": "path",
+        "value": "movie.mp4"
+      },
       "location": [
         {
           "line": 34,

@@ -34,13 +34,15 @@ roff\-safety \- verify untrusted roff text remains literal
 roff\-safety
 .SH "DESCRIPTION"
 .sp
-UI labels: \fB\&.sp+\efB+a"quote\fP, [\fB\(aqbreak \efI a"quote\fP], and \fB\&.ce\fP \(ra \fB\(aqbreak\fP \(ra \fB\efB\fP \(ra \fBa"quote\fP\&.
+UI labels: \fB\&.sp\fR+\fB\efB\fR+\fBa"quote\fR, [\fB\(aqbreak \efI a"quote\fR], and \fB\&.ce\fR \(ra \fB\(aqbreak\fR \(ra \fB\efB\fR \(ra \fBa"quote\fR\&.
 .sp
 Inline STEM: \&.sp \(aqbreak \efB a"quote\&.
 .sp
 \fBFigure 1. A "quoted" \epath image\fR
 .br
-.URL "https://example.invalid/.target\(aqpart\(dqquote\epath" "[status]" ""
+\c
+.URL "https://example.invalid/.target\(aqpart\(dqquote\epath" "[status]" "\fR\c"
+.br
 .sp
 \fBA "quoted" \epath audio\fR
 .br

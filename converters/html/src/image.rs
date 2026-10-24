@@ -55,7 +55,13 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             )?;
         }
 
-        let markup = self.image_markup(traversal, img, false)?;
+        let markup = self.image_markup(
+            traversal,
+            &img.source,
+            &img.metadata,
+            img.alt.as_ref(),
+            None,
+        )?;
         write!(self.writer, "{markup}")?;
 
         if link.is_some() {
@@ -65,7 +71,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
         // Render title with figure caption if title exists
         // Caption can be disabled with :figure-caption!:
-        if !img.title.is_empty() {
+        if img.title.is_present() {
             self.render_captioned_title_with_wrapper(
                 traversal,
                 &img.title,
@@ -85,7 +91,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         img: &Image,
     ) -> Result<(), Error> {
-        let has_title = !img.title.is_empty();
+        let has_title = img.title.is_present();
 
         // Build class and style for wrapper
         let mut classes = vec!["image-block".to_string()];
@@ -169,7 +175,13 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             )?;
         }
 
-        let markup = self.image_markup(traversal, img, false)?;
+        let markup = self.image_markup(
+            traversal,
+            &img.source,
+            &img.metadata,
+            img.alt.as_ref(),
+            None,
+        )?;
         write!(self.writer, "{markup}")?;
 
         // Close link tag if we opened one

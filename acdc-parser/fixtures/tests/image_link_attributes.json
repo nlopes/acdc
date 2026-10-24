@@ -62,10 +62,26 @@
           "form": "macro",
           "metadata": {
             "attributes": {
-              "alt": "Block attribute",
               "link": "https://example.com/block-attribute"
             }
           },
+          "alt": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Block attribute",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 28
+                },
+                {
+                  "line": 7,
+                  "col": 42
+                }
+              ]
+            }
+          ],
           "source": {
             "type": "path",
             "value": "block-attribute.png"
@@ -87,10 +103,26 @@
           "form": "macro",
           "metadata": {
             "attributes": {
-              "alt": "Macro attribute",
               "link": "https://example.com/macro"
             }
           },
+          "alt": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Macro attribute",
+              "location": [
+                {
+                  "line": 10,
+                  "col": 28
+                },
+                {
+                  "line": 10,
+                  "col": 42
+                }
+              ]
+            }
+          ],
           "source": {
             "type": "path",
             "value": "macro-attribute.png"
@@ -112,10 +144,26 @@
           "form": "macro",
           "metadata": {
             "attributes": {
-              "alt": "Stacked attributes",
               "link": "https://example.com/last-line"
             }
           },
+          "alt": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Stacked attributes",
+              "location": [
+                {
+                  "line": 14,
+                  "col": 31
+                },
+                {
+                  "line": 14,
+                  "col": 48
+                }
+              ]
+            }
+          ],
           "source": {
             "type": "path",
             "value": "stacked-attributes.png"
@@ -137,10 +185,26 @@
           "form": "macro",
           "metadata": {
             "attributes": {
-              "alt": "Relative link",
               "link": "relative/path"
             }
           },
+          "alt": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Relative link",
+              "location": [
+                {
+                  "line": 16,
+                  "col": 21
+                },
+                {
+                  "line": 16,
+                  "col": 33
+                }
+              ]
+            }
+          ],
           "source": {
             "type": "path",
             "value": "relative.png"
@@ -183,19 +247,19 @@
                   "link": "https://example.com/inline"
                 }
               },
-              "title": [
+              "alt": [
                 {
                   "name": "text",
                   "type": "string",
                   "value": "Inline link",
                   "location": [
                     {
-                      "line": 1,
-                      "col": 15
+                      "line": 18,
+                      "col": 32
                     },
                     {
-                      "line": 1,
-                      "col": 75
+                      "line": 18,
+                      "col": 42
                     }
                   ]
                 }
@@ -282,10 +346,26 @@
           "form": "macro",
           "metadata": {
             "attributes": {
-              "alt": "Empty block link",
               "link": ""
             }
           },
+          "alt": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Empty block link",
+              "location": [
+                {
+                  "line": 22,
+                  "col": 24
+                },
+                {
+                  "line": 22,
+                  "col": 39
+                }
+              ]
+            }
+          ],
           "source": {
             "type": "path",
             "value": "empty-block.png"
@@ -307,10 +387,26 @@
           "form": "macro",
           "metadata": {
             "attributes": {
-              "alt": "Repeated block link",
               "link": "https://example.com/last"
             }
           },
+          "alt": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Repeated block link",
+              "location": [
+                {
+                  "line": 24,
+                  "col": 27
+                },
+                {
+                  "line": 24,
+                  "col": 45
+                }
+              ]
+            }
+          ],
           "source": {
             "type": "path",
             "value": "repeated-block.png"
@@ -353,19 +449,19 @@
                   "link": ""
                 }
               },
-              "title": [
+              "alt": [
                 {
                   "name": "text",
                   "type": "string",
                   "value": "Empty inline link",
                   "location": [
                     {
-                      "line": 1,
-                      "col": 20
+                      "line": 26,
+                      "col": 43
                     },
                     {
-                      "line": 1,
-                      "col": 66
+                      "line": 26,
+                      "col": 59
                     }
                   ]
                 }
@@ -439,19 +535,19 @@
                   "link": "https://example.com/last"
                 }
               },
-              "title": [
+              "alt": [
                 {
                   "name": "text",
                   "type": "string",
                   "value": "Repeated inline link",
                   "location": [
                     {
-                      "line": 1,
-                      "col": 23
+                      "line": 28,
+                      "col": 49
                     },
                     {
-                      "line": 1,
-                      "col": 130
+                      "line": 28,
+                      "col": 68
                     }
                   ]
                 }
@@ -525,19 +621,19 @@
                   "link": "https://example.com/substituted"
                 }
               },
-              "title": [
+              "alt": [
                 {
                   "name": "text",
                   "type": "string",
                   "value": "Substituted inline link",
                   "location": [
                     {
-                      "line": 1,
-                      "col": 26
+                      "line": 30,
+                      "col": 55
                     },
                     {
-                      "line": 1,
-                      "col": 115
+                      "line": 30,
+                      "col": 77
                     }
                   ]
                 }
@@ -613,19 +709,19 @@
                   "width": "10"
                 }
               },
-              "title": [
+              "alt": [
                 {
                   "name": "text",
                   "type": "string",
                   "value": "Positional inline link",
                   "location": [
                     {
-                      "line": 1,
-                      "col": 26
+                      "line": 32,
+                      "col": 54
                     },
                     {
-                      "line": 1,
-                      "col": 110
+                      "line": 32,
+                      "col": 75
                     }
                   ]
                 }
@@ -703,19 +799,19 @@
                 {
                   "name": "image",
                   "type": "inline",
-                  "title": [
+                  "alt": [
                     {
                       "name": "text",
                       "type": "string",
                       "value": "Outer inline link",
                       "location": [
                         {
-                          "line": 1,
-                          "col": 1
+                          "line": 34,
+                          "col": 67
                         },
                         {
-                          "line": 1,
-                          "col": 41
+                          "line": 34,
+                          "col": 83
                         }
                       ]
                     }
@@ -811,19 +907,19 @@
                       "link": "https://example.com/inner"
                     }
                   },
-                  "title": [
+                  "alt": [
                     {
                       "name": "text",
                       "type": "string",
                       "value": "Inner inline link",
                       "location": [
                         {
-                          "line": 1,
-                          "col": 1
+                          "line": 36,
+                          "col": 78
                         },
                         {
-                          "line": 1,
-                          "col": 72
+                          "line": 36,
+                          "col": 94
                         }
                       ]
                     }

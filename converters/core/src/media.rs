@@ -2,7 +2,7 @@
 
 use std::{borrow::Cow, path::Path};
 
-use acdc_parser::{AttributeValue, Image};
+use acdc_parser::{ContentAttribute, Source};
 use relative_path::RelativePath;
 
 use crate::TraversalContext;
@@ -90,19 +90,19 @@ pub fn resolve_target(target: &str, attributes: &TraversalContext<'_>) -> String
     encode_spaces(&target)
 }
 
-/// Image alternative text: selected inline alt text, named alt, then the filename.
-/// Block titles are captions and do not replace the alternative text.
+/// Use explicit alternative text, including an empty value, or the filename.
 #[must_use]
-pub fn image_alt<'a>(image: &Image<'a>, inline: bool) -> Cow<'a, str> {
-    if inline && !image.title.is_empty() {
-        return Cow::Owned(crate::inlines_to_string(&image.title));
-    }
-    if let Some(AttributeValue::String(alt)) = image.metadata.attributes.get("alt") {
-        return alt.clone();
+pub fn image_alt<'a>(source: &Source<'_>, alt: Option<&ContentAttribute<'_>>) -> Cow<'a, str> {
+    if let Some(alt) = alt {
+        return Cow::Owned(
+            crate::inline_text::InlineTextTransform::default()
+                .rendered_replacements(true)
+                .decode_char_refs(true)
+                .to_string(alt),
+        );
     }
     Cow::Owned(
-        image
-            .source
+        source
             .get_filename()
             .and_then(|filename| Path::new(filename).file_stem())
             .and_then(std::ffi::OsStr::to_str)

@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking changes
+
+- `InlineMacro::Image` holds `InlineImage`; `Image` represents block images.
+  Read `alt` and inline `tooltip` as optional `ContentAttribute` values, including
+  explicitly empty content. Icons and links also expose tooltips. Button labels,
+  menu labels, and keyboard keys now contain inline content. Native JSON uses
+  inline arrays and omits consumed metadata attributes. `InlineMacro::Link`, `Url`, and `Mailto`
+  hold boxed structs to keep ordinary inline nodes compact.
+- Authored `caption=` content uses `Caption::CustomContent`; read it through
+  `BlockMetadata::caption_content()`. Generated labels and counters remain
+  separate from serialized content.
+- `Video::source` replaces `Video::sources`, including in JSON and `Video::new`.
+  It preserves commas and empty playlist slots. Read the provider from `poster`
+  instead of synthetic boolean `youtube`/`vimeo` attributes.
+- `Title::default()` is absent; `Title::new(Vec::new())` is explicitly empty.
+  Use `is_present()` for caption presence and `is_empty()` for inline content.
+  Empty titles serialize as `[]` without a synthetic empty text node.
+- Named titles, quote attributions, and citation titles serialize only their
+  parsed inline content. Read named titles through `title`, rather than
+  `metadata.attributes["title"]`. Replacing or removing content cannot leave
+  an old attribute value. `Attribution` and `CiteTitle` now share
+  `ContentAttribute`; their constructors and slice access remain.
+
 ### Added
 
 - `OptionsBuilder::with_force_local_file_xrefs()` resolves file-qualified
@@ -24,9 +47,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Inline-image JSON now includes `metadata`, preserving `title=` tooltips,
-  dimensions, links, roles, options, IDs, and other authored attributes. Its
-  existing `title` array holds explicit alt text, not the tooltip.
+- Paragraph admonition styles such as `[NOTE,caption='Care']` retain their label and admonition layout.
+
+- Image and icon alternative content, tooltips, custom captions, and UI labels
+  retain supported inline formatting, escapes, substitutions, and source locations.
+  Only selected values register footnotes. Literal quote attributions and citation
+  titles retain dashes; single-quoted values support normal substitutions.
+- Icon positional values always select size; named alternative text remains
+  independent. Repeated icon attributes use the last value and retain link options.
+
+- Named titles retain document-attribute values from their declaration, even
+  when later metadata lines change those attributes, matching Asciidoctor.
 
 - Named `title=` attributes now supply formatted titles on paragraphs, lists,
   delimited blocks, tables, audio, and video. Media macro titles override preceding
@@ -38,7 +69,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Block images accept `title=` captions in the macro or a preceding attribute
   list. Macro titles override preceding titles, retain inline formatting, and
   supply cross-reference text, matching Asciidoctor. Inline-image `title=`
-  tooltips are unchanged.
+  tooltips remain independent of caption titles.
 
 - Errors and warnings in reindented includes report columns in the original
   source, including nested and selected includes.

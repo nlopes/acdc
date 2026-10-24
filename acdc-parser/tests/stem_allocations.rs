@@ -12,14 +12,14 @@ fn stem_preprocessing_allocation_budgets() -> Result<(), Box<dyn std::error::Err
     let prose = "Plain words with *strong* and _emphasis_. ".repeat(100);
     // Byte budgets allow small target-dependent differences in type layout.
     for (name, source, allocations, reallocations, bytes) in [
-        ("prose", prose.as_str(), 822, 8, 355_576),
-        ("formula", "Before stem:[x^2] after.", 23, 0, 7_464),
+        ("prose", prose.as_str(), 822, 8, 355_880),
+        ("formula", "Before stem:[x^2] after.", 23, 0, 7_768),
         (
             "protected",
             ":value: expanded\n\nBefore stem:[{value} *x* +y+ --] after {value}.",
             49,
             4,
-            9_995,
+            10_406,
         ),
     ] {
         let _ = black_box(parse(source, &options)?);

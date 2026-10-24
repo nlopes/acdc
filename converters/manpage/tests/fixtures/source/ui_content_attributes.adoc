@@ -1,0 +1,13 @@
+= ui-content-attributes(1)
+:doctype: manpage
+:manmanual: Media content tests
+:mansource: acdc
+:experimental:
+
+== NAME
+
+ui-content-attributes - media content rendering
+
+== DESCRIPTION
+
+btn:[*Save*] menu:File[*Open* > _Recent_] kbd:[*Ctrl*+S]

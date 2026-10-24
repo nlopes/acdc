@@ -555,7 +555,7 @@
             "style": "verse",
             "attribution": [
               {
-                "name": "text",
+                "name": "raw",
                 "type": "string",
                 "value": "Writer",
                 "location": [
@@ -572,7 +572,7 @@
             ],
             "citetitle": [
               {
-                "name": "text",
+                "name": "raw",
                 "type": "string",
                 "value": "Work",
                 "location": [
@@ -608,7 +608,7 @@
             "style": "verse",
             "attribution": [
               {
-                "name": "text",
+                "name": "raw",
                 "type": "string",
                 "value": "Writer",
                 "location": [
@@ -625,7 +625,7 @@
             ],
             "citetitle": [
               {
-                "name": "text",
+                "name": "raw",
                 "type": "string",
                 "value": "Work",
                 "location": [

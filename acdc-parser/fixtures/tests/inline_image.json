@@ -9,12 +9,23 @@
         {
           "name": "image",
           "type": "inline",
-          "metadata": {
-            "attributes": {
-              "title": "Pause stuff"
+          "tooltip": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Pause stuff",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 23
+                },
+                {
+                  "line": 1,
+                  "col": 33
+                }
+              ]
             }
-          },
-          "title": [],
+          ],
           "target": {
             "type": "path",
             "value": "pause.png"

@@ -1,0 +1,351 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Substitutions in media content",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 32
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 3,
+        "col": 18
+      }
+    ]
+  },
+  "attributes": {
+    "experimental": true,
+    "label": "*Expanded*"
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "image",
+          "type": "inline",
+          "alt": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "*Literal*",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 17
+                },
+                {
+                  "line": 6,
+                  "col": 25
+                }
+              ]
+            }
+          ],
+          "tooltip": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "_Literal_",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 34
+                },
+                {
+                  "line": 6,
+                  "col": 42
+                }
+              ]
+            }
+          ],
+          "target": {
+            "type": "path",
+            "value": "photo.png"
+          },
+          "location": [
+            {
+              "line": 6,
+              "col": 1
+            },
+            {
+              "line": 6,
+              "col": 44
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " ",
+          "location": [
+            {
+              "line": 6,
+              "col": 45
+            },
+            {
+              "line": 6,
+              "col": 45
+            }
+          ]
+        },
+        {
+          "name": "icon",
+          "type": "inline",
+          "alt": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "*Literal*",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 62
+                },
+                {
+                  "line": 6,
+                  "col": 70
+                }
+              ]
+            }
+          ],
+          "target": {
+            "type": "name",
+            "value": "heart"
+          },
+          "location": [
+            {
+              "line": 6,
+              "col": 46
+            },
+            {
+              "line": 6,
+              "col": 72
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " ",
+          "location": [
+            {
+              "line": 6,
+              "col": 73
+            },
+            {
+              "line": 6,
+              "col": 73
+            }
+          ]
+        },
+        {
+          "name": "button",
+          "type": "inline",
+          "label": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "*Literal*",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 79
+                },
+                {
+                  "line": 6,
+                  "col": 87
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 6,
+              "col": 74
+            },
+            {
+              "line": 6,
+              "col": 88
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "substitutions": [
+          "macros"
+        ]
+      },
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 6,
+          "col": 88
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "image",
+          "type": "inline",
+          "alt": [
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Expanded",
+                  "location": [
+                    {
+                      "line": 9,
+                      "col": 21
+                    },
+                    {
+                      "line": 9,
+                      "col": 27
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 9,
+                  "col": 21
+                },
+                {
+                  "line": 9,
+                  "col": 27
+                }
+              ]
+            }
+          ],
+          "target": {
+            "type": "path",
+            "value": "photo.png"
+          },
+          "location": [
+            {
+              "line": 9,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 28
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "substitutions": [
+          "attributes",
+          "quotes",
+          "macros"
+        ]
+      },
+      "location": [
+        {
+          "line": 8,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 28
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "image",
+          "type": "inline",
+          "alt": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "*Expanded*",
+              "location": [
+                {
+                  "line": 12,
+                  "col": 21
+                },
+                {
+                  "line": 12,
+                  "col": 27
+                }
+              ]
+            }
+          ],
+          "target": {
+            "type": "path",
+            "value": "photo.png"
+          },
+          "location": [
+            {
+              "line": 12,
+              "col": 1
+            },
+            {
+              "line": 12,
+              "col": 28
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "substitutions": [
+          "macros",
+          "attributes"
+        ]
+      },
+      "location": [
+        {
+          "line": 11,
+          "col": 1
+        },
+        {
+          "line": 12,
+          "col": 28
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 12,
+      "col": 28
+    }
+  ]
+}

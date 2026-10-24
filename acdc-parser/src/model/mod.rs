@@ -13,6 +13,7 @@ pub(crate) use anchor::{BibliographyLabel, SectionReference};
 mod attributes;
 mod attribution;
 pub(crate) mod caption;
+pub(crate) mod content_attribute;
 mod inlines;
 mod lists;
 mod location;
@@ -35,13 +36,14 @@ pub use attributes::{
 };
 pub use attribution::{Attribution, CiteTitle};
 pub use caption::{Caption, CaptionKind};
+pub use content_attribute::ContentAttribute;
 pub use inlines::*;
 pub use lists::{
     CalloutList, CalloutListItem, DescriptionList, DescriptionListItem, ListItem,
     ListItemCheckedStatus, ListLevel, OrderedList, UnorderedList,
 };
 pub use location::*;
-pub use media::{Audio, Image, Source, SourceUrl, Video};
+pub use media::{Audio, Image, InlineImage, Source, SourceUrl, Video};
 pub(crate) use metadata::PositionalAttribute;
 pub use metadata::{BlockMetadata, Role};
 pub use section::*;
@@ -440,7 +442,7 @@ impl<'a> Block<'a> {
         }
     }
 
-    /// This block's title, if it has a non-empty one (used as the cross-reference
+    /// This block's title, if one was supplied (used as the cross-reference
     /// text when an `<<id>>` to this block has no explicit label).
     pub(crate) fn title(&self) -> Option<&Title<'a>> {
         let title = match self {
@@ -462,7 +464,7 @@ impl<'a> Block<'a> {
                 return None;
             }
         };
-        (!title.is_empty()).then_some(title)
+        title.is_present().then_some(title)
     }
 }
 
@@ -596,7 +598,7 @@ impl Serialize for ThematicBreak<'_> {
         if !self.anchors.is_empty() {
             state.serialize_entry("anchors", &self.anchors)?;
         }
-        if !self.title.is_empty() {
+        if self.title.is_present() {
             state.serialize_entry("title", &self.title)?;
         }
         state.serialize_entry("location", &self.location)?;
@@ -622,7 +624,7 @@ impl Serialize for PageBreak<'_> {
         state.serialize_entry("name", "break")?;
         state.serialize_entry("type", "block")?;
         state.serialize_entry("variant", "page")?;
-        if !self.title.is_empty() {
+        if self.title.is_present() {
             state.serialize_entry("title", &self.title)?;
         }
         if !self.metadata.is_default() {
@@ -998,7 +1000,7 @@ impl Serialize for DelimitedBlock<'_> {
                 state.serialize_entry("blocks", &inner)?;
             }
         }
-        if !self.title.is_empty() {
+        if self.title.is_present() {
             state.serialize_entry("title", &self.title)?;
         }
         state.serialize_entry("location", &self.location)?;
@@ -1014,7 +1016,7 @@ impl Serialize for DiscreteHeader<'_> {
         let mut state = serializer.serialize_map(None)?;
         state.serialize_entry("name", "heading")?;
         state.serialize_entry("type", "block")?;
-        if !self.title.is_empty() {
+        if self.title.is_present() {
             state.serialize_entry("title", &self.title)?;
         }
         state.serialize_entry("level", &self.level)?;
@@ -1034,7 +1036,7 @@ impl Serialize for Paragraph<'_> {
         let mut state = serializer.serialize_map(None)?;
         state.serialize_entry("name", "paragraph")?;
         state.serialize_entry("type", "block")?;
-        if !self.title.is_empty() {
+        if self.title.is_present() {
             state.serialize_entry("title", &self.title)?;
         }
         state.serialize_entry("inlines", &self.content)?;

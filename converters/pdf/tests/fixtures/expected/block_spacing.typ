@@ -112,7 +112,7 @@
 
 ]
 
-#text("[Image fallback]")#text(" | missing.png")
+#text("[")#text("Image fallback")#text("]")#text(" | missing.png")
 
 #text("First paragraph in an open block.")
 

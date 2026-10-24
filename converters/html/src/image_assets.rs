@@ -6,7 +6,7 @@ use std::{
 };
 
 use acdc_converters_core::TraversalContext;
-use acdc_parser::{Image, SafeMode};
+use acdc_parser::{BlockMetadata, ContentAttribute, SafeMode, Source};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use quick_xml::{
     Reader, Writer,
@@ -30,54 +30,62 @@ struct ImageData {
 impl<'a, W: std::io::Write> HtmlVisitor<'a, '_, W> {
     pub(crate) fn image_markup(
         &mut self,
-        traversal: &TraversalContext<'a>,
-        image: &Image<'_>,
-        inline: bool,
+        traversal: &mut TraversalContext<'a>,
+        source: &Source<'_>,
+        metadata: &BlockMetadata<'_>,
+        alt: Option<&ContentAttribute<'_>>,
+        tooltip: Option<&ContentAttribute<'_>>,
     ) -> Result<String, Error> {
-        let alt = acdc_converters_core::media::image_alt(image, inline);
-        let target =
-            acdc_converters_core::media::resolve_target(&image.source.to_string(), traversal);
-        let svg = image.metadata.attributes.get_string("format").as_deref() == Some("svg")
+        let alt_content = alt;
+        let alt = acdc_converters_core::media::image_alt(source, alt);
+        let target = acdc_converters_core::media::resolve_target(&source.to_string(), traversal);
+        let svg = metadata.attributes.get_string("format").as_deref() == Some("svg")
             || target.contains(".svg");
         let embedding_allowed = self.processor.options.safe_mode() < SafeMode::Secure;
-        if svg && embedding_allowed && image.metadata.options.contains(&"inline") {
+        if svg && embedding_allowed && metadata.options.contains(&"inline") {
             let result = self
                 .read_image(&target, traversal)
-                .and_then(|data| inline_svg(&data.bytes, image));
+                .and_then(|data| inline_svg(&data.bytes, metadata));
             return Ok(match result {
                 Ok(svg) => svg,
                 Err(error) => {
                     self.diagnostics
                         .warn(format!("could not embed SVG {target}: {error}"));
-                    format!("<span class=\"alt\">{}</span>", escape_image_text(&alt))
+                    format!(
+                        "<span class=\"alt\">{}</span>",
+                        match alt_content {
+                            Some(content) => self.content_html(traversal, content)?,
+                            None => escape_image_text(&alt),
+                        }
+                    )
                 }
             });
         }
 
         let mut attrs = Vec::new();
-        write_dimension_attributes(&mut attrs, &image.metadata)?;
-        if inline
-            && let Some(acdc_parser::AttributeValue::String(title)) =
-                image.metadata.attributes.get("title")
-        {
-            write!(attrs, " title=\"{}\"", escape_image_text(title))?;
-        }
+        write_dimension_attributes(&mut attrs, metadata)?;
+        write!(attrs, "{}", crate::inlines::tooltip_attribute(tooltip))?;
         if self.processor.variant() == HtmlVariant::Semantic
-            && let Some(loading) = image.metadata.attributes.get_string("loading")
+            && let Some(loading) = metadata.attributes.get_string("loading")
         {
             write!(attrs, " loading=\"{}\"", escape_attribute(&loading))?;
         }
         let attrs = String::from_utf8(attrs)?;
         let source = escape_attribute(&self.image_uri(&target, traversal));
         let alt = escape_image_text(&alt);
-        if svg && embedding_allowed && image.metadata.options.contains(&"interactive") {
-            let fallback = if let Some(fallback) = image.metadata.attributes.get_string("fallback")
-            {
+        if svg && embedding_allowed && metadata.options.contains(&"interactive") {
+            let fallback = if let Some(fallback) = metadata.attributes.get_string("fallback") {
                 let fallback = acdc_converters_core::media::resolve_target(&fallback, traversal);
                 let fallback = escape_attribute(&self.image_uri(&fallback, traversal));
                 format!("<img src=\"{fallback}\" alt=\"{alt}\"{attrs}>")
             } else {
-                format!("<span class=\"alt\">{alt}</span>")
+                format!(
+                    "<span class=\"alt\">{}</span>",
+                    match alt_content {
+                        Some(content) => self.content_html(traversal, content)?,
+                        None => alt.clone(),
+                    }
+                )
             };
             Ok(format!(
                 "<object type=\"image/svg+xml\" data=\"{source}\"{attrs}>{fallback}</object>"
@@ -87,7 +95,7 @@ impl<'a, W: std::io::Write> HtmlVisitor<'a, '_, W> {
         }
     }
 
-    fn image_uri(&mut self, target: &str, traversal: &TraversalContext<'_>) -> String {
+    pub(crate) fn image_uri(&mut self, target: &str, traversal: &TraversalContext<'_>) -> String {
         let remote = target.starts_with("https://") || target.starts_with("http://");
         if self.processor.options.safe_mode() >= SafeMode::Secure
             || traversal.get("data-uri").is_none()
@@ -212,7 +220,7 @@ fn read_remote_image(_target: &str) -> Result<ImageData, String> {
     Err("remote image embedding requires the network feature".into())
 }
 
-fn inline_svg(bytes: &[u8], image: &Image<'_>) -> Result<String, String> {
+fn inline_svg(bytes: &[u8], metadata: &BlockMetadata<'_>) -> Result<String, String> {
     let source = std::str::from_utf8(bytes).map_err(|error| error.to_string())?;
     let mut reader = Reader::from_str(source);
     loop {
@@ -234,8 +242,8 @@ fn inline_svg(bytes: &[u8], image: &Image<'_>) -> Result<String, String> {
         if tag.name().as_ref() != b"svg" {
             return Err("image root element is not svg".into());
         }
-        let width = image.metadata.attributes.get_string("width");
-        let height = image.metadata.attributes.get_string("height");
+        let width = metadata.attributes.get_string("width");
+        let height = metadata.attributes.get_string("height");
         if width.is_none() && height.is_none() {
             return Ok(source
                 .get(start..)

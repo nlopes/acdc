@@ -1,0 +1,20 @@
+= Media content attributes
+:desc: *Inserted*
+
+[alt='*Block* description']
+.Caption independent of alternative text
+image::photo.png[]
+
+image:photo.png[*Inline*,title="_Tooltip_"]
+
+image:photo.png[alt="",title=""]
+
+image:photo.png[alt={desc}]
+
+icon:heart[Other,alt=Early,alt="*Named*",title="_Tip_",opts="nofollow,noopener",link=https://example.org,window=preview,float=right,height=24]
+
+link:https://example.org[Label,title="*Link tip*"]
+
+https://example.org[URL,title="_URL tip_"]
+
+mailto:user@example.org[Mail,title="*Mail tip*"]

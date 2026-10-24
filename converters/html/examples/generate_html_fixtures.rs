@@ -68,6 +68,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 )?;
                 let render_options = RenderOptions {
                     embedded: mode == "embedded",
+                    source_dir: path.parent().map(Path::to_path_buf),
                     ..RenderOptions::default()
                 };
                 let mut output = Vec::new();

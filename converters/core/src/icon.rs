@@ -24,7 +24,7 @@
 
 use std::borrow::Cow;
 
-use acdc_parser::{DocumentAttributes, ElementAttributes, Source, strip_quotes};
+use acdc_parser::{ContentAttribute, DocumentAttributes, Source};
 
 use crate::TraversalContext;
 
@@ -33,16 +33,20 @@ use crate::TraversalContext;
 /// An explicit `alt` attribute takes precedence. Otherwise, hyphens and
 /// underscores in the icon target become spaces.
 #[must_use]
-pub fn alt<'a>(target: &Source<'a>, attributes: &ElementAttributes<'a>) -> Cow<'a, str> {
-    attributes
-        .get_string("alt")
-        .unwrap_or_else(|| match target {
-            Source::Name(name) if !name.contains(['-', '_']) => Cow::Borrowed(name),
-            Source::Name(name) => Cow::Owned(name.replace(['-', '_'], " ")),
-            Source::Path(_) | Source::Url(_) => {
-                Cow::Owned(target.to_string().replace(['-', '_'], " "))
-            }
-        })
+pub fn alt<'a>(target: &Source<'a>, content: Option<&ContentAttribute<'_>>) -> Cow<'a, str> {
+    if let Some(content) = content {
+        return Cow::Owned(
+            crate::inline_text::InlineTextTransform::default()
+                .rendered_replacements(true)
+                .decode_char_refs(true)
+                .to_string(content),
+        );
+    }
+    match target {
+        Source::Name(name) if !name.contains(['-', '_']) => Cow::Borrowed(*name),
+        Source::Name(name) => Cow::Owned(name.replace(['-', '_'], " ")),
+        Source::Path(_) | Source::Url(_) => Cow::Owned(target.to_string().replace(['-', '_'], " ")),
+    }
 }
 
 /// Build the logical image source for an icon.
@@ -52,30 +56,7 @@ pub fn alt<'a>(target: &Source<'a>, attributes: &ElementAttributes<'a>) -> Cow<'
 /// extension is `png`.
 #[must_use]
 pub fn image_source(attributes: &TraversalContext<'_>, target: &Source<'_>) -> String {
-    let directory = attributes
-        .get("iconsdir")
-        .and_then(|value| value.text())
-        .map_or("./images/icons", strip_quotes);
-    let extension = attributes
-        .get("icontype")
-        .and_then(|value| value.text())
-        .map(strip_quotes)
-        .or_else(|| {
-            attributes
-                .get("icons")
-                .and_then(|value| value.text())
-                .map(strip_quotes)
-                .filter(|value| !value.is_empty() && *value != "image" && *value != "font")
-        })
-        .unwrap_or("png");
-    let directory = directory.trim_end_matches(['/', '\\']);
-    let extension = extension.trim_start_matches('.');
-
-    if directory.is_empty() {
-        format!("{target}.{extension}")
-    } else {
-        format!("{directory}/{target}.{extension}")
-    }
+    custom_image_source(attributes, &target.to_string())
 }
 
 /// Icon rendering mode.
@@ -113,6 +94,43 @@ impl IconMode {
             Some(value) if value.as_str().is_some() || value.is_presence() => Self::Image,
             Some(_) | None => Self::Text,
         }
+    }
+}
+
+/// Resolve an `icon=` override relative to `iconsdir`, adding the configured
+/// extension when the override has none. Absolute targets retain their directory.
+#[must_use]
+pub fn custom_image_source(attributes: &TraversalContext<'_>, target: &str) -> String {
+    let target = if std::path::Path::new(target.split(['?', '#']).next().unwrap_or(target))
+        .extension()
+        .is_some()
+    {
+        Cow::Borrowed(target)
+    } else {
+        let extension = crate::document_attribute_text((attributes).get("icontype"))
+            .or_else(|| {
+                crate::document_attribute_text((attributes).get("icons"))
+                    .filter(|value| !value.is_empty() && *value != "image" && *value != "font")
+            })
+            .unwrap_or("png");
+        Cow::Owned(format!("{target}.{}", extension.trim_start_matches('.')))
+    };
+    if target.starts_with('/') || target.contains("://") {
+        return target.into_owned();
+    }
+    let directory = crate::document_attribute_text((attributes).get("iconsdir")).map_or_else(
+        || {
+            crate::document_attribute_text((attributes).get("imagesdir")).map_or_else(
+                || "./images/icons".to_string(),
+                |imagesdir| format!("{}/icons", imagesdir.trim_end_matches(['/', '\\'])),
+            )
+        },
+        |iconsdir| iconsdir.trim_end_matches(['/', '\\']).to_string(),
+    );
+    if directory.is_empty() {
+        target.into_owned()
+    } else {
+        format!("{directory}/{target}")
     }
 }
 
@@ -209,12 +227,15 @@ mod tests {
     #[test]
     fn alt_prefers_explicit_text_then_normalizes_the_target() {
         let target = Source::Name("arrow-left");
-        let mut attributes = ElementAttributes::default();
-
-        assert_eq!(alt(&target, &attributes), "arrow left");
-
-        attributes.set("alt".into(), AttributeValue::String(Cow::Borrowed("Back")));
-        assert_eq!(alt(&target, &attributes), "Back");
+        assert_eq!(alt(&target, None), "arrow left");
+        let content = ContentAttribute::new(vec![acdc_parser::InlineNode::PlainText(
+            acdc_parser::Plain {
+                content: "Back",
+                location: acdc_parser::Location::default(),
+                escaped: false,
+            },
+        )]);
+        assert_eq!(alt(&target, Some(&content)), "Back");
     }
 
     #[test]

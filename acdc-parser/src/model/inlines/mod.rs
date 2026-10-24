@@ -9,7 +9,7 @@ mod text;
 pub use macros::*;
 pub use text::*;
 
-use crate::{Anchor, ElementAttributes, Image, Location, Source};
+use crate::{Anchor, ElementAttributes, InlineImage, Location, Source};
 
 /// An `InlineNode` represents an inline node in a document.
 ///
@@ -157,7 +157,7 @@ pub enum InlineMacro<'a> {
     /// Icon macro: `icon:name[attributes]`
     Icon(Icon<'a>),
     /// Inline image: `image:path[alt,width,height]`
-    Image(Box<Image<'a>>),
+    Image(Box<InlineImage<'a>>),
     /// Keyboard shortcut: `kbd:[Ctrl+C]`
     Keyboard(Keyboard<'a>),
     /// UI button: `btn:[Label]`
@@ -165,11 +165,11 @@ pub enum InlineMacro<'a> {
     /// Menu path: `menu:TopLevel[Item > Subitem]`
     Menu(Menu<'a>),
     /// URL with optional text: parsed from `link:` macro or bare URLs
-    Url(Url<'a>),
+    Url(Box<Url<'a>>),
     /// Explicit link macro: `link:target[text]`
-    Link(Link<'a>),
+    Link(Box<Link<'a>>),
     /// Email link: `mailto:address[text]`
-    Mailto(Mailto<'a>),
+    Mailto(Box<Mailto<'a>>),
     /// Auto-detected URL: `<\https://example.com>`
     Autolink(Autolink<'a>),
     /// Cross-reference: `<<id,text>>` or `xref:id[text]`
@@ -317,6 +317,25 @@ fn serialize_inline_macro<S>(
 where
     S: Serializer,
 {
+    let tooltip = match macro_node {
+        InlineMacro::Link(value) => value.tooltip.as_ref(),
+        InlineMacro::Url(value) => value.tooltip.as_ref(),
+        InlineMacro::Mailto(value) => value.tooltip.as_ref(),
+        InlineMacro::Icon(value) => value.tooltip.as_ref(),
+        InlineMacro::Footnote(_)
+        | InlineMacro::Image(_)
+        | InlineMacro::Keyboard(_)
+        | InlineMacro::Button(_)
+        | InlineMacro::Menu(_)
+        | InlineMacro::Autolink(_)
+        | InlineMacro::CrossReference(_)
+        | InlineMacro::Pass(_)
+        | InlineMacro::Stem(_)
+        | InlineMacro::IndexTerm(_) => None,
+    };
+    if let Some(tooltip) = tooltip {
+        map.serialize_entry("tooltip", tooltip)?;
+    }
     match macro_node {
         InlineMacro::Footnote(f) => serialize_footnote::<S>(f, map),
         InlineMacro::Icon(i) => serialize_icon::<S>(i, map),
@@ -365,6 +384,9 @@ where
 {
     map.serialize_entry("name", "icon")?;
     map.serialize_entry("type", "inline")?;
+    if let Some(alt) = &i.alt {
+        map.serialize_entry("alt", alt)?;
+    }
     map.serialize_entry("target", &i.target)?;
     if !i.attributes.is_empty() {
         map.serialize_entry("attributes", &i.attributes)?;
@@ -372,7 +394,15 @@ where
     map.serialize_entry("location", &i.location)
 }
 
-fn serialize_image<S>(i: &Image<'_>, map: &mut S::SerializeMap) -> Result<(), S::Error>
+impl Serialize for InlineImage<'_> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut map = serializer.serialize_map(None)?;
+        serialize_image::<S>(self, &mut map)?;
+        map.end()
+    }
+}
+
+fn serialize_image<S>(i: &InlineImage<'_>, map: &mut S::SerializeMap) -> Result<(), S::Error>
 where
     S: Serializer,
 {
@@ -381,7 +411,12 @@ where
     if !i.metadata.is_default() {
         map.serialize_entry("metadata", &i.metadata)?;
     }
-    map.serialize_entry("title", &i.title)?;
+    if let Some(alt) = &i.alt {
+        map.serialize_entry("alt", alt)?;
+    }
+    if let Some(tooltip) = &i.tooltip {
+        map.serialize_entry("tooltip", tooltip)?;
+    }
     map.serialize_entry("target", &i.source)?;
     map.serialize_entry("location", &i.location)
 }
@@ -499,4 +534,110 @@ where
     }
     map.serialize_entry("visible", &i.is_visible())?;
     map.serialize_entry("location", &i.location)
+}
+
+impl<'a> InlineMacro<'a> {
+    pub(crate) fn for_each_content_attribute_mut(
+        &mut self,
+        mut visit: impl FnMut(&mut Vec<InlineNode<'a>>),
+    ) {
+        let mut content = |value: &mut crate::ContentAttribute<'a>| visit(value.inlines_mut());
+        match self {
+            Self::Image(image) => {
+                for value in [&mut image.alt, &mut image.tooltip].into_iter().flatten() {
+                    content(value);
+                }
+            }
+            Self::Icon(icon) => {
+                for value in [&mut icon.alt, &mut icon.tooltip].into_iter().flatten() {
+                    content(value);
+                }
+            }
+            Self::Link(link) => {
+                if let Some(value) = &mut link.tooltip {
+                    content(value);
+                }
+            }
+            Self::Url(url) => {
+                if let Some(value) = &mut url.tooltip {
+                    content(value);
+                }
+            }
+            Self::Mailto(mailto) => {
+                if let Some(value) = &mut mailto.tooltip {
+                    content(value);
+                }
+            }
+            Self::Button(button) => content(&mut button.label),
+            Self::Menu(menu) => {
+                content(&mut menu.target);
+                for item in &mut menu.items {
+                    content(item);
+                }
+            }
+            Self::Keyboard(keyboard) => {
+                for key in &mut keyboard.keys {
+                    content(key);
+                }
+            }
+            Self::Footnote(_)
+            | Self::Autolink(_)
+            | Self::CrossReference(_)
+            | Self::Pass(_)
+            | Self::Stem(_)
+            | Self::IndexTerm(_) => {}
+        }
+    }
+}
+
+impl<'a> InlineMacro<'a> {
+    /// Visit explicit alternative text, tooltips, and UI labels.
+    /// Link labels and footnote bodies are separate macro content.
+    pub fn for_each_content_attribute(&self, mut visit: impl FnMut(&crate::ContentAttribute<'a>)) {
+        match self {
+            Self::Image(image) => {
+                for value in [&image.alt, &image.tooltip].into_iter().flatten() {
+                    visit(value);
+                }
+            }
+            Self::Icon(icon) => {
+                for value in [&icon.alt, &icon.tooltip].into_iter().flatten() {
+                    visit(value);
+                }
+            }
+            Self::Link(link) => {
+                if let Some(value) = &link.tooltip {
+                    visit(value);
+                }
+            }
+            Self::Url(url) => {
+                if let Some(value) = &url.tooltip {
+                    visit(value);
+                }
+            }
+            Self::Mailto(mailto) => {
+                if let Some(value) = &mailto.tooltip {
+                    visit(value);
+                }
+            }
+            Self::Button(button) => visit(&button.label),
+            Self::Menu(menu) => {
+                visit(&menu.target);
+                for item in &menu.items {
+                    visit(item);
+                }
+            }
+            Self::Keyboard(keyboard) => {
+                for key in &keyboard.keys {
+                    visit(key);
+                }
+            }
+            Self::Footnote(_)
+            | Self::Autolink(_)
+            | Self::CrossReference(_)
+            | Self::Pass(_)
+            | Self::Stem(_)
+            | Self::IndexTerm(_) => {}
+        }
+    }
 }

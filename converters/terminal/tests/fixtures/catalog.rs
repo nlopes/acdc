@@ -1,5 +1,12 @@
 // (fixture_name, has_osc8_variant [, requires: <cfg>])
 terminal_fixture_catalog!([
+    (media_content_escapes, true),
+    (subs_media_content, true),
+    (media_content_attributes, true),
+    (ui_content_attributes, true),
+    (video_target_preservation, true),
+    (caption_content_attributes, true),
+
     (media_attributes, true),
     (subs_url_opening_boundaries, true),
     (url_semantic_boundaries, true),

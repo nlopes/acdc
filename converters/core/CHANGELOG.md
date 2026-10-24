@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking changes
+
+- Image and icon alternative-text helpers accept optional `ContentAttribute`
+  values. Plain-text extraction supports rich media and UI labels. Video helpers
+  preserve the complete local target and interpret provider playlists separately.
+  Replace `video::watch_urls` with `TryUrl::try_url(false)` for the single target.
+
+- `WritableVisitor::render_title_with_wrapper` now takes `&Title`; it renders
+  explicitly empty titles and skips absent ones.
+
 ### Performance
 
 - Copied cross-reference catalogs use less memory for numbered sections.

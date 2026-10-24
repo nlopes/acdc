@@ -17,6 +17,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Image and link tooltips retain their plain text. Icon alternatives, UI labels,
+  custom captions, and admonition labels retain formatting. Custom admonition
+  labels use a blockquote in both variants because GitHub Alerts fix their labels.
+- Literal quote attribution/citation text retains dashes, and static video links
+  preserve complete local targets and provider playlists.
+
+- Caller-built empty titles retain their captions and numbering, matching
+  `title=""` in AsciiDoc source.
+
 - Images honor named and empty alt text, retain literal quotes, and keep
   dimensions in their positional slots. Block-image `title=` supplies a caption; only inline-image titles become tooltips.
 - Audio links retain start/end playback ranges, including end-only ranges.

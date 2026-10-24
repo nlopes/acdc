@@ -41,7 +41,7 @@
         "style": "quote",
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Ada *Lovelace*",
             "location": [
@@ -58,7 +58,7 @@
         ],
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "`Notes`",
             "location": [
@@ -127,7 +127,7 @@
         "style": "quote",
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Grace *Hopper*",
             "location": [
@@ -144,7 +144,7 @@
         ],
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "`Compiler`",
             "location": [
@@ -367,7 +367,7 @@
         ],
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Notes",
             "location": [
@@ -436,7 +436,7 @@
         "style": "quote",
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "https://example.com[Literal Author]",
             "location": [
@@ -453,7 +453,7 @@
         ],
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "https://example.org[Literal Work]",
             "location": [

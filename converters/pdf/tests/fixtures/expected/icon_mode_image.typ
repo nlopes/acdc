@@ -82,4 +82,4 @@
 
 #text("PDF ignores icon sizing and titles in image mode: ")#box(image("/images/de454d7e4e1cfda7.svg", alt: "inline image dimensions", height: 1em))#text(".")
 
-#text("Missing image: ")#text("[not-a-real-icon]")#text(".")
+#text("Missing image: ")#text("[")#text("Missing")#text("]")#text(".")

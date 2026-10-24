@@ -59,16 +59,15 @@ use acdc_converters_core::{
 };
 use acdc_parser::{
     Anchor, AttributeValue, Autolink, Bold, Button, CalloutRef, CrossReference, CurvedApostrophe,
-    CurvedQuotation, ElementAttributes, Footnote, Highlight, Icon, Image, IndexTerm,
-    IndexTermRelationship, InlineMacro, InlineNode, Italic, Keyboard, Link, Mailto, Menu,
-    Monospace, Pass, Plain, Raw, Stem, StemNotation, Subscript, Substitution, Superscript, Url,
-    Verbatim, strip_quotes,
+    CurvedQuotation, ElementAttributes, Footnote, Highlight, Icon, IndexTerm,
+    IndexTermRelationship, InlineImage, InlineMacro, InlineNode, Italic, Keyboard, Link, Mailto,
+    Menu, Monospace, Pass, Plain, Raw, Stem, StemNotation, Subscript, Substitution, Superscript,
+    Url, Verbatim, strip_quotes,
 };
 
 use crate::{
     Error, HtmlVariant, HtmlVisitor, IndexCatalogRelationship, IndexTermLabel, RenderOptions,
     constants::{encode_html_entities, escape_ampersands},
-    icon::write_icon,
     image::image_link_control_attributes,
 };
 
@@ -764,12 +763,12 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             InlineMacro::Url(u) => self.render_url(traversal, u, options, subs),
             InlineMacro::Mailto(m) => self.render_mailto(traversal, m, options, subs),
             InlineMacro::Footnote(f) => self.render_footnote(f, options),
-            InlineMacro::Button(b) => self.render_button(b),
+            InlineMacro::Button(b) => self.render_button(traversal, b),
             InlineMacro::CrossReference(xref) => self.render_xref(traversal, xref, options, subs),
             InlineMacro::Stem(s) => self.render_stem(traversal, s),
             InlineMacro::Icon(i) => self.render_icon(traversal, i),
-            InlineMacro::Keyboard(k) => self.render_keyboard(k),
-            InlineMacro::Menu(menu) => self.render_menu(menu),
+            InlineMacro::Keyboard(k) => self.render_keyboard(traversal, k),
+            InlineMacro::Menu(menu) => self.render_menu(traversal, menu),
             InlineMacro::IndexTerm(it) => self.render_indexterm(traversal, it, options, subs),
             _ => Err(io::Error::new(
                 io::ErrorKind::Unsupported,
@@ -834,11 +833,12 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         let id_attr = link_id_attr(&l.attributes);
         let class_attr = link_class_attr(role_from_attrs(&l.attributes), l.text.is_empty());
         let target_attr = window_attrs(&l.attributes);
+        let tooltip = tooltip_attribute(l.tooltip.as_ref());
         self.with_inline_link(
             InlineLink::new(
                 escape_href(&target_str),
                 id_attr,
-                format!("{class_attr}{target_attr}"),
+                format!("{class_attr}{target_attr}{tooltip}"),
             ),
             |visitor| {
                 if l.text.is_empty() {
@@ -857,10 +857,16 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     fn render_inline_image(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        i: &Image<'_>,
+        i: &InlineImage<'_>,
     ) -> Result<(), Error> {
         let is_semantic = self.processor.variant() == HtmlVariant::Semantic;
-        let markup = self.image_markup(traversal, i, true)?;
+        let markup = self.image_markup(
+            traversal,
+            &i.source,
+            &i.metadata,
+            i.alt.as_ref(),
+            i.tooltip.as_ref(),
+        )?;
         let mut classes = vec!["image"];
         if let Some(acdc_parser::AttributeValue::String(float)) = i.metadata.attributes.get("float")
         {
@@ -940,11 +946,12 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         let id_attr = link_id_attr(&u.attributes);
         let class_attr = link_class_attr(role_from_attrs(&u.attributes), u.text.is_empty());
         let target_attr = window_attrs(&u.attributes);
+        let tooltip = tooltip_attribute(u.tooltip.as_ref());
         self.with_inline_link(
             InlineLink::new(
                 escape_href(&target_str),
                 id_attr,
-                format!("{class_attr}{target_attr}"),
+                format!("{class_attr}{target_attr}{tooltip}"),
             ),
             |visitor| {
                 if u.text.is_empty() {
@@ -985,11 +992,12 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         let id_attr = link_id_attr(&m.attributes);
         let class_attr = link_class_attr(role_from_attrs(&m.attributes), false);
         let target_attr = window_attrs(&m.attributes);
+        let tooltip = tooltip_attribute(m.tooltip.as_ref());
         self.with_inline_link(
             InlineLink::new(
                 escape_href(&mailto_target(m)),
                 id_attr,
-                format!("{class_attr}{target_attr}"),
+                format!("{class_attr}{target_attr}{tooltip}"),
             ),
             |visitor| {
                 if m.text.is_empty() {
@@ -1061,13 +1069,19 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         Ok(())
     }
 
-    fn render_button(&mut self, b: &Button<'_>) -> Result<(), Error> {
-        let processor = self.processor.clone();
-        let w = self.writer_mut();
-        if processor.variant() == HtmlVariant::Semantic {
-            write!(w, "<kbd class=\"button\"><samp>{}</samp></kbd>", b.label)?;
+    fn render_button(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        b: &Button<'_>,
+    ) -> Result<(), Error> {
+        let content = self.content_html(traversal, &b.label)?;
+        if self.processor.variant() == HtmlVariant::Semantic {
+            write!(
+                self.writer_mut(),
+                "<kbd class=\"button\"><samp>{content}</samp></kbd>"
+            )?;
         } else {
-            write!(w, "<b class=\"button\">{}</b>", b.label)?;
+            write!(self.writer_mut(), "<b class=\"button\">{content}</b>")?;
         }
         Ok(())
     }
@@ -1275,79 +1289,114 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     fn render_icon(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        i: &Icon<'_>,
+        icon: &Icon<'_>,
     ) -> Result<(), Error> {
-        write_icon(&mut self.writer, traversal, i)?;
+        let markup = self.icon_markup(traversal, icon)?;
+        write!(self.writer_mut(), "{markup}")?;
         Ok(())
     }
 
-    fn render_keyboard(&mut self, k: &Keyboard<'_>) -> Result<(), Error> {
-        let is_semantic = self.processor.variant() == HtmlVariant::Semantic;
-        let key_class = if is_semantic { " class=\"key\"" } else { "" };
-        let w = self.writer_mut();
-
-        if k.keys.len() == 1
-            && let Some(key) = k.keys.first()
-        {
-            write!(w, "<kbd{key_class}>{key}</kbd>")?;
-            return Ok(());
+    fn render_keyboard(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        keyboard: &Keyboard<'_>,
+    ) -> Result<(), Error> {
+        let semantic = self.processor.variant() == HtmlVariant::Semantic;
+        let tag = if semantic { "kbd" } else { "span" };
+        let class = if semantic { " class=\"key\"" } else { "" };
+        if keyboard.keys.len() != 1 {
+            write!(self.writer_mut(), "<{tag} class=\"keyseq\">")?;
         }
-
-        if is_semantic {
-            write!(w, "<kbd class=\"keyseq\">")?;
-        } else {
-            write!(w, "<span class=\"keyseq\">")?;
-        }
-        for (i, key) in k.keys.iter().enumerate() {
-            if i > 0 {
-                write!(w, "+")?;
+        for (index, key) in keyboard.keys.iter().enumerate() {
+            let content = self.content_html(traversal, key)?;
+            if index > 0 {
+                write!(self.writer_mut(), "+")?;
             }
-            write!(w, "<kbd{key_class}>{key}</kbd>")?;
+            write!(self.writer_mut(), "<kbd{class}>{content}</kbd>")?;
         }
-        if is_semantic {
-            write!(w, "</kbd>")?;
-        } else {
-            write!(w, "</span>")?;
+        if keyboard.keys.len() != 1 {
+            write!(self.writer_mut(), "</{tag}>")?;
         }
         Ok(())
     }
 
-    fn render_menu(&mut self, menu: &Menu<'_>) -> Result<(), Error> {
-        let is_semantic = self.processor.variant() == HtmlVariant::Semantic;
-        let w = self.writer_mut();
-
+    fn render_menu(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        menu: &Menu<'_>,
+    ) -> Result<(), Error> {
+        let semantic = self.processor.variant() == HtmlVariant::Semantic;
+        let target = self.content_html(traversal, &menu.target)?;
         if menu.items.is_empty() {
-            if is_semantic {
-                write!(w, "<kbd class=\"menu\"><samp>{}</samp></kbd>", menu.target)?;
+            if semantic {
+                write!(
+                    self.writer_mut(),
+                    "<kbd class=\"menu\"><samp>{target}</samp></kbd>"
+                )?;
             } else {
-                write!(w, "<b class=\"menuref\">{}</b>", menu.target)?;
+                write!(self.writer_mut(), "<b class=\"menuref\">{target}</b>")?;
             }
             return Ok(());
         }
-
-        if is_semantic {
-            write!(w, "<kbd class=\"menuseq\">")?;
-            write!(w, "<kbd class=\"menu\"><samp>{}</samp></kbd>", menu.target)?;
-            for item in &menu.items {
-                write!(w, "&#160;<span class=\"caret\">&#8250;</span>&#32;")?;
-                write!(w, "<kbd class=\"menu\"><samp>{item}</samp></kbd>")?;
-            }
-            write!(w, "</kbd>")?;
-            return Ok(());
+        if semantic {
+            write!(
+                self.writer_mut(),
+                "<kbd class=\"menuseq\"><kbd class=\"menu\"><samp>{target}</samp></kbd>"
+            )?;
+        } else {
+            write!(
+                self.writer_mut(),
+                "<span class=\"menuseq\"><b class=\"menu\">{target}</b>"
+            )?;
         }
-
-        write!(w, "<span class=\"menuseq\">")?;
-        write!(w, "<b class=\"menu\">{}</b>", menu.target)?;
-        for (i, item) in menu.items.iter().enumerate() {
-            write!(w, "&#160;<i class=\"fa fa-angle-right caret\"></i> ")?;
-            if i == menu.items.len() - 1 {
-                write!(w, "<b class=\"menuitem\">{item}</b>")?;
+        let font = acdc_converters_core::icon::IconMode::from_attributes(traversal)
+            == acdc_converters_core::icon::IconMode::Font;
+        for (index, item) in menu.items.iter().enumerate() {
+            let content = self.content_html(traversal, item)?;
+            if semantic {
+                write!(
+                    self.writer_mut(),
+                    "&#160;<span class=\"caret\">&#8250;</span>&#32;<kbd class=\"menu\"><samp>{content}</samp></kbd>"
+                )?;
             } else {
-                write!(w, "<b class=\"submenu\">{item}</b>")?;
+                if font {
+                    write!(
+                        self.writer_mut(),
+                        "&#160;<i class=\"fa fa-angle-right caret\"></i> "
+                    )?;
+                } else {
+                    write!(self.writer_mut(), "&#160;<b class=\"caret\">&#8250;</b> ")?;
+                }
+                let class = if index + 1 == menu.items.len() {
+                    "menuitem"
+                } else {
+                    "submenu"
+                };
+                write!(self.writer_mut(), "<b class=\"{class}\">{content}</b>")?;
             }
         }
-        write!(w, "</span>")?;
+        write!(
+            self.writer_mut(),
+            "</{}>",
+            if semantic { "kbd" } else { "span" }
+        )?;
         Ok(())
+    }
+
+    pub(crate) fn content_html(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        content: &[InlineNode<'_>],
+    ) -> Result<String, Error> {
+        let mut visitor = HtmlVisitor::new(
+            Vec::new(),
+            Rc::clone(&self.processor),
+            self.render_options.clone(),
+            self.diagnostics.reborrow(),
+        );
+        visitor.current_subs.clone_from(&self.current_subs);
+        visitor.visit_inline_nodes(traversal, content)?;
+        Ok(String::from_utf8(visitor.into_writer()).map_err(io::Error::other)?)
     }
 
     pub(crate) fn register_indexterm(
@@ -1527,6 +1576,19 @@ fn substitution_text(
     // Encode non-ASCII Unicode characters as HTML numeric entities
     // to match asciidoctor's output format
     encode_html_entities(&text)
+}
+
+pub(crate) fn tooltip_attribute(content: Option<&acdc_parser::ContentAttribute<'_>>) -> String {
+    content.map_or_else(String::new, |content| {
+        let text = InlineTextTransform::default()
+            .rendered_replacements(true)
+            .decode_char_refs(true)
+            .to_string(content);
+        format!(
+            " title=\"{}\"",
+            crate::image_helpers::escape_image_text(&text)
+        )
+    })
 }
 
 #[cfg(test)]

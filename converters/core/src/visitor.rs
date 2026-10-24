@@ -667,16 +667,9 @@ pub trait WritableVisitor<'doc>: Visitor<'doc> {
     /// Get a mutable reference to the writer
     fn writer_mut(&mut self) -> &mut dyn Write;
 
-    /// Render a title with wrapper markup (prefix and suffix).
+    /// Render a present title between `prefix` and `suffix`.
     ///
-    /// This helper handles the common pattern of:
-    /// 1. Write opening markup
-    /// 2. Drop the writer borrow
-    /// 3. Visit inline nodes (which needs mutable visitor)
-    /// 4. Get writer again
-    /// 5. Write closing markup
-    ///
-    /// Does nothing if title is empty.
+    /// An absent title emits nothing. An explicitly empty title retains the wrapper.
     ///
     /// # Errors
     ///
@@ -684,14 +677,14 @@ pub trait WritableVisitor<'doc>: Visitor<'doc> {
     fn render_title_with_wrapper(
         &mut self,
         traversal: &mut TraversalContext<'doc>,
-        title: &[InlineNode],
+        title: &acdc_parser::Title<'_>,
         prefix: &str,
         suffix: &str,
     ) -> Result<(), Self::Error>
     where
         Self::Error: From<std::io::Error>,
     {
-        if !title.is_empty() {
+        if title.is_present() {
             let w = self.writer_mut();
             write!(w, "{prefix}")?;
             let _ = w;

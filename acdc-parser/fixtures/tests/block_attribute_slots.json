@@ -43,7 +43,7 @@
         "style": "quote",
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Empty-slot citation",
             "location": [
@@ -115,7 +115,7 @@
         "style": "quote",
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Named-slot citation",
             "location": [
@@ -184,7 +184,7 @@
         "style": "quote",
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Named Author",
             "location": [
@@ -201,7 +201,7 @@
         ],
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Positional Citation",
             "location": [
@@ -270,7 +270,7 @@
         "style": "quote",
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Positional Author",
             "location": [
@@ -287,7 +287,7 @@
         ],
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Named Citation",
             "location": [
@@ -356,7 +356,7 @@
         "style": "quote",
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Named Author",
             "location": [
@@ -373,7 +373,7 @@
         ],
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Named Citation",
             "location": [
@@ -442,7 +442,7 @@
         "style": "quote",
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Literal Value",
             "location": [
@@ -511,7 +511,7 @@
         "style": "quote",
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "None",
             "location": [
@@ -528,7 +528,7 @@
         ],
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Quoted Literal",
             "location": [
@@ -597,7 +597,7 @@
         "style": "quote",
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "None",
             "location": [
@@ -614,7 +614,7 @@
         ],
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Positional Literal",
             "location": [
@@ -683,7 +683,7 @@
         "style": "quote",
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Comma, Author",
             "location": [
@@ -700,7 +700,7 @@
         ],
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Work",
             "location": [
@@ -769,7 +769,7 @@
         "style": "quote",
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Ada Lovelace",
             "location": [
@@ -786,7 +786,7 @@
         ],
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Notes",
             "location": [

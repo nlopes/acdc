@@ -1,8 +1,7 @@
 //! Captions resolved by the parser: which blocks take one, from which attributes, and in what
 //! order they are numbered.
 //!
-//! `BlockMetadata::caption` carries `#[serde(skip)]`, so the AST fixtures cannot cover any of
-//! this — these go through the public API instead.
+//! Generated labels and counters are omitted from native JSON, so these tests use the API.
 
 use std::num::NonZeroU32;
 
@@ -250,7 +249,7 @@ fn blocks_keep_the_caption_active_at_their_source_position() -> Result<(), Error
         .blocks
         .iter()
         .filter(|block| matches!(block, Block::Paragraph(_)))
-        .map(|block| caption(block).cloned())
+        .map(|block| caption(block).map(caption_value))
         .collect();
     assert_eq!(
         captions,
@@ -358,7 +357,7 @@ fn caption_precedence_covers_element_generic_and_type_specific() -> Result<(), E
         .blocks
         .iter()
         .filter(|block| matches!(block, Block::Paragraph(_)))
-        .map(|block| caption(block).cloned())
+        .map(|block| caption(block).map(caption_value))
         .collect();
 
     assert_eq!(
@@ -489,6 +488,24 @@ fn caption_labels_keep_their_quote_characters() -> Result<(), Error> {
         .iter()
         .filter_map(|block| match caption(block)? {
             Caption::Numbered { label, .. } | Caption::Custom(label) => Some(label.to_string()),
+            Caption::CustomContent(content) => Some(
+                content
+                    .iter()
+                    .map(|node| {
+                        assert!(matches!(
+                            node,
+                            InlineNode::PlainText(_) | InlineNode::RawText(_)
+                        ));
+                        if let InlineNode::PlainText(text) = node {
+                            text.content
+                        } else if let InlineNode::RawText(text) = node {
+                            text.content
+                        } else {
+                            ""
+                        }
+                    })
+                    .collect(),
+            ),
             Caption::Unnumbered | _ => None,
         })
         .collect();
@@ -533,7 +550,7 @@ fn a_bare_caption_marker_is_ignored() -> Result<(), Error> {
                 label: "Listing".into(),
                 number: NonZeroU32::new(2),
             },
-            Caption::Custom("".into()),
+            Caption::CustomContent(acdc_parser::ContentAttribute::default()),
         ]
     );
     Ok(())
@@ -565,7 +582,12 @@ fn an_empty_element_caption_takes_no_prefix_and_no_ordinal() -> Result<(), Error
         return Err(format!("expected two blocks, got {:?}", document.blocks).into());
     };
 
-    assert_eq!(caption(empty), Some(&Caption::Custom("".into())));
+    assert_eq!(
+        caption(empty),
+        Some(&Caption::CustomContent(
+            acdc_parser::ContentAttribute::default()
+        ))
+    );
     assert_eq!(numbered(after).and_then(|(_, _, n)| n), Some(1));
     Ok(())
 }
@@ -814,4 +836,30 @@ fn caller_built_header_blocks_are_read_back_and_renumbered() -> Result<(), Error
     document.renumber_captions();
     assert_eq!(document.highest_caption_number(CaptionKind::Example), 1);
     Ok(())
+}
+
+fn caption_value<'a>(caption: &Caption<'a>) -> Caption<'a> {
+    if let Caption::CustomContent(content) = caption {
+        Caption::Custom(
+            content
+                .iter()
+                .map(|node| {
+                    assert!(matches!(
+                        node,
+                        InlineNode::PlainText(_) | InlineNode::RawText(_)
+                    ));
+                    if let InlineNode::PlainText(text) = node {
+                        text.content
+                    } else if let InlineNode::RawText(text) = node {
+                        text.content
+                    } else {
+                        ""
+                    }
+                })
+                .collect::<String>()
+                .into(),
+        )
+    } else {
+        caption.clone()
+    }
 }

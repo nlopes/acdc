@@ -119,7 +119,7 @@
 #imagecaption[#text("Figure 1. ")#text("Caption outside link")]
 ]
 
-#link("https://example.com/missing")[#text("[Missing linked image]")]#text(" | missing.svg")
+#link("https://example.com/missing")[#text("[")#text("Missing linked image")#text("]")]#text(" | missing.svg")
 
 #heading(level: 2)[#text("Inline images")] <id-5f696e6c696e655f696d61676573>
 

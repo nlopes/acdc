@@ -350,7 +350,23 @@
             {
               "name": "button",
               "type": "inline",
-              "label": "Save",
+              "label": [
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "Save",
+                  "location": [
+                    {
+                      "line": 23,
+                      "col": 1
+                    },
+                    {
+                      "line": 23,
+                      "col": 8
+                    }
+                  ]
+                }
+              ],
               "location": [
                 {
                   "line": 23,
@@ -381,8 +397,40 @@
               "name": "keyboard",
               "type": "inline",
               "keys": [
-                "Ctrl",
-                "C"
+                [
+                  {
+                    "name": "raw",
+                    "type": "string",
+                    "value": "Ctrl",
+                    "location": [
+                      {
+                        "line": 23,
+                        "col": 12
+                      },
+                      {
+                        "line": 23,
+                        "col": 17
+                      }
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "name": "raw",
+                    "type": "string",
+                    "value": "C",
+                    "location": [
+                      {
+                        "line": 23,
+                        "col": 12
+                      },
+                      {
+                        "line": 23,
+                        "col": 17
+                      }
+                    ]
+                  }
+                ]
               ],
               "location": [
                 {
@@ -413,9 +461,41 @@
             {
               "name": "menu",
               "type": "inline",
-              "target": "File",
+              "target": [
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "File",
+                  "location": [
+                    {
+                      "line": 23,
+                      "col": 21
+                    },
+                    {
+                      "line": 23,
+                      "col": 26
+                    }
+                  ]
+                }
+              ],
               "items": [
-                "Open"
+                [
+                  {
+                    "name": "raw",
+                    "type": "string",
+                    "value": "Open",
+                    "location": [
+                      {
+                        "line": 23,
+                        "col": 21
+                      },
+                      {
+                        "line": 23,
+                        "col": 26
+                      }
+                    ]
+                  }
+                ]
               ],
               "location": [
                 {
@@ -501,19 +581,19 @@
                   "width": "20"
                 }
               },
-              "title": [
+              "alt": [
                 {
-                  "name": "text",
+                  "name": "raw",
                   "type": "string",
                   "value": "Alt",
                   "location": [
                     {
-                      "line": 1,
+                      "line": 25,
                       "col": 1
                     },
                     {
-                      "line": 1,
-                      "col": 27
+                      "line": 25,
+                      "col": 7
                     }
                   ]
                 }

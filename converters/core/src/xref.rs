@@ -216,6 +216,12 @@ fn caption_prefix(caption: &Caption<'_>, xref: &CrossReference<'_>) -> Option<St
         Caption::Custom(prefix) => {
             (!prefix.is_empty()).then(|| prefix.strip_suffix(". ").unwrap_or(prefix).to_string())
         }
+        Caption::CustomContent(content) => {
+            let prefix = crate::inline_text::InlineTextTransform::default()
+                .rendered_replacements(true)
+                .to_string(content);
+            (!prefix.is_empty()).then(|| prefix.strip_suffix(". ").unwrap_or(&prefix).to_string())
+        }
         Caption::Numbered { .. } | Caption::Unnumbered | _ => None,
     }
 }

@@ -11,7 +11,7 @@
         "style": "quote",
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "https://example.com/docs[Example Docs]",
             "location": [

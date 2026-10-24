@@ -11,7 +11,7 @@
         "style": "quote",
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Albert Einstein",
             "location": [
@@ -28,7 +28,7 @@
         ],
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Letter to Max Born",
             "location": [

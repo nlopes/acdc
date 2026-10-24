@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Media navigation preserves complete video targets and discovers images nested
+  in alternative content, tooltips, and UI labels.
+
 - Closing a document no longer restores symbols from a removed workspace folder.
   Moving a closed file outside active folders also removes its workspace symbols.
   Open documents and their include updates still work after a folder is removed.

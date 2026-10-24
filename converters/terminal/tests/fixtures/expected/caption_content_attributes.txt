@@ -1,0 +1,17 @@
+[3m[Image: Description][0m[2m (photo.png)[0m
+  [1mCustom[22m. Caption
+[38;5;10m│ [39m[3mLiteral attribution.[0m
+[38;5;10m│[39m
+[2m—[0m [2m[3mA -- B[0m, [2m[3mC -- D[0m
+[38;5;10m│ [39m[3mSubstituted attribution.[0m
+[38;5;10m│[39m
+[2m—[0m [2m[3mA — B[0m, [2m[3mC — D[0m
+
+[38;5;12m│[39m [1m[1mCare[22m:[0m
+[38;5;12m│[39m A custom admonition label.
+[38;5;12m│[39m
+[3m[Image: photo][0m[2m (photo.png)[0m
+  A -- B Literal caption
+[3m[Image: photo][0m[2m (photo.png)[0m
+  [1mCustom[22m. Image title
+See [38;5;12m[4mCustom[24m[39m.

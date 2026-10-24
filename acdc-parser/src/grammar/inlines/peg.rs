@@ -1,8 +1,8 @@
 use crate::{
     Anchor, AttributeValue, Autolink, BlockMetadata, Bold, Button, CurvedApostrophe,
-    CurvedQuotation, Footnote, Form, Highlight, ICON_SIZES, Icon, Image, InlineMacro, InlineNode,
-    Italic, Keyboard, LineBreak, Link, Mailto, Menu, Monospace, Pass, PassthroughKind, Plain, Raw,
-    Source, StandaloneCurvedApostrophe, Stem, StemNotation, Subscript, Superscript, Title, Url,
+    CurvedQuotation, Footnote, Form, Highlight, Icon, InlineMacro, InlineNode, Italic, Keyboard,
+    LineBreak, Link, Mailto, Menu, Monospace, Pass, PassthroughKind, Plain, Raw, Source,
+    StandaloneCurvedApostrophe, Stem, StemNotation, Subscript, Superscript, Url,
     grammar::{
         ParserState,
         helpers::{
@@ -15,7 +15,7 @@ use crate::{
         inline_preprocessor::InlinePreprocessorParserState,
         inline_processing::{process_inlines, process_inlines_no_autolinks},
         inlines::{
-            attributes::{Shorthand, process_attribute_list, process_image_attribute_list},
+            attributes::{Shorthand, parse_content, process_attribute_list, process_media_content},
             index_terms::{
                 IndexTermForm, IndexTermMacroItem, IndexTermRelationshipSegments, IndexTermSegment,
                 expand_escaped_index_terms, parse_index_term, trimmed_index_term_segment,
@@ -32,7 +32,7 @@ use crate::{
                 url_opening_allowed,
             },
             text::{
-                parse_footnote_content, process_inlines_or_err, process_unescaped_xref_label,
+                parse_footnote_content, process_inlines_or_err, process_unescaped_label,
                 registration_source,
             },
         },
@@ -819,15 +819,18 @@ peg::parser! {
         = check_experimental() "menu:"
         target:$([^'[']+)
         "["
-        items:((item:$([^(']' | '>')]+) { item.trim() }) ** (">" whitespace()?))
+        items:((start:position!() item:$([^(']' | '>')]+) { (start + item.len() - item.trim_start().len(), item.trim()) }) ** (">" whitespace()?))
         "]"
-        {
-            tracing::debug!("Found menu inline");
-            InlineNode::Macro(InlineMacro::Menu(Menu {
+        {?
+            let target = parse_content(state, target, span_start + 5, crate::grammar::attributes::AttributeQuote::Unquoted).map_err(|_| "invalid menu target")?;
+            let items = items.into_iter().map(|(start, item)| {
+                parse_content(state, item, start, crate::grammar::attributes::AttributeQuote::Unquoted)
+            }).collect::<Result<Vec<_>, _>>().map_err(|_| "invalid menu item")?;
+            Ok(InlineNode::Macro(InlineMacro::Menu(Menu {
                 target,
                 items,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
-            }))
+            })))
         }
 
         /// Match inline menu without consuming - for use in negative lookaheads.
@@ -835,13 +838,15 @@ peg::parser! {
         = check_experimental() "menu:" [^'[']+ "[" ([^']' | '>']+ (">" whitespace()? [^']' | '>']+)*)? "]"
 
         rule inline_button() -> InlineNode<'input>
-        = check_experimental() "btn:[" label:$balanced_bracket_content() "]"
-        {
-            tracing::debug!("Found button inline");
-            InlineNode::Macro(InlineMacro::Button(Button {
-                label: label.trim(),
+        = check_experimental() "btn:[" start:position!() label:$balanced_bracket_content() "]"
+        {?
+            let start = start + label.len() - label.trim_start().len();
+            let label = label.trim();
+            let label = parse_content(state, label, start, crate::grammar::attributes::AttributeQuote::Unquoted).map_err(|_| "invalid button label")?;
+            Ok(InlineNode::Macro(InlineMacro::Button(Button {
+                label,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
-            }))
+            })))
         }
 
         /// Match inline button without consuming - for use in negative lookaheads.
@@ -850,14 +855,16 @@ peg::parser! {
 
         rule inline_keyboard() -> InlineNode<'input>
         = check_experimental() "kbd:["
-        keys:((key:$([^(']' | '+' | ',')]+) { key.trim() }) ** (("," / "+") whitespace()?))
+        keys:((start:position!() key:$([^(']' | '+' | ',')]+) { (start + key.len() - key.trim_start().len(), key.trim()) }) ** (("," / "+") whitespace()?))
         "]"
-        {
-            tracing::debug!("Found keyboard inline");
-            InlineNode::Macro(InlineMacro::Keyboard(Keyboard {
+        {?
+            let keys = keys.into_iter().map(|(start, key)| {
+                parse_content(state, key, start, crate::grammar::attributes::AttributeQuote::Unquoted)
+            }).collect::<Result<Vec<_>, _>>().map_err(|_| "invalid keyboard label")?;
+            Ok(InlineNode::Macro(InlineMacro::Keyboard(Keyboard {
                 keys,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
-            }))
+            })))
         }
 
         /// Match inline keyboard without consuming - for use in negative lookaheads.
@@ -880,20 +887,21 @@ peg::parser! {
                 substitutions: state.inline_ctx.substitutions,
                 ..BlockParsingMetadata::default()
             };
-            let ProcessedLinkContent { text, attributes, .. } = process_link_content(state, &bm, content_start, span_end, &content, false)
+            let ProcessedLinkContent { text, tooltip, attributes, .. } = process_link_content(state, &bm, content_start, span_end, &content, false)
                 .map_err(|_| {
                     tracing::error!("could not process link text");
                     "could not process link text"
                 })?;
             let interned_target = state.intern_cow(target);
             let target_source = Source::from_str_borrowed(interned_target).map_err(|_| "failed to parse URL target")?;
-            Ok(InlineNode::Macro(InlineMacro::Url(Url {
+            Ok(InlineNode::Macro(InlineMacro::Url(Box::new(Url {
                 text,
+                tooltip,
                 target: target_source,
                 attributes,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
                 hide_uri_scheme: state.document_attributes.contains_key("hide-uri-scheme"),
-            })))
+            }))))
         }
 
         /// Recognize URL macro syntax for escaping and inline lookahead.
@@ -929,20 +937,21 @@ peg::parser! {
                 substitutions: state.inline_ctx.substitutions,
                 ..BlockParsingMetadata::default()
             };
-            let ProcessedLinkContent { text, attributes, subject, body } = process_link_content(state, &bm, content_start, span_end, &content, true)
+            let ProcessedLinkContent { text, tooltip, attributes, subject, body } = process_link_content(state, &bm, content_start, span_end, &content, true)
                 .map_err(|_| {
                     tracing::error!("could not process link text");
                     "could not process link text"
                 })?;
             let target_source = Source::from_str_borrowed(target).map_err(|_| "failed to parse mailto target")?;
-            Ok(InlineNode::Macro(InlineMacro::Mailto(Mailto {
+            Ok(InlineNode::Macro(InlineMacro::Mailto(Box::new(Mailto {
                 text,
+                tooltip,
                 subject,
                 body,
                 target: target_source,
                 attributes,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
-            })))
+            }))))
         }
 
         /// Match mailto macro without consuming - for use in negative lookaheads.
@@ -1120,44 +1129,16 @@ peg::parser! {
         = " + \\" &eol()
 
         rule inline_icon() -> InlineNode<'input>
-        = "icon:" source:source() attributes:macro_attributes()
-        {
-            let (_discrete, metadata, _title_position) = attributes;
-            let mut metadata = metadata.clone();
-            metadata.move_positional_attributes_to_attributes();
-            // For font mode, the first positional (style) can be a size value (1x, 2x,
-            // lg, fw) -> stored as "size" attribute;
-            //
-            // For image mode, the first positional (style) can be alt text.
-            if let Some(style) = metadata.style.take() {
-                let style_value = strip_quotes(style).to_owned();
-                if ICON_SIZES.contains(&style_value.as_str()) {
-                    // Named size= attribute takes precedence over positional size so we
-                    // insert rather than set (set overrides).
-                    metadata.attributes.insert(
-                        "size".into(),
-                        AttributeValue::String(Cow::Owned(style_value)),
-                    );
-                } else {
-                    // Other value become alt (fa-{value} in image mode)
-                    metadata.attributes.set(
-                        "alt".into(),
-                        AttributeValue::String(Cow::Owned(style_value)),
-                    );
-                }
-            }
-            // Copy roles to attributes so they're accessible in the converter
-            if !metadata.roles.is_empty() {
-                metadata.attributes.set(
-                    "role".into(),
-                    AttributeValue::String(metadata.roles.join(" ").into()),
-                );
-            }
-            InlineNode::Macro(InlineMacro::Icon(Icon {
+        = "icon:" source:source() "[" start:position!() content:link_macro_content() "]"
+        {?
+            let parsed = process_media_content(state, &content, start, true).map_err(|_| "invalid icon content")?;
+            Ok(InlineNode::Macro(InlineMacro::Icon(Icon {
+                alt: parsed.alt,
+                tooltip: parsed.tooltip,
                 target: source,
-                attributes: metadata.attributes.clone(),
+                attributes: parsed.metadata.attributes,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
-            }))
+            })))
         }
 
         /// Match inline icon without consuming - for use in negative lookaheads.
@@ -1195,37 +1176,15 @@ peg::parser! {
         = ("latexmath" / "asciimath" / "stem") ":[" ("\\\\" / "\\" ['[' | ']'] / [^(']' | '\\')]+ / "\\")* "]"
 
         rule inline_image() -> InlineNode<'input>
-        = "image:" source:media_source() attributes:image_macro_attributes()
+        = "image:" source:media_source() "[" start:position!() content:link_macro_content() "]"
         {?
-            let mut metadata = attributes;
-            let positional_alt = metadata.style.take();
-            let alt = metadata.attributes.get("alt")
-                .and_then(|value| if let AttributeValue::String(value) = value {
-                    Some(state.intern_str(value))
-                } else { None }).or(positional_alt);
-            let mut title = Title::default();
-            if let Some(alt) = alt {
-                title = Title::new(vec![InlineNode::PlainText(Plain {
-                    content: alt,
-                    location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
-                    escaped: false,
-                })]);
-            }
-            let [width, height] = metadata.take_positional_attributes::<2>();
-            if let Some(height) = height.filter(|value| !value.value.is_empty()) {
-                metadata.attributes.insert("height".into(), AttributeValue::String(Cow::Borrowed(height.value)));
-            }
-            if let Some(width) = width.filter(|value| !value.value.is_empty()) {
-                metadata.attributes.insert("width".into(), AttributeValue::String(Cow::Borrowed(width.value)));
-            }
-            metadata.move_positional_attributes_to_attributes();
-
-            Ok(InlineNode::Macro(InlineMacro::Image(Box::new(Image {
-                title,
+            let parsed = process_media_content(state, &content, start, false).map_err(|_| "invalid image content")?;
+            Ok(InlineNode::Macro(InlineMacro::Image(Box::new(crate::InlineImage {
+                alt: parsed.alt,
+                tooltip: parsed.tooltip,
                 source,
-                metadata: metadata.clone(),
+                metadata: parsed.metadata,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
-
             }))))
         }
 
@@ -1250,18 +1209,19 @@ peg::parser! {
                 }
                 None => target,
             };
-            let ProcessedLinkContent { text, attributes, .. } = process_link_content(state, &bm, content_start, span_end, &content, false)
+            let ProcessedLinkContent { text, tooltip, attributes, .. } = process_link_content(state, &bm, content_start, span_end, &content, false)
                 .map_err(|_| {
                     tracing::error!("could not process link text");
                     "could not process link text"
                 })?;
-            Ok(InlineNode::Macro(InlineMacro::Link(Link {
+            Ok(InlineNode::Macro(InlineMacro::Link(Box::new(Link {
                 text,
+                tooltip,
                 target,
                 attributes,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
                 hide_uri_scheme: state.document_attributes.contains_key("hide-uri-scheme"),
-            })))
+            }))))
         }
 
         /// Recognize link syntax for escaping and inline lookahead.
@@ -1401,7 +1361,7 @@ peg::parser! {
                     Cow::Owned(text) => {
                         let start = content_start + macro_text.offset + state.inline_ctx.offset;
                         let text = state.intern_str(&text);
-                        process_unescaped_xref_label(state, &bm, text, start, &macro_text.source_map)
+                        process_unescaped_label(state, &bm, text, start, &macro_text.source_map)
                     }
                 };
                 state.inline_ctx.rules = rules;
@@ -2391,14 +2351,6 @@ peg::parser! {
             );
             // macro_attributes never sets discrete flag (that's block-level only)
             (false, metadata, title_position)
-        }
-
-        rule image_macro_attributes() -> BlockMetadata<'input>
-            = "[" start:position!()
-              content:$(("\\" [_] / "\"" ("\\" [_] / [^'"'])* "\"" / "'" ("\\" [_] / [^'\''])* "'" / [^']'])*)
-              end:position!() "]"
-        {
-            process_image_attribute_list(content, state, start, end)
         }
 
         /// Positional value in macro attributes - allows . # % as literal characters

@@ -25,10 +25,10 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     fn with_list_scope(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &[InlineNode],
+        title: &acdc_parser::Title<'_>,
         render_items: impl FnOnce(&mut Self, &mut TraversalContext<'a>) -> Result<(), Error>,
     ) -> Result<(), Error> {
-        if !title.is_empty() {
+        if title.is_present() {
             self.write_sp()?;
             self.render_font("\\fB", false, |visitor| {
                 visitor.render_title_inlines(traversal, title)

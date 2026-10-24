@@ -688,19 +688,19 @@
         {
           "name": "image",
           "type": "inline",
-          "title": [
+          "alt": [
             {
               "name": "text",
               "type": "string",
               "value": "Alt",
               "location": [
                 {
-                  "line": 1,
-                  "col": 12
+                  "line": 22,
+                  "col": 47
                 },
                 {
-                  "line": 1,
-                  "col": 52
+                  "line": 22,
+                  "col": 49
                 }
               ]
             }
@@ -831,7 +831,38 @@
         {
           "name": "button",
           "type": "inline",
-          "label": "key=foo",
+          "label": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "key=",
+              "location": [
+                {
+                  "line": 26,
+                  "col": 14
+                },
+                {
+                  "line": 26,
+                  "col": 17
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "foo",
+              "location": [
+                {
+                  "line": 26,
+                  "col": 19
+                },
+                {
+                  "line": 26,
+                  "col": 21
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 26,
@@ -892,9 +923,71 @@
         {
           "name": "menu",
           "type": "inline",
-          "target": "key=foo",
+          "target": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "key=",
+              "location": [
+                {
+                  "line": 28,
+                  "col": 12
+                },
+                {
+                  "line": 28,
+                  "col": 15
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "foo",
+              "location": [
+                {
+                  "line": 28,
+                  "col": 17
+                },
+                {
+                  "line": 28,
+                  "col": 19
+                }
+              ]
+            }
+          ],
           "items": [
-            "value=bar"
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "value=",
+                "location": [
+                  {
+                    "line": 28,
+                    "col": 22
+                  },
+                  {
+                    "line": 28,
+                    "col": 27
+                  }
+                ]
+              },
+              {
+                "name": "raw",
+                "type": "string",
+                "value": "bar",
+                "location": [
+                  {
+                    "line": 28,
+                    "col": 29
+                  },
+                  {
+                    "line": 28,
+                    "col": 31
+                  }
+                ]
+              }
+            ]
           ],
           "location": [
             {
@@ -938,11 +1031,23 @@
       "name": "image",
       "type": "block",
       "form": "macro",
-      "metadata": {
-        "attributes": {
-          "alt": "Alt"
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Alt",
+          "location": [
+            {
+              "line": 30,
+              "col": 37
+            },
+            {
+              "line": 30,
+              "col": 39
+            }
+          ]
         }
-      },
+      ],
       "source": {
         "type": "url",
         "value": "https://example.com/?x=foo"

@@ -24,6 +24,17 @@ pub(crate) fn collect_anchors(doc: &Document) -> HashMap<String, Location> {
 }
 
 fn collect_block_anchors(block: &Block, anchors: &mut HashMap<String, Location>) {
+    if let Some(content) = block
+        .metadata()
+        .and_then(acdc_parser::BlockMetadata::caption_content)
+    {
+        collect_inline_anchors(content, anchors);
+    }
+    if let Block::Image(image) = block
+        && let Some(alt) = &image.alt
+    {
+        collect_inline_anchors(alt, anchors);
+    }
     match block {
         Block::Section(section) => {
             collect_section_anchors(section, anchors);
@@ -161,6 +172,9 @@ fn collect_delimited_block_anchors(
 
 fn collect_inline_anchors(inlines: &[InlineNode], anchors: &mut HashMap<String, Location>) {
     for inline in inlines {
+        if let InlineNode::Macro(value) = inline {
+            value.for_each_content_attribute(|content| collect_inline_anchors(content, anchors));
+        }
         // Explicit arms for compile-time check when variants added
         match inline {
             InlineNode::InlineAnchor(anchor) => {
@@ -201,6 +215,17 @@ pub(crate) fn collect_xrefs(doc: &Document) -> Vec<(String, Location)> {
 }
 
 fn collect_block_xrefs(block: &Block, xrefs: &mut Vec<(String, Location)>) {
+    if let Some(content) = block
+        .metadata()
+        .and_then(acdc_parser::BlockMetadata::caption_content)
+    {
+        collect_inline_xrefs(content, xrefs);
+    }
+    if let Block::Image(image) = block
+        && let Some(alt) = &image.alt
+    {
+        collect_inline_xrefs(alt, xrefs);
+    }
     match block {
         Block::Section(section) => {
             for child in &section.content {
@@ -283,6 +308,9 @@ fn collect_delimited_block_xrefs(inner: &DelimitedBlockType, xrefs: &mut Vec<(St
 
 fn collect_inline_xrefs(inlines: &[InlineNode], xrefs: &mut Vec<(String, Location)>) {
     for inline in inlines {
+        if let InlineNode::Macro(value) = inline {
+            value.for_each_content_attribute(|content| collect_inline_xrefs(content, xrefs));
+        }
         // Explicit arms for compile-time check when variants added
         match inline {
             InlineNode::Macro(InlineMacro::CrossReference(xref)) => {
@@ -334,6 +362,17 @@ impl<'doc> Visitor<'doc> for MediaVisitor {
         traversal: &mut TraversalContext<'doc>,
         block: &'doc Block<'doc>,
     ) -> Result<(), Self::Error> {
+        if let Some(content) = block
+            .metadata()
+            .and_then(acdc_parser::BlockMetadata::caption_content)
+        {
+            collect_inline_media(content, &mut self.sources, traversal);
+        }
+        if let Block::Image(image) = block
+            && let Some(alt) = &image.alt
+        {
+            collect_inline_media(alt, &mut self.sources, traversal);
+        }
         match block {
             Block::Image(image) => self.sources.push((
                 resolve_media_source(&image.source, traversal),
@@ -343,14 +382,10 @@ impl<'doc> Visitor<'doc> for MediaVisitor {
                 resolve_media_source(&audio.source, traversal),
                 audio.location.clone(),
             )),
-            Block::Video(video) => {
-                for source in &video.sources {
-                    self.sources.push((
-                        resolve_media_source(source, traversal),
-                        video.location.clone(),
-                    ));
-                }
-            }
+            Block::Video(video) => self.sources.push((
+                resolve_media_source(&video.source, traversal),
+                video.location.clone(),
+            )),
             Block::DelimitedBlock(block) => match &block.inner {
                 DelimitedBlockType::DelimitedListing(inlines)
                 | DelimitedBlockType::DelimitedLiteral(inlines)
@@ -459,6 +494,11 @@ fn collect_inline_media(
     attributes: &mut TraversalContext<'_>,
 ) {
     for inline in inlines {
+        if let InlineNode::Macro(value) = inline {
+            value.for_each_content_attribute(|content| {
+                collect_inline_media(content, sources, attributes);
+            });
+        }
         match inline {
             InlineNode::Macro(InlineMacro::Image(img)) => {
                 sources.push((resolve_media_source(&img.source, attributes), img.location.clone()));
@@ -902,6 +942,27 @@ Content.
         assert_eq!(sources.len(), 1);
         assert!(sources.first().is_some_and(|(s, _)| {
             matches!(s, OwnedSource::Path(p) if p.display().to_string() == "icon.png")
+        }));
+        Ok(())
+    }
+
+    #[test]
+    fn content_attributes_participate_in_definition_lookup() -> Result<(), Error> {
+        let source = "[alt='image:nested.svg[] <<target>>']\nimage::outer.svg[]\n\nimage:other.svg[title=\"anchor:target[Target]\"]";
+        let parsed = parse(source, &Options::default())?;
+        let document = parsed.document();
+        assert!(collect_anchors(document).contains_key("target"));
+        assert_eq!(
+            collect_xrefs(document)
+                .first()
+                .map(|reference| reference.0.as_str()),
+            Some("target")
+        );
+        let sources = collect_media_sources(document);
+        assert_eq!(sources.len(), 3);
+        assert!(sources.iter().any(|(_, location)| {
+            source.get(location.absolute_start..=location.absolute_end)
+                == Some("image:nested.svg[]")
         }));
         Ok(())
     }

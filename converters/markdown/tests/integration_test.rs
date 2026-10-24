@@ -1088,7 +1088,7 @@ fn stem_fixtures_preserve_expressions_and_structured_warnings() -> Result<(), Er
         );
         for expected in [
             "<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd>",
-            "**[Save]**",
+            "<strong>[Save]</strong>",
             "File > Open > Recent",
             "[Back]",
             "`x < y`",

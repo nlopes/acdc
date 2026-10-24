@@ -242,6 +242,9 @@ impl<'a> Processor<'a> {
                 Some(format!("{label} {number}. "))
             }
             Caption::Custom(prefix) => Some(prefix.into_owned()),
+            Caption::CustomContent(content) => {
+                Some(acdc_converters_core::inlines_to_string(&content))
+            }
             Caption::Unnumbered | _ => None,
         }
     }

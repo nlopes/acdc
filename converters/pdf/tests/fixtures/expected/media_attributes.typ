@@ -104,7 +104,7 @@
 
 #block(width: 100%, breakable: false)[
 #docimage("/images/de454d7e4e1cfda7.svg", alt: "", width: 30pt)
-#imagecaption[#text("Figure 2. ")#text("")]
+#imagecaption[#text("Figure 2. ")]
 ]
 
 #text("Inline ")#box(image("/images/de454d7e4e1cfda7.svg", alt: "Named & alternate", width: 30pt))#text(" and ")#box(image("/images/de454d7e4e1cfda7.svg", alt: "inline image dimensions"))#text(".")
@@ -115,20 +115,18 @@
 #imagecaption[#text("Audio ")#strong[#text("title")]]
 
 
-#text("► ")#link("sample.mp4")[#text("sample.mp4")]#text(" ")#emph[#text("(video)")]
+#text("► ")#link("sample.mp4#t=,12")[#text("sample.mp4#t=,12")]#text(" ")#emph[#text("(video)")]
 #imagecaption[#text("Video ")#strong[#text("title")]]
 
 
-#text("► ")#link("https://www.youtube.com/watch?v=abc/PL123")[#text("https://www.youtube.com/watch?v=abc/PL123")]#text(" ")#emph[#text("(YouTube video)")]
+#text("► ")#link("https://www.youtube.com/watch?v=abc&t=5&end=12&list=PL123")[#text("https://www.youtube.com/watch?v=abc&t=5&end=12&list=PL123")]#text(" ")#emph[#text("(YouTube video)")]
 #imagecaption[#text("Playlist title")]
 
 
-#text("► ")#link("https://www.youtube.com/watch?v=abc")[#text("https://www.youtube.com/watch?v=abc")]#text(" ")#emph[#text("(YouTube video)")]
-#text("► ")#link("https://www.youtube.com/watch?v=def")[#text("https://www.youtube.com/watch?v=def")]#text(" ")#emph[#text("(YouTube video)")]
-#text("► ")#link("https://www.youtube.com/watch?v=ghi")[#text("https://www.youtube.com/watch?v=ghi")]#text(" ")#emph[#text("(YouTube video)")]
+#text("► ")#link("https://www.youtube.com/watch?v=abc&playlist=abc,def,ghi")[#text("https://www.youtube.com/watch?v=abc&playlist=abc,def,ghi")]#text(" ")#emph[#text("(YouTube video)")]
 
 
-#text("► ")#link("https://vimeo.com/12345/secret")[#text("https://vimeo.com/12345/secret")]#text(" ")#emph[#text("(Vimeo video)")]
+#text("► ")#link("https://vimeo.com/12345/secret#t=5")[#text("https://vimeo.com/12345/secret#t=5")]#text(" ")#emph[#text("(Vimeo video)")]
 
 
 #text("► ")#link("https://www.youtube.com/watch?v=abc")[#text("https://www.youtube.com/watch?v=abc")]#text(" ")#emph[#text("(YouTube video)")]

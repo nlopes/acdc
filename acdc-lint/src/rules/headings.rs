@@ -341,12 +341,12 @@ fn first_alphabetic_macro<'nodes>(
     macro_node: &'nodes InlineMacro<'_>,
 ) -> Option<FirstAlphabetic<'nodes>> {
     match macro_node {
-        InlineMacro::Button(button) => first_alphabetic_text(button.label, &button.location),
+        InlineMacro::Button(button) => first_alphabetic_inlines(&button.label),
         InlineMacro::CrossReference(reference) => first_alphabetic_inlines(&reference.text),
         InlineMacro::Footnote(footnote) => first_alphabetic_inlines(&footnote.content),
         InlineMacro::Link(link) => first_alphabetic_inlines(&link.text),
         InlineMacro::Mailto(mailto) => first_alphabetic_inlines(&mailto.text),
-        InlineMacro::Menu(menu) => first_alphabetic_text(menu.target, &menu.location),
+        InlineMacro::Menu(menu) => first_alphabetic_inlines(&menu.target),
         InlineMacro::Pass(pass) => pass
             .text
             .and_then(|text| first_alphabetic_text(text, &pass.location)),

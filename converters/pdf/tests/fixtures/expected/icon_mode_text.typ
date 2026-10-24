@@ -78,8 +78,8 @@
 ]
 #v(1em)
 
-#text("Default text: ")#text("[arrow left]")#text(".")
+#text("Default text: ")#text("[")#text("arrow left")#text("]")#text(".")
 
-#text("Custom text: ")#text("[Love]")#text(".")
+#text("Custom text: ")#text("[")#text("Love")#text("]")#text(".")
 
-#text("PDF ignores icon sizing and titles in text mode: ")#text("[heart]")#text(".")
+#text("PDF ignores icon sizing and titles in text mode: ")#text("[")#text("heart")#text("]")#text(".")

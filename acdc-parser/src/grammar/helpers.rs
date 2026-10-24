@@ -23,6 +23,7 @@ pub(crate) enum MacroAttributeContext {
 pub(crate) struct BlockParsingMetadata<'input> {
     pub(crate) metadata: BlockMetadata<'input>,
     pub(crate) title: Title<'input>,
+    pub(crate) image_alt: Option<crate::ContentAttribute<'input>>,
     pub(crate) parent_section_level: Option<SectionLevel>,
     pub(crate) substitutions: SubstitutionPlan,
     pub(crate) hardbreaks: bool,
@@ -30,6 +31,7 @@ pub(crate) struct BlockParsingMetadata<'input> {
     /// either via the `discrete`/`float` block style (`[discrete]`) or as a
     /// bare positional attribute (`[#id,discrete]`).
     pub(crate) discrete: bool,
+    pub(crate) media_attributes: Option<Box<BlockMetadata<'input>>>,
 }
 
 pub(crate) const RESERVED_NAMED_ATTRIBUTE_ID: &str = "id";

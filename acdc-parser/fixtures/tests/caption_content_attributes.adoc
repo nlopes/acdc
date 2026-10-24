@@ -1,0 +1,27 @@
+[caption='*Custom*. ']
+.Caption
+image::photo.png[Description]
+
+[quote,"A -- B","C -- D"]
+____
+Literal attribution.
+____
+
+[quote,'A -- B','C -- D']
+____
+Substituted attribution.
+____
+
+[NOTE,caption='*Care*']
+A custom admonition label.
+
+[caption="A -- B "]
+.Literal caption
+image::photo.png[]
+
+[[custom-image]]
+[caption='*Custom*. ']
+.Image title
+image::photo.png[]
+
+See xref:custom-image[xrefstyle=short].

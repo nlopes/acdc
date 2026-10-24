@@ -78,7 +78,7 @@
             "style": "quote",
             "attribution": [
               {
-                "name": "text",
+                "name": "raw",
                 "type": "string",
                 "value": "Albert Einstein",
                 "location": [
@@ -129,7 +129,7 @@
             "style": "quote",
             "attribution": [
               {
-                "name": "text",
+                "name": "raw",
                 "type": "string",
                 "value": "Abraham Lincoln",
                 "location": [
@@ -146,7 +146,7 @@
             ],
             "citetitle": [
               {
-                "name": "text",
+                "name": "raw",
                 "type": "string",
                 "value": "Gettysburg Address",
                 "location": [
@@ -231,7 +231,7 @@
             "style": "verse",
             "attribution": [
               {
-                "name": "text",
+                "name": "raw",
                 "type": "string",
                 "value": "Carl Sandburg",
                 "location": [
@@ -248,7 +248,7 @@
             ],
             "citetitle": [
               {
-                "name": "text",
+                "name": "raw",
                 "type": "string",
                 "value": "Fog",
                 "location": [

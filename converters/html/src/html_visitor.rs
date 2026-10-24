@@ -276,19 +276,22 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
     pub(crate) fn render_captioned_title_with_wrapper(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &[InlineNode],
+        title: &acdc_parser::Title<'_>,
         metadata: &BlockMetadata<'_>,
         fallback: Option<CaptionKind>,
         prefix: &str,
         suffix: &str,
     ) -> Result<(), Error> {
-        if title.is_empty() {
+        if !title.is_present() {
             return Ok(());
         }
-        let caption = self
-            .processor
-            .caption_prefix(metadata, fallback)
-            .unwrap_or_default();
+        let caption = match metadata.caption_content() {
+            Some(content) => self.content_html(traversal, content)?,
+            None => self
+                .processor
+                .caption_prefix(metadata, fallback)
+                .unwrap_or_default(),
+        };
         self.render_title_with_wrapper(traversal, title, &format!("{prefix}{caption}"), suffix)
     }
 
@@ -1263,11 +1266,11 @@ impl<'a, W: Write> WritableVisitor<'a> for HtmlVisitor<'a, '_, W> {
     fn render_title_with_wrapper(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &[InlineNode],
+        title: &acdc_parser::Title<'_>,
         prefix: &str,
         suffix: &str,
     ) -> Result<(), Error> {
-        if title.is_empty() {
+        if !title.is_present() {
             return Ok(());
         }
         write!(self.writer, "{prefix}")?;

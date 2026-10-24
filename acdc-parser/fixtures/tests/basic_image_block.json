@@ -8,11 +8,27 @@
       "form": "macro",
       "metadata": {
         "attributes": {
-          "alt": "Sunset",
           "height": "400",
           "width": "300"
         }
       },
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Sunset",
+          "location": [
+            {
+              "line": 1,
+              "col": 23
+            },
+            {
+              "line": 1,
+              "col": 28
+            }
+          ]
+        }
+      ],
       "source": {
         "type": "path",
         "value": "sunset.jpg"
@@ -34,11 +50,27 @@
       "form": "macro",
       "metadata": {
         "attributes": {
-          "alt": "Sunset",
           "height": "400",
           "width": "300"
         }
       },
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Sunset",
+          "location": [
+            {
+              "line": 3,
+              "col": 20
+            },
+            {
+              "line": 3,
+              "col": 25
+            }
+          ]
+        }
+      ],
       "source": {
         "type": "path",
         "value": "sunset2.jpg"

@@ -1,0 +1,28 @@
+= Media rendering modes
+:icons: font
+
+icon:heart[2x,alt="*Heart*",title="A & B",link=https://example.org,window=preview,opts="nofollow,noopener",float=right,role=accent]
+
+:icons: svg
+:iconsdir: ../../../assets
+
+icon:media[alt="*Image*",height=24,title="_Tip_",link=https://example.org]
+
+[NOTE,caption='*Care*',icon=media.svg]
+A custom icon and caption.
+
+:data-uri:
+
+icon:ignored[icon=media.svg,alt="*Embedded*"]
+
+[WARNING,icon=media.svg]
+Embedded admonition icon.
+
+:!data-uri:
+:!icons:
+
+icon:heart[Other,alt="*Text*",link=https://example.org,window=preview,opts=nofollow]
+
+image:missing.svg[*Visible fallback*,opts=inline]
+
+image:missing.svg[_Interactive fallback_,opts=interactive]

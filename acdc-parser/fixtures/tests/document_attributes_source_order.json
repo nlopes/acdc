@@ -278,11 +278,23 @@
       "name": "image",
       "type": "block",
       "form": "macro",
-      "metadata": {
-        "attributes": {
-          "alt": "before-image"
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "before-image",
+          "location": [
+            {
+              "line": 34,
+              "col": 18
+            },
+            {
+              "line": 34,
+              "col": 29
+            }
+          ]
         }
-      },
+      ],
       "source": {
         "type": "path",
         "value": "pixel.png"

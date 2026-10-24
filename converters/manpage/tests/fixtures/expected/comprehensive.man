@@ -264,11 +264,11 @@ Thematic break below:
 This paragraph follows a discrete header.
 .SS "Inline Macros"
 .sp
-Keyboard shortcut: \fBCtrl+C\fP
+Keyboard shortcut: \fBCtrl\fR+\fBC\fR
 .sp
-Button: [\fBOK\fP]
+Button: [\fBOK\fR]
 .sp
-Menu: \fBFile\fP \(ra \fBSave As...\fP
+Menu: \fBFile\fR \(ra \fBSave As.\|.\|.\fR
 .SS "Deep Nesting"
 .sp
 \fBLevel 3 Section\fR

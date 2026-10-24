@@ -105,6 +105,6 @@
   ]
 
 #block(width: 100%, breakable: false)[
-#text("[Missing image]")#text(" | missing.svg")
+#text("[")#text("Missing image")#text("]")#text(" | missing.svg")
 #imagecaption[#text("Figure 5. ")#text("Missing figure")]
 ]

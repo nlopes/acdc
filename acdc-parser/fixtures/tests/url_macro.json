@@ -242,6 +242,23 @@
           ]
         },
         {
+          "tooltip": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Official Rust docs",
+              "location": [
+                {
+                  "line": 5,
+                  "col": 89
+                },
+                {
+                  "line": 5,
+                  "col": 106
+                }
+              ]
+            }
+          ],
           "name": "ref",
           "type": "inline",
           "variant": "link",
@@ -277,8 +294,7 @@
             }
           ],
           "attributes": {
-            "target": "_blank",
-            "title": "Official Rust docs"
+            "target": "_blank"
           }
         },
         {

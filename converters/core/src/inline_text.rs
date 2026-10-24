@@ -198,12 +198,21 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
                 self.write(w, index_term.term())
             }
             InlineMacro::Pass(pass) => w.write_str(pass.text.unwrap_or_default()),
-            InlineMacro::Keyboard(keyboard) => write!(w, "{}", keyboard.keys.join("+")),
-            InlineMacro::Button(button) => w.write_str(button.label),
+            InlineMacro::Keyboard(keyboard) => {
+                for (index, key) in keyboard.keys.iter().enumerate() {
+                    if index > 0 {
+                        w.write_char('+')?;
+                    }
+                    self.write(w, key)?;
+                }
+                Ok(())
+            }
+            InlineMacro::Button(button) => self.write(w, &button.label),
             InlineMacro::Menu(menu) => {
-                w.write_str(menu.target)?;
+                self.write(w, &menu.target)?;
                 for item in &menu.items {
-                    write!(w, " > {item}")?;
+                    w.write_str(" > ")?;
+                    self.write(w, item)?;
                 }
                 Ok(())
             }
@@ -212,15 +221,15 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
             // brackets them, as acdc does when it renders them inline.
             InlineMacro::Image(image) => {
                 w.write_char('[')?;
-                if image.title.is_empty() {
-                    write!(w, "{}", image.source)?;
+                if let Some(alt) = &image.alt {
+                    self.write(w, alt)?;
                 } else {
-                    self.write(w, &image.title)?;
+                    write!(w, "{}", image.source)?;
                 }
                 w.write_char(']')
             }
             InlineMacro::Icon(icon) => {
-                write!(w, "[{}]", crate::icon::alt(&icon.target, &icon.attributes))
+                write!(w, "[{}]", crate::icon::alt(&icon.target, icon.alt.as_ref()))
             }
             InlineMacro::Footnote(footnote) => write!(w, "[{}]", footnote.number),
             InlineMacro::Stem(stem) => w.write_str(stem.content),

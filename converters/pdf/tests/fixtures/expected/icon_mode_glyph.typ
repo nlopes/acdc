@@ -100,4 +100,4 @@
 
 #text("Title is HTML-only: ")#text("♥")#text(".")
 
-#text("Unsupported glyph: ")#text("[Missing]")#text(".")
+#text("Unsupported glyph: ")#text("[")#text("Missing")#text("]")#text(".")

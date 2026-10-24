@@ -433,13 +433,6 @@ fn restore_macro_attributes<'a>(
             {
                 id.id = restored;
             }
-            for node in image.title.inlines_mut() {
-                if let InlineNode::PlainText(plain) = node
-                    && let Some(restored) = restore(plain.content)
-                {
-                    plain.content = restored;
-                }
-            }
             &mut image.metadata.attributes
         }
         InlineMacro::Footnote(_)
@@ -511,16 +504,9 @@ fn restore_macro_passthroughs<'a>(
             None
         }
         InlineMacro::Stem(stem) => Some(&mut stem.content),
-        InlineMacro::Button(button) => Some(&mut button.label),
-        InlineMacro::Menu(menu) => {
-            for item in &mut menu.items {
-                if let Some(restored) = ctx.restore_passthrough_text(item) {
-                    *item = restored;
-                }
-            }
-            Some(&mut menu.target)
-        }
         InlineMacro::Icon(_)
+        | InlineMacro::Button(_)
+        | InlineMacro::Menu(_)
         | InlineMacro::Image(_)
         | InlineMacro::Keyboard(_)
         | InlineMacro::Url(_)
@@ -545,6 +531,16 @@ fn map_inline_macro<'a>(
     form: Option<&Form>,
 ) -> Result<(), Error> {
     restore_macro_passthroughs(inline_macro, ctx)?;
+    let mut result = Ok(());
+    inline_macro.for_each_content_attribute_mut(|nodes| {
+        if result.is_ok() {
+            match map_inline_locations(ctx.state, ctx.processed, take(nodes), ctx.base_location) {
+                Ok(mapped) => *nodes = mapped,
+                Err(error) => result = Err(error),
+            }
+        }
+    });
+    result?;
     let LocationMappingContext {
         state,
         processed,

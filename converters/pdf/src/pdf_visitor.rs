@@ -28,9 +28,10 @@ use acdc_parser::{
     Anchor, AttributeValue, Autolink, Block, BlockMetadata, Caption, CaptionKind, ColumnStyle,
     ColumnWidth, CrossReference, DelimitedBlock, DelimitedBlockType, DescriptionList,
     DescriptionListItem, ElementAttributes, HorizontalAlignment, Icon, Image, IndexTerm,
-    IndexTermRelationship, InlineMacro, InlineNode, ListItem, Location, Menu, PageBreak, Paragraph,
-    Raw, Section, SectionKind, Source, Substitution, Table, TableColumn, TableFrame, TableGrid,
-    TableOfContents, TablePresentation, TableStripes, Title, TocEntry, VerticalAlignment,
+    IndexTermRelationship, InlineImage, InlineMacro, InlineNode, ListItem, Location, Menu,
+    PageBreak, Paragraph, Raw, Section, SectionKind, Source, Substitution, Table, TableColumn,
+    TableFrame, TableGrid, TableOfContents, TablePresentation, TableStripes, Title, TocEntry,
+    VerticalAlignment,
 };
 use acdc_pdf_images::ImageMap;
 use acdc_pdf_theme::{
@@ -695,7 +696,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             return Ok(());
         }
         let intrinsic_table =
-            table && !block.title.is_empty() && Self::table_has_intrinsic_width(&block.metadata);
+            table && block.title.is_present() && Self::table_has_intrinsic_width(&block.metadata);
         if intrinsic_table {
             self.write_intrinsic_table_start();
         }
@@ -711,7 +712,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         if shows_block_title(&block.inner) && !writes_own_title && !intrinsic_table {
             let sticky_title = table
                 && !block.metadata.options.contains(&"unbreakable")
-                && !block.title.is_empty();
+                && block.title.is_present();
             if sticky_title {
                 self.writer
                     .raw("#block(sticky: true, above: 0pt, below: 0pt)[\n");
@@ -799,7 +800,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         traversal: &mut TraversalContext<'a>,
         title: &Title<'_>,
     ) -> Result<(), Error> {
-        if title.is_empty() {
+        if !title.is_present() {
             return Ok(());
         }
         // A title keeps normal substitutions independently of its block's body.
@@ -865,14 +866,6 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             self.write_table_text_expr(text, max_columns, TableTextKind::Text);
         } else {
             self.write_text_or_raw_expr(text, TableTextKind::Text);
-        }
-    }
-
-    pub(crate) fn write_inline_verbatim(&mut self, text: &str) {
-        if let Some(max_columns) = self.table_cell_text_break_columns() {
-            self.write_table_text_expr(text, max_columns, TableTextKind::InlineVerbatim);
-        } else {
-            self.write_text_or_raw_expr(text, TableTextKind::InlineVerbatim);
         }
     }
 
@@ -1260,7 +1253,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         traversal: &mut TraversalContext<'a>,
         title: &Title<'_>,
     ) -> Result<(), Error> {
-        if title.is_empty() {
+        if !title.is_present() {
             return Ok(());
         }
         self.writer.raw("#blocktitle[");
@@ -1284,10 +1277,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         self.writer
             .raw("rotate(90deg, origin: center, text(weight: \"bold\", size: 0.8em, \">\"))))], ");
         self.writer.raw("[#captiontext[");
-        if title.is_empty() {
-            self.write_text_expr("Details");
-        } else {
+        if title.is_present() {
             self.write_title(traversal, title)?;
+        } else {
+            self.write_text_expr("Details");
         }
         self.writer
             .raw("]])\n#block(inset: (left: 1em), above: 0.3em)[\n");
@@ -1355,7 +1348,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         traversal: &mut TraversalContext<'a>,
         title: &Title<'_>,
     ) -> Result<(), Error> {
-        if title.is_empty() {
+        if !title.is_present() {
             return Ok(());
         }
         self.writer.raw("#abstracttitle[");
@@ -1577,12 +1570,14 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         metadata: &BlockMetadata<'_>,
         fallback: Option<CaptionKind>,
     ) -> Result<(), Error> {
-        if title.is_empty() {
+        if !title.is_present() {
             return Ok(());
         }
         let prefix = self.caption_prefix(metadata, fallback);
         let _ = write!(self.writer, "#{wrapper}[");
-        if let Some(prefix) = prefix {
+        if let Some(content) = metadata.caption_content() {
+            self.write_inlines(traversal, content)?;
+        } else if let Some(prefix) = prefix {
             self.write_text_expr(&prefix);
         }
         self.write_title(traversal, title)?;
@@ -1624,6 +1619,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 number.map_or_else(|| self.next_caption_number(kind), NonZeroU32::get),
             )),
             Caption::Custom(prefix) => Some(prefix.into_owned()),
+            Caption::CustomContent(content) => {
+                Some(acdc_converters_core::inlines_to_string(&content))
+            }
             Caption::Unnumbered | _ => None,
         }
     }
@@ -1665,7 +1663,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         blocks: &'a [Block<'a>],
     ) -> Result<(), Error> {
         self.writer.raw("#sidebarbox[\n");
-        if !title.is_empty() {
+        if title.is_present() {
             self.writer.raw("#sidebartitle[");
             self.write_title(traversal, title)?;
             self.writer.raw("]\n");
@@ -2645,7 +2643,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         traversal: &mut TraversalContext<'a>,
         title: &Title<'_>,
     ) -> Result<(), Error> {
-        if title.is_empty() {
+        if !title.is_present() {
             return Ok(());
         }
         self.writer.raw("#imagecaption[");
@@ -3310,7 +3308,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             "]\nalign({}, [\n#context block(width: measure(acdc-table-body).width)[",
             typst_table_alignment(alignment)
         );
-        let sticky_title = !metadata.options.contains(&"unbreakable") && !title.is_empty();
+        let sticky_title = !metadata.options.contains(&"unbreakable") && title.is_present();
         if sticky_title {
             self.writer
                 .raw("#block(sticky: true, above: 0pt, below: 0pt)[\n");
@@ -3622,7 +3620,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 Some(&image.location),
             );
         }
-        let has_caption = !image.title.is_empty();
+        let has_caption = image.title.is_present();
         if has_caption {
             self.writer.raw("#block(width: 100%, breakable: false)[\n");
         }
@@ -3681,7 +3679,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 );
             }
         } else {
-            self.write_block_image_fallback(image, &alt, link.as_deref());
+            self.write_block_image_fallback(traversal, image, &alt, link.as_deref())?;
             self.writer.raw("\n");
         }
         if has_caption {
@@ -3699,17 +3697,30 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         Ok(())
     }
 
-    fn write_block_image_fallback(&mut self, image: &Image<'_>, alt: &str, link: Option<&str>) {
+    fn write_block_image_fallback(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        image: &Image<'_>,
+        alt: &str,
+        link: Option<&str>,
+    ) -> Result<(), Error> {
         if let Some(target) = link {
             self.writer.raw("#link(");
             self.writer.string_literal(target);
             self.writer.raw(")[");
         }
-        self.write_text_expr(&format!("[{alt}]"));
+        self.write_text_expr("[");
+        if let Some(content) = &image.alt {
+            self.write_inlines(traversal, content)?;
+        } else {
+            self.write_text_expr(alt);
+        }
+        self.write_text_expr("]");
         if link.is_some() {
             self.writer.raw("]");
         }
         self.write_text_expr(&format!(" | {}", image.source));
+        Ok(())
     }
 
     fn write_positioned_block_image(
@@ -3816,8 +3827,8 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     pub(crate) fn write_inline_image(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        image: &Image<'_>,
-    ) {
+        image: &InlineImage<'_>,
+    ) -> Result<(), Error> {
         let source = Self::static_media_source_target(traversal, &image.source);
         let alt = inline_image_alt(image);
         let link = image
@@ -3895,11 +3906,16 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 self.writer.string_literal(target);
                 self.writer.raw(")[");
             }
-            self.write_text_expr(&inline_image_fallback_text(image));
+            if let Some(content) = &image.alt {
+                self.write_inlines(traversal, content)?;
+            } else {
+                self.write_text_expr(&inline_image_fallback_text(image));
+            }
             if link.is_some() {
                 self.writer.raw("]");
             }
         }
+        Ok(())
     }
 
     fn write_intrinsically_scaled_image(
@@ -3926,8 +3942,18 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         );
     }
 
-    fn write_icon(&mut self, traversal: &mut TraversalContext<'a>, icon: &Icon<'_>) {
-        let alt = icon_alt(&icon.target, &icon.attributes);
+    fn write_icon(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        icon: &Icon<'_>,
+    ) -> Result<(), Error> {
+        let alt = icon_alt(&icon.target, icon.alt.as_ref());
+        let link = icon.attributes.get_string("link");
+        if let Some(target) = &link {
+            self.writer.raw("#link(");
+            self.writer.string_literal(target);
+            self.writer.raw(")[");
+        }
         match IconMode::from_attributes(traversal) {
             IconMode::Font => {
                 if let Some(glyph) = builtin_icon_glyph(&icon.target.to_string()) {
@@ -3945,11 +3971,14 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                         _ => self.write_text_expr(glyph),
                     }
                 } else {
-                    self.write_text_expr(&format!("[{alt}]"));
+                    self.write_icon_alternative(traversal, icon, &alt)?;
                 }
             }
             IconMode::Image => {
-                let source = icon_image_source(traversal, &icon.target);
+                let source = icon.attributes.get_string("icon").map_or_else(
+                    || icon_image_source(traversal, &icon.target),
+                    |value| acdc_converters_core::icon::custom_image_source(traversal, &value),
+                );
                 if let Some(asset) = self.assets.get(&source) {
                     self.writer.raw("#box(image(");
                     self.writer.string_literal(&asset.virtual_path);
@@ -3957,11 +3986,31 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     self.writer.string_literal(&alt);
                     self.writer.raw(", height: 1em))");
                 } else {
-                    self.write_text_expr(&format!("[{}]", icon.target));
+                    self.write_icon_alternative(traversal, icon, &alt)?;
                 }
             }
-            IconMode::Text | _ => self.write_text_expr(&format!("[{alt}]")),
+            IconMode::Text | _ => self.write_icon_alternative(traversal, icon, &alt)?,
         }
+        if link.is_some() {
+            self.writer.raw("]");
+        }
+        Ok(())
+    }
+
+    fn write_icon_alternative(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        icon: &Icon<'_>,
+        fallback: &str,
+    ) -> Result<(), Error> {
+        self.write_text_expr("[");
+        if let Some(content) = &icon.alt {
+            self.write_inlines(traversal, content)?;
+        } else {
+            self.write_text_expr(fallback);
+        }
+        self.write_text_expr("]");
+        Ok(())
     }
 
     fn write_sized_icon_glyph(&mut self, glyph: &str, size: &str) {
@@ -4001,8 +4050,8 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     }
                 }
             }
-            InlineMacro::Icon(icon) => self.write_icon(traversal, icon),
-            InlineMacro::Image(image) => self.write_inline_image(traversal, image),
+            InlineMacro::Icon(icon) => self.write_icon(traversal, icon)?,
+            InlineMacro::Image(image) => self.write_inline_image(traversal, image)?,
             InlineMacro::Keyboard(keyboard) => {
                 for (index, key) in keyboard.keys.iter().enumerate() {
                     if index > 0 {
@@ -4014,16 +4063,16 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     self.writer.string_literal(&self.palette.border);
                     self.writer
                         .raw("), radius: 2pt, inset: (x: 2pt, y: 0.5pt))[");
-                    self.write_inline_verbatim(key);
+                    self.write_inlines(traversal, key)?;
                     self.writer.raw("]");
                 }
             }
             InlineMacro::Button(button) => {
                 self.writer.raw("#strong[\\[\u{2009}");
-                self.write_text_expr(button.label);
+                self.write_inlines(traversal, &button.label)?;
                 self.writer.raw("\u{2009}\\]]");
             }
-            InlineMacro::Menu(menu) => self.write_menu(menu),
+            InlineMacro::Menu(menu) => self.write_menu(traversal, menu)?,
             InlineMacro::Url(url) => {
                 let target = url.target.to_string();
                 let fallback = link_fallback(&target, url.hides_uri_scheme());
@@ -4162,10 +4211,14 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         Ok(CatalogTerm { plain, markup })
     }
 
-    fn write_menu(&mut self, menu: &Menu<'_>) {
+    fn write_menu(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        menu: &Menu<'_>,
+    ) -> Result<(), Error> {
         let mut parts = Vec::with_capacity(menu.items.len() + 1);
-        parts.push(menu.target);
-        parts.extend(menu.items.iter().copied());
+        parts.push(&menu.target);
+        parts.extend(menu.items.iter());
         self.writer.raw("#strong[");
         for (index, part) in parts.into_iter().enumerate() {
             if index > 0 {
@@ -4175,9 +4228,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 self.writer.raw("))[\u{203a}]");
                 self.write_text_expr(" ");
             }
-            self.write_text_expr(part);
+            self.write_inlines(traversal, part)?;
         }
         self.writer.raw("]");
+        Ok(())
     }
 
     fn write_autolink(
@@ -4385,7 +4439,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             [InlineNode::Macro(InlineMacro::Image(image))]
                 if image.metadata.attributes.get_string("link").is_some() =>
             {
-                self.write_inline_image(traversal, image);
+                self.write_inline_image(traversal, image)?;
                 self.write_inline_span_end(state);
                 return Ok(());
             }
@@ -5058,15 +5112,11 @@ fn asciidoctor_background_colour(role: &str) -> Option<&'static str> {
     }
 }
 
-fn inline_image_fallback_text(image: &Image<'_>) -> String {
-    if !image.title.is_empty() {
-        return inlines_to_string(image.title.as_ref());
-    }
-    image
-        .metadata
-        .attributes
-        .get_string("alt")
-        .map_or_else(|| format!("[image: {}]", image.source), Cow::into_owned)
+fn inline_image_fallback_text(image: &InlineImage<'_>) -> String {
+    image.alt.as_ref().map_or_else(
+        || format!("[image: {}]", image.source),
+        |content| acdc_converters_core::inlines_to_string(content),
+    )
 }
 
 pub(crate) fn builtin_icon_glyph(name: &str) -> Option<&'static str> {
@@ -5090,12 +5140,12 @@ pub(crate) fn builtin_icon_glyph(name: &str) -> Option<&'static str> {
     }
 }
 
-fn block_image_alt<'a>(image: &Image<'a>) -> Cow<'a, str> {
-    acdc_converters_core::media::image_alt(image, false)
+fn block_image_alt<'a>(image: &'a Image<'_>) -> Cow<'a, str> {
+    acdc_converters_core::media::image_alt(&image.source, image.alt.as_ref())
 }
 
-fn inline_image_alt<'a>(image: &Image<'a>) -> Cow<'a, str> {
-    acdc_converters_core::media::image_alt(image, true)
+fn inline_image_alt<'a>(image: &InlineImage<'a>) -> Cow<'a, str> {
+    acdc_converters_core::media::image_alt(&image.source, image.alt.as_ref())
 }
 
 fn block_image_alignment(metadata: &BlockMetadata<'_>) -> BlockImageAlignment {

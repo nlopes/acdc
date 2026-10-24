@@ -763,15 +763,7 @@ fn image_media_and_hidden_schemes_keep_static_link_information() -> Result<(), E
     let input = ":hide-uri-scheme:\n\nimage::https://media.example/photo-file.png[Useful alt,link=https://images.example/view]\n\nInline image:https://media.example/photo-file.png[Inline alt,link=https://images.example/inline].\n\nInner link precedence: link:https://outer.example[image:https://media.example/inner.png[Inner alt,link=https://inner.example]].\n\n.Audio title\naudio::sound.ogg[start=2,end=4]\n\naudio::https://media.example/remote.ogg[]\n\n.Video title\nvideo::first.mp4,second.webm[poster=cover.jpg]\n\nvideo::https://media.example/remote.mp4[]\n\nvideo::[]\n\nlink:https://example.com[] https://example.org[] <https://example.net/path> link:https://window.example[Window link,window=_blank,role=external]\n";
     let (plain, warnings) = render_terminal(input, 80, TEXT_TERMINAL)?;
 
-    assert_eq!(
-        warnings
-            .iter()
-            .filter(|warning| warning.contains("video has no source"))
-            .count(),
-        1,
-        "{warnings:?}"
-    );
-    assert_eq!(warnings.len(), 1, "{warnings:?}");
+    assert!(warnings.is_empty(), "{warnings:?}");
     for expected in [
         "[Image: Useful alt]",
         "https://images.example/view",
@@ -783,10 +775,9 @@ fn image_media_and_hidden_schemes_keep_static_link_information() -> Result<(), E
         "sound.ogg#t=2,4",
         "[Audio: remote.ogg]",
         "https://media.example/remote.ogg",
-        "[Video source 1/2: Video title]",
-        "first.mp4",
-        "[Video source 2/2: Video title]",
-        "second.webm",
+        "[Video: Video title]",
+        "first.mp4,second.webm",
+        "video::[]",
         "[Poster: cover.jpg]",
         "[Video: remote.mp4]",
         "https://media.example/remote.mp4",

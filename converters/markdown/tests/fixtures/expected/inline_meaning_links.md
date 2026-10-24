@@ -3,7 +3,7 @@
 <a id="_ui_macros_and_literal_fallbacks"></a>
 ## UI macros and literal fallbacks
 
-UI: <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd>, **[Save]**, File > Open > Recent, [Back].
+UI: <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd>, <strong>[Save]</strong>, File > Open > Recent, [Back].
 
 Passthrough: <mark>raw</mark>, &lt;tag&gt; &amp; &amp;#169;, and © → … — .
 

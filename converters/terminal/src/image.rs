@@ -39,7 +39,15 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         let rendered_protocol_image = false;
 
         if !rendered_protocol_image || link.is_some() {
-            let text = format!("[Image: {alt}]");
+            let rendered_alt = match &image.alt {
+                Some(content) => inlines::render_inline_nodes_with_styles_to_owned(
+                    content,
+                    self.processor,
+                    traversal,
+                )?,
+                None => alt.clone(),
+            };
+            let text = format!("[Image: {rendered_alt}]");
             if let Some(target) = link {
                 let processor = self.processor;
                 inlines::maybe_render_osc8_link(&target, &text, self.writer_mut(), processor)?;

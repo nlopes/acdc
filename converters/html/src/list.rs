@@ -73,7 +73,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         let is_bibliography = section_style == Some("bibliography");
 
         let semantic = self.processor.variant() == HtmlVariant::Semantic;
-        let has_title = !list.title.is_empty();
+        let has_title = list.title.is_present();
 
         // Semantic mode: use <section> for titled, <div> otherwise
         let wrapper_tag = if semantic && has_title {
@@ -151,7 +151,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         let (style, type_attr) = resolve_ordered_list_style(list.metadata.style, depth);
 
         let semantic = self.processor.variant() == HtmlVariant::Semantic;
-        let has_title = !list.title.is_empty();
+        let has_title = list.title.is_present();
 
         // Semantic mode: use <section> for titled, <div> otherwise
         let wrapper_tag = if semantic && has_title {
@@ -273,7 +273,7 @@ fn visit_callout_list_semantic<'a, V: WritableVisitor<'a, Error = Error>>(
     list: &'a CalloutList<'a>,
     visitor: &mut V,
 ) -> Result<(), Error> {
-    let has_title = !list.title.is_empty();
+    let has_title = list.title.is_present();
     if has_title {
         let writer = visitor.writer_mut();
         let class = build_class("colist arabic", &list.metadata.roles);
@@ -757,7 +757,7 @@ fn visit_description_list_semantic<'a, W: Write>(
     list: &'a DescriptionList<'a>,
     visitor: &mut HtmlVisitor<'a, '_, W>,
 ) -> Result<(), Error> {
-    let has_title = !list.title.is_empty();
+    let has_title = list.title.is_present();
     let is_qanda = list.metadata.style == Some("qanda");
     let is_horizontal = list.metadata.style == Some("horizontal");
 

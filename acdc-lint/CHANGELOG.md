@@ -52,6 +52,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Image-alt checks read parsed alternative content, including formatted labels.
+  Resource checks also traverse media alternatives, tooltips, and UI labels.
+
+- Inline images retain alt-text lint behavior with the explicit `alt` AST
+  field, including positional alt text and empty values.
+
 - The `one-sentence-per-line` lint now checks description-list values on the
   term's line or immediately below it, including wrapped sentences.
   Punctuation in the term does not count as part of the value.

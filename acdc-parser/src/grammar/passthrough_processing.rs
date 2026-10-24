@@ -506,38 +506,43 @@ fn process_inline_children<'a>(
         InlineNode::SuperscriptText(value) => process_content!(value),
         InlineNode::CurvedQuotationText(value) => process_content!(value),
         InlineNode::CurvedApostropheText(value) => process_content!(value),
-        InlineNode::Macro(macro_node) => match macro_node {
-            InlineMacro::IndexTerm(value) => {
-                if value.catalog.is_none() {
-                    value.catalog = Some(Box::new((**value).clone()));
+        InlineNode::Macro(macro_node) => {
+            macro_node.for_each_content_attribute_mut(|nodes| {
+                *nodes = process_inline_nodes(take(nodes), substitutions, state);
+            });
+            match macro_node {
+                InlineMacro::IndexTerm(value) => {
+                    if value.catalog.is_none() {
+                        value.catalog = Some(Box::new((**value).clone()));
+                    }
+                    value.for_each_label_mut(|nodes| {
+                        *nodes = process_inline_nodes(take(nodes), substitutions, state);
+                    });
                 }
-                value.for_each_label_mut(|nodes| {
-                    *nodes = process_inline_nodes(take(nodes), substitutions, state);
-                });
+                InlineMacro::Url(value) => {
+                    value.text = process_inline_nodes(take(&mut value.text), substitutions, state);
+                }
+                InlineMacro::Link(value) => {
+                    value.text = process_inline_nodes(take(&mut value.text), substitutions, state);
+                }
+                InlineMacro::Mailto(value) => {
+                    value.text = process_inline_nodes(take(&mut value.text), substitutions, state);
+                }
+                InlineMacro::CrossReference(value) => {
+                    value.text = process_inline_nodes(take(&mut value.text), substitutions, state);
+                }
+                // Footnotes retain the body captured at the macro stage.
+                InlineMacro::Footnote(_)
+                | InlineMacro::Icon(_)
+                | InlineMacro::Image(_)
+                | InlineMacro::Keyboard(_)
+                | InlineMacro::Button(_)
+                | InlineMacro::Menu(_)
+                | InlineMacro::Autolink(_)
+                | InlineMacro::Pass(_)
+                | InlineMacro::Stem(_) => {}
             }
-            InlineMacro::Url(value) => {
-                value.text = process_inline_nodes(take(&mut value.text), substitutions, state);
-            }
-            InlineMacro::Link(value) => {
-                value.text = process_inline_nodes(take(&mut value.text), substitutions, state);
-            }
-            InlineMacro::Mailto(value) => {
-                value.text = process_inline_nodes(take(&mut value.text), substitutions, state);
-            }
-            InlineMacro::CrossReference(value) => {
-                value.text = process_inline_nodes(take(&mut value.text), substitutions, state);
-            }
-            // Footnotes retain the body captured at the macro stage.
-            InlineMacro::Footnote(_)
-            | InlineMacro::Icon(_)
-            | InlineMacro::Image(_)
-            | InlineMacro::Keyboard(_)
-            | InlineMacro::Button(_)
-            | InlineMacro::Menu(_)
-            | InlineMacro::Autolink(_)
-            | InlineMacro::Pass(_)
-            | InlineMacro::Stem(_) => {}
-        },
+        }
         InlineNode::PlainText(_)
         | InlineNode::RawText(_)
         | InlineNode::VerbatimText(_)
@@ -958,27 +963,30 @@ fn for_each_inline_children<'a>(
         InlineNode::SuperscriptText(value) => visit(&mut value.content),
         InlineNode::CurvedQuotationText(value) => visit(&mut value.content),
         InlineNode::CurvedApostropheText(value) => visit(&mut value.content),
-        InlineNode::Macro(macro_node) => match macro_node {
-            InlineMacro::Footnote(value) => visit(&mut value.content),
-            InlineMacro::Url(value) => visit(&mut value.text),
-            InlineMacro::Link(value) => visit(&mut value.text),
-            InlineMacro::Mailto(value) => visit(&mut value.text),
-            InlineMacro::CrossReference(value) => visit(&mut value.text),
-            InlineMacro::IndexTerm(value) => {
-                value.for_each_label_mut(&mut *visit);
-                if let Some(catalog) = &mut value.catalog {
-                    catalog.for_each_label_mut(&mut *visit);
+        InlineNode::Macro(macro_node) => {
+            macro_node.for_each_content_attribute_mut(&mut *visit);
+            match macro_node {
+                InlineMacro::Footnote(value) => visit(&mut value.content),
+                InlineMacro::Url(value) => visit(&mut value.text),
+                InlineMacro::Link(value) => visit(&mut value.text),
+                InlineMacro::Mailto(value) => visit(&mut value.text),
+                InlineMacro::CrossReference(value) => visit(&mut value.text),
+                InlineMacro::IndexTerm(value) => {
+                    value.for_each_label_mut(&mut *visit);
+                    if let Some(catalog) = &mut value.catalog {
+                        catalog.for_each_label_mut(&mut *visit);
+                    }
                 }
+                InlineMacro::Icon(_)
+                | InlineMacro::Image(_)
+                | InlineMacro::Keyboard(_)
+                | InlineMacro::Button(_)
+                | InlineMacro::Menu(_)
+                | InlineMacro::Autolink(_)
+                | InlineMacro::Pass(_)
+                | InlineMacro::Stem(_) => {}
             }
-            InlineMacro::Icon(_)
-            | InlineMacro::Image(_)
-            | InlineMacro::Keyboard(_)
-            | InlineMacro::Button(_)
-            | InlineMacro::Menu(_)
-            | InlineMacro::Autolink(_)
-            | InlineMacro::Pass(_)
-            | InlineMacro::Stem(_) => {}
-        },
+        }
         InlineNode::PlainText(_)
         | InlineNode::RawText(_)
         | InlineNode::VerbatimText(_)

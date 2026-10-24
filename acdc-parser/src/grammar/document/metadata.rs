@@ -1,12 +1,12 @@
 //! Block styles, attributes, anchors, and captions.
 
 use crate::{
-    Anchor, AttributeValue, Attribution, Block, BlockMetadata, CiteTitle, Error, InlineNode,
-    Location, Plain, Title,
+    Anchor, AttributeValue, Attribution, Block, BlockMetadata, CiteTitle, ContentAttribute,
+    DocumentAttributes, Error, InlineNode, Location, Plain, Title,
     document_attribute::AttributeDeclaration,
     grammar::{
         ParserState,
-        attributes::{AttributeQuote, scan_attribute_list},
+        attributes::{AttributeQuote, ScannedAttribute, scan_attribute_list},
         helpers::{
             BlockParsingMetadata, RESERVED_NAMED_ATTRIBUTE_ID, RESERVED_NAMED_ATTRIBUTE_OPTIONS,
             RESERVED_NAMED_ATTRIBUTE_ROLE, RESERVED_NAMED_ATTRIBUTE_SUBS,
@@ -19,7 +19,7 @@ use crate::{
         substitution::SubstitutionPlan,
     },
 };
-use std::borrow::Cow;
+use std::{borrow::Cow, rc::Rc};
 
 #[cfg(not(feature = "pre-spec-subs"))]
 use crate::{Warning, WarningKind};
@@ -31,13 +31,53 @@ use crate::model::substitution::parse_subs_attribute;
 #[derive(Debug)]
 pub(super) enum BlockMetadataLine<'input> {
     Anchor(Anchor<'input>),
-    Attributes((bool, Box<BlockMetadata<'input>>, usize)),
+    Attributes(RawAttributeList<'input>),
     Title {
         source: &'input str,
         start: usize,
         end: usize,
     },
     DocumentAttribute(AttributeDeclaration<'input>, Location),
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(super) struct RawAttributeList<'a> {
+    pub(super) source: &'a str,
+    pub(super) start: usize,
+    pub(super) end: usize,
+}
+
+#[derive(Clone, Debug)]
+pub(super) struct ContentAttributeSource<'a> {
+    pub(super) source: &'a str,
+    pub(super) start: usize,
+    pub(super) end: usize,
+    pub(super) attributes: Option<Rc<DocumentAttributes<'a>>>,
+}
+
+pub(super) fn resolve_title<'a>(
+    state: &mut ParserState<'a>,
+    source: ContentAttributeSource<'a>,
+    offset: usize,
+) -> Result<Title<'a>, Error> {
+    // Named attributes keep the values active when their attribute list was read.
+    // Parse the authored source under that snapshot to retain inline locations.
+    let current = source
+        .attributes
+        .map(|attributes| std::mem::replace(&mut state.document_attributes, attributes));
+    let result = process_inlines(
+        state,
+        &BlockParsingMetadata::default(),
+        source.start,
+        source.end,
+        offset,
+        source.source,
+    );
+    if let Some(current) = current {
+        state.document_attributes = current;
+    }
+    let inlines = result?.0;
+    Ok(Title::new(inlines))
 }
 
 /// Metadata accepted where title and document-attribute lines are not allowed.
@@ -51,6 +91,10 @@ pub(super) enum AttributeOrAnchorLine<'input> {
 /// example can change that example's caption, as in asciidoctor. Caption numbers
 /// are assigned after the document is complete.
 pub(super) fn assign_block_caption<'input>(state: &ParserState<'input>, block: &mut Block<'input>) {
+    if let Some(metadata) = block.metadata_mut() {
+        metadata.alt_source = None;
+        metadata.caption_source = None;
+    }
     let Some(kind) = CaptionKind::for_block(block) else {
         return;
     };
@@ -120,6 +164,15 @@ pub(super) fn merge_attribute_metadata<'input>(
     for (name, value) in attribute_metadata.attributes.iter() {
         metadata.attributes.set(name.clone(), value.clone());
     }
+    if attribute_metadata.alt_source.is_some()
+        && (attribute_metadata.attributes.contains_key("alt")
+            || !metadata.attributes.contains_key("alt"))
+    {
+        metadata.alt_source = attribute_metadata.alt_source;
+    }
+    if attribute_metadata.caption_source.is_some() {
+        metadata.caption_source = attribute_metadata.caption_source;
+    }
     metadata.overlay_positional_attributes(&attribute_metadata.positional_attributes);
     #[cfg(feature = "pre-spec-subs")]
     if attribute_metadata.substitutions.is_some() {
@@ -158,44 +211,19 @@ fn attribute_title_source<'input>(
     )
 }
 
-pub(super) fn attribute_list_title<'input>(
+pub(super) fn media_attributes_ahead<'input>(
     state: &ParserState<'input>,
     line_start: usize,
     offset: usize,
-) -> Option<(&'input str, usize, usize)> {
+) -> Option<RawAttributeList<'input>> {
     let line = state.input.get(line_start + offset..)?.lines().next()?;
     let start = line.find('[')? + 1;
     let end = line.rfind(']')?;
-    let raw = line.get(start..end)?;
-    let substituted = substitute(raw, &[Substitution::Attributes], &state.document_attributes);
-    let attribute = scan_attribute_list(&substituted, &[])
-        .into_iter()
-        .rev()
-        .find(|attribute| {
-            attribute.name.as_deref() == Some("title")
-                && !(attribute.quote == AttributeQuote::Unquoted && attribute.value == "None")
-        })?;
-    let authored = scan_attribute_list(raw, &[])
-        .into_iter()
-        .rev()
-        .find(|candidate| {
-            candidate.name.as_deref() == Some("title")
-                && substitute(
-                    &candidate.value,
-                    &[Substitution::Attributes],
-                    &state.document_attributes,
-                ) == attribute.value
-        });
-    let (start, end) = authored.map_or((start, end), |attribute| {
-        (start + attribute.value_start, start + attribute.value_end)
-    });
-    Some(attribute_title_source(
-        state,
-        &attribute.value,
-        line_start + start,
-        line_start + end,
-        offset,
-    ))
+    Some(RawAttributeList {
+        source: line.get(start..end)?,
+        start: line_start + start,
+        end: line_start + end,
+    })
 }
 
 pub(super) fn finish_block_parsing_metadata<'input>(
@@ -216,6 +244,7 @@ pub(super) fn finish_block_parsing_metadata<'input>(
     let substitutions = SubstitutionPlan::default();
     let hardbreaks = substitutions.enabled(&Substitution::PostReplacements)
         && (state.hardbreaks || metadata.options.contains(&"hardbreaks"));
+    resolve_caption_content(state, &mut metadata, offset)?;
     extract_source_attributes(state, &mut metadata);
     extract_quote_attributes(&mut metadata);
     apply_quote_attribute_substitutions(state, &mut metadata, offset, substitutions)?;
@@ -226,6 +255,8 @@ pub(super) fn finish_block_parsing_metadata<'input>(
         substitutions,
         hardbreaks,
         discrete,
+        media_attributes: None,
+        image_alt: None,
     })
 }
 
@@ -436,18 +467,12 @@ fn store_named_block_attribute<'input>(
     value: &'input str,
     quote: AttributeQuote,
     location: Option<Location>,
-) -> Option<(usize, usize)> {
+) {
     if quote == AttributeQuote::Unquoted && value == "None" {
-        return None;
+        return;
     }
-    let title_position = if name == "title" {
-        location
-            .as_ref()
-            .map(|location| (location.absolute_start, location.absolute_end))
-    } else {
-        None
-    };
     match name {
+        "title" => {}
         RESERVED_NAMED_ATTRIBUTE_ID => {
             metadata.id = Some(Anchor {
                 id: value,
@@ -498,7 +523,6 @@ fn store_named_block_attribute<'input>(
             );
         }
     }
-    title_position
 }
 
 pub(super) fn parse_block_attribute_list<'input>(
@@ -507,7 +531,12 @@ pub(super) fn parse_block_attribute_list<'input>(
     content_start: usize,
     fallback_end: usize,
     mode: BlockAttributeMode,
-) -> (bool, BlockMetadata<'input>, Option<(usize, usize)>) {
+    offset: usize,
+) -> (
+    bool,
+    BlockMetadata<'input>,
+    Option<ContentAttributeSource<'input>>,
+) {
     let substituted = substitute(
         source,
         &[Substitution::Attributes],
@@ -515,9 +544,10 @@ pub(super) fn parse_block_attribute_list<'input>(
     );
     let positions_exact = matches!(substituted, Cow::Borrowed(_));
     let attributes = scan_attribute_list(&substituted, &[]);
+    let authored = (!positions_exact).then(|| scan_attribute_list(source, &[]));
     let mut metadata = BlockMetadata::default();
     let mut discrete = false;
-    let mut title_position = None;
+    let mut title_source = None;
 
     for (slot, attribute) in attributes.into_iter().enumerate() {
         let value = state.intern_str(&attribute.value);
@@ -529,28 +559,71 @@ pub(super) fn parse_block_attribute_list<'input>(
             )
         });
 
+        if matches!(name, Some("alt" | "caption"))
+            && !(attribute.quote == AttributeQuote::Unquoted && value == "None")
+        {
+            let original = authored
+                .as_ref()
+                .and_then(|attributes| attributes.iter().rev().find(|a| a.name.as_deref() == name));
+            let pending =
+                capture_block_content(state, source, content_start, &attribute, original, mode);
+            if name == Some("alt") {
+                metadata.attributes.set("alt".into(), value.into());
+                metadata.alt_source = Some(Box::new(pending));
+            } else {
+                metadata.caption_source = Some(Box::new(pending));
+            }
+            continue;
+        }
         if let Some(name) = name {
-            title_position = store_named_block_attribute(
+            store_named_block_attribute(
                 state,
                 &mut metadata,
                 name,
                 value,
                 attribute.quote,
                 location,
-            )
-            .or(title_position);
-        } else if slot == 0 {
-            match mode {
-                BlockAttributeMode::Block => {
-                    discrete = apply_block_style(state, &mut metadata, value, location.as_ref());
-                }
-                BlockAttributeMode::Macro
-                    if !value.is_empty() || attribute.quote != AttributeQuote::Unquoted =>
-                {
-                    metadata.style = Some(value);
-                }
-                BlockAttributeMode::Macro => {}
+            );
+            if name == "title" && !(attribute.quote == AttributeQuote::Unquoted && value == "None")
+            {
+                let original = positions_exact.then_some(&attribute).or_else(|| {
+                    authored.as_ref().and_then(|attributes| {
+                        attributes.iter().rev().find(|candidate| {
+                            candidate.name.as_deref() == Some("title")
+                                && substitute(
+                                    &candidate.value,
+                                    &[Substitution::Attributes],
+                                    &state.document_attributes,
+                                ) == value
+                        })
+                    })
+                });
+                let (start, end) = original.map_or((content_start, fallback_end), |original| {
+                    (
+                        content_start + original.value_start,
+                        content_start + original.value_end,
+                    )
+                });
+                let (source, start, end) = attribute_title_source(state, value, start, end, offset);
+                title_source = Some(ContentAttributeSource {
+                    source,
+                    start,
+                    end,
+                    attributes: source
+                        .contains('{')
+                        .then(|| Rc::clone(&state.document_attributes)),
+                });
             }
+        } else if slot == 0 {
+            discrete = store_first_block_slot(
+                state,
+                &mut metadata,
+                value,
+                location.as_ref(),
+                &attribute,
+                mode,
+                content_start,
+            );
         } else {
             ensure_positional_slot(&mut metadata, slot);
             if let Some(positional) = metadata.positional_attributes.get_mut(slot - 1) {
@@ -563,10 +636,82 @@ pub(super) fn parse_block_attribute_list<'input>(
         }
     }
 
-    if title_position.is_none() && metadata.attributes.get("title").is_some() {
-        title_position = Some((content_start, fallback_end));
+    (discrete, metadata, title_source)
+}
+
+fn capture_block_content<'a>(
+    state: &ParserState<'a>,
+    source: &'a str,
+    content_start: usize,
+    attribute: &ScannedAttribute,
+    original: Option<&ScannedAttribute>,
+    mode: BlockAttributeMode,
+) -> crate::model::content_attribute::PendingContentAttribute<'a> {
+    let value = state.intern_str(&attribute.value);
+    let (from, to) = original.map_or((attribute.value_start, attribute.value_end), |a| {
+        (a.value_start, a.value_end)
+    });
+    let formatted =
+        matches!(mode, BlockAttributeMode::Block) && attribute.quote == AttributeQuote::Single;
+    crate::model::content_attribute::PendingContentAttribute {
+        source: if formatted {
+            source.get(from..to).unwrap_or(value)
+        } else {
+            original.map_or(value, |original| state.intern_str(&original.value))
+        },
+        start: content_start + from,
+        end: content_start + to,
+        formatted,
+        attributes: source
+            .contains('{')
+            .then(|| Box::new((*state.document_attributes).clone())),
     }
-    (discrete, metadata, title_position)
+}
+
+fn store_first_block_slot<'a>(
+    state: &ParserState<'a>,
+    metadata: &mut BlockMetadata<'a>,
+    value: &'a str,
+    location: Option<&Location>,
+    attribute: &ScannedAttribute,
+    mode: BlockAttributeMode,
+    content_start: usize,
+) -> bool {
+    match mode {
+        BlockAttributeMode::Block => {
+            let discrete = apply_block_style(state, metadata, value, location);
+            if let Some(style) = metadata.style {
+                metadata.alt_source = Some(Box::new(
+                    crate::model::content_attribute::PendingContentAttribute {
+                        source: style,
+                        start: content_start + attribute.value_start,
+                        end: content_start + attribute.value_end,
+                        formatted: attribute.quote == AttributeQuote::Single,
+                        attributes: None,
+                    },
+                ));
+            }
+            discrete
+        }
+        BlockAttributeMode::Macro
+            if !value.is_empty() || attribute.quote != AttributeQuote::Unquoted =>
+        {
+            metadata.style = Some(value);
+            metadata.alt_source = Some(Box::new(
+                crate::model::content_attribute::PendingContentAttribute {
+                    source: value,
+                    start: content_start + attribute.value_start,
+                    end: content_start + attribute.value_end,
+                    formatted: false,
+                    attributes: value
+                        .contains('{')
+                        .then(|| Box::new((*state.document_attributes).clone())),
+                },
+            ));
+            false
+        }
+        BlockAttributeMode::Macro => false,
+    }
 }
 
 fn plain_attribute_value(value: &str, location: Option<Location>) -> Vec<InlineNode<'_>> {
@@ -645,5 +790,126 @@ fn apply_quote_attribute_substitutions<'input>(
             process_inlines(state, &block_metadata, start, end, offset, plain.content)?;
         metadata.citetitle = Some(CiteTitle::new(inlines));
     }
+    for (value, formatted) in [
+        (
+            &mut metadata.attribution,
+            metadata.attribution_substitutions,
+        ),
+        (&mut metadata.citetitle, metadata.citetitle_substitutions),
+    ] {
+        if !formatted && let Some(value) = value {
+            for node in value.inlines_mut() {
+                if let InlineNode::PlainText(plain) = node {
+                    *node = InlineNode::RawText(crate::Raw {
+                        content: plain.content,
+                        location: plain.location.clone(),
+                        subs: vec![Substitution::SpecialChars],
+                    });
+                }
+            }
+        }
+    }
     Ok(())
+}
+
+pub(super) fn resolve_content_attribute<'a>(
+    state: &mut ParserState<'a>,
+    source: crate::model::content_attribute::PendingContentAttribute<'a>,
+    offset: usize,
+) -> Result<ContentAttribute<'a>, Error> {
+    let current = source
+        .attributes
+        .map(|attributes| std::mem::replace(&mut state.document_attributes, Rc::new(*attributes)));
+    let result = if source.formatted {
+        process_inlines(
+            state,
+            &BlockParsingMetadata::default(),
+            source.start,
+            source.end,
+            offset,
+            source.source,
+        )
+        .map(|(nodes, _)| ContentAttribute::new(nodes))
+    } else {
+        let text = substitute(
+            source.source,
+            &[Substitution::Attributes],
+            &state.document_attributes,
+        );
+        let text = state.intern_str(&text.replace("\\]", "]"));
+        Ok(ContentAttribute::new(if text.is_empty() {
+            Vec::new()
+        } else {
+            vec![InlineNode::PlainText(Plain {
+                content: text,
+                location: state.create_block_location(source.start, source.end, offset),
+                escaped: false,
+            })]
+        }))
+    };
+    if let Some(current) = current {
+        state.document_attributes = current;
+    }
+    result
+}
+
+fn resolve_caption_content<'a>(
+    state: &mut ParserState<'a>,
+    metadata: &mut BlockMetadata<'a>,
+    offset: usize,
+) -> Result<(), Error> {
+    if let Some(source) = metadata.caption_source.take() {
+        let formatted = source.formatted;
+        let mut content = resolve_content_attribute(state, *source, offset)?;
+        if !formatted {
+            for node in content.inlines_mut() {
+                if let InlineNode::PlainText(plain) = node {
+                    *node = InlineNode::RawText(crate::Raw {
+                        content: plain.content,
+                        location: plain.location.clone(),
+                        subs: vec![Substitution::SpecialChars],
+                    });
+                }
+            }
+        }
+        metadata.caption = Some(Caption::CustomContent(content));
+    }
+    Ok(())
+}
+
+pub(super) fn resolve_block_content_attributes<'a>(
+    state: &mut ParserState<'a>,
+    metadata: &mut BlockMetadata<'a>,
+    media: Option<&BlockMetadata<'a>>,
+    image: bool,
+    offset: usize,
+) -> Result<Option<ContentAttribute<'a>>, Error> {
+    if let Some(media) = media
+        && media.caption_source.is_some()
+    {
+        metadata.caption_source.clone_from(&media.caption_source);
+    }
+    let alt = image
+        .then(|| {
+            media
+                .and_then(|media| media.alt_source.as_ref())
+                .or(metadata.alt_source.as_ref())
+                .cloned()
+        })
+        .flatten();
+    let caption_first = match (&metadata.caption_source, &alt) {
+        (Some(caption), Some(alt)) => caption.start < alt.start,
+        _ => true,
+    };
+    if caption_first {
+        resolve_caption_content(state, metadata, offset)?;
+    }
+    let alt = alt
+        .map(|source| resolve_content_attribute(state, *source, offset))
+        .transpose()?;
+    if !caption_first {
+        resolve_caption_content(state, metadata, offset)?;
+    }
+    metadata.alt_source = None;
+    Ok(alt)
 }

@@ -15,6 +15,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Formatted alternative content remains rich in visible image/icon fallbacks and
+  custom captions. HTML `alt` and tooltip attributes contain escaped plain text;
+  unlike Asciidoctor, they never contain generated formatting tags or unescaped
+  quotation marks. Link, URL, and mailto `title=` tooltips are retained.
+- Image-mode icons honor `height`, `icon=`, and `data-uri`. Icons honor `float`
+  and link options in text, font, and image modes. Admonitions honor `caption=`
+  and image icons. UI labels retain formatting; menu separators work without
+  Font Awesome.
+- Local video targets retain commas; only provider playlists interpret them.
+
+- Caller-built empty titles retain their captions and numbering, matching
+  `title=""` in AsciiDoc source.
+
 - Block and inline SVG images support `opts=inline`, `opts=interactive`,
   `fallback`, and `format=svg`. `data-uri` embeds local images; remote embedding
   also requires the `network` feature and caller-supplied `allow-uri-read`.

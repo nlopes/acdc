@@ -27,10 +27,12 @@ use crate::{
                 prepare_manpage_name_attributes,
             },
             metadata::{
-                AttributeOrAnchorLine, BlockAttributeMode, BlockMetadataLine, assign_block_caption,
-                attribute_list_title, extract_media_dimensions, finish_block_parsing_metadata,
+                AttributeOrAnchorLine, BlockAttributeMode, BlockMetadataLine,
+                ContentAttributeSource, RawAttributeList, assign_block_caption,
+                extract_media_dimensions, finish_block_parsing_metadata, media_attributes_ahead,
                 merge_attribute_metadata, metadata_marks_discrete_heading,
                 order_document_attribute_events, parse_block_attribute_list, push_metadata_anchor,
+                resolve_block_content_attributes, resolve_title,
             },
             references::{
                 ReferenceCatalog, collect_inline_references, collect_metadata_references,
@@ -1219,7 +1221,7 @@ peg::parser! {
         rule block_metadata_with_title(offset: usize, parent_section_level: Option<SectionLevel>, parse_title: bool) -> Result<BlockParsingMetadata<'input>, Error>
         = meta_start:position!() lines:(line:(
             anchor:anchor() { BlockMetadataLine::Anchor(anchor) }
-            / start:position!() attr:attributes_line() { BlockMetadataLine::Attributes((attr.0, Box::new(attr.1), start)) }
+            / attr:raw_attributes_line() { BlockMetadataLine::Attributes(attr) }
             / doc_attr:document_attribute_line(offset) { BlockMetadataLine::DocumentAttribute(doc_attr.0, doc_attr.1) }
             / title_line()
         ) end:position!() eol()* { (line, end) })*
@@ -1233,12 +1235,15 @@ peg::parser! {
             for (line, _) in lines {
                 match line {
                     BlockMetadataLine::Anchor(value) => push_metadata_anchor(&mut metadata, value),
-                    BlockMetadataLine::Attributes((attr_discrete, attr_metadata, start)) => {
-                        if let Some(title) = attribute_list_title(state, start, offset) {
+                    BlockMetadataLine::Attributes(attributes) => {
+                        let (attr_discrete, attr_metadata, title) = parse_block_attribute_list(
+                            state, attributes.source, attributes.start, attributes.end, BlockAttributeMode::Block, offset,
+                        );
+                        if let Some(title) = title {
                             title_source = Some(title);
                         }
                         discrete = attr_discrete;
-                        merge_attribute_metadata(&mut metadata, *attr_metadata);
+                        merge_attribute_metadata(&mut metadata, attr_metadata);
                     },
                     BlockMetadataLine::DocumentAttribute(declaration, location) => {
                         if let Some(event) = state.apply_document_attribute(
@@ -1250,31 +1255,27 @@ peg::parser! {
                         }
                     },
                     BlockMetadataLine::Title { source, start, end } => {
-                        title_source = Some((source, start, end));
+                        title_source = Some(ContentAttributeSource { source, start, end, attributes: None });
                     }
                 }
             }
             let media_ahead = media_ahead && !matches!(metadata.style, Some("listing" | "source" | "literal" | "verse"));
-            if media_ahead {
-                title_source = attribute_list_title(state, block_start, offset).or(title_source);
-            }
+            let media_attributes = if media_ahead {
+                media_attributes_ahead(state, block_start, offset).map(|attributes| {
+                    let (_, metadata, title) = parse_block_attribute_list(
+                        state, attributes.source, attributes.start, attributes.end, BlockAttributeMode::Macro, offset,
+                    );
+                    title_source = title.or_else(|| title_source.take());
+                    Box::new(metadata)
+                })
+            } else { None };
+            let image_ahead = media_ahead && state.input.get(block_start + offset..).is_some_and(|tail| tail.starts_with("image::"));
+            let image_alt = resolve_block_content_attributes(state, &mut metadata, media_attributes.as_deref(), image_ahead, offset)?;
             // Titles use the completed metadata attributes, including entries
             // after the title line. Only the last authored title is displayed.
-            let title = if let Some((source, start, end)) = title_source.filter(|_| parse_title) {
-                match process_inlines(
-                    state, &BlockParsingMetadata::default(), start, end, offset, source,
-                ) {
-                    Ok((mut title, _)) => {
-                        // Keep explicit empty titles distinct from an absent title.
-                        if title.is_empty() {
-                            title.push(InlineNode::PlainText(Plain {
-                                content: "",
-                                location: state.create_block_location(start, end, offset),
-                                escaped: false,
-                            }));
-                        }
-                        title.into()
-                    },
+            let title = if let Some(source) = title_source.filter(|_| parse_title) {
+                match resolve_title(state, source, offset) {
+                    Ok(title) => title,
                     Err(error) => {
                         state.add_generic_warning(format!("failed to parse block title, skipping: {error:?}"));
                         Title::default()
@@ -1286,14 +1287,17 @@ peg::parser! {
             if meta_start != meta_end {
                 metadata.location = Some(state.create_block_location(meta_start, meta_end, offset));
             }
-            finish_block_parsing_metadata(
+            let mut result = finish_block_parsing_metadata(
                 state,
                 metadata,
                 title,
                 parent_section_level,
                 discrete,
                 offset,
-            )
+            )?;
+            result.media_attributes = media_attributes;
+            result.image_alt = image_alt;
+            Ok(result)
         }
 
         // Match metadata in lookahead without expanding attributes or titles.
@@ -1759,7 +1763,7 @@ peg::parser! {
 
         // Select the media title before parsing macros in a preceding dot-title.
         rule media_block_ahead() -> bool
-        = &(("image::" / "audio::" / "video::") (source_match() ** comma()) "[" attribute_list_content()) { true }
+        = &(("image::" / "audio::" / "video::") [^'[' | '\n' | '\r']+ "[" attribute_list_content()) { true }
         / { false }
 
         rule source_match()
@@ -1769,7 +1773,7 @@ peg::parser! {
 
         rule image(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
         = normal_paragraph_style(block_metadata)
-          "image::" source:source() attributes:image_macro_attributes() end:position!()
+          "image::" source:source() attributes:cached_macro_attributes(block_metadata) end:position!()
           trailing:$([^'\n']*)
         {
             state.warn_trailing_macro_content("image", trailing, end, offset);
@@ -1778,16 +1782,15 @@ peg::parser! {
             let title = block_metadata.title.clone();
             let mut metadata = block_metadata.metadata.clone();
             metadata.merge(&metadata_from_attributes);
-            if let Some(style) = metadata.style {
-                metadata.style = None; // Clear style to avoid confusion
-                if !metadata_from_attributes.attributes.contains_key("alt") {
-                    metadata.attributes.set("alt".into(), AttributeValue::String(Cow::Borrowed(style)));
-                }
-            }
+            metadata.style = None;
+            let alt = block_metadata.image_alt.clone();
+            metadata.alt_source = None;
+            metadata.attributes.remove("alt");
             let _ = metadata.take_positional_attributes::<2>();
             metadata.move_positional_attributes_to_attributes();
             Ok(Block::Image(Image {
                 title,
+                alt,
                 source,
                 metadata,
                 location: state.create_block_location(start, end, offset),
@@ -1796,7 +1799,7 @@ peg::parser! {
         }
 
         rule audio(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
-        = "audio::" source:source() attributes:macro_attributes() end:position!()
+        = "audio::" source:source() attributes:cached_macro_attributes(block_metadata) end:position!()
           trailing:$([^'\n']*)
         {
             state.warn_trailing_macro_content("audio", trailing, end, offset);
@@ -1813,14 +1816,14 @@ peg::parser! {
             }))
         }
 
-        // The video block is similar to the audio and image blocks, but it supports
-        // multiple sources. This is for example to allow passing multiple youtube video
-        // ids to form a playlist.
+        // Preserve commas until the converter interprets a provider's playlist syntax.
         rule video(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
-        = "video::" sources:(source() ** comma()) attributes:macro_attributes() end:position!()
+        = "video::" target:$([^'[' | '\n' | '\r']+) attributes:cached_macro_attributes(block_metadata) end:position!()
           trailing:$([^'\n']*)
         {
             state.warn_trailing_macro_content("video", trailing, end, offset);
+            let target = substitute(target, &[Substitution::Attributes], &state.document_attributes);
+            let source = Source::from_str_borrowed(state.intern_str(&target))?;
             let (_discrete, mut metadata_from_attributes, _title_position) = attributes;
             extract_media_dimensions(&mut metadata_from_attributes);
             let title = block_metadata.title.clone();
@@ -1832,18 +1835,13 @@ peg::parser! {
                 .or(positional_poster)
                 .or_else(|| metadata.attributes.get_string("poster").map(|value| state.intern_str(&value)));
             if let Some(poster) = poster {
-                if matches!(poster, "youtube" | "vimeo") {
-                    metadata.attributes.remove("poster");
-                    metadata.attributes.set(Cow::Borrowed(poster), AttributeValue::Bool(true));
-                } else {
-                    metadata.attributes.set("poster".into(), AttributeValue::String(Cow::Borrowed(poster)));
-                }
+                metadata.attributes.set("poster".into(), AttributeValue::String(Cow::Borrowed(poster)));
             }
             let _ = metadata.take_positional_attributes::<2>();
             metadata.move_positional_attributes_to_attributes();
             Ok(Block::Video(Video {
                 title,
-                sources,
+                source,
                 metadata,
                 location: state.create_block_location(start, end, offset),
             }))
@@ -3535,6 +3533,11 @@ peg::parser! {
 
             let title = block_metadata.title.clone();
 
+            let admonition = admonition.or_else(|| {
+                block_metadata.metadata.style
+                    .filter(|style| matches!(*style, "NOTE" | "TIP" | "IMPORTANT" | "CAUTION" | "WARNING"))
+                    .map(|style| (style.to_string(), content_start, content_start))
+            });
             if let Some((variant, admonition_start, admonition_end)) = admonition {
                 let Ok(parsed_variant) = AdmonitionVariant::from_str(&variant) else {
                     tracing::error!("invalid admonition variant");
@@ -3698,11 +3701,18 @@ peg::parser! {
                 (discrete, metadata)
             }
 
+        rule raw_attributes_line() -> RawAttributeList<'input>
+            = !empty_list_separator() !double_open_square_bracket() attributes:raw_attribute_list() eol() { attributes }
+
+        rule raw_attribute_list() -> RawAttributeList<'input>
+            = open_square_bracket() start:position!() source:attribute_list_content()
+            { RawAttributeList { source, start, end: span_end } }
+
         // Empty brackets followed by a blank line is a list separator
         rule empty_list_separator()
             = whitespace()* "[" whitespace()* "]" whitespace()* eol() eol()
 
-        pub(crate) rule attributes() -> (bool, BlockMetadata<'input>, Option<(usize, usize)>)
+        pub(crate) rule attributes() -> (bool, BlockMetadata<'input>, Option<ContentAttributeSource<'input>>)
             = !double_open_square_bracket()
               open_square_bracket()
               content_start:position!()
@@ -3714,6 +3724,7 @@ peg::parser! {
                     content_start,
                     span_end,
                     BlockAttributeMode::Block,
+                    0,
                 )
             }
 
@@ -3725,13 +3736,19 @@ peg::parser! {
         /// Asciidoctor behavior:
         /// - `image::photo.jpg[.role]` -> alt=".role" (literal text, NOT a role)
         /// - `image::photo.jpg[Diablo 4 picture of Lilith.]` -> alt="Diablo 4 picture of Lilith."
-        pub(crate) rule macro_attributes() -> (bool, BlockMetadata<'input>, Option<(usize, usize)>)
+        pub(crate) rule macro_attributes() -> (bool, BlockMetadata<'input>, Option<ContentAttributeSource<'input>>)
             = macro_attributes_for()
 
-        rule image_macro_attributes() -> (bool, BlockMetadata<'input>, Option<(usize, usize)>)
-            = macro_attributes_for()
+        rule cached_macro_attributes(block_metadata: &BlockParsingMetadata<'input>) -> (bool, BlockMetadata<'input>, Option<ContentAttributeSource<'input>>)
+            = attributes:raw_attribute_list() {
+                if let Some(metadata) = &block_metadata.media_attributes {
+                    (false, (**metadata).clone(), None)
+                } else {
+                    parse_block_attribute_list(state, attributes.source, attributes.start, attributes.end, BlockAttributeMode::Macro, 0)
+                }
+            }
 
-        rule macro_attributes_for() -> (bool, BlockMetadata<'input>, Option<(usize, usize)>)
+        rule macro_attributes_for() -> (bool, BlockMetadata<'input>, Option<ContentAttributeSource<'input>>)
             = open_square_bracket()
               content_start:position!()
               content:attribute_list_content()
@@ -3742,6 +3759,7 @@ peg::parser! {
                     content_start,
                     span_end,
                     BlockAttributeMode::Macro,
+                    0,
                 )
             }
 

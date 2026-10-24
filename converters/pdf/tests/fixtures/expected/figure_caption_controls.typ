@@ -110,7 +110,7 @@
 
 #block(width: 100%, breakable: false)[
 #docimage("/images/de454d7e4e1cfda7.svg", alt: "Block empty", width: 60pt)
-#imagecaption[#text("")#text("Empty block prefix")]
+#imagecaption[#text("Empty block prefix")]
 ]
 
 #block(width: 100%, breakable: false)[

@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Inline icons honor `icon=` overrides and retain `link=` destinations in text,
+  font, and image modes.
+
+- Visible image/icon alternatives, UI labels, and custom `caption=` values retain
+  supported formatting. Literal quote attributions and citation titles retain
+  their dashes; single-quoted values still apply normal substitutions.
+- Static video links preserve complete local targets and provider playlists.
+  Unlike Asciidoctor PDF, YouTube playlist shorthand produces a watch URL with
+  an explicit playlist parameter.
+
+- Caller-built empty titles retain their captions and numbering, matching
+  `title=""` in AsciiDoc source.
+
 - Images honor named and empty alt text and retain literal quotes. Inline
   tooltips no longer become PDF descriptions. Named titles on audio, video, paragraphs, lists, tables, and
   delimited blocks retain formatting, matching Asciidoctor PDF.

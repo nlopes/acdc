@@ -588,7 +588,6 @@
       "form": "macro",
       "metadata": {
         "attributes": {
-          "alt": "Example",
           "reftext": "Named _image_ Ada"
         },
         "id": {
@@ -618,6 +617,23 @@
             {
               "line": 17,
               "col": 12
+            }
+          ]
+        }
+      ],
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Example",
+          "location": [
+            {
+              "line": 19,
+              "col": 20
+            },
+            {
+              "line": 19,
+              "col": 26
             }
           ]
         }

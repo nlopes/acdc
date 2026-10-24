@@ -389,11 +389,7 @@ impl<'a, W: Write> Visitor<'a> for TreeVisitor<W> {
         _traversal: &mut TraversalContext<'a>,
         video: &Video,
     ) -> Result<(), Self::Error> {
-        let detail = if let Some(source) = video.sources.first() {
-            source.to_string()
-        } else {
-            "(no sources)".to_string()
-        };
+        let detail = video.source.to_string();
         self.print_tree_line("Video", Some(&truncate(&detail, 50)), Some(&video.location))?;
         Ok(())
     }

@@ -21,7 +21,12 @@ fn block_image_title_attributes_follow_authored_precedence() -> Result<(), Error
             return Err(format!("expected image: {source}").into());
         };
         assert!(
-            matches!(image.title.as_ref(), [InlineNode::PlainText(text)] if text.content == expected),
+            image.title.is_present()
+                && if expected.is_empty() {
+                    image.title.is_empty()
+                } else {
+                    matches!(image.title.as_ref(), [InlineNode::PlainText(text)] if text.content == expected)
+                },
             "{source}: {:?}",
             image.title
         );
@@ -117,14 +122,28 @@ fn inline_image_title_remains_a_tooltip() -> Result<(), Error> {
         })
         .ok_or("expected inline image")?;
     assert_eq!(
-        image
-            .metadata
-            .attributes
-            .get("title")
-            .map(ToString::to_string)
-            .as_deref(),
+        image.tooltip.as_ref().map(content_text).as_deref(),
         Some("Tooltip")
     );
-    assert!(matches!(image.title.as_ref(), [InlineNode::PlainText(text)] if text.content == "Alt"));
+    assert_eq!(image.alt.as_ref().map(content_text).as_deref(), Some("Alt"));
     Ok(())
+}
+
+fn content_text(value: &acdc_parser::ContentAttribute<'_>) -> String {
+    value
+        .iter()
+        .map(|node| {
+            assert!(matches!(
+                node,
+                InlineNode::PlainText(_) | InlineNode::RawText(_)
+            ));
+            if let InlineNode::PlainText(text) = node {
+                text.content
+            } else if let InlineNode::RawText(text) = node {
+                text.content
+            } else {
+                ""
+            }
+        })
+        .collect()
 }

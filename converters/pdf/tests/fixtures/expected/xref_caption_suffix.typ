@@ -144,7 +144,7 @@
 ]
 
 #metadata(none) <id-737061636573>
-#blocktitle[#text("Exhibit.  ")#text("Two spaces")]
+#blocktitle[#text("Exhibit. ")#text("Two spaces")]
 #examplebox[
 #text("Body.")
 ]
@@ -156,7 +156,7 @@
 ]
 
 #metadata(none) <id-656d707479>
-#blocktitle[#text("")#text("Empty caption")]
+#blocktitle[#text("Empty caption")]
 #examplebox[
 #text("Body.")
 ]

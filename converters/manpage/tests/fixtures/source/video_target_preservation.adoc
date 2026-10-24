@@ -1,0 +1,16 @@
+= video-target-preservation(1)
+:doctype: manpage
+:manmanual: Media content tests
+:mansource: acdc
+
+== NAME
+
+video-target-preservation - media content rendering
+
+== DESCRIPTION
+
+video::one.mp4,two.mp4[]
+
+video::one,,three[youtube]
+
+video::12345[vimeo]

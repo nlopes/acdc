@@ -24,7 +24,7 @@ Empty slots: [Image: sample] and [Image: ] and [Image: ].
 [38;5;12m]8;;sample.mp4#t=,12\[Video: Video title]]8;;\[39m
 [Poster: new.png]
 [38;5;12m]8;;https://www.youtube.com/watch?v=abc&t=5&end=12&list=PL123\[Video: Playlist title]]8;;\[39m
-[38;5;12m]8;;https://www.youtube.com/watch?v=abc&playlist=abc,def,ghi\[Video: abc]]8;;\[39m
+[38;5;12m]8;;https://www.youtube.com/watch?v=abc&playlist=abc,def,ghi\[Video: abc,def,ghi]]8;;\[39m
 [38;5;12m]8;;https://vimeo.com/12345/secret#t=5\[Video: secret]]8;;\[39m
 [38;5;12m]8;;https://www.youtube.com/watch?v=abc\[Video: abc]]8;;\[39m
 [38;5;12m]8;;local.mp4\[Video: local.mp4]]8;;\[39m

@@ -191,20 +191,20 @@ mod tests {
 
     #[test]
     fn extract_link_macro_with_text() {
-        let link = InlineNode::Macro(InlineMacro::Link(
+        let link = InlineNode::Macro(InlineMacro::Link(Box::new(
             Link::new(Source::Name("https://example.com"), Location::default())
                 .with_text(vec![plain("Example")]),
-        ));
+        )));
         let title = [plain("See "), link];
         assert_eq!(extract_title_text(&title, &no_references()), "See Example");
     }
 
     #[test]
     fn extract_link_macro_without_text() {
-        let link = InlineNode::Macro(InlineMacro::Link(Link::new(
+        let link = InlineNode::Macro(InlineMacro::Link(Box::new(Link::new(
             Source::Name("https://example.com"),
             Location::default(),
-        )));
+        ))));
         let title = [link];
         assert_eq!(
             extract_title_text(&title, &no_references()),

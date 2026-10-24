@@ -27,9 +27,41 @@
         {
           "name": "menu",
           "type": "inline",
-          "target": "File",
+          "target": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "File",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 31
+                },
+                {
+                  "line": 3,
+                  "col": 34
+                }
+              ]
+            }
+          ],
           "items": [
-            "Save"
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Save",
+                "location": [
+                  {
+                    "line": 3,
+                    "col": 36
+                  },
+                  {
+                    "line": 3,
+                    "col": 39
+                  }
+                ]
+              }
+            ]
           ],
           "location": [
             {

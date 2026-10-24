@@ -89,10 +89,7 @@ fn block_media_macros_accept_non_ascii_path_characters() -> TestResult {
 
     assert_eq!(image.source.to_string(), "straße.png");
     assert_eq!(audio.source.to_string(), "straße.mp3");
-    let [video_source] = video.sources.as_slice() else {
-        return Err(unexpected("expected one video source", &video.sources));
-    };
-    assert_eq!(video_source.to_string(), "straße.mp4");
+    assert_eq!(video.source.to_string(), "straße.mp4");
 
     Ok(())
 }

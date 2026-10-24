@@ -1,5 +1,6 @@
 = MEDIA-ATTRIBUTES(1)
 :doctype: manpage
+:revdate: 2026-10-17
 
 == Name
 media-attributes - test media attributes

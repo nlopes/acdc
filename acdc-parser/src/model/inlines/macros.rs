@@ -2,7 +2,9 @@ use std::{fmt, num::NonZeroUsize};
 
 use serde::Serialize;
 
-use crate::{ElementAttributes, InlineNode, Location, Source, StemNotation, Substitution};
+use crate::{
+    ContentAttribute, ElementAttributes, InlineNode, Location, Source, StemNotation, Substitution,
+};
 
 pub const ICON_SIZES: &[&str] = &["1x", "2x", "3x", "4x", "5x", "lg", "fw"];
 
@@ -56,6 +58,12 @@ pub struct Footnote<'a> {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct Icon<'a> {
+    /// Explicit alternative content; the target supplies the default.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub alt: Option<ContentAttribute<'a>>,
+    /// Hover content supplied by `title=`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tooltip: Option<ContentAttribute<'a>>,
     pub target: Source<'a>,
     pub attributes: ElementAttributes<'a>,
     pub location: Location,
@@ -65,6 +73,9 @@ pub struct Icon<'a> {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct Link<'a> {
+    /// Hover content supplied by `title=`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tooltip: Option<ContentAttribute<'a>>,
     #[serde(skip_serializing)]
     pub text: Vec<InlineNode<'a>>,
     pub target: Source<'a>,
@@ -80,6 +91,7 @@ impl<'a> Link<'a> {
     pub fn new(target: Source<'a>, location: Location) -> Self {
         Self {
             text: Vec::new(),
+            tooltip: None,
             target,
             attributes: ElementAttributes::default(),
             location,
@@ -112,6 +124,9 @@ impl<'a> Link<'a> {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct Url<'a> {
+    /// Hover content supplied by `title=`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tooltip: Option<ContentAttribute<'a>>,
     #[serde(skip_serializing)]
     pub text: Vec<InlineNode<'a>>,
     pub target: Source<'a>,
@@ -133,6 +148,9 @@ impl Url<'_> {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct Mailto<'a> {
+    /// Hover content supplied by `title=`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tooltip: Option<ContentAttribute<'a>>,
     #[serde(skip_serializing)]
     pub text: Vec<InlineNode<'a>>,
     pub target: Source<'a>,
@@ -150,7 +168,7 @@ pub struct Mailto<'a> {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct Button<'a> {
-    pub label: &'a str,
+    pub label: ContentAttribute<'a>,
     pub location: Location,
 }
 
@@ -158,9 +176,9 @@ pub struct Button<'a> {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct Menu<'a> {
-    pub target: &'a str,
+    pub target: ContentAttribute<'a>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub items: Vec<&'a str>,
+    pub items: Vec<ContentAttribute<'a>>,
     pub location: Location,
 }
 
@@ -180,8 +198,8 @@ impl<'a> Keyboard<'a> {
     }
 }
 
-// TODO(nlopes): this could perhaps be an enum instead with the allowed keys
-pub type Key<'a> = &'a str;
+/// One key label in a keyboard shortcut.
+pub type Key<'a> = ContentAttribute<'a>;
 
 /// A `CrossReference` represents an inline cross-reference (xref) in a document.
 ///

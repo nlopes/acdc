@@ -292,10 +292,7 @@ fn list_to_symbol(
 
 fn video_to_symbol(video: &acdc_parser::Video) -> DocumentSymbol {
     let name = if video.title.is_empty() {
-        video
-            .sources
-            .first()
-            .map_or_else(|| "Video".to_string(), ToString::to_string)
+        video.source.to_string()
     } else {
         inlines_to_string(&video.title)
     };

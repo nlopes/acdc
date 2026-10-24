@@ -64,7 +64,9 @@ Item
 .sp
 \fBFigure 1. Image \fBcaption\fB\fR
 .br
-.URL "https://example.org/view" "[Named & alternate]" ""
+\c
+.URL "https://example.org/view" "[Named & alternate]" "\fR\c"
+.br
 .sp
 \fBFigure 2. \fR
 .br
@@ -88,7 +90,7 @@ Empty slots: [sample] and [] and []\&.
 .br
 .URL "https://www.youtube.com/watch?v=abc&t=5&end=12&list=PL123" "[Video: Playlist title]" ""
 .sp
-.URL "https://www.youtube.com/watch?v=abc&playlist=abc,def,ghi" "[Video: abc]" ""
+.URL "https://www.youtube.com/watch?v=abc&playlist=abc,def,ghi" "[Video: abc,def,ghi]" ""
 .sp
 .URL "https://vimeo.com/12345/secret#t=5" "[Video: secret]" ""
 .sp

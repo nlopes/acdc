@@ -1,4 +1,4 @@
-use acdc_parser::{AttributeValue, Block, Caption, CaptionKind, InlineNode, Options, parse};
+use acdc_parser::{Block, Caption, CaptionKind, InlineNode, Options, parse};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -60,10 +60,10 @@ fn non_verbatim_styles_still_produce_images() -> Result<(), Error> {
             return Err(format!("expected an image for [{style}]").into());
         };
 
-        assert_eq!(
-            image.metadata.attributes.get("alt"),
-            Some(&AttributeValue::String("Alt".into()))
+        assert!(
+            matches!(image.alt.as_deref(), Some([InlineNode::PlainText(text)]) if text.content == "Alt")
         );
+        assert!(!image.metadata.attributes.contains_key("alt"));
         assert!(matches!(
             image.metadata.caption.as_ref(),
             Some(Caption::Numbered {

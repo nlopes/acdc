@@ -118,7 +118,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         para: &Paragraph,
     ) -> Result<(), Error> {
-        if !para.title.is_empty() {
+        if para.title.is_present() {
             self.write_sp()?;
             self.render_captioned_title(traversal, &para.title, &para.metadata)?;
         }

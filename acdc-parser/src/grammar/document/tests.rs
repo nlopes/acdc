@@ -1174,10 +1174,15 @@ fn test_macro_attributes_allow_literal_special_chars() -> Result<(), Error> {
     let result = document_parser::document(input, &mut state)??;
     let img = get_image(&result);
     assert_eq!(
-        img.metadata.attributes.get("alt"),
-        Some(&AttributeValue::String(
-            "Diablo 4 picture of Lilith.".into()
-        )),
+        img.alt
+            .as_ref()
+            .and_then(|content| content.first())
+            .and_then(|node| if let InlineNode::PlainText(text) = node {
+                Some(text.content)
+            } else {
+                None
+            }),
+        Some("Diablo 4 picture of Lilith."),
         "Trailing period should be preserved in alt text"
     );
 
@@ -1187,8 +1192,15 @@ fn test_macro_attributes_allow_literal_special_chars() -> Result<(), Error> {
     let result = document_parser::document(input, &mut state)??;
     let img = get_image(&result);
     assert_eq!(
-        img.metadata.attributes.get("alt"),
-        Some(&AttributeValue::String(".role".into())),
+        img.alt
+            .as_ref()
+            .and_then(|content| content.first())
+            .and_then(|node| if let InlineNode::PlainText(text) = node {
+                Some(text.content)
+            } else {
+                None
+            }),
+        Some(".role"),
         ".role should be literal alt text, not a CSS class"
     );
     assert!(
@@ -1202,8 +1214,15 @@ fn test_macro_attributes_allow_literal_special_chars() -> Result<(), Error> {
     let result = document_parser::document(input, &mut state)??;
     let img = get_image(&result);
     assert_eq!(
-        img.metadata.attributes.get("alt"),
-        Some(&AttributeValue::String("Issue #42".into())),
+        img.alt
+            .as_ref()
+            .and_then(|content| content.first())
+            .and_then(|node| if let InlineNode::PlainText(text) = node {
+                Some(text.content)
+            } else {
+                None
+            }),
+        Some("Issue #42"),
         "#42 should be preserved as literal text"
     );
     assert!(

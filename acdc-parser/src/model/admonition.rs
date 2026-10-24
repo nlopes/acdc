@@ -110,7 +110,7 @@ impl Serialize for Admonition<'_> {
         if !self.metadata.is_default() {
             state.serialize_entry("metadata", &self.metadata)?;
         }
-        if !self.title.is_empty() {
+        if self.title.is_present() {
             state.serialize_entry("title", &self.title)?;
         }
 

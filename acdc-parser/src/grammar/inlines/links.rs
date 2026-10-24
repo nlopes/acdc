@@ -1,7 +1,7 @@
 //! Link attributes and cross-reference labels.
 
 use crate::{
-    CrossReference, ElementAttributes, InlineNode,
+    ContentAttribute, CrossReference, ElementAttributes, InlineNode,
     grammar::{
         ParserState,
         helpers::BlockParsingMetadata,
@@ -165,6 +165,7 @@ impl LinkContent<'_> {
 #[derive(Default)]
 pub(super) struct ProcessedLinkContent<'a> {
     pub(super) text: Vec<InlineNode<'a>>,
+    pub(super) tooltip: Option<ContentAttribute<'a>>,
     pub(super) attributes: ElementAttributes<'a>,
     pub(super) subject: Option<&'a str>,
     pub(super) body: Option<&'a str>,
@@ -196,6 +197,7 @@ pub(super) fn process_link_content<'a>(
     let mut offset = 0;
     let mut quote = None;
     let mut result = ProcessedLinkContent::default();
+    let mut tooltip = None;
     // Mailto uses commas to introduce subject/body slots. Other links use '=';
     // without that trigger (or in compat mode), quotes and commas are label text.
     if !state.document_attributes.contains_key("compat-mode")
@@ -211,6 +213,12 @@ pub(super) fn process_link_content<'a>(
                 .next_back()
                 .filter(|character| matches!(character, '\'' | '"'));
             if let Some(name) = attribute.name {
+                if name == "title" {
+                    let from = restored_label_offset(attribute.value_start, &restored, false);
+                    let to = restored_label_offset(attribute.value_end, &restored, false);
+                    tooltip = Some((from, to, attribute.quote));
+                    continue;
+                }
                 let name = match name.as_str() {
                     "roles" => Cow::Borrowed("role"),
                     "opts" => Cow::Borrowed("options"),
@@ -248,10 +256,28 @@ pub(super) fn process_link_content<'a>(
         text = label;
         result.attributes.insert("window".into(), "_blank".into());
     }
-    if text.is_empty() {
-        return Ok(result);
+    if !text.is_empty() {
+        result.text = parse_link_label(state, metadata, text, start + offset, end, quote)?;
     }
+    if let Some((from, to, quote)) = tooltip {
+        result.tooltip = Some(super::attributes::parse_content(
+            state,
+            &content.raw[from..to],
+            start + from,
+            quote,
+        )?);
+    }
+    Ok(result)
+}
 
+fn parse_link_label<'a>(
+    state: &mut ParserState<'a>,
+    metadata: &BlockParsingMetadata<'_>,
+    text: &'a str,
+    start: usize,
+    end: usize,
+    quote: Option<char>,
+) -> Result<Vec<crate::InlineNode<'a>>, crate::Error> {
     // Keep source slices intact until the label parser consumes each escape.
     // Reset the quote mode for nested links, then restore the enclosing mode on errors too.
     let rules = state.inline_ctx.rules;
@@ -264,15 +290,8 @@ pub(super) fn process_link_content<'a>(
         .inline_ctx
         .rules
         .set(InlineRules::SINGLE_QUOTED_LINK, quote == Some('\''));
-    let parsed = process_inlines_no_autolinks(
-        state,
-        metadata,
-        start + offset,
-        end,
-        state.inline_ctx.offset,
-        text,
-    );
+    let parsed =
+        process_inlines_no_autolinks(state, metadata, start, end, state.inline_ctx.offset, text);
     state.inline_ctx.rules = rules;
-    result.text = parsed?;
-    Ok(result)
+    parsed
 }

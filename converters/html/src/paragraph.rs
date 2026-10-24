@@ -66,15 +66,15 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             } else {
                 writeln!(self.writer, ">")?;
             }
-            if para.title.is_empty() {
-                writeln!(self.writer, "<summary class=\"title\">Details</summary>")?;
-            } else {
+            if para.title.is_present() {
                 self.render_title_with_wrapper(
                     traversal,
                     &para.title,
                     "<summary class=\"title\">",
                     "</summary>\n",
                 )?;
+            } else {
+                writeln!(self.writer, "<summary class=\"title\">Details</summary>")?;
             }
             writeln!(self.writer, "<div class=\"content\">")?;
             self.visit_inline_nodes(traversal, &para.content)?;
@@ -138,7 +138,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
         // Regular paragraph rendering
         if self.processor.variant() == HtmlVariant::Semantic {
-            let has_title = !para.title.is_empty();
+            let has_title = para.title.is_present();
             let has_id = para.metadata.id.is_some() || !para.metadata.anchors.is_empty();
             let has_roles = !para.metadata.roles.is_empty();
 
@@ -203,7 +203,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         para: &Paragraph,
     ) -> Result<(), Error> {
         let semantic = self.processor.variant() == HtmlVariant::Semantic;
-        let has_title = !para.title.is_empty();
+        let has_title = para.title.is_present();
         let tag = if semantic && has_title {
             "section"
         } else {
@@ -241,7 +241,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         para: &Paragraph,
     ) -> Result<(), Error> {
         let semantic = self.processor.variant() == HtmlVariant::Semantic;
-        let has_title = !para.title.is_empty();
+        let has_title = para.title.is_present();
         let tag = if semantic && has_title {
             "figure"
         } else {
@@ -307,22 +307,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         let subs = baseline_subs(true);
 
         if self.processor.variant() == HtmlVariant::Semantic {
-            if para.title.is_empty() {
-                write!(self.writer, "<div")?;
-                write_id(&mut self.writer, &para.metadata)?;
-                let class = build_class("listing-block", &para.metadata.roles);
-                writeln!(self.writer, " class=\"{class}\">")?;
-                render_pre_code(
-                    traversal,
-                    &para.content,
-                    &para.metadata,
-                    language.as_deref(),
-                    self,
-                    &subs,
-                    source_indent,
-                )?;
-                writeln!(self.writer, "</div>")?;
-            } else {
+            if para.title.is_present() {
                 write!(self.writer, "<figure")?;
                 write_id(&mut self.writer, &para.metadata)?;
                 let class = build_class("listing-block", &para.metadata.roles);
@@ -345,6 +330,21 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                     source_indent,
                 )?;
                 writeln!(self.writer, "</figure>")?;
+            } else {
+                write!(self.writer, "<div")?;
+                write_id(&mut self.writer, &para.metadata)?;
+                let class = build_class("listing-block", &para.metadata.roles);
+                writeln!(self.writer, " class=\"{class}\">")?;
+                render_pre_code(
+                    traversal,
+                    &para.content,
+                    &para.metadata,
+                    language.as_deref(),
+                    self,
+                    &subs,
+                    source_indent,
+                )?;
+                writeln!(self.writer, "</div>")?;
             }
         } else {
             write!(self.writer, "<div")?;
