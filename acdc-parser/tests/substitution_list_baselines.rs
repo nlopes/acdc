@@ -2,7 +2,6 @@ use acdc_parser::{Options, parse};
 
 type Error = Box<dyn std::error::Error>;
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn parsed_substitution_entries_preserve_source_spelling() -> Result<(), Error> {
     use acdc_parser::{Block, NORMAL, SubstitutionSpec, VERBATIM};
@@ -59,7 +58,6 @@ fn parsed_substitution_entries_preserve_source_spelling() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn empty_substitution_specs_remain_distinct_from_block_defaults() -> Result<(), Error> {
     use acdc_parser::{Block, NORMAL, SubstitutionSpec, VERBATIM};
@@ -109,7 +107,6 @@ fn empty_substitution_specs_remain_distinct_from_block_defaults() -> Result<(), 
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn typed_substitution_constructors_keep_their_existing_contract() -> Result<(), Error> {
     use acdc_parser::{NORMAL, Substitution, SubstitutionOp, SubstitutionSpec, VERBATIM};
@@ -150,11 +147,7 @@ fn plain_first_substitution_lists_do_not_register_disabled_macros() -> Result<()
                  {{value}} anchor:direct[]footnote:[Direct note.]{newline}"
             );
             let parsed = parse(&source, &Options::default())?;
-            let expected = if cfg!(feature = "pre-spec-subs") {
-                0
-            } else {
-                2
-            };
+            let expected = 0;
             assert_eq!(parsed.document().footnotes.len(), expected, "{source}");
             assert_eq!(parsed.document().references.len(), expected, "{source}");
         }
@@ -177,11 +170,6 @@ fn mixed_substitution_lists_keep_enabled_macro_order() -> Result<(), Error> {
              {{value}} anchor:direct[]footnote:[Direct note.]\n"
         );
         let parsed = parse(&source, &Options::default())?;
-        let expected = if cfg!(feature = "pre-spec-subs") {
-            expected
-        } else {
-            2
-        };
         assert_eq!(parsed.document().footnotes.len(), expected, "{subs}");
         assert_eq!(parsed.document().references.len(), expected, "{subs}");
         assert!(

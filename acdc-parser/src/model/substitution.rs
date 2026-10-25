@@ -66,7 +66,6 @@ impl SubstitutionPlan {
         Self::from_substitutions(std::slice::from_ref(substitution))
     }
 
-    #[cfg(feature = "pre-spec-subs")]
     pub(crate) fn for_block_spec(spec: &SubstitutionSpec) -> Self {
         // Parser defaults include callout discovery for verbatim blocks. Resolve once:
         // filling missing stages afterwards would restore removed group members.
@@ -290,7 +289,7 @@ impl std::fmt::Display for SubstitutionOp {
 
 /// Specification for substitutions to apply to a block.
 ///
-/// With `pre-spec-subs` enabled, parsed documents use [`Self::Source`] to preserve
+/// Parsed documents use [`Self::Source`] to preserve
 /// `subs` entries, including groups, aliases, duplicates and modifiers. Only whitespace
 /// around each entry is trimmed. Attribute references in the list have already
 /// been expanded by metadata parsing.
@@ -334,7 +333,18 @@ impl Serialize for SubstitutionSpec {
 }
 
 impl SubstitutionSpec {
-    #[cfg(feature = "pre-spec-subs")]
+    pub(crate) fn unsupported_entries(&self) -> impl Iterator<Item = &str> {
+        let entries = match self {
+            Self::Source(entries) => entries.as_slice(),
+            Self::Explicit(_) | Self::Modifiers(_) => &[],
+        };
+        entries.iter().filter_map(|entry| {
+            let (name, _) = parse_subs_part(entry);
+            (!name.is_empty() && name != "none" && substitution_named(name).is_none())
+                .then_some(entry.as_str())
+        })
+    }
+
     pub(crate) fn contains(&self, substitution: &Substitution, defaults: &[Substitution]) -> bool {
         match self {
             Self::Source(entries) => entries
@@ -428,8 +438,7 @@ fn parse_subs_part(part: &str) -> (&str, Option<SubsModifier>) {
     }
 }
 
-/// Preserve `subs` entries and report unknown names once during parsing.
-#[cfg(feature = "pre-spec-subs")]
+/// Preserve authored `subs` entries for resolution and diagnostics.
 #[must_use]
 pub(crate) fn parse_subs_attribute(value: &str) -> SubstitutionSpec {
     let value = value.trim();
@@ -440,12 +449,6 @@ pub(crate) fn parse_subs_attribute(value: &str) -> SubstitutionSpec {
         .split(',')
         .map(|entry| entry.trim().to_owned())
         .collect::<Vec<_>>();
-    for entry in &entries {
-        let (name, _) = parse_subs_part(entry);
-        if !name.is_empty() && name != "none" {
-            let _ = parse_substitution(name);
-        }
-    }
     SubstitutionSpec::Source(entries)
 }
 
@@ -619,7 +622,7 @@ mod group_tests {
     }
 }
 
-#[cfg(all(test, feature = "pre-spec-subs"))]
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::AttributeValue;

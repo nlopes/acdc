@@ -19,11 +19,7 @@ fn removed_groups_do_not_register_disabled_macros() -> Result<(), Error> {
                  {{value}} anchor:direct[]footnote:[Direct note.]{newline}"
             );
             let parsed = parse(&source, &Options::default())?;
-            let expected = if cfg!(feature = "pre-spec-subs") {
-                0
-            } else {
-                2
-            };
+            let expected = 0;
             assert_eq!(parsed.document().footnotes.len(), expected, "{source}");
             assert_eq!(parsed.document().references.len(), expected, "{source}");
         }
@@ -48,11 +44,6 @@ fn readded_group_members_preserve_macro_registration_order() -> Result<(), Error
              {{value}} anchor:direct[]footnote:[Direct note.]\n"
         );
         let parsed = parse(&source, &Options::default())?;
-        let expected = if cfg!(feature = "pre-spec-subs") {
-            expected
-        } else {
-            2
-        };
         assert_eq!(parsed.document().footnotes.len(), expected, "{subs}");
         assert_eq!(parsed.document().references.len(), expected, "{subs}");
         assert_eq!(
@@ -119,7 +110,7 @@ fn removed_verbatim_group_controls_callouts_in_every_code_block_kind() -> Result
                         }
                     })
                     .collect::<Vec<_>>();
-                let expected = enabled || !cfg!(feature = "pre-spec-subs");
+                let expected = enabled;
                 assert_eq!(callouts.len(), usize::from(expected), "{source}");
                 for callout in &callouts {
                     assert_eq!(

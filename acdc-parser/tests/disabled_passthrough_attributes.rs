@@ -2,7 +2,6 @@ use acdc_parser::{Block, InlineNode, Options, parse};
 
 type Error = Box<dyn std::error::Error>;
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn disabled_passthroughs_use_the_enclosing_attribute_stage() -> Result<(), Error> {
     for subs in [
@@ -60,7 +59,6 @@ fn disabled_passthroughs_use_the_enclosing_attribute_stage() -> Result<(), Error
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn disabled_pass_substitution_lists_cannot_enable_attributes() -> Result<(), Error> {
     for subs in ["none", "quotes", "specialcharacters,quotes"] {
@@ -86,7 +84,6 @@ fn disabled_pass_substitution_lists_cannot_enable_attributes() -> Result<(), Err
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn disabled_passthroughs_expand_inside_code_without_losing_source_spans() -> Result<(), Error> {
     for subs in ["attributes,quotes", "quotes,attributes"] {
@@ -159,7 +156,6 @@ fn enabled_passthroughs_still_protect_attribute_references() -> Result<(), Error
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn disabled_passthrough_counters_use_the_existing_warning_policy() -> Result<(), Error> {
     for subs in ["attributes", "none"] {
@@ -200,7 +196,6 @@ fn disabled_passthrough_counters_use_the_existing_warning_policy() -> Result<(),
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn disabled_passthrough_expansion_keeps_catalogs_empty_and_include_origins() -> Result<(), Error> {
     let parsed = acdc_parser::parse_file(

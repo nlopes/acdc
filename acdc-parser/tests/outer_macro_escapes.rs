@@ -75,7 +75,6 @@ fn outer_macro_escapes_preserve_backslash_runs_and_unicode_source_spans() -> Res
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn outer_macro_escapes_cannot_be_introduced_after_macro_substitution() -> Result<(), Error> {
     for (subs, expected_macros) in [("macros,attributes", 2), ("attributes,macros", 0)] {

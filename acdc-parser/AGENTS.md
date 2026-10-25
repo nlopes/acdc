@@ -16,20 +16,19 @@
 - **Preprocessor** (`src/preprocessor/`) handles includes, conditionals, and document attributes before parsing.
 - `ParseResult` owns the parsed document and its backing text. Public callers borrow through `document()`.
 
-## `pre-spec-subs` — parser contract
+## Block substitutions
 
-The default-on `pre-spec-subs` feature governs whether parsing honors `[subs="..."]` block attributes. It does not change the public AST shape.
+Both compatibility modes honor explicit `subs=` settings in every build. Draft
+supports these controls as an acdc extension. Resolve groups and modifiers with
+`SubstitutionSpec::resolve()`; keep structural decisions in the resolved plan.
 
-**Public surface (unconditional):**
-- `SubstitutionSpec`, `SubstitutionOp`, and `BlockMetadata.substitutions` exist in every build. Equality, merging, and serialization preserve absent and explicit empty settings.
-- `SubstitutionSpec::resolve()` is available in every build. Parsing and `BlockMetadata::uses_substitution()` still honor block settings only with `pre-spec-subs` enabled.
-- `Substitution`, `substitute()`, `NORMAL`, `VERBATIM`, `HEADER` are public unconditionally — attribute reference expansion (`{attr}` → value) needs them either way.
+The parser's `pre-spec-subs` feature is a compatibility alias with no effect.
+Do not add parser control flow or test skips behind it. Use mode fixtures for
+language differences. Supported settings do not warn. Unsupported entries use
+`WarningKind::ContentRecovery` and preserve source; supported entries still apply.
+STEM supports attribute expansion and output escaping, not formatted formulas.
 
-**Diagnostics — two paths, both via `Warning` / `Diagnostics`:**
-- Feature **on**: emit a warning about possible specification changes.
-- Feature **off**: warn that the setting is not honored and record source recovery, available through `ParseResult::source_recovery()` even after `take_warnings()`.
-
-Converter-side plumbing (`SubsFlags`, `effective_subs`, fixture naming) lives in `converters/AGENTS.md`.
+Converter-side feature plumbing lives in `converters/AGENTS.md`.
 
 `setext` and `network` are off by default in the parser crate. Setext headings also require `OptionsBuilder::with_setext()`; remote includes require caller-supplied `allow-uri-read` and a safe mode below Secure.
 

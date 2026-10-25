@@ -120,7 +120,6 @@ fn index_bracket_escapes_follow_delimiters_and_keep_source_spans() -> Result<(),
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn index_bracket_escapes_ignore_values_introduced_after_macros() -> Result<(), Error> {
     for syntax in [

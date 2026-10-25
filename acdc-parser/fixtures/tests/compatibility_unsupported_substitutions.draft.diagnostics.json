@@ -1,0 +1,94 @@
+{
+  "recovery": {
+    "location": {
+      "absolute_end": 72,
+      "absolute_start": 53,
+      "file": "compatibility_unsupported_substitutions.adoc",
+      "location": [
+        {
+          "col": 8,
+          "line": 4
+        },
+        {
+          "col": 27,
+          "line": 4
+        }
+      ]
+    },
+    "message": "Unsupported block substitution 'header' in subs=. The entry is preserved, but its effect is ignored."
+  },
+  "warnings": [
+    {
+      "location": {
+        "absolute_end": 72,
+        "absolute_start": 53,
+        "file": "compatibility_unsupported_substitutions.adoc",
+        "location": [
+          {
+            "col": 8,
+            "line": 4
+          },
+          {
+            "col": 27,
+            "line": 4
+          }
+        ]
+      },
+      "message": "Unsupported block substitution 'header' in subs=. The entry is preserved, but its effect is ignored."
+    },
+    {
+      "location": {
+        "absolute_end": 72,
+        "absolute_start": 53,
+        "file": "compatibility_unsupported_substitutions.adoc",
+        "location": [
+          {
+            "col": 8,
+            "line": 4
+          },
+          {
+            "col": 27,
+            "line": 4
+          }
+        ]
+      },
+      "message": "Unsupported block substitution 'typo' in subs=. The entry is preserved, but its effect is ignored."
+    },
+    {
+      "location": {
+        "absolute_end": 134,
+        "absolute_start": 115,
+        "file": "compatibility_unsupported_substitutions.adoc",
+        "location": [
+          {
+            "col": 8,
+            "line": 7
+          },
+          {
+            "col": 27,
+            "line": 7
+          }
+        ]
+      },
+      "message": "Unsupported block substitution 'unknown' in subs=. The entry is preserved, but its effect is ignored."
+    },
+    {
+      "location": {
+        "absolute_end": 249,
+        "absolute_start": 212,
+        "file": "compatibility_unsupported_substitutions.adoc",
+        "location": [
+          {
+            "col": 1,
+            "line": 12
+          },
+          {
+            "col": 38,
+            "line": 12
+          }
+        ]
+      },
+      "message": "STEM blocks do not support these substitutions: quotes, macros. Formula text is preserved; supported substitutions still apply."
+    }
+  ]
+}

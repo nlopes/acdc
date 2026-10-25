@@ -274,7 +274,6 @@ fn one_sentence_per_line_recognizes_formatting_in_link_labels() -> Result<(), Er
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn one_sentence_per_line_preserves_markers_when_quotes_are_disabled() -> Result<(), Error> {
     for substitutions in ["-quotes", "none", "specialcharacters"] {
@@ -288,13 +287,4 @@ fn one_sentence_per_line_preserves_markers_when_quotes_are_disabled() -> Result<
         &[(WRAPPED, 4)],
     )?;
     Ok(())
-}
-
-#[cfg(not(feature = "pre-spec-subs"))]
-#[test]
-fn one_sentence_per_line_ignores_subs_without_pre_spec_subs() -> Result<(), Error> {
-    assert_diagnostics(
-        "= Title\n\n[subs=\"-quotes\"]\n*One sentence.*\nAnother sentence.\n",
-        &[],
-    )
 }

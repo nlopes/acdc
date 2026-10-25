@@ -66,9 +66,6 @@ pub struct BlockMetadata<'a> {
     pub anchors: Vec<Anchor<'a>>,
     /// Substitution settings for block content, available in every build.
     ///
-    /// Parsing populates this field only with `pre-spec-subs` enabled. Without
-    /// that feature, explicit `subs=` attributes produce a recovery warning.
-    ///
     /// - `None`: Use block-type defaults (VERBATIM for listing/literal, NORMAL for paragraphs)
     /// - `Some(Source(entries))`: Preserve authored entries; resolve against block defaults as needed
     /// - `Some(Explicit([]))`: No substitutions (equivalent to `subs=none`)
@@ -149,14 +146,13 @@ impl<'a> BlockMetadata<'a> {
     /// Whether a substitution is enabled after applying this block's `subs` setting.
     ///
     /// `defaults` contains individual substitutions, such as [`crate::VERBATIM`]
-    /// for source blocks. Without `pre-spec-subs`, only these defaults apply.
+    /// for source blocks. An explicit setting overrides or modifies these defaults.
     #[must_use]
     pub fn uses_substitution(
         &self,
         substitution: &Substitution,
         defaults: &[Substitution],
     ) -> bool {
-        #[cfg(feature = "pre-spec-subs")]
         if let Some(spec) = &self.substitutions {
             return spec.contains(substitution, defaults);
         }

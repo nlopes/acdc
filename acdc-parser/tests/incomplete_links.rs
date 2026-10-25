@@ -85,7 +85,6 @@ fn incomplete_links_preserve_complete_nested_macros() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn incomplete_links_cannot_be_completed_by_late_attributes() -> Result<(), Error> {
     use acdc_parser::{Block, parse};

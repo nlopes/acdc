@@ -24,7 +24,7 @@ exclude = [
 default = ["pre-spec-subs"]
 network = ["dep:ureq"]
 setext = []  # Enable Setext-style (underlined) header parsing
-# Controls block subs= processing. AST types are available in every build.
+# Compatibility alias. Block subs= processing is always available.
 pre-spec-subs = []
 
 [dependencies]

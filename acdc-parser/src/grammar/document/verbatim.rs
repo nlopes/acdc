@@ -10,6 +10,7 @@ use crate::{
             metadata::extract_source_attributes,
         },
         helpers::BlockParsingMetadata,
+        inline_processing::process_verbatim_inlines,
         location_walk::walk_inline_nodes_mut,
     },
     model::{
@@ -17,9 +18,6 @@ use crate::{
         substitution::{SubstitutionPlan, VERBATIM},
     },
 };
-
-#[cfg(feature = "pre-spec-subs")]
-use crate::grammar::inline_processing::process_verbatim_inlines;
 
 /// Verbatim block (`----` listing or `....` literal, including the Markdown fence):
 /// preserves whitespace while resolving enabled inline substitutions and callouts.
@@ -61,11 +59,9 @@ pub(super) fn verbatim_inner<'input>(
 }
 
 pub(super) fn verbatim_substitutions(metadata: &BlockParsingMetadata<'_>) -> SubstitutionPlan {
-    #[cfg(feature = "pre-spec-subs")]
     if let Some(spec) = &metadata.metadata.substitutions {
         return SubstitutionPlan::from_substitutions(&spec.resolve(VERBATIM));
     }
-    let _ = metadata;
     SubstitutionPlan::from_substitutions(VERBATIM)
 }
 
@@ -79,7 +75,6 @@ fn needs_verbatim_inlines(substitutions: SubstitutionPlan) -> bool {
     .any(|substitution| substitutions.enabled(substitution))
 }
 
-#[cfg(feature = "pre-spec-subs")]
 pub(super) fn resolve_verbatim_inlines<'a>(
     state: &mut ParserState<'a>,
     metadata: &BlockParsingMetadata<'_>,
@@ -107,15 +102,6 @@ pub(super) fn resolve_verbatim_inlines<'a>(
         }
     }
     Ok(resolved)
-}
-
-#[cfg(not(feature = "pre-spec-subs"))]
-pub(super) fn resolve_verbatim_inlines<'a>(
-    _state: &mut ParserState<'a>,
-    _metadata: &BlockParsingMetadata<'_>,
-    inlines: Vec<InlineNode<'a>>,
-) -> Result<Vec<InlineNode<'a>>, Error> {
-    Ok(inlines)
 }
 
 pub(super) fn get_literal_paragraph<'input>(

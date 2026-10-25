@@ -16,7 +16,6 @@ fn default_literal_paragraph_keeps_formatting_escapes() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn quotes_disabled_preserves_formatting_escapes_and_source_spans() -> Result<(), Error> {
     use acdc_parser::InlineMacro;
@@ -57,7 +56,6 @@ fn quotes_disabled_preserves_formatting_escapes_and_source_spans() -> Result<(),
 
 // Snapshots record locations, but this asserts that dedenting display text does
 // not also shorten the original inclusive source span.
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn verbatim_quotes_keep_indented_multiline_source_spans() -> Result<(), Error> {
     let source = "[subs=+quotes]\n *First\n   café* after.\n";
@@ -94,22 +92,5 @@ fn verbatim_quotes_keep_indented_multiline_source_spans() -> Result<(), Error> {
         (2, 3)
     );
     assert_eq!((text.location.end.line, text.location.end.column), (3, 7));
-    Ok(())
-}
-
-#[cfg(not(feature = "pre-spec-subs"))]
-#[test]
-fn verbatim_substitutions_disabled_keeps_default_literal_text() -> Result<(), Error> {
-    let parsed = parse(
-        ":word: expanded\n\n[subs=\"quotes,attributes\"]\n *{word}*\n",
-        &Options::default(),
-    )?;
-    let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
-        return Err("expected literal paragraph".into());
-    };
-    let [InlineNode::PlainText(text)] = paragraph.content.as_slice() else {
-        return Err("expected literal text".into());
-    };
-    assert_eq!(text.content, "*{word}*");
     Ok(())
 }

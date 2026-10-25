@@ -384,16 +384,15 @@ fn block_substitutions_use_the_supplied_baseline(
             &acdc_parser::Substitution::Attributes,
             acdc_parser::VERBATIM
         ),
-        cfg!(feature = "pre-spec-subs") && attributes_enabled,
+        attributes_enabled,
     );
     Ok(())
 }
 
-#[cfg(not(feature = "pre-spec-subs"))]
 #[test]
-fn ignored_substitutions_remain_source_recovery_after_warning_routing() -> TestResult {
+fn unsupported_substitutions_remain_source_recovery_after_warning_routing() -> TestResult {
     let mut parsed = parse(
-        "[source,sh,subs=attributes]\n----\n{shell} --version\n----\n",
+        "[source,sh,subs=unknown]\n----\n{shell} --version\n----\n",
         &Options::default(),
     )?;
     let warnings = parsed.take_warnings();
@@ -404,7 +403,7 @@ fn ignored_substitutions_remain_source_recovery_after_warning_routing() -> TestR
     );
     let recovery = parsed
         .source_recovery()
-        .ok_or("lost ignored substitutions")?;
+        .ok_or("lost unsupported substitutions")?;
     assert_eq!(
         recovery
             .source_location()

@@ -52,7 +52,6 @@ fn nested_footnote_catalog_locations_are_document_absolute() -> Result<(), Error
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn verbatim_footnotes_keep_one_definition_and_original_locations() -> Result<(), Error> {
     let source = include_str!("../fixtures/tests/subs_verbatim_footnotes.adoc");

@@ -309,18 +309,15 @@ fn expected_parse_errors_are_generated_and_checked_without_a_json_fallback() -> 
     Ok(())
 }
 
-#[cfg(not(feature = "pre-spec-subs"))]
 #[test]
-fn disabled_substitutions_cannot_regenerate_a_selected_fixture() -> Result<(), Error> {
+fn substitution_fixtures_are_available_in_every_build() -> Result<(), Error> {
     let dir = tempfile::tempdir()?;
     write(dir.path(), "subs_example.adoc", "Text.")?;
     write(dir.path(), "subs_example.json", "original")?;
     let request = Generation::from_args(["subs_example.adoc"])?;
-    assert!(request.generate(dir.path()).is_err());
-    assert_eq!(
-        fs::read_to_string(dir.path().join("subs_example.json"))?,
-        "original"
-    );
+    assert_eq!(request.generate(dir.path())?, 1);
+    let case = Case::load(dir.path(), &dir.path().join("subs_example.adoc"), false)?;
+    case.verify(case.expectations.first().ok_or("missing expectation")?)?;
     Ok(())
 }
 

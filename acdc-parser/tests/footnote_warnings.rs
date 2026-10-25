@@ -97,7 +97,6 @@ fn conflicting_footnote_definitions_warn_at_each_changed_body() -> Result<(), Er
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn footnote_conflict_comparison_respects_macro_registration_order() -> Result<(), Error> {
     let source = include_str!("../fixtures/tests/subs_footnote_conflicting_definitions.adoc");

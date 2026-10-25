@@ -15,9 +15,9 @@ Shared utilities in `core/`:
 
 - `acdc-converters-core::substitutions::SubsFlags`, `effective_subs`,
   `effective_subs_flags`, and `apply_replacements` only exist when the
-  `pre-spec-subs` feature is enabled (default-on). When the feature is off,
-  `[subs="…"]` is silently ignored at the parser layer and converters fall
-  back to the asciidoctor default (all substitutions on).
+  `pre-spec-subs` feature is enabled (default-on). The parser honors block
+  `subs=` in every build. With the converter feature off, output-specific
+  substitution handling still uses converter defaults.
 - The markdown converter does **not** honor `subs=` and intentionally has
   no `pre-spec-subs` feature in its `Cargo.toml`. Don't treat that as a
   regression to fix — markdown's output model doesn't need it.
@@ -43,9 +43,9 @@ Shared utilities in `core/`:
     explicitly, and `test_fixture` has the matching `.contains("subs")`
     early-return.
   - The **markdown** harness runs substitution fixtures in both configurations.
-    The parser's diagnostics select `.md` or `.no-subs.md` expectations, and
-    both variants are required for each substitution-dependent input. Do not
-    add a Markdown substitution feature or skip these fixtures.
+    The parser always honors structural substitutions, so `.md` is the active
+    expectation. The old `.no-subs.md` files remain as migration baselines.
+    Do not add a Markdown substitution feature or skip these fixtures.
 
 ## Test placement
 

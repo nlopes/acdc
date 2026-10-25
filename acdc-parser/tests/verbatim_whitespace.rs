@@ -154,7 +154,6 @@ fn styled_paragraph_boundaries_preserve_source_and_macro_ownership() -> Result<(
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn styled_paragraph_precedence_registers_enabled_footnotes_once() -> Result<(), Error> {
     let source = include_str!("../fixtures/tests/subs_verbatim_precedence.adoc");
@@ -260,7 +259,6 @@ fn indented_callouts_do_not_register_escaped_or_disabled_xml_markers() -> Result
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn indented_callouts_respect_disabled_substitutions() -> Result<(), Error> {
     for subs in ["-callouts", "none", "specialcharacters"] {

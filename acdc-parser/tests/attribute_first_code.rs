@@ -53,11 +53,10 @@ fn attribute_first_code_checks_expanded_content_and_keeps_default_order() -> Res
                     .content
                     .iter()
                     .find(|node| matches!(node, InlineNode::MonospaceText(_)));
-                let attributes_first = cfg!(feature = "pre-spec-subs")
-                    && matches!(
-                        subs,
-                        "attributes,quotes" | "attributes+" | "-attributes,attributes+"
-                    );
+                let attributes_first = matches!(
+                    subs,
+                    "attributes,quotes" | "attributes+" | "-attributes,attributes+"
+                );
                 assert_eq!(code.is_none(), attributes_first, "{source:?}");
                 if let Some(code) = code {
                     let span = code.location();
@@ -99,7 +98,6 @@ fn attribute_first_code_checks_expanded_content_and_keeps_default_order() -> Res
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn attribute_first_code_uses_a_later_valid_closer_with_complete_locations() -> Result<(), Error> {
     for newline in ["\n", "\r\n"] {
@@ -157,24 +155,14 @@ fn attribute_first_code_expands_references_when_quotes_are_disabled() -> Result<
         let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
             return Err("expected one paragraph".into());
         };
-        if cfg!(feature = "pre-spec-subs") {
-            let [InlineNode::PlainText(text)] = paragraph.content.as_slice() else {
-                return Err("expected literal backticks".into());
-            };
-            assert_eq!(text.content, "P `café`.");
-        } else {
-            assert!(
-                paragraph
-                    .content
-                    .iter()
-                    .any(|node| matches!(node, InlineNode::MonospaceText(_)))
-            );
-        }
+        let [InlineNode::PlainText(text)] = paragraph.content.as_slice() else {
+            return Err("expected literal backticks".into());
+        };
+        assert_eq!(text.content, "P `café`.");
     }
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn attribute_first_code_preserves_passthrough_and_macro_locations() -> Result<(), Error> {
     use acdc_parser::InlineMacro;

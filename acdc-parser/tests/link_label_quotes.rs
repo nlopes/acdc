@@ -146,9 +146,6 @@ fn link_label_quotes_keep_multiline_passthrough_source_spans() -> Result<(), Err
 #[test]
 fn link_label_quotes_keep_index_and_footnote_registration_text() -> Result<(), Error> {
     for substitutions in ["", "[subs=\"macros,attributes,quotes,replacements\"]\n"] {
-        if !cfg!(feature = "pre-spec-subs") && !substitutions.is_empty() {
-            continue;
-        }
         let source = format!(
             "{substitutions}{}\n\nReuse footnote:note[].\n",
             r#"link:https://example.org["Label ((One \"quote\")) footnote:note[Note \"quote\".]",role=test]"#

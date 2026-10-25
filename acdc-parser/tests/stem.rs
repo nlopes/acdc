@@ -250,7 +250,6 @@ fn stem_unterminated_block_retains_the_formula_and_warns() -> TestResult {
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn stem_substitutions_expand_attributes_only_when_requested() -> TestResult {
     for (substitutions, expected) in [

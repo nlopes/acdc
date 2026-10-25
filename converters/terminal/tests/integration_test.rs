@@ -698,14 +698,8 @@ fn source_options_and_mixed_php_fallback_are_visible_and_deduplicated() -> Resul
             "missing {expected:?} in {output:?}"
         );
     }
-    #[cfg(feature = "pre-spec-subs")]
     assert!(
         strip_terminal_sequences(&output).contains("acdc"),
-        "{output:?}"
-    );
-    #[cfg(not(feature = "pre-spec-subs"))]
-    assert!(
-        strip_terminal_sequences(&output).contains("{project}"),
         "{output:?}"
     );
     assert!(!output.contains("// <1>"), "{output:?}");

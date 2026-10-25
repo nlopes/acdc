@@ -86,7 +86,7 @@ acdc/
 | `emulator` | off | terminal | Runs terminal output through a libghostty-vt terminal emulator and captures the rendered screen grid (static previews + session replays); the cli exposes it as `terminal-emulator` |
 | `images` | off | terminal | Inline terminal image rendering (viuer) |
 
-New code that gates parsing or rendering on a specific substitution belongs behind `pre-spec-subs`, not an ad-hoc cfg.
+Parser substitution behavior must not depend on Cargo features. Converter substitution gates still use `pre-spec-subs`; do not add an ad-hoc cfg.
 
 ## Debugging
 

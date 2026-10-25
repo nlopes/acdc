@@ -72,36 +72,27 @@ fn fixture_paths_follow_parser_substitution_behavior() -> Result<(), Error> {
 }
 
 #[test]
-fn substitution_fixtures_have_both_expected_variants() -> Result<(), Error> {
+fn legacy_substitution_fixtures_keep_their_source_and_active_expectation() -> Result<(), Error> {
     let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
     let mut count = 0;
-    for entry in std::fs::read_dir(fixtures.join("source"))? {
+    for entry in std::fs::read_dir(fixtures.join("expected"))? {
         let path = entry?.path();
-        if path.extension().is_none_or(|extension| extension != "adoc") {
+        let Some(stem) = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .and_then(|name| name.strip_suffix(".no-subs.md"))
+        else {
             continue;
-        }
-        let parsed = acdc_parser::parse_file(&path, &ParserOptions::default())?;
-        if !parsed.warnings().iter().any(|warning| {
-            matches!(&warning.kind,
-                acdc_parser::WarningKind::Other(message)
-                    | acdc_parser::WarningKind::ContentRecovery { message }
-                if message.starts_with("The subs= attribute"))
-        }) {
-            continue;
-        }
-        let stem = path
-            .file_stem()
-            .and_then(|stem| stem.to_str())
-            .ok_or("invalid fixture stem")?;
-        for extension in ["md", "no-subs.md"] {
-            let expected = fixtures
-                .join("expected")
-                .join(format!("{stem}.{extension}"));
+        };
+        for expected in [
+            fixtures.join("source").join(format!("{stem}.adoc")),
+            fixtures.join("expected").join(format!("{stem}.md")),
+        ] {
             assert!(expected.is_file(), "missing {}", expected.display());
         }
         count += 1;
     }
-    assert!(count > 0, "no substitution-dependent fixtures checked");
+    assert!(count > 0, "no legacy substitution fixtures checked");
     Ok(())
 }
 

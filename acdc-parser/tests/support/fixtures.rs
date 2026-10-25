@@ -184,9 +184,7 @@ impl Case {
 
     pub fn unavailable_feature(&self) -> Option<&'static str> {
         let stem = self.source.file_stem()?.to_str()?;
-        if !cfg!(feature = "pre-spec-subs") && stem.starts_with("subs_") {
-            Some("pre-spec-subs")
-        } else if !cfg!(feature = "setext") && stem.contains("with_setext") {
+        if !cfg!(feature = "setext") && stem.contains("with_setext") {
             Some("setext")
         } else {
             None

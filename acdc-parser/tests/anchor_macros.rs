@@ -193,7 +193,6 @@ fn anchor_macros_reject_whitespace_controls_and_invalid_starts() -> Result<(), E
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn anchor_macros_follow_macro_and_attribute_substitution_order() -> Result<(), Error> {
     for (subs, recognized) in [

@@ -13,8 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `SubstitutionSpec`, `SubstitutionOp`, and `BlockMetadata::substitutions` no
   longer require `pre-spec-subs`; remove feature guards used only to access
   them. Absent settings stay absent in JSON, and explicit empty settings stay
-  `[]`. Parsing and `BlockMetadata::uses_substitution()` still honor `subs=`
-  only when the feature is enabled.
+  `[]`. Block `subs=` settings now work in both compatibility modes and without
+  default features. `pre-spec-subs` is a compatibility alias in the parser.
 - `InlineMacro::Image` holds `InlineImage`; `Image` represents block images.
   Read `alt` and inline `tooltip` as optional `ContentAttribute` values, including
   explicitly empty content. Icons and links also expose tooltips. Button labels,
@@ -68,8 +68,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- The warning for ignored `subs=` settings in builds without `pre-spec-subs`
-  now uses the American spelling "not honored".
+- Supported block `subs=` settings no longer produce a specification warning.
+  Unknown stages report source recovery and remain in the substitution metadata.
+  STEM blocks warn for stages other than attributes and output escaping, while
+  preserving formula text and applying the supported stages. Unlike Asciidoctor,
+  acdc does not insert formatting tags into formulas.
 
 - Paragraph admonition styles such as `[NOTE,caption='Care']` retain their label and admonition layout.
 
@@ -103,7 +106,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `[asciimath]` blocks and positional notation override the document value,
   matching Asciidoctor.
 - Inline STEM keeps attribute references as formula text by default.
-  LaTeX removes one enclosing dollar pair. With `pre-spec-subs`,
+  LaTeX removes one enclosing dollar pair.
   `[stem,subs="+attributes"]` expands block attributes while retaining the
   original source text and locations.
 

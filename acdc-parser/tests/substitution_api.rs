@@ -90,7 +90,7 @@ fn public_substitution_resolution_is_available_in_every_build() {
 }
 
 #[test]
-fn block_substitution_interpretation_keeps_the_existing_feature_contract() -> Result<(), Error> {
+fn block_substitutions_are_available_in_both_modes_and_every_build() -> Result<(), Error> {
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
         let parsed = parse(
             "[subs=none]\n*Bold*",
@@ -99,24 +99,18 @@ fn block_substitution_interpretation_keeps_the_existing_feature_contract() -> Re
         let [Block::Paragraph(block)] = parsed.document().blocks.as_slice() else {
             return Err("expected a paragraph".into());
         };
-        assert_eq!(
-            matches!(block.content.as_slice(), [InlineNode::BoldText(_)]),
-            !cfg!(feature = "pre-spec-subs")
+        assert!(
+            matches!(block.content.as_slice(), [InlineNode::PlainText(text)] if text.content == "*Bold*")
         );
         assert_eq!(
             block.metadata.substitutions,
-            cfg!(feature = "pre-spec-subs").then(|| SubstitutionSpec::Explicit(Vec::new()))
+            Some(SubstitutionSpec::Explicit(Vec::new()))
         );
-        assert_eq!(
-            parsed.source_recovery().is_some(),
-            !cfg!(feature = "pre-spec-subs")
-        );
+        assert_eq!(parsed.warnings(), []);
+        assert!(parsed.source_recovery().is_none());
         let mut metadata = BlockMetadata::default();
         metadata.substitutions = Some(SubstitutionSpec::Explicit(Vec::new()));
-        assert_eq!(
-            metadata.uses_substitution(&Substitution::Quotes, NORMAL),
-            !cfg!(feature = "pre-spec-subs")
-        );
+        assert!(!metadata.uses_substitution(&Substitution::Quotes, NORMAL));
     }
     Ok(())
 }

@@ -169,7 +169,6 @@ fn constrained_quotes_check_whitespace_before_later_attribute_expansion() -> Res
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn constrained_quotes_reject_whitespace_from_earlier_attribute_expansion() -> Result<(), Error> {
     for marker in ["*", "_", "#", "`"] {

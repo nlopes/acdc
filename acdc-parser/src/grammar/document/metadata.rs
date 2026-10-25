@@ -2,7 +2,8 @@
 
 use crate::{
     Anchor, AttributeValue, Attribution, Block, BlockMetadata, CiteTitle, CompatibilityMode,
-    ContentAttribute, DocumentAttributes, Error, InlineNode, Location, Plain, Title,
+    ContentAttribute, DocumentAttributes, Error, InlineNode, Location, Plain, Title, Warning,
+    WarningKind,
     document_attribute::AttributeDeclaration,
     grammar::{
         ParserState,
@@ -16,16 +17,10 @@ use crate::{
     },
     model::{
         Caption, CaptionKind, PositionalAttribute, SectionLevel, Substitution, substitute,
-        substitution::SubstitutionPlan,
+        substitution::{SubstitutionPlan, parse_subs_attribute},
     },
 };
 use std::{borrow::Cow, rc::Rc};
-
-#[cfg(not(feature = "pre-spec-subs"))]
-use crate::{Warning, WarningKind};
-
-#[cfg(feature = "pre-spec-subs")]
-use crate::model::substitution::parse_subs_attribute;
 
 /// A block metadata line recognized by the document grammar.
 #[derive(Debug)]
@@ -280,13 +275,10 @@ pub(super) fn finish_block_parsing_metadata<'input>(
     offset: usize,
 ) -> Result<BlockParsingMetadata<'input>, Error> {
     let discrete = discrete || matches!(metadata.style, Some("discrete" | "float"));
-    #[cfg(feature = "pre-spec-subs")]
     let substitutions = metadata
         .substitutions
         .as_ref()
         .map_or_else(SubstitutionPlan::default, SubstitutionPlan::for_block_spec);
-    #[cfg(not(feature = "pre-spec-subs"))]
-    let substitutions = SubstitutionPlan::default();
     let hardbreaks = substitutions.enabled(&Substitution::PostReplacements)
         && (state.hardbreaks || metadata.options.contains(&"hardbreaks"));
     resolve_caption_content(state, &mut metadata, offset)?;
@@ -552,21 +544,16 @@ fn store_named_block_attribute<'input>(
         }
         "style" => metadata.style = Some(value),
         RESERVED_NAMED_ATTRIBUTE_SUBS => {
-            #[cfg(feature = "pre-spec-subs")]
-            {
-                state.add_generic_warning_at(
-                    "The subs= attribute may change when the AsciiDoc specification is finalized. See: https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/issues/16".to_string(),
-                    location.clone().unwrap_or_default(),
-                );
-                metadata.substitutions = Some(parse_subs_attribute(value));
+            let spec = parse_subs_attribute(value);
+            for entry in spec.unsupported_entries() {
+                state.add_warning(Warning::new(
+                    WarningKind::ContentRecovery {
+                        message: format!("Unsupported block substitution '{entry}' in subs=. The entry is preserved, but its effect is ignored.").into(),
+                    },
+                    location.clone().map(|location| state.create_error_source_location(location)),
+                ));
             }
-            #[cfg(not(feature = "pre-spec-subs"))]
-            state.add_warning(Warning::new(
-                WarningKind::ContentRecovery {
-                    message: "The subs= attribute is not honored in this build (the `pre-spec-subs` feature is disabled). Requested content substitutions were ignored.".into(),
-                },
-                Some(state.create_error_source_location(location.clone().unwrap_or_default())),
-            ));
+            metadata.substitutions = Some(spec);
         }
         "attribution" => {
             metadata.attribution = Some(Attribution::new(plain_attribute_value(value, location)));

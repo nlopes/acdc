@@ -32,9 +32,8 @@
 //!
 //! # Cargo features
 //!
-//! - `pre-spec-subs` (default): controls block `subs=` processing.
-//!   Without it, explicit settings report source recovery and use block defaults.
-//!   Substitution types and AST fields are available in every build.
+//! - `pre-spec-subs` (default): compatibility alias with no effect on parsing.
+//!   Block `subs=` settings and substitution types are available in every build.
 //! - `setext` (off by default): legacy underlined headings, enabled through
 //!   `OptionsBuilder::with_setext()` when the feature is compiled.
 //! - `network` (off by default): HTTP(S) includes, subject to safe mode and caller permission.
@@ -1768,35 +1767,11 @@ mod tests {
             );
         }
 
-        /// Explicit `subs` settings warn about possible specification changes
-        /// when enabled, or ignored settings when disabled.
         #[test]
-        fn subs_attribute_always_surfaces_a_warning() {
-            let input = "[subs=\"-quotes\"]\nContent\n";
-            let options = Options::default();
-            let result = parse(input, &options).expect("document should parse");
-
-            let messages: Vec<String> = result
-                .warnings()
-                .iter()
-                .map(|w| w.kind.to_string())
-                .collect();
-            assert!(
-                messages.iter().any(|m| m.contains("subs=")),
-                "expected a `subs=` warning, got: {messages:?}",
-            );
-            #[cfg(feature = "pre-spec-subs")]
-            assert!(
-                messages.iter().any(|m| m.contains(
-                    "https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/issues/16"
-                )),
-                "expected warning with feature on, got: {messages:?}",
-            );
-            #[cfg(not(feature = "pre-spec-subs"))]
-            assert!(
-                messages.iter().any(|m| m.contains("not honored")),
-                "expected feature-off warning, got: {messages:?}",
-            );
+        fn supported_subs_attribute_does_not_warn() {
+            let result = parse("[subs=\"-quotes\"]\nContent\n", &Options::default())
+                .expect("document should parse");
+            assert!(result.warnings().is_empty(), "{:?}", result.warnings());
         }
     }
 

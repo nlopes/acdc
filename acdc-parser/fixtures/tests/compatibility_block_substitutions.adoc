@@ -1,0 +1,113 @@
+= Block Substitutions
+:value: expanded
+:marked: *from an attribute*
+
+*Default paragraph* {value}.
+
+[subs=""]
+*Empty list* {value}.
+
+[subs=none]
+*No substitutions* {value}.
+
+[subs="normal,-macros"]
+*Normal group* {value} footnote:[literal].
+
+[subs="quotes,attributes+"]
+{marked}.
+
+[subs="attributes,+quotes,-attributes"]
+*Formatting only* {value}.
+
+----
+*Default listing* {value} <1>
+----
+
+[subs=""]
+----
+*Empty listing* {value} <1>
+----
+
+[subs="verbatim,attributes+,+quotes,-callouts"]
+----
+*Formatted listing* {value} <1>
+----
+
+....
+*Default literal* {value}
+....
+
+[subs=none]
+....
+*Literal without substitutions* {value} <1>
+....
+
+[subs="normal,-macros"]
+....
+*Formatted literal* {value} footnote:[literal]
+....
+
+[verse]
+____
+*Default verse* {value}.
+____
+
+[verse,subs=""]
+____
+*Empty verse* {value}.
+____
+
+[verse,subs=none]
+____
+*Literal verse* {value}.
+____
+
+[verse,subs="normal,-macros"]
+____
+*Formatted verse* {value} footnote:[literal].
+____
+
+[stem]
+++++
+{value} * x
+++++
+
+[stem,subs=""]
+++++
+{value} * x
+++++
+
+[stem,subs=none]
+++++
+{value} * x
+++++
+
+[stem,subs="attributes+,+specialchars,-attributes,+attributes"]
+++++
+{value} * x
+++++
+
+[subs=none]
+----
+*Literal listing* {value} <1>
+----
+
+[subs=""]
+....
+*Empty literal* {value}
+....
+
+[verse,subs="attributes+,-macros,+quotes"]
+____
+{marked} footnote:[literal].
+____
+
+[stem,subs="normal,-quotes,-replacements,-macros,-post_replacements"]
+++++
+{value} * x
+++++
+
+[stem,subs="verbatim,-callouts,+attributes"]
+++++
+{value} * x
+++++

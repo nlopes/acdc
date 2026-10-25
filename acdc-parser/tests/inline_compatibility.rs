@@ -2,7 +2,6 @@ use acdc_parser::{InlineNode, Options, parse};
 
 type Error = Box<dyn std::error::Error>;
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn index_registration_boundaries_survive_later_substitutions() -> Result<(), Error> {
     for subs in [
@@ -36,7 +35,6 @@ fn index_registration_boundaries_survive_later_substitutions() -> Result<(), Err
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn index_catalog_snapshots_do_not_register_footnotes_twice() -> Result<(), Error> {
     let source = include_str!("../fixtures/tests/subs_index_registration_order.adoc");
@@ -59,7 +57,6 @@ fn index_catalog_snapshots_do_not_register_footnotes_twice() -> Result<(), Error
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn ordered_index_footnotes_keep_one_definition_and_original_locations() -> Result<(), Error> {
     let source = include_str!("../fixtures/tests/subs_index_stage_labels.adoc");
@@ -117,7 +114,6 @@ fn passthrough_index_attribute_values_point_to_their_reference() -> Result<(), E
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn disabled_attribute_substitutions_do_not_warn_about_counters() -> Result<(), Error> {
     for subs in ["quotes", "none", "normal,-attributes"] {

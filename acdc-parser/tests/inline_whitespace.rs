@@ -90,7 +90,7 @@ fn whitespace_and_empty_attributes_keep_constrained_quote_order() -> Result<(), 
                     .content
                     .iter()
                     .find_map(|node| formatted_content(node, marker));
-                if cfg!(feature = "pre-spec-subs") && subs == "attributes,quotes" {
+                if subs == "attributes,quotes" {
                     assert!(content.is_none(), "{source}");
                 } else {
                     let content = content.ok_or("missing formatting before attribute expansion")?;

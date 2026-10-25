@@ -2,8 +2,8 @@
 
 use crate::{
     Admonition, AdmonitionVariant, Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, Error,
-    InlineNode, Location, Plain, Raw, SourceLocation, StemContent, StemNotation, Title, Warning,
-    WarningKind,
+    InlineNode, Location, Plain, Raw, SourceLocation, StemContent, StemNotation, Substitution,
+    Title, Warning, WarningKind,
     grammar::{
         ParserState,
         document::verbatim::verbatim_inner,
@@ -342,13 +342,29 @@ fn pass_inner<'input>(
             ),
         };
         let content = p.content;
-        #[cfg(feature = "pre-spec-subs")]
         let content = metadata.substitutions.as_ref().map_or(content, |spec| {
-            state.intern_cow(crate::substitute(
-                content,
-                &spec.resolve(&[crate::Substitution::SpecialChars]),
-                &state.document_attributes,
-            ))
+            let substitutions = spec.resolve(&[Substitution::SpecialChars]);
+            let unsupported = substitutions
+                .iter()
+                .filter(|substitution| {
+                    !matches!(substitution, Substitution::SpecialChars | Substitution::Attributes)
+                })
+                .map(ToString::to_string)
+                .collect::<Vec<_>>();
+            if !unsupported.is_empty() {
+                state.add_warning(Warning::new(
+                    WarningKind::ContentRecovery {
+                        message: format!(
+                            "STEM blocks do not support these substitutions: {}. Formula text is preserved; supported substitutions still apply.",
+                            unsupported.join(", ")
+                        ).into(),
+                    },
+                    Some(state.create_error_source_location(
+                        state.create_block_location(p.content_start, p.content_end, p.offset)
+                    )),
+                ));
+            }
+            state.intern_cow(crate::substitute(content, &substitutions, &state.document_attributes))
         });
         metadata.move_positional_attributes_to_attributes();
         metadata.style = None;

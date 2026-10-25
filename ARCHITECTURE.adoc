@@ -426,7 +426,9 @@ Today, the mode controls named block-title quoting and repeated roles and option
 For example, `[title="*Bold*"]` produces a bold title in Asciidoctor mode and literal asterisks in Draft mode.
 A single-quoted named title supports formatting in both modes.
 
-Substitution behavior and Setext still have their own controls.
+Both modes honor explicit block `subs=` settings, including in minimal builds.
+Draft supports these controls as an acdc extension.
+Setext still has its own control.
 The link:acdc-parser/README.adoc[parser README] describes what the mode supports today and how to select it.
 
 === One choice for the whole parse

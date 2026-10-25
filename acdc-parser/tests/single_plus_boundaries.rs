@@ -183,7 +183,6 @@ fn escaped_single_plus_and_wrappers_use_the_same_closing_rules() -> Result<(), E
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn disabled_single_plus_stages_remain_disabled() -> Result<(), Error> {
     let body = "A+{word}+B | '+{word}+'.";

@@ -38,15 +38,14 @@ and recovered content. See [Source text and diagnostics](#source-text-and-diagno
 
 | Feature | Default | Effect |
 | --- | --- | --- |
-| `pre-spec-subs` | On | Controls block `subs=` processing. |
+| `pre-spec-subs` | On | Compatibility alias; has no effect on parsing. |
 | `setext` | Off | Compiles support for legacy underlined headings; enable it with `OptionsBuilder::with_setext()`. |
 | `network` | Off | Compiles built-in HTTP(S) include support outside bare WebAssembly. Caller permission and safe mode still apply. |
 
-With `pre-spec-subs` disabled, explicit `subs=` settings are ignored with a
-source-recovery warning. Inline attribute substitution remains available.
-`SubstitutionSpec`, `SubstitutionOp`, and `BlockMetadata::substitutions` are
-available in every build. `SubstitutionSpec::resolve()` works independently of
-the feature; `BlockMetadata::uses_substitution()` still follows it.
+Block `subs=` settings work in every parser build and both compatibility modes.
+Draft mode supports these explicit controls as an acdc extension.
+The `pre-spec-subs` feature remains for callers that already enable it;
+converter crates still use their own feature of the same name.
 
 ## Compatibility modes
 
@@ -116,8 +115,8 @@ Native JSON preserves acdc's model; it is not a claim of ASG conformance.
 - `SubstitutionSpec`, `SubstitutionOp`, and `BlockMetadata::substitutions` are
   available without `pre-spec-subs`. Remove conditional compilation used only
   to access this API. `None` is omitted from JSON; an explicit empty list is
-  serialized as `[]`. The feature still controls how parsing and
-  `BlockMetadata::uses_substitution()` honor block settings.
+  serialized as `[]`. Parsing and
+  `BlockMetadata::uses_substitution()` honor block settings in every build.
 
 ## Migrating from 0.10
 
@@ -338,10 +337,14 @@ attribute values retain the normal attribute locking rules.
 By default, formula bodies keep attribute references and formatting markers
 as formula text. Inline passthroughs run before STEM macros: `stem:[x=+y+]`
 contains `x=y`, while a literal `+` remains part of the formula.
-With `pre-spec-subs`, a STEM block can opt in to attribute expansion with
+A STEM block can opt in to attribute expansion with
 `[stem,subs="+attributes"]`. The original block body remains available through
-`source_text()`. HTML conversion escapes formula text by default. With
-`pre-spec-subs`, `[stem,subs=none]` preserves authored raw HTML.
+`source_text()`. STEM supports attribute expansion and output escaping; other
+requested stages produce a source-recovery warning and leave their markup as
+formula text. This differs from Asciidoctor, which can insert formatting tags
+into formulas. HTML conversion escapes formula text by default. The HTML
+converter still requires its own `pre-spec-subs` feature for
+`[stem,subs=none]` to preserve authored raw HTML.
 
 Source locations cover the original macro or block, including escaped brackets
 and dollar delimiters. Nested includes and line selections retain the source
@@ -401,7 +404,7 @@ attribute, including one supplied by defaults.
 
 ## Parsing and conversion
 
-With `pre-spec-subs` enabled, `subs="attributes+"` moves an
+`subs="attributes+"` moves an
 already-enabled attribute stage to the front. Groups such as `normal+` move
 their members together in group order. Modifiers apply left to right; append
 syntax such as `+attributes` leaves an existing stage in place, matching
@@ -515,7 +518,8 @@ cannot consume spaces, escapes, or dash halves from another profile. For example
 `prefix indexterm2:[pass:r[--]] tail` retains `--`; Asciidoctor converts the
 isolated passthrough to a spaced em dash before inserting it.
 
-Existing `pre-spec-subs` compatibility behavior is not complete SDR-5 conformance.
+Explicit substitution controls are shared by both modes. They are an acdc
+extension in Draft mode, not a claim of complete SDR-5 conformance.
 SDR-5 leaves the exact mapping of custom `pass:` lists unresolved; support for
 common profiles is an acdc policy. Earlier text-only escaping and ordinary
 attribute-introduced formatting remain separate migration work. See the

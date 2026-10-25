@@ -1,4 +1,3 @@
-#[cfg(feature = "pre-spec-subs")]
 use acdc_parser::{Block, DelimitedBlockType, parse};
 use acdc_parser::{InlineMacro, InlineNode, Location, Options, parse_inline};
 
@@ -204,7 +203,6 @@ fn explicit_links_and_neighboring_url_macros_keep_their_boundaries() -> Result<(
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn url_opening_boundaries_use_the_macro_stage() -> Result<(), Error> {
     for (subs, body, expected) in [
@@ -264,7 +262,6 @@ fn url_opening_boundaries_use_the_macro_stage() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn formatted_attribute_profiles_preserve_url_boundaries() -> Result<(), Error> {
     for (subs, prefix, expected) in [
@@ -301,7 +298,6 @@ fn formatted_attribute_profiles_preserve_url_boundaries() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn enabled_code_links_use_the_same_boundaries() -> Result<(), Error> {
     for (body, expected) in [

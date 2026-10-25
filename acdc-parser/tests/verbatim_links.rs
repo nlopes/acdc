@@ -1,5 +1,3 @@
-#![cfg(feature = "pre-spec-subs")]
-
 use acdc_parser::{Block, DelimitedBlockType, InlineMacro, InlineNode, Options, parse};
 
 type Error = Box<dyn std::error::Error>;

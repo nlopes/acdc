@@ -1,0 +1,1192 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Block Substitutions",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 21
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 3,
+        "col": 28
+      }
+    ]
+  },
+  "attributes": {
+    "marked": "*from an attribute*",
+    "value": "expanded"
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Default paragraph",
+              "location": [
+                {
+                  "line": 5,
+                  "col": 2
+                },
+                {
+                  "line": 5,
+                  "col": 18
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 19
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " expanded.",
+          "location": [
+            {
+              "line": 5,
+              "col": 20
+            },
+            {
+              "line": 5,
+              "col": 28
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 28
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "*Empty list* {value}.",
+          "location": [
+            {
+              "line": 8,
+              "col": 1
+            },
+            {
+              "line": 8,
+              "col": 21
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "substitutions": []
+      },
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 8,
+          "col": 21
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "*No substitutions* {value}.",
+          "location": [
+            {
+              "line": 11,
+              "col": 1
+            },
+            {
+              "line": 11,
+              "col": 27
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "substitutions": []
+      },
+      "location": [
+        {
+          "line": 10,
+          "col": 1
+        },
+        {
+          "line": 11,
+          "col": 27
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Normal group",
+              "location": [
+                {
+                  "line": 14,
+                  "col": 2
+                },
+                {
+                  "line": 14,
+                  "col": 13
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 14,
+              "col": 1
+            },
+            {
+              "line": 14,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " expanded footnote:[literal].",
+          "location": [
+            {
+              "line": 14,
+              "col": 15
+            },
+            {
+              "line": 14,
+              "col": 42
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "substitutions": [
+          "normal",
+          "-macros"
+        ]
+      },
+      "location": [
+        {
+          "line": 13,
+          "col": 1
+        },
+        {
+          "line": 14,
+          "col": 42
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "from an attribute",
+              "location": [
+                {
+                  "line": 17,
+                  "col": 1
+                },
+                {
+                  "line": 17,
+                  "col": 8
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 17,
+              "col": 1
+            },
+            {
+              "line": 17,
+              "col": 8
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 17,
+              "col": 9
+            },
+            {
+              "line": 17,
+              "col": 9
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "substitutions": [
+          "quotes",
+          "attributes+"
+        ]
+      },
+      "location": [
+        {
+          "line": 16,
+          "col": 1
+        },
+        {
+          "line": 17,
+          "col": 9
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Formatting only",
+              "location": [
+                {
+                  "line": 20,
+                  "col": 2
+                },
+                {
+                  "line": 20,
+                  "col": 16
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 20,
+              "col": 1
+            },
+            {
+              "line": 20,
+              "col": 17
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " {value}.",
+          "location": [
+            {
+              "line": 20,
+              "col": 18
+            },
+            {
+              "line": 20,
+              "col": 26
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "substitutions": [
+          "attributes",
+          "+quotes",
+          "-attributes"
+        ]
+      },
+      "location": [
+        {
+          "line": 19,
+          "col": 1
+        },
+        {
+          "line": 20,
+          "col": 26
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "*Default listing* {value} ",
+          "location": [
+            {
+              "line": 23,
+              "col": 1
+            },
+            {
+              "line": 23,
+              "col": 26
+            }
+          ]
+        },
+        {
+          "name": "callout_reference",
+          "type": "inline",
+          "variant": "explicit",
+          "number": 1,
+          "location": [
+            {
+              "line": 23,
+              "col": 27
+            },
+            {
+              "line": 23,
+              "col": 29
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 22,
+          "col": 1
+        },
+        {
+          "line": 24,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "metadata": {
+        "substitutions": []
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "*Empty listing* {value} <1>",
+          "location": [
+            {
+              "line": 28,
+              "col": 1
+            },
+            {
+              "line": 28,
+              "col": 27
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 26,
+          "col": 1
+        },
+        {
+          "line": 29,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "metadata": {
+        "substitutions": [
+          "verbatim",
+          "attributes+",
+          "+quotes",
+          "-callouts"
+        ]
+      },
+      "inlines": [
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Formatted listing",
+              "location": [
+                {
+                  "line": 33,
+                  "col": 2
+                },
+                {
+                  "line": 33,
+                  "col": 18
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 33,
+              "col": 1
+            },
+            {
+              "line": 33,
+              "col": 19
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " expanded <1>",
+          "location": [
+            {
+              "line": 33,
+              "col": 20
+            },
+            {
+              "line": 33,
+              "col": 31
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 31,
+          "col": 1
+        },
+        {
+          "line": 34,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "literal",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "....",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "*Default literal* {value}",
+          "location": [
+            {
+              "line": 37,
+              "col": 1
+            },
+            {
+              "line": 37,
+              "col": 25
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 36,
+          "col": 1
+        },
+        {
+          "line": 38,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "literal",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "....",
+      "metadata": {
+        "substitutions": []
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "*Literal without substitutions* {value} <1>",
+          "location": [
+            {
+              "line": 42,
+              "col": 1
+            },
+            {
+              "line": 42,
+              "col": 43
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 40,
+          "col": 1
+        },
+        {
+          "line": 43,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "literal",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "....",
+      "metadata": {
+        "substitutions": [
+          "normal",
+          "-macros"
+        ]
+      },
+      "inlines": [
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Formatted literal",
+              "location": [
+                {
+                  "line": 47,
+                  "col": 2
+                },
+                {
+                  "line": 47,
+                  "col": 18
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 47,
+              "col": 1
+            },
+            {
+              "line": 47,
+              "col": 19
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " expanded footnote:[literal]",
+          "location": [
+            {
+              "line": 47,
+              "col": 20
+            },
+            {
+              "line": 47,
+              "col": 46
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 45,
+          "col": 1
+        },
+        {
+          "line": 48,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "verse",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "verse"
+      },
+      "inlines": [
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Default verse",
+              "location": [
+                {
+                  "line": 52,
+                  "col": 2
+                },
+                {
+                  "line": 52,
+                  "col": 14
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 52,
+              "col": 1
+            },
+            {
+              "line": 52,
+              "col": 15
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " expanded.",
+          "location": [
+            {
+              "line": 52,
+              "col": 16
+            },
+            {
+              "line": 52,
+              "col": 24
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 50,
+          "col": 1
+        },
+        {
+          "line": 53,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "verse",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "verse",
+        "substitutions": []
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "*Empty verse* {value}.",
+          "location": [
+            {
+              "line": 57,
+              "col": 1
+            },
+            {
+              "line": 57,
+              "col": 22
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 55,
+          "col": 1
+        },
+        {
+          "line": 58,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "verse",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "verse",
+        "substitutions": []
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "*Literal verse* {value}.",
+          "location": [
+            {
+              "line": 62,
+              "col": 1
+            },
+            {
+              "line": 62,
+              "col": 24
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 60,
+          "col": 1
+        },
+        {
+          "line": 63,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "verse",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "verse",
+        "substitutions": [
+          "normal",
+          "-macros"
+        ]
+      },
+      "inlines": [
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Formatted verse",
+              "location": [
+                {
+                  "line": 67,
+                  "col": 2
+                },
+                {
+                  "line": 67,
+                  "col": 16
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 67,
+              "col": 1
+            },
+            {
+              "line": 67,
+              "col": 17
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " expanded footnote:[literal].",
+          "location": [
+            {
+              "line": 67,
+              "col": 18
+            },
+            {
+              "line": 67,
+              "col": 45
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 65,
+          "col": 1
+        },
+        {
+          "line": 68,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "stem",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "++++",
+      "content": "{value} * x",
+      "notation": "asciimath",
+      "location": [
+        {
+          "line": 70,
+          "col": 1
+        },
+        {
+          "line": 73,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "stem",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "++++",
+      "metadata": {
+        "substitutions": []
+      },
+      "content": "{value} * x",
+      "notation": "asciimath",
+      "location": [
+        {
+          "line": 75,
+          "col": 1
+        },
+        {
+          "line": 78,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "stem",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "++++",
+      "metadata": {
+        "substitutions": []
+      },
+      "content": "{value} * x",
+      "notation": "asciimath",
+      "location": [
+        {
+          "line": 80,
+          "col": 1
+        },
+        {
+          "line": 83,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "stem",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "++++",
+      "metadata": {
+        "substitutions": [
+          "attributes+",
+          "+specialchars",
+          "-attributes",
+          "+attributes"
+        ]
+      },
+      "content": "expanded * x",
+      "notation": "asciimath",
+      "location": [
+        {
+          "line": 85,
+          "col": 1
+        },
+        {
+          "line": 88,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "metadata": {
+        "substitutions": []
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "*Literal listing* {value} <1>",
+          "location": [
+            {
+              "line": 92,
+              "col": 1
+            },
+            {
+              "line": 92,
+              "col": 29
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 90,
+          "col": 1
+        },
+        {
+          "line": 93,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "literal",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "....",
+      "metadata": {
+        "substitutions": []
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "*Empty literal* {value}",
+          "location": [
+            {
+              "line": 97,
+              "col": 1
+            },
+            {
+              "line": 97,
+              "col": 23
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 95,
+          "col": 1
+        },
+        {
+          "line": 98,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "verse",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "verse",
+        "substitutions": [
+          "attributes+",
+          "-macros",
+          "+quotes"
+        ]
+      },
+      "inlines": [
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "from an attribute",
+              "location": [
+                {
+                  "line": 102,
+                  "col": 1
+                },
+                {
+                  "line": 102,
+                  "col": 8
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 102,
+              "col": 1
+            },
+            {
+              "line": 102,
+              "col": 8
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " footnote:[literal].",
+          "location": [
+            {
+              "line": 102,
+              "col": 9
+            },
+            {
+              "line": 102,
+              "col": 28
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 100,
+          "col": 1
+        },
+        {
+          "line": 103,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "stem",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "++++",
+      "metadata": {
+        "substitutions": [
+          "normal",
+          "-quotes",
+          "-replacements",
+          "-macros",
+          "-post_replacements"
+        ]
+      },
+      "content": "expanded * x",
+      "notation": "asciimath",
+      "location": [
+        {
+          "line": 105,
+          "col": 1
+        },
+        {
+          "line": 108,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "stem",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "++++",
+      "metadata": {
+        "substitutions": [
+          "verbatim",
+          "-callouts",
+          "+attributes"
+        ]
+      },
+      "content": "expanded * x",
+      "notation": "asciimath",
+      "location": [
+        {
+          "line": 110,
+          "col": 1
+        },
+        {
+          "line": 113,
+          "col": 4
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 113,
+      "col": 4
+    }
+  ]
+}

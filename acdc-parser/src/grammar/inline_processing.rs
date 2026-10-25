@@ -152,11 +152,8 @@ pub(crate) fn preprocess_inline_content<'a>(
         substitutions.enabled(&Substitution::Macros),
         substitutions.enabled(&Substitution::Attributes),
     );
-    #[cfg(feature = "pre-spec-subs")]
-    {
-        inline_state.defer_monospace = !substitutions.enabled(&Substitution::Attributes)
-            || substitutions.precedes(&Substitution::Quotes, &Substitution::Attributes);
-    }
+    inline_state.defer_monospace = !substitutions.enabled(&Substitution::Attributes)
+        || substitutions.precedes(&Substitution::Quotes, &Substitution::Attributes);
     inline_state.set_initial_position(&location, content_start + offset);
     inline_state
         .attribute_value_ranges
@@ -449,7 +446,6 @@ pub(crate) fn process_inlines<'a>(
     )
 }
 
-#[cfg(feature = "pre-spec-subs")]
 pub(crate) fn process_verbatim_inlines<'a>(
     state: &mut ParserState<'a>,
     block_metadata: &BlockParsingMetadata,

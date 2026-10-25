@@ -50,9 +50,6 @@ fn verse_inline_locations_and_catalogs_follow_the_source(
 fn verse_explicit_substitutions_follow_the_feature_contract() -> Result<(), Error> {
     let source = "[verse,subs=\"none\"]\n____\n*Bold* footnote:[Inactive.]\n____\n";
     let parsed = parse(source, &Options::default())?;
-    assert_eq!(
-        parsed.document().footnotes.len(),
-        usize::from(!cfg!(feature = "pre-spec-subs"))
-    );
+    assert_eq!(parsed.document().footnotes.len(), 0);
     Ok(())
 }

@@ -99,7 +99,6 @@ fn index_parentheses_preserve_adjacent_terms_and_unbalanced_prose() -> Result<()
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn index_parentheses_keep_registration_time_attribute_values() -> Result<(), Error> {
     for (subs, registered) in [
