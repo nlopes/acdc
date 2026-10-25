@@ -1,0 +1,14 @@
+No title.
+
+[title=]
+Empty unquoted title.
+
+[title=""]
+Empty double-quoted title.
+
+[title='']
+Empty single-quoted title.
+
+[title='footnote:[Discarded]']
+[title=""]
+An empty title replaces earlier content.

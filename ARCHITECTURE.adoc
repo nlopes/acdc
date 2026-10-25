@@ -104,7 +104,7 @@ The existing `pre-spec-subs` compatibility feature retains some legacy ordered b
 ==== Parsing and conversion boundary
 
 This is how attribute parsing works today.
-The <<compatibility-mode-contract,planned compatibility modes>> will bring the language choices under one option.
+The <<compatibility-mode-contract,compatibility modes>> are bringing the language choices under one option.
 
 The project follows SDR-5's decision to keep parsing independent of conversion.
 The parser must not generate HTML tags, PDF markup, or roff commands to determine an attribute value or evaluate a conditional.
@@ -411,28 +411,29 @@ Today the LSP reparses the whole document on every change.
 Incremental parsing would cut latency on large files, but it requires grammar-level support that PEG doesn't give us for free - this is a longer-term research item.
 
 [#compatibility-mode-contract]
-== Compatibility modes (planned)
+== Compatibility modes
 
 I want acdc to work with the documents people already write, while leaving room to follow the draft spec as it develops.
-Today, that balance is spread across parser options and Cargo features.
+That balance has been spread across parser options and Cargo features.
 It's become harder to tell which rules apply to a document than it should be.
 
-The plan is to bring those choices into one `CompatibilityMode`:
+`CompatibilityMode` is the choice we're bringing those rules into:
 
-* `Asciidoctor` is the default. It keeps familiar behavior, with documented differences where I've chosen a different approach in acdc.
+* `Asciidoctor` is the default. I aim for maximum compatibility with Asciidoctor, with documented exceptions for bug fixes and deliberate changes that improve the user experience.
 * `Draft` is opt-in. It follows the draft rules we've reviewed and chosen to support, including rules that differ from Asciidoctor.
 
-For example, given `:word: *Bold*`, inserting `{word}` into ordinary prose keeps the asterisks in Asciidoctor mode.
-Draft mode will parse the inserted text as bold.
-That difference comes from when attribute references are expanded relative to inline parsing.
+Today, the mode controls named block-title quoting and repeated roles and options.
+For example, `[title="*Bold*"]` produces a bold title in Asciidoctor mode and literal asterisks in Draft mode.
+A single-quoted named title supports formatting in both modes.
 
-This API is still planned.
-The link:acdc-parser/README.adoc[parser README] describes the options available today, including `AttributeSyntax`, `pre-spec-subs` and Setext support.
+Substitution behavior and Setext still have their own controls.
+The link:acdc-parser/README.adoc[parser README] describes what the mode supports today and how to select it.
 
 === One choice for the whole parse
 
-The caller will choose the mode once, and included files and nested content will use the same rules.
-Both modes will be available in every build, so applications can parse different documents with different modes in the same process.
+The caller chooses the mode once.
+As we move the remaining rules into it, included files and nested content must keep that choice.
+Both modes are available in every build, so applications can parse different documents with different modes in the same process.
 Cargo features will stop deciding how AsciiDoc is interpreted.
 
 Safe mode, network access and resource limits stay separate.
@@ -440,7 +441,7 @@ Choosing draft language rules shouldn't change which files a document can read.
 
 === One tree, shared by both modes
 
-Both modes will produce the same AST types.
+Both modes produce the same AST types.
 The parser interprets the source; converters render the resulting content for their output format.
 I want that boundary to be clear enough that converting a document never requires parsing its attributes again.
 

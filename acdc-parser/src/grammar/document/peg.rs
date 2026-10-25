@@ -1243,7 +1243,7 @@ peg::parser! {
                             title_source = Some(title);
                         }
                         discrete = attr_discrete;
-                        merge_attribute_metadata(&mut metadata, attr_metadata, state.options.attribute_syntax);
+                        merge_attribute_metadata(&mut metadata, attr_metadata, state.options.compatibility_mode);
                     },
                     BlockMetadataLine::DocumentAttribute(declaration, location) => {
                         if let Some(event) = state.apply_document_attribute(
@@ -1739,7 +1739,7 @@ peg::parser! {
         {
             let (_discrete, metadata_from_attributes, _title_position) = attributes;
             let mut metadata = block_metadata.metadata.clone();
-            merge_macro_metadata(&mut metadata, &metadata_from_attributes, state.options.attribute_syntax);
+            merge_macro_metadata(&mut metadata, &metadata_from_attributes, state.options.compatibility_mode);
             metadata.move_positional_attributes_to_attributes();
             state.warn_trailing_macro_content("toc", trailing, end, offset);
             tracing::debug!("Found Table of Contents block");
@@ -1781,7 +1781,7 @@ peg::parser! {
             extract_media_dimensions(&mut metadata_from_attributes);
             let title = block_metadata.title.clone();
             let mut metadata = block_metadata.metadata.clone();
-            merge_macro_metadata(&mut metadata, &metadata_from_attributes, state.options.attribute_syntax);
+            merge_macro_metadata(&mut metadata, &metadata_from_attributes, state.options.compatibility_mode);
             metadata.style = None;
             let alt = block_metadata.image_alt.clone();
             metadata.alt_source = None;
@@ -1806,7 +1806,7 @@ peg::parser! {
             let (_discrete, metadata_from_attributes, _title_position) = attributes;
             let title = block_metadata.title.clone();
             let mut metadata = block_metadata.metadata.clone();
-            merge_macro_metadata(&mut metadata, &metadata_from_attributes, state.options.attribute_syntax);
+            merge_macro_metadata(&mut metadata, &metadata_from_attributes, state.options.compatibility_mode);
             metadata.move_positional_attributes_to_attributes();
             Ok(Block::Audio(Audio {
                 title,
@@ -1828,7 +1828,7 @@ peg::parser! {
             extract_media_dimensions(&mut metadata_from_attributes);
             let title = block_metadata.title.clone();
             let mut metadata = block_metadata.metadata.clone();
-            merge_macro_metadata(&mut metadata, &metadata_from_attributes, state.options.attribute_syntax);
+            merge_macro_metadata(&mut metadata, &metadata_from_attributes, state.options.compatibility_mode);
             let positional_poster = metadata.style.take();
             let poster = metadata_from_attributes.attributes.get_string("poster")
                 .map(|value| state.intern_str(&value))
@@ -1921,7 +1921,7 @@ peg::parser! {
                     AttributeOrAnchorLine::Anchor(anchor) => push_metadata_anchor(&mut metadata, anchor),
                     AttributeOrAnchorLine::Attributes((attr_discrete, attr_metadata)) => {
                         discrete = attr_discrete;
-                        merge_attribute_metadata(&mut metadata, *attr_metadata, state.options.attribute_syntax);
+                        merge_attribute_metadata(&mut metadata, *attr_metadata, state.options.compatibility_mode);
                     }
                 }
             }

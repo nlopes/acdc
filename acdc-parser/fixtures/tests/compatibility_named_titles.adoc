@@ -1,0 +1,16 @@
+[title=*Unquoted*]
+Unquoted title.
+
+[title="*Double quoted* -- &copy; footnote:[Protected]"]
+Double-quoted title.
+
+[title='*Single quoted* -- &copy; footnote:[Formatted]']
+Single-quoted title.
+
+.*Dot title*
+Dot title.
+
+[title="*Listing title*"]
+----
+Listing content.
+----

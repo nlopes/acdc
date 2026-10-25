@@ -49,32 +49,33 @@ and recovered content. See <<source-text-and-diagnostics,Source text and diagnos
 With `pre-spec-subs` disabled, explicit `subs=` settings are ignored with a
 source-recovery warning. Inline attribute substitution remains available.
 
-== Planned compatibility modes
+== Compatibility modes
 
-I plan to bring the parser's language choices into one `CompatibilityMode`:
-`Asciidoctor` by default, with an opt-in `Draft` mode for the draft rules we support.
-Both will use the same AST. See link:../ARCHITECTURE.adoc#compatibility-mode-contract[the architecture document] for the reasoning.
+Parsing defaults to `CompatibilityMode::Asciidoctor`. Its goal is maximum
+compatibility with Asciidoctor, with documented exceptions for bug fixes and
+deliberate improvements to the user experience. Unintentional differences remain
+compatibility gaps to fix. Select `CompatibilityMode::Draft` with
+`OptionsBuilder::with_compatibility_mode()` to use the supported draft rules.
+Both modes use the same AST and are available in every build.
+See link:../ARCHITECTURE.adoc#compatibility-mode-contract[the architecture document] for the reasoning.
 
-This API is not available yet. The `AttributeSyntax`, `pre-spec-subs` and Setext
-options described here still apply.
+For named block titles, Draft parses inline content only in single-quoted
+values. It also accumulates distinct block roles and options in source order. Unquoted and
+double-quoted named titles stay literal, including formatting markers,
+typography, character references, and macro text. Dot titles continue to support
+inline formatting in both modes. Image alt and tooltip rules are unchanged.
 
-== Attribute interpretation
+These differences follow SDR-2 at revision
+`68ed0b22e8d9b919897542d8ae14f03e7dbdd2e4`; Draft does not mean complete draft
+specification conformance. Custom `subs=` settings and Setext still use their
+existing controls. Safe mode, network access, and output format stay separate.
 
-Parsing defaults to `AttributeSyntax::Asciidoctor`, which preserves existing
-acdc behavior. Select `AttributeSyntax::Draft` with
-`OptionsBuilder::with_attribute_syntax()` to use single-quote-only inline
-parsing for named block titles and to accumulate distinct block roles and
-options in source order. Unquoted and double-quoted named titles stay literal,
-including formatting markers, typography, character references, and macro text.
-Dot titles continue to support inline formatting.
+If you used the unreleased `AttributeSyntax` prototype, replace it with
+`CompatibilityMode`, `with_attribute_syntax()` with `with_compatibility_mode()`,
+and `Options::attribute_syntax` with `Options::compatibility_mode`.
+There is no second attribute-interpretation selector.
 
-The option is available with or without Cargo features. It is independent of
-`pre-spec-subs`, which controls custom `subs=` settings, and of output format.
-It covers the named-title quoting and role/option rules from SDR-2 at revision
-`68ed0b22e8d9b919897542d8ae14f03e7dbdd2e4`; it does not select a complete draft
-language implementation or change image alt/tooltip interpretation.
-
-Both settings retain the declaration-time attribute context for named titles.
+Both modes retain the declaration-time attribute context for named titles.
 A reference introduced by expansion of another reference remains literal in
 the existing named-title path. For example, if `outer` contains `{inner}`,
 `title="{outer}"` retains `{inner}`. Asciidoctor can perform another expansion;
@@ -1178,10 +1179,21 @@ We use two fixture styles, and they are intentionally different.
 
 === `fixtures/tests`
 
-These are general parser and AST fixtures. The fixture test in `src/lib.rs`
-discovers `.adoc` files recursively and compares each with its adjacent `.json`.
-Supporting files belong in `fixtures/tests/includes/`, which discovery excludes.
-The generator accepts only top-level fixture filenames.
+These are general parser and AST fixtures. The runner in `tests/fixtures.rs`
+discovers `.adoc` files recursively, excluding `includes` folders. Each case has
+one shared `.json` expectation, or a pair named `.asciidoctor.json` and
+`.draft.json`. An expected parse failure uses `.error` in place of `.json`.
+Missing partners, mixed shared/paired files, and conflicting outcomes are errors.
+
+Optional `.diagnostics.json` companions record warnings, source recovery, and
+locations. Paired cases use `.asciidoctor.diagnostics.json` and
+`.draft.diagnostics.json` together. A failed parse has no returned diagnostics,
+so its companion contains `null`. Diagnostics do not change the AST JSON.
+
+Test names use the relative case name and expectation variant, such as
+`inline_image::asciidoctor` and `inline_image::draft`. Every case runs in both
+modes, including cases with a shared expectation. The runner and generator
+share discovery, parser options, and serialization.
 
 After approval to update expected output, regenerate only the affected fixtures
 from the workspace root and review the diff:
@@ -1190,6 +1202,18 @@ from the workspace root and review the diff:
 ----
 cargo run -p acdc-parser --example generate_parser_fixtures --all-features -- example.adoc
 ----
+
+The generator accepts exact paths relative to `fixtures/tests`. Add
+`--diagnostics` to record diagnostics. Use `--pair` with exact filenames to
+generate both mode expectations, replacing a shared expectation when present.
+Use `--mode asciidoctor` or `--mode draft` to update one existing partner.
+Adding paired diagnostics requires `--pair`, so both companions are created.
+A shared expectation can be generated only when both modes agree. A missing
+build feature or unexpected parse outcome fails a scoped request before any
+expectations are written.
+
+With no filenames, the generator attempts every fixture available in this build.
+Shared expectations and single-mode updates need separate requests.
 
 === `fixtures/preprocessor`
 

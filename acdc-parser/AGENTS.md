@@ -65,12 +65,12 @@ Put supporting include inputs in `fixtures/tests/includes/` with the `.adoc`
 extension. Fixture discovery excludes that folder; test documents include them
 using relative paths.
 
-Ask before regenerating expected JSON. From the workspace root, select exact top-level fixture filenames:
+Ask before regenerating expected output. From the workspace root, select exact paths relative to `fixtures/tests`:
 ```bash
 cargo run -p acdc-parser --example generate_parser_fixtures --all-features -- example.adoc
 ```
 
-With no filenames, the generator rewrites all top-level parser JSON fixtures. Record `git status --short` before running it and inspect every changed fixture afterward. Create `.adoc` inputs directly; use the generator only for expected JSON. Use stable nextest expressions instead of generated fixture numbers when running one fixture test. Do not use the CLI to generate fixtures.
+Every fixture runs in both compatibility modes. Use a shared expectation only when both modes agree. With no filenames, the generator processes all shared fixtures supported by the current build and fails if it encounters a paired case. Use `--pair` with exact filenames to create or update both mode expectations, or `--mode asciidoctor` / `--mode draft` to update one existing partner. Use `--diagnostics` to record warnings, recovery, and diagnostic locations; adding paired diagnostics also requires `--pair`. Record `git status --short` before running the generator and inspect every changed fixture afterward. Create `.adoc` inputs directly; use the generator for expected output. Filter nextest by the stable case name, such as `-E 'test(=inline_image::asciidoctor)'`. Do not use the CLI to generate fixtures.
 
 `fixtures/preprocessor/` contains supporting scenarios, not automatically discovered tests. Each root input must be opened by a Rust test.
 

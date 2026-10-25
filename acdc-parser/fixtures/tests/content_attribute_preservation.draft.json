@@ -1,0 +1,618 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Content attribute preservation",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 32
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 2,
+        "col": 14
+      }
+    ]
+  },
+  "attributes": {
+    "label": "Before"
+  },
+  "blocks": [
+    {
+      "name": "comment",
+      "type": "block",
+      "content": " The title keeps the attribute value from its declaration.",
+      "location": [
+        {
+          "line": 4,
+          "col": 1
+        },
+        {
+          "line": 4,
+          "col": 61
+        }
+      ]
+    },
+    {
+      "name": "label",
+      "type": "attribute",
+      "value": "After",
+      "location": [
+        {
+          "line": 6,
+          "col": 1
+        },
+        {
+          "line": 6,
+          "col": 13
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "title": [
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "Before",
+          "location": [
+            {
+              "line": 5,
+              "col": 9
+            },
+            {
+              "line": 5,
+              "col": 15
+            }
+          ]
+        }
+      ],
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "The body sees After.",
+          "location": [
+            {
+              "line": 7,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 22
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 22
+        }
+      ]
+    },
+    {
+      "name": "comment",
+      "type": "block",
+      "content": " Only the selected title registers a footnote, and it registers once.",
+      "location": [
+        {
+          "line": 9,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 72
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "title": [
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "Selected footnote:[Selected caption.]",
+          "location": [
+            {
+              "line": 12,
+              "col": 30
+            },
+            {
+              "line": 12,
+              "col": 66
+            }
+          ]
+        }
+      ],
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Alt",
+          "location": [
+            {
+              "line": 12,
+              "col": 19
+            },
+            {
+              "line": 12,
+              "col": 21
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "sample.svg"
+      },
+      "location": [
+        {
+          "line": 10,
+          "col": 1
+        },
+        {
+          "line": 12,
+          "col": 68
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Body ",
+          "location": [
+            {
+              "line": 14,
+              "col": 1
+            },
+            {
+              "line": 14,
+              "col": 5
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": null,
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Body note.",
+              "location": [
+                {
+                  "line": 14,
+                  "col": 16
+                },
+                {
+                  "line": 14,
+                  "col": 25
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 14,
+              "col": 6
+            },
+            {
+              "line": 14,
+              "col": 26
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 14,
+          "col": 1
+        },
+        {
+          "line": 14,
+          "col": 26
+        }
+      ]
+    },
+    {
+      "name": "comment",
+      "type": "block",
+      "content": " Inline alt text and tooltips remain separate, with other metadata intact.",
+      "location": [
+        {
+          "line": 16,
+          "col": 1
+        },
+        {
+          "line": 16,
+          "col": 77
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Inline ",
+          "location": [
+            {
+              "line": 17,
+              "col": 1
+            },
+            {
+              "line": 17,
+              "col": 7
+            }
+          ]
+        },
+        {
+          "name": "image",
+          "type": "inline",
+          "metadata": {
+            "attributes": {
+              "width": "32"
+            },
+            "roles": [
+              "thumb"
+            ]
+          },
+          "alt": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Alt",
+              "location": [
+                {
+                  "line": 17,
+                  "col": 25
+                },
+                {
+                  "line": 17,
+                  "col": 27
+                }
+              ]
+            }
+          ],
+          "tooltip": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Tooltip",
+              "location": [
+                {
+                  "line": 17,
+                  "col": 36
+                },
+                {
+                  "line": 17,
+                  "col": 42
+                }
+              ]
+            }
+          ],
+          "target": {
+            "type": "path",
+            "value": "sample.svg"
+          },
+          "location": [
+            {
+              "line": 17,
+              "col": 8
+            },
+            {
+              "line": 17,
+              "col": 64
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 17,
+              "col": 65
+            },
+            {
+              "line": 17,
+              "col": 65
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 17,
+          "col": 1
+        },
+        {
+          "line": 17,
+          "col": 65
+        }
+      ]
+    },
+    {
+      "name": "comment",
+      "type": "block",
+      "content": " An empty title is present; an absent title is not.",
+      "location": [
+        {
+          "line": 19,
+          "col": 1
+        },
+        {
+          "line": 19,
+          "col": 54
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "title": [],
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Alt",
+          "location": [
+            {
+              "line": 20,
+              "col": 19
+            },
+            {
+              "line": 20,
+              "col": 21
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "sample.svg"
+      },
+      "location": [
+        {
+          "line": 20,
+          "col": 1
+        },
+        {
+          "line": 20,
+          "col": 31
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Alt",
+          "location": [
+            {
+              "line": 22,
+              "col": 19
+            },
+            {
+              "line": 22,
+              "col": 21
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "sample.svg"
+      },
+      "location": [
+        {
+          "line": 22,
+          "col": 1
+        },
+        {
+          "line": 22,
+          "col": 22
+        }
+      ]
+    },
+    {
+      "name": "comment",
+      "type": "block",
+      "content": " Quote metadata retains both raw text and parsed formatting.",
+      "location": [
+        {
+          "line": 24,
+          "col": 1
+        },
+        {
+          "line": 24,
+          "col": 63
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "span",
+            "type": "inline",
+            "variant": "strong",
+            "form": "constrained",
+            "inlines": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Ada",
+                "location": [
+                  {
+                    "line": 25,
+                    "col": 22
+                  },
+                  {
+                    "line": 25,
+                    "col": 24
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 25,
+                "col": 21
+              },
+              {
+                "line": 25,
+                "col": 25
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "A ",
+            "location": [
+              {
+                "line": 25,
+                "col": 39
+              },
+              {
+                "line": 25,
+                "col": 40
+              }
+            ]
+          },
+          {
+            "name": "span",
+            "type": "inline",
+            "variant": "emphasis",
+            "form": "constrained",
+            "inlines": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "book",
+                "location": [
+                  {
+                    "line": 25,
+                    "col": 42
+                  },
+                  {
+                    "line": 25,
+                    "col": 45
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 25,
+                "col": 41
+              },
+              {
+                "line": 25,
+                "col": 46
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Words.",
+              "location": [
+                {
+                  "line": 27,
+                  "col": 1
+                },
+                {
+                  "line": 27,
+                  "col": 6
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 27,
+              "col": 1
+            },
+            {
+              "line": 27,
+              "col": 6
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 25,
+          "col": 1
+        },
+        {
+          "line": 28,
+          "col": 4
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 28,
+      "col": 4
+    }
+  ]
+}

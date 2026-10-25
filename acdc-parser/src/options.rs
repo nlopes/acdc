@@ -13,17 +13,19 @@ use crate::{
 
 const DEFAULT_MAX_TOTAL_INCLUDE_BYTES: usize = 64 * 1024 * 1024;
 
-/// Rules for named block-title quoting and repeated block roles and options.
+/// Selects the supported Asciidoctor or draft language rules for one parse.
 ///
-/// Selection is independent of Cargo features and output format. These rules
-/// cover part of the draft specification, not a complete language dialect.
+/// Both modes use the same AST. Currently they differ in named block-title
+/// quoting and repeated block roles and options. Neither mode promises complete
+/// conformance, and the choice does not change safe mode or output format.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 #[non_exhaustive]
-pub enum AttributeSyntax {
-    /// Preserve acdc's existing behavior, including formatted named titles.
+pub enum CompatibilityMode {
+    /// Aim for maximum compatibility with Asciidoctor, with documented exceptions
+    /// for bug fixes and deliberate improvements to the user experience.
     #[default]
     Asciidoctor,
-    /// Parse only single-quoted named titles and accumulate distinct roles and options.
+    /// Apply supported draft rules while retaining shared acdc behavior.
     Draft,
 }
 
@@ -38,8 +40,8 @@ pub(crate) enum FileXrefMode {
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
 pub struct Options<'a> {
-    /// Defaults to [`AttributeSyntax::Asciidoctor`]. Independent of ASG export.
-    pub attribute_syntax: AttributeSyntax,
+    /// Defaults to [`CompatibilityMode::Asciidoctor`]. Independent of ASG export.
+    pub compatibility_mode: CompatibilityMode,
     /// Defaults to [`SafeMode::Secure`], which prevents include reads.
     pub safe_mode: SafeMode,
     pub timings: bool,
@@ -157,7 +159,7 @@ impl<'a> Options<'a> {
     pub fn into_builder(self) -> OptionsBuilder<'a> {
         let (attributes, defaults) = self.document_attributes.into_configuration();
         OptionsBuilder {
-            attribute_syntax: self.attribute_syntax,
+            compatibility_mode: self.compatibility_mode,
             attributes,
             defaults,
             safe_mode: self.safe_mode,
@@ -181,7 +183,7 @@ impl<'a> Options<'a> {
     #[must_use]
     pub fn into_static(self) -> Options<'static> {
         Options {
-            attribute_syntax: self.attribute_syntax,
+            compatibility_mode: self.compatibility_mode,
             safe_mode: self.safe_mode,
             timings: self.timings,
             document_attributes: self.document_attributes.into_static(),
@@ -216,7 +218,7 @@ impl<'a> Options<'a> {
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
 pub struct OptionsBuilder<'a> {
-    attribute_syntax: AttributeSyntax,
+    compatibility_mode: CompatibilityMode,
     safe_mode: SafeMode,
     timings: bool,
     attributes: RawAttributes<'a>,
@@ -231,10 +233,10 @@ pub struct OptionsBuilder<'a> {
 }
 
 impl<'a> OptionsBuilder<'a> {
-    /// Select named block-title quoting and block role/option accumulation rules.
+    /// Select the language rules for this parse. Defaults to Asciidoctor.
     #[must_use]
-    pub fn with_attribute_syntax(mut self, syntax: AttributeSyntax) -> Self {
-        self.attribute_syntax = syntax;
+    pub fn with_compatibility_mode(mut self, mode: CompatibilityMode) -> Self {
+        self.compatibility_mode = mode;
         self
     }
 
@@ -511,7 +513,7 @@ impl<'a> OptionsBuilder<'a> {
     pub fn build(self) -> Result<Options<'a>, Error> {
         let document_attributes = initialize_configuration(self.attributes, self.defaults)?;
         Ok(Options {
-            attribute_syntax: self.attribute_syntax,
+            compatibility_mode: self.compatibility_mode,
             safe_mode: self.safe_mode,
             timings: self.timings,
             document_attributes,

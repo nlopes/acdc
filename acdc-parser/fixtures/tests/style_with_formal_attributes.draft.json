@@ -1,0 +1,70 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "title": [
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "Hello,world",
+          "location": [
+            {
+              "line": 1,
+              "col": 24
+            },
+            {
+              "line": 1,
+              "col": 34
+            }
+          ]
+        }
+      ],
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Something or other",
+          "location": [
+            {
+              "line": 2,
+              "col": 1
+            },
+            {
+              "line": 2,
+              "col": 18
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "options": [
+          "nolines"
+        ],
+        "style": "source"
+      },
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 2,
+          "col": 18
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 2,
+      "col": 18
+    }
+  ]
+}

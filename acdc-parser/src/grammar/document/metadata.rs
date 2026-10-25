@@ -1,7 +1,7 @@
 //! Block styles, attributes, anchors, and captions.
 
 use crate::{
-    Anchor, AttributeSyntax, AttributeValue, Attribution, Block, BlockMetadata, CiteTitle,
+    Anchor, AttributeValue, Attribution, Block, BlockMetadata, CiteTitle, CompatibilityMode,
     ContentAttribute, DocumentAttributes, Error, InlineNode, Location, Plain, Title,
     document_attribute::AttributeDeclaration,
     grammar::{
@@ -62,7 +62,7 @@ pub(super) fn resolve_title<'a>(
     source: ContentAttributeSource<'a>,
     offset: usize,
 ) -> Result<Title<'a>, Error> {
-    let inlines = if state.options.attribute_syntax == AttributeSyntax::Draft
+    let inlines = if state.options.compatibility_mode == CompatibilityMode::Draft
         && source.quote != AttributeQuote::Single
     {
         let value = source.value.unwrap_or(source.source);
@@ -173,7 +173,7 @@ pub(super) fn push_metadata_anchor<'a>(metadata: &mut BlockMetadata<'a>, anchor:
 pub(super) fn merge_attribute_metadata<'input>(
     metadata: &mut BlockMetadata<'input>,
     mut attribute_metadata: BlockMetadata<'input>,
-    syntax: AttributeSyntax,
+    mode: CompatibilityMode,
 ) {
     metadata.append_document_attributes(attribute_metadata.take_document_attributes());
     if attribute_metadata.id.is_some() {
@@ -184,7 +184,7 @@ pub(super) fn merge_attribute_metadata<'input>(
     }
     metadata.roles.extend(attribute_metadata.roles);
     metadata.options.extend(attribute_metadata.options);
-    if syntax == AttributeSyntax::Draft {
+    if mode == CompatibilityMode::Draft {
         unique(&mut metadata.roles);
         unique(&mut metadata.options);
     }
@@ -222,10 +222,10 @@ pub(super) fn merge_attribute_metadata<'input>(
 pub(super) fn merge_macro_metadata<'a>(
     metadata: &mut BlockMetadata<'a>,
     attributes: &BlockMetadata<'a>,
-    syntax: AttributeSyntax,
+    mode: CompatibilityMode,
 ) {
-    if syntax == AttributeSyntax::Draft {
-        merge_attribute_metadata(metadata, attributes.clone(), syntax);
+    if mode == CompatibilityMode::Draft {
+        merge_attribute_metadata(metadata, attributes.clone(), mode);
     } else {
         metadata.merge(attributes);
     }
@@ -529,16 +529,16 @@ fn store_named_block_attribute<'input>(
             });
         }
         RESERVED_NAMED_ATTRIBUTE_ROLE | "roles" => {
-            if state.options.attribute_syntax == AttributeSyntax::Asciidoctor {
+            if state.options.compatibility_mode == CompatibilityMode::Asciidoctor {
                 metadata.roles.clear();
             }
             metadata.roles.extend(value.split_whitespace());
-            if state.options.attribute_syntax == AttributeSyntax::Draft {
+            if state.options.compatibility_mode == CompatibilityMode::Draft {
                 unique(&mut metadata.roles);
             }
         }
         RESERVED_NAMED_ATTRIBUTE_OPTIONS | "options" => {
-            if state.options.attribute_syntax == AttributeSyntax::Draft {
+            if state.options.compatibility_mode == CompatibilityMode::Draft {
                 metadata.options.extend(
                     value
                         .split(|c: char| c == ',' || c.is_whitespace())
@@ -696,7 +696,7 @@ pub(super) fn parse_block_attribute_list<'input>(
         }
     }
 
-    if state.options.attribute_syntax == AttributeSyntax::Draft {
+    if state.options.compatibility_mode == CompatibilityMode::Draft {
         unique(&mut metadata.roles);
         unique(&mut metadata.options);
     }

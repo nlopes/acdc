@@ -1,11 +1,11 @@
-use acdc_parser::{AttributeSyntax, Block, InlineNode, Options, Substitution, parse};
+use acdc_parser::{Block, CompatibilityMode, InlineNode, Options, Substitution, parse};
 
 type Error = Box<dyn std::error::Error>;
 
 #[test]
-fn draft_title_quoting_is_separate_from_compatibility_and_export() -> Result<(), Error> {
-    for syntax in [AttributeSyntax::Asciidoctor, AttributeSyntax::Draft] {
-        let options = Options::builder().with_attribute_syntax(syntax).build()?;
+fn named_title_quoting_follows_compatibility_mode() -> Result<(), Error> {
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let options = Options::builder().with_compatibility_mode(mode).build()?;
         for (attribute, quoted) in [
             ("title=\"*Title*\"", false),
             ("title='*Title*'", true),
@@ -18,10 +18,10 @@ fn draft_title_quoting_is_separate_from_compatibility_and_export() -> Result<(),
             };
             assert_eq!(
                 matches!(block.title.first(), Some(InlineNode::BoldText(_))),
-                quoted || syntax == AttributeSyntax::Asciidoctor
+                quoted || mode == CompatibilityMode::Asciidoctor
             );
             assert!(block.title.is_present());
-            if !quoted && syntax == AttributeSyntax::Draft {
+            if !quoted && mode == CompatibilityMode::Draft {
                 assert!(
                     matches!(block.title.as_ref(), [InlineNode::RawText(text)] if text.content == "*Title*" && text.subs == [Substitution::SpecialChars])
                 );
@@ -34,7 +34,7 @@ fn draft_title_quoting_is_separate_from_compatibility_and_export() -> Result<(),
 #[test]
 fn draft_roles_and_options_accumulate_once_in_source_order() -> Result<(), Error> {
     let options = Options::builder()
-        .with_attribute_syntax(AttributeSyntax::Draft)
+        .with_compatibility_mode(CompatibilityMode::Draft)
         .build()?;
     for source in [
         "[role=a,roles=b,role=a,opts='one two',options='two,three']\nText.",
@@ -66,7 +66,7 @@ fn draft_roles_and_options_accumulate_once_in_source_order() -> Result<(), Error
 #[test]
 fn draft_literal_titles_expand_attributes_without_registering_macros() -> Result<(), Error> {
     let options = Options::builder()
-        .with_attribute_syntax(AttributeSyntax::Draft)
+        .with_compatibility_mode(CompatibilityMode::Draft)
         .build()?;
     let parsed = parse(
         "= T\n:word: expanded\n\n[title=\"{word} footnote:[Literal]\"]\nText.",
@@ -80,14 +80,14 @@ fn draft_literal_titles_expand_attributes_without_registering_macros() -> Result
     );
     assert_eq!(parsed.document().footnotes, []);
     let rebuilt = options.into_static().into_builder().build()?;
-    assert_eq!(rebuilt.attribute_syntax, AttributeSyntax::Draft);
+    assert_eq!(rebuilt.compatibility_mode, CompatibilityMode::Draft);
     Ok(())
 }
 
 #[test]
 fn draft_media_macro_attributes_accumulate_with_block_metadata() -> Result<(), Error> {
     let options = Options::builder()
-        .with_attribute_syntax(AttributeSyntax::Draft)
+        .with_compatibility_mode(CompatibilityMode::Draft)
         .build()?;
     for media in ["image::photo.svg", "audio::sound.ogg", "video::clip.mp4"] {
         let source = format!("[role=a,opts=one]\n{media}[role=b,role=a,opts='two one']");
@@ -108,7 +108,7 @@ fn draft_media_macro_attributes_accumulate_with_block_metadata() -> Result<(), E
 #[test]
 fn draft_literal_titles_protect_typography_passthroughs_and_entities() -> Result<(), Error> {
     let options = Options::builder()
-        .with_attribute_syntax(AttributeSyntax::Draft)
+        .with_compatibility_mode(CompatibilityMode::Draft)
         .build()?;
     let value = "A -- B *bold* ++literal++ &copy; footnote:[Note]";
     for source in [
@@ -136,8 +136,8 @@ fn draft_literal_titles_protect_typography_passthroughs_and_entities() -> Result
 
 #[test]
 fn named_titles_keep_one_reference_pass_and_the_declaration_snapshot() -> Result<(), Error> {
-    for syntax in [AttributeSyntax::Asciidoctor, AttributeSyntax::Draft] {
-        let options = Options::builder().with_attribute_syntax(syntax).build()?;
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let options = Options::builder().with_compatibility_mode(mode).build()?;
         for quote in ['\'', '"'] {
             let source = format!(
                 ":inner: Before\n:outer: \\{{inner}}\n\n[title={quote}{{outer}} / {{inner}}{quote}]\n:inner: After\nBody."
@@ -157,7 +157,7 @@ fn named_titles_keep_one_reference_pass_and_the_declaration_snapshot() -> Result
                     return Err(format!("unexpected inline: {node:?}").into());
                 }
             }
-            assert_eq!(text, "{inner} / Before", "{syntax:?}: {source}");
+            assert_eq!(text, "{inner} / Before", "{mode:?}: {source}");
         }
     }
     Ok(())
@@ -166,7 +166,7 @@ fn named_titles_keep_one_reference_pass_and_the_declaration_snapshot() -> Result
 #[test]
 fn draft_dot_titles_still_parse_inline_content() -> Result<(), Error> {
     let options = Options::builder()
-        .with_attribute_syntax(AttributeSyntax::Draft)
+        .with_compatibility_mode(CompatibilityMode::Draft)
         .build()?;
     let parsed = parse(".*Title*\nText.", &options)?;
     let [Block::Paragraph(block)] = parsed.document().blocks.as_slice() else {
@@ -177,22 +177,45 @@ fn draft_dot_titles_still_parse_inline_content() -> Result<(), Error> {
 }
 
 #[test]
-fn attribute_policy_survives_option_conversions_and_defaults_to_asciidoctor() -> Result<(), Error> {
+fn compatibility_mode_survives_option_conversions_and_defaults_to_asciidoctor() -> Result<(), Error>
+{
     assert_eq!(
-        Options::default().attribute_syntax,
-        AttributeSyntax::Asciidoctor
+        Options::default().compatibility_mode,
+        CompatibilityMode::Asciidoctor
     );
     assert_eq!(
-        Options::builder().build()?.attribute_syntax,
-        AttributeSyntax::Asciidoctor
+        Options::builder().build()?.compatibility_mode,
+        CompatibilityMode::Asciidoctor
     );
-    for syntax in [AttributeSyntax::Asciidoctor, AttributeSyntax::Draft] {
-        let options = Options::builder().with_attribute_syntax(syntax).build()?;
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let options = Options::builder().with_compatibility_mode(mode).build()?;
         assert_eq!(
-            options.clone().into_builder().build()?.attribute_syntax,
-            syntax
+            options.clone().into_builder().build()?.compatibility_mode,
+            mode
         );
-        assert_eq!(options.into_static().attribute_syntax, syntax);
+        assert_eq!(options.into_static().compatibility_mode, mode);
+    }
+    Ok(())
+}
+
+#[test]
+fn document_attributes_cannot_select_the_compatibility_mode() -> Result<(), Error> {
+    let source =
+        ":compatibility-mode: draft\n:attribute-syntax: draft\n\n[title=\"*Title*\"]\nBody.";
+    for mode in [
+        CompatibilityMode::Draft,
+        CompatibilityMode::Asciidoctor,
+        CompatibilityMode::Draft,
+    ] {
+        let options = Options::builder().with_compatibility_mode(mode).build()?;
+        let parsed = parse(source, &options)?;
+        let [Block::Paragraph(block)] = parsed.document().blocks.as_slice() else {
+            return Err("missing paragraph".into());
+        };
+        assert_eq!(
+            matches!(block.title.first(), Some(InlineNode::BoldText(_))),
+            mode == CompatibilityMode::Asciidoctor
+        );
     }
     Ok(())
 }

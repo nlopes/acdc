@@ -32,13 +32,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- A short explanation of the planned Asciidoctor and Draft compatibility modes.
-  The current parser options and behavior are unchanged.
-- Opt-in draft attribute rules keep unquoted and double-quoted named titles
-  literal, parse single-quoted titles, and accumulate distinct roles/options.
-  Select them with `OptionsBuilder::with_attribute_syntax(AttributeSyntax::Draft)`;
-  defaults and image alt/tooltip behavior remain unchanged. This selects only
-  the documented rules, independently of Cargo features and output format.
+- Parser fixtures support shared expectations or explicit Asciidoctor/Draft
+  pairs, optional diagnostics, and stable test names. The runner rejects missing
+  or conflicting expectations. The generator shares its parsing rules and fails
+  before writing if a selected case has an unexpected outcome. Every case runs
+  in both modes; a shared expectation requires identical results.
+
+- Select `CompatibilityMode::Draft` through `OptionsBuilder::with_compatibility_mode()`
+  to keep unquoted and double-quoted named titles literal, parse single-quoted
+  titles, and accumulate distinct roles/options. `Asciidoctor` remains the default;
+  this API change leaves default parsing behavior unchanged. Both modes are
+  available in every build and use the same AST. Image alt/tooltip behavior,
+  custom substitutions, and Setext controls are unchanged. Draft supports these
+  reviewed rules, not the entire unfinished specification.
 
 - `OptionsBuilder::with_force_local_file_xrefs()` resolves file-qualified
   references by their local anchors in combined or partially included documents.

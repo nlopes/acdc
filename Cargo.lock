@@ -235,10 +235,10 @@ dependencies = [
  "bumpalo",
  "chrono",
  "criterion",
- "crossterm",
  "csv",
  "encoding_rs",
  "evalexpr",
+ "libtest-mimic",
  "peg",
  "pretty_assertions",
  "proptest",
@@ -249,6 +249,7 @@ dependencies = [
  "serde",
  "serde_json",
  "stats_alloc",
+ "tempfile",
  "thiserror",
  "tracing",
  "tracing-test",
@@ -1592,6 +1593,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "escape8259"
+version = "0.5.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9f1f0d310082fd5de539d4f41601182241147498444a7695c520288a0cdbead6"
+
+[[package]]
 name = "euclid"
 version = "0.22.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2846,6 +2853,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c943259e342f1e06ff2da7a83eabdfe7f92ce10262688dbf1895ff0b3e6e4652"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "libtest-mimic"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "14e6ba06f0ade6e504aff834d7c34298e5155c6baca353cc6a4aaff2f9fd7f33"
+dependencies = [
+ "anstream",
+ "anstyle",
+ "clap",
+ "escape8259",
 ]
 
 [[package]]

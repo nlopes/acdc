@@ -193,7 +193,7 @@ pub use model::{
 };
 #[cfg(feature = "pre-spec-subs")]
 pub use model::{SubstitutionOp, SubstitutionSpec};
-pub use options::{AttributeSyntax, Options, OptionsBuilder, SafeMode};
+pub use options::{CompatibilityMode, Options, OptionsBuilder, SafeMode};
 pub use parsed::{OwnedSource, ParseInlineResult, ParseResult};
 pub use source_provider::{
     IncludeLoader, IncludeSource, IncludeSourceError, IncludeSourceErrorKind,
@@ -695,19 +695,11 @@ mod proptests;
 #[allow(clippy::panic)]
 #[allow(clippy::expect_used)]
 mod tests {
-    use std::{error::Error as StdError, fs, path::PathBuf};
+    use std::{error::Error as StdError, path::PathBuf};
 
     use pretty_assertions::assert_eq;
 
     use super::*;
-
-    fn read_file_contents_with_extension(path: &PathBuf, ext: &str) -> Result<String, Error> {
-        let test_file_path = path.with_extension(ext);
-        let file_contents = fs::read_to_string(&test_file_path).inspect_err(
-            |e| tracing::warn!(?path, ?test_file_path, error = %e, "test file not found"),
-        )?;
-        Ok(file_contents)
-    }
 
     #[test]
     fn table_comments_leave_hidden_footnotes_and_targets_unregistered() -> Result<(), Error> {
@@ -1351,60 +1343,6 @@ mod tests {
         };
         assert_eq!(empty, BlockMetadata::default());
         assert_eq!(BlockMetadata::new().positional_attributes().len(), 0);
-        Ok(())
-    }
-
-    #[rstest::rstest]
-    #[tracing_test::traced_test]
-    fn test_with_fixtures(
-        #[files("fixtures/tests/**/*.adoc")]
-        #[exclude(r"[/\\]includes[/\\]")]
-        path: PathBuf,
-    ) -> Result<(), Error> {
-        let stem = path
-            .file_stem()
-            .and_then(|stem| stem.to_str())
-            .unwrap_or("");
-
-        #[cfg(not(feature = "pre-spec-subs"))]
-        if stem.starts_with("subs_") {
-            return Ok(());
-        }
-
-        // Fixtures whose name contains `with_setext` exercise Setext (two-line
-        // underlined) headings, which are opt-in: their expected JSON captures the
-        // `--enable-setext-compatibility` behavior. Skip when the feature is off
-        // (the AST would diverge); enable the option when it is on. The `with_`
-        // prefix keeps the marker unambiguous (vs a future `without_setext`).
-        let setext_fixture = stem.contains("with_setext");
-        #[cfg(not(feature = "setext"))]
-        if setext_fixture {
-            return Ok(());
-        }
-
-        let builder = Options::builder().with_safe_mode(SafeMode::Unsafe);
-        #[cfg(feature = "setext")]
-        let builder = if setext_fixture {
-            builder.with_setext()
-        } else {
-            builder
-        };
-        let options = builder.build()?;
-
-        match parse_file(&path, &options) {
-            Ok(result) => {
-                let expected = read_file_contents_with_extension(&path, "json")?;
-                let actual = serde_json::to_string_pretty(result.document())
-                    .expect("could not serialize result");
-                assert_eq!(expected, actual);
-            }
-            Err(e) => {
-                let file_contents = read_file_contents_with_extension(&path, "error")?;
-                // Error fixtures contain expected error message as plain text
-                let expected = file_contents.trim();
-                assert_eq!(expected, e.to_string());
-            }
-        }
         Ok(())
     }
 

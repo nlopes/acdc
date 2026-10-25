@@ -1,0 +1,14 @@
+:word: Before
+:outer: \{word}
+
+[title="{word} / {outer}"]
+:word: After
+The title keeps the earlier values.
+
+[title='{word} / {outer}']
+:word: Last
+The formatted title also keeps its declaration snapshot.
+
+[title='footnote:[Discarded]']
+[title='*Selected* footnote:[Kept]']
+Only the selected title registers a footnote.

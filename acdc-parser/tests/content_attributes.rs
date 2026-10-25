@@ -1,4 +1,4 @@
-use acdc_parser::{AttributeSyntax, Block, ContentAttribute, InlineNode, Options, Title, parse};
+use acdc_parser::{Block, CompatibilityMode, ContentAttribute, InlineNode, Options, Title, parse};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -31,8 +31,8 @@ fn title_presence_is_independent_of_inline_content() -> Result<(), Error> {
     assert!(empty.is_present());
     assert_ne!(absent, empty);
 
-    for syntax in [AttributeSyntax::Asciidoctor, AttributeSyntax::Draft] {
-        let options = Options::builder().with_attribute_syntax(syntax).build()?;
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let options = Options::builder().with_compatibility_mode(mode).build()?;
         let parsed = parse(
             "image::photo.png[title=\"\"]\n\nimage::photo.png[]",
             &options,
@@ -145,8 +145,8 @@ fn content_attributes_serialize_only_their_selected_inline_content() -> Result<(
 
 #[test]
 fn named_titles_use_the_attributes_at_their_declaration() -> Result<(), Error> {
-    for syntax in [AttributeSyntax::Asciidoctor, AttributeSyntax::Draft] {
-        let options = Options::builder().with_attribute_syntax(syntax).build()?;
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let options = Options::builder().with_compatibility_mode(mode).build()?;
         for quote in ["'", "\""] {
             let source = format!(
                 "= Title\n:word: Before\n\n[title={quote}{{word}} footnote:[Selected.]{quote}]\n:word: After\n{{word}}.\n"
@@ -165,7 +165,7 @@ fn named_titles_use_the_attributes_at_their_declaration() -> Result<(), Error> {
                 })
                 .ok_or("missing paragraph")?;
 
-            if syntax == AttributeSyntax::Draft && quote == "\"" {
+            if mode == CompatibilityMode::Draft && quote == "\"" {
                 assert!(matches!(block.title.as_ref(), [InlineNode::RawText(text)]
                     if text.content == "Before footnote:[Selected.]"));
             } else {
@@ -179,7 +179,7 @@ fn named_titles_use_the_attributes_at_their_declaration() -> Result<(), Error> {
             );
             assert_eq!(
                 parsed.document().footnotes.len(),
-                usize::from(quote == "'" || syntax == AttributeSyntax::Asciidoctor)
+                usize::from(quote == "'" || mode == CompatibilityMode::Asciidoctor)
             );
             for note in &parsed.document().footnotes {
                 assert_eq!(
