@@ -7,7 +7,10 @@ use crate::{
     document_attribute::AttributeDeclaration,
     grammar::{
         ParserState,
-        attributes::{AttributeQuote, ScannedAttribute, scan_attribute_list},
+        attributes::{
+            AttributeQuote, BlockAttributeMode, ScannedAttribute, block_attribute_line,
+            block_attribute_list_allowed, scan_block_attribute_list,
+        },
         helpers::{
             BlockParsingMetadata, RESERVED_NAMED_ATTRIBUTE_ID, RESERVED_NAMED_ATTRIBUTE_OPTIONS,
             RESERVED_NAMED_ATTRIBUTE_ROLE, RESERVED_NAMED_ATTRIBUTE_SUBS,
@@ -259,8 +262,17 @@ pub(super) fn media_attributes_ahead<'input>(
     let line = state.input.get(line_start + offset..)?.lines().next()?;
     let start = line.find('[')? + 1;
     let end = line.rfind(']')?;
+    let source = line.get(start..end)?;
+    if !block_attribute_list_allowed(
+        source,
+        &state.document_attributes,
+        state.options.compatibility_mode,
+        BlockAttributeMode::Macro,
+    ) {
+        return None;
+    }
     Some(RawAttributeList {
-        source: line.get(start..end)?,
+        source,
         start: line_start + start,
         end: line_start + end,
     })
@@ -301,10 +313,11 @@ pub(super) fn finish_block_parsing_metadata<'input>(
 pub(super) fn metadata_marks_discrete_heading(metadata: &str, state: &ParserState<'_>) -> bool {
     let mut discrete = false;
     for line in metadata.lines() {
-        let Some(attributes) = line
-            .strip_prefix('[')
-            .and_then(|line| line.strip_suffix(']'))
-        else {
+        let Some(attributes) = block_attribute_line(
+            line,
+            &state.document_attributes,
+            state.options.compatibility_mode,
+        ) else {
             continue;
         };
         if attributes.starts_with('[') {
@@ -315,7 +328,7 @@ pub(super) fn metadata_marks_discrete_heading(metadata: &str, state: &ParserStat
             &[Substitution::Attributes],
             &state.document_attributes,
         );
-        let attributes = scan_attribute_list(&attributes, &[]);
+        let attributes = scan_block_attribute_list(&attributes, state.options.compatibility_mode);
         if let Some(first) = attributes
             .first()
             .filter(|attribute| attribute.name.is_none())
@@ -331,12 +344,6 @@ pub(super) fn metadata_marks_discrete_heading(metadata: &str, state: &ParserStat
         }
     }
     discrete
-}
-
-#[derive(Clone, Copy)]
-pub(super) enum BlockAttributeMode {
-    Block,
-    Macro,
 }
 
 fn apply_block_style<'input>(
@@ -590,13 +597,13 @@ pub(super) fn parse_block_attribute_list<'input>(
         &state.document_attributes,
     );
     let positions_exact = matches!(substituted, Cow::Borrowed(_));
-    let attributes = scan_attribute_list(&substituted, &[]);
-    let authored = (!positions_exact).then(|| scan_attribute_list(source, &[]));
+    let scan = |text| scan_block_attribute_list(text, state.options.compatibility_mode);
+    let authored = (!positions_exact).then(|| scan(source));
     let mut metadata = BlockMetadata::default();
     let mut discrete = false;
     let mut title_source = None;
 
-    for (slot, attribute) in attributes.into_iter().enumerate() {
+    for (slot, attribute) in scan(&substituted).into_iter().enumerate() {
         let value = state.intern_str(&attribute.value);
         let name = attribute.name.as_deref().map(|name| state.intern_str(name));
         let location = positions_exact.then(|| {

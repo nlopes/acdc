@@ -1,0 +1,818 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Attribute Boundaries",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 22
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 22
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "\"Ada\"Notes",
+            "location": [
+              {
+                "line": 3,
+                "col": 9
+              },
+              {
+                "line": 3,
+                "col": 19
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "Book",
+            "location": [
+              {
+                "line": 3,
+                "col": 21
+              },
+              {
+                "line": 3,
+                "col": 25
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "An adjacent character does not terminate a quoted Draft value.",
+              "location": [
+                {
+                  "line": 5,
+                  "col": 1
+                },
+                {
+                  "line": 5,
+                  "col": 62
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 62
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 6,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "attributes": {
+          "Book": null
+        },
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "Ada",
+            "location": [
+              {
+                "line": 8,
+                "col": 10
+              },
+              {
+                "line": 8,
+                "col": 13
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "Notes",
+            "location": [
+              {
+                "line": 8,
+                "col": 15
+              },
+              {
+                "line": 8,
+                "col": 20
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Whitespace can separate a quoted value from the next entry.",
+              "location": [
+                {
+                  "line": 10,
+                  "col": 1
+                },
+                {
+                  "line": 10,
+                  "col": 59
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 10,
+              "col": 1
+            },
+            {
+              "line": 10,
+              "col": 59
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 8,
+          "col": 1
+        },
+        {
+          "line": 11,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "café, λ",
+            "location": [
+              {
+                "line": 13,
+                "col": 24
+              },
+              {
+                "line": 13,
+                "col": 31
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Book",
+            "location": [
+              {
+                "line": 13,
+                "col": 47
+              },
+              {
+                "line": 13,
+                "col": 50
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Quoted commas and spaces around an equals sign stay inside the list.",
+              "location": [
+                {
+                  "line": 15,
+                  "col": 1
+                },
+                {
+                  "line": 15,
+                  "col": 68
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 15,
+              "col": 1
+            },
+            {
+              "line": 15,
+              "col": 68
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 13,
+          "col": 1
+        },
+        {
+          "line": 16,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "An adjacent suffix belongs to the unquoted Draft value.",
+          "location": [
+            {
+              "line": 19,
+              "col": 1
+            },
+            {
+              "line": 19,
+              "col": 55
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "data": "\"α\"tail"
+        },
+        "roles": [
+          "after"
+        ]
+      },
+      "location": [
+        {
+          "line": 18,
+          "col": 1
+        },
+        {
+          "line": 19,
+          "col": 55
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "An unmatched quote falls back to an unquoted value.",
+          "location": [
+            {
+              "line": 22,
+              "col": 1
+            },
+            {
+              "line": 22,
+              "col": 51
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "data": "\"α"
+        },
+        "roles": [
+          "after"
+        ]
+      },
+      "location": [
+        {
+          "line": 21,
+          "col": 1
+        },
+        {
+          "line": 22,
+          "col": 51
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "An empty enclosure also needs a separator.",
+          "location": [
+            {
+              "line": 25,
+              "col": 1
+            },
+            {
+              "line": 25,
+              "col": 42
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "data": "\"\"tail"
+        },
+        "roles": [
+          "after"
+        ]
+      },
+      "location": [
+        {
+          "line": 24,
+          "col": 1
+        },
+        {
+          "line": 25,
+          "col": 42
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Empty slots do not move named entries.",
+          "location": [
+            {
+              "line": 28,
+              "col": 1
+            },
+            {
+              "line": 28,
+              "col": 38
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "data": "α",
+          "other": "λ"
+        }
+      },
+      "location": [
+        {
+          "line": 27,
+          "col": 1
+        },
+        {
+          "line": 28,
+          "col": 38
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "width": "\"25\"height=\"15\""
+        }
+      },
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "\"café\"tail",
+          "location": [
+            {
+              "line": 30,
+              "col": 20
+            },
+            {
+              "line": 30,
+              "col": 29
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "diagram.svg"
+      },
+      "location": [
+        {
+          "line": 30,
+          "col": 1
+        },
+        {
+          "line": 30,
+          "col": 53
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "image",
+          "type": "inline",
+          "metadata": {
+            "attributes": {
+              "height": "15",
+              "width": "25"
+            }
+          },
+          "alt": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "café",
+              "location": [
+                {
+                  "line": 32,
+                  "col": 20
+                },
+                {
+                  "line": 32,
+                  "col": 23
+                }
+              ]
+            }
+          ],
+          "target": {
+            "type": "path",
+            "value": "diagram.svg"
+          },
+          "location": [
+            {
+              "line": 32,
+              "col": 1
+            },
+            {
+              "line": 32,
+              "col": 52
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 32,
+          "col": 1
+        },
+        {
+          "line": 32,
+          "col": 52
+        }
+      ]
+    },
+    {
+      "name": "audio",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "roles": [
+          "media"
+        ],
+        "style": "\"α\"tail"
+      },
+      "source": {
+        "type": "path",
+        "value": "clip.ogg"
+      },
+      "location": [
+        {
+          "line": 34,
+          "col": 1
+        },
+        {
+          "line": 34,
+          "col": 35
+        }
+      ]
+    },
+    {
+      "name": "video",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "poster": "\"α\"tail",
+          "width": "\"25\"height=\"15\""
+        }
+      },
+      "source": {
+        "type": "path",
+        "value": "clip.webm"
+      },
+      "location": [
+        {
+          "line": 36,
+          "col": 1
+        },
+        {
+          "line": 36,
+          "col": 47
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Closing brackets remain inside the confined block attribute list.",
+          "location": [
+            {
+              "line": 39,
+              "col": 1
+            },
+            {
+              "line": 39,
+              "col": 65
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "data": "α]β"
+        },
+        "roles": [
+          "brackets"
+        ]
+      },
+      "location": [
+        {
+          "line": 38,
+          "col": 1
+        },
+        {
+          "line": 39,
+          "col": 65
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "[data=\"not closed\nThe next line is ordinary content.",
+          "location": [
+            {
+              "line": 41,
+              "col": 1
+            },
+            {
+              "line": 42,
+              "col": 34
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 41,
+          "col": 1
+        },
+        {
+          "line": 42,
+          "col": 34
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "printf 'café'",
+          "location": [
+            {
+              "line": 45,
+              "col": 1
+            },
+            {
+              "line": 45,
+              "col": 13
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "rust": null
+        },
+        "style": "\"source\"suffix"
+      },
+      "location": [
+        {
+          "line": 44,
+          "col": 1
+        },
+        {
+          "line": 45,
+          "col": 13
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "[source,role=tail ]\nprintf 'λ'",
+          "location": [
+            {
+              "line": 48,
+              "col": 1
+            },
+            {
+              "line": 49,
+              "col": 10
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 48,
+          "col": 1
+        },
+        {
+          "line": 49,
+          "col": 10
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "title": [
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "café",
+              "location": [
+                {
+                  "line": 52,
+                  "col": 21
+                },
+                {
+                  "line": 52,
+                  "col": 24
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 52,
+              "col": 20
+            },
+            {
+              "line": 52,
+              "col": 25
+            }
+          ]
+        }
+      ],
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Quoted Unicode content retains its authored location.",
+          "location": [
+            {
+              "line": 53,
+              "col": 1
+            },
+            {
+              "line": 53,
+              "col": 53
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "data": "α,β"
+        }
+      },
+      "location": [
+        {
+          "line": 52,
+          "col": 1
+        },
+        {
+          "line": 53,
+          "col": 53
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 53,
+      "col": 53
+    }
+  ]
+}

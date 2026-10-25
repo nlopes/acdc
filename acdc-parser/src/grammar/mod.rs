@@ -21,7 +21,7 @@ mod source_remap;
 mod state;
 pub(crate) mod utf8_utils;
 
-pub(crate) use attributes::verbatim_paragraph_style;
+pub(crate) use attributes::{block_attribute_line, verbatim_paragraph_style};
 pub(crate) use document::document_parser;
 pub(crate) use inline_preprocessor::{
     InlinePreprocessorParserState, ProcessedContent, inline_preprocessing,

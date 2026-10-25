@@ -1,0 +1,234 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Attribute Contexts",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 20
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 20
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "printf 'café'",
+          "location": [
+            {
+              "line": 3,
+              "col": 1,
+              "file": [
+                "includes/compatibility_attribute_boundaries.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 13,
+              "file": [
+                "includes/compatibility_attribute_boundaries.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "rust": null
+        },
+        "style": "\"source\"suffix"
+      },
+      "location": [
+        {
+          "line": 2,
+          "col": 1,
+          "file": [
+            "includes/compatibility_attribute_boundaries.adoc"
+          ]
+        },
+        {
+          "line": 3,
+          "col": 13,
+          "file": [
+            "includes/compatibility_attribute_boundaries.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Included text.",
+          "location": [
+            {
+              "line": 7,
+              "col": 1,
+              "file": [
+                "includes/compatibility_attribute_boundaries.adoc"
+              ]
+            },
+            {
+              "line": 7,
+              "col": 14,
+              "file": [
+                "includes/compatibility_attribute_boundaries.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "data": "\"α\"tail"
+        },
+        "roles": [
+          "include"
+        ]
+      },
+      "location": [
+        {
+          "line": 6,
+          "col": 1,
+          "file": [
+            "includes/compatibility_attribute_boundaries.adoc"
+          ]
+        },
+        {
+          "line": 7,
+          "col": 14,
+          "file": [
+            "includes/compatibility_attribute_boundaries.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "printf 'λ'",
+                        "location": [
+                          {
+                            "line": 8,
+                            "col": 1
+                          },
+                          {
+                            "line": 8,
+                            "col": 10
+                          }
+                        ]
+                      }
+                    ],
+                    "metadata": {
+                      "attributes": {
+                        "rust": null
+                      },
+                      "style": "\"source\"suffix"
+                    },
+                    "location": [
+                      {
+                        "line": 7,
+                        "col": 2
+                      },
+                      {
+                        "line": 8,
+                        "col": 10
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 6,
+            "col": 1
+          },
+          {
+            "line": 10,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 10,
+          "col": 4
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 10,
+      "col": 4
+    }
+  ]
+}

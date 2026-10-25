@@ -1,0 +1,9 @@
+This line is not selected.
+["source"suffix,rust]
+printf 'café'
+// The selected mode controls whether this comment belongs to source.
+
+[data="α"tail,role=include]
+Included text.
+
+This line is not selected.

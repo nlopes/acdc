@@ -13,6 +13,7 @@ use crate::{
     document_attribute::{AttributeDeclaration, RawAttributeValue},
     grammar::{
         ParserState,
+        attributes::{BlockAttributeMode, block_attribute_list_allowed},
         document::{
             author::{derive_author_attrs, register_author_attrs},
             callouts::resolve_verbatim_callouts,
@@ -27,12 +28,12 @@ use crate::{
                 prepare_manpage_name_attributes,
             },
             metadata::{
-                AttributeOrAnchorLine, BlockAttributeMode, BlockMetadataLine,
-                ContentAttributeSource, RawAttributeList, assign_block_caption,
-                extract_media_dimensions, finish_block_parsing_metadata, media_attributes_ahead,
-                merge_attribute_metadata, merge_macro_metadata, metadata_marks_discrete_heading,
-                order_document_attribute_events, parse_block_attribute_list, push_metadata_anchor,
-                resolve_block_content_attributes, resolve_title,
+                AttributeOrAnchorLine, BlockMetadataLine, ContentAttributeSource, RawAttributeList,
+                assign_block_caption, extract_media_dimensions, finish_block_parsing_metadata,
+                media_attributes_ahead, merge_attribute_metadata, merge_macro_metadata,
+                metadata_marks_discrete_heading, order_document_attribute_events,
+                parse_block_attribute_list, push_metadata_anchor, resolve_block_content_attributes,
+                resolve_title,
             },
             references::{
                 ReferenceCatalog, collect_inline_references, collect_metadata_references,
@@ -352,7 +353,7 @@ peg::parser! {
         / "//" !"/" [^'\n']* (eol() / ![_]) { None }
         / "[[" (!"]]" [^'\n'])+ "]]" (eol() / ![_]) { None }
         / !empty_list_separator() !double_open_square_bracket()
-          open_square_bracket() attribute_list_content() (eol() / ![_]) { None }
+          open_square_bracket() attribute_list_content(BlockAttributeMode::Block) (eol() / ![_]) { None }
         / "." ![' ' | '\t' | '\n' | '\r' | '.'] [^'\n']* (eol() / ![_]) { None }
         / attribute:document_attribute_match() (eol() / ![_]) { Some(attribute) }
 
@@ -1735,7 +1736,7 @@ peg::parser! {
         }
 
         rule toc(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
-        = "toc::" attributes:attributes() end:position!()
+        = "toc::" attributes:macro_attributes() end:position!()
           trailing:$([^'\n']*)
         {
             let (_discrete, metadata_from_attributes, _title_position) = attributes;
@@ -1764,7 +1765,7 @@ peg::parser! {
 
         // Select the media title before parsing macros in a preceding dot-title.
         rule media_block_ahead() -> bool
-        = &(("image::" / "audio::" / "video::") [^'[' | '\n' | '\r']+ "[" attribute_list_content()) { true }
+        = &(("image::" / "audio::" / "video::") [^'[' | '\n' | '\r']+ "[" attribute_list_content(BlockAttributeMode::Macro)) { true }
         / { false }
 
         rule source_match()
@@ -1947,7 +1948,7 @@ peg::parser! {
 
         rule attributes_line_match()
         = !empty_list_separator() !double_open_square_bracket()
-          open_square_bracket() attribute_list_content() (eol() / ![_])
+          open_square_bracket() attribute_list_content(BlockAttributeMode::Block) (eol() / ![_])
 
         rule anchor_line_match()
         = double_open_square_bracket() [^'\'' | ',' | ']' | ' ' | '\t' | '\n' | '\r']+
@@ -3703,10 +3704,10 @@ peg::parser! {
             }
 
         rule raw_attributes_line() -> RawAttributeList<'input>
-            = !empty_list_separator() !double_open_square_bracket() attributes:raw_attribute_list() eol() { attributes }
+            = !empty_list_separator() !double_open_square_bracket() attributes:raw_attribute_list(BlockAttributeMode::Block) eol() { attributes }
 
-        rule raw_attribute_list() -> RawAttributeList<'input>
-            = open_square_bracket() start:position!() source:attribute_list_content()
+        rule raw_attribute_list(context: BlockAttributeMode) -> RawAttributeList<'input>
+            = open_square_bracket() start:position!() source:attribute_list_content(context)
             { RawAttributeList { source, start, end: span_end } }
 
         // Empty brackets followed by a blank line is a list separator
@@ -3717,7 +3718,7 @@ peg::parser! {
             = !double_open_square_bracket()
               open_square_bracket()
               content_start:position!()
-              content:attribute_list_content()
+              content:attribute_list_content(BlockAttributeMode::Block)
             {
                 parse_block_attribute_list(
                     state,
@@ -3741,7 +3742,7 @@ peg::parser! {
             = macro_attributes_for()
 
         rule cached_macro_attributes(block_metadata: &BlockParsingMetadata<'input>) -> (bool, BlockMetadata<'input>, Option<ContentAttributeSource<'input>>)
-            = attributes:raw_attribute_list() {
+            = attributes:raw_attribute_list(BlockAttributeMode::Macro) {
                 if let Some(metadata) = &block_metadata.media_attributes {
                     (false, (**metadata).clone(), None)
                 } else {
@@ -3752,7 +3753,7 @@ peg::parser! {
         rule macro_attributes_for() -> (bool, BlockMetadata<'input>, Option<ContentAttributeSource<'input>>)
             = open_square_bracket()
               content_start:position!()
-              content:attribute_list_content()
+              content:attribute_list_content(BlockAttributeMode::Macro)
             {
                 parse_block_attribute_list(
                     state,
@@ -3766,8 +3767,12 @@ peg::parser! {
 
         rule open_square_bracket() = "["
         rule close_square_bracket() = "]"
-        rule attribute_list_content() -> &'input str
-            = content:$((!last_close_square_bracket() [^'\n' | '\r'])*) close_square_bracket() { content }
+        rule attribute_list_content(context: BlockAttributeMode) -> &'input str
+            = content:$((!last_close_square_bracket() [^'\n' | '\r'])*) close_square_bracket() {?
+                block_attribute_list_allowed(content, &state.document_attributes, state.options.compatibility_mode, context)
+                    .then_some(content)
+                    .ok_or("attribute list without outer whitespace")
+            }
         rule last_close_square_bracket()
             = &("]" [^']' | '\n' | '\r']* (eol() / ![_]))
         rule double_open_square_bracket() = "[["

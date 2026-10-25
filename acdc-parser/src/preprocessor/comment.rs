@@ -23,7 +23,10 @@
 //! whether that rebuild would change anything (and so can be skipped).
 
 use super::Preprocessor;
-use crate::{DocumentAttributes, Options, grammar::verbatim_paragraph_style};
+use crate::{
+    CompatibilityMode, DocumentAttributes, Options,
+    grammar::{block_attribute_line, verbatim_paragraph_style},
+};
 
 /// Whether Setext (two-line, underlined) titles are active: the `setext` feature
 /// is compiled in *and* the runtime option is set. Mirrors
@@ -117,15 +120,21 @@ pub(super) struct CommentScanner {
     /// Whether Setext titles are active, so their underlines count as a heading
     /// boundary (see [`setext_enabled`]).
     setext: bool,
+    compatibility_mode: CompatibilityMode,
 }
 
 impl CommentScanner {
     /// Start as if at a blank boundary so a leading comment is preserved.
-    pub(super) fn new(setext: bool, blocks: BlockContext) -> Self {
+    pub(super) fn new(
+        setext: bool,
+        blocks: BlockContext,
+        compatibility_mode: CompatibilityMode,
+    ) -> Self {
         Self {
             blocks,
             prev_attaches: false,
             setext,
+            compatibility_mode,
         }
     }
 
@@ -278,8 +287,10 @@ impl CommentScanner {
         } else if Preprocessor::is_verbatim_delimiter(line).is_some() || is_title_line(line, false)
         {
             self.blocks.paragraph = ParagraphContext::None;
-        } else if line.starts_with('[') && line.ends_with(']') {
-            if let Some(verbatim) = verbatim_paragraph_style(line, attributes) {
+        } else if let Some(list) = block_attribute_line(line, attributes, self.compatibility_mode) {
+            if let Some(verbatim) =
+                verbatim_paragraph_style(list, attributes, self.compatibility_mode)
+            {
                 self.blocks.paragraph = if verbatim {
                     ParagraphContext::Pending
                 } else {

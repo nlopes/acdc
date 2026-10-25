@@ -1,10 +1,48 @@
 //! Attribute-list scanning shared by grammars and preprocessing.
 
 use crate::{
-    DocumentAttributes,
+    CompatibilityMode, DocumentAttributes,
     model::{Substitution, substitute},
 };
 use std::ops::Range;
+
+#[derive(Clone, Copy)]
+pub(super) enum BlockAttributeMode {
+    Block,
+    Macro,
+}
+
+// Asciidoctor checks the authored block line before expansion. Draft also
+// rejects outer whitespace introduced by an attribute reference.
+pub(super) fn block_attribute_list_allowed(
+    source: &str,
+    attributes: &DocumentAttributes<'_>,
+    mode: CompatibilityMode,
+    context: BlockAttributeMode,
+) -> bool {
+    match mode {
+        CompatibilityMode::Asciidoctor => {
+            matches!(context, BlockAttributeMode::Macro) || !source.starts_with([' ', '\t'])
+        }
+        CompatibilityMode::Draft => {
+            if source.starts_with([' ', '\t']) || source.ends_with([' ', '\t']) {
+                return false;
+            }
+            let expanded = substitute(source, &[Substitution::Attributes], attributes);
+            !expanded.starts_with([' ', '\t']) && !expanded.ends_with([' ', '\t'])
+        }
+    }
+}
+
+pub(crate) fn block_attribute_line<'a>(
+    line: &'a str,
+    attributes: &DocumentAttributes<'_>,
+    mode: CompatibilityMode,
+) -> Option<&'a str> {
+    let source = line.strip_prefix('[')?.strip_suffix(']')?;
+    block_attribute_list_allowed(source, attributes, mode, BlockAttributeMode::Block)
+        .then_some(source)
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum AttributeQuote {
@@ -13,7 +51,7 @@ pub(super) enum AttributeQuote {
     Double,
 }
 
-/// One slot of an attribute list, as Asciidoctor's `AttributeList` reads it.
+/// One slot of a confined attribute list, with byte offsets into its source.
 /// Also used by cross-references and links when their text holds attributes.
 #[derive(Debug)]
 pub(super) struct ScannedAttribute {
@@ -60,12 +98,17 @@ fn closing_quote(
     quote: char,
     start: usize,
     protected: &[Range<usize>],
+    mode: CompatibilityMode,
 ) -> Option<usize> {
     // AttributeList treats a quote after any backslash run as escaped.
     let mut escaped = false;
     for (index, character) in value.char_indices().skip(1) {
         if character == quote && !escaped && !inside_attribute_content(start + index, protected) {
-            return Some(index);
+            let after = &value[index + character.len_utf8()..];
+            return (mode == CompatibilityMode::Asciidoctor
+                || after.is_empty()
+                || after.starts_with([',', ' ', '\t']))
+            .then_some(index);
         }
         escaped = character == '\\';
     }
@@ -92,9 +135,25 @@ fn attribute_list_comma(source: &str, start: usize, protected: &[Range<usize>]) 
     })
 }
 
+// SDR-2 governs block lists. Inline macros keep their own boundaries in both modes.
 pub(super) fn scan_attribute_list(
     source: &str,
     protected: &[Range<usize>],
+) -> Vec<ScannedAttribute> {
+    scan_attributes(source, protected, CompatibilityMode::Asciidoctor)
+}
+
+pub(super) fn scan_block_attribute_list(
+    source: &str,
+    mode: CompatibilityMode,
+) -> Vec<ScannedAttribute> {
+    scan_attributes(source, &[], mode)
+}
+
+fn scan_attributes(
+    source: &str,
+    protected: &[Range<usize>],
+    mode: CompatibilityMode,
 ) -> Vec<ScannedAttribute> {
     let mut attributes = Vec::new();
     let mut cursor = 0;
@@ -116,7 +175,7 @@ pub(super) fn scan_attribute_list(
 
         if let Some(quote @ ('\'' | '"')) = first {
             let quoted = &source[value_start..];
-            if let Some(close) = closing_quote(quoted, quote, value_start, protected) {
+            if let Some(close) = closing_quote(quoted, quote, value_start, protected, mode) {
                 let after_close = value_start + close + quote.len_utf8();
                 attributes.push(ScannedAttribute {
                     name: named.map(|(name, _)| name.to_string()),
@@ -188,18 +247,18 @@ pub(super) fn scan_attribute_list(
 }
 
 // Preprocessing needs only the style to preserve comments in verbatim
-// paragraphs. Share attribute tokenization with the full metadata parser.
+// paragraphs. The caller has already checked the block attribute-line boundary.
 pub(crate) fn verbatim_paragraph_style(
     source: &str,
     attributes: &DocumentAttributes<'_>,
+    mode: CompatibilityMode,
 ) -> Option<bool> {
-    let source = source.strip_prefix('[')?.strip_suffix(']')?;
     if source.starts_with('[') {
         return None;
     }
     let substituted = substitute(source, &[Substitution::Attributes], attributes);
     let mut style = None;
-    for (slot, attribute) in scan_attribute_list(&substituted, &[])
+    for (slot, attribute) in scan_block_attribute_list(&substituted, mode)
         .into_iter()
         .enumerate()
     {

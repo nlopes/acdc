@@ -68,6 +68,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Draft mode rejects outer spaces and tabs in block attribute lists and requires
+  a comma, space, tab, or list end after a closing quote. Invalid quote enclosures
+  stay literal. Block macros use the same rules; inline macro lists are unchanged.
+  Both modes now preserve leading-space block attribute lines as content, matching
+  Asciidoctor. Includes and source-paragraph comment handling use the selected mode.
+
 - Supported block `subs=` settings no longer produce a specification warning.
   Unknown stages report source recovery and remain in the substitution metadata.
   STEM blocks warn for stages other than attributes and output escaping, while

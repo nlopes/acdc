@@ -64,6 +64,14 @@ double-quoted named titles stay literal, including formatting markers,
 typography, character references, and macro text. Dot titles continue to support
 inline formatting in both modes. Image alt and tooltip rules are unchanged.
 
+Draft block attribute lists reject leading and trailing spaces or tabs, including
+whitespace introduced by attribute references. A closing quote must be followed
+by a comma, space, tab, or the end of the list; otherwise the value keeps its
+literal quotes. These rules also apply to block macros. Inline macro lists keep
+their existing rules in both modes. Asciidoctor mode accepts adjacent text after
+a closing quote and trailing whitespace in block lists. A leading space or tab
+prevents a block attribute line from being recognized in either mode.
+
 These differences follow SDR-2 at revision
 `68ed0b22e8d9b919897542d8ae14f03e7dbdd2e4`; Draft does not mean complete draft
 specification conformance. Custom `subs=` settings and Setext still use their

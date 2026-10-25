@@ -805,7 +805,11 @@ impl Preprocessor {
         // depends on the previous line and on being outside a verbatim block.
         // Use the same scanner as the slow path so preserved comments alone
         // do not force a rebuild.
-        let mut scanner = CommentScanner::new(setext, self.include_context.block_context.clone());
+        let mut scanner = CommentScanner::new(
+            setext,
+            self.include_context.block_context.clone(),
+            options.compatibility_mode,
+        );
         let mut style_options = (text.contains('{')
             && text
                 .lines()
@@ -1450,7 +1454,11 @@ impl Preprocessor {
         // Tracks verbatim-block and previous-line context so adjacent line
         // comments can be dropped (matching asciidoctor's reader). See
         // `comment::CommentScanner`.
-        let mut scanner = CommentScanner::new(setext, self.include_context.block_context.clone());
+        let mut scanner = CommentScanner::new(
+            setext,
+            self.include_context.block_context.clone(),
+            options.compatibility_mode,
+        );
         let mut conditional_stack: Vec<ConditionalFrame<'_>> = Vec::new();
         let captured_front_matter = consume_front_matter(
             &mut lines,
