@@ -392,7 +392,7 @@ struct SectionNumbers {
 
 /// The name Asciidoctor gives a section in a cross-reference: the special
 /// section's style, or `part`, `chapter` or `section` by level. It selects the
-/// `<name>-refsig` attribute and whether a `full` reference emphasises the title.
+/// `<name>-refsig` attribute and whether a `full` reference emphasizes the title.
 pub(crate) fn reference_name(kind: SectionKind, level: u8, is_book: bool) -> &'static str {
     kind.as_style().unwrap_or(match level {
         0 => "part",
@@ -759,7 +759,7 @@ fn to_upper_roman(mut number: usize) -> String {
     result
 }
 
-/// A `SafeId` represents a sanitised ID.
+/// A `SafeId` represents a sanitized ID.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub enum SafeId<'a> {

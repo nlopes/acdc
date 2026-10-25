@@ -1030,7 +1030,7 @@ pub fn parse_text_for_quotes(content: &str) -> ParseInlineResult {
     })
 }
 
-/// Arena-parameterised variant for internal callers that already have an
+/// Arena-parameterized variant for internal callers that already have an
 /// arena threaded through `ParserState`. Avoids the per-call `Bump`
 /// allocation that the public entry point does.
 pub(crate) fn parse_text_for_quotes_in<'a>(

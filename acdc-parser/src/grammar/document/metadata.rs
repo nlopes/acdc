@@ -564,7 +564,7 @@ fn store_named_block_attribute<'input>(
             #[cfg(not(feature = "pre-spec-subs"))]
             state.add_warning(Warning::new(
                 WarningKind::ContentRecovery {
-                    message: "The subs= attribute is not honoured in this build (the `pre-spec-subs` feature is disabled). Requested content substitutions were ignored.".into(),
+                    message: "The subs= attribute is not honored in this build (the `pre-spec-subs` feature is disabled). Requested content substitutions were ignored.".into(),
                 },
                 Some(state.create_error_source_location(location.clone().unwrap_or_default())),
             ));

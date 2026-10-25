@@ -34,16 +34,16 @@ pub struct TerminalVisitor<'a, 'd, W: Write> {
     /// When true, em-dash boundary replacement at string start/end is suppressed.
     pub(crate) in_inline_span: bool,
     pub(crate) text_boundaries: TextBoundaries,
-    /// Colours of the inline spans currently open, innermost last. A span
-    /// restores the colours of the span around it on exit instead of resetting
-    /// the terminal, so text after a nested span keeps the outer colour.
+    /// Colors of the inline spans currently open, innermost last. A span
+    /// restores the colors of the span around it on exit instead of resetting
+    /// the terminal, so text after a nested span keeps the outer color.
     colors: Vec<SpanColors>,
-    /// Colours already written to the writer, so only a channel that changes
+    /// Colors already written to the writer, so only a channel that changes
     /// produces an escape sequence.
     applied_colors: SpanColors,
 }
 
-/// Foreground and background colour of an inline span. `None` means the span
+/// Foreground and background color of an inline span. `None` means the span
 /// leaves that channel to the span around it.
 type SpanColors = (Option<Color>, Option<Color>);
 
@@ -85,7 +85,7 @@ impl<'a, 'd, W: Write> TerminalVisitor<'a, 'd, W> {
         self.render_title_with_wrapper(traversal, title, &format!("{prefix}{caption}"), suffix)
     }
 
-    /// Open an inline span that sets colours.
+    /// Open an inline span that sets colors.
     ///
     /// Pair every call with [`Self::pop_colors`].
     pub(crate) fn push_colors(
@@ -99,7 +99,7 @@ impl<'a, 'd, W: Write> TerminalVisitor<'a, 'd, W> {
         self.apply_colors(colors)
     }
 
-    /// Close the span opened by [`Self::push_colors`], restoring the colours of
+    /// Close the span opened by [`Self::push_colors`], restoring the colors of
     /// the span around it.
     pub(crate) fn pop_colors(&mut self) -> Result<(), Error> {
         self.colors.pop();

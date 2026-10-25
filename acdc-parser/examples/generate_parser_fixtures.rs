@@ -48,7 +48,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let json_path = path.with_extension("json");
 
         // Fixtures whose name contains `with_setext` capture the opt-in Setext
-        // heading behaviour, so they must be generated with
+        // heading behavior, so they must be generated with
         // `--enable-setext-compatibility` (matching the fixture test runner). This
         // requires the `setext` feature; skip them otherwise so we never overwrite
         // their JSON with the feature-off (non-Setext) parse. The `with_` prefix

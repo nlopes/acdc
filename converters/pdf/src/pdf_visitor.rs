@@ -1654,7 +1654,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         self.write_framed_blocks(traversal, Some("examplebox"), None, blocks)
     }
 
-    /// Write a sidebar, which centres its title inside the shaded box rather
+    /// Write a sidebar, which centers its title inside the shaded box rather
     /// than setting it above, matching Asciidoctor PDF.
     pub(crate) fn write_sidebar(
         &mut self,
@@ -4257,7 +4257,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     /// Typst fails the whole compilation on a link to a label that no element
     /// defines, so a target that is absent from the reference catalog — or a
     /// reference nested inside another one's text — renders as `[id]` text
-    /// alone. Every catalogued target gets a label from `write_block_anchor`,
+    /// alone. Every cataloged target gets a label from `write_block_anchor`,
     /// `write_anchor_target` or the section heading.
     fn write_cross_reference(
         &mut self,

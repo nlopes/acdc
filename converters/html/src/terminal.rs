@@ -10,12 +10,12 @@
 //!   server-rendered so no-JS / reduced-motion readers still see it.
 //!
 //! Both modes share the base CSS class `.terminal-view` (the box, the
-//! `.terminal-view--light`/`--dark` theme colours, and the static `.terminal-view__screen`
+//! `.terminal-view--light`/`--dark` theme colors, and the static `.terminal-view__screen`
 //! `<pre>`). A replay additionally carries the `.terminal-view--replay` marker (which
 //! is also the player's JS hook) and its own inner structure —
 //! `.terminal-view__viewport` > `.terminal-view__stream` > `.terminal-view__row`. A recording
-//! that carried its own theme is painted with inline colours; otherwise the
-//! `.terminal-view--{light,dark}` class colours it. The authoring surface keeps the
+//! that carried its own theme is painted with inline colors; otherwise the
+//! `.terminal-view--{light,dark}` class colors it. The authoring surface keeps the
 //! `acdc-terminal`/`terminal`/`replay` names; only the rendered classes use
 //! the `terminal-view` hierarchy.
 
@@ -318,7 +318,7 @@ fn render_replay_ansi<W: Write>(
         return render_static(&mut writer, &grid, preview_options.theme);
     }
     // Raw ANSI carries no recorded theme or title, so the player uses the
-    // generic light/dark colours and emits no `data-title`.
+    // generic light/dark colors and emits no `data-title`.
     render_replay_player(
         writer,
         &frames,
@@ -710,7 +710,7 @@ fn normalize_terminal_newlines(ansi: &[u8]) -> Vec<u8> {
 }
 
 fn render_static<W: Write>(writer: &mut W, grid: &CellGrid, theme: Theme) -> Result<(), Error> {
-    // Colours come from the `.terminal-view--{light,dark}` stylesheet classes, so they
+    // Colors come from the `.terminal-view--{light,dark}` stylesheet classes, so they
     // are overridable with plain CSS (no inline style to fight).
     write!(
         writer,
@@ -761,8 +761,8 @@ pub const REPLAY_PLAYER_SCRIPT_CSP_HASH: &str = env!("ACDC_REPLAY_PLAYER_CSP_HAS
 /// faithfully and smoothly while keeping the payload compact: a long session
 /// costs one copy of each unique line, not one screen per frame.
 ///
-/// The player wears the recording's own colours when its header carried a theme
-/// (raw ANSI has none, so it uses the generic light/dark colours). The final
+/// The player wears the recording's own colors when its header carried a theme
+/// (raw ANSI has none, so it uses the generic light/dark colors). The final
 /// frame is rendered into the DOM server-side, so readers with scripting
 /// disabled (or who prefer reduced motion) see the finished screen; only the
 /// animation is lost.
@@ -775,11 +775,11 @@ pub const REPLAY_PLAYER_SCRIPT_CSP_HASH: &str = env!("ACDC_REPLAY_PLAYER_CSP_HAS
 /// inner `.terminal-view__viewport` > `.terminal-view__stream` > `.terminal-view__row`, and the
 /// `data-title` attribute (the recorded title, present only when the recording
 /// carried one, for building custom chrome via `::before{content:attr(data-title)}`).
-/// A theme-less replay takes its colours from the `.terminal-view--{light,dark}` class
+/// A theme-less replay takes its colors from the `.terminal-view--{light,dark}` class
 /// (overridable with plain CSS); a recording's own theme is painted inline
 /// (override it with `!important`).
 ///
-/// Per-cell colours are emitted as inline `style` colours (resolved against the
+/// Per-cell colors are emitted as inline `style` colors (resolved against the
 /// recording's own palette via [`resolve_cell_color`]), matching the static
 /// terminal preview. Under a strict CSP these inline styles need
 /// `style-src 'unsafe-inline'`; the inline player `<script>` can be allowlisted
@@ -807,8 +807,8 @@ fn render_replay_player<W: Write>(
 
     // Pool unique rendered rows; each frame becomes a list of indices into the
     // pool. Identical lines across frames (most of them) are stored once. Cell
-    // colours are resolved against the recording's own palette (when it carried
-    // one) so the replay shows the colours it was recorded with.
+    // colors are resolved against the recording's own palette (when it carried
+    // one) so the replay shows the colors it was recorded with.
     let palette = recorded.map_or([None; 16], |theme| theme.palette);
     let (pool, frame_rows) = build_row_pool(frames, rows, &palette)?;
 
@@ -831,9 +831,9 @@ fn render_replay_player<W: Write>(
         .collect();
 
     // A recording that carried its own theme is painted faithfully with an inline
-    // background/foreground (its palette also colours the cells). Without one (raw
+    // background/foreground (its palette also colors the cells). Without one (raw
     // ANSI, or a theme-less cast) the generic `.terminal-view--{light,dark}`
-    // class colours it, so no inline style is emitted and a consumer can restyle
+    // class colors it, so no inline style is emitted and a consumer can restyle
     // it with plain CSS.
     let colour_style = recorded.map_or_else(String::new, |t| {
         format!(
@@ -944,7 +944,7 @@ fn build_row_pool(
 
 /// Render one terminal row to its HTML string for the player pool, using the
 /// same inline-styled markup as the static preview's [`render_row`] but with
-/// cell colours resolved against the recording's own palette (see
+/// cell colors resolved against the recording's own palette (see
 /// [`resolve_cell_color`]).
 fn row_to_html(row: &[Cell], palette: &[Option<Rgb>; 16]) -> Result<String, Error> {
     let mut buffer: Vec<u8> = Vec::new();
@@ -952,10 +952,10 @@ fn row_to_html(row: &[Cell], palette: &[Option<Rgb>; 16]) -> Result<String, Erro
     Ok(String::from_utf8(buffer).unwrap_or_default())
 }
 
-/// Resolve a cell colour for the player: a palette index maps to the recording's
-/// own palette colour when present, so the replay shows the colours it was
+/// Resolve a cell color for the player: a palette index maps to the recording's
+/// own palette color when present, so the replay shows the colors it was
 /// recorded with (libghostty resolves indices against its built-in palette;
-/// `palette` from the cast header overrides that). Truecolor / 256-colour cells
+/// `palette` from the cast header overrides that). Truecolor / 256-color cells
 /// have no index and use their already-resolved RGB.
 fn resolve_cell_color(
     index: Option<u8>,
@@ -968,7 +968,7 @@ fn resolve_cell_color(
     }
 }
 
-/// The replay player's payload, ready to serialise as JSON.
+/// The replay player's payload, ready to serialize as JSON.
 struct ReplayData<'a> {
     cols: usize,
     rows: usize,
@@ -1064,10 +1064,10 @@ fn replay_frame_budget(playback_ms: u128) -> usize {
 /// every palette index to RGB, so there is nothing to re-resolve against.
 const NO_PALETTE: [Option<Rgb>; 16] = [None; 16];
 
-/// Render a terminal row as inline-styled spans, resolving each cell's colours
+/// Render a terminal row as inline-styled spans, resolving each cell's colors
 /// against `palette` (see [`resolve_cell_color`]). The static preview passes an
 /// empty [`NO_PALETTE`] (the cells already carry resolved RGB); the replay player
-/// passes the recording's own palette so it shows the colours it was recorded
+/// passes the recording's own palette so it shows the colors it was recorded
 /// with.
 fn render_row_with<W: Write>(
     writer: &mut W,
@@ -1331,7 +1331,7 @@ mod tests {
         assert!(html.contains("<div id=\"content\">"));
         assert!(html.contains("<div class=\"listingblock terminal-block\">"));
         assert!(html.contains("<div class=\"terminal-view terminal-view--light\""));
-        // Preview colours come from the stylesheet class, not an inline style.
+        // Preview colors come from the stylesheet class, not an inline style.
         assert!(html.contains(".terminal-view--light{background-color:#f6f8fa;color:#1f2328}"));
         assert!(html.contains("terminal-view--light\" data-cols="));
         assert!(html.contains("$</span>"));
@@ -1371,7 +1371,7 @@ mod tests {
         )?;
 
         assert!(html.contains("<div class=\"terminal-view terminal-view--dark\""));
-        // Preview colours come from the stylesheet class, not an inline style.
+        // Preview colors come from the stylesheet class, not an inline style.
         assert!(html.contains(".terminal-view--dark{background-color:#0d1117;color:#e6edf3}"));
         assert!(html.contains("terminal-view--dark\" data-cols="));
         Ok(())
@@ -1668,8 +1668,8 @@ mod tests {
 
     #[test]
     fn asciicast_replay_without_recorded_theme_is_class_based() -> TestResult {
-        // A theme-less cast takes its colours from `.terminal-view--{theme}`,
-        // so the container carries no inline colour (overridable with plain CSS).
+        // A theme-less cast takes its colors from `.terminal-view--{theme}`,
+        // so the container carries no inline color (overridable with plain CSS).
         let html = render(
             "= Example\n\n[terminal%replay,format=asciicast,cols=20,rows=4]\n----\n{\"version\":2,\"width\":20,\"height\":4}\n[0.0,\"o\",\"first\\r\\n\"]\n----\n",
             HtmlVariant::Standard,

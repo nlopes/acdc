@@ -144,10 +144,10 @@ impl fmt::Display for Warning {
     }
 }
 
-/// Categorised non-fatal conditions.
+/// Categorized non-fatal conditions.
 ///
 /// `Other` is an escape hatch for ad-hoc messages the parser has not yet
-/// been taught to categorise. New variants should be added as callers need
+/// been taught to categorize. New variants should be added as callers need
 /// to assert on them programmatically (e.g. LSP mapping `kind` to LSP
 /// diagnostic codes, or tests matching on specific conditions without
 /// resorting to string comparison).
@@ -320,7 +320,7 @@ pub enum WarningKind {
         message: Cow<'static, str>,
     },
 
-    /// Ad-hoc message not yet categorised into a typed variant.
+    /// Ad-hoc message not yet categorized into a typed variant.
     #[error("{0}")]
     Other(Cow<'static, str>),
 }

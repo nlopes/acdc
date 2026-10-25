@@ -58,7 +58,7 @@ pub enum Error {
     Empty,
 
     #[error(
-        "unrecognised or unsupported image format (supported: {SUPPORTED_RASTER}, or a valid SVG)"
+        "unrecognized or unsupported image format (supported: {SUPPORTED_RASTER}, or a valid SVG)"
     )]
     UnknownFormat,
 

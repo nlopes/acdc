@@ -540,13 +540,13 @@ Most output is class-based and fully overridable by the seams above. A few eleme
 |===
 | Inline-styled | How to override
 
-| Syntax-highlighted code colours | Inline is the default; set `:highlight-css: class` to emit overridable `syntax-*` classes (plus a `<style>` block) instead.
-| A recording's own colours | The cell palette, plus a replay container's background/foreground when the cast recorded a theme; use `!important`.
+| Syntax-highlighted code colors | Inline is the default; set `:highlight-css: class` to emit overridable `syntax-*` classes (plus a `<style>` block) instead.
+| A recording's own colors | The cell palette, plus a replay container's background/foreground when the cast recorded a theme; use `!important`.
 | Table column and table widths | Per-table values (matches Asciidoctor); use `!important`.
 | Page break; image `align`/`float` (semantic backend) | Match Asciidoctor's output; use `!important`.
 |===
 
-The static preview container's colours are *not* inline: they come from `.terminal-view--light` / `.terminal-view--dark`, so override those classes directly. A replay with no recorded theme (raw ANSI, or a theme-less cast) uses those same classes; only a cast that carried its own theme paints the container colours inline.
+The static preview container's colors are *not* inline: they come from `.terminal-view--light` / `.terminal-view--dark`, so override those classes directly. A replay with no recorded theme (raw ANSI, or a theme-less cast) uses those same classes; only a cast that carried its own theme paints the container colors inline.
 
 For example, to recolour terminal cells:
 
@@ -555,7 +555,7 @@ For example, to recolour terminal cells:
 .terminal-view__screen span { color: #eaeaea !important; }
 ....
 
-NOTE: With `:!stylesheet:` (all CSS suppressed) the static preview shows no colours, consistent with opting out of styling entirely.
+NOTE: With `:!stylesheet:` (all CSS suppressed) the static preview shows no colors, consistent with opting out of styling entirely.
 
 === Content Security Policy
 
@@ -570,7 +570,7 @@ Set `:csp:` to have acdc emit a self-contained `<meta http-equiv="Content-Securi
 acdc convert -a csp document.adoc
 ....
 
-The emitted policy locks scripts to acdc's own inline scripts by hash (no `'unsafe-inline'` for `script-src`), plus the MathJax CDN when `:stem:` is set; keeps `style-src 'unsafe-inline'` (acdc emits inline styles, including recording-coloured terminal cells, that cannot be hashed); and stays permissive on images, media, and video embeds so document content keeps loading.
+The emitted policy locks scripts to acdc's own inline scripts by hash (no `'unsafe-inline'` for `script-src`), plus the MathJax CDN when `:stem:` is set; keeps `style-src 'unsafe-inline'` (acdc emits inline styles, including recording-colored terminal cells, that cannot be hashed); and stays permissive on images, media, and video embeds so document content keeps loading.
 
 Keep in mind a CSP only *restricts* — it does not enable. A page with no CSP already runs anywhere, and a `<meta>` CSP cannot loosen a policy your host sends as a response header (the browser enforces the intersection). So `:csp:` is for shipping a hardened, self-contained page, not for "making it work" somewhere. Two consequences: `frame-ancestors` is omitted (it is ignored in a `<meta>` CSP — set it as a header), and an inline `<script>` you inject via <<Docinfo files>> will not run under `:csp:` unless you add its own hash. Embedded output has no `<head>`, so `:csp:` is standalone-only.
 

@@ -1454,7 +1454,7 @@ peg::parser! {
         / table_block(start, offset, block_metadata)
 
         // Every non-table delimited block shares one open/content/optional-close
-        // skeleton. `block_open` recognises which kind a delimiter introduces and
+        // skeleton. `block_open` recognizes which kind a delimiter introduces and
         // `build_delimited_block` constructs the right block — the same split tables
         // use (`*_table_block` rules + `parse_table_block_impl`). The optional close
         // and the `(eol() / ![_])` after the open delimiter let an opener that runs
@@ -1483,7 +1483,7 @@ peg::parser! {
             })
         }
 
-        // Recognise a non-table delimited-block opening delimiter, returning its
+        // Recognize a non-table delimited-block opening delimiter, returning its
         // kind, the literal delimiter, and (for a Markdown ``` fence) an optional
         // language. Listing (`-`×4+) is tried before open (`--`) so `----` is a
         // listing, not a too-short open block.

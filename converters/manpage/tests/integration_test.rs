@@ -206,9 +206,9 @@ fn run_manpage_fixture(path: &Path, expected_dir: &Path, embedded: bool) -> Resu
         .and_then(|s| s.to_str())
         .ok_or("Invalid fixture file name")?;
 
-    // Fixtures whose name contains `subs` test `[subs="…"]` behaviour, which
+    // Fixtures whose name contains `subs` test `[subs="…"]` behavior, which
     // only takes effect under the `pre-spec-subs` feature. When the feature
-    // is off, skip — the expected output captures the feature-on behaviour
+    // is off, skip — the expected output captures the feature-on behavior
     // and cannot match.
     #[cfg(not(feature = "pre-spec-subs"))]
     if file_name.contains("subs") {

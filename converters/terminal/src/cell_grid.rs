@@ -135,9 +135,9 @@ pub struct Cell {
     pub fg: Option<Rgb>,
     /// Explicit background color (resolved to RGB), if any.
     pub bg: Option<Rgb>,
-    /// Foreground palette index (0–15), when the colour came from the terminal
+    /// Foreground palette index (0–15), when the color came from the terminal
     /// palette rather than a direct RGB value. Lets a renderer emit a themeable
-    /// palette class instead of a fixed colour; `fg` holds the resolved RGB
+    /// palette class instead of a fixed color; `fg` holds the resolved RGB
     /// regardless.
     pub fg_index: Option<u8>,
     /// Background palette index (0–15); see [`Cell::fg_index`].
@@ -228,9 +228,9 @@ impl CellGrid {
     }
 }
 
-/// The 0-15 palette index of a cell colour, when it is one of the 16 base
-/// palette colours. Direct RGB, the 256-colour cube (16-255), and the default
-/// colour all return `None`; those are not themeable through the 16-colour
+/// The 0-15 palette index of a cell color, when it is one of the 16 base
+/// palette colors. Direct RGB, the 256-color cube (16-255), and the default
+/// color all return `None`; those are not themeable through the 16-color
 /// palette, so a renderer falls back to the resolved RGB for them.
 fn palette_index(color: StyleColor) -> Option<u8> {
     match color {

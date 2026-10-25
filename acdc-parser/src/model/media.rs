@@ -135,7 +135,7 @@ impl<'a> Source<'a> {
     ///
     /// # Errors
     /// Returns [`Error::Parse`] when `value` looks like a URL (starts with a
-    /// recognised scheme) but fails URL parsing.
+    /// recognized scheme) but fails URL parsing.
     pub fn from_str_borrowed(value: &'a str) -> Result<Self, Error> {
         // Try to parse as URL first
         if value.starts_with("http://")

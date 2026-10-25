@@ -7,8 +7,8 @@ conditionals, and document attributes are processed before block and inline pars
 The implementation here follows from:
 
 * https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/modules/ROOT/pages/lexicon.adoc[Language Lexicon]: nomenclature of elements
-* https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/outline.adoc[Language Outline]: behaviour/layout
-* https://docs.asciidoctor.org/asciidoc/latest[Asciidoctor Language Documentation]: behaviour/layout
+* https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/outline.adoc[Language Outline]: behavior/layout
+* https://docs.asciidoctor.org/asciidoc/latest[Asciidoctor Language Documentation]: behavior/layout
 
 These are compatibility references, not a claim of complete conformance.
 
@@ -49,6 +49,15 @@ and recovered content. See <<source-text-and-diagnostics,Source text and diagnos
 With `pre-spec-subs` disabled, explicit `subs=` settings are ignored with a
 source-recovery warning. Inline attribute substitution remains available.
 
+== Planned compatibility modes
+
+I plan to bring the parser's language choices into one `CompatibilityMode`:
+`Asciidoctor` by default, with an opt-in `Draft` mode for the draft rules we support.
+Both will use the same AST. See link:../ARCHITECTURE.adoc#compatibility-mode-contract[the architecture document] for the reasoning.
+
+This API is not available yet. The `AttributeSyntax`, `pre-spec-subs` and Setext
+options described here still apply.
+
 == Attribute interpretation
 
 Parsing defaults to `AttributeSyntax::Asciidoctor`, which preserves existing
@@ -65,11 +74,11 @@ It covers the named-title quoting and role/option rules from SDR-2 at revision
 `68ed0b22e8d9b919897542d8ae14f03e7dbdd2e4`; it does not select a complete draft
 language implementation or change image alt/tooltip interpretation.
 
-Both profiles retain the declaration-time attribute context for named titles.
+Both settings retain the declaration-time attribute context for named titles.
 A reference introduced by expansion of another reference remains literal in
 the existing named-title path. For example, if `outer` contains `{inner}`,
 `title="{outer}"` retains `{inner}`. Asciidoctor can perform another expansion;
-this compatibility difference also applies to the default profile.
+this compatibility difference also applies to the default setting.
 
 == Native AST JSON
 

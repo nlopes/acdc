@@ -310,7 +310,7 @@ fn write_block_helpers(out: &mut String, theme: &Theme) {
         color(&palette.quote_text),
     );
     // Example, sidebar, and open blocks each get their own treatment so a reader
-    // can tell them apart: a light frame, a shaded box with a centred title, and
+    // can tell them apart: a light frame, a shaded box with a centered title, and
     // no frame at all.
     let _ = writeln!(
         out,
@@ -366,7 +366,7 @@ fn write_helpers(out: &mut String, theme: &Theme) {
     let spacing = &theme.spacing;
 
     write_block_helpers(out, theme);
-    // The label is centred against the complete body. The stroked content
+    // The label is centered against the complete body. The stroked content
     // cell makes the divider span titles and multi-paragraph admonitions.
     let _ = writeln!(
         out,
@@ -397,7 +397,7 @@ fn write_helpers(out: &mut String, theme: &Theme) {
     );
 
     // List markers are drawn as shapes (disc / hollow circle / square) so they
-    // never depend on a font having bullet glyphs, and take the brand colour.
+    // never depend on a font having bullet glyphs, and take the brand color.
     let bullet = color(&palette.bullet);
     // Negative baselines lift the markers up to sit against the top of the
     // first line (a positive shift would drop them toward the baseline).
@@ -476,7 +476,7 @@ fn header_content(options: &EmitOptions, palette: &Palette, header: &Header) -> 
 }
 
 /// Build a diagonal, semi-transparent gray watermark placed behind the page
-/// body (via `page(background: …)`), centred and rotated across the page.
+/// body (via `page(background: …)`), centered and rotated across the page.
 fn watermark_background(text: &str, palette: &Palette) -> String {
     let mut escaped = String::new();
     escape_markup(&mut escaped, text, true);
@@ -540,7 +540,7 @@ fn escaped_content(text: &str) -> String {
     escaped
 }
 
-/// Format a colour string as a safely quoted Typst `rgb(…)` call.
+/// Format a color string as a safely quoted Typst `rgb(…)` call.
 fn color(hex: &str) -> String {
     format!("rgb({})", string_literal(hex))
 }

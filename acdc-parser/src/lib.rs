@@ -1373,7 +1373,7 @@ mod tests {
 
         // Fixtures whose name contains `with_setext` exercise Setext (two-line
         // underlined) headings, which are opt-in: their expected JSON captures the
-        // `--enable-setext-compatibility` behaviour. Skip when the feature is off
+        // `--enable-setext-compatibility` behavior. Skip when the feature is off
         // (the AST would diverge); enable the option when it is on. The `with_`
         // prefix keeps the marker unambiguous (vs a future `without_setext`).
         let setext_fixture = stem.contains("with_setext");
@@ -1861,7 +1861,7 @@ mod tests {
             );
             #[cfg(not(feature = "pre-spec-subs"))]
             assert!(
-                messages.iter().any(|m| m.contains("not honoured")),
+                messages.iter().any(|m| m.contains("not honored")),
                 "expected feature-off warning, got: {messages:?}",
             );
         }

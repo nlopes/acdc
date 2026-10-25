@@ -51,7 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   theme. The CLI accepts this when `--emit-theme-config` is supplied.
 
 - Load supported Asciidoctor PDF 2.3.15 themes with `--theme-format asciidoctor`
-  or `PdfOptions::theme_format = ThemeFormat::Asciidoctor`. Colours, type sizes,
+  or `PdfOptions::theme_format = ThemeFormat::Asciidoctor`. Colors, type sizes,
   captions, tables, book page breaks, and page geometry are converted during
   loading. Unsupported settings produce structured converter warnings. Native
   themes remain the default, and exact layout parity is not promised.
@@ -204,7 +204,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   prose and code with attributes enabled, matching Asciidoctor PDF. Literal
   references stay literal; numeric character references in raw code values
   render as their characters.
-- Listing and literal blocks honour enabled quote and attribute substitutions,
+- Listing and literal blocks honor enabled quote and attribute substitutions,
   including bold, italic, nested formatting, and empty formatted anchor targets.
   Quote markup introduced after quote substitution stays literal, matching
   Asciidoctor PDF. Formatting survives code wrapping and syntax highlighting.

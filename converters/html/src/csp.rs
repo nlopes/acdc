@@ -38,7 +38,7 @@ impl CspFeatures {
     ///
     /// `script-src` allow-lists acdc's inline scripts by hash with no
     /// `'unsafe-inline'`; `style-src` keeps `'unsafe-inline'` because acdc emits
-    /// inline `style=` widely (e.g. terminal cell colours from recorded data,
+    /// inline `style=` widely (e.g. terminal cell colors from recorded data,
     /// which cannot be hashed). Passive directives stay permissive so remote
     /// images, media, and video embeds in document content still load.
     /// `frame-ancestors` is omitted on purpose: it is ignored in a `<meta>` CSP

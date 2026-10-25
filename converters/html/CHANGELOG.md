@@ -152,7 +152,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   literal references in prose and code with attributes enabled,
   matching Asciidoctor. Surrounding ordinary text remains escaped.
   Complete raw tags and character references also survive syntax highlighting.
-- Listing and literal blocks honour the requested order of quote and attribute
+- Listing and literal blocks honor the requested order of quote and attribute
   substitutions when macros are disabled, matching Asciidoctor. Highlighted
   source blocks also retain explicitly enabled formatting and its text.
 - Attribute values consisting of a single backslash remain literal and no longer
@@ -423,7 +423,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   class. A blank body cell, empty or containing only `{empty}`, renders as an empty `<td>`
   rather than wrapping an empty `<p class="tableblock">`.
 - Fixture coverage for `[subs="-specialchars"]` and `[subs="-replacements"]`,
-  pinning asciidoctor-parity behaviour (raw `<`, `>`, `&` preserved when
+  pinning asciidoctor-parity behavior (raw `<`, `>`, `&` preserved when
   specialchars are disabled; literal `--`, `(C)`, `->` preserved when
   replacements are disabled). The underlying gating was already in place.
 - Terminal previews (feature-gated `terminal`). Set `:acdc-terminal:` to
@@ -840,7 +840,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   markup (bold, italic, etc.) to plain text using `inlines_to_string()`, while the `<h1>`
   retains full HTML formatting.
 - html5s semantic admonitions now render Font Awesome icons when `:icons: font` is
-  set, matching the standard variant's behaviour.
+  set, matching the standard variant's behavior.
 - html5s semantic footnote references now render as `[<a>N</a>]` (brackets outside the
   link) instead of `<a>[N]</a>`, matching the standard variant's pattern.
 - **BREAKING**: Updated to new `Converter` trait API (renamed from `Processable`) ([#313])

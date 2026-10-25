@@ -18,17 +18,17 @@ Shared utilities in `core/`:
   `pre-spec-subs` feature is enabled (default-on). When the feature is off,
   `[subs="…"]` is silently ignored at the parser layer and converters fall
   back to the asciidoctor default (all substitutions on).
-- The markdown converter does **not** honour `subs=` and intentionally has
+- The markdown converter does **not** honor `subs=` and intentionally has
   no `pre-spec-subs` feature in its `Cargo.toml`. Don't treat that as a
   regression to fix — markdown's output model doesn't need it.
 - **HTML** uses a separate `Vec<Substitution>` path returned by
   `effective_subs(...)` at shallow block sites (`html/src/html_visitor.rs`).
 - **Terminal and manpage** carry an `Rc<Cell<SubsFlags>>` on their `Processor`
-  for the deep inline hot path. The `current_subs` field, its initialisers,
+  for the deep inline hot path. The `current_subs` field, its initializers,
   and the paragraph snapshot/restore are all `#[cfg(feature = "pre-spec-subs")]`.
   The PlainText arm calls a small `transform_plain` helper that has two
   definitions (feature on/off) so the call site stays clean.
-- **When adding a new converter that honours `subs=`**: forward the feature in
+- **When adding a new converter that honors `subs=`**: forward the feature in
   `Cargo.toml` (`pre-spec-subs = ["acdc-parser/pre-spec-subs", "acdc-converters-core/pre-spec-subs"]`),
   follow the manpage shape (snapshot/restore in `render_paragraph`, query
   `current_subs.get()` in the PlainText arm), and gate both sides behind the

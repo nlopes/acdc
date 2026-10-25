@@ -100,7 +100,6 @@ Asciidoctor PDF 2.3.15 resets that page to Letter size.
 
 Asciidoctor PDF's default theme renders the first laid-out line of an abstract in bold italic.
 acdc uses a consistent italic weight for the full abstract body because Typst cannot style a line after layout.
-This limitation is tracked in https://linear.app/silly-muppets/issue/SC-290/match-asciidoctor-pdf-abstract-first-line-emphasis[SC-290].
 
 Source callout references use parenthesized numbers such as `(1)`.
 Asciidoctor PDF instead uses circled number glyphs such as `①`.
@@ -153,10 +152,10 @@ The detailed limitations above apply to these substitutions.
 | An expanded disclosure with a marker and title.
 
 | Audio and video playback controls
-| Labelled links to each source, with an available video poster linked to the first source.
+| Labeled links to each source, with an available video poster linked to the first source.
 
 | CSS, webfonts, and dark mode
-| The PDF theme, explicitly trusted font directories, and fixed print colours.
+| The PDF theme, explicitly trusted font directories, and fixed print colors.
 
 | Link windows, targets, tooltips, and relationship metadata
 | A normal clickable PDF link; browser-only attributes do not change it.
@@ -245,7 +244,7 @@ Links and cross-references inside backticks remain clickable while retaining mon
 `xref:chapter[Chapter]`
 ----
 
-Automatic link labels honour `hide-uri-scheme`; external cross-references honour `relfilesuffix` at their source position.
+Automatic link labels honor `hide-uri-scheme`; external cross-references honor `relfilesuffix` at their source position.
 Links copied into TOC entries or automatic reference labels retain the enclosing navigation target; the original heading link remains clickable.
 Footnotes in those copied titles display their existing number without adding
 another footnote body or definition. Normal footnote references retain their
@@ -277,8 +276,8 @@ The PDF backend supports these built-in roles:
 
 * `big` and `small` change the text size.
 * `underline`, `overline`, and `line-through` decorate text.
-* `aqua`, `black`, `blue`, `fuchsia`, `gray`, `green`, `lime`, `maroon`, `navy`, `olive`, `purple`, `red`, `silver`, `teal`, `white`, and `yellow` set the foreground colour.
-* Matching `*-background` roles set the background colour.
+* `aqua`, `black`, `blue`, `fuchsia`, `gray`, `green`, `lime`, `maroon`, `navy`, `olive`, `purple`, `red`, `silver`, `teal`, `white`, and `yellow` set the foreground color.
+* Matching `*-background` roles set the background color.
 
 Use `[.underline]#text#` to apply a role or `[.red.underline]#text#` to combine roles.
 The same roles apply to URL, link, and mailto text through the macro's `role` attribute.
@@ -297,7 +296,7 @@ acdc convert --backend pdf --theme brand-theme.yml --theme-format asciidoctor do
 ....
 
 The compatibility loader converts supported Asciidoctor PDF 2.3.15 settings into
-acdc's native theme. It handles common colours, font sizes, captions, tables,
+acdc's native theme. It handles common colors, font sizes, captions, tables,
 book page breaks, and page geometry. References use earlier assignments, and
 numeric expressions plus the pinned `base` and `default` parent themes are supported.
 The native format remains the default.

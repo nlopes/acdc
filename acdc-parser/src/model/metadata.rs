@@ -68,7 +68,7 @@ pub struct BlockMetadata<'a> {
     pub anchors: Vec<Anchor<'a>>,
     /// Substitutions to apply to block content. Only present when the
     /// `pre-spec-subs` feature is enabled; the draft `AsciiDoc` spec is
-    /// dropping the substitution model in favour of an inline parsing
+    /// dropping the substitution model in favor of an inline parsing
     /// grammar, so this field is feature-gated to reflect that.
     ///
     /// - `None`: Use block-type defaults (VERBATIM for listing/literal, NORMAL for paragraphs)

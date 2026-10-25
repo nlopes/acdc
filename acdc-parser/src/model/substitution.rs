@@ -272,7 +272,7 @@ pub(crate) fn resolve_passthrough_substitutions(
 /// Used when the `subs` attribute contains modifier syntax (`+quotes`, `-callouts`, `quotes+`).
 ///
 /// Only available when the `pre-spec-subs` feature is enabled — the draft
-/// `AsciiDoc` spec is dropping the substitution model in favour of an inline
+/// `AsciiDoc` spec is dropping the substitution model in favor of an inline
 /// parsing grammar, so this type goes away with the feature.
 #[cfg(feature = "pre-spec-subs")]
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]

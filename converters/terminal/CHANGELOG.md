@@ -70,9 +70,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Plain `pass:[...]` document attribute values expand without their wrapper in
   prose and code with attributes enabled. Literal references stay literal,
   matching Asciidoctor's attribute behavior.
-- Listing and literal blocks honour enabled quote and attribute substitutions,
+- Listing and literal blocks honor enabled quote and attribute substitutions,
   including bold and italic text, without requiring macros. Explicit quote
-  formatting takes precedence over syntax colours; line numbers and callouts
+  formatting takes precedence over syntax colors; line numbers and callouts
   remain available.
 - Attribute values consisting of a single backslash remain literal and no longer
   consume the following line. Tabs and extra spaces after the attribute name
@@ -240,7 +240,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Terminal replay frame capture (`replay::capture` / `capture_windowed`) turns
   recorded ANSI into ordered, deduplicated `CellGrid` frames for animated replay
   renderers; `capture_windowed` is a fast path for append-only recordings. Each
-  captured cell keeps its palette index alongside the resolved colour, so a
+  captured cell keeps its palette index alongside the resolved color, so a
   player can re-resolve it against a recording's own palette.
 - The `asciicast` module parses asciicast v2/v3 (`.cast`) recordings into a
   `Recording` of replay frames (via `asciicast-rs`). Recorded commands and input
@@ -265,9 +265,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rather than resolving again, so a title that references itself terminates.
   `asciidoctor` falls back at the same point, except where it reuses a target's
   cached converted title, which can carry one already-resolved level.
-- An inline span that sets a colour (monospace, highlight, a cross-reference)
-  restores the colour of the span around it when it ends, instead of resetting
-  the terminal. Bold, italic and background colour survive a nested span, so
+- An inline span that sets a color (monospace, highlight, a cross-reference)
+  restores the color of the span around it when it ends, instead of resetting
+  the terminal. Bold, italic and background color survive a nested span, so
   `*bold before <<id>> bold after*` stays bold throughout.
 - A section heading and a block caption keep the text of what their title holds.
   A link contributes its link text, and a cross-reference contributes its
@@ -336,7 +336,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   boundaries, matching asciidoctor behavior.
 - `extract_plain_text` now preserves text content from formatted inline nodes (bold,
   italic, monospace, etc.) in literal paragraphs
-- ANSI SGR state tracking now prunes cancelled codes (e.g. bold-off removes bold) instead
+- ANSI SGR state tracking now prunes canceled codes (e.g. bold-off removes bold) instead
   of accumulating indefinitely
 - `extract_title_text` now preserves inline content from `VerbatimText`, `RawText`,
   `StandaloneCurvedApostrophe`, `LineBreak`, `CalloutRef`, and all `Macro` variants in
@@ -344,7 +344,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive test fixture now marked as OSC8 so it is skipped in CI environments
   without OSC8 support.
 - **Inline markup in `link:` text** — bold, italic, monospace, etc. inside `link:url[...]`
-  are now honoured in the OSC8 display text.
+  are now honored in the OSC8 display text.
 
 ### Changed
 

@@ -10,7 +10,7 @@ The compatibility loader targets Asciidoctor PDF *2.3.15*.
 The pinned `base` and `default` themes come from that release. Their source and
 MIT license are in `assets/asciidoctor`.
 
-To customise only a few settings, inherit the bundled default theme:
+To customize only a few settings, inherit the bundled default theme:
 
 [source,yaml]
 ....
@@ -76,7 +76,7 @@ A later assignment overrides an earlier assignment after key normalization.
 The loader reports that override when both assignments are in the input file.
 Duplicate YAML keys and multiple YAML documents are rejected.
 
-Missing body size and colour use Asciidoctor PDF's `12` pt and black defaults.
+Missing body size and color use Asciidoctor PDF's `12` pt and black defaults.
 Other unmapped settings use acdc's native defaults. The two PDF engines have
 different layout and font rules. This option does not promise identical PDFs.
 
@@ -109,9 +109,9 @@ its source key path. A setting without a mapping produces a converter warning.
 
 == Settings with a mapping
 
-Colours accept RGB hexadecimal values, with or without `#`. Quote values that
+Colors accept RGB hexadecimal values, with or without `#`. Quote values that
 start with `#`, as required by YAML. Numeric RGB values retain leading zeros.
-CMYK colours and transparent colours have no direct native palette equivalent.
+CMYK colors and transparent colors have no direct native palette equivalent.
 Asciidoctor PDF also accepts unquoted `#rgb` entries through its YAML preprocessing.
 This loader treats them as YAML comments. Quote these values when using the
 compatibility option.
@@ -119,15 +119,15 @@ compatibility option.
 [cols="2,2,3",options="header"]
 |===
 |Asciidoctor PDF key |acdc setting |Conversion or difference
-|`page_background_color` |`palette.page_bg` |RGB colour.
-|`base_font_color` |`palette.body_text` |RGB colour. Also supplies the heading colour when omitted.
+|`page_background_color` |`palette.page_bg` |RGB color.
+|`base_font_color` |`palette.body_text` |RGB color. Also supplies the heading color when omitted.
 |`heading_font_color` |`palette.heading` |Shared with strong and inline monospace text; warns about the wider scope.
-|`link_font_color` |`palette.link` |RGB colour.
-|`header_font_color` |`palette.accent` |Colour of acdc's header title.
+|`link_font_color` |`palette.link` |RGB color.
+|`header_font_color` |`palette.accent` |Color of acdc's header title.
 |`footer_font_color` |`palette.counter` |Shared with ordered-list counters; warns about the wider scope.
 |`quote_font_color` |`palette.quote_text` |Blockquote text.
 |`quote_border_color` |`palette.quote_rule` |acdc uses a left rule; warns about the difference.
-|`code_background_color`, `code_font_color` |`palette.code_bg`, `palette.code_fg` |Code blocks. Syntax highlighting can apply its own colours.
+|`code_background_color`, `code_font_color` |`palette.code_bg`, `palette.code_fg` |Code blocks. Syntax highlighting can apply its own colors.
 |`base_font_family`, `heading_font_family` |`typography.body_font`, `typography.heading_font` |Preserves the family name. Headings inherit the body family when omitted.
 |`code_font_family`, `codespan_font_family` |`typography.mono_font` |One font serves block and inline monospace text. The code family takes precedence; differences are reported.
 |`base_font_size` |`typography.body_size_pt` |Positive point size.
@@ -140,7 +140,7 @@ compatibility option.
 |`code_padding` |`spacing.code_pad_pt` |One value or equal values on all four sides. Asymmetric padding produces a warning and keeps the native default.
 |`quote_border_left_width` |`spacing.quote_rule_pt` |Non-negative measurement.
 |`caption_align`, `caption_text_align` |`caption.align` |One alignment serves placement and text; warns about the difference. Text alignment takes precedence.
-|`caption_font_color` |`caption.font_color` |RGB colour.
+|`caption_font_color` |`caption.font_color` |RGB color.
 |`caption_font_size` |`caption.font_size_em` |Converted to a body-relative size.
 |`caption_font_style` |`caption.font_style`, `caption.font_weight` |Preserves normal, italic, bold, and bold italic styles.
 |`caption_margin_inside`, `caption_margin_outside` |`caption.margin_inside_pt`, `caption.margin_outside_pt` |Non-negative measurements.
@@ -150,7 +150,7 @@ compatibility option.
 |`table_align` |`table.align` |Left, center, or right placement.
 |`table_border_color`, `table_border_width` |`table.border_color`, `table.border_width_pt` |One frame and grid style. Independent grid settings are unsupported and reported.
 |`table_head_border_bottom_width` |`table.header_divider_width_pt` |Non-negative measurement.
-|`table_head_background_color`, `table_body_stripe_background_color`, `table_foot_background_color` |`table.header_background`, `table.stripe_background`, `table.footer_background` |RGB colours.
+|`table_head_background_color`, `table_body_stripe_background_color`, `table_foot_background_color` |`table.header_background`, `table.stripe_background`, `table.footer_background` |RGB colors.
 |`page_size`, `page_layout`, `page_margin` |`page.size_pt`, `page.layout`, `page.margin_pt` |Supported names become point dimensions; portrait or landscape; one to four margins become four point values. Caller options override document attributes, which override these theme defaults.
 |===
 

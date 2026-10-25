@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Unsupported image-format errors now use the American spelling "unrecognized".
+
 - **Breaking:** `ResolveConfig` fields are private. Keep both directory
   arguments in `ResolveConfig::new` and set optional values with
   `with_timeout`, `with_max_bytes`, `with_max_sources`, `with_max_total_bytes`,

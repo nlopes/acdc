@@ -30,7 +30,7 @@ use crate::{Error, IndexCatalogRelationship, IndexTermEntry, IndexTermLabel, Pro
 /// [`apply_replacements`](acdc_converters_core::substitutions::apply_replacements)
 /// so that `[subs="-replacements"]` can suppress the transform.
 /// Otherwise, always applies — matching the asciidoctor default and the
-/// pre-`pre-spec-subs` behaviour of this converter.
+/// pre-`pre-spec-subs` behavior of this converter.
 #[cfg(feature = "pre-spec-subs")]
 fn transform_plain<'a>(
     text: &'a str,
@@ -490,7 +490,7 @@ impl<'a, W: Write> crate::TerminalVisitor<'a, '_, W> {
                 Ok(())
             }),
             // Already inside a reference's styling: plain text, so the outer
-            // reference keeps its colour and underline.
+            // reference keeps its color and underline.
             XrefDisplay::Nested(text) => {
                 write!(self.writer_mut(), "{text}")?;
                 Ok(())
@@ -498,7 +498,7 @@ impl<'a, W: Write> crate::TerminalVisitor<'a, '_, W> {
         }
     }
 
-    /// Write reference text in the link colour, underlined.
+    /// Write reference text in the link color, underlined.
     fn write_link_styled(
         &mut self,
         processor: &Processor<'a>,
@@ -1072,7 +1072,7 @@ mod tests {
             output.contains("monospace text"),
             "Should contain monospace text content"
         );
-        // Monospace uses black text on grey background (codes 30 and 100)
+        // Monospace uses black text on gray background (codes 30 and 100)
         assert!(
             output.contains("\x1b["),
             "Should contain ANSI escape codes for styling"

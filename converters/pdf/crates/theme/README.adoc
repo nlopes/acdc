@@ -1,6 +1,6 @@
 = `acdc-pdf-theme`
 
-Design tokens (colours, typography, spacing) plus embedded free fonts and a syntax-highlight theme, for acdc's PDF output.
+Design tokens (colors, typography, spacing) plus embedded free fonts and a syntax-highlight theme, for acdc's PDF output.
 
 This is an internal workspace crate. It is not published to crates.io and has no stability guarantees outside the `acdc-pdf-*` pipeline.
 
@@ -21,12 +21,12 @@ The crate is *Typst-free*: it carries only data and bundled assets. The tokens c
 - **`Theme::default`** — the bundled neutral theme (white page, grayscale, bundled fonts only). Its private embedded YAML remains the single source of truth and is parsed once per process, so the tokens cannot drift from a hand-written struct.
 - **`embedded_fonts`** — bytes for every bundled free font face (IBM Plex plus
   Noto Color Emoji).
-- **`EMOJI_FONT_FAMILY`** — the family name of the bundled emoji face; `acdc-pdf-typst` appends it to every font stack so emoji render as colour glyphs under any theme.
+- **`EMOJI_FONT_FAMILY`** — the family name of the bundled emoji face; `acdc-pdf-typst` appends it to every font stack so emoji render as color glyphs under any theme.
 - **`highlight_theme`** / **`HIGHLIGHT_THEME_PATH`** — the bundled source-code highlighting theme and the virtual path it is served at.
 
-== Customising
+== Customizing
 
-Supply a theme YAML file (via the CLI `--theme` flag or `PdfOptions::theme`) that deserialises into `Theme`; omit it to use `Theme::default`. The bundled `assets/theme/default.yaml` documents every available token. The parser does not impose an arbitrary document-size limit. The PDF converter applies a separate 1 MiB file-input limit before parsing. The schema is strict: unknown fields, invalid colours, invalid font stacks, invalid font weights, and non-finite or negative measurements are rejected with field-specific errors. Parsing uses the safe-Rust `serde-saphyr` backend, including its complexity and alias-expansion budgets.
+Supply a theme YAML file (via the CLI `--theme` flag or `PdfOptions::theme`) that deserializes into `Theme`; omit it to use `Theme::default`. The bundled `assets/theme/default.yaml` documents every available token. The parser does not impose an arbitrary document-size limit. The PDF converter applies a separate 1 MiB file-input limit before parsing. The schema is strict: unknown fields, invalid colors, invalid font stacks, invalid font weights, and non-finite or negative measurements are rejected with field-specific errors. Parsing uses the safe-Rust `serde-saphyr` backend, including its complexity and alias-expansion budgets.
 
 === Asciidoctor PDF compatibility
 
@@ -77,7 +77,7 @@ Sidebar and abstract titles keep their own treatments.
 
 |`caption.font_color`
 |`#333333`
-|A hexadecimal colour, or `null` to use `palette.body_text`.
+|A hexadecimal color, or `null` to use `palette.body_text`.
 
 |`caption.font_size_em`
 |`0.91`
@@ -125,8 +125,8 @@ The `heading` tokens apply to book parts and chapters. By default, each part and
 
 The `header` and `footer` tokens control the page header and footer produced
 from the document title, optional logo, page number, watermark label, and timestamp.
-`palette.accent` supplies the header colour, and `palette.counter` supplies the
-footer colour.
+`palette.accent` supplies the header color, and `palette.counter` supplies the
+footer color.
 
 [cols="2,1,3",options="header"]
 |===
@@ -195,7 +195,7 @@ Their defaults match Asciidoctor PDF.
 
 |`table.border_color`
 |`#dddddd`
-|Outer frame and inner grid colour.
+|Outer frame and inner grid color.
 
 |`table.border_width_pt`
 |`0.5`
@@ -226,7 +226,7 @@ through its real Typst consumer.
 
 Noto Color Emoji is intentionally retained as an unconditional fallback. Its
 25,110,660-byte face accounts for most of the crate's asset size, but guarantees
-consistent, offline colour emoji instead of missing-glyph boxes in default PDF
+consistent, offline color emoji instead of missing-glyph boxes in default PDF
 output. The renderer shares its compile-time bytes and parsed face across
 renders, so that product choice does not also impose a fresh 25.1 MB heap copy
 or parse on every document. Making emoji optional should be reconsidered if

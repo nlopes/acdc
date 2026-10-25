@@ -9,7 +9,7 @@ pub enum TableAlignment {
     /// Place the table against the left edge.
     #[default]
     Left,
-    /// Centre the table.
+    /// Center the table.
     Center,
     /// Place the table against the right edge.
     Right,
@@ -21,7 +21,7 @@ pub enum TableAlignment {
 pub struct Table {
     /// Default horizontal placement of tables.
     pub align: TableAlignment,
-    /// Outer-frame and grid-rule colour.
+    /// Outer-frame and grid-rule color.
     pub border_color: String,
     /// Outer-frame and grid-rule width, in points.
     pub border_width_pt: f64,

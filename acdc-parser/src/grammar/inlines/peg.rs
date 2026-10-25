@@ -267,7 +267,7 @@ peg::parser! {
             // Each alternative is prefixed with a `&[...]` byte-lookahead that
             // rejects most call sites before the real rule is entered. On
             // macro-dense docs `non_plain_text` was the top hotspot: packrat
-            // memoisation pays its fair share, but the alternation still had
+            // memoization pays its fair share, but the alternation still had
             // to TRY each of ~30 rules on every candidate position. The
             // byte guards cut that to the subset whose first byte matches.
             // Preserves original ordering to keep PEG first-match semantics.
@@ -1382,7 +1382,7 @@ peg::parser! {
             }
             xref.target_is_local = xref.source_syntax.target_is_local(xref.target);
             // A per-reference `xrefstyle=` wins over the document's, including
-            // an unrecognised one, which Asciidoctor treats as `basic`.
+            // an unrecognized one, which Asciidoctor treats as `basic`.
             xref.xrefstyle = crate::XrefStyle::from_attribute(
                 macro_text
                     .xrefstyle

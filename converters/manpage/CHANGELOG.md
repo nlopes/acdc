@@ -121,7 +121,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Plain `pass:[...]` document attribute values expand without their wrapper in
   prose and code with attributes enabled. Literal references stay literal,
   matching Asciidoctor.
-- Listing and literal blocks honour enabled quote and attribute substitutions,
+- Listing and literal blocks honor enabled quote and attribute substitutions,
   including bold and italic text, without requiring macros. Markup introduced
   after quote substitution stays literal, matching Asciidoctor.
 - Empty superscript and subscript text no longer displays `^()` or `_()` after
@@ -411,7 +411,7 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 - Non-paragraph content in table cells (lists, code blocks, admonitions) is no longer
   silently dropped
 - Explicit `mailto:` macros now capture trailing punctuation in the `.MTO` macro's third
-  argument (matching autolink behaviour)
+  argument (matching autolink behavior)
 - **Inline markup in `link:` text** — the `.URL` macro's display-text argument now
   reflects parsed inline markup inside the link's bracket expression.
 
@@ -423,7 +423,7 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 - **Breaking:** direct visitor callbacks now receive the current traversal
   context, including source-ordered and nested-cell attributes.
 - Refactored grid-building logic to use shared utilities from `acdc-converters-core`.
-- Skip NOTES and AUTHOR(S) sections in embedded mode to match asciidoctor behaviour
+- Skip NOTES and AUTHOR(S) sections in embedded mode to match asciidoctor behavior
 - **Attribution rendering** — uses `BlockMetadata.attribution`/`citetitle` fields instead of
   string attributes. ([#357])
 - **BREAKING**: Updated to new `Converter` trait API (renamed from `Processable`) ([#313])

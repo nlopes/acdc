@@ -51,14 +51,12 @@ pub(super) fn font_size(entry: &Entry, base: f64) -> Result<f64, Error> {
 }
 
 fn colour(entry: &Entry) -> Result<String, Error> {
-    let value = entry.value.colour_text().ok_or_else(|| {
-        Error::validation(&entry.path, "expected a quoted RGB hexadecimal colour")
-    })?;
+    let value = entry
+        .value
+        .colour_text()
+        .ok_or_else(|| Error::validation(&entry.path, "expected a quoted RGB hexadecimal color"))?;
     canonical_colour("colour", &format!("#{}", value.trim_start_matches('#'))).map_err(|_| {
-        Error::validation(
-            &entry.path,
-            "expected an RGB colour in #rgb or #rrggbb form",
-        )
+        Error::validation(&entry.path, "expected an RGB color in #rgb or #rrggbb form")
     })
 }
 
@@ -84,7 +82,7 @@ pub(super) fn apply(result: &mut ConvertedTheme, key: &str, entry: &Entry) -> Re
             warn(
                 result,
                 entry,
-                "unsupported CMYK, transparent, or inherited colour; acdc's default applies",
+                "unsupported CMYK, transparent, or inherited color; acdc's default applies",
             );
             return Ok(());
         }
@@ -96,7 +94,7 @@ pub(super) fn apply(result: &mut ConvertedTheme, key: &str, entry: &Entry) -> Re
             warn(
                 result,
                 entry,
-                "mapped to a shared acdc colour; its scope differs from Asciidoctor PDF",
+                "mapped to a shared acdc color; its scope differs from Asciidoctor PDF",
             );
         }
     } else if let Some(target) = measurement_target(&mut result.theme, key) {
@@ -239,7 +237,7 @@ fn apply_other(result: &mut ConvertedTheme, key: &str, entry: &Entry) -> Result<
             warn(
                 result,
                 entry,
-                "unsupported CMYK or transparent colour; acdc's default applies",
+                "unsupported CMYK or transparent color; acdc's default applies",
             );
         }
         return Ok(());

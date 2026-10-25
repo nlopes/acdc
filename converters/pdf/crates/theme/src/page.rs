@@ -52,7 +52,7 @@ pub enum HeaderAlignment {
     /// Align content with the left edge.
     #[default]
     Left,
-    /// Centre content across the page width.
+    /// Center content across the page width.
     Center,
     /// Align content with the right edge.
     Right,
@@ -64,7 +64,7 @@ pub enum HeaderAlignment {
 pub enum PageNumberPosition {
     /// Use the left footer slot.
     Left,
-    /// Use the centre footer slot.
+    /// Use the center footer slot.
     #[default]
     Center,
     /// Use the right footer slot.

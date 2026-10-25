@@ -364,7 +364,7 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
 }
 
 /// A document whose only content is a title (no body, no following blank
-/// line) is recognised as the doctitle, not a level-0 section. The
+/// line) is recognized as the doctitle, not a level-0 section. The
 /// preprocessor strips the trailing newline, so the title sits at EOF — the
 /// `title_authors` rule must accept end-of-input, not only a following `\n`.
 /// Matches asciidoctor, which treats a lone `= Title` as the doctitle.
@@ -1703,7 +1703,7 @@ link:https://example.net[Text,positional-id]
     assert_eq!(
         doc.references
             .get("duplicate")
-            .expect("the first link ID must be catalogued")
+            .expect("the first link ID must be cataloged")
             .location
             .start
             .line,
@@ -1713,7 +1713,7 @@ link:https://example.net[Text,positional-id]
     Ok(())
 }
 
-/// An inline `[[id]]` anchor inside a callout-list item's text is catalogued
+/// An inline `[[id]]` anchor inside a callout-list item's text is cataloged
 /// (callout lists are walked like other list containers), so a reference to
 /// it resolves.
 #[test]
@@ -2564,7 +2564,7 @@ fn test_unterminated_pipe_table_with_no_content_emits_warning() -> Result<(), Er
 
 /// Same as above but exercised through the public `parse` entry point
 /// (which runs the preprocessor first). Catches the case where the
-/// preprocessor normalises the input in a way that breaks the
+/// preprocessor normalizes the input in a way that breaks the
 /// unterminated fallback.
 #[test]
 fn test_unterminated_pipe_table_empty_through_parse_entry() {

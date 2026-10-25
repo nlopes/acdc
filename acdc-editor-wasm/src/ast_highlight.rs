@@ -1150,7 +1150,7 @@ mod tests {
 
     #[test]
     fn test_title_highlight() {
-        // A bare `= Title` is recognised as the document title (doctitle)
+        // A bare `= Title` is recognized as the document title (doctitle)
         let result = highlight("= Document title");
         assert!(result.contains("adoc-title"), "result: {result}");
     }
@@ -1227,7 +1227,7 @@ mod tests {
 
     #[test]
     fn test_comment_block_content() {
-        // The parser recognises comment blocks inside a document with content
+        // The parser recognizes comment blocks inside a document with content
         let input = "Some text\n\n////\nthis is hidden\n////";
         let result = highlight(input);
         assert!(
@@ -1324,7 +1324,7 @@ mod tests {
 
     #[test]
     fn test_page_break() {
-        // Page break is recognised when embedded in a document
+        // Page break is recognized when embedded in a document
         let input = "Some text\n\n<<<\n\nMore text";
         let result = highlight(input);
         assert!(

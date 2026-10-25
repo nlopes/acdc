@@ -46,7 +46,7 @@ tempfile.workspace = true
 default = ["html", "lint", "pre-spec-subs", "setext"]
 
 # Asciidoctor-compatible subs= attribute. Experimental - may be removed when AsciiDoc spec finalizes.
-# Forwarded to every converter dependency that honours subs=.
+# Forwarded to every converter dependency that honors subs=.
 pre-spec-subs = [
     "acdc-parser/pre-spec-subs",
     "acdc-converters-core/pre-spec-subs",

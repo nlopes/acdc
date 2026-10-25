@@ -49,15 +49,15 @@ bitflags! {
     /// resolution and never appear in the bitset.
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub struct SubsFlags: u8 {
-        /// Macros are recognised in the inline grammar.
+        /// Macros are recognized in the inline grammar.
         const MACROS = 1 << 0;
         /// `{attr}` attribute references are expanded.
         const ATTRIBUTES = 1 << 1;
         /// Trailing-`+` hard line breaks produce `LineBreak` nodes.
         const POST_REPLACEMENTS = 1 << 2;
-        /// Inline formatting (`*bold*`, `_italic_`, etc.) is recognised.
+        /// Inline formatting (`*bold*`, `_italic_`, etc.) is recognized.
         const QUOTES = 1 << 3;
-        /// `<1>` / `<.>` callout markers are recognised inside verbatim content.
+        /// `<1>` / `<.>` callout markers are recognized inside verbatim content.
         const CALLOUTS = 1 << 4;
         /// HTML-style escaping of `<`, `>`, `&` to entities. Only the HTML
         /// converter acts on this; other backends ignore it.
@@ -118,7 +118,7 @@ impl SubsFlags {
 /// Converters call this once per block (typically right before walking the
 /// inlines) and then query the returned list with `subs.contains(...)`.
 ///
-/// # Behaviour
+/// # Behavior
 ///
 /// - `spec = None` — returns the baseline as-is (block has no `[subs="…"]`).
 /// - `spec = Some(Source(...))` — resolves the authored list against the baseline.

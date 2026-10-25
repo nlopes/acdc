@@ -142,7 +142,7 @@ pub(crate) struct ParserState<'a> {
     /// constant within a single `inlines()` call, allowing rules to be
     /// argument-free and thus cacheable by the PEG packrat memoizer.
     pub(crate) inline_ctx: InlineContext,
-    /// Memoised `@`-lookahead covering `[.., scanned_up_to)` with the first
+    /// Memoized `@`-lookahead covering `[.., scanned_up_to)` with the first
     /// `@` in that range, if any. Without the `scanned_up_to` field, a cached
     /// "no `@`" result at offset X is indistinguishable from "`@` is at X"
     /// and can trigger the expensive email rule the cache was meant to avoid.

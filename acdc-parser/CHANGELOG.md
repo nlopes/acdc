@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A short explanation of the planned Asciidoctor and Draft compatibility modes.
+  The current parser options and behavior are unchanged.
 - Opt-in draft attribute rules keep unquoted and double-quoted named titles
   literal, parse single-quoted titles, and accumulate distinct roles/options.
   Select them with `OptionsBuilder::with_attribute_syntax(AttributeSyntax::Draft)`;
@@ -52,6 +54,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Asciidoctor accepts the deprecated alias without this warning.
 
 ### Fixed
+
+- The warning for ignored `subs=` settings in builds without `pre-spec-subs`
+  now uses the American spelling "not honored".
 
 - Paragraph admonition styles such as `[NOTE,caption='Care']` retain their label and admonition layout.
 

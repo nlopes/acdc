@@ -11,7 +11,7 @@
 //! from a streaming [`asciicast_rs::Reader`] one line at a time, so a long
 //! recording is never fully buffered as a parsed event vector before conversion.
 //! The reader's [`absolute_times`](asciicast_rs::Reader::absolute_times) adapter
-//! normalises the two versions' timing (v2's absolute timestamps and v3's
+//! normalizes the two versions' timing (v2's absolute timestamps and v3's
 //! per-event intervals) into the absolute timestamps the replay core expects.
 //! Resize events apply grow-only (a dimension may grow but never shrink), so a
 //! replay never loses content that was visible at a larger size.
@@ -26,19 +26,19 @@ use crate::{
     replay::{self, Event},
 };
 
-/// The default foreground/background colours recorded in an asciicast header.
+/// The default foreground/background colors recorded in an asciicast header.
 ///
-/// A premium replay paints its chrome with the terminal's own colours instead
+/// A premium replay paints its chrome with the terminal's own colors instead
 /// of a generic light/dark theme; this is the subset of the recorded theme the
 /// renderer needs (the indexed palette resolves per cell during capture).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ReplayTheme {
-    /// Default foreground (text) colour.
+    /// Default foreground (text) color.
     pub fg: Rgb,
-    /// Default background colour.
+    /// Default background color.
     pub bg: Rgb,
-    /// The 16-colour palette (slots 0–15), each present when the recording
-    /// declared it. A renderer can publish these as themeable palette colours.
+    /// The 16-color palette (slots 0–15), each present when the recording
+    /// declared it. A renderer can publish these as themeable palette colors.
     pub palette: [Option<Rgb>; 16],
 }
 
@@ -56,7 +56,7 @@ impl From<&common::Theme> for ReplayTheme {
     }
 }
 
-/// Convert an `asciicast-rs` colour into acdc's [`Rgb`].
+/// Convert an `asciicast-rs` color into acdc's [`Rgb`].
 fn rgb_from(colour: common::Rgb) -> Rgb {
     Rgb {
         r: colour.r(),
@@ -94,8 +94,8 @@ impl Recording {
         self.events.last().and_then(Event::timestamp)
     }
 
-    /// The default colours recorded in the header, if the recording carried a
-    /// theme. Used to paint a replay's chrome in the terminal's own colours.
+    /// The default colors recorded in the header, if the recording carried a
+    /// theme. Used to paint a replay's chrome in the terminal's own colors.
     #[must_use]
     pub const fn theme(&self) -> Option<ReplayTheme> {
         self.theme
@@ -160,7 +160,7 @@ fn parse_with(input: &str, idle_override: Option<f64>) -> Result<Recording, Erro
 }
 
 /// The one header field [`detect_version`] needs; other fields are ignored, so
-/// only the `version` integer is materialised rather than the whole header.
+/// only the `version` integer is materialized rather than the whole header.
 #[derive(serde::Deserialize)]
 struct VersionProbe {
     version: u8,
@@ -443,7 +443,7 @@ mod tests {
                 b: 0x26
             })
         );
-        // The eight declared palette colours fill slots 0–7; the rest stay unset.
+        // The eight declared palette colors fill slots 0–7; the rest stay unset.
         assert_eq!(
             recording.theme().and_then(|t| t.palette[0]),
             Some(Rgb { r: 0, g: 0, b: 0 })

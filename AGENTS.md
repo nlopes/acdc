@@ -4,6 +4,7 @@
 
 - **Use nextest**: `cargo nextest run` for tests, `cargo test --doc` for doctests
 - **Product spelling**: always write the product name as `acdc`, lowercase. Preserve other casing only in exact external quotations or case-sensitive identifiers and test inputs.
+- **Language**: use American English in documentation, comments, and diagnostics. Preserve identifiers, test data, and quoted external text.
 - **Worktree ownership**: inspect `git status --short` before editing. Preserve unrelated and staged work, and do not stage or commit unless the user explicitly asks.
 - **Feature coverage**: use `--all-features` for standard test/build/clippy commands. When a task changes supported feature-off behavior, also run the applicable documented `--no-default-features` configuration.
 - **Clippy pedantic**: `cargo clippy --all-targets --all-features -- --deny clippy::pedantic --deny clippy::todo`

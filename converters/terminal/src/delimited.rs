@@ -503,7 +503,7 @@ pub(crate) fn render_preformatted_content(
     let (source, callouts, formatted) =
         source_with_callout_placeholders(inlines, language, processor);
     let mut output = Vec::new();
-    // Explicit quote formatting takes precedence over syntax colours. Sending
+    // Explicit quote formatting takes precedence over syntax colors. Sending
     // its terminal escapes through the highlighter would display or corrupt them.
     if let Some(language) = language.filter(|_| !formatted) {
         crate::syntax::highlight_text(&mut output, &source, language, processor)?;

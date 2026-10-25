@@ -103,6 +103,9 @@ The existing `pre-spec-subs` compatibility feature retains some legacy ordered b
 
 ==== Parsing and conversion boundary
 
+This is how attribute parsing works today.
+The <<compatibility-mode-contract,planned compatibility modes>> will bring the language choices under one option.
+
 The project follows SDR-5's decision to keep parsing independent of conversion.
 The parser must not generate HTML tags, PDF markup, or roff commands to determine an attribute value or evaluate a conditional.
 Explicit checks of intrinsic attributes such as `backend` remain valid; they are author-supplied conditions, rather than an effect of rendering attribute content.
@@ -407,28 +410,58 @@ Compile time and grammar size remain separate concerns.
 Today the LSP reparses the whole document on every change.
 Incremental parsing would cut latency on large files, but it requires grammar-level support that PEG doesn't give us for free - this is a longer-term research item.
 
+[#compatibility-mode-contract]
+== Compatibility modes (planned)
+
+I want acdc to work with the documents people already write, while leaving room to follow the draft spec as it develops.
+Today, that balance is spread across parser options and Cargo features.
+It's become harder to tell which rules apply to a document than it should be.
+
+The plan is to bring those choices into one `CompatibilityMode`:
+
+* `Asciidoctor` is the default. It keeps familiar behavior, with documented differences where I've chosen a different approach in acdc.
+* `Draft` is opt-in. It follows the draft rules we've reviewed and chosen to support, including rules that differ from Asciidoctor.
+
+For example, given `:word: *Bold*`, inserting `{word}` into ordinary prose keeps the asterisks in Asciidoctor mode.
+Draft mode will parse the inserted text as bold.
+That difference comes from when attribute references are expanded relative to inline parsing.
+
+This API is still planned.
+The link:acdc-parser/README.adoc[parser README] describes the options available today, including `AttributeSyntax`, `pre-spec-subs` and Setext support.
+
+=== One choice for the whole parse
+
+The caller will choose the mode once, and included files and nested content will use the same rules.
+Both modes will be available in every build, so applications can parse different documents with different modes in the same process.
+Cargo features will stop deciding how AsciiDoc is interpreted.
+
+Safe mode, network access and resource limits stay separate.
+Choosing draft language rules shouldn't change which files a document can read.
+
+=== One tree, shared by both modes
+
+Both modes will produce the same AST types.
+The parser interprets the source; converters render the resulting content for their output format.
+I want that boundary to be clear enough that converting a document never requires parsing its attributes again.
+
+The choices we've already made about the tree apply to both modes.
+Content has one owner, so a parsed title doesn't also need a second mutable copy in the metadata map.
+Image alt content, titles and tooltips keep their separate meanings, including the difference between a missing value and an explicitly empty one.
+They can retain inline structure without storing generated HTML or other output markup.
+
+Native JSON describes this tree.
+Exporting it to the draft ASG is a separate step, because the schema is still changing and doesn't cover everything acdc supports.
+I don't want those gaps to dictate the parser's data model.
+
 == Spec compliance and compatibility
 
-=== Following the spec
+I'm using Asciidoctor as the practical reference and the draft spec to guide where the parser goes next.
+Choosing `Draft` won't mean that acdc implements every proposal or passes every conformance test.
+I'll document the rules we support and the places where I deliberately choose different behavior.
 
-I'm following the AsciiDoc Language specification wherever it's been formalized.
-When there's a formal spec decision, that's what I implement - it's the primary source of truth.
-I reference the relevant Specification Document Requirement (SDRs) in the implementation, and I'm feeding implementation experience back to the spec process, which in all truth I haven't been great at doing with the frequency I want.
-
-The test suite includes spec compliance tests via the `tck` command.
-
-=== Asciidoctor compatibility
-
-Where the spec is undefined or ambiguous, I match Asciidoctor behavior to keep things familiar for users.
-I document any deviations in code comments and tests, and I'm tracking spec evolution to update the implementation when things get formalized.
-Building a compatibility matrix is future work.
-
-=== Testing
-
-The `tck` command produces ASG output for the AsciiDoc Language TCK harness.
-The selected TCK tests, parser JSON fixtures, converter fixtures, integration tests, and property tests cover different contracts.
-A passing fixture only proves agreement with its expected output; compatibility changes also need direct reference checks.
-See the repository and parser `AGENTS.md` files for feature coverage, fixture approval, and validation commands.
+Parser fixtures show how source becomes a tree, and converter fixtures show what that tree renders to.
+For a rule that differs between modes, I want the same AsciiDoc input with an expected tree for each mode, so the difference is easy to see.
+Direct comparisons with Asciidoctor check compatibility; the `tck` command connects acdc to the language project's conformance tests.
 
 == Contributing
 

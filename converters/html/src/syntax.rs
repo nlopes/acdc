@@ -275,7 +275,7 @@ fn source_highlight_colour(theme_name: &str) -> String {
     )
 }
 
-/// Inline-style highlighting (existing behaviour).
+/// Inline-style highlighting (existing behavior).
 #[cfg(feature = "highlighting")]
 fn highlight_code_inline<W: Write + ?Sized>(
     writer: &mut W,
@@ -329,7 +329,7 @@ fn highlight_code_classed<W: Write + ?Sized>(
 
 /// Generate a CSS stylesheet for class-based syntax highlighting.
 ///
-/// Returns the CSS rules that map `.syntax-*` classes to the colours of
+/// Returns the CSS rules that map `.syntax-*` classes to the colors of
 /// the given theme. Embed this in a `<style>` block in the `<head>`.
 #[cfg(feature = "highlighting")]
 pub(crate) fn highlight_css(theme_name: &str) -> Result<String, Error> {

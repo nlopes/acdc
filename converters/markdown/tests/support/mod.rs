@@ -7,7 +7,7 @@ pub(crate) fn expected_fixture_path(directory: &Path, stem: &str, warnings: &[Wa
     // Use the parser's diagnostic rather than a Markdown-local feature flag.
     let ignored = warnings.iter().any(|warning| {
         matches!(&warning.kind, WarningKind::ContentRecovery { message }
-            if message.starts_with("The subs= attribute is not honoured in this build"))
+            if message.starts_with("The subs= attribute is not honored in this build"))
     });
     let extension = if ignored { "no-subs.md" } else { "md" };
     directory.join(format!("{stem}.{extension}"))

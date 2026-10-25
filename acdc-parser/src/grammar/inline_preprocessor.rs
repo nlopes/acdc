@@ -39,7 +39,7 @@ pub(crate) struct InlinePreprocessorParserState<'a> {
     pub(crate) line_map: Rc<LineMap>,
     /// Full document input (for `LineMap` position lookups).
     pub(crate) full_input: &'a str,
-    /// Arena for interning synthesised passthrough strings produced during
+    /// Arena for interning synthesized passthrough strings produced during
     /// preprocessing (character-replacement expansions, escape-stripped text).
     pub(crate) arena: &'a Bump,
     pub(crate) source_map: RefCell<SourceMap>,
@@ -66,7 +66,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
     /// * `input` - The substring to parse
     /// * `line_map` - Pre-computed line map for the full document
     /// * `full_input` - The full document input (for position lookups)
-    /// * `arena` - Arena for interning synthesised strings
+    /// * `arena` - Arena for interning synthesized strings
     /// * `macros_enabled` - Whether macro substitutions are active
     /// * `attributes_enabled` - Whether attribute substitutions are active
     pub(crate) fn new(

@@ -27,7 +27,7 @@ Each converter supplies its own AST walk to produce the body; everything else he
 == Theme-data boundary
 
 Theme values are data, never Typst source. `acdc-pdf-theme` validates and
-canonicalises colours before this crate sees them, and the preamble emitter
+canonicalizes colors before this crate sees them, and the preamble emitter
 escapes every theme-derived font-family name as a Typst string literal. Keep
 that escaping at this boundary even when a value has already been validated:
 quotes, backslashes, and other Typst-significant characters can be legitimate

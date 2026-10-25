@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::Error;
 
-/// The colour palette, as CSS-style hexadecimal strings.
+/// The color palette, as CSS-style hexadecimal strings.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Palette {
@@ -117,6 +117,6 @@ pub(super) fn canonical_colour(field: &'static str, value: &str) -> Result<Strin
 fn invalid_colour(field: &'static str) -> Error {
     Error::validation(
         field,
-        "expected a hexadecimal colour in #rgb or #rrggbb form",
+        "expected a hexadecimal color in #rgb or #rrggbb form",
     )
 }

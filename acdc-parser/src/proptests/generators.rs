@@ -153,7 +153,7 @@ pub fn structured_document() -> impl Strategy<Value = String> {
             Just("#highlighted#".to_string()),
             Just("~sub~".to_string()),
             Just("^sup^".to_string()),
-            // Short text adjacent to sub/sup/highlight (SC-181 regression)
+            // Short text adjacent to subscript, superscript, and highlight markers.
             Just("?~sub~".to_string()),
             Just("a^sup^".to_string()),
             Just("x#h#".to_string()),

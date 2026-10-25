@@ -176,9 +176,9 @@ macro_rules! terminal_fixture_catalog {
 include!("fixtures/catalog.rs");
 
 fn test_fixture_variants(fixture_name: &str, has_osc8_variant: bool) -> Result<(), Error> {
-    // Fixtures whose name contains `subs` test `[subs="…"]` behaviour, which
+    // Fixtures whose name contains `subs` test `[subs="…"]` behavior, which
     // only takes effect under the `pre-spec-subs` feature. When the feature
-    // is off, skip — the expected output captures the feature-on behaviour
+    // is off, skip — the expected output captures the feature-on behavior
     // and cannot match.
     #[cfg(not(feature = "pre-spec-subs"))]
     if fixture_name.contains("subs") {
