@@ -1,5 +1,6 @@
 = ui-content-attributes(1)
 :doctype: manpage
+:revdate: 2026-10-22
 :manmanual: Media content tests
 :mansource: acdc
 :experimental:

@@ -1,4 +1,4 @@
-use acdc_parser::{Block, ContentAttribute, InlineNode, Options, Title, parse};
+use acdc_parser::{AttributeSyntax, Block, ContentAttribute, InlineNode, Options, Title, parse};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -31,29 +31,31 @@ fn title_presence_is_independent_of_inline_content() -> Result<(), Error> {
     assert!(empty.is_present());
     assert_ne!(absent, empty);
 
-    let options = Options::default();
-    let parsed = parse(
-        "image::photo.png[title=\"\"]\n\nimage::photo.png[]",
-        &options,
-    )?;
-    let json = serde_json::to_value(parsed.document())?;
-    assert_eq!(
-        json.pointer("/blocks/0/title")
-            .cloned()
-            .ok_or("missing JSON value")?,
-        serde_json::json!([])
-    );
-    assert!(
-        json.pointer("/blocks/0/metadata/attributes/title")
-            .is_none()
-    );
-    assert!(
-        json.pointer("/blocks/1")
-            .cloned()
-            .ok_or("missing JSON value")?
-            .get("title")
-            .is_none()
-    );
+    for syntax in [AttributeSyntax::Asciidoctor, AttributeSyntax::Draft] {
+        let options = Options::builder().with_attribute_syntax(syntax).build()?;
+        let parsed = parse(
+            "image::photo.png[title=\"\"]\n\nimage::photo.png[]",
+            &options,
+        )?;
+        let json = serde_json::to_value(parsed.document())?;
+        assert_eq!(
+            json.pointer("/blocks/0/title")
+                .cloned()
+                .ok_or("missing JSON value")?,
+            serde_json::json!([])
+        );
+        assert!(
+            json.pointer("/blocks/0/metadata/attributes/title")
+                .is_none()
+        );
+        assert!(
+            json.pointer("/blocks/1")
+                .cloned()
+                .ok_or("missing JSON value")?
+                .get("title")
+                .is_none()
+        );
+    }
     Ok(())
 }
 
@@ -143,40 +145,51 @@ fn content_attributes_serialize_only_their_selected_inline_content() -> Result<(
 
 #[test]
 fn named_titles_use_the_attributes_at_their_declaration() -> Result<(), Error> {
-    let options = Options::default();
-    for quote in ["'", "\""] {
-        let source = format!(
-            "= Title\n:word: Before\n\n[title={quote}{{word}} footnote:[Selected.]{quote}]\n:word: After\n{{word}}.\n"
-        );
-        let parsed = parse(&source, &options)?;
-        let block = parsed
-            .document()
-            .blocks
-            .iter()
-            .find_map(|block| {
-                if let Block::Paragraph(block) = block {
-                    Some(block)
-                } else {
-                    None
-                }
-            })
-            .ok_or("missing paragraph")?;
-
-        assert!(
-            matches!(block.title.first(), Some(InlineNode::PlainText(text)) if text.content.starts_with("Before"))
-        );
-        assert!(
-            matches!(block.content.first(), Some(InlineNode::PlainText(text)) if text.content == "After.")
-        );
-        assert_eq!(parsed.document().footnotes.len(), 1);
-        for note in &parsed.document().footnotes {
-            assert_eq!(
-                source.get(note.location.absolute_start..=note.location.absolute_end),
-                Some("footnote:[Selected.]")
+    for syntax in [AttributeSyntax::Asciidoctor, AttributeSyntax::Draft] {
+        let options = Options::builder().with_attribute_syntax(syntax).build()?;
+        for quote in ["'", "\""] {
+            let source = format!(
+                "= Title\n:word: Before\n\n[title={quote}{{word}} footnote:[Selected.]{quote}]\n:word: After\n{{word}}.\n"
             );
+            let parsed = parse(&source, &options)?;
+            let block = parsed
+                .document()
+                .blocks
+                .iter()
+                .find_map(|block| {
+                    if let Block::Paragraph(block) = block {
+                        Some(block)
+                    } else {
+                        None
+                    }
+                })
+                .ok_or("missing paragraph")?;
+
+            if syntax == AttributeSyntax::Draft && quote == "\"" {
+                assert!(matches!(block.title.as_ref(), [InlineNode::RawText(text)]
+                    if text.content == "Before footnote:[Selected.]"));
+            } else {
+                assert!(
+                    matches!(block.title.first(), Some(InlineNode::PlainText(text))
+                    if text.content.starts_with("Before"))
+                );
+            }
+            assert!(
+                matches!(block.content.first(), Some(InlineNode::PlainText(text)) if text.content == "After.")
+            );
+            assert_eq!(
+                parsed.document().footnotes.len(),
+                usize::from(quote == "'" || syntax == AttributeSyntax::Asciidoctor)
+            );
+            for note in &parsed.document().footnotes {
+                assert_eq!(
+                    source.get(note.location.absolute_start..=note.location.absolute_end),
+                    Some("footnote:[Selected.]")
+                );
+            }
+            let json = serde_json::to_value(block)?;
+            assert!(json.pointer("/metadata/attributes/title").is_none());
         }
-        let json = serde_json::to_value(block)?;
-        assert!(json.pointer("/metadata/attributes/title").is_none());
     }
     Ok(())
 }

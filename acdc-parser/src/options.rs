@@ -13,6 +13,20 @@ use crate::{
 
 const DEFAULT_MAX_TOTAL_INCLUDE_BYTES: usize = 64 * 1024 * 1024;
 
+/// Rules for named block-title quoting and repeated block roles and options.
+///
+/// Selection is independent of Cargo features and output format. These rules
+/// cover part of the draft specification, not a complete language dialect.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum AttributeSyntax {
+    /// Preserve acdc's existing behavior, including formatted named titles.
+    #[default]
+    Asciidoctor,
+    /// Parse only single-quoted named titles and accumulate distinct roles and options.
+    Draft,
+}
+
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub(crate) enum FileXrefMode {
     /// Use normal reference rules, including fully included source files.
@@ -24,6 +38,8 @@ pub(crate) enum FileXrefMode {
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
 pub struct Options<'a> {
+    /// Defaults to [`AttributeSyntax::Asciidoctor`]. Independent of ASG export.
+    pub attribute_syntax: AttributeSyntax,
     /// Defaults to [`SafeMode::Secure`], which prevents include reads.
     pub safe_mode: SafeMode,
     pub timings: bool,
@@ -141,6 +157,7 @@ impl<'a> Options<'a> {
     pub fn into_builder(self) -> OptionsBuilder<'a> {
         let (attributes, defaults) = self.document_attributes.into_configuration();
         OptionsBuilder {
+            attribute_syntax: self.attribute_syntax,
             attributes,
             defaults,
             safe_mode: self.safe_mode,
@@ -164,6 +181,7 @@ impl<'a> Options<'a> {
     #[must_use]
     pub fn into_static(self) -> Options<'static> {
         Options {
+            attribute_syntax: self.attribute_syntax,
             safe_mode: self.safe_mode,
             timings: self.timings,
             document_attributes: self.document_attributes.into_static(),
@@ -198,6 +216,7 @@ impl<'a> Options<'a> {
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
 pub struct OptionsBuilder<'a> {
+    attribute_syntax: AttributeSyntax,
     safe_mode: SafeMode,
     timings: bool,
     attributes: RawAttributes<'a>,
@@ -212,6 +231,13 @@ pub struct OptionsBuilder<'a> {
 }
 
 impl<'a> OptionsBuilder<'a> {
+    /// Select named block-title quoting and block role/option accumulation rules.
+    #[must_use]
+    pub fn with_attribute_syntax(mut self, syntax: AttributeSyntax) -> Self {
+        self.attribute_syntax = syntax;
+        self
+    }
+
     /// Set the safe mode for parsing.
     ///
     /// # Example
@@ -485,6 +511,7 @@ impl<'a> OptionsBuilder<'a> {
     pub fn build(self) -> Result<Options<'a>, Error> {
         let document_attributes = initialize_configuration(self.attributes, self.defaults)?;
         Ok(Options {
+            attribute_syntax: self.attribute_syntax,
             safe_mode: self.safe_mode,
             timings: self.timings,
             document_attributes,

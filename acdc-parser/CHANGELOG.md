@@ -32,6 +32,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Opt-in draft attribute rules keep unquoted and double-quoted named titles
+  literal, parse single-quoted titles, and accumulate distinct roles/options.
+  Select them with `OptionsBuilder::with_attribute_syntax(AttributeSyntax::Draft)`;
+  defaults and image alt/tooltip behavior remain unchanged. This selects only
+  the documented rules, independently of Cargo features and output format.
+
 - `OptionsBuilder::with_force_local_file_xrefs()` resolves file-qualified
   references by their local anchors in combined or partially included documents.
   It preserves URLs and custom text and requires a nonempty fragment. This

@@ -49,6 +49,28 @@ and recovered content. See <<source-text-and-diagnostics,Source text and diagnos
 With `pre-spec-subs` disabled, explicit `subs=` settings are ignored with a
 source-recovery warning. Inline attribute substitution remains available.
 
+== Attribute interpretation
+
+Parsing defaults to `AttributeSyntax::Asciidoctor`, which preserves existing
+acdc behavior. Select `AttributeSyntax::Draft` with
+`OptionsBuilder::with_attribute_syntax()` to use single-quote-only inline
+parsing for named block titles and to accumulate distinct block roles and
+options in source order. Unquoted and double-quoted named titles stay literal,
+including formatting markers, typography, character references, and macro text.
+Dot titles continue to support inline formatting.
+
+The option is available with or without Cargo features. It is independent of
+`pre-spec-subs`, which controls custom `subs=` settings, and of output format.
+It covers the named-title quoting and role/option rules from SDR-2 at revision
+`68ed0b22e8d9b919897542d8ae14f03e7dbdd2e4`; it does not select a complete draft
+language implementation or change image alt/tooltip interpretation.
+
+Both profiles retain the declaration-time attribute context for named titles.
+A reference introduced by expansion of another reference remains literal in
+the existing named-title path. For example, if `outer` contains `{inner}`,
+`title="{outer}"` retains `{inner}`. Asciidoctor can perform another expansion;
+this compatibility difference also applies to the default profile.
+
 == Native AST JSON
 
 Native JSON preserves acdc's model; it is not a claim of ASG conformance.

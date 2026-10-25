@@ -193,7 +193,7 @@ pub use model::{
 };
 #[cfg(feature = "pre-spec-subs")]
 pub use model::{SubstitutionOp, SubstitutionSpec};
-pub use options::{Options, OptionsBuilder, SafeMode};
+pub use options::{AttributeSyntax, Options, OptionsBuilder, SafeMode};
 pub use parsed::{OwnedSource, ParseInlineResult, ParseResult};
 pub use source_provider::{
     IncludeLoader, IncludeSource, IncludeSourceError, IncludeSourceErrorKind,

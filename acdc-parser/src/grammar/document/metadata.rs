@@ -1,8 +1,8 @@
 //! Block styles, attributes, anchors, and captions.
 
 use crate::{
-    Anchor, AttributeValue, Attribution, Block, BlockMetadata, CiteTitle, ContentAttribute,
-    DocumentAttributes, Error, InlineNode, Location, Plain, Title,
+    Anchor, AttributeSyntax, AttributeValue, Attribution, Block, BlockMetadata, CiteTitle,
+    ContentAttribute, DocumentAttributes, Error, InlineNode, Location, Plain, Title,
     document_attribute::AttributeDeclaration,
     grammar::{
         ParserState,
@@ -50,8 +50,10 @@ pub(super) struct RawAttributeList<'a> {
 #[derive(Clone, Debug)]
 pub(super) struct ContentAttributeSource<'a> {
     pub(super) source: &'a str,
+    pub(super) value: Option<&'a str>,
     pub(super) start: usize,
     pub(super) end: usize,
+    pub(super) quote: AttributeQuote,
     pub(super) attributes: Option<Rc<DocumentAttributes<'a>>>,
 }
 
@@ -60,24 +62,44 @@ pub(super) fn resolve_title<'a>(
     source: ContentAttributeSource<'a>,
     offset: usize,
 ) -> Result<Title<'a>, Error> {
-    // Named attributes keep the values active when their attribute list was read.
-    // Parse the authored source under that snapshot to retain inline locations.
-    let current = source
-        .attributes
-        .map(|attributes| std::mem::replace(&mut state.document_attributes, attributes));
-    let result = process_inlines(
-        state,
-        &BlockParsingMetadata::default(),
-        source.start,
-        source.end,
-        offset,
-        source.source,
-    );
-    if let Some(current) = current {
-        state.document_attributes = current;
-    }
-    let inlines = result?.0;
+    let inlines = if state.options.attribute_syntax == AttributeSyntax::Draft
+        && source.quote != AttributeQuote::Single
+    {
+        let value = source.value.unwrap_or(source.source);
+        if value.is_empty() {
+            Vec::new()
+        } else {
+            vec![InlineNode::RawText(crate::Raw {
+                content: value,
+                location: state.create_block_location(source.start, source.end, offset),
+                subs: vec![Substitution::SpecialChars],
+            })]
+        }
+    } else {
+        // Named attributes keep the values active when their attribute list was read.
+        // Parse the authored source under that snapshot to retain inline locations.
+        let current = source
+            .attributes
+            .map(|attributes| std::mem::replace(&mut state.document_attributes, attributes));
+        let result = process_inlines(
+            state,
+            &BlockParsingMetadata::default(),
+            source.start,
+            source.end,
+            offset,
+            source.source,
+        );
+        if let Some(current) = current {
+            state.document_attributes = current;
+        }
+        result?.0
+    };
     Ok(Title::new(inlines))
+}
+
+fn unique(values: &mut Vec<&str>) {
+    let mut seen = std::collections::HashSet::new();
+    values.retain(|value| seen.insert(*value));
 }
 
 /// Metadata accepted where title and document-attribute lines are not allowed.
@@ -151,6 +173,7 @@ pub(super) fn push_metadata_anchor<'a>(metadata: &mut BlockMetadata<'a>, anchor:
 pub(super) fn merge_attribute_metadata<'input>(
     metadata: &mut BlockMetadata<'input>,
     mut attribute_metadata: BlockMetadata<'input>,
+    syntax: AttributeSyntax,
 ) {
     metadata.append_document_attributes(attribute_metadata.take_document_attributes());
     if attribute_metadata.id.is_some() {
@@ -161,6 +184,10 @@ pub(super) fn merge_attribute_metadata<'input>(
     }
     metadata.roles.extend(attribute_metadata.roles);
     metadata.options.extend(attribute_metadata.options);
+    if syntax == AttributeSyntax::Draft {
+        unique(&mut metadata.roles);
+        unique(&mut metadata.options);
+    }
     for (name, value) in attribute_metadata.attributes.iter() {
         metadata.attributes.set(name.clone(), value.clone());
     }
@@ -192,23 +219,42 @@ pub(super) fn merge_attribute_metadata<'input>(
     }
 }
 
+pub(super) fn merge_macro_metadata<'a>(
+    metadata: &mut BlockMetadata<'a>,
+    attributes: &BlockMetadata<'a>,
+    syntax: AttributeSyntax,
+) {
+    if syntax == AttributeSyntax::Draft {
+        merge_attribute_metadata(metadata, attributes.clone(), syntax);
+    } else {
+        metadata.merge(attributes);
+    }
+}
+
 fn attribute_title_source<'input>(
     state: &ParserState<'input>,
-    value: &str,
+    value: &'input str,
+    quote: AttributeQuote,
     start: usize,
     end: usize,
     offset: usize,
-) -> (&'input str, usize, usize) {
+) -> ContentAttributeSource<'input> {
     // Keep authored attribute references so inline processing can map them to source.
     let raw = state.input.get(start + offset..end + offset);
     let source = raw.filter(|raw| {
         substitute(raw, &[Substitution::Attributes], &state.document_attributes) == value
     });
-    (
-        source.unwrap_or_else(|| state.intern_str(value)),
+    let source = source.unwrap_or(value);
+    ContentAttributeSource {
+        source,
+        value: Some(value),
         start,
         end,
-    )
+        quote,
+        attributes: source
+            .contains('{')
+            .then(|| Rc::clone(&state.document_attributes)),
+    }
 }
 
 pub(super) fn media_attributes_ahead<'input>(
@@ -483,12 +529,27 @@ fn store_named_block_attribute<'input>(
             });
         }
         RESERVED_NAMED_ATTRIBUTE_ROLE | "roles" => {
-            metadata.roles = value.split_whitespace().collect();
+            if state.options.attribute_syntax == AttributeSyntax::Asciidoctor {
+                metadata.roles.clear();
+            }
+            metadata.roles.extend(value.split_whitespace());
+            if state.options.attribute_syntax == AttributeSyntax::Draft {
+                unique(&mut metadata.roles);
+            }
         }
         RESERVED_NAMED_ATTRIBUTE_OPTIONS | "options" => {
-            metadata
-                .options
-                .extend(parse_comma_separated_values(state, value));
+            if state.options.attribute_syntax == AttributeSyntax::Draft {
+                metadata.options.extend(
+                    value
+                        .split(|c: char| c == ',' || c.is_whitespace())
+                        .filter(|value| !value.is_empty()),
+                );
+                unique(&mut metadata.options);
+            } else {
+                metadata
+                    .options
+                    .extend(parse_comma_separated_values(state, value));
+            }
         }
         "style" => metadata.style = Some(value),
         RESERVED_NAMED_ATTRIBUTE_SUBS => {
@@ -604,15 +665,14 @@ pub(super) fn parse_block_attribute_list<'input>(
                         content_start + original.value_end,
                     )
                 });
-                let (source, start, end) = attribute_title_source(state, value, start, end, offset);
-                title_source = Some(ContentAttributeSource {
-                    source,
+                title_source = Some(attribute_title_source(
+                    state,
+                    value,
+                    attribute.quote,
                     start,
                     end,
-                    attributes: source
-                        .contains('{')
-                        .then(|| Rc::clone(&state.document_attributes)),
-                });
+                    offset,
+                ));
             }
         } else if slot == 0 {
             discrete = store_first_block_slot(
@@ -636,6 +696,10 @@ pub(super) fn parse_block_attribute_list<'input>(
         }
     }
 
+    if state.options.attribute_syntax == AttributeSyntax::Draft {
+        unique(&mut metadata.roles);
+        unique(&mut metadata.options);
+    }
     (discrete, metadata, title_source)
 }
 
