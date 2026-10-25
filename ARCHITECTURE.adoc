@@ -9,6 +9,7 @@
 The project aims to be a potential canonical implementation of the https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang[AsciiDoc Language specification] once it is formalized.
 
 The toolchain includes a parser library, converters for various output formats (HTML, manpage, Markdown, terminal), a linting support crate, a command-line interface, and a Language Server Protocol (LSP) implementation for editor integration.
+The `acdc-mcp` server provides document navigation over the Model Context Protocol (MCP).
 
 === What I'm trying to build
 
@@ -293,6 +294,7 @@ acdc/
 ├── acdc-editor-wasm/  # WASM live editor (syntax highlight + HTML preview)
 ├── acdc-lint/         # Lint command support and lint registry
 ├── acdc-lsp/          # Language Server Protocol implementation
+├── acdc-mcp/          # Model Context Protocol document navigation
 ├── acdc-parser/       # Parser library (PEG grammar, preprocessor, AST)
 └── converters/
     ├── core/          # Shared converter infrastructure (Processable, Visitor traits)

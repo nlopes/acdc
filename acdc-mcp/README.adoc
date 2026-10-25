@@ -1,0 +1,93 @@
+= acdc-mcp
+:toc:
+
+A local MCP server for finding and reading parts of AsciiDoc documents.
+Each request reads the current files.
+
+NOTE: There is no persistent index, document cache, or indexing step.
+
+See link:HACKING.adoc[HACKING.adoc] for the detailed tool reference and development guide.
+
+== Build and run
+
+[source,console]
+----
+cargo build -p acdc-mcp --release --all-features --locked
+./target/release/acdc-mcp
+----
+
+The current project directory is the default directory to be searched.
+
+The server uses `CLAUDE_PROJECT_DIR` when set; otherwise, it uses its startup working directory.
+For other clients, start the server in the session directory to use that directory.
+Roots are selected once at startup, canonicalized, and deduplicated.
+
+`--root` is optional and adds allowed repository or document directories to the current project directory.
+Repeat it to add multiple roots.
+To use only explicit roots, pass `--strictly-root-folders` with at least one `--root`:
+
+[source,console]
+----
+acdc-mcp --strictly-root-folders --root /path/to/repositories/project-a
+----
+
+Repeat `--attribute` (or `-a`) for startup document attributes:
+
+* `-a edition=community` sets a string value.
+* `-a community` sets a presence attribute.
+* `-a community!` unsets an attribute.
+
+== Connect a client
+
+=== Codex
+
+Add the following to `~/.codex/config.toml` or the project's `.codex/config.toml`:
+
+[source,toml]
+----
+[mcp_servers.acdc_mcp]
+command = "/path/to/acdc-mcp"
+----
+
+See the https://learn.chatgpt.com/docs/extend/mcp?surface=cli[official Codex MCP documentation].
+
+=== Claude Code
+
+[source,console]
+----
+claude mcp add --transport stdio acdc-mcp -- /path/to/acdc-mcp
+----
+
+See the https://code.claude.com/docs/en/mcp[official Claude Code MCP documentation].
+
+== Tools
+
+[cols="1,3",options="header"]
+|===
+|Tool |Purpose
+|`adoc_find` |Find sections and titled blocks across repositories. Match headings, titles, filenames, tags, keywords, and the document description.
+|`adoc_tree` |List the assembled document's sections and addressable blocks. Return selectors, heading paths, IDs, and original source locations.
+|`adoc_section` |Read a section, including its subsections by default. Also supports `@document` and `@preamble`.
+|`adoc_block` |Read an individual code listing, table, paragraph, or other non-section block.
+|`adoc_metadata` |Read the document title, subtitle, authors, revision attributes, and effective end-of-header attributes.
+|`adoc_links` |List hyperlinks and cross-references with original source locations.
+|`adoc_resolve` |Resolve an anchor or local file reference. Report external URLs without fetching them.
+|===
+
+For a broad request, start with `adoc_find`:
+
+[source,json]
+----
+{"query":"install"}
+----
+
+Use the returned `path` and `selector` with `adoc_section` or `adoc_block`.
+A search result's `target_kind` identifies the destination.
+Search uses case-insensitive fuzzy matching over document structure.
+Use short terms such as `install` or abbreviations such as `tls`; every space-separated term must match.
+It does not search body prose.
+Each search discovers and parses the files again, so large repositories (at least for now) will be slower.
+
+Discovery recognizes `.adoc`, `.asciidoc`, and `.asc`, without case sensitivity.
+It respects repository ignore files, skips hidden entries, and does not follow symlinks during traversal.
+An optional `scope` restricts a search to a directory within the configured roots.

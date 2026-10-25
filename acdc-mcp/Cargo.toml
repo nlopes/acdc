@@ -1,0 +1,43 @@
+[package]
+name = "acdc-mcp"
+version = "0.1.0"
+edition.workspace = true
+description = "Stateless MCP navigation for AsciiDoc documents using acdc-parser"
+readme = "README.adoc"
+license.workspace = true
+repository = "https://github.com/nlopes/acdc"
+keywords = ["asciidoc", "mcp", "documentation"]
+categories = ["development-tools", "text-processing"]
+publish = false
+
+[features]
+default = ["pre-spec-subs", "setext"]
+pre-spec-subs = ["acdc-parser/pre-spec-subs"]
+setext = ["acdc-parser/setext"]
+network = ["acdc-parser/network"]
+
+[dependencies]
+acdc-parser.workspace = true
+base64.workspace = true
+clap.workspace = true
+chrono = { workspace = true, default-features = false, features = ["std"] }
+ignore = "0.4"
+nucleo-matcher = "0.3.1"
+rmcp = { version = "3.5", default-features = false, features = ["server", "macros", "transport-io"] }
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "io-std", "signal", "sync"] }
+tokio-util = "0.7"
+
+[dev-dependencies]
+rmcp = { version = "3.5", default-features = false, features = ["client", "transport-child-process"] }
+tempfile.workspace = true
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+todo = "deny"

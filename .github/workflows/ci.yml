@@ -17,6 +17,7 @@ jobs:
       converters: ${{ steps.filter.outputs.converters }}
       cli: ${{ steps.filter.outputs.cli }}
       lsp: ${{ steps.filter.outputs.lsp }}
+      mcp: ${{ steps.filter.outputs.mcp }}
       pdf: ${{ steps.filter.outputs.pdf }}
       wasm: ${{ steps.filter.outputs.wasm }}
     steps:
@@ -49,6 +50,12 @@ jobs:
               - 'acdc-lsp/**'
               - 'acdc-parser/**'
               - 'converters/core/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+            mcp:
+              - '.github/workflows/ci.yml'
+              - 'acdc-mcp/**'
+              - 'acdc-parser/**'
               - 'Cargo.toml'
               - 'Cargo.lock'
             pdf:
@@ -239,6 +246,26 @@ jobs:
       - uses: taiki-e/install-action@nextest
       - name: Run LSP tests
         run: cargo nextest run -p acdc-lsp --all-features --verbose
+
+  test-mcp:
+    needs: changes
+    if: needs.changes.outputs.mcp == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-2025]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          env-vars: ImageOS
+      - uses: taiki-e/install-action@nextest
+      - name: Run MCP tests - all features
+        run: cargo nextest run -p acdc-mcp --all-features --locked --verbose
+      - name: Run MCP tests - no default features
+        run: cargo nextest run -p acdc-mcp --no-default-features --locked --verbose
 
   test-wasm:
     needs: changes

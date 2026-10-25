@@ -1,8 +1,9 @@
-= acdc - AsciiDoc™ parser, converters, linting, lsp
+= acdc - AsciiDoc™ parser, converters, linting, lsp, mcp
 
 image:https://github.com/nlopes/acdc/workflows/Test/badge.svg[alt="CI status",link=https://github.com/nlopes/acdc/actions] image:https://docs.rs/acdc-parser/badge.svg[alt="docs.rs",link=https://docs.rs/acdc-parser] image:https://img.shields.io/crates/v/acdc-parser.svg[alt="crates.io",link=https://crates.io/crates/acdc-parser] image:https://img.shields.io/badge/license-MIT-blue.svg[alt="MIT licensed",link=https://github.com/nlopes/acdc/blob/main/LICENSE]
 
-Fast, correct AsciiDoc parser, converters, and other utilities like lsp server, linter, and a live editor written.
+AsciiDoc parser, converters, and tools written in Rust.
+Includes a command-line processor, linter, LSP server, MCP server, and live editor.
 
 For architecture and design decisions, see link:./ARCHITECTURE.adoc[ARCHITECTURE.adoc].
 
@@ -28,6 +29,7 @@ See link:./acdc-cli/README.adoc[acdc-cli README] for all CLI options, backends, 
 * link:./acdc-editor-wasm[acdc-editor-wasm] - WASM live editor with syntax highlighting and preview
 * link:./acdc-lint[acdc-lint] - lint command support for AsciiDoc recommended-practice checks
 * link:./acdc-lsp[acdc-lsp] - Language Server Protocol implementation
+* link:./acdc-mcp[acdc-mcp] - Model Context Protocol server for AsciiDoc navigation
 * link:./acdc-parser[acdc-parser] - AsciiDoc parser library
 * link:./converters[converters] - collection of AsciiDoc converters (HTML, manpage, markdown, PDF, terminal)
 * link:./converters/dev[acdc-converters-dev] - internal dev-only converter utilities (unpublished)

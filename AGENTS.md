@@ -30,6 +30,7 @@ acdc/
 │   └── src/
 │       ├── capabilities/     # Diagnostics, hover, completion, rename, references, semantic tokens
 │       └── state/            # Document and workspace state, cross-file anchor index
+├── acdc-mcp/                 # MCP for document navigation
 ├── acdc-parser/              # Core parser and AST
 │   ├── src/
 │   │   ├── grammar/          # PEG grammar definitions
@@ -113,8 +114,7 @@ All crates have **independent versions** — bump only crates that changed.
 
 ### Publish status
 
-- **Published to crates.io**: `acdc-parser`
-- **Not published**: `acdc-cli`, `acdc-lint`, `acdc-lsp`, `acdc-converters-core`, `acdc-converters-html`, `acdc-converters-manpage`, `acdc-converters-markdown`, `acdc-converters-terminal`, `acdc-converters-dev`, `acdc-editor-wasm`
+The only crate we publish in crates.io is `acdc-parser`. All other crates in this repository are not published.
 
 `acdc-lsp` and `acdc-cli` have separate native release workflows that test five targets and create draft GitHub releases for matching `acdc-lsp-vX.Y.Z` and `acdc-cli-vX.Y.Z` tags. CLI binaries include all features. Manual runs upload artifacts only. Review and publish each draft separately. `acdc-editor-wasm` ships via GitHub Release; the converters and `acdc-converters-dev` are internal workspace members only.
 

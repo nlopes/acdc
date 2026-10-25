@@ -1,0 +1,142 @@
+= Developing acdc-mcp
+:toc:
+
+See link:README.adoc[the server README] for setup and usage, and link:../CONTRIBUTING.md[the contribution guide] for workspace requirements and contribution steps.
+
+== Select content and format
+
+[source,json]
+----
+{
+  "path":"docs/book.adoc",
+  "selector":"Setup > Installation",
+  "format":"plain",
+  "include_subsections":true,
+  "attributes":{"edition":"community","experimental":true},
+  "max_tokens":2000
+}
+----
+
+All document paths can be absolute or relative to a configured root.
+If the same relative path exists under multiple roots, use an absolute path.
+Section selection supports returned selectors, exact IDs (with an optional `#`), heading paths, and fuzzy titles.
+Heading paths match a case-insensitive suffix of the section ancestry.
+For blocks, append the block title to the heading path.
+Ambiguous matches return candidates. Repeat the request with an exact selector.
+Selectors based on AST positions apply to the current document version; authored IDs are better for use across edits.
+
+Use `include_subsections:false` for a section's direct content.
+Use `selector:"@document"` to read a complete document, including an independent source file without a header or sections.
+Use `selector:"@preamble"` for content before the first section.
+
+`format` accepts `asciidoc` (the default) or `plain`.
+AsciiDoc output is normalized from the processed AST: includes are assembled, conditionals are evaluated, and attributes follow the parser's substitution rules at each source position.
+It is not an exact copy of the authored source or a lossless round-trip format.
+Plain output removes inline presentation markers while retaining code whitespace and readable table rows.
+Rendering does not execute commands, render diagrams, or download linked assets.
+
+== Fuzzy matching
+
+`adoc_find` and fuzzy title selection use `nucleo-matcher` with case-insensitive matching and smart character normalization.
+Each space-separated query term matches a sequence of characters in order, with gaps allowed.
+All terms must match, but the terms can occur in any order.
+Use short terms or abbreviations; English stopwords are not discarded.
+Characters such as `^`, `$`, and `!` are literal characters, not pattern operators.
+
+Exact selectors, authored IDs, and heading paths are resolved before fuzzy title matching.
+Equal best title matches return candidates for disambiguation.
+Search results use the matcher's scores directly and sort equal scores by path and selector.
+Scores order results for one query; they do not have a fixed scale across queries or matcher versions.
+Matches found only in a document's title, filename, tags, keywords, or description return `target_kind:"document"` and `selector:"@document"`.
+
+Each fuzzy search or selection reuses one matcher and character buffer across its candidates.
+
+== Includes, attributes, and warnings
+
+An entry document presents its includes as one assembled document.
+Every source file can also be opened independently.
+Relative includes resolve from the file containing the directive.
+The parser handles nested includes, tag and line selections, and level offsets.
+Source locations point back to the original files.
+Opening an included file independently does not inherit its parent's attributes; supply the required attributes with the request.
+
+Every tool accepts an `attributes` object.
+Request attributes override startup attributes.
+String values set attribute values. `true` sets presence; `false` unsets it.
+The parser controls attribute precedence between caller input and document declarations.
+The metadata tool reports the header snapshot; body attribute changes still affect later content.
+
+Recoverable parser problems produce `kind:"warning"` records alongside usable content.
+Set `strict:true` to reject documents with recovered or omitted source content.
+Search reports failures for individual files and continues with the remaining documents.
+Fatal parsing or file errors return an MCP tool error.
+
+== Response budgets and continuation
+
+Successful tool results contain one text block holding a JSON page:
+
+[source,json]
+----
+{"items":[],"next_cursor":null,"warning_count":0}
+----
+
+`max_tokens` defaults to 2000 and accepts values from 256 through 16000.
+The serialized page is limited to `max_tokens * 4` UTF-8 bytes, including records, warnings, and the cursor.
+This is an estimate, not a model tokenizer. The MCP transport envelope is separate.
+
+If `next_cursor` is present, repeat the same tool call and arguments with `cursor` set to that value.
+The response budget can change between pages.
+Concatenate `text` from `kind:"content"` records in order; those records include their separating newlines.
+Blocks and tables stay intact when they fit the budget.
+
+An oversized content record continues as readable `kind:"content"` chunks.
+Concatenate their `text` directly; `offset` and `total_bytes` refer to the content text.
+Other oversized records become one or more `kind:"fragment"` records containing JSON text.
+Each fragment supplies its `record_index`, UTF-8 byte `offset`, `total_bytes`, and `text`.
+Concatenate fragment text for the same record in offset order, then parse the completed JSON record.
+Fragmentation preserves all text, including Unicode and long code blocks.
+`warning_count` counts all warning records, including warnings on later pages.
+
+Cursors contain a request fingerprint and a processing timestamp; they require no server-side storage and can survive a restart.
+Changed documents, includes, attributes, or other output-affecting inputs invalidate a cursor.
+Start again without the cursor after a stale-cursor error.
+Local clock attributes use the initial request time in UTC throughout continuation.
+Document date attributes default to the entry file's modification time in UTC.
+
+== Limits and filesystem access
+
+Direct reads, include reads, and resolved local targets must remain within the configured roots after symlink resolution.
+Each source file is limited to 1 MiB.
+Include reads and assembled source have separate 16 MiB limits per document.
+Navigation is limited to 64 nested containers and 50000 blocks.
+These limits do not bound every allocation inside the parser.
+Entry documents must be UTF-8; include decoding follows the parser's encoding rules.
+
+The server runs at most two processing requests concurrently. Additional calls receive a busy error and can retry.
+Blocking parsing runs outside the async executor.
+Cancellation is checked between files, at include reads, and after parsing; it does not interrupt an active parser call.
+
+Remote includes are disabled even if a document requests URI access.
+Full-text search, backlinks, graph queries, Antora resource resolution, persistent indexing, and persistent caching are outside this version's scope.
+
+== Cargo features
+
+The default features are `pre-spec-subs` and `setext`, matching the standalone server's parsing behavior.
+`pre-spec-subs`, `setext`, and `network` forward to the parser's corresponding features.
+Setext headings are recognized only when the server's `setext` feature is enabled.
+Remote includes remain disabled for every feature combination.
+
+== Development checks
+
+Run these commands from the workspace root:
+
+[source,console]
+----
+cargo fmt --all -- --check
+cargo nextest run -p acdc-mcp --all-features --locked
+cargo nextest run -p acdc-mcp --no-default-features --locked
+cargo clippy -p acdc-mcp --all-targets --all-features --locked -- --deny clippy::pedantic --deny clippy::todo
+git diff --check
+----
+
+Tests cover assembled and independent documents, selection ambiguity, attributes, structural search, ignore files, source locations, warnings, confinement, pagination, root selection, and an SDK client communicating over real stdio.
