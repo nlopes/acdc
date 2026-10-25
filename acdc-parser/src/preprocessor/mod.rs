@@ -797,8 +797,9 @@ impl Preprocessor {
         &self,
         text: &str,
         setext: bool,
-        attributes: &DocumentAttributes<'_>,
+        options: &Options<'_>,
     ) -> Option<CommentScanner> {
+        let attributes = &options.document_attributes;
         // Dropping an adjacent line comment is the one rewrite that can't be
         // spotted with a simple per-line check: whether a `//` line is dropped
         // depends on the previous line and on being outside a verbatim block.
@@ -809,10 +810,7 @@ impl Preprocessor {
             && text
                 .lines()
                 .any(|line| line.starts_with('[') && line.contains('{')))
-        .then(|| Options {
-            document_attributes: attributes.clone(),
-            ..Options::default()
-        });
+        .then(|| options.clone());
         for line in text.lines() {
             if scanner.preserves_comment_line(line) {
                 scanner.record(line, attributes);
@@ -1336,8 +1334,7 @@ impl Preprocessor {
         // the caller's input so that downstream parsing can be zero-copy.
         if front_matter.is_none()
             && !self.nested_attributes_must_propagate(&normalized)
-            && let Some(scanner) =
-                self.try_pass_through(&normalized, setext, &options.document_attributes)
+            && let Some(scanner) = self.try_pass_through(&normalized, setext, options)
         {
             return Ok(PreprocessorResult {
                 text: normalized,
@@ -1378,8 +1375,7 @@ impl Preprocessor {
             .flatten();
         if front_matter.is_none()
             && !self.nested_attributes_must_propagate(&normalized)
-            && let Some(scanner) =
-                self.try_pass_through(&normalized, setext, &options.document_attributes)
+            && let Some(scanner) = self.try_pass_through(&normalized, setext, &options)
         {
             let source_ranges = {
                 let normalized_ref = normalized.as_ref();
@@ -2196,6 +2192,41 @@ endif::inner[]";
         assert_eq!(result.text, source);
         assert!(matches!(result.text, Cow::Borrowed(_)));
         assert_eq!(result.source_ranges, []);
+        Ok(())
+    }
+
+    #[test]
+    fn compatibility_modes_preserve_fast_and_slow_style_context() -> Result<(), Error> {
+        let source = Cow::Borrowed(":kind: source\n\n[{kind},title=\"*Title*\"]\ncode\n// visible");
+        for mode in [
+            crate::CompatibilityMode::Draft,
+            crate::CompatibilityMode::Asciidoctor,
+        ] {
+            let options = Options::builder()
+                .with_compatibility_mode(mode)
+                .with_attribute("untouched", "caller")
+                .build()?;
+            let fast = Preprocessor::process(&source, &options, Rc::default())?;
+            assert!(matches!(fast.text, Cow::Borrowed(_)));
+            let mut slow_options = options.clone();
+            let preprocessor = Preprocessor::new(&options, Rc::default());
+            let slow = preprocessor.process_slow_path(
+                &source,
+                None,
+                &mut slow_options,
+                comment::setext_enabled(&options),
+                Vec::new(),
+                None,
+            )?;
+            assert_eq!(fast.text, source);
+            assert_eq!(fast.text, slow.text);
+            assert_eq!(slow_options.compatibility_mode, mode);
+            assert_eq!(
+                options.document_attributes.text("untouched"),
+                Some("caller")
+            );
+            assert!(!options.document_attributes.contains_key("kind"));
+        }
         Ok(())
     }
 

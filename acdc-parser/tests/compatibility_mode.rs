@@ -1,6 +1,167 @@
-use acdc_parser::{Block, CompatibilityMode, InlineNode, Options, Substitution, parse};
+use std::{io::Cursor, path::Path};
+
+use acdc_parser::{
+    Block, CompatibilityMode, DelimitedBlockType, InlineMacro, InlineNode, Options, Parser,
+    SafeMode, Substitution, parse, parse_file, parse_from_reader, parse_inline,
+};
 
 type Error = Box<dyn std::error::Error>;
+
+const ALTERNATING_MODES: [CompatibilityMode; 4] = [
+    CompatibilityMode::Draft,
+    CompatibilityMode::Asciidoctor,
+    CompatibilityMode::Draft,
+    CompatibilityMode::Asciidoctor,
+];
+
+fn assert_named_title(
+    title: &[InlineNode<'_>],
+    mode: CompatibilityMode,
+    word: &str,
+) -> Result<(), Error> {
+    match (mode, title) {
+        (CompatibilityMode::Asciidoctor, [InlineNode::BoldText(bold)]) => {
+            assert!(
+                matches!(bold.content.as_slice(), [InlineNode::PlainText(text)] if text.content == word)
+            );
+        }
+        (CompatibilityMode::Draft, [InlineNode::RawText(text)]) => {
+            assert_eq!(text.content, format!("*{word}*"));
+            assert_eq!(text.subs, [Substitution::SpecialChars]);
+        }
+        _ => return Err(format!("unexpected {mode:?} title: {title:?}").into()),
+    }
+    Ok(())
+}
+
+#[test]
+fn entry_points_keep_modes_local_to_each_parse() -> Result<(), Error> {
+    let source = "= Context\n:author: Ada Lovelace\n\n[title=\"*Title*\"]\nBody.";
+    let directory = tempfile::tempdir()?;
+    let path = directory.path().join("context.adoc");
+    std::fs::write(&path, source)?;
+    for mode in ALTERNATING_MODES {
+        let options = Options::builder().with_compatibility_mode(mode).build()?;
+        for parsed in [
+            parse(source, &options)?,
+            parse_from_reader(Cursor::new(source), &options)?,
+            parse_file(&path, &options)?,
+            Parser::new(source).with_options(options.clone()).parse()?,
+        ] {
+            let [Block::Paragraph(block)] = parsed.document().blocks.as_slice() else {
+                return Err("missing paragraph".into());
+            };
+            assert_named_title(&block.title, mode, "Title")?;
+            let header = parsed.document().header.as_ref().ok_or("missing header")?;
+            assert_eq!(
+                header.authors.first().ok_or("missing author")?.first_name,
+                "Ada"
+            );
+            assert_eq!(parsed.warnings(), []);
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn includes_and_cells_inherit_mode_without_leaking_local_attributes() -> Result<(), Error> {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/tests");
+    let path = root.join("compatibility_nested_contexts.adoc");
+    let source = std::fs::read_to_string(&path)?;
+    for mode in ALTERNATING_MODES {
+        let options = Options::builder()
+            .with_compatibility_mode(mode)
+            .with_safe_mode(SafeMode::Unsafe)
+            .with_base_dir(&root)
+            .build()?;
+        for parsed in [
+            parse_file(&path, &options)?,
+            parse(&source, &options)?,
+            parse_from_reader(Cursor::new(&source), &options)?,
+        ] {
+            let [
+                Block::DocumentAttribute(_),
+                Block::Paragraph(listing),
+                Block::DelimitedBlock(table),
+                Block::Image(image),
+                Block::Paragraph(link),
+            ] = parsed.document().blocks.as_slice()
+            else {
+                return Err(format!("unexpected blocks: {:?}", parsed.document().blocks).into());
+            };
+            assert_named_title(&listing.title, mode, "Outer")?;
+            let title_location =
+                parsed.source_location(listing.title.first().ok_or("missing title")?.location());
+            assert_eq!(
+                title_location.file,
+                Some(root.join("includes/compatibility_nested_contexts.adoc"))
+            );
+            assert_eq!(title_location.location.start.line, 4);
+            let DelimitedBlockType::DelimitedTable(table) = &table.inner else {
+                return Err("missing table".into());
+            };
+            let cells = &table.rows.first().ok_or("missing row")?.columns;
+            for (cell, word) in cells.iter().zip(["Inner", "Outer"]) {
+                let Some(Block::Paragraph(paragraph)) = cell.content.last() else {
+                    return Err("missing cell paragraph".into());
+                };
+                assert_named_title(&paragraph.title, mode, word)?;
+            }
+            assert_eq!(cells.len(), 2);
+            let sibling = cells.last().ok_or("missing sibling")?;
+            let Some(Block::Paragraph(paragraph)) = sibling.content.last() else {
+                return Err("missing sibling paragraph".into());
+            };
+            assert!(
+                matches!(paragraph.content.as_slice(), [InlineNode::PlainText(text)] if text.content == "Cell two: {cell-word}.")
+            );
+            assert!(!parsed.document().attributes.contains_key("cell-word"));
+            assert_named_title(&image.title, mode, "Outer")?;
+            assert!(matches!(
+                image.alt.as_ref().ok_or("missing alt")?.as_ref(),
+                [InlineNode::BoldText(_)]
+            ));
+            assert!(matches!(link.content.as_slice(), [InlineNode::Macro(_)]));
+            assert_eq!(parsed.warnings(), []);
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn inline_entry_points_keep_content_attribute_and_macro_label_context() -> Result<(), Error> {
+    let source = "image:photo.svg[alt='*{word}*',title='_Tip_'] link:https://example.org[*{word}*]";
+    for mode in ALTERNATING_MODES {
+        let options = Options::builder()
+            .with_compatibility_mode(mode)
+            .with_attribute("word", "Label")
+            .build()?;
+        let direct = parse_inline(source, &options)?;
+        let fluent = Parser::new(source)
+            .with_options(options.clone())
+            .parse_inline()?;
+        let block = parse(source, &options)?;
+        let [Block::Paragraph(paragraph)] = block.document().blocks.as_slice() else {
+            return Err("missing paragraph".into());
+        };
+        assert_eq!(direct.inlines(), fluent.inlines());
+        assert_eq!(direct.inlines(), paragraph.content);
+        let json = serde_json::to_value(direct.inlines())?;
+        assert_eq!(
+            json.pointer("/0/alt/0/variant"),
+            Some(&serde_json::json!("strong"))
+        );
+        assert_eq!(
+            json.pointer("/0/tooltip/0/variant"),
+            Some(&serde_json::json!("emphasis"))
+        );
+        let Some(InlineNode::Macro(InlineMacro::Link(link))) = direct.inlines().last() else {
+            return Err("missing link".into());
+        };
+        assert!(matches!(link.text.as_slice(), [InlineNode::BoldText(_)]));
+    }
+    Ok(())
+}
 
 #[test]
 fn named_title_quoting_follows_compatibility_mode() -> Result<(), Error> {

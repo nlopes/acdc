@@ -83,9 +83,7 @@ proptest! {
         if let Ok(result) = crate::Preprocessor::process(&input, &options, Rc::default()) {
             // Parse the preprocessed input
             let arena = bumpalo::Bump::new();
-            let mut state = crate::grammar::ParserState::new(&result.text, &arena);
-            state.document_attributes = Rc::new(options.document_attributes.clone());
-            state.options = Rc::new(options.clone());
+            let mut state = crate::grammar::ParserState::new(&result.text, &arena, Rc::new(options.clone()));
             state.leveloffset_ranges = result.leveloffset_ranges;
             if let Ok(Ok(doc)) = crate::grammar::document_parser::document(&result.text, &mut state) {
                 let text = &result.text;

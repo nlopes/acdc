@@ -575,10 +575,8 @@ fn parse_input(
 
     let source_files = parsed::SourceFiles::new(file_path.clone(), &source_ranges);
     ParseResult::try_new(owner, warnings_handle, source_files, move |owner| {
-        let mut state = grammar::ParserState::new(&owner.source, &owner.arena);
-        state.document_attributes = Rc::new(options_owned.document_attributes.clone());
-        state.options = Rc::new(options_owned);
-        state.initialize_hardbreaks();
+        let mut state =
+            grammar::ParserState::new(&owner.source, &owner.arena, Rc::new(options_owned));
         state.current_file = file_path.map(std::sync::Arc::new);
         state.leveloffset_ranges = leveloffset_ranges;
         state.source_ranges = source_ranges;
@@ -644,11 +642,9 @@ pub fn parse_inline(input: &str, options: &Options<'_>) -> Result<ParseInlineRes
     let warnings_for_state = Rc::clone(&warnings_handle);
 
     ParseInlineResult::try_new(owner, warnings_handle, move |owner| {
-        let mut state = grammar::ParserState::new(&owner.source, &owner.arena);
+        let mut state =
+            grammar::ParserState::new(&owner.source, &owner.arena, Rc::new(options_owned));
         state.scope = grammar::ParserScope::Inline;
-        state.document_attributes = Rc::new(options_owned.document_attributes.clone());
-        state.options = Rc::new(options_owned);
-        state.initialize_hardbreaks();
         state
             .inline_ctx
             .rules

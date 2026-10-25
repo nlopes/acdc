@@ -1,0 +1,21 @@
+= Nested compatibility contexts
+:word: Outer
+
+include::includes/compatibility_nested_contexts.adoc[lines=2..6]
+
+[cols="a,a"]
+|===
+|
+:cell-word: Inner
+
+[title="*{cell-word}*"]
+Cell one.
+|
+[title="*{word}*"]
+Cell two: {cell-word}.
+|===
+
+[title="*{word}*",alt='*{word}*']
+image::photo.svg[]
+
+link:https://example.org["*{word}*",title="*{word}*"]

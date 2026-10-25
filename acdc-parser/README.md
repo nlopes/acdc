@@ -52,7 +52,8 @@ compatibility with Asciidoctor, with documented exceptions for bug fixes and
 deliberate improvements to the user experience. Unintentional differences remain
 compatibility gaps to fix. Select `CompatibilityMode::Draft` with
 `OptionsBuilder::with_compatibility_mode()` to use the supported draft rules.
-Both modes use the same AST and are available in every build.
+Both modes use the same AST and are available in every build. The selected mode
+applies to includes and nested content. Each parse keeps its own mode.
 See [the architecture document](../ARCHITECTURE.adoc#compatibility-mode-contract) for the reasoning.
 
 For named block titles, Draft parses inline content only in single-quoted

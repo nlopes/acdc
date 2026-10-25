@@ -42,7 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to keep unquoted and double-quoted named titles literal, parse single-quoted
   titles, and accumulate distinct roles/options. `Asciidoctor` remains the default;
   this API change leaves default parsing behavior unchanged. Both modes are
-  available in every build and use the same AST. Image alt/tooltip behavior,
+  available in every build and use the same AST. The selected mode applies to
+  includes and nested content without affecting other parses. Image alt/tooltip behavior,
   custom substitutions, and Setext controls are unchanged. Draft supports these
   reviewed rules, not the entire unfinished specification.
 

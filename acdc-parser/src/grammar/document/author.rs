@@ -1,11 +1,11 @@
 //! Author names and header attributes.
 
 use crate::{
-    AttributeName, Author, DocumentAttributes, Header,
+    AttributeName, Author, DocumentAttributes, Header, Options,
     grammar::{ParserState, document_parser},
 };
 use bumpalo::Bump;
-use std::borrow::Cow;
+use std::{borrow::Cow, rc::Rc};
 
 /// Build a full name string from an `Author`.
 fn build_author_full_name(author: &Author) -> String {
@@ -28,8 +28,9 @@ pub(super) fn derive_author_attrs<'a>(
     arena: &'a Bump,
     header: &mut Header<'a>,
     attrs: &mut DocumentAttributes<'a>,
+    options: &Rc<Options<'a>>,
 ) {
-    let author_changed = ingest_author_attribute(arena, header, attrs);
+    let author_changed = ingest_author_attribute(arena, header, attrs, options);
     set_author_attrs(&header.authors, attrs, author_changed);
 }
 
@@ -96,6 +97,7 @@ fn ingest_author_attribute<'a>(
     arena: &'a Bump,
     header: &mut Header<'a>,
     attrs: &DocumentAttributes<'a>,
+    options: &Rc<Options<'a>>,
 ) -> bool {
     let Some(author) = attrs.text("author").map(crate::strip_quotes) else {
         return false;
@@ -120,7 +122,7 @@ fn ingest_author_attribute<'a>(
     // Parsed names borrow from the temporary arena. Copy them to the document
     // arena before the temporary arena is dropped.
     let scratch = Bump::new();
-    let mut temp_state = ParserState::new(author, &scratch);
+    let mut temp_state = ParserState::new(author, &scratch, Rc::clone(options));
     let Ok(parsed) = document_parser::authors(author, &mut temp_state) else {
         return false;
     };

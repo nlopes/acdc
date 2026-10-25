@@ -553,13 +553,13 @@ impl<'a> ParserState<'a> {
     #[cfg(test)]
     pub(crate) fn new_for_test(input: &'a str) -> Self {
         let arena: &'a Bump = Box::leak(Box::new(Bump::new()));
-        Self::new(input, arena)
+        Self::new(input, arena, Rc::new(Options::default()))
     }
 
-    pub(crate) fn new(input: &'a str, arena: &'a Bump) -> Self {
-        Self {
-            options: Rc::new(Options::default()),
-            document_attributes: Rc::new(DocumentAttributes::default()),
+    pub(crate) fn new(input: &'a str, arena: &'a Bump, options: Rc<Options<'a>>) -> Self {
+        let mut state = Self {
+            document_attributes: Rc::new(options.document_attributes.clone()),
+            options,
             nested_parent_attributes: None,
             hardbreaks: false,
             empty_attribute_offsets: Vec::new(),
@@ -586,7 +586,9 @@ impl<'a> ParserState<'a> {
             scope: ParserScope::Document,
             inline_ctx: InlineContext::default(),
             next_at_sign_cache: Cell::new(None),
-        }
+        };
+        state.initialize_hardbreaks();
+        state
     }
 
     /// Minimal constructor for quotes-only parsing where document attributes aren't needed.
@@ -869,9 +871,55 @@ mod tests {
     use super::*;
 
     #[test]
+    fn nested_inline_states_share_options_and_isolate_attribute_changes() -> Result<(), crate::Error>
+    {
+        let arena = Bump::new();
+        for mode in [
+            crate::CompatibilityMode::Draft,
+            crate::CompatibilityMode::Asciidoctor,
+        ] {
+            let options = Rc::new(
+                Options::builder()
+                    .with_compatibility_mode(mode)
+                    .with_attribute("hardbreaks", true)
+                    .build()?,
+            );
+            let parent = ParserState::new("", &arena, Rc::clone(&options));
+            let mut child = ParserState::for_inline_parsing("", &parent, parent.inline_ctx);
+            assert!(Rc::ptr_eq(&parent.options, &options));
+            assert!(Rc::ptr_eq(&child.options, &parent.options));
+            assert!(Rc::ptr_eq(
+                &child.document_attributes,
+                &parent.document_attributes
+            ));
+            assert_eq!(child.options.compatibility_mode, mode);
+            assert!(child.hardbreaks);
+            assert!(
+                child
+                    .apply_document_attribute(
+                        &AttributeDeclaration {
+                            name: "local",
+                            value: RawAttributeValue::Text(Cow::Borrowed("child")),
+                        },
+                        false,
+                        child.create_location(0, 0),
+                    )
+                    .is_some()
+            );
+            assert_eq!(child.document_attributes.text("local"), Some("child"));
+            assert!(!parent.document_attributes.contains_key("local"));
+            assert!(!options.document_attributes.contains_key("local"));
+            let grandchild = ParserState::for_inline_parsing("", &child, child.inline_ctx);
+            assert!(Rc::ptr_eq(&grandchild.options, &options));
+            assert_eq!(grandchild.document_attributes.text("local"), Some("child"));
+        }
+        Ok(())
+    }
+
+    #[test]
     fn xref_snapshots_share_unchanged_attributes() {
         let arena = Bump::new();
-        let parent = ParserState::new("", &arena);
+        let parent = ParserState::new("", &arena, Rc::new(Options::default()));
         let snapshot = parent.capture_xref_caption_labels();
         let child = ParserState::for_inline_parsing("", &parent, parent.inline_ctx);
 
@@ -891,7 +939,7 @@ mod tests {
     #[test]
     fn xref_snapshots_survive_attribute_mutations_and_scope_restoration() {
         let arena = Bump::new();
-        let mut state = ParserState::new("", &arena);
+        let mut state = ParserState::new("", &arena, Rc::new(Options::default()));
         let initial = state.capture_xref_caption_labels();
         assert_eq!(Rc::strong_count(&state.document_attributes), 1);
 

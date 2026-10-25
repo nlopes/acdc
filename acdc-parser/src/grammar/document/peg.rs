@@ -399,6 +399,7 @@ peg::parser! {
                     state.arena,
                     &mut header,
                     Rc::make_mut(&mut state.document_attributes),
+                    &state.options,
                 );
 
                 // Derive manpage attributes from header if doctype=manpage
