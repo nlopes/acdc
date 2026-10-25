@@ -38,12 +38,15 @@ and recovered content. See [Source text and diagnostics](#source-text-and-diagno
 
 | Feature | Default | Effect |
 | --- | --- | --- |
-| `pre-spec-subs` | On | Supports experimental block `subs=` settings and their AST types. |
+| `pre-spec-subs` | On | Controls block `subs=` processing. |
 | `setext` | Off | Compiles support for legacy underlined headings; enable it with `OptionsBuilder::with_setext()`. |
 | `network` | Off | Compiles built-in HTTP(S) include support outside bare WebAssembly. Caller permission and safe mode still apply. |
 
 With `pre-spec-subs` disabled, explicit `subs=` settings are ignored with a
 source-recovery warning. Inline attribute substitution remains available.
+`SubstitutionSpec`, `SubstitutionOp`, and `BlockMetadata::substitutions` are
+available in every build. `SubstitutionSpec::resolve()` works independently of
+the feature; `BlockMetadata::uses_substitution()` still follows it.
 
 ## Compatibility modes
 
@@ -110,6 +113,11 @@ Native JSON preserves acdc's model; it is not a claim of ASG conformance.
   content. Replacing or removing content cannot leave an old attribute value.
 - `Attribution` and `CiteTitle` are aliases of `ContentAttribute`. Existing
   constructors and slice access remain available.
+- `SubstitutionSpec`, `SubstitutionOp`, and `BlockMetadata::substitutions` are
+  available without `pre-spec-subs`. Remove conditional compilation used only
+  to access this API. `None` is omitted from JSON; an explicit empty list is
+  serialized as `[]`. The feature still controls how parsing and
+  `BlockMetadata::uses_substitution()` honor block settings.
 
 ## Migrating from 0.10
 
@@ -393,7 +401,7 @@ attribute, including one supplied by defaults.
 
 ## Parsing and conversion
 
-With the experimental `pre-spec-subs` feature, `subs="attributes+"` moves an
+With `pre-spec-subs` enabled, `subs="attributes+"` moves an
 already-enabled attribute stage to the front. Groups such as `normal+` move
 their members together in group order. Modifiers apply left to right; append
 syntax such as `+attributes` leaves an existing stage in place, matching

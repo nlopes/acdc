@@ -201,7 +201,6 @@ pub(super) fn merge_attribute_metadata<'input>(
         metadata.caption_source = attribute_metadata.caption_source;
     }
     metadata.overlay_positional_attributes(&attribute_metadata.positional_attributes);
-    #[cfg(feature = "pre-spec-subs")]
     if attribute_metadata.substitutions.is_some() {
         metadata.substitutions = attribute_metadata.substitutions;
     }

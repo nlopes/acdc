@@ -32,8 +32,9 @@
 //!
 //! # Cargo features
 //!
-//! - `pre-spec-subs` (default): experimental block `subs=` settings and their AST types.
+//! - `pre-spec-subs` (default): controls block `subs=` processing.
 //!   Without it, explicit settings report source recovery and use block defaults.
+//!   Substitution types and AST fields are available in every build.
 //! - `setext` (off by default): legacy underlined headings, enabled through
 //!   `OptionsBuilder::with_setext()` when the feature is compiled.
 //! - `network` (off by default): HTTP(S) includes, subject to safe mode and caller permission.
@@ -185,14 +186,12 @@ pub use model::{
     ListItemCheckedStatus, Location, MAX_SECTION_LEVELS, MAX_TOC_LEVELS, Mailto, Menu, Monospace,
     NORMAL, OrderedList, PageBreak, Paragraph, Pass, PassthroughKind, Plain, Position, Raw,
     Reference, Role, Section, SectionKind, Source, SourceUrl, StandaloneCurvedApostrophe, Stem,
-    StemContent, StemNotation, Subscript, Substitution, Subtitle, Superscript, Table, TableColumn,
-    TableFrame, TableGrid, TableOfContents, TablePresentation, TableRow, TableStripes,
-    ThematicBreak, Title, TocEntry, UNNUMBERED_SECTION_STYLES, UnorderedList, Url, VERBATIM,
-    Verbatim, VerticalAlignment, Video, XrefCaptionLabel, XrefSignifier, XrefStyle, strip_quotes,
-    substitute, substitute_attributes,
+    StemContent, StemNotation, Subscript, Substitution, SubstitutionOp, SubstitutionSpec, Subtitle,
+    Superscript, Table, TableColumn, TableFrame, TableGrid, TableOfContents, TablePresentation,
+    TableRow, TableStripes, ThematicBreak, Title, TocEntry, UNNUMBERED_SECTION_STYLES,
+    UnorderedList, Url, VERBATIM, Verbatim, VerticalAlignment, Video, XrefCaptionLabel,
+    XrefSignifier, XrefStyle, strip_quotes, substitute, substitute_attributes,
 };
-#[cfg(feature = "pre-spec-subs")]
-pub use model::{SubstitutionOp, SubstitutionSpec};
 pub use options::{CompatibilityMode, Options, OptionsBuilder, SafeMode};
 pub use parsed::{OwnedSource, ParseInlineResult, ParseResult};
 pub use source_provider::{
@@ -1769,8 +1768,8 @@ mod tests {
             );
         }
 
-        /// Explicit `subs` settings warn in both feature modes: experimental
-        /// behavior when enabled, or ignored settings when disabled.
+        /// Explicit `subs` settings warn about possible specification changes
+        /// when enabled, or ignored settings when disabled.
         #[test]
         fn subs_attribute_always_surfaces_a_warning() {
             let input = "[subs=\"-quotes\"]\nContent\n";

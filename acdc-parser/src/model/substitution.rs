@@ -220,7 +220,6 @@ const PASSTHROUGH_VERBATIM: &[Substitution] = &[Substitution::SpecialChars];
 
 #[derive(Clone, Copy)]
 enum GroupContext {
-    #[cfg(feature = "pre-spec-subs")]
     Block,
     Passthrough,
 }
@@ -228,7 +227,6 @@ enum GroupContext {
 fn substitution_members(substitution: &Substitution, context: GroupContext) -> &[Substitution] {
     match (substitution, context) {
         (Substitution::Normal, _) => NORMAL,
-        #[cfg(feature = "pre-spec-subs")]
         (Substitution::Verbatim, GroupContext::Block) => VERBATIM,
         (Substitution::Verbatim, GroupContext::Passthrough) => PASSTHROUGH_VERBATIM,
         (
@@ -270,11 +268,6 @@ pub(crate) fn resolve_passthrough_substitutions(
 /// A substitution operation to apply to a default substitution list.
 ///
 /// Used when the `subs` attribute contains modifier syntax (`+quotes`, `-callouts`, `quotes+`).
-///
-/// Only available when the `pre-spec-subs` feature is enabled — the draft
-/// `AsciiDoc` spec is dropping the substitution model in favor of an inline
-/// parsing grammar, so this type goes away with the feature.
-#[cfg(feature = "pre-spec-subs")]
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub enum SubstitutionOp {
     /// `+name` - append substitution to end of default list
@@ -285,7 +278,6 @@ pub enum SubstitutionOp {
     Remove(Substitution),
 }
 
-#[cfg(feature = "pre-spec-subs")]
 impl std::fmt::Display for SubstitutionOp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -298,8 +290,8 @@ impl std::fmt::Display for SubstitutionOp {
 
 /// Specification for substitutions to apply to a block.
 ///
-/// Parsed documents use [`Self::Source`] to preserve the entries in the `subs`
-/// attribute, including groups, aliases, duplicates and modifiers. Only whitespace
+/// With `pre-spec-subs` enabled, parsed documents use [`Self::Source`] to preserve
+/// `subs` entries, including groups, aliases, duplicates and modifiers. Only whitespace
 /// around each entry is trimmed. Attribute references in the list have already
 /// been expanded by metadata parsing.
 ///
@@ -317,9 +309,6 @@ impl std::fmt::Display for SubstitutionOp {
 /// Serializes to a flat array. Source entries retain their spelling, for example
 /// `["verbatim", "-macros"]`; typed entries use canonical names such as
 /// `"special_chars"`.
-///
-/// Only available when the `pre-spec-subs` feature is enabled.
-#[cfg(feature = "pre-spec-subs")]
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub enum SubstitutionSpec {
     /// Authored entries, interpreted when resolving against block defaults.
@@ -330,7 +319,6 @@ pub enum SubstitutionSpec {
     Modifiers(Vec<SubstitutionOp>),
 }
 
-#[cfg(feature = "pre-spec-subs")]
 impl Serialize for SubstitutionSpec {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -345,8 +333,8 @@ impl Serialize for SubstitutionSpec {
     }
 }
 
-#[cfg(feature = "pre-spec-subs")]
 impl SubstitutionSpec {
+    #[cfg(feature = "pre-spec-subs")]
     pub(crate) fn contains(&self, substitution: &Substitution, defaults: &[Substitution]) -> bool {
         match self {
             Self::Source(entries) => entries
@@ -417,7 +405,6 @@ impl SubstitutionSpec {
 }
 
 /// Modifier for a substitution in the `subs` attribute (internal parsing helper).
-#[cfg(feature = "pre-spec-subs")]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum SubsModifier {
     /// `+name` - append to end of default list
@@ -429,7 +416,6 @@ enum SubsModifier {
 }
 
 /// Parse a single subs part into name and optional modifier.
-#[cfg(feature = "pre-spec-subs")]
 fn parse_subs_part(part: &str) -> (&str, Option<SubsModifier>) {
     if let Some(name) = part.strip_prefix('+') {
         (name, Some(SubsModifier::Append))
@@ -463,7 +449,6 @@ pub(crate) fn parse_subs_attribute(value: &str) -> SubstitutionSpec {
     SubstitutionSpec::Source(entries)
 }
 
-#[cfg(feature = "pre-spec-subs")]
 fn resolve_source_substitutions(entries: &[String], default: &[Substitution]) -> Vec<Substitution> {
     let mut parts = entries
         .iter()
@@ -492,13 +477,11 @@ fn resolve_source_substitutions(entries: &[String], default: &[Substitution]) ->
 }
 
 /// Append a substitution (or group) to the end of the list.
-#[cfg(feature = "pre-spec-subs")]
 pub(crate) fn append_substitution(result: &mut Vec<Substitution>, sub: &Substitution) {
     append_expanded_substitution(result, sub, GroupContext::Block);
 }
 
 /// Move a substitution (or group) to the beginning, preserving group order.
-#[cfg(feature = "pre-spec-subs")]
 pub(crate) fn prepend_substitution(result: &mut Vec<Substitution>, sub: &Substitution) {
     // The prepended occurrence wins, including members already enabled by the baseline.
     remove_substitution(result, sub);
@@ -507,7 +490,6 @@ pub(crate) fn prepend_substitution(result: &mut Vec<Substitution>, sub: &Substit
 }
 
 /// Remove a substitution (or group) from the list.
-#[cfg(feature = "pre-spec-subs")]
 pub(crate) fn remove_substitution(result: &mut Vec<Substitution>, sub: &Substitution) {
     for s in substitution_members(sub, GroupContext::Block) {
         result.retain(|x| x != s);
@@ -637,9 +619,6 @@ mod group_tests {
     }
 }
 
-// Tests cover the `subs=` machinery (parse_subs_attribute, SubstitutionSpec,
-// SubstitutionOp), all of which are feature-gated. `substitute()` is
-// exercised indirectly through the parser's fixture suite.
 #[cfg(all(test, feature = "pre-spec-subs"))]
 mod tests {
     use super::*;

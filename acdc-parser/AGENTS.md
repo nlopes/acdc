@@ -18,14 +18,15 @@
 
 ## `pre-spec-subs` — parser contract
 
-The default-on `pre-spec-subs` feature governs whether `[subs="..."]` block attributes are parsed and surfaced.
+The default-on `pre-spec-subs` feature governs whether parsing honors `[subs="..."]` block attributes. It does not change the public AST shape.
 
-**Public surface (feature-gated):**
-- `SubstitutionSpec`, `SubstitutionOp`, and `BlockMetadata.substitutions` exist **only** under `pre-spec-subs`.
+**Public surface (unconditional):**
+- `SubstitutionSpec`, `SubstitutionOp`, and `BlockMetadata.substitutions` exist in every build. Equality, merging, and serialization preserve absent and explicit empty settings.
+- `SubstitutionSpec::resolve()` is available in every build. Parsing and `BlockMetadata::uses_substitution()` still honor block settings only with `pre-spec-subs` enabled.
 - `Substitution`, `substitute()`, `NORMAL`, `VERBATIM`, `HEADER` are public unconditionally — attribute reference expansion (`{attr}` → value) needs them either way.
 
 **Diagnostics — two paths, both via `Warning` / `Diagnostics`:**
-- Feature **on**: warn that custom substitutions are experimental and may change.
+- Feature **on**: emit a warning about possible specification changes.
 - Feature **off**: warn that the setting is not honored and record source recovery, available through `ParseResult::source_recovery()` even after `take_warnings()`.
 
 Converter-side plumbing (`SubsFlags`, `effective_subs`, fixture naming) lives in `converters/AGENTS.md`.

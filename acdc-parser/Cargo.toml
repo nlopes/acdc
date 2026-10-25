@@ -24,8 +24,7 @@ exclude = [
 default = ["pre-spec-subs"]
 network = ["dep:ureq"]
 setext = []  # Enable Setext-style (underlined) header parsing
-# Asciidoctor-compatible subs= attribute. Experimental - may be removed when AsciiDoc spec finalizes.
-# See: https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/issues/16
+# Controls block subs= processing. AST types are available in every build.
 pre-spec-subs = []
 
 [dependencies]

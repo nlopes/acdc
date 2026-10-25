@@ -8,7 +8,7 @@ The public entry point for inline fragments is `acdc_parser::parse_inline`; full
 
 The design uses https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/sdrs/sdr-005-formal-grammar-for-inline-syntax.adoc[SDR-5] as a reference for separating parsing from conversion.
 The parser creates inline structure; converters render it and apply output escaping.
-The default-on `pre-spec-subs` feature also supports experimental ordered substitutions for compatibility with Asciidoctor.
+The default-on `pre-spec-subs` feature also supports ordered substitutions for compatibility with Asciidoctor.
 This is not a claim of complete SDR-5 conformance.
 
 Two stages share the work:

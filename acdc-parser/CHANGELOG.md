@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- The parser AST now has the same substitution fields in every build.
+  `SubstitutionSpec`, `SubstitutionOp`, and `BlockMetadata::substitutions` no
+  longer require `pre-spec-subs`; remove feature guards used only to access
+  them. Absent settings stay absent in JSON, and explicit empty settings stay
+  `[]`. Parsing and `BlockMetadata::uses_substitution()` still honor `subs=`
+  only when the feature is enabled.
 - `InlineMacro::Image` holds `InlineImage`; `Image` represents block images.
   Read `alt` and inline `tooltip` as optional `ContentAttribute` values, including
   explicitly empty content. Icons and links also expose tooltips. Button labels,

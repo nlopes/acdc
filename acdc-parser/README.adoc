@@ -41,13 +41,16 @@ and recovered content. See <<source-text-and-diagnostics,Source text and diagnos
 [cols=",,",options="header",]
 |===
 |Feature |Default |Effect
-|`pre-spec-subs` |On |Supports experimental block `subs=` settings and their AST types.
+|`pre-spec-subs` |On |Controls block `subs=` processing.
 |`setext` |Off |Compiles support for legacy underlined headings; enable it with `OptionsBuilder::with_setext()`.
 |`network` |Off |Compiles built-in HTTP(S) include support outside bare WebAssembly. Caller permission and safe mode still apply.
 |===
 
 With `pre-spec-subs` disabled, explicit `subs=` settings are ignored with a
 source-recovery warning. Inline attribute substitution remains available.
+`SubstitutionSpec`, `SubstitutionOp`, and `BlockMetadata::substitutions` are
+available in every build. `SubstitutionSpec::resolve()` works independently of
+the feature; `BlockMetadata::uses_substitution()` still follows it.
 
 == Compatibility modes
 
@@ -114,6 +117,11 @@ Native JSON preserves acdc's model; it is not a claim of ASG conformance.
   content. Replacing or removing content cannot leave an old attribute value.
 * `Attribution` and `CiteTitle` are aliases of `ContentAttribute`. Existing
   constructors and slice access remain available.
+* `SubstitutionSpec`, `SubstitutionOp`, and `BlockMetadata::substitutions` are
+  available without `pre-spec-subs`. Remove conditional compilation used only
+  to access this API. `None` is omitted from JSON; an explicit empty list is
+  serialized as `[]`. The feature still controls how parsing and
+  `BlockMetadata::uses_substitution()` honor block settings.
 
 [#migrating-from-010]
 == Migrating from 0.10
@@ -591,7 +599,7 @@ acdc recognizes explicitly enabled callouts directly from the source, including
 `subs="-verbatim,+callouts"`. Asciidoctor leaves the marker literal without
 special-character substitution. This retained difference keeps callout recognition
 independent of output escaping under acdc's documented SDR-5 parsing/conversion
-policy; SDR-5 does not specify these experimental substitution combinations.
+policy; SDR-5 does not specify these substitution combinations.
 
 AST and JSON substitution metadata preserve the list entries. For example,
 `verbatim,-macros` stays `["verbatim", "-macros"]`; its effective stages are

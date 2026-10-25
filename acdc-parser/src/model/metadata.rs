@@ -2,8 +2,6 @@
 
 use serde::Serialize;
 
-#[cfg(feature = "pre-spec-subs")]
-use super::substitution::SubstitutionSpec;
 use super::{
     DocumentAttribute,
     anchor::Anchor,
@@ -11,7 +9,7 @@ use super::{
     attribution::{Attribution, CiteTitle},
     caption::Caption,
     location::Location,
-    substitution::Substitution,
+    substitution::{Substitution, SubstitutionSpec},
 };
 
 pub type Role<'a> = &'a str;
@@ -66,17 +64,16 @@ pub struct BlockMetadata<'a> {
     pub id: Option<Anchor<'a>>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub anchors: Vec<Anchor<'a>>,
-    /// Substitutions to apply to block content. Only present when the
-    /// `pre-spec-subs` feature is enabled; the draft `AsciiDoc` spec is
-    /// dropping the substitution model in favor of an inline parsing
-    /// grammar, so this field is feature-gated to reflect that.
+    /// Substitution settings for block content, available in every build.
+    ///
+    /// Parsing populates this field only with `pre-spec-subs` enabled. Without
+    /// that feature, explicit `subs=` attributes produce a recovery warning.
     ///
     /// - `None`: Use block-type defaults (VERBATIM for listing/literal, NORMAL for paragraphs)
     /// - `Some(Source(entries))`: Preserve authored entries; resolve against block defaults as needed
     /// - `Some(Explicit([]))`: No substitutions (equivalent to `subs=none`)
     /// - `Some(Explicit(list))`: Use the explicit list of substitutions
     /// - `Some(Modifiers(ops))`: Apply modifier operations to block-type defaults
-    #[cfg(feature = "pre-spec-subs")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub substitutions: Option<SubstitutionSpec>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -106,7 +103,6 @@ impl PartialEq for BlockMetadata<'_> {
             style,
             id,
             anchors,
-            #[cfg(feature = "pre-spec-subs")]
             substitutions,
             attribution,
             citetitle,
@@ -114,10 +110,6 @@ impl PartialEq for BlockMetadata<'_> {
             citetitle_substitutions,
             location,
         } = self;
-        #[cfg(feature = "pre-spec-subs")]
-        if substitutions != &other.substitutions {
-            return false;
-        }
         document_attributes == &other.document_attributes
             && caption == &other.caption
             && attributes == &other.attributes
@@ -126,6 +118,7 @@ impl PartialEq for BlockMetadata<'_> {
             && style == &other.style
             && id == &other.id
             && anchors == &other.anchors
+            && substitutions == &other.substitutions
             && attribution == &other.attribution
             && citetitle == &other.citetitle
             && attribution_substitutions == &other.attribution_substitutions
@@ -337,10 +330,6 @@ impl<'a> BlockMetadata<'a> {
     /// caption labels and ordinals do not make metadata nonempty.
     #[must_use]
     pub fn is_default(&self) -> bool {
-        #[cfg(feature = "pre-spec-subs")]
-        let subs_default = self.substitutions.is_none();
-        #[cfg(not(feature = "pre-spec-subs"))]
-        let subs_default = true;
         self.roles.is_empty()
             && self.options.is_empty()
             && self.style.is_none()
@@ -348,7 +337,7 @@ impl<'a> BlockMetadata<'a> {
             && self.anchors.is_empty()
             && self.attributes.is_empty()
             && self.positional_attributes.is_empty()
-            && subs_default
+            && self.substitutions.is_none()
             && caption_has_no_content(&self.caption)
             && self.attribution.is_none()
             && self.citetitle.is_none()
@@ -387,7 +376,6 @@ impl<'a> BlockMetadata<'a> {
             self.id.clone_from(&other.id);
         }
         self.anchors.extend(other.anchors.clone());
-        #[cfg(feature = "pre-spec-subs")]
         if other.substitutions.is_some() {
             self.substitutions.clone_from(&other.substitutions);
         }
@@ -437,5 +425,29 @@ fn serialize_caption_content<S: serde::Serializer>(
         content.serialize(serializer)
     } else {
         serializer.serialize_none()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn merging_substitutions_distinguishes_absent_and_explicit_empty() {
+        let mut metadata = BlockMetadata {
+            substitutions: Some(SubstitutionSpec::Explicit(vec![Substitution::Quotes])),
+            ..BlockMetadata::default()
+        };
+        let original = metadata.clone();
+        metadata.merge(&BlockMetadata::default());
+        assert_eq!(metadata, original);
+
+        let empty = BlockMetadata {
+            substitutions: Some(SubstitutionSpec::Explicit(Vec::new())),
+            ..BlockMetadata::default()
+        };
+        metadata.merge(&empty);
+        assert_eq!(metadata, empty);
+        assert!(!metadata.is_default());
     }
 }
