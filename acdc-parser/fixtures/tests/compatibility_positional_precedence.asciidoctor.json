@@ -1,0 +1,818 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Positional Precedence",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 23
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 23
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "metadata": {
+        "attributes": {
+          "language": "rust",
+          "linenums": "linenums"
+        },
+        "style": "source"
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "same list",
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 9
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 6,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "metadata": {
+        "attributes": {
+          "language": "rust",
+          "linenums": "linenums"
+        },
+        "style": "source"
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "later named",
+          "location": [
+            {
+              "line": 11,
+              "col": 1
+            },
+            {
+              "line": 11,
+              "col": 11
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 8,
+          "col": 1
+        },
+        {
+          "line": 12,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "metadata": {
+        "attributes": {
+          "language": "rust",
+          "linenums": "linenums"
+        },
+        "style": "source"
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "later positional",
+          "location": [
+            {
+              "line": 17,
+              "col": 1
+            },
+            {
+              "line": 17,
+              "col": 16
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 14,
+          "col": 1
+        },
+        {
+          "line": 18,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "Positional",
+            "location": [
+              {
+                "line": 20,
+                "col": 8
+              },
+              {
+                "line": 20,
+                "col": 17
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "Citation",
+            "location": [
+              {
+                "line": 20,
+                "col": 19
+              },
+              {
+                "line": 20,
+                "col": 26
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Same-list attribution.",
+              "location": [
+                {
+                  "line": 22,
+                  "col": 1
+                },
+                {
+                  "line": 22,
+                  "col": 22
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 22,
+              "col": 1
+            },
+            {
+              "line": 22,
+              "col": 22
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 20,
+          "col": 1
+        },
+        {
+          "line": 23,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "Positional",
+            "location": [
+              {
+                "line": 25,
+                "col": 8
+              },
+              {
+                "line": 25,
+                "col": 17
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "Citation",
+            "location": [
+              {
+                "line": 25,
+                "col": 19
+              },
+              {
+                "line": 25,
+                "col": 26
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Later named attribution.",
+              "location": [
+                {
+                  "line": 28,
+                  "col": 1
+                },
+                {
+                  "line": 28,
+                  "col": 24
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 28,
+              "col": 1
+            },
+            {
+              "line": 28,
+              "col": 24
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 25,
+          "col": 1
+        },
+        {
+          "line": 29,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "verse",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "verse",
+        "attribution": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "Positional",
+            "location": [
+              {
+                "line": 32,
+                "col": 8
+              },
+              {
+                "line": 32,
+                "col": 17
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "Citation",
+            "location": [
+              {
+                "line": 32,
+                "col": 19
+              },
+              {
+                "line": 32,
+                "col": 26
+              }
+            ]
+          }
+        ]
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Later positional attribution.",
+          "location": [
+            {
+              "line": 34,
+              "col": 1
+            },
+            {
+              "line": 34,
+              "col": 29
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 31,
+          "col": 1
+        },
+        {
+          "line": 35,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "height": "200",
+          "width": "100"
+        }
+      },
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Later",
+          "location": [
+            {
+              "line": 38,
+              "col": 18
+            },
+            {
+              "line": 38,
+              "col": 22
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "photo.png"
+      },
+      "location": [
+        {
+          "line": 37,
+          "col": 1
+        },
+        {
+          "line": 38,
+          "col": 31
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "height": "400",
+          "width": "300"
+        }
+      },
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Named",
+          "location": [
+            {
+              "line": 40,
+              "col": 41
+            },
+            {
+              "line": 40,
+              "col": 45
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "photo.png"
+      },
+      "location": [
+        {
+          "line": 40,
+          "col": 1
+        },
+        {
+          "line": 40,
+          "col": 67
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "height": "200",
+          "width": "100"
+        }
+      },
+      "source": {
+        "type": "path",
+        "value": "photo.png"
+      },
+      "location": [
+        {
+          "line": 42,
+          "col": 1
+        },
+        {
+          "line": 42,
+          "col": 35
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Named",
+          "location": [
+            {
+              "line": 44,
+              "col": 6
+            },
+            {
+              "line": 44,
+              "col": 10
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "photo.png"
+      },
+      "location": [
+        {
+          "line": 44,
+          "col": 1
+        },
+        {
+          "line": 46,
+          "col": 18
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Alt",
+          "location": [
+            {
+              "line": 49,
+              "col": 18
+            },
+            {
+              "line": 49,
+              "col": 20
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "photo.png"
+      },
+      "location": [
+        {
+          "line": 48,
+          "col": 1
+        },
+        {
+          "line": 49,
+          "col": 21
+        }
+      ]
+    },
+    {
+      "name": "video",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "height": "200",
+          "poster": "later.jpg",
+          "width": "100"
+        }
+      },
+      "source": {
+        "type": "path",
+        "value": "movie.mp4"
+      },
+      "location": [
+        {
+          "line": 51,
+          "col": 1
+        },
+        {
+          "line": 52,
+          "col": 35
+        }
+      ]
+    },
+    {
+      "name": "video",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "height": "400",
+          "poster": "named.jpg",
+          "width": "300"
+        }
+      },
+      "source": {
+        "type": "path",
+        "value": "movie.mp4"
+      },
+      "location": [
+        {
+          "line": 54,
+          "col": 1
+        },
+        {
+          "line": 54,
+          "col": 74
+        }
+      ]
+    },
+    {
+      "name": "video",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "poster": "Named"
+        }
+      },
+      "source": {
+        "type": "path",
+        "value": "movie.mp4"
+      },
+      "location": [
+        {
+          "line": 56,
+          "col": 1
+        },
+        {
+          "line": 58,
+          "col": 18
+        }
+      ]
+    },
+    {
+      "name": "audio",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "three": null,
+          "two": null
+        },
+        "style": "one"
+      },
+      "source": {
+        "type": "path",
+        "value": "sound.ogg"
+      },
+      "location": [
+        {
+          "line": 60,
+          "col": 1
+        },
+        {
+          "line": 60,
+          "col": 31
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "width": ""
+        }
+      },
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Alt",
+          "location": [
+            {
+              "line": 63,
+              "col": 18
+            },
+            {
+              "line": 63,
+              "col": 20
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "photo.png"
+      },
+      "location": [
+        {
+          "line": 62,
+          "col": 1
+        },
+        {
+          "line": 63,
+          "col": 24
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "",
+            "location": [
+              {
+                "line": 66,
+                "col": 9
+              },
+              {
+                "line": 66,
+                "col": 9
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "",
+            "location": [
+              {
+                "line": 66,
+                "col": 12
+              },
+              {
+                "line": 66,
+                "col": 12
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Quoted empty positions have mode-specific effects.",
+              "location": [
+                {
+                  "line": 68,
+                  "col": 1
+                },
+                {
+                  "line": 68,
+                  "col": 50
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 68,
+              "col": 1
+            },
+            {
+              "line": 68,
+              "col": 50
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 65,
+          "col": 1
+        },
+        {
+          "line": 69,
+          "col": 4
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 69,
+      "col": 4
+    }
+  ]
+}

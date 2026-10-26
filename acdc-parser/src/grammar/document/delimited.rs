@@ -131,8 +131,6 @@ pub(super) struct DelimitedParams<'input> {
     pub(super) kind: DelimitedKind,
     /// The opening delimiter as it appeared in source (e.g. `"===="`).
     pub(super) open_delim: &'input str,
-    /// Language captured after a Markdown ```` ``` ```` fence, if any.
-    pub(super) lang: Option<&'input str>,
     pub(super) content: &'input str,
     pub(super) source_text: &'input str,
     pub(super) open_start: usize,
@@ -330,7 +328,7 @@ fn pass_inner<'input>(
     p: &DelimitedParams<'input>,
 ) -> DelimitedBlockType<'input> {
     if matches!(metadata.style, Some("stem" | "latexmath" | "asciimath")) {
-        let [notation] = metadata.take_positional_attributes::<1>();
+        let notation = metadata.take_next_positional_attribute();
         let notation = match metadata.style {
             Some("latexmath") => StemNotation::Latexmath,
             Some("asciimath") => StemNotation::Asciimath,

@@ -41,41 +41,7 @@
         "attributes": {
           "language": "rust"
         },
-        "style": "source",
-        "attribution": [
-          {
-            "name": "raw",
-            "type": "string",
-            "value": "Alice",
-            "location": [
-              {
-                "line": 3,
-                "col": 8
-              },
-              {
-                "line": 3,
-                "col": 12
-              }
-            ]
-          }
-        ],
-        "citetitle": [
-          {
-            "name": "raw",
-            "type": "string",
-            "value": "Book",
-            "location": [
-              {
-                "line": 3,
-                "col": 14
-              },
-              {
-                "line": 3,
-                "col": 17
-              }
-            ]
-          }
-        ]
+        "style": "source"
       },
       "inlines": [
         {
@@ -112,44 +78,9 @@
       "delimiter": "```",
       "metadata": {
         "attributes": {
-          "language": "rust",
-          "linenums": "linenums"
+          "language": "rust"
         },
-        "style": "source",
-        "attribution": [
-          {
-            "name": "raw",
-            "type": "string",
-            "value": "Alice",
-            "location": [
-              {
-                "line": 8,
-                "col": 8
-              },
-              {
-                "line": 8,
-                "col": 12
-              }
-            ]
-          }
-        ],
-        "citetitle": [
-          {
-            "name": "raw",
-            "type": "string",
-            "value": "Book",
-            "location": [
-              {
-                "line": 8,
-                "col": 14
-              },
-              {
-                "line": 8,
-                "col": 17
-              }
-            ]
-          }
-        ]
+        "style": "source"
       },
       "inlines": [
         {
@@ -184,40 +115,11 @@
       "type": "block",
       "form": "macro",
       "metadata": {
-        "attribution": [
-          {
-            "name": "raw",
-            "type": "string",
-            "value": "Alice",
-            "location": [
-              {
-                "line": 13,
-                "col": 8
-              },
-              {
-                "line": 13,
-                "col": 12
-              }
-            ]
-          }
-        ],
-        "citetitle": [
-          {
-            "name": "raw",
-            "type": "string",
-            "value": "Book",
-            "location": [
-              {
-                "line": 13,
-                "col": 14
-              },
-              {
-                "line": 13,
-                "col": 17
-              }
-            ]
-          }
-        ]
+        "attributes": {
+          "extra": null,
+          "height": "Book",
+          "width": "Alice"
+        }
       },
       "alt": [
         {
@@ -257,43 +159,10 @@
       "form": "macro",
       "metadata": {
         "attributes": {
+          "extra": null,
           "height": "200",
           "width": "100"
-        },
-        "attribution": [
-          {
-            "name": "raw",
-            "type": "string",
-            "value": "Alice",
-            "location": [
-              {
-                "line": 16,
-                "col": 8
-              },
-              {
-                "line": 16,
-                "col": 12
-              }
-            ]
-          }
-        ],
-        "citetitle": [
-          {
-            "name": "raw",
-            "type": "string",
-            "value": "Book",
-            "location": [
-              {
-                "line": 16,
-                "col": 14
-              },
-              {
-                "line": 16,
-                "col": 17
-              }
-            ]
-          }
-        ]
+        }
       },
       "alt": [
         {
@@ -333,42 +202,11 @@
       "form": "macro",
       "metadata": {
         "attributes": {
-          "poster": "Poster"
-        },
-        "attribution": [
-          {
-            "name": "raw",
-            "type": "string",
-            "value": "Alice",
-            "location": [
-              {
-                "line": 19,
-                "col": 8
-              },
-              {
-                "line": 19,
-                "col": 12
-              }
-            ]
-          }
-        ],
-        "citetitle": [
-          {
-            "name": "raw",
-            "type": "string",
-            "value": "Book",
-            "location": [
-              {
-                "line": 19,
-                "col": 14
-              },
-              {
-                "line": 19,
-                "col": 17
-              }
-            ]
-          }
-        ]
+          "extra": null,
+          "height": "Book",
+          "poster": "Poster",
+          "width": "Alice"
+        }
       },
       "source": {
         "type": "path",
@@ -391,44 +229,11 @@
       "form": "macro",
       "metadata": {
         "attributes": {
+          "extra": null,
           "height": "200",
           "poster": "Poster",
           "width": "100"
-        },
-        "attribution": [
-          {
-            "name": "raw",
-            "type": "string",
-            "value": "Alice",
-            "location": [
-              {
-                "line": 22,
-                "col": 8
-              },
-              {
-                "line": 22,
-                "col": 12
-              }
-            ]
-          }
-        ],
-        "citetitle": [
-          {
-            "name": "raw",
-            "type": "string",
-            "value": "Book",
-            "location": [
-              {
-                "line": 22,
-                "col": 14
-              },
-              {
-                "line": 22,
-                "col": 17
-              }
-            ]
-          }
-        ]
+        }
       },
       "source": {
         "type": "path",
@@ -451,43 +256,11 @@
       "form": "macro",
       "metadata": {
         "attributes": {
+          "Alice": null,
+          "Book": null,
           "extra": null
         },
-        "style": "quote",
-        "attribution": [
-          {
-            "name": "raw",
-            "type": "string",
-            "value": "Alice",
-            "location": [
-              {
-                "line": 25,
-                "col": 8
-              },
-              {
-                "line": 25,
-                "col": 12
-              }
-            ]
-          }
-        ],
-        "citetitle": [
-          {
-            "name": "raw",
-            "type": "string",
-            "value": "Book",
-            "location": [
-              {
-                "line": 25,
-                "col": 14
-              },
-              {
-                "line": 25,
-                "col": 17
-              }
-            ]
-          }
-        ]
+        "style": "quote"
       },
       "source": {
         "type": "path",

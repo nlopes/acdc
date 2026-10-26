@@ -68,6 +68,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Positional block attributes now use the matched block form. Quote delimiters
+  accept positional attribution without a `quote` style, and `[,language]` on a
+  listing selects that source language. Unrelated block forms no longer acquire
+  source or quote attributes from their style alone.
+- Draft resolves mapped positional and named attributes in document order,
+  including preceding image/video positions. Asciidoctor mode keeps the
+  reference's block precedence and limits media dimensions/posters to the macro.
+  Later positional macro dimensions now override earlier named values.
+- Markdown fence languages no longer shift preceding positions or turn them
+  into line-number settings. Only selected attributions register inline macros.
+
 - Stacked block attributes retain earlier positional values across named gaps.
   Draft also retains them across empty positions; Asciidoctor mode clears an
   explicitly empty position. Values keep the location of the selected entry.

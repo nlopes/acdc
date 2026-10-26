@@ -9,8 +9,9 @@
       "delimiter": "----",
       "metadata": {
         "attributes": {
-          "attributes": null
+          "language": "attributes"
         },
+        "style": "source",
         "substitutions": [
           "specialchars"
         ]

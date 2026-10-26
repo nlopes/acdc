@@ -5,7 +5,7 @@
     {
       "name": "comment",
       "type": "block",
-      "content": " Quote credits do not become dimensions.",
+      "content": " Asciidoctor mode does not map preceding quote positions to dimensions.",
       "location": [
         {
           "line": 1,
@@ -13,7 +13,7 @@
         },
         {
           "line": 1,
-          "col": 43
+          "col": 74
         }
       ]
     },
@@ -24,41 +24,7 @@
       "metadata": {
         "attributes": {
           "poster": "Alt"
-        },
-        "attribution": [
-          {
-            "name": "raw",
-            "type": "string",
-            "value": "Alice",
-            "location": [
-              {
-                "line": 2,
-                "col": 8
-              },
-              {
-                "line": 2,
-                "col": 12
-              }
-            ]
-          }
-        ],
-        "citetitle": [
-          {
-            "name": "raw",
-            "type": "string",
-            "value": "Book",
-            "location": [
-              {
-                "line": 2,
-                "col": 14
-              },
-              {
-                "line": 2,
-                "col": 17
-              }
-            ]
-          }
-        ]
+        }
       },
       "source": {
         "type": "path",
@@ -78,7 +44,7 @@
     {
       "name": "comment",
       "type": "block",
-      "content": " Preceding positional attributes do not become dimensions.",
+      "content": " Asciidoctor mode does not map preceding positions to dimensions.",
       "location": [
         {
           "line": 5,
@@ -86,7 +52,7 @@
         },
         {
           "line": 5,
-          "col": 61
+          "col": 68
         }
       ]
     },
@@ -199,7 +165,7 @@
     {
       "name": "comment",
       "type": "block",
-      "content": " An empty width slot does not inherit a preceding positional value.",
+      "content": " An empty width slot inherits the preceding value only in Draft mode.",
       "location": [
         {
           "line": 17,
@@ -207,7 +173,7 @@
         },
         {
           "line": 17,
-          "col": 70
+          "col": 72
         }
       ]
     },

@@ -1,0 +1,596 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Mapped Content",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 16
+          }
+        ]
+      }
+    ],
+    "authors": [
+      {
+        "firstname": "Ada",
+        "lastname": "",
+        "initials": "A"
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 2,
+        "col": 12
+      }
+    ]
+  },
+  "attributes": {
+    "author": "Ada",
+    "authorcount": "1",
+    "authorinitials": "A",
+    "authors": "Ada",
+    "firstname": "Ada",
+    "lastname": ""
+  },
+  "blocks": [
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Positional ",
+            "location": [
+              {
+                "line": 4,
+                "col": 9
+              },
+              {
+                "line": 4,
+                "col": 19
+              }
+            ]
+          },
+          {
+            "name": "footnote",
+            "type": "inline",
+            "id": null,
+            "inlines": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Positional author.",
+                "location": [
+                  {
+                    "line": 4,
+                    "col": 30
+                  },
+                  {
+                    "line": 4,
+                    "col": 47
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 4,
+                "col": 20
+              },
+              {
+                "line": 4,
+                "col": 48
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Positional ",
+            "location": [
+              {
+                "line": 4,
+                "col": 52
+              },
+              {
+                "line": 4,
+                "col": 62
+              }
+            ]
+          },
+          {
+            "name": "footnote",
+            "type": "inline",
+            "id": null,
+            "inlines": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Positional book.",
+                "location": [
+                  {
+                    "line": 4,
+                    "col": 73
+                  },
+                  {
+                    "line": 4,
+                    "col": 88
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 4,
+                "col": 63
+              },
+              {
+                "line": 4,
+                "col": 89
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Body ",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 1
+                },
+                {
+                  "line": 7,
+                  "col": 5
+                }
+              ]
+            },
+            {
+              "name": "footnote",
+              "type": "inline",
+              "id": null,
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Quote body.",
+                  "location": [
+                    {
+                      "line": 7,
+                      "col": 16
+                    },
+                    {
+                      "line": 7,
+                      "col": 26
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 7,
+                  "col": 6
+                },
+                {
+                  "line": 7,
+                  "col": 27
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 7,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 27
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 4,
+          "col": 1
+        },
+        {
+          "line": 8,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Ada ",
+            "location": [
+              {
+                "line": 11,
+                "col": 9
+              },
+              {
+                "line": 11,
+                "col": 12
+              }
+            ]
+          },
+          {
+            "name": "footnote",
+            "type": "inline",
+            "id": null,
+            "inlines": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Selected author.",
+                "location": [
+                  {
+                    "line": 11,
+                    "col": 23
+                  },
+                  {
+                    "line": 11,
+                    "col": 38
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 11,
+                "col": 13
+              },
+              {
+                "line": 11,
+                "col": 39
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Only the selected attribution is interpreted.",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 1
+                },
+                {
+                  "line": 13,
+                  "col": 45
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 13,
+              "col": 1
+            },
+            {
+              "line": 13,
+              "col": 45
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 10,
+          "col": 1
+        },
+        {
+          "line": 14,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "Old",
+            "location": [
+              {
+                "line": 1,
+                "col": 8,
+                "file": [
+                  "includes/compatibility_mapped_content.adoc"
+                ]
+              },
+              {
+                "line": 1,
+                "col": 10,
+                "file": [
+                  "includes/compatibility_mapped_content.adoc"
+                ]
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "OldBook",
+            "location": [
+              {
+                "line": 1,
+                "col": 12,
+                "file": [
+                  "includes/compatibility_mapped_content.adoc"
+                ]
+              },
+              {
+                "line": 1,
+                "col": 18,
+                "file": [
+                  "includes/compatibility_mapped_content.adoc"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Included selection preserves locations.",
+              "location": [
+                {
+                  "line": 4,
+                  "col": 1,
+                  "file": [
+                    "includes/compatibility_mapped_content.adoc"
+                  ]
+                },
+                {
+                  "line": 4,
+                  "col": 39,
+                  "file": [
+                    "includes/compatibility_mapped_content.adoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 4,
+              "col": 1,
+              "file": [
+                "includes/compatibility_mapped_content.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 39,
+              "file": [
+                "includes/compatibility_mapped_content.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1,
+          "file": [
+            "includes/compatibility_mapped_content.adoc"
+          ]
+        },
+        {
+          "line": 5,
+          "col": 4,
+          "file": [
+            "includes/compatibility_mapped_content.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "quote",
+                    "type": "block",
+                    "form": "delimited",
+                    "delimiter": "____",
+                    "metadata": {
+                      "style": "quote",
+                      "attribution": [
+                        {
+                          "name": "raw",
+                          "type": "string",
+                          "value": "Old",
+                          "location": [
+                            {
+                              "line": 20,
+                              "col": 9
+                            },
+                            {
+                              "line": 20,
+                              "col": 11
+                            }
+                          ]
+                        }
+                      ],
+                      "citetitle": [
+                        {
+                          "name": "raw",
+                          "type": "string",
+                          "value": "OldBook",
+                          "location": [
+                            {
+                              "line": 20,
+                              "col": 13
+                            },
+                            {
+                              "line": 20,
+                              "col": 19
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    "blocks": [
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Nested selection preserves locations.",
+                            "location": [
+                              {
+                                "line": 23,
+                                "col": 1
+                              },
+                              {
+                                "line": 23,
+                                "col": 37
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 23,
+                            "col": 1
+                          },
+                          {
+                            "line": 23,
+                            "col": 37
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 20,
+                        "col": 2
+                      },
+                      {
+                        "line": 24,
+                        "col": 4
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 19,
+            "col": 1
+          },
+          {
+            "line": 25,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 18,
+          "col": 1
+        },
+        {
+          "line": 25,
+          "col": 4
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 25,
+      "col": 4
+    }
+  ]
+}

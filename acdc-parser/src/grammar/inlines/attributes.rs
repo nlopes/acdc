@@ -117,6 +117,7 @@ pub(super) fn process_attribute_list<'input>(
                         metadata.positional_attributes.push(PositionalAttribute {
                             position: None,
                             value: key_str,
+                            quoted_empty: false,
                             substitutions: false,
                             location: None,
                         });
@@ -300,9 +301,11 @@ pub(super) fn process_media_content<'a>(
         }
     } else {
         metadata.style = None;
-        let [width, height] = metadata.take_positional_attributes::<2>();
-        for (name, value) in [("width", width), ("height", height)] {
-            if let Some(value) = value.filter(|value| !value.value.is_empty()) {
+        for name in ["width", "height"] {
+            if let Some(value) = metadata
+                .take_next_positional_attribute()
+                .filter(|value| !value.value.is_empty())
+            {
                 metadata.attributes.insert(name.into(), value.value.into());
             }
         }

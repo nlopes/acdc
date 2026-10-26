@@ -95,11 +95,18 @@ are added after named roles. Options from preceding lists remain active on block
 media macros in both modes. Draft splits options on commas or whitespace;
 Asciidoctor splits on commas and removes spaces when a comma is present.
 
+After the block form is known, Draft maps positional values to names in document
+order: the later value wins. This includes positions from preceding image and
+video attribute lists. Asciidoctor mode keeps the reference rules: source and
+quote positions override named values, while media dimensions and video posters
+come from the macro itself. A preceding image style is only a fallback for alt
+text. Both modes retain positional slots for callers after mapping.
+
 Asciidoctor mode ignores an unquoted named `None` entry, preserving any earlier
 value. Draft treats it as ordinary text. Quoted and positional `None` remain
 text in both modes. This policy also applies to inline-image attributes.
 
-These differences follow SDR-2 at revision
+These differences follow SDR-2 and SDR-6 at revision
 `68ed0b22e8d9b919897542d8ae14f03e7dbdd2e4`; Draft does not mean complete draft
 specification conformance. Custom `subs=` settings and Setext still use their
 existing controls. Safe mode, network access, and output format stay separate.

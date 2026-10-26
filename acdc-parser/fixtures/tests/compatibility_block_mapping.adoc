@@ -1,0 +1,48 @@
+= Block Mapping
+
+[,Author,Book]
+____
+The quote delimiter supplies the mapping.
+____
+
+[,rust,linenums]
+----
+implicit source
+----
+
+[source,rust]
+====
+The example delimiter does not map a language.
+====
+
+[quote,Author,Book]
+----
+The listing delimiter does not map an attribution.
+----
+
+[quote,Author,Book]
+* A list does not map an attribution.
+
+[source,rust,linenums]
+--
+An open block with a source style.
+--
+
+[quote,Author,Book]
+A quote paragraph.
+
+[verse,Author,Book]
+A verse paragraph.
+
+[language=python]
+```rust
+fenced source
+```
+
+[source,role=kept,linenums]
+----
+named gap
+----
+
+[custom,one,name=value,,last]
+Unconsumed slots keep their positions.

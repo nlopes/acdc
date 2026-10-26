@@ -7,14 +7,13 @@ use crate::{
         document::{
             callouts::resolve_verbatim_callouts,
             delimited::{DelimitedKind, DelimitedParams},
-            metadata::extract_source_attributes,
         },
         helpers::BlockParsingMetadata,
         inline_processing::process_verbatim_inlines,
         location_walk::walk_inline_nodes_mut,
     },
     model::{
-        PositionalAttribute, Substitution,
+        Substitution,
         substitution::{SubstitutionPlan, VERBATIM},
     },
 };
@@ -27,18 +26,6 @@ pub(super) fn verbatim_inner<'input>(
     metadata: &mut BlockMetadata<'input>,
     p: &DelimitedParams<'input>,
 ) -> Result<DelimitedBlockType<'input>, Error> {
-    // A Markdown fence language becomes a positional `source` style so language
-    // detection works like `[source,lang]` (never set for `....`/`----`).
-    if let Some(language) = p.lang {
-        metadata.prepend_synthetic_positional_attribute(PositionalAttribute {
-            position: None,
-            value: language,
-            substitutions: false,
-            location: None,
-        });
-        metadata.style = Some("source");
-    }
-    extract_source_attributes(state, metadata);
     metadata.move_positional_attributes_to_attributes();
     let content_location = state.create_block_location(p.content_start, p.content_end, p.offset);
     let (inlines, callouts) = resolve_verbatim_callouts(

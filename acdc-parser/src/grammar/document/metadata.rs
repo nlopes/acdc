@@ -28,6 +28,16 @@ use crate::{
 };
 use std::{borrow::Cow, rc::Rc};
 
+use super::delimited::DelimitedKind;
+
+#[derive(Clone, Copy, Debug)]
+pub(super) enum AttributeBlockForm<'a> {
+    Delimited(DelimitedKind, Option<&'a str>),
+    Paragraph { indented: bool },
+    NonParagraph,
+    Table,
+}
+
 /// A block metadata line recognized by the document grammar.
 #[derive(Debug)]
 pub(super) enum BlockMetadataLine<'input> {
@@ -210,10 +220,10 @@ pub(super) fn merge_attribute_metadata<'input>(
     for (name, value) in attribute_metadata.attributes.iter() {
         metadata.attributes.set(name.clone(), value.clone());
     }
-    if attribute_metadata.alt_source.is_some()
-        && (attribute_metadata.attributes.contains_key("alt")
-            || !metadata.attributes.contains_key("alt"))
-    {
+    if attribute_metadata.first_source.is_some() {
+        metadata.first_source = attribute_metadata.first_source;
+    }
+    if attribute_metadata.alt_source.is_some() {
         metadata.alt_source = attribute_metadata.alt_source;
     }
     if attribute_metadata.caption_source.is_some() {
@@ -312,8 +322,6 @@ pub(super) fn finish_block_parsing_metadata<'input>(
     let hardbreaks = substitutions.enabled(&Substitution::PostReplacements)
         && (state.hardbreaks || metadata.options.contains(&"hardbreaks"));
     resolve_caption_content(state, &mut metadata, offset)?;
-    extract_source_attributes(state, &mut metadata);
-    extract_quote_attributes(&mut metadata);
     apply_quote_attribute_substitutions(state, &mut metadata, offset, substitutions)?;
     Ok(BlockParsingMetadata {
         metadata,
@@ -403,18 +411,103 @@ fn apply_block_style<'input>(
     Ok(())
 }
 
-pub(super) fn extract_media_dimensions(metadata: &mut BlockMetadata<'_>) {
-    for (slot, name) in [(0, "width"), (1, "height")] {
-        if let Some(value) = metadata
-            .positional_attributes
-            .get(slot)
-            .map(|attribute| attribute.value)
-            .filter(|value| !value.is_empty())
+fn positional_wins(
+    metadata: &BlockMetadata<'_>,
+    position: Option<AttributePosition>,
+    name: &str,
+    mode: CompatibilityMode,
+    media: bool,
+) -> bool {
+    // Asciidoctor rekeys ordinary blocks after named entries, but assigns macro
+    // fields in source order. Draft uses source order for both.
+    if mode == CompatibilityMode::Asciidoctor && !media {
+        return true;
+    }
+    metadata
+        .attribute_positions
+        .as_ref()
+        .and_then(|positions| positions.named.get(name))
+        .is_none_or(|named| position.is_none_or(|position| position > *named))
+}
+
+pub(super) fn route_media_attributes<'a>(
+    metadata: &mut BlockMetadata<'a>,
+    attributes: &BlockMetadata<'a>,
+    mode: CompatibilityMode,
+    video: bool,
+) {
+    merge_macro_metadata(metadata, attributes, mode);
+    let selected = if mode == CompatibilityMode::Draft {
+        &*metadata
+    } else {
+        attributes
+    };
+    let first = selected.first_source.clone();
+    let first_position = selected
+        .attribute_positions
+        .as_ref()
+        .and_then(|positions| positions.first);
+    for (slot, name) in ["width", "height"].into_iter().enumerate() {
+        let aggregated = metadata.take_next_positional_attribute();
+        let attribute = if mode == CompatibilityMode::Draft {
+            aggregated
+        } else {
+            attributes.positional_attributes.get(slot).cloned()
+        };
+        if let Some(attribute) = attribute.filter(|attribute| {
+            !attribute.value.is_empty()
+                || (mode == CompatibilityMode::Asciidoctor && attribute.quoted_empty)
+        }) && positional_wins(metadata, attribute.position, name, mode, true)
         {
-            metadata
-                .attributes
-                .insert(name.into(), AttributeValue::String(Cow::Borrowed(value)));
+            metadata.attributes.set(name.into(), attribute.value.into());
         }
+    }
+    if video
+        && let Some(first) = first
+        && positional_wins(metadata, first_position, "poster", mode, true)
+    {
+        metadata
+            .attributes
+            .set("poster".into(), first.source.into());
+    }
+    metadata.style = None;
+    metadata.first_source = None;
+}
+
+pub(super) fn route_block_positions<'a>(
+    state: &ParserState<'a>,
+    metadata: &mut BlockMetadata<'a>,
+    form: AttributeBlockForm<'a>,
+) {
+    let (source, quote) = match form {
+        AttributeBlockForm::Delimited(DelimitedKind::Listing, language) => {
+            if let Some(language) = language {
+                // A fence supplies its language without rekeying preceding positions.
+                metadata.style = Some("source");
+                extract_source_attributes(state, metadata, Some(language));
+                return;
+            } else if metadata.style.is_none() && metadata.positional_attribute(0).is_some() {
+                metadata.style = Some("source");
+            }
+            (metadata.style == Some("source"), false)
+        }
+        AttributeBlockForm::Delimited(DelimitedKind::Quote, _) => (false, true),
+        AttributeBlockForm::Delimited(DelimitedKind::Open, _)
+        | AttributeBlockForm::Paragraph { indented: false } => (
+            metadata.style == Some("source"),
+            matches!(metadata.style, Some("quote" | "verse")),
+        ),
+        AttributeBlockForm::Paragraph { indented: true } | AttributeBlockForm::NonParagraph => (
+            metadata.style == Some("source"),
+            metadata.style == Some("verse"),
+        ),
+        AttributeBlockForm::Delimited(_, _) | AttributeBlockForm::Table => (false, false),
+    };
+    if source {
+        extract_source_attributes(state, metadata, None);
+    }
+    if quote {
+        extract_quote_attributes(metadata, state.options.compatibility_mode);
     }
 }
 
@@ -424,32 +517,38 @@ fn ensure_positional_slot(metadata: &mut BlockMetadata<'_>, slot: usize) {
         .resize(slot, PositionalAttribute::default());
 }
 
-pub(super) fn extract_source_attributes(state: &ParserState<'_>, metadata: &mut BlockMetadata<'_>) {
+fn extract_source_attributes<'a>(
+    state: &ParserState<'a>,
+    metadata: &mut BlockMetadata<'a>,
+    fence_language: Option<&'a str>,
+) {
     if metadata.style != Some("source") {
         return;
     }
 
-    if let Some(language) = metadata
-        .positional_attributes
-        .first()
-        .map(|attribute| attribute.value)
-        .filter(|value| !value.is_empty())
-    {
-        metadata.attributes.set(
-            "language".into(),
-            AttributeValue::String(Cow::Borrowed(language)),
-        );
-    }
-    if let Some(linenums) = metadata
-        .positional_attributes
-        .get(1)
-        .map(|attribute| attribute.value)
-        .filter(|value| !value.is_empty())
-    {
-        metadata.attributes.set(
-            "linenums".into(),
-            AttributeValue::String(Cow::Borrowed(linenums)),
-        );
+    if let Some(language) = fence_language {
+        metadata.attributes.set("language".into(), language.into());
+    } else {
+        for (slot, name) in [(0, "language"), (1, "linenums")] {
+            if let Some(attribute) = metadata
+                .positional_attributes
+                .get(slot)
+                .filter(|attribute| {
+                    !attribute.value.is_empty()
+                        || (state.options.compatibility_mode == CompatibilityMode::Asciidoctor
+                            && attribute.quoted_empty)
+                })
+                && positional_wins(
+                    metadata,
+                    attribute.position,
+                    name,
+                    state.options.compatibility_mode,
+                    false,
+                )
+            {
+                metadata.attributes.set(name.into(), attribute.value.into());
+            }
+        }
     }
     if !metadata.attributes.contains_key("linenums")
         && (metadata.options.contains(&"linenums")
@@ -548,7 +647,6 @@ fn store_named_block_attribute<'input>(
 
 fn record_attribute_position<'a>(
     metadata: &mut BlockMetadata<'a>,
-    attribute: &ScannedAttribute,
     name: Option<&'a str>,
     position: AttributePosition,
 ) {
@@ -558,9 +656,7 @@ fn record_attribute_position<'a>(
             .get_or_insert_with(Default::default)
             .named
             .insert(name, position);
-    } else if position.slot == 0
-        && (!attribute.value.is_empty() || attribute.quote != AttributeQuote::Unquoted)
-    {
+    } else if position.slot == 0 && metadata.first_source.is_some() {
         metadata
             .attribute_positions
             .get_or_insert_with(Default::default)
@@ -608,7 +704,6 @@ pub(super) fn parse_block_attribute_list<'input>(
             list_start: content_start + offset,
             slot,
         };
-        record_attribute_position(&mut metadata, attribute, name, position);
         let span = attribute.source_range(&expanded.source_map, 0..attribute.value.len())?;
         let location = Some(state.create_block_location(
             content_start + span.start,
@@ -617,6 +712,7 @@ pub(super) fn parse_block_attribute_list<'input>(
         ));
 
         if matches!(name, Some("alt" | "caption")) {
+            record_attribute_position(&mut metadata, name, position);
             let original = authored.as_ref().and_then(|attributes| {
                 attributes.iter().find(|a| {
                     a.name.as_deref() == name
@@ -669,11 +765,13 @@ pub(super) fn parse_block_attribute_list<'input>(
                 *positional = PositionalAttribute {
                     position: Some(position),
                     value,
+                    quoted_empty: value.is_empty() && attribute.quote != AttributeQuote::Unquoted,
                     substitutions: attribute.quote == AttributeQuote::Single,
                     location,
                 };
             }
         }
+        record_attribute_position(&mut metadata, name, position);
     }
 
     if state.options.compatibility_mode == CompatibilityMode::Draft {
@@ -733,14 +831,17 @@ fn store_first_block_slot<'a>(
                 content_start,
                 offset,
             )?;
-            if let Some(style) = metadata.style
-                && !metadata.attributes.contains_key("alt")
+            if let Some(part) =
+                block_shorthand(value, attribute.quote, state.options.compatibility_mode)
+                    .into_iter()
+                    .find(|part| matches!(part.kind, ShorthandKind::Style))
             {
-                metadata.alt_source = Some(Box::new(
+                let span = attribute.source_range(source_map, part.range.clone())?;
+                metadata.first_source = Some(Box::new(
                     crate::model::content_attribute::PendingContentAttribute {
-                        source: style,
-                        start: content_start + attribute.value_start,
-                        end: content_start + attribute.value_end,
+                        source: &value[part.range],
+                        start: content_start + span.start,
+                        end: content_start + span.end,
                         formatted: attribute.quote == AttributeQuote::Single,
                         attributes: None,
                     },
@@ -752,11 +853,12 @@ fn store_first_block_slot<'a>(
             if !value.is_empty() || attribute.quote != AttributeQuote::Unquoted =>
         {
             metadata.style = Some(value);
-            metadata.alt_source = Some(Box::new(
+            let span = attribute.source_range(source_map, 0..value.len())?;
+            metadata.first_source = Some(Box::new(
                 crate::model::content_attribute::PendingContentAttribute {
                     source: value,
-                    start: content_start + attribute.value_start,
-                    end: content_start + attribute.value_end,
+                    start: content_start + span.start,
+                    end: content_start + span.end,
                     formatted: false,
                     attributes: value
                         .contains('{')
@@ -777,17 +879,16 @@ fn plain_attribute_value(value: &str, location: Option<Location>) -> Vec<InlineN
     })]
 }
 
-fn extract_quote_attributes(metadata: &mut BlockMetadata<'_>) {
-    if !matches!(metadata.style, Some("quote" | "verse")) {
-        return;
-    }
-
+fn extract_quote_attributes(metadata: &mut BlockMetadata<'_>, mode: CompatibilityMode) {
     let named_attribution = metadata.attribution.take();
     let named_citetitle = metadata.citetitle.take();
-    let positional_attribution = metadata.positional_attributes.first().cloned();
-    let positional_citetitle = metadata.positional_attributes.get(1).cloned();
+    let positional_attribution = metadata.take_next_positional_attribute();
+    let positional_citetitle = metadata.take_next_positional_attribute();
 
-    if let Some(attribute) = positional_attribution.filter(|value| !value.value.is_empty()) {
+    if let Some(attribute) = positional_attribution.filter(|value| {
+        (!value.value.is_empty() || (mode == CompatibilityMode::Asciidoctor && value.quoted_empty))
+            && positional_wins(metadata, value.position, "attribution", mode, false)
+    }) {
         metadata.attribution = Some(Attribution::new(plain_attribute_value(
             attribute.value,
             attribute.location,
@@ -797,7 +898,10 @@ fn extract_quote_attributes(metadata: &mut BlockMetadata<'_>) {
         metadata.attribution = named_attribution;
     }
 
-    if let Some(attribute) = positional_citetitle.filter(|value| !value.value.is_empty()) {
+    if let Some(attribute) = positional_citetitle.filter(|value| {
+        (!value.value.is_empty() || (mode == CompatibilityMode::Asciidoctor && value.quoted_empty))
+            && positional_wins(metadata, value.position, "citetitle", mode, false)
+    }) {
         metadata.citetitle = Some(CiteTitle::new(plain_attribute_value(
             attribute.value,
             attribute.location,
@@ -806,8 +910,6 @@ fn extract_quote_attributes(metadata: &mut BlockMetadata<'_>) {
     } else {
         metadata.citetitle = named_citetitle;
     }
-
-    let _ = metadata.take_positional_attributes::<2>();
 }
 
 fn apply_quote_attribute_substitutions<'input>(
@@ -944,14 +1046,36 @@ pub(super) fn resolve_block_content_attributes<'a>(
     {
         metadata.caption_source.clone_from(&media.caption_source);
     }
-    let alt = image
-        .then(|| {
-            media
-                .and_then(|media| media.alt_source.as_ref())
-                .or(metadata.alt_source.as_ref())
-                .cloned()
-        })
-        .flatten();
+    let alt = if image {
+        let mut selected = metadata.clone();
+        if let Some(media) = media {
+            merge_macro_metadata(&mut selected, media, state.options.compatibility_mode);
+        }
+        let position = selected
+            .attribute_positions
+            .as_ref()
+            .and_then(|positions| positions.first);
+        let macro_first = media
+            .and_then(|media| media.first_source.as_ref())
+            .is_some();
+        let use_first = selected.first_source.is_some()
+            && (selected.alt_source.is_none()
+                || ((state.options.compatibility_mode == CompatibilityMode::Draft || macro_first)
+                    && positional_wins(
+                        &selected,
+                        position,
+                        "alt",
+                        state.options.compatibility_mode,
+                        true,
+                    )));
+        if use_first {
+            selected.first_source
+        } else {
+            selected.alt_source
+        }
+    } else {
+        None
+    };
     let caption_first = match (&metadata.caption_source, &alt) {
         (Some(caption), Some(alt)) => caption.start < alt.start,
         _ => true,
@@ -966,6 +1090,9 @@ pub(super) fn resolve_block_content_attributes<'a>(
         resolve_caption_content(state, metadata, offset)?;
     }
     metadata.alt_source = None;
+    if image || media.is_none() {
+        metadata.first_source = None;
+    }
     Ok(alt)
 }
 

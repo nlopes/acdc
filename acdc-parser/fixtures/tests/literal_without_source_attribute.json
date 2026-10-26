@@ -9,8 +9,9 @@
       "delimiter": "----",
       "metadata": {
         "attributes": {
-          "ruby": null
-        }
+          "language": "ruby"
+        },
+        "style": "source"
       },
       "inlines": [
         {

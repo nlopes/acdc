@@ -35,6 +35,7 @@ pub(crate) struct AttributePositions<'a> {
 pub(crate) struct PositionalAttribute<'a> {
     pub(crate) position: Option<AttributePosition>,
     pub(crate) value: &'a str,
+    pub(crate) quoted_empty: bool,
     pub(crate) substitutions: bool,
     pub(crate) location: Option<Location>,
 }
@@ -65,13 +66,15 @@ pub struct BlockMetadata<'a> {
     #[serde(skip)]
     pub(crate) alt_source: Option<Box<super::content_attribute::PendingContentAttribute<'a>>>,
     #[serde(skip)]
+    pub(crate) first_source: Option<Box<super::content_attribute::PendingContentAttribute<'a>>>,
+    #[serde(skip)]
     pub(crate) caption_source: Option<Box<super::content_attribute::PendingContentAttribute<'a>>>,
     #[serde(default, skip_serializing_if = "ElementAttributes::is_empty")]
     pub attributes: ElementAttributes<'a>,
     /// Parser working slots, consumed as attributes are routed to their block context.
     #[serde(default, skip_serializing)]
     pub(crate) positional_attributes: Vec<PositionalAttribute<'a>>,
-    // Preserve the original slots before routing consumes or inserts working slots.
+    // Preserve the original slots before routing consumes working slots.
     #[serde(skip)]
     pub(crate) retained_positional_attributes: Option<Vec<PositionalAttribute<'a>>>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -112,6 +115,7 @@ impl PartialEq for BlockMetadata<'_> {
             document_attributes,
             caption,
             alt_source: _,
+            first_source: _,
             caption_source: _,
             attributes,
             positional_attributes: _,
@@ -272,21 +276,13 @@ impl<'a> BlockMetadata<'a> {
             .get_or_insert_with(|| self.positional_attributes.clone());
     }
 
-    pub(crate) fn take_positional_attributes<const N: usize>(
-        &mut self,
-    ) -> [Option<PositionalAttribute<'a>>; N] {
+    pub(crate) fn take_next_positional_attribute(&mut self) -> Option<PositionalAttribute<'a>> {
         self.retain_positional_attributes();
-        let count = N.min(self.positional_attributes.len());
-        let mut slots = self.positional_attributes.drain(..count);
-        std::array::from_fn(|_| slots.next())
-    }
-
-    pub(crate) fn prepend_synthetic_positional_attribute(
-        &mut self,
-        attribute: PositionalAttribute<'a>,
-    ) {
-        self.retain_positional_attributes();
-        self.positional_attributes.insert(0, attribute);
+        if self.positional_attributes.is_empty() {
+            None
+        } else {
+            Some(self.positional_attributes.remove(0))
+        }
     }
 
     pub(crate) fn move_positional_attributes_to_attributes(&mut self) {

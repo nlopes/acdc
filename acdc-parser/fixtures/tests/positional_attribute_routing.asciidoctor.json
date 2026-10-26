@@ -1,0 +1,327 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Positional attribute routing",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 30
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 30
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "```",
+      "metadata": {
+        "attributes": {
+          "language": "rust"
+        },
+        "style": "source"
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "x",
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 1
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 6,
+          "col": 3
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "```",
+      "metadata": {
+        "attributes": {
+          "language": "rust"
+        },
+        "style": "source"
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "x",
+          "location": [
+            {
+              "line": 10,
+              "col": 1
+            },
+            {
+              "line": 10,
+              "col": 1
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 8,
+          "col": 1
+        },
+        {
+          "line": 11,
+          "col": 3
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "extra": null
+        }
+      },
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Alt",
+          "location": [
+            {
+              "line": 14,
+              "col": 14
+            },
+            {
+              "line": 14,
+              "col": 16
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "a.png"
+      },
+      "location": [
+        {
+          "line": 13,
+          "col": 1
+        },
+        {
+          "line": 14,
+          "col": 17
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "extra": null,
+          "height": "200",
+          "width": "100"
+        }
+      },
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Alt",
+          "location": [
+            {
+              "line": 17,
+              "col": 14
+            },
+            {
+              "line": 17,
+              "col": 16
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "a.png"
+      },
+      "location": [
+        {
+          "line": 16,
+          "col": 1
+        },
+        {
+          "line": 17,
+          "col": 25
+        }
+      ]
+    },
+    {
+      "name": "video",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "extra": null,
+          "poster": "Poster"
+        }
+      },
+      "source": {
+        "type": "path",
+        "value": "a.mp4"
+      },
+      "location": [
+        {
+          "line": 19,
+          "col": 1
+        },
+        {
+          "line": 20,
+          "col": 20
+        }
+      ]
+    },
+    {
+      "name": "video",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "extra": null,
+          "height": "200",
+          "poster": "Poster",
+          "width": "100"
+        }
+      },
+      "source": {
+        "type": "path",
+        "value": "a.mp4"
+      },
+      "location": [
+        {
+          "line": 22,
+          "col": 1
+        },
+        {
+          "line": 23,
+          "col": 28
+        }
+      ]
+    },
+    {
+      "name": "audio",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "Alice": null,
+          "Book": null,
+          "extra": null
+        },
+        "style": "quote"
+      },
+      "source": {
+        "type": "path",
+        "value": "a.mp3"
+      },
+      "location": [
+        {
+          "line": 25,
+          "col": 1
+        },
+        {
+          "line": 26,
+          "col": 14
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "metadata": {
+        "attributes": {
+          "language": "rust",
+          "linenums": "Book"
+        },
+        "style": "source"
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "x",
+          "location": [
+            {
+              "line": 31,
+              "col": 1
+            },
+            {
+              "line": 31,
+              "col": 1
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 28,
+          "col": 1
+        },
+        {
+          "line": 32,
+          "col": 4
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 32,
+      "col": 4
+    }
+  ]
+}

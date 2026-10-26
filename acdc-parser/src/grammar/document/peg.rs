@@ -3,10 +3,10 @@
 #![allow(clippy::too_many_arguments)]
 
 use crate::{
-    Admonition, AdmonitionVariant, Anchor, AttributeValue, Attribution, Audio, Author, Block,
-    BlockMetadata, CalloutList, CalloutListItem, CalloutRef, CiteTitle, Comment, CommentKind,
-    DelimitedBlock, DelimitedBlockType, DescriptionList, DescriptionListItem, DiscreteHeader,
-    Document, DocumentAttribute, DocumentAttributes, Error, Header, Image, InlineNode, ListItem,
+    Admonition, AdmonitionVariant, Anchor, Attribution, Audio, Author, Block, BlockMetadata,
+    CalloutList, CalloutListItem, CalloutRef, CiteTitle, Comment, CommentKind, DelimitedBlock,
+    DelimitedBlockType, DescriptionList, DescriptionListItem, DiscreteHeader, Document,
+    DocumentAttribute, DocumentAttributes, Error, Header, Image, InlineNode, ListItem,
     ListItemCheckedStatus, Location, OrderedList, PageBreak, Paragraph, Plain, Position, Section,
     Source, Subtitle, TableOfContents, ThematicBreak, Title, UnorderedList, Video, Warning,
     WarningKind,
@@ -30,12 +30,13 @@ use crate::{
                 prepare_manpage_name_attributes,
             },
             metadata::{
-                AttributeOrAnchorLine, BlockMetadataLine, ContentAttributeSource, RawAttributeList,
-                assign_block_caption, extract_media_dimensions, finish_block_parsing_metadata,
-                media_attributes_ahead, merge_attribute_metadata, merge_macro_metadata,
-                metadata_marks_discrete_heading, order_document_attribute_events,
-                parse_block_attribute_list, push_metadata_anchor, resolve_block_content_attributes,
-                resolve_title,
+                AttributeBlockForm, AttributeOrAnchorLine, BlockMetadataLine,
+                ContentAttributeSource, RawAttributeList, assign_block_caption,
+                finish_block_parsing_metadata, media_attributes_ahead, merge_attribute_metadata,
+                merge_macro_metadata, metadata_marks_discrete_heading,
+                order_document_attribute_events, parse_block_attribute_list, push_metadata_anchor,
+                resolve_block_content_attributes, resolve_title, route_block_positions,
+                route_media_attributes,
             },
             references::{
                 ReferenceCatalog, collect_inline_references, collect_metadata_references,
@@ -1229,7 +1230,7 @@ peg::parser! {
             / doc_attr:document_attribute_line(offset) { BlockMetadataLine::DocumentAttribute(doc_attr.0, doc_attr.1) }
             / title_line()
         ) end:position!() eol()* { (line, end) })*
-          block_start:position!() media_ahead:media_block_ahead()
+          block_start:position!() media_ahead:media_block_ahead() form:attribute_block_form(offset)
         {
             let mut metadata = BlockMetadata::default();
             let mut discrete = false;
@@ -1273,6 +1274,9 @@ peg::parser! {
                     Ok(Box::new(metadata))
                 }).transpose()?
             } else { None };
+            if parse_title {
+                route_block_positions(state, &mut metadata, form);
+            }
             let image_ahead = media_ahead && state.input.get(block_start + offset..).is_some_and(|tail| tail.starts_with("image::"));
             let image_alt = resolve_block_content_attributes(state, &mut metadata, media_attributes.as_deref(), image_ahead, offset)?;
             // Titles use the completed metadata attributes, including entries
@@ -1303,6 +1307,18 @@ peg::parser! {
             result.image_alt = image_alt;
             Ok(result)
         }
+
+        // Reuse block-start rules before selected attributes can register inline content.
+        rule attribute_block_form(offset: usize) -> AttributeBlockForm<'input>
+        = form:&(open:block_open() (eol() / ![_]) { AttributeBlockForm::Delimited(open.0, open.2) }) { form }
+        / &((table_delimiter() / comma_table_delimiter() / colon_table_delimiter()) (eol() / ![_])) { AttributeBlockForm::Table }
+        / &(media_block_ahead_true() / at_list_item_start() / at_callout_list_item()
+            / check_line_is_description_list(offset) / "toc::" / ("<<<" &eol()*<2,2>) / "> "
+            / thematic_break_marker()) { AttributeBlockForm::NonParagraph }
+        / indented:&($(whitespace()*)) { AttributeBlockForm::Paragraph { indented: !indented.is_empty() } }
+
+        rule media_block_ahead_true()
+        = ("image::" / "audio::" / "video::") [^'[' | '\n' | '\r']+ "[" attribute_list_content(BlockAttributeMode::Macro)
 
         // Match metadata in lookahead without expanding attributes or titles.
         rule block_metadata_line_match()
@@ -1482,7 +1498,7 @@ peg::parser! {
                 (kind, _) => kind,
             };
             build_delimited_block(state, block_metadata, &DelimitedParams {
-                kind, open_delim: open.1, lang: open.2, content, source_text,
+                kind, open_delim: open.1, content, source_text,
                 open_start, start, content_start, content_end, end: span_end, offset, close,
             })
         }
@@ -1534,7 +1550,7 @@ peg::parser! {
             };
             let content_end = body_end - (source_text.len() - content.len());
             build_delimited_block(state, block_metadata, &DelimitedParams {
-                kind: DelimitedKind::Comment, open_delim, lang: None, content, source_text,
+                kind: DelimitedKind::Comment, open_delim, content, source_text,
                 open_start, start, content_start, content_end, end: span_end, offset, close,
             })
         }
@@ -1767,7 +1783,7 @@ peg::parser! {
 
         // Select the media title before parsing macros in a preceding dot-title.
         rule media_block_ahead() -> bool
-        = &(("image::" / "audio::" / "video::") [^'[' | '\n' | '\r']+ "[" attribute_list_content(BlockAttributeMode::Macro)) { true }
+        = &media_block_ahead_true() { true }
         / { false }
 
         rule source_match()
@@ -1781,16 +1797,13 @@ peg::parser! {
           trailing:$([^'\n']*)
         {
             state.warn_trailing_macro_content("image", trailing, end, offset);
-            let (_discrete, mut metadata_from_attributes, _title_position) = attributes;
-            extract_media_dimensions(&mut metadata_from_attributes);
+            let (_discrete, metadata_from_attributes, _title_position) = attributes;
             let title = block_metadata.title.clone();
             let mut metadata = block_metadata.metadata.clone();
-            merge_macro_metadata(&mut metadata, &metadata_from_attributes, state.options.compatibility_mode);
-            metadata.style = None;
+            route_media_attributes(&mut metadata, &metadata_from_attributes, state.options.compatibility_mode, false);
             let alt = block_metadata.image_alt.clone();
             metadata.alt_source = None;
             metadata.attributes.remove("alt");
-            let _ = metadata.take_positional_attributes::<2>();
             metadata.move_positional_attributes_to_attributes();
             Ok(Block::Image(Image {
                 title,
@@ -1811,6 +1824,7 @@ peg::parser! {
             let title = block_metadata.title.clone();
             let mut metadata = block_metadata.metadata.clone();
             merge_macro_metadata(&mut metadata, &metadata_from_attributes, state.options.compatibility_mode);
+            metadata.first_source = None;
             metadata.move_positional_attributes_to_attributes();
             Ok(Block::Audio(Audio {
                 title,
@@ -1828,20 +1842,10 @@ peg::parser! {
             state.warn_trailing_macro_content("video", trailing, end, offset);
             let target = substitute(target, &[Substitution::Attributes], &state.document_attributes);
             let source = Source::from_str_borrowed(state.intern_str(&target))?;
-            let (_discrete, mut metadata_from_attributes, _title_position) = attributes;
-            extract_media_dimensions(&mut metadata_from_attributes);
+            let (_discrete, metadata_from_attributes, _title_position) = attributes;
             let title = block_metadata.title.clone();
             let mut metadata = block_metadata.metadata.clone();
-            merge_macro_metadata(&mut metadata, &metadata_from_attributes, state.options.compatibility_mode);
-            let positional_poster = metadata.style.take();
-            let poster = metadata_from_attributes.attributes.get_string("poster")
-                .map(|value| state.intern_str(&value))
-                .or(positional_poster)
-                .or_else(|| metadata.attributes.get_string("poster").map(|value| state.intern_str(&value)));
-            if let Some(poster) = poster {
-                metadata.attributes.set("poster".into(), AttributeValue::String(Cow::Borrowed(poster)));
-            }
-            let _ = metadata.take_positional_attributes::<2>();
+            route_media_attributes(&mut metadata, &metadata_from_attributes, state.options.compatibility_mode, true);
             metadata.move_positional_attributes_to_attributes();
             Ok(Block::Video(Video {
                 title,
@@ -1851,14 +1855,17 @@ peg::parser! {
             }))
         }
 
-        rule thematic_break(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
-            = ("'''"
+        rule thematic_break_marker()
+        = ("'''"
                // Below are the markdown-style thematic breaks
                / "---"
                / "- - -"
                / "***"
                / "* * *"
             )
+
+        rule thematic_break(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
+            = thematic_break_marker()
         {
             tracing::debug!("Found thematic break block");
             Ok(Block::ThematicBreak(ThematicBreak {

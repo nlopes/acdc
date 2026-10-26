@@ -9,8 +9,9 @@
       "delimiter": "----",
       "metadata": {
         "attributes": {
-          "-callouts": null
+          "language": "-callouts"
         },
+        "style": "source",
         "substitutions": [
           "+quotes"
         ]
