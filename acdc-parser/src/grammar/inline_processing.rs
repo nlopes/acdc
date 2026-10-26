@@ -13,10 +13,90 @@ use crate::{
 
 use super::{
     ParserState,
+    attributes::ResolvedContentAttribute,
     helpers::BlockParsingMetadata,
     inlines::inline_parser,
     state::{InlineContext, InlineRules, ParserScope},
 };
+
+pub(super) fn process_attribute_inlines<'a>(
+    state: &mut ParserState<'a>,
+    source: &ResolvedContentAttribute<'a>,
+) -> Result<Vec<InlineNode<'a>>, Error> {
+    let mut child = ParserState::for_inline_parsing(source.text, state, InlineContext::default());
+    child.document_attributes = Rc::clone(&source.attributes);
+    child.warnings = Rc::default();
+    let mut metadata = BlockParsingMetadata::default();
+    if state.options.compatibility_mode == crate::CompatibilityMode::Draft {
+        metadata.substitutions = metadata.substitutions.without(&Substitution::Attributes);
+    }
+    let parsed = process_inlines(&mut child, &metadata, 0, source.text.len(), 0, source.text);
+    for mut warning in std::mem::take(&mut *child.warnings.borrow_mut()) {
+        if let Some(location) = &mut warning.location {
+            *location = attribute_source_location(state, source, &location.location)?;
+        }
+        state.add_warning(warning);
+    }
+    let (mut nodes, _) = match parsed {
+        Ok(parsed) => parsed,
+        Err(mut error) => {
+            if let Error::PegParse(location, _) = &mut error {
+                **location = attribute_source_location(state, source, &location.location)?;
+            }
+            return Err(error);
+        }
+    };
+    for node in &mut nodes {
+        super::location_walk::try_walk_inline_locations_mut(
+            node,
+            &mut |location| -> Result<(), Error> {
+                let start = source.source_map.map_position(location.absolute_start)?;
+                let end = source.source_map.map_end_position(location.absolute_end)?;
+                *location = state.create_location(start, end);
+                Ok(())
+            },
+        )?;
+    }
+    for node in &mut nodes {
+        super::location_walk::walk_inline_nodes_mut(node, &mut |node| {
+            if let InlineNode::Macro(crate::InlineMacro::Footnote(note)) = node {
+                state.finalize_footnote(note);
+            }
+        });
+    }
+    Ok(nodes)
+}
+
+fn attribute_source_location(
+    state: &ParserState<'_>,
+    source: &ResolvedContentAttribute<'_>,
+    location: &Location,
+) -> Result<SourceLocation, Error> {
+    let start = source
+        .source_map
+        .map_position(position_offset(source.text, &location.start))?;
+    let end = source
+        .source_map
+        .map_end_position(position_offset(source.text, &location.end))?;
+    Ok(state.create_error_source_location(state.create_location(start, end)))
+}
+
+fn position_offset(input: &str, position: &Position) -> usize {
+    let line = usize::try_from(position.line.saturating_sub(1)).unwrap_or(usize::MAX);
+    let column = usize::try_from(position.column.saturating_sub(1)).unwrap_or(usize::MAX);
+    let mut offset = 0;
+    for (index, text) in input.split_inclusive('\n').enumerate() {
+        if index == line {
+            return offset
+                + text
+                    .char_indices()
+                    .nth(column)
+                    .map_or(text.len(), |(offset, _)| offset);
+        }
+        offset += text.len();
+    }
+    offset
+}
 
 /// Adjust PEG parser error positions to account for substring parsing
 ///

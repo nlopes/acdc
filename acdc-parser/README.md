@@ -117,11 +117,19 @@ If you used the unreleased `AttributeSyntax` prototype, replace it with
 and `Options::attribute_syntax` with `Options::compatibility_mode`.
 There is no second attribute-interpretation selector.
 
-Both modes retain the declaration-time attribute context for named titles.
-A reference introduced by expansion of another reference remains literal in
-the existing named-title path. For example, if `outer` contains `{inner}`,
-`title="{outer}"` retains `{inner}`. Asciidoctor can perform another expansion;
-this compatibility difference also applies to the default setting.
+Named titles parse the expanded attribute value. For example, with
+`:word: *Bold*`, `[title='{word}']` produces bold text in both modes.
+Asciidoctor mode also parses double-quoted and unquoted titles. Draft keeps
+those values literal and does not implicitly expand introduced references
+again. Asciidoctor mode performs the additional reference expansion;
+explicit passthrough substitutions remain available in both modes.
+
+Both modes use the document-attribute values in scope when the named title was
+declared, including for the additional expansion. Later metadata lines cannot
+change that title. This deliberately differs from Asciidoctor when an introduced
+reference resolves to a value changed after the title declaration. Dot titles
+use the ordinary inline substitution order and the attributes in scope after
+the block's metadata.
 
 ## Native AST JSON
 

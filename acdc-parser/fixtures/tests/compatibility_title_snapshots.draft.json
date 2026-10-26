@@ -244,6 +244,515 @@
           "col": 45
         }
       ]
+    },
+    {
+      "name": "inner",
+      "type": "attribute",
+      "value": "Before",
+      "location": [
+        {
+          "line": 16,
+          "col": 1
+        },
+        {
+          "line": 16,
+          "col": 14
+        }
+      ]
+    },
+    {
+      "name": "outer",
+      "type": "attribute",
+      "value": "{inner}",
+      "location": [
+        {
+          "line": 17,
+          "col": 1
+        },
+        {
+          "line": 17,
+          "col": 16
+        }
+      ]
+    },
+    {
+      "name": "label",
+      "type": "attribute",
+      "value": "*Declared*",
+      "location": [
+        {
+          "line": 18,
+          "col": 1
+        },
+        {
+          "line": 18,
+          "col": 18
+        }
+      ]
+    },
+    {
+      "name": "inner",
+      "type": "attribute",
+      "value": "After",
+      "location": [
+        {
+          "line": 21,
+          "col": 1
+        },
+        {
+          "line": 21,
+          "col": 13
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "{inner} / Before",
+          "location": [
+            {
+              "line": 20,
+              "col": 9
+            },
+            {
+              "line": 20,
+              "col": 25
+            }
+          ]
+        }
+      ],
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "First paragraph.",
+          "location": [
+            {
+              "line": 22,
+              "col": 1
+            },
+            {
+              "line": 22,
+              "col": 16
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 20,
+          "col": 1
+        },
+        {
+          "line": 22,
+          "col": 16
+        }
+      ]
+    },
+    {
+      "name": "inner",
+      "type": "attribute",
+      "value": "Before passthrough",
+      "location": [
+        {
+          "line": 24,
+          "col": 1
+        },
+        {
+          "line": 24,
+          "col": 26
+        }
+      ]
+    },
+    {
+      "name": "inner",
+      "type": "attribute",
+      "value": "After passthrough",
+      "location": [
+        {
+          "line": 26,
+          "col": 1
+        },
+        {
+          "line": 26,
+          "col": 25
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "title": [
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "Before passthrough",
+          "location": [
+            {
+              "line": 25,
+              "col": 16
+            },
+            {
+              "line": 25,
+              "col": 22
+            }
+          ]
+        }
+      ],
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Explicit passthrough expansion uses the title's declaration snapshot.",
+          "location": [
+            {
+              "line": 27,
+              "col": 1
+            },
+            {
+              "line": 27,
+              "col": 69
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 25,
+          "col": 1
+        },
+        {
+          "line": 27,
+          "col": 69
+        }
+      ]
+    },
+    {
+      "name": "label",
+      "type": "attribute",
+      "value": "*Changed*",
+      "location": [
+        {
+          "line": 30,
+          "col": 1
+        },
+        {
+          "line": 30,
+          "col": 17
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "title": [
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Declared",
+              "location": [
+                {
+                  "line": 29,
+                  "col": 9
+                },
+                {
+                  "line": 29,
+                  "col": 15
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 29,
+              "col": 9
+            },
+            {
+              "line": 29,
+              "col": 15
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " ",
+          "location": [
+            {
+              "line": 29,
+              "col": 16
+            },
+            {
+              "line": 29,
+              "col": 16
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": "chosen",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Chosen note",
+              "location": [
+                {
+                  "line": 29,
+                  "col": 33
+                },
+                {
+                  "line": 29,
+                  "col": 43
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 29,
+              "col": 17
+            },
+            {
+              "line": 29,
+              "col": 44
+            }
+          ]
+        }
+      ],
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Second paragraph.",
+          "location": [
+            {
+              "line": 31,
+              "col": 1
+            },
+            {
+              "line": 31,
+              "col": 17
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 29,
+          "col": 1
+        },
+        {
+          "line": 31,
+          "col": 17
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "title": [
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Selected",
+              "location": [
+                {
+                  "line": 34,
+                  "col": 10
+                },
+                {
+                  "line": 34,
+                  "col": 17
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 34,
+              "col": 9
+            },
+            {
+              "line": 34,
+              "col": 18
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " ",
+          "location": [
+            {
+              "line": 34,
+              "col": 19
+            },
+            {
+              "line": 34,
+              "col": 19
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": "second",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Second note",
+              "location": [
+                {
+                  "line": 34,
+                  "col": 36
+                },
+                {
+                  "line": 34,
+                  "col": 46
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 34,
+              "col": 20
+            },
+            {
+              "line": 34,
+              "col": 47
+            }
+          ]
+        }
+      ],
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Third paragraph.",
+          "location": [
+            {
+              "line": 35,
+              "col": 1
+            },
+            {
+              "line": 35,
+              "col": 16
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 33,
+          "col": 1
+        },
+        {
+          "line": 35,
+          "col": 16
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Heading",
+          "location": [
+            {
+              "line": 38,
+              "col": 4
+            },
+            {
+              "line": 38,
+              "col": 10
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "title": [
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "footnote:literal[Mode-dependent note]",
+              "location": [
+                {
+                  "line": 40,
+                  "col": 9
+                },
+                {
+                  "line": 40,
+                  "col": 45
+                }
+              ]
+            }
+          ],
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Final paragraph.",
+              "location": [
+                {
+                  "line": 41,
+                  "col": 1
+                },
+                {
+                  "line": 41,
+                  "col": 16
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 40,
+              "col": 1
+            },
+            {
+              "line": 41,
+              "col": 16
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 37,
+          "col": 1
+        },
+        {
+          "line": 41,
+          "col": 16
+        }
+      ]
     }
   ],
   "location": [
@@ -252,8 +761,8 @@
       "col": 1
     },
     {
-      "line": 14,
-      "col": 45
+      "line": 41,
+      "col": 16
     }
   ]
 }

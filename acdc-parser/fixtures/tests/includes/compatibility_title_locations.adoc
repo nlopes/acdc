@@ -1,0 +1,4 @@
+// tag::selected[]
+[title='Préfixe {word} footnote:included[Included note]']
+Included paragraph.
+// end::selected[]

@@ -473,6 +473,13 @@ pub(crate) struct Replacement {
 #[derive(Debug, Clone, Default)]
 pub(crate) struct SourceMap {
     pub replacements: Vec<Replacement>,
+    origin: Option<Box<SourceMapOrigin>>,
+}
+
+#[derive(Debug, Clone)]
+struct SourceMapOrigin {
+    map: SourceMap,
+    offset: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -506,6 +513,12 @@ fn to_unsigned(value: i32, context: &str) -> Result<usize, Error> {
 }
 
 impl SourceMap {
+    /// Map through an earlier transformation after applying this map.
+    pub(crate) fn with_origin(mut self, map: Self, offset: usize) -> Self {
+        self.origin = Some(Box::new(SourceMapOrigin { map, offset }));
+        self
+    }
+
     /// Record a substitution.
     /// - `absolute_start`: where in the original text the replaced span begins
     /// - `absolute_end`: where in the original text the replaced span ends
@@ -606,6 +619,17 @@ impl SourceMap {
     }
 
     fn map_position_with_bias(&self, pos: usize, end_bias: bool) -> Result<usize, Error> {
+        let mapped = self.map_local_position(pos, end_bias)?;
+        if let Some(origin) = &self.origin {
+            origin
+                .map
+                .map_position_with_bias(mapped + origin.offset, end_bias)
+        } else {
+            Ok(mapped)
+        }
+    }
+
+    fn map_local_position(&self, pos: usize, end_bias: bool) -> Result<usize, Error> {
         let signed_pos = to_signed(pos, "pos")?;
 
         // The adjustment is the total number of bytes removed or added during preprocessing.

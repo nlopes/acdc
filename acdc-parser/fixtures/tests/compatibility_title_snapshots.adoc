@@ -12,3 +12,30 @@ The formatted title also keeps its declaration snapshot.
 [title='footnote:[Discarded]']
 [title='*Selected* footnote:[Kept]']
 Only the selected title registers a footnote.
+
+:inner: Before
+:outer: \{inner}
+:label: *Declared*
+
+[title='{outer} / {inner}']
+:inner: After
+First paragraph.
+
+:inner: Before passthrough
+[title='pass:a[{outer}]']
+:inner: After passthrough
+Explicit passthrough expansion uses the title's declaration snapshot.
+
+[title='{label} footnote:chosen[Chosen note]']
+:label: *Changed*
+Second paragraph.
+
+[title='footnote:discarded[Discarded note]']
+[title='*Selected* footnote:second[Second note]']
+Third paragraph.
+
+[title='footnote:ignored[Ignored title]']
+== Heading
+
+[title="footnote:literal[Mode-dependent note]"]
+Final paragraph.

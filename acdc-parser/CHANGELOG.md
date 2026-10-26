@@ -130,8 +130,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Icon positional values always select size; named alternative text remains
   independent. Repeated icon attributes use the last value and retain link options.
 
-- Named titles retain document-attribute values from their declaration, even
-  when later metadata lines change those attributes, matching Asciidoctor.
+- Named titles parse formatting introduced by attribute expansion, such as
+  `[title='{word}']` with `:word: *Bold*`. Asciidoctor mode also expands references
+  introduced by that first expansion; Draft does not do so implicitly and parses
+  only single-quoted titles. Both modes retain declaration-time values, even
+  where Asciidoctor uses a later value for an introduced reference.
+- Inline source spans cover complete attribute references and escaped characters.
+  Single-character content no longer includes a following delimiter in its byte range.
 
 - Named `title=` attributes now supply formatted titles on paragraphs, lists,
   delimited blocks, tables, audio, and video. Media macro titles override preceding

@@ -1,3 +1,5 @@
+use std::convert::Infallible;
+
 use serde::{
     Serialize,
     ser::{Error as _, SerializeMap, Serializer},
@@ -541,43 +543,55 @@ impl<'a> InlineMacro<'a> {
         &mut self,
         mut visit: impl FnMut(&mut Vec<InlineNode<'a>>),
     ) {
+        self.try_for_each_content_attribute_mut(|nodes| {
+            visit(nodes);
+            Ok(())
+        })
+        .unwrap_or_else(|never: Infallible| match never {});
+    }
+
+    /// Visit mutable content attributes in order, stopping at the first error.
+    pub(crate) fn try_for_each_content_attribute_mut<E>(
+        &mut self,
+        mut visit: impl FnMut(&mut Vec<InlineNode<'a>>) -> Result<(), E>,
+    ) -> Result<(), E> {
         let mut content = |value: &mut crate::ContentAttribute<'a>| visit(value.inlines_mut());
         match self {
             Self::Image(image) => {
                 for value in [&mut image.alt, &mut image.tooltip].into_iter().flatten() {
-                    content(value);
+                    content(value)?;
                 }
             }
             Self::Icon(icon) => {
                 for value in [&mut icon.alt, &mut icon.tooltip].into_iter().flatten() {
-                    content(value);
+                    content(value)?;
                 }
             }
             Self::Link(link) => {
                 if let Some(value) = &mut link.tooltip {
-                    content(value);
+                    content(value)?;
                 }
             }
             Self::Url(url) => {
                 if let Some(value) = &mut url.tooltip {
-                    content(value);
+                    content(value)?;
                 }
             }
             Self::Mailto(mailto) => {
                 if let Some(value) = &mut mailto.tooltip {
-                    content(value);
+                    content(value)?;
                 }
             }
-            Self::Button(button) => content(&mut button.label),
+            Self::Button(button) => content(&mut button.label)?,
             Self::Menu(menu) => {
-                content(&mut menu.target);
+                content(&mut menu.target)?;
                 for item in &mut menu.items {
-                    content(item);
+                    content(item)?;
                 }
             }
             Self::Keyboard(keyboard) => {
                 for key in &mut keyboard.keys {
-                    content(key);
+                    content(key)?;
                 }
             }
             Self::Footnote(_)
@@ -587,6 +601,7 @@ impl<'a> InlineMacro<'a> {
             | Self::Stem(_)
             | Self::IndexTerm(_) => {}
         }
+        Ok(())
     }
 }
 

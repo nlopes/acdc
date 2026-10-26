@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Headings with a single character after formatted text retain their public link
+  destinations, matching Asciidoctor PDF.
+
 - Inline icons honor `icon=` overrides and retain `link=` destinations in text,
   font, and image modes.
 

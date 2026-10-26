@@ -66,6 +66,15 @@ impl SubstitutionPlan {
         Self::from_substitutions(std::slice::from_ref(substitution))
     }
 
+    pub(crate) fn without(mut self, substitution: &Substitution) -> Self {
+        if let Some(rank) =
+            substitution_stage_index(substitution).and_then(|index| self.ranks.get_mut(index))
+        {
+            *rank = DISABLED_SUBSTITUTION;
+        }
+        self
+    }
+
     pub(crate) fn for_block_spec(spec: &SubstitutionSpec) -> Self {
         // Parser defaults include callout discovery for verbatim blocks. Resolve once:
         // filling missing stages afterwards would restore removed group members.

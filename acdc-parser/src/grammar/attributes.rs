@@ -13,7 +13,7 @@ pub(super) use source::expand_attribute_list;
 use crate::{
     CompatibilityMode, DocumentAttributes, Error, grammar::inline_preprocessor::SourceMap,
 };
-use std::{borrow::Cow, ops::Range};
+use std::{borrow::Cow, ops::Range, rc::Rc};
 
 pub(super) fn resolve_block_anchor_reftext<'a>(
     source: &'a str,
@@ -91,6 +91,16 @@ pub(super) enum AttributeQuote {
     Double,
 }
 
+/// Expanded and dequoted content, captured before selecting the displayed value.
+#[derive(Clone, Debug)]
+pub(super) struct ResolvedContentAttribute<'a> {
+    pub(super) text: &'a str,
+    pub(super) quote: AttributeQuote,
+    pub(super) source_map: SourceMap,
+    pub(super) source_range: Range<usize>,
+    pub(super) attributes: Rc<DocumentAttributes<'a>>,
+}
+
 /// One slot of a confined attribute list, with byte offsets into its source.
 /// Also used by cross-references and links when their text holds attributes.
 #[derive(Debug)]
@@ -104,6 +114,26 @@ pub(super) struct ScannedAttribute {
 }
 
 impl ScannedAttribute {
+    pub(super) fn resolve_content<'a>(
+        &self,
+        text: &'a str,
+        list_map: &SourceMap,
+        offset: usize,
+        attributes: Rc<DocumentAttributes<'a>>,
+    ) -> Result<ResolvedContentAttribute<'a>, Error> {
+        let range = self.source_range(list_map, 0..text.len())?;
+        Ok(ResolvedContentAttribute {
+            text,
+            quote: self.quote,
+            source_map: self.value_map.clone().with_origin(
+                list_map.clone().with_origin(SourceMap::default(), offset),
+                self.value_start,
+            ),
+            source_range: range.start + offset..range.end + offset,
+            attributes,
+        })
+    }
+
     pub(super) fn canonical_name(&self) -> Option<&str> {
         self.name.as_deref().map(|name| match name {
             "roles" => "role",

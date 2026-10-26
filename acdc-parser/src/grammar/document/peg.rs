@@ -30,13 +30,12 @@ use crate::{
                 prepare_manpage_name_attributes,
             },
             metadata::{
-                AttributeBlockForm, AttributeOrAnchorLine, BlockMetadataLine,
-                ContentAttributeSource, RawAttributeList, assign_block_caption,
-                finish_block_parsing_metadata, media_attributes_ahead, merge_attribute_metadata,
-                merge_macro_metadata, metadata_marks_discrete_heading,
-                order_document_attribute_events, parse_block_attribute_list, push_metadata_anchor,
-                resolve_block_content_attributes, resolve_title, route_block_positions,
-                route_media_attributes, select_heading_style,
+                AttributeBlockForm, AttributeOrAnchorLine, BlockMetadataLine, RawAttributeList,
+                TitleSource, assign_block_caption, finish_block_parsing_metadata,
+                media_attributes_ahead, merge_attribute_metadata, merge_macro_metadata,
+                metadata_marks_discrete_heading, order_document_attribute_events,
+                parse_block_attribute_list, push_metadata_anchor, resolve_block_content_attributes,
+                resolve_title, route_block_positions, route_media_attributes, select_heading_style,
             },
             references::{
                 ReferenceCatalog, collect_inline_references, collect_metadata_references,
@@ -1258,7 +1257,7 @@ peg::parser! {
                         }
                     },
                     BlockMetadataLine::Title { source, start, end } => {
-                        title_source = Some(ContentAttributeSource { source, value: None, start, end, quote: crate::grammar::attributes::AttributeQuote::Single, attributes: None });
+                        title_source = Some(TitleSource::Dot { source, start, end });
                     }
                 }
             }
@@ -3737,7 +3736,7 @@ peg::parser! {
         rule empty_list_separator()
             = whitespace()* "[" whitespace()* "]" whitespace()* eol() eol()
 
-        pub(crate) rule attributes() -> (bool, BlockMetadata<'input>, Option<ContentAttributeSource<'input>>)
+        pub(crate) rule attributes() -> (bool, BlockMetadata<'input>, Option<TitleSource<'input>>)
             = block_attribute_start()
               open_square_bracket()
               content_start:position!()
@@ -3760,10 +3759,10 @@ peg::parser! {
         /// Asciidoctor behavior:
         /// - `image::photo.jpg[.role]` -> alt=".role" (literal text, NOT a role)
         /// - `image::photo.jpg[Diablo 4 picture of Lilith.]` -> alt="Diablo 4 picture of Lilith."
-        pub(crate) rule macro_attributes() -> (bool, BlockMetadata<'input>, Option<ContentAttributeSource<'input>>)
+        pub(crate) rule macro_attributes() -> (bool, BlockMetadata<'input>, Option<TitleSource<'input>>)
             = macro_attributes_for()
 
-        rule cached_macro_attributes(block_metadata: &BlockParsingMetadata<'input>) -> (bool, BlockMetadata<'input>, Option<ContentAttributeSource<'input>>)
+        rule cached_macro_attributes(block_metadata: &BlockParsingMetadata<'input>) -> (bool, BlockMetadata<'input>, Option<TitleSource<'input>>)
             = attributes:raw_attribute_list(BlockAttributeMode::Macro) {?
                 if let Some(metadata) = &block_metadata.media_attributes {
                     Ok((false, (**metadata).clone(), None))
@@ -3773,7 +3772,7 @@ peg::parser! {
                 }
             }
 
-        rule macro_attributes_for() -> (bool, BlockMetadata<'input>, Option<ContentAttributeSource<'input>>)
+        rule macro_attributes_for() -> (bool, BlockMetadata<'input>, Option<TitleSource<'input>>)
             = open_square_bracket()
               content_start:position!()
               content:attribute_list_content(BlockAttributeMode::Macro)

@@ -1,0 +1,24 @@
+= Named title locations
+:word: *é*
+:title-entry: title='*Expanded entry*'
+
+[title='Préfixe {word} suffixe']
+Unicode around a reference.
+
+[title='A \'quoted\' word']
+Decoded quotes.
+
+[{title-entry}]
+Expanded attribute-list entry.
+
+include::includes/compatibility_title_locations.adoc[tag=selected]
+
+[cols="a"]
+|===
+|
+[title='{word} footnote:cell[Cell note]']
+Cell paragraph.
+|===
+
+[title='{word}']
+image::photo.png[Photo]

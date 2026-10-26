@@ -2,23 +2,23 @@
 
 use crate::{
     Anchor, AttributeValue, Attribution, Block, BlockMetadata, CiteTitle, CompatibilityMode,
-    ContentAttribute, DocumentAttributes, Error, InlineNode, Location, Plain, Title, Warning,
-    WarningKind,
+    ContentAttribute, Error, InlineNode, Location, Plain, Title, Warning, WarningKind,
     document_attribute::AttributeDeclaration,
     grammar::{
         ParserState,
         attributes::{
-            AttributeQuote, BlockAttributeMode, ScannedAttribute, ShorthandKind,
-            block_attribute_entries, block_attribute_line, block_attribute_list_allowed,
-            block_list_style, block_positional_style, block_shorthand,
-            decode_anchor_shorthand_reftext, expand_attribute_list, scan_block_attribute_list,
+            AttributeQuote, BlockAttributeMode, ResolvedContentAttribute, ScannedAttribute,
+            ShorthandKind, block_attribute_entries, block_attribute_line,
+            block_attribute_list_allowed, block_list_style, block_positional_style,
+            block_shorthand, decode_anchor_shorthand_reftext, expand_attribute_list,
+            scan_block_attribute_list,
         },
         helpers::{
             BlockParsingMetadata, RESERVED_NAMED_ATTRIBUTE_ID, RESERVED_NAMED_ATTRIBUTE_OPTIONS,
             RESERVED_NAMED_ATTRIBUTE_ROLE, RESERVED_NAMED_ATTRIBUTE_SUBS,
         },
         inline_preprocessor::SourceMap,
-        inline_processing::process_inlines,
+        inline_processing::{process_attribute_inlines, process_inlines},
     },
     model::{
         AttributePosition, Caption, CaptionKind, PositionalAttribute, SectionLevel, Substitution,
@@ -58,51 +58,51 @@ pub(super) struct RawAttributeList<'a> {
 }
 
 #[derive(Clone, Debug)]
-pub(super) struct ContentAttributeSource<'a> {
-    pub(super) source: &'a str,
-    pub(super) value: Option<&'a str>,
-    pub(super) start: usize,
-    pub(super) end: usize,
-    pub(super) quote: AttributeQuote,
-    pub(super) attributes: Option<Rc<DocumentAttributes<'a>>>,
+pub(super) enum TitleSource<'a> {
+    Dot {
+        source: &'a str,
+        start: usize,
+        end: usize,
+    },
+    Attribute(ResolvedContentAttribute<'a>),
 }
 
 pub(super) fn resolve_title<'a>(
     state: &mut ParserState<'a>,
-    source: ContentAttributeSource<'a>,
+    source: TitleSource<'a>,
     offset: usize,
 ) -> Result<Title<'a>, Error> {
-    let inlines = if state.options.compatibility_mode == CompatibilityMode::Draft
-        && source.quote != AttributeQuote::Single
-    {
-        let value = source.value.unwrap_or(source.source);
-        if value.is_empty() {
-            Vec::new()
-        } else {
-            vec![InlineNode::RawText(crate::Raw {
-                content: value,
-                location: state.create_block_location(source.start, source.end, offset),
-                subs: vec![Substitution::SpecialChars],
-            })]
+    let inlines = match source {
+        TitleSource::Dot { source, start, end } => {
+            process_inlines(
+                state,
+                &BlockParsingMetadata::default(),
+                start,
+                end,
+                offset,
+                source,
+            )?
+            .0
         }
-    } else {
-        // Named attributes keep the values active when their attribute list was read.
-        // Parse the authored source under that snapshot to retain inline locations.
-        let current = source
-            .attributes
-            .map(|attributes| std::mem::replace(&mut state.document_attributes, attributes));
-        let result = process_inlines(
-            state,
-            &BlockParsingMetadata::default(),
-            source.start,
-            source.end,
-            offset,
-            source.source,
-        );
-        if let Some(current) = current {
-            state.document_attributes = current;
+        TitleSource::Attribute(source)
+            if state.options.compatibility_mode == CompatibilityMode::Draft
+                && source.quote != AttributeQuote::Single =>
+        {
+            if source.text.is_empty() {
+                Vec::new()
+            } else {
+                vec![InlineNode::RawText(crate::Raw {
+                    content: source.text,
+                    location: state.create_block_location(
+                        source.source_range.start,
+                        source.source_range.end,
+                        0,
+                    ),
+                    subs: vec![Substitution::SpecialChars],
+                })]
+            }
         }
-        result?.0
+        TitleSource::Attribute(source) => process_attribute_inlines(state, &source)?,
     };
     Ok(Title::new(inlines))
 }
@@ -255,32 +255,6 @@ pub(super) fn merge_macro_metadata<'a>(
     mode: CompatibilityMode,
 ) {
     merge_attribute_metadata(metadata, attributes.clone(), mode);
-}
-
-fn attribute_title_source<'input>(
-    state: &ParserState<'input>,
-    value: &'input str,
-    quote: AttributeQuote,
-    start: usize,
-    end: usize,
-    offset: usize,
-) -> ContentAttributeSource<'input> {
-    // Keep authored attribute references so inline processing can map them to source.
-    let raw = state.input.get(start + offset..end + offset);
-    let source = raw.filter(|raw| {
-        substitute(raw, &[Substitution::Attributes], &state.document_attributes) == value
-    });
-    let source = source.unwrap_or(value);
-    ContentAttributeSource {
-        source,
-        value: Some(value),
-        start,
-        end,
-        quote,
-        attributes: source
-            .contains('{')
-            .then(|| Rc::clone(&state.document_attributes)),
-    }
 }
 
 pub(super) fn media_attributes_ahead<'input>(
@@ -688,14 +662,7 @@ pub(super) fn parse_block_attribute_list<'input>(
     content_start: usize,
     mode: BlockAttributeMode,
     offset: usize,
-) -> Result<
-    (
-        bool,
-        BlockMetadata<'input>,
-        Option<ContentAttributeSource<'input>>,
-    ),
-    Error,
-> {
+) -> Result<(bool, BlockMetadata<'input>, Option<TitleSource<'input>>), Error> {
     let expanded = expand_attribute_list(
         source,
         &state.document_attributes,
@@ -758,14 +725,12 @@ pub(super) fn parse_block_attribute_list<'input>(
                 location,
             );
             if name == "title" {
-                title_source = Some(attribute_title_source(
-                    state,
+                title_source = Some(TitleSource::Attribute(attribute.resolve_content(
                     value,
-                    attribute.quote,
-                    content_start + span.start,
-                    content_start + span.end,
-                    offset,
-                ));
+                    &expanded.source_map,
+                    content_start + offset,
+                    Rc::clone(&state.document_attributes),
+                )?));
             }
         } else if slot == 0 {
             store_first_block_slot(

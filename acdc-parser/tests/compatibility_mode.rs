@@ -296,7 +296,7 @@ fn draft_literal_titles_protect_typography_passthroughs_and_entities() -> Result
 }
 
 #[test]
-fn named_titles_keep_one_reference_pass_and_the_declaration_snapshot() -> Result<(), Error> {
+fn named_titles_keep_mode_specific_expansion_and_the_declaration_snapshot() -> Result<(), Error> {
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
         let options = Options::builder().with_compatibility_mode(mode).build()?;
         for quote in ['\'', '"'] {
@@ -318,7 +318,15 @@ fn named_titles_keep_one_reference_pass_and_the_declaration_snapshot() -> Result
                     return Err(format!("unexpected inline: {node:?}").into());
                 }
             }
-            assert_eq!(text, "{inner} / Before", "{mode:?}: {source}");
+            assert_eq!(
+                text,
+                if mode == CompatibilityMode::Asciidoctor {
+                    "Before / Before"
+                } else {
+                    "{inner} / Before"
+                },
+                "{mode:?}: {source}"
+            );
         }
     }
     Ok(())
