@@ -1,0 +1,41 @@
+{
+  "recovery": null,
+  "warnings": [
+    {
+      "location": {
+        "absolute_end": 70,
+        "absolute_start": 48,
+        "file": "compatibility_discrete_headings.adoc",
+        "location": [
+          {
+            "col": 1,
+            "line": 6
+          },
+          {
+            "col": 15,
+            "line": 7
+          }
+        ]
+      },
+      "message": "`float` is a legacy alias for a discrete heading; prefer `discrete`"
+    },
+    {
+      "location": {
+        "absolute_end": 365,
+        "absolute_start": 333,
+        "file": "compatibility_discrete_headings.adoc",
+        "location": [
+          {
+            "col": 1,
+            "line": 26
+          },
+          {
+            "col": 19,
+            "line": 27
+          }
+        ]
+      },
+      "message": "`float` is a legacy alias for a discrete heading; prefer `discrete`"
+    }
+  ]
+}

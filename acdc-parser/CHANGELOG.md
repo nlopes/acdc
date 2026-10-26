@@ -68,6 +68,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Asciidoctor mode now keeps `[discrete]` and `[float]` headings discrete when a
+  later attribute list supplies `style=normal`. Named `style=discrete` alone
+  remains a section, matching Asciidoctor. Draft uses the last selected style.
+  Section nesting and legacy-float warnings follow the selected heading style.
+
 - Positional block attributes now use the matched block form. Quote delimiters
   accept positional attribution without a `quote` style, and `[,language]` on a
   listing selects that source language. Unrelated block forms no longer acquire

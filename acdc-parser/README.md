@@ -98,6 +98,11 @@ quote positions override named values, while media dimensions and video posters
 come from the macro itself. A preceding image style is only a fallback for alt
 text. Both modes retain positional slots for callers after mapping.
 
+Heading styles follow the first positional value in Asciidoctor mode. For
+example, `[discrete]` followed by `[style=normal]` stays discrete, while
+`[style=discrete]` alone remains a section. Draft uses the last selected style,
+including named styles. Role-only and empty lists keep an earlier style.
+
 Asciidoctor mode ignores an unquoted named `None` entry, preserving any earlier
 value. Draft treats it as ordinary text. Quoted and positional `None` remain
 text in both modes. This policy also applies to inline-image attributes.

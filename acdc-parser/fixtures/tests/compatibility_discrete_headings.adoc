@@ -1,0 +1,57 @@
+= Heading styles
+
+[discrete]
+== Plain discrete
+
+[float]
+== Legacy float
+
+[discrete]
+[style=normal]
+== Positional before named
+
+[style=normal]
+[discrete]
+== Named before positional
+
+[discrete,style=normal]
+== Same list named override
+
+[normal,style=discrete]
+== Same list positional override
+
+[style=discrete]
+== Named discrete only
+
+[style=float]
+== Named float only
+
+[discrete]
+[role=example]
+== Later named role
+
+[discrete]
+[.example]
+== Later shorthand role
+
+[discrete]
+[]
+== Later empty list
+
+[discrete]
+[normal]
+== Later positional style
+
+[discrete]
+[style=normal]
+[discrete.final]
+== Positional style restored
+
+[discrete]
+[style=normal]
+[.example]
+== Role after named style
+
+== Closing section
+
+Final text.

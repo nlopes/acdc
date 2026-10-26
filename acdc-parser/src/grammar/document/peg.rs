@@ -36,7 +36,7 @@ use crate::{
                 merge_macro_metadata, metadata_marks_discrete_heading,
                 order_document_attribute_events, parse_block_attribute_list, push_metadata_anchor,
                 resolve_block_content_attributes, resolve_title, route_block_positions,
-                route_media_attributes,
+                route_media_attributes, select_heading_style,
             },
             references::{
                 ReferenceCatalog, collect_inline_references, collect_metadata_references,
@@ -1233,7 +1233,6 @@ peg::parser! {
           block_start:position!() media_ahead:media_block_ahead() form:attribute_block_form(offset)
         {
             let mut metadata = BlockMetadata::default();
-            let mut discrete = false;
             let mut title_source = None;
             let meta_end = lines.last().map_or(meta_start, |(_, end)| *end);
 
@@ -1241,13 +1240,12 @@ peg::parser! {
                 match line {
                     BlockMetadataLine::Anchor(value) => push_metadata_anchor(&mut metadata, value),
                     BlockMetadataLine::Attributes(attributes) => {
-                        let (attr_discrete, attr_metadata, title) = parse_block_attribute_list(
+                        let (_, attr_metadata, title) = parse_block_attribute_list(
                             state, attributes.source, attributes.start, BlockAttributeMode::Block, offset,
                         )?;
                         if let Some(title) = title {
                             title_source = Some(title);
                         }
-                        discrete = attr_discrete;
                         merge_attribute_metadata(&mut metadata, attr_metadata, state.options.compatibility_mode);
                     },
                     BlockMetadataLine::DocumentAttribute(declaration, location) => {
@@ -1276,6 +1274,12 @@ peg::parser! {
             } else { None };
             if parse_title {
                 route_block_positions(state, &mut metadata, form);
+            } else {
+                metadata.style = select_heading_style(
+                    metadata.first_source.as_ref().map(|source| source.source),
+                    metadata.style,
+                    state.options.compatibility_mode,
+                );
             }
             let image_ahead = media_ahead && state.input.get(block_start + offset..).is_some_and(|tail| tail.starts_with("image::"));
             let image_alt = resolve_block_content_attributes(state, &mut metadata, media_attributes.as_deref(), image_ahead, offset)?;
@@ -1300,7 +1304,6 @@ peg::parser! {
                 metadata,
                 title,
                 parent_section_level,
-                discrete,
                 offset,
             )?;
             result.media_attributes = media_attributes;
@@ -1925,13 +1928,11 @@ peg::parser! {
         ) end:position!() eol()* { (line, end) })+
         {
             let mut metadata = BlockMetadata::default();
-            let mut discrete = false;
             let meta_end = lines.last().map_or(meta_start, |(_, end)| *end);
             for (line, _) in lines {
                 match line {
                     AttributeOrAnchorLine::Anchor(anchor) => push_metadata_anchor(&mut metadata, anchor),
-                    AttributeOrAnchorLine::Attributes((attr_discrete, attr_metadata)) => {
-                        discrete = attr_discrete;
+                    AttributeOrAnchorLine::Attributes((_, attr_metadata)) => {
                         merge_attribute_metadata(&mut metadata, *attr_metadata, state.options.compatibility_mode);
                     }
                 }
@@ -1942,7 +1943,6 @@ peg::parser! {
                 metadata,
                 Title::default(),
                 parent_section_level,
-                discrete,
                 offset,
             )
         }

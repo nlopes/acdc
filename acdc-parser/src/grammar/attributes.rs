@@ -391,17 +391,27 @@ pub(super) fn block_list_style(
         match attribute.name.as_deref() {
             Some("style") => style = Some(attribute.value.as_str()),
             None if slot == 0 => {
-                if let Some(part) = block_shorthand(&attribute.value, attribute.quote, mode)
-                    .into_iter()
-                    .find(|part| part.kind == ShorthandKind::Style)
-                {
-                    style = Some(&attribute.value[part.range]);
+                if let Some(positional) = block_positional_style(attribute, mode) {
+                    style = Some(positional);
                 }
             }
             _ => {}
         }
     }
     style
+}
+
+pub(super) fn block_positional_style(
+    attribute: &ScannedAttribute,
+    mode: CompatibilityMode,
+) -> Option<&str> {
+    if attribute.name.is_some() || attribute.is_ignored(mode) {
+        return None;
+    }
+    block_shorthand(&attribute.value, attribute.quote, mode)
+        .into_iter()
+        .find(|part| part.kind == ShorthandKind::Style)
+        .map(|part| &attribute.value[part.range])
 }
 
 pub(super) fn decode_anchor_shorthand_reftext(value: &str) -> String {

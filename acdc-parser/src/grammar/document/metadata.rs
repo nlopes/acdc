@@ -10,8 +10,8 @@ use crate::{
         attributes::{
             AttributeQuote, BlockAttributeMode, ScannedAttribute, ShorthandKind,
             block_attribute_entries, block_attribute_line, block_attribute_list_allowed,
-            block_list_style, block_shorthand, decode_anchor_shorthand_reftext,
-            expand_attribute_list, scan_block_attribute_list,
+            block_list_style, block_positional_style, block_shorthand,
+            decode_anchor_shorthand_reftext, expand_attribute_list, scan_block_attribute_list,
         },
         helpers::{
             BlockParsingMetadata, RESERVED_NAMED_ATTRIBUTE_ID, RESERVED_NAMED_ATTRIBUTE_OPTIONS,
@@ -311,10 +311,9 @@ pub(super) fn finish_block_parsing_metadata<'input>(
     mut metadata: BlockMetadata<'input>,
     title: Title<'input>,
     parent_section_level: Option<SectionLevel>,
-    discrete: bool,
     offset: usize,
 ) -> Result<BlockParsingMetadata<'input>, Error> {
-    let discrete = discrete || matches!(metadata.style, Some("discrete" | "float"));
+    let discrete = matches!(metadata.style, Some("discrete" | "float"));
     let substitutions = metadata
         .substitutions
         .as_ref()
@@ -333,6 +332,19 @@ pub(super) fn finish_block_parsing_metadata<'input>(
         media_attributes: None,
         image_alt: None,
     })
+}
+
+pub(super) fn select_heading_style<'a>(
+    positional: Option<&'a str>,
+    selected: Option<&'a str>,
+    mode: CompatibilityMode,
+) -> Option<&'a str> {
+    // Asciidoctor uses the first positional value to classify headings; named
+    // style attributes do not change section boundaries or discrete headings.
+    match mode {
+        CompatibilityMode::Asciidoctor => positional,
+        CompatibilityMode::Draft => selected,
+    }
 }
 
 // Boundary lookahead must not parse titles or register their inline content.
@@ -362,7 +374,13 @@ pub(super) fn metadata_marks_discrete_heading(metadata: &str, state: &ParserStat
             state.options.compatibility_mode,
             BlockAttributeMode::Block,
         );
-        if let Some(style) = block_list_style(&attributes, state.options.compatibility_mode) {
+        let mode = state.options.compatibility_mode;
+        let positional = attributes
+            .first()
+            .and_then(|attribute| block_positional_style(attribute, mode));
+        if let Some(style) =
+            select_heading_style(positional, block_list_style(&attributes, mode), mode)
+        {
             discrete = matches!(style, "discrete" | "float");
         }
     }
