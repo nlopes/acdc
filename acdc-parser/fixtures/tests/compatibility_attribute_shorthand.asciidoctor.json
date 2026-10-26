@@ -1,0 +1,691 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Attribute Shorthand",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 21
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 2,
+        "col": 15
+      }
+    ]
+  },
+  "attributes": {
+    "identity": "café"
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Ordinary shorthand.",
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 19
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "roles": [
+          "one",
+          "two"
+        ],
+        "options": [
+          "ready"
+        ],
+        "style": "note",
+        "id": {
+          "id": "first",
+          "location": [
+            {
+              "line": 4,
+              "col": 7
+            },
+            {
+              "line": 4,
+              "col": 11
+            }
+          ]
+        }
+      },
+      "location": [
+        {
+          "line": 4,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 19
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Quoted punctuation.",
+          "location": [
+            {
+              "line": 8,
+              "col": 1
+            },
+            {
+              "line": 8,
+              "col": 19
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "roles": [
+          "double"
+        ],
+        "options": [
+          "ready"
+        ],
+        "style": "note",
+        "id": {
+          "id": "quoted",
+          "location": [
+            {
+              "line": 7,
+              "col": 8
+            },
+            {
+              "line": 7,
+              "col": 13
+            }
+          ]
+        }
+      },
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 8,
+          "col": 19
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Single-quoted punctuation.",
+          "location": [
+            {
+              "line": 11,
+              "col": 1
+            },
+            {
+              "line": 11,
+              "col": 26
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "roles": [
+          "single"
+        ],
+        "options": [
+          "ready"
+        ],
+        "style": "note",
+        "id": {
+          "id": "quoted",
+          "location": [
+            {
+              "line": 10,
+              "col": 8
+            },
+            {
+              "line": 10,
+              "col": 13
+            }
+          ]
+        }
+      },
+      "location": [
+        {
+          "line": 10,
+          "col": 1
+        },
+        {
+          "line": 11,
+          "col": 26
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "An empty role makes the Draft shorthand literal.",
+          "location": [
+            {
+              "line": 14,
+              "col": 1
+            },
+            {
+              "line": 14,
+              "col": 48
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "roles": [
+          "role"
+        ],
+        "style": "note"
+      },
+      "location": [
+        {
+          "line": 13,
+          "col": 1
+        },
+        {
+          "line": 14,
+          "col": 48
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "An empty ID makes the Draft shorthand literal.",
+          "location": [
+            {
+              "line": 17,
+              "col": 1
+            },
+            {
+              "line": 17,
+              "col": 46
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "style": "note"
+      },
+      "location": [
+        {
+          "line": 16,
+          "col": 1
+        },
+        {
+          "line": 17,
+          "col": 46
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "An empty option is not a Draft shorthand.",
+          "location": [
+            {
+              "line": 20,
+              "col": 1
+            },
+            {
+              "line": 20,
+              "col": 41
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 19,
+          "col": 1
+        },
+        {
+          "line": 20,
+          "col": 41
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "The last ID wins.",
+          "location": [
+            {
+              "line": 23,
+              "col": 1
+            },
+            {
+              "line": 23,
+              "col": 17
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "roles": [
+          "role"
+        ],
+        "style": "note",
+        "id": {
+          "id": "two",
+          "location": [
+            {
+              "line": 22,
+              "col": 11
+            },
+            {
+              "line": 22,
+              "col": 13
+            }
+          ]
+        }
+      },
+      "location": [
+        {
+          "line": 22,
+          "col": 1
+        },
+        {
+          "line": 23,
+          "col": 17
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "*Source paragraph content.*",
+          "location": [
+            {
+              "line": 27,
+              "col": 1
+            },
+            {
+              "line": 27,
+              "col": 27
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "roles": [
+          "demo"
+        ],
+        "style": "source"
+      },
+      "location": [
+        {
+          "line": 25,
+          "col": 1
+        },
+        {
+          "line": 27,
+          "col": 27
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "An expanded ID points to the authored reference.",
+          "location": [
+            {
+              "line": 30,
+              "col": 1
+            },
+            {
+              "line": 30,
+              "col": 48
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "roles": [
+          "expanded"
+        ],
+        "style": "note",
+        "id": {
+          "id": "café",
+          "location": [
+            {
+              "line": 29,
+              "col": 7
+            },
+            {
+              "line": 29,
+              "col": 16
+            }
+          ]
+        }
+      },
+      "location": [
+        {
+          "line": 29,
+          "col": 1
+        },
+        {
+          "line": 30,
+          "col": 48
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "An included expanded ID.",
+          "location": [
+            {
+              "line": 3,
+              "col": 1,
+              "file": [
+                "includes/compatibility_attribute_shorthand.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 24,
+              "file": [
+                "includes/compatibility_attribute_shorthand.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "roles": [
+          "included"
+        ],
+        "style": "note",
+        "id": {
+          "id": "café",
+          "location": [
+            {
+              "line": 2,
+              "col": 7,
+              "file": [
+                "includes/compatibility_attribute_shorthand.adoc"
+              ]
+            },
+            {
+              "line": 2,
+              "col": 16,
+              "file": [
+                "includes/compatibility_attribute_shorthand.adoc"
+              ]
+            }
+          ]
+        }
+      },
+      "location": [
+        {
+          "line": 2,
+          "col": 1,
+          "file": [
+            "includes/compatibility_attribute_shorthand.adoc"
+          ]
+        },
+        {
+          "line": 3,
+          "col": 24,
+          "file": [
+            "includes/compatibility_attribute_shorthand.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "Quoted shorthand in a table cell.",
+                        "location": [
+                          {
+                            "line": 37,
+                            "col": 1
+                          },
+                          {
+                            "line": 37,
+                            "col": 33
+                          }
+                        ]
+                      }
+                    ],
+                    "metadata": {
+                      "roles": [
+                        "role"
+                      ],
+                      "style": "note",
+                      "id": {
+                        "id": "nested",
+                        "location": [
+                          {
+                            "line": 36,
+                            "col": 9
+                          },
+                          {
+                            "line": 36,
+                            "col": 14
+                          }
+                        ]
+                      }
+                    },
+                    "location": [
+                      {
+                        "line": 36,
+                        "col": 2
+                      },
+                      {
+                        "line": 37,
+                        "col": 33
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 35,
+            "col": 1
+          },
+          {
+            "line": 38,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 34,
+          "col": 1
+        },
+        {
+          "line": 38,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "note#literal.role%ready",
+          "location": [
+            {
+              "line": 40,
+              "col": 18
+            },
+            {
+              "line": 40,
+              "col": 40
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "photo.svg"
+      },
+      "location": [
+        {
+          "line": 40,
+          "col": 1
+        },
+        {
+          "line": 40,
+          "col": 41
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Only the first slot can carry shorthand.",
+          "location": [
+            {
+              "line": 43,
+              "col": 1
+            },
+            {
+              "line": 43,
+              "col": 40
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          ".later": null
+        },
+        "roles": [
+          "named"
+        ]
+      },
+      "location": [
+        {
+          "line": 42,
+          "col": 1
+        },
+        {
+          "line": 43,
+          "col": 40
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 43,
+      "col": 40
+    }
+  ]
+}

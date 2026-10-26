@@ -354,7 +354,7 @@ peg::parser! {
         = manpage_comment_block() { None }
         / "//" !"/" [^'\n']* (eol() / ![_]) { None }
         / "[[" (!"]]" [^'\n'])+ "]]" (eol() / ![_]) { None }
-        / !empty_list_separator() !double_open_square_bracket()
+        / !empty_list_separator() block_attribute_start()
           open_square_bracket() attribute_list_content(BlockAttributeMode::Block) (eol() / ![_]) { None }
         / "." ![' ' | '\t' | '\n' | '\r' | '.'] [^'\n']* (eol() / ![_]) { None }
         / attribute:document_attribute_match() (eol() / ![_]) { Some(attribute) }
@@ -1948,8 +1948,15 @@ peg::parser! {
             })
         }
 
+        rule block_attribute_start()
+        = !double_open_square_bracket()
+        / &("[[" !"[") {?
+            (state.options.compatibility_mode == crate::CompatibilityMode::Draft)
+                .then_some(()).ok_or("draft anchor shorthand")
+        }
+
         rule attributes_line_match()
-        = !empty_list_separator() !double_open_square_bracket()
+        = !empty_list_separator() block_attribute_start()
           open_square_bracket() attribute_list_content(BlockAttributeMode::Block) (eol() / ![_])
 
         rule anchor_line_match()
@@ -3713,7 +3720,7 @@ peg::parser! {
             }
 
         rule raw_attributes_line() -> RawAttributeList<'input>
-            = !empty_list_separator() !double_open_square_bracket() attributes:raw_attribute_list(BlockAttributeMode::Block) eol() { attributes }
+            = !empty_list_separator() block_attribute_start() attributes:raw_attribute_list(BlockAttributeMode::Block) eol() { attributes }
 
         rule raw_attribute_list(context: BlockAttributeMode) -> RawAttributeList<'input>
             = open_square_bracket() start:position!() source:attribute_list_content(context)
@@ -3724,7 +3731,7 @@ peg::parser! {
             = whitespace()* "[" whitespace()* "]" whitespace()* eol() eol()
 
         pub(crate) rule attributes() -> (bool, BlockMetadata<'input>, Option<ContentAttributeSource<'input>>)
-            = !double_open_square_bracket()
+            = block_attribute_start()
               open_square_bracket()
               content_start:position!()
               content:attribute_list_content(BlockAttributeMode::Block)

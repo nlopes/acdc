@@ -1,0 +1,41 @@
+{
+  "recovery": null,
+  "warnings": [
+    {
+      "location": {
+        "absolute_end": 150,
+        "absolute_start": 145,
+        "file": "compatibility_attribute_shorthand.adoc",
+        "location": [
+          {
+            "col": 8,
+            "line": 10
+          },
+          {
+            "col": 13,
+            "line": 10
+          }
+        ]
+      },
+      "message": "id already in use: quoted (first defined at <fixtures>/compatibility_attribute_shorthand.adoc:7:8)"
+    },
+    {
+      "location": {
+        "absolute_end": 537,
+        "absolute_start": 528,
+        "file": "includes/compatibility_attribute_shorthand.adoc",
+        "location": [
+          {
+            "col": 7,
+            "line": 2
+          },
+          {
+            "col": 16,
+            "line": 2
+          }
+        ]
+      },
+      "message": "id already in use: café (first defined at <fixtures>/compatibility_attribute_shorthand.adoc:29:7)"
+    }
+  ]
+}

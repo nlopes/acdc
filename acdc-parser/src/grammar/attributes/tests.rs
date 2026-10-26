@@ -1,4 +1,4 @@
-use super::{AttributeQuote, expand_attribute_list, scan_block_attribute_list};
+use super::{AttributeQuote, BlockAttributeMode, expand_attribute_list, scan_block_attribute_list};
 use crate::{AttributeValue, CompatibilityMode, DocumentAttributes};
 
 type Error = Box<dyn std::error::Error>;
@@ -20,7 +20,7 @@ fn expanded_separators_keep_their_reference_span() -> Result<(), Error> {
     let source = "role=before,{entries},last=end";
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
         let expanded = expand_attribute_list(source, &attributes, mode);
-        let values = scan_block_attribute_list(&expanded.text, mode);
+        let values = scan_block_attribute_list(&expanded.text, mode, BlockAttributeMode::Block);
         for name in ["data", "other"] {
             let value = values
                 .iter()
@@ -44,7 +44,7 @@ fn quote_removal_and_expansion_compose_without_losing_escape_bytes() -> Result<(
     let source = r#"data="α\"{word}\"β""#;
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
         let expanded = expand_attribute_list(source, &attributes, mode);
-        let values = scan_block_attribute_list(&expanded.text, mode);
+        let values = scan_block_attribute_list(&expanded.text, mode, BlockAttributeMode::Block);
         let [value] = values.as_slice() else {
             return Err("expected one value".into());
         };
@@ -65,7 +65,7 @@ fn inserted_references_are_not_expanded_again() -> Result<(), Error> {
     let source = r#"data="{saved}",other=\{next}"#;
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
         let expanded = expand_attribute_list(source, &attributes, mode);
-        let values = scan_block_attribute_list(&expanded.text, mode);
+        let values = scan_block_attribute_list(&expanded.text, mode, BlockAttributeMode::Block);
         let [first, second] = values.as_slice() else {
             return Err("expected two values".into());
         };
@@ -86,11 +86,16 @@ fn inserted_references_are_not_expanded_again() -> Result<(), Error> {
 #[test]
 fn even_backslashes_can_end_a_draft_quoted_value() -> Result<(), Error> {
     let source = r#"data="α\\",role=after"#;
-    let values = scan_block_attribute_list(source, CompatibilityMode::Draft);
+    let values =
+        scan_block_attribute_list(source, CompatibilityMode::Draft, BlockAttributeMode::Block);
     let value = values.first().ok_or("missing value")?;
     assert_eq!(value.value, "α\\");
     assert_eq!(value.quote, AttributeQuote::Double);
-    let values = scan_block_attribute_list(source, CompatibilityMode::Asciidoctor);
+    let values = scan_block_attribute_list(
+        source,
+        CompatibilityMode::Asciidoctor,
+        BlockAttributeMode::Block,
+    );
     let value = values.first().ok_or("missing value")?;
     assert_eq!(value.value, r#""α\\""#);
     assert_eq!(value.quote, AttributeQuote::Unquoted);
@@ -104,7 +109,7 @@ fn non_syntax_backslashes_stay_literal() -> Result<(), Error> {
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
         let expanded = expand_attribute_list(source, &attributes, mode);
         assert_eq!(expanded.text, source);
-        let values = scan_block_attribute_list(&expanded.text, mode);
+        let values = scan_block_attribute_list(&expanded.text, mode, BlockAttributeMode::Block);
         let first = values.first().ok_or("missing value")?;
         assert_eq!(first.value, r"C:\path\file");
     }

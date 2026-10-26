@@ -142,11 +142,11 @@ pub(super) fn process_image_attribute_list<'input>(
         .into_iter()
         .enumerate()
     {
+        if attribute.is_ignored(state.options.compatibility_mode) {
+            continue;
+        }
         let value = state.intern_str(&attribute.value);
         if let Some(name) = attribute.name {
-            if attribute.quote == AttributeQuote::Unquoted && value == "None" {
-                continue;
-            }
             let name = match name.as_ref() {
                 "roles" => "role",
                 "options" => "opts",
@@ -255,10 +255,7 @@ pub(super) fn process_media_content<'a>(
     let mut tooltip = None;
     let attributes = scan_attribute_list(content.raw, &content.protected);
     for (slot, attribute) in attributes.iter().enumerate() {
-        if attribute.quote == AttributeQuote::Unquoted
-            && attribute.name.is_some()
-            && attribute.value == "None"
-        {
+        if attribute.is_ignored(state.options.compatibility_mode) {
             continue;
         }
         match attribute.name.as_deref() {

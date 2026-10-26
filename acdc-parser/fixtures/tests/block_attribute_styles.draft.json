@@ -54,7 +54,7 @@
             },
             {
               "line": 3,
-              "col": 20
+              "col": 19
             }
           ]
         },
@@ -201,10 +201,10 @@
         {
           "name": "text",
           "type": "string",
-          "value": "[[not an anchor]]\nDouble-bracket anchor syntax with spaces remains text.",
+          "value": "Double-bracket anchor syntax with spaces remains text.",
           "location": [
             {
-              "line": 14,
+              "line": 15,
               "col": 1
             },
             {
@@ -214,6 +214,9 @@
           ]
         }
       ],
+      "metadata": {
+        "style": "[not an anchor]"
+      },
       "location": [
         {
           "line": 14,
@@ -261,7 +264,7 @@
             },
             {
               "line": 17,
-              "col": 10
+              "col": 9
             }
           ]
         }

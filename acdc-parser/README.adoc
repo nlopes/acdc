@@ -82,6 +82,15 @@ literal backslash; an odd final backslash escapes the next token. Other
 backslashes stay literal. Asciidoctor mode retains its compatible escape rules,
 including literal backslashes before brackets in anchor labels.
 
+Draft leaves quoted first-position values and shorthand with empty components
+literal. It also supports an anchor prefix followed by other shorthand, such as
+`[[intro,Introduction]note#chosen.example]`. The hash ID wins and the reference
+text is retained. Block macro lists do not interpret shorthand in either mode.
+
+Asciidoctor mode ignores an unquoted named `None` entry, preserving any earlier
+value. Draft treats it as ordinary text. Quoted and positional `None` remain
+text in both modes. This policy also applies to inline-image attributes.
+
 These differences follow SDR-2 at revision
 `68ed0b22e8d9b919897542d8ae14f03e7dbdd2e4`; Draft does not mean complete draft
 specification conformance. Custom `subs=` settings and Setext still use their

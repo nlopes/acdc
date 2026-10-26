@@ -8,14 +8,16 @@ use crate::{
     grammar::{
         ParserState,
         attributes::{
-            AttributeQuote, BlockAttributeMode, ScannedAttribute, block_attribute_line,
-            block_attribute_list_allowed, expand_attribute_list, scan_block_attribute_list,
+            AttributeQuote, BlockAttributeMode, ScannedAttribute, ShorthandKind,
+            block_attribute_line, block_attribute_list_allowed, block_list_style, block_shorthand,
+            decode_anchor_shorthand_reftext, expand_attribute_list, scan_block_attribute_list,
         },
         helpers::{
             BlockParsingMetadata, RESERVED_NAMED_ATTRIBUTE_ID, RESERVED_NAMED_ATTRIBUTE_OPTIONS,
             RESERVED_NAMED_ATTRIBUTE_ROLE, RESERVED_NAMED_ATTRIBUTE_SUBS,
             parse_comma_separated_values,
         },
+        inline_preprocessor::SourceMap,
         inline_processing::process_inlines,
     },
     model::{
@@ -318,7 +320,10 @@ pub(super) fn metadata_marks_discrete_heading(metadata: &str, state: &ParserStat
         ) else {
             continue;
         };
-        if attributes.starts_with('[') {
+        if attributes.starts_with('[')
+            && (state.options.compatibility_mode == CompatibilityMode::Asciidoctor
+                || attributes.starts_with("[["))
+        {
             continue;
         }
         let attributes = expand_attribute_list(
@@ -326,20 +331,13 @@ pub(super) fn metadata_marks_discrete_heading(metadata: &str, state: &ParserStat
             &state.document_attributes,
             state.options.compatibility_mode,
         );
-        let attributes =
-            scan_block_attribute_list(&attributes.text, state.options.compatibility_mode);
-        if let Some(first) = attributes
-            .first()
-            .filter(|attribute| attribute.name.is_none())
-        {
-            let style = first
-                .value
-                .split(['#', '.', '%'])
-                .next()
-                .unwrap_or_default();
-            if !style.is_empty() {
-                discrete = matches!(style, "discrete" | "float");
-            }
+        let attributes = scan_block_attribute_list(
+            &attributes.text,
+            state.options.compatibility_mode,
+            BlockAttributeMode::Block,
+        );
+        if let Some(style) = block_list_style(&attributes, state.options.compatibility_mode) {
+            discrete = matches!(style, "discrete" | "float");
         }
     }
     discrete
@@ -348,93 +346,43 @@ pub(super) fn metadata_marks_discrete_heading(metadata: &str, state: &ParserStat
 fn apply_block_style<'input>(
     state: &ParserState<'input>,
     metadata: &mut BlockMetadata<'input>,
-    value: &'input str,
-    location: Option<&Location>,
-) -> bool {
-    if value.is_empty() {
-        return false;
-    }
-    if value.chars().any(char::is_whitespace)
-        || !value
-            .chars()
-            .any(|character| matches!(character, '#' | '.' | '%'))
-    {
-        metadata.style = Some(value);
-        return matches!(value, "discrete" | "float");
-    }
-
-    let mut kind = None;
-    let mut start = 0;
-    for (index, character) in value.char_indices() {
-        let next_kind = match character {
-            '#' => Some(StylePartKind::Id),
-            '.' => Some(StylePartKind::Role),
-            '%' => Some(StylePartKind::Option),
-            _ => continue,
-        };
-        apply_style_part(
-            state,
-            metadata,
-            kind,
-            &value[start..index],
-            start,
-            index,
-            location,
-        );
-        kind = next_kind;
-        start = index + character.len_utf8();
-    }
-    apply_style_part(
-        state,
-        metadata,
-        kind,
-        &value[start..],
-        start,
-        value.len(),
-        location,
-    );
-    matches!(metadata.style, Some("discrete" | "float"))
-}
-
-#[derive(Clone, Copy)]
-enum StylePartKind {
-    Id,
-    Role,
-    Option,
-}
-
-fn apply_style_part<'input>(
-    state: &ParserState<'input>,
-    metadata: &mut BlockMetadata<'input>,
-    kind: Option<StylePartKind>,
-    value: &'input str,
-    start: usize,
-    end: usize,
-    location: Option<&Location>,
-) {
-    if value.is_empty() {
-        return;
-    }
-    match kind {
-        None => metadata.style = Some(value),
-        Some(StylePartKind::Id) => {
-            let location = location.map_or_else(Location::default, |location| {
-                state.create_location(
-                    location.absolute_start + start,
-                    location.absolute_start + end,
-                )
-            });
-            metadata.id = Some(Anchor {
-                id: value,
-                xreflabel: None,
-                location,
-                bibliography_label: None,
-                bibliography: false,
-            });
+    attribute: &ScannedAttribute,
+    source_map: &SourceMap,
+    content_start: usize,
+    offset: usize,
+) -> Result<bool, Error> {
+    let value = state.intern_str(&attribute.value);
+    for part in block_shorthand(value, attribute.quote, state.options.compatibility_mode) {
+        let text = &value[part.range.clone()];
+        match part.kind {
+            ShorthandKind::Style => metadata.style = Some(text),
+            ShorthandKind::Id => {
+                let range = attribute.source_range(source_map, part.range)?;
+                metadata.id = Some(Anchor {
+                    id: text,
+                    xreflabel: None,
+                    location: state.create_block_location(
+                        content_start + range.start,
+                        content_start + range.end,
+                        offset,
+                    ),
+                    bibliography_label: None,
+                    bibliography: false,
+                });
+            }
+            ShorthandKind::Role => metadata.roles.push(text),
+            ShorthandKind::Option => metadata.options.push(text),
+            ShorthandKind::Reftext => {
+                metadata.attributes.set(
+                    "reftext".into(),
+                    state
+                        .intern_str(&decode_anchor_shorthand_reftext(text))
+                        .into(),
+                );
+            }
         }
-        Some(StylePartKind::Role) => metadata.roles.push(value),
-        Some(StylePartKind::Option) => metadata.options.push(value),
     }
+    Ok(matches!(metadata.style, Some("discrete" | "float")))
 }
 
 pub(super) fn extract_media_dimensions(metadata: &mut BlockMetadata<'_>) {
@@ -511,9 +459,6 @@ fn store_named_block_attribute<'input>(
     quote: AttributeQuote,
     location: Option<Location>,
 ) {
-    if quote == AttributeQuote::Unquoted && value == "None" {
-        return;
-    }
     match name {
         "title" => {}
         RESERVED_NAMED_ATTRIBUTE_ID => {
@@ -599,13 +544,16 @@ pub(super) fn parse_block_attribute_list<'input>(
     );
     let substituted = &expanded.text;
     let positions_exact = matches!(substituted, Cow::Borrowed(_));
-    let scan_list = |text| scan_block_attribute_list(text, state.options.compatibility_mode);
+    let scan_list = |text| scan_block_attribute_list(text, state.options.compatibility_mode, mode);
     let authored = (!positions_exact).then(|| scan_list(source));
     let mut metadata = BlockMetadata::default();
     let mut discrete = false;
     let mut title_source = None;
 
     for (slot, attribute) in scan_list(substituted).into_iter().enumerate() {
+        if attribute.is_ignored(state.options.compatibility_mode) {
+            continue;
+        }
         let value = state.intern_str(&attribute.value);
         let name = attribute.name.as_deref().map(|name| state.intern_str(name));
         let span = attribute.source_range(&expanded.source_map, 0..attribute.value.len())?;
@@ -615,9 +563,7 @@ pub(super) fn parse_block_attribute_list<'input>(
             offset,
         ));
 
-        if matches!(name, Some("alt" | "caption"))
-            && !(attribute.quote == AttributeQuote::Unquoted && value == "None")
-        {
+        if matches!(name, Some("alt" | "caption")) {
             let original = authored
                 .as_ref()
                 .and_then(|attributes| attributes.iter().rev().find(|a| a.name.as_deref() == name));
@@ -640,8 +586,7 @@ pub(super) fn parse_block_attribute_list<'input>(
                 attribute.quote,
                 location,
             );
-            if name == "title" && !(attribute.quote == AttributeQuote::Unquoted && value == "None")
-            {
+            if name == "title" {
                 title_source = Some(attribute_title_source(
                     state,
                     value,
@@ -655,12 +600,12 @@ pub(super) fn parse_block_attribute_list<'input>(
             discrete = store_first_block_slot(
                 state,
                 &mut metadata,
-                value,
-                location.as_ref(),
                 &attribute,
                 mode,
                 content_start,
-            );
+                offset,
+                &expanded.source_map,
+            )?;
         } else {
             ensure_positional_slot(&mut metadata, slot);
             if let Some(positional) = metadata.positional_attributes.get_mut(slot - 1) {
@@ -712,15 +657,23 @@ fn capture_block_content<'a>(
 fn store_first_block_slot<'a>(
     state: &ParserState<'a>,
     metadata: &mut BlockMetadata<'a>,
-    value: &'a str,
-    location: Option<&Location>,
     attribute: &ScannedAttribute,
     mode: BlockAttributeMode,
     content_start: usize,
-) -> bool {
+    offset: usize,
+    source_map: &SourceMap,
+) -> Result<bool, Error> {
+    let value = state.intern_str(&attribute.value);
     match mode {
         BlockAttributeMode::Block => {
-            let discrete = apply_block_style(state, metadata, value, location);
+            let discrete = apply_block_style(
+                state,
+                metadata,
+                attribute,
+                source_map,
+                content_start,
+                offset,
+            )?;
             if let Some(style) = metadata.style {
                 metadata.alt_source = Some(Box::new(
                     crate::model::content_attribute::PendingContentAttribute {
@@ -732,7 +685,7 @@ fn store_first_block_slot<'a>(
                     },
                 ));
             }
-            discrete
+            Ok(discrete)
         }
         BlockAttributeMode::Macro
             if !value.is_empty() || attribute.quote != AttributeQuote::Unquoted =>
@@ -749,9 +702,9 @@ fn store_first_block_slot<'a>(
                         .then(|| Box::new((*state.document_attributes).clone())),
                 },
             ));
-            false
+            Ok(false)
         }
-        BlockAttributeMode::Macro => false,
+        BlockAttributeMode::Macro => Ok(false),
     }
 }
 

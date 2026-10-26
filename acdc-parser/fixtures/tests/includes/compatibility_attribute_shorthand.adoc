@@ -1,0 +1,5 @@
+This line is not selected.
+[note#{identity}.included]
+An included expanded ID.
+
+This line is not selected either.

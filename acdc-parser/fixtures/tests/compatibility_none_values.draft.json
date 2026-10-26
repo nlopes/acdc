@@ -1,0 +1,595 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "None Values",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 13
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 2,
+        "col": 11
+      }
+    ]
+  },
+  "attributes": {
+    "none": "None"
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Unquoted named None follows the selected mode.",
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 46
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "custom": "None"
+        },
+        "roles": [
+          "old",
+          "None"
+        ],
+        "options": [
+          "ready",
+          "None"
+        ]
+      },
+      "location": [
+        {
+          "line": 4,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 46
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Quoted None is text in both modes.",
+          "location": [
+            {
+              "line": 8,
+              "col": 1
+            },
+            {
+              "line": 8,
+              "col": 34
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "custom": "None"
+        },
+        "roles": [
+          "None"
+        ]
+      },
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 8,
+          "col": 34
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "title": [
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "None",
+          "location": [
+            {
+              "line": 10,
+              "col": 21
+            },
+            {
+              "line": 10,
+              "col": 24
+            }
+          ]
+        }
+      ],
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "The selected title keeps its presence.",
+          "location": [
+            {
+              "line": 11,
+              "col": 1
+            },
+            {
+              "line": 11,
+              "col": 38
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 10,
+          "col": 1
+        },
+        {
+          "line": 11,
+          "col": 38
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "title": [],
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Explicitly empty values stay empty.",
+          "location": [
+            {
+              "line": 14,
+              "col": 1
+            },
+            {
+              "line": 14,
+              "col": 35
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "custom": ""
+        }
+      },
+      "location": [
+        {
+          "line": 13,
+          "col": 1
+        },
+        {
+          "line": 14,
+          "col": 35
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Positional None is ordinary text.",
+          "location": [
+            {
+              "line": 17,
+              "col": 1
+            },
+            {
+              "line": 17,
+              "col": 33
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "style": "None"
+      },
+      "location": [
+        {
+          "line": 16,
+          "col": 1
+        },
+        {
+          "line": 17,
+          "col": 33
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Expansion happens before None is interpreted.",
+          "location": [
+            {
+              "line": 20,
+              "col": 1
+            },
+            {
+              "line": 20,
+              "col": 45
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "roles": [
+          "old",
+          "None"
+        ]
+      },
+      "location": [
+        {
+          "line": 19,
+          "col": 1
+        },
+        {
+          "line": 20,
+          "col": 45
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "None",
+            "location": [
+              {
+                "line": 22,
+                "col": 39
+              },
+              {
+                "line": 22,
+                "col": 42
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "None",
+            "location": [
+              {
+                "line": 22,
+                "col": 69
+              },
+              {
+                "line": 22,
+                "col": 72
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Attribution and citation use the same None policy.",
+              "location": [
+                {
+                  "line": 24,
+                  "col": 1
+                },
+                {
+                  "line": 24,
+                  "col": 50
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 24,
+              "col": 1
+            },
+            {
+              "line": 24,
+              "col": 50
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 22,
+          "col": 1
+        },
+        {
+          "line": 25,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "caption": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "None",
+            "location": [
+              {
+                "line": 28,
+                "col": 25
+              },
+              {
+                "line": 28,
+                "col": 28
+              }
+            ]
+          }
+        ]
+      },
+      "title": [
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "None",
+          "location": [
+            {
+              "line": 29,
+              "col": 41
+            },
+            {
+              "line": 29,
+              "col": 44
+            }
+          ]
+        }
+      ],
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "None",
+          "location": [
+            {
+              "line": 29,
+              "col": 30
+            },
+            {
+              "line": 29,
+              "col": 33
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "photo.svg"
+      },
+      "location": [
+        {
+          "line": 27,
+          "col": 1
+        },
+        {
+          "line": 29,
+          "col": 45
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Source paragraph content.",
+              "location": [
+                {
+                  "line": 34,
+                  "col": 2
+                },
+                {
+                  "line": 34,
+                  "col": 26
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 34,
+              "col": 1
+            },
+            {
+              "line": 34,
+              "col": 27
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "style": "None"
+      },
+      "location": [
+        {
+          "line": 31,
+          "col": 1
+        },
+        {
+          "line": 34,
+          "col": 27
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Inline ",
+          "location": [
+            {
+              "line": 36,
+              "col": 1
+            },
+            {
+              "line": 36,
+              "col": 7
+            }
+          ]
+        },
+        {
+          "name": "image",
+          "type": "inline",
+          "alt": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "None",
+              "location": [
+                {
+                  "line": 36,
+                  "col": 36
+                },
+                {
+                  "line": 36,
+                  "col": 39
+                }
+              ]
+            }
+          ],
+          "tooltip": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "None",
+              "location": [
+                {
+                  "line": 36,
+                  "col": 47
+                },
+                {
+                  "line": 36,
+                  "col": 50
+                }
+              ]
+            }
+          ],
+          "target": {
+            "type": "path",
+            "value": "photo.svg"
+          },
+          "location": [
+            {
+              "line": 36,
+              "col": 8
+            },
+            {
+              "line": 36,
+              "col": 51
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 36,
+              "col": 52
+            },
+            {
+              "line": 36,
+              "col": 52
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 36,
+          "col": 1
+        },
+        {
+          "line": 36,
+          "col": 52
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 36,
+      "col": 52
+    }
+  ]
+}

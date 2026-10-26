@@ -68,6 +68,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Draft mode keeps quoted and malformed shorthand literal and supports combined
+  anchor/style shorthand. A hash ID overrides an anchor-prefix ID. Block macros
+  continue to treat shorthand punctuation as text.
+- Draft treats unquoted named `None` as text, including inline-image attributes.
+  Asciidoctor mode still ignores it without erasing an earlier value. Quoted and
+  positional `None` remain text in both modes.
+- Shorthand IDs retain their authored ranges after attribute expansion and no
+  longer include the following delimiter in their source location.
 - Draft mode uses odd/even backslash rules for attribute references and quotes in
   block lists, and for brackets in block anchor labels. Other backslashes stay
   literal. Asciidoctor mode keeps its compatible escape rules and now recognizes

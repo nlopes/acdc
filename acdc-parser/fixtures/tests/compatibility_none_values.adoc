@@ -1,0 +1,36 @@
+= None Values
+:none: None
+
+[role=old,role=None,opts=ready,opts=None,custom=old,custom=None]
+Unquoted named None follows the selected mode.
+
+[role="None",custom='None']
+Quoted None is text in both modes.
+
+[title=Before,title=None]
+The selected title keeps its presence.
+
+[title="",role="",opts="",custom=""]
+Explicitly empty values stay empty.
+
+[None]
+Positional None is ordinary text.
+
+[role=old,role={none}]
+Expansion happens before None is interpreted.
+
+[quote,attribution=Before,attribution=None,citetitle=Book,citetitle=None]
+____
+Attribution and citation use the same None policy.
+____
+
+.Picture
+[caption=Prefix,caption=None]
+image::photo.svg[Initial,alt=None,title=None]
+
+[source]
+[style=None]
+// This comment follows the resulting style.
+*Source paragraph content.*
+
+Inline image:photo.svg[Initial,alt=None,title=None].

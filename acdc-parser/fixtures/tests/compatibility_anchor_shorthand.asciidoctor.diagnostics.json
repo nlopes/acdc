@@ -1,0 +1,59 @@
+{
+  "recovery": null,
+  "warnings": [
+    {
+      "location": {
+        "absolute_end": 117,
+        "absolute_start": 110,
+        "file": "compatibility_anchor_shorthand.adoc",
+        "location": [
+          {
+            "col": 5,
+            "line": 6
+          },
+          {
+            "col": 12,
+            "line": 6
+          }
+        ]
+      },
+      "message": "invalid reference: late"
+    },
+    {
+      "location": {
+        "absolute_end": 287,
+        "absolute_start": 273,
+        "file": "compatibility_anchor_shorthand.adoc",
+        "location": [
+          {
+            "col": 5,
+            "line": 14
+          },
+          {
+            "col": 19,
+            "line": 14
+          }
+        ]
+      },
+      "message": "invalid reference: replacement"
+    },
+    {
+      "location": {
+        "absolute_end": 379,
+        "absolute_start": 370,
+        "file": "compatibility_anchor_shorthand.adoc",
+        "location": [
+          {
+            "col": 5,
+            "line": 19
+          },
+          {
+            "col": 14,
+            "line": 19
+          }
+        ]
+      },
+      "message": "invalid reference: quoted"
+    }
+  ]
+}

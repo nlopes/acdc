@@ -1,10 +1,12 @@
 //! Attribute-list scanning shared by grammars and preprocessing.
 
+mod shorthand;
 mod source;
 
 #[cfg(test)]
 mod tests;
 
+pub(super) use shorthand::{ShorthandKind, block_shorthand};
 use source::decode_attribute_escapes;
 pub(super) use source::expand_attribute_list;
 
@@ -102,6 +104,13 @@ pub(super) struct ScannedAttribute {
 }
 
 impl ScannedAttribute {
+    pub(super) fn is_ignored(&self, mode: CompatibilityMode) -> bool {
+        mode == CompatibilityMode::Asciidoctor
+            && self.name.is_some()
+            && self.quote == AttributeQuote::Unquoted
+            && self.value == "None"
+    }
+
     /// Map a decoded value range back through quote escapes and list expansion.
     pub(super) fn source_range(
         &self,
@@ -199,20 +208,27 @@ pub(super) fn scan_attribute_list(
     source: &str,
     protected: &[Range<usize>],
 ) -> Vec<ScannedAttribute> {
-    scan_attributes(source, protected, CompatibilityMode::Asciidoctor)
+    scan_attributes(source, protected, CompatibilityMode::Asciidoctor, false)
 }
 
 pub(super) fn scan_block_attribute_list(
     source: &str,
     mode: CompatibilityMode,
+    context: BlockAttributeMode,
 ) -> Vec<ScannedAttribute> {
-    scan_attributes(source, &[], mode)
+    scan_attributes(
+        source,
+        &[],
+        mode,
+        mode == CompatibilityMode::Draft && matches!(context, BlockAttributeMode::Block),
+    )
 }
 
 fn scan_attributes(
     source: &str,
     protected: &[Range<usize>],
     mode: CompatibilityMode,
+    anchor_shorthand: bool,
 ) -> Vec<ScannedAttribute> {
     let mut attributes = Vec::new();
     let mut cursor = 0;
@@ -277,8 +293,14 @@ fn scan_attributes(
 
         // Links parse nested macros after selecting the label, so their commas
         // must stay inside that positional value until the child parser runs.
-        let comma = attribute_list_comma(&source[value_start..], value_start, protected)
-            .map(|index| value_start + index);
+        let tail = if anchor_shorthand && attributes.is_empty() && named.is_none() {
+            shorthand::anchor_end(&source[value_start..])
+                .map_or(value_start, |end| value_start + end + 1)
+        } else {
+            value_start
+        };
+        let comma =
+            attribute_list_comma(&source[tail..], tail, protected).map(|index| tail + index);
         let end = comma.unwrap_or(source.len());
         let trimmed = source[value_start..end].trim_end();
 
@@ -318,32 +340,42 @@ pub(crate) fn verbatim_paragraph_style(
     attributes: &DocumentAttributes<'_>,
     mode: CompatibilityMode,
 ) -> Option<bool> {
-    if source.starts_with('[') {
+    if source.starts_with('[')
+        && (mode == CompatibilityMode::Asciidoctor || source.starts_with("[["))
+    {
         return None;
     }
     let substituted = expand_attribute_list(source, attributes, mode);
+    let attributes = scan_block_attribute_list(&substituted.text, mode, BlockAttributeMode::Block);
+    block_list_style(&attributes, mode)
+        .map(|style| matches!(style, "source" | "listing" | "literal" | "verse"))
+}
+
+pub(super) fn block_list_style(
+    attributes: &[ScannedAttribute],
+    mode: CompatibilityMode,
+) -> Option<&str> {
     let mut style = None;
-    for (slot, attribute) in scan_block_attribute_list(&substituted.text, mode)
-        .into_iter()
-        .enumerate()
-    {
-        let value = attribute.value.as_str();
-        let name = match attribute.name.as_deref() {
-            Some("style") if attribute.quote != AttributeQuote::Unquoted || value != "None" => {
-                value
-            }
-            None if slot == 0 && !value.is_empty() => {
-                if value.chars().any(char::is_whitespace) {
-                    value
-                } else {
-                    value.split(['#', '.', '%']).next().unwrap_or_default()
+    for (slot, attribute) in attributes.iter().enumerate() {
+        if attribute.is_ignored(mode) {
+            continue;
+        }
+        match attribute.name.as_deref() {
+            Some("style") => style = Some(attribute.value.as_str()),
+            None if slot == 0 => {
+                if let Some(part) = block_shorthand(&attribute.value, attribute.quote, mode)
+                    .into_iter()
+                    .find(|part| part.kind == ShorthandKind::Style)
+                {
+                    style = Some(&attribute.value[part.range]);
                 }
             }
-            _ => continue,
-        };
-        if !name.is_empty() || attribute.name.is_some() {
-            style = Some(matches!(name, "source" | "listing" | "literal" | "verse"));
+            _ => {}
         }
     }
     style
+}
+
+pub(super) fn decode_anchor_shorthand_reftext(value: &str) -> String {
+    decode_attribute_escapes(value, ']', CompatibilityMode::Draft, true).0
 }
