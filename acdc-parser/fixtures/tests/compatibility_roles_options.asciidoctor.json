@@ -109,8 +109,6 @@
       ],
       "metadata": {
         "roles": [
-          "first",
-          "second",
           "first"
         ],
         "options": [
@@ -140,6 +138,7 @@
           "first"
         ],
         "options": [
+          "one",
           "two",
           "one"
         ]

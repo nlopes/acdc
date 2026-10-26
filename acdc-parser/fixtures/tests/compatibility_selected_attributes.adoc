@@ -1,0 +1,21 @@
+= Selected Attributes
+:ignored: None
+
+[title='Discarded footnote:[Old title.]']
+[title='Selected footnote:[Selected title.]']
+A selected title registers once.
+
+.Caption
+[caption='Kept footnote:[Selected caption.]',caption={ignored}]
+image::photo.png[Photo]
+
+[title='Discarded footnote:[Preceding title.]']
+image::photo.png[Photo,title='Selected footnote:[Macro title.]']
+
+[caption='Discarded footnote:[Old caption.]']
+[caption='Selected footnote:[New caption.]']
+.Caption
+image::photo.png[Photo]
+
+[alt=Before,alt={ignored}]
+image::photo.png[]

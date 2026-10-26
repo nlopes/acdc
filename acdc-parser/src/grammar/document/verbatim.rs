@@ -31,6 +31,7 @@ pub(super) fn verbatim_inner<'input>(
     // detection works like `[source,lang]` (never set for `....`/`----`).
     if let Some(language) = p.lang {
         metadata.prepend_synthetic_positional_attribute(PositionalAttribute {
+            position: None,
             value: language,
             substitutions: false,
             location: None,

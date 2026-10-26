@@ -104,6 +104,14 @@ pub(super) struct ScannedAttribute {
 }
 
 impl ScannedAttribute {
+    pub(super) fn canonical_name(&self) -> Option<&str> {
+        self.name.as_deref().map(|name| match name {
+            "roles" => "role",
+            "options" => "opts",
+            name => name,
+        })
+    }
+
     pub(super) fn is_ignored(&self, mode: CompatibilityMode) -> bool {
         mode == CompatibilityMode::Asciidoctor
             && self.name.is_some()
@@ -351,12 +359,32 @@ pub(crate) fn verbatim_paragraph_style(
         .map(|style| matches!(style, "source" | "listing" | "literal" | "verse"))
 }
 
+pub(super) fn block_attribute_entries(
+    attributes: &[ScannedAttribute],
+    mode: CompatibilityMode,
+    context: BlockAttributeMode,
+) -> impl Iterator<Item = (usize, &ScannedAttribute)> {
+    let mut entries = attributes.iter().enumerate();
+    // Asciidoctor applies first-slot shorthand after the list's named entries.
+    let first = if mode == CompatibilityMode::Asciidoctor
+        && matches!(context, BlockAttributeMode::Block)
+        && attributes
+            .first()
+            .is_some_and(|attribute| attribute.name.is_none())
+    {
+        entries.next()
+    } else {
+        None
+    };
+    entries.chain(first)
+}
+
 pub(super) fn block_list_style(
     attributes: &[ScannedAttribute],
     mode: CompatibilityMode,
 ) -> Option<&str> {
     let mut style = None;
-    for (slot, attribute) in attributes.iter().enumerate() {
+    for (slot, attribute) in block_attribute_entries(attributes, mode, BlockAttributeMode::Block) {
         if attribute.is_ignored(mode) {
             continue;
         }

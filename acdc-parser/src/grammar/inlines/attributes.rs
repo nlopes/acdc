@@ -115,6 +115,7 @@ pub(super) fn process_attribute_list<'input>(
                         first_positional = false;
                     } else {
                         metadata.positional_attributes.push(PositionalAttribute {
+                            position: None,
                             value: key_str,
                             substitutions: false,
                             location: None,
@@ -146,12 +147,7 @@ pub(super) fn process_image_attribute_list<'input>(
             continue;
         }
         let value = state.intern_str(&attribute.value);
-        if let Some(name) = attribute.name {
-            let name = match name.as_ref() {
-                "roles" => "role",
-                "options" => "opts",
-                name => name,
-            };
+        if let Some(name) = attribute.canonical_name() {
             named.push(Some((
                 Cow::Borrowed(state.intern_str(name)),
                 AttributeValue::String(Cow::Borrowed(value)),

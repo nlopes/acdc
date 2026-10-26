@@ -1,6 +1,10 @@
 //! Block metadata types for `AsciiDoc` documents.
 
+use std::collections::BTreeMap;
+
 use serde::Serialize;
+
+use crate::CompatibilityMode;
 
 use super::{
     DocumentAttribute,
@@ -14,8 +18,22 @@ use super::{
 
 pub type Role<'a> = &'a str;
 
+/// Order in the expanded input, independent of remapped source locations.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct AttributePosition {
+    pub(crate) list_start: usize,
+    pub(crate) slot: usize,
+}
+
+#[derive(Clone, Debug, Default)]
+pub(crate) struct AttributePositions<'a> {
+    pub(crate) first: Option<AttributePosition>,
+    pub(crate) named: BTreeMap<&'a str, AttributePosition>,
+}
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct PositionalAttribute<'a> {
+    pub(crate) position: Option<AttributePosition>,
     pub(crate) value: &'a str,
     pub(crate) substitutions: bool,
     pub(crate) location: Option<Location>,
@@ -31,6 +49,8 @@ pub(crate) struct DocumentAttributeEvents<'a>(Vec<DocumentAttribute<'a>>);
 #[derive(Clone, Debug, Default, Serialize)]
 #[non_exhaustive]
 pub struct BlockMetadata<'a> {
+    #[serde(skip)]
+    pub(crate) attribute_positions: Option<Box<AttributePositions<'a>>>,
     // Store uncommon parser events separately to keep each block's metadata small.
     #[serde(skip)]
     pub(crate) document_attributes: Option<Box<DocumentAttributeEvents<'a>>>,
@@ -88,6 +108,7 @@ pub struct BlockMetadata<'a> {
 impl PartialEq for BlockMetadata<'_> {
     fn eq(&self, other: &Self) -> bool {
         let Self {
+            attribute_positions: _,
             document_attributes,
             caption,
             alt_source: _,
@@ -222,8 +243,9 @@ impl<'a> BlockMetadata<'a> {
     /// or unquoted) and gaps before later positional values yield `None`. For example,
     /// `[tikz,target=x,svg]` yields `[None, Some("svg")]`; trailing named attributes do
     /// not extend the iterator.
-    /// Consecutive lists merge by slot: later slots replace earlier ones, including
-    /// empty slots, while earlier trailing slots remain.
+    /// Consecutive lists merge by slot. Named entries leave earlier positional values
+    /// intact. Asciidoctor mode lets an empty position clear an earlier value; Draft
+    /// keeps the earlier value. Earlier trailing slots remain in both modes.
     ///
     /// Values remain available after context-specific routing. This positional view
     /// is not added to JSON. Markdown fence languages do not add positional slots.
@@ -315,8 +337,24 @@ impl<'a> BlockMetadata<'a> {
             .append(&mut attributes);
     }
 
-    pub(crate) fn overlay_positional_attributes(&mut self, other: &[PositionalAttribute<'a>]) {
-        overlay_positional_slots(&mut self.positional_attributes, other);
+    pub(crate) fn overlay_positional_attributes(
+        &mut self,
+        other: &BlockMetadata<'a>,
+        mode: CompatibilityMode,
+    ) {
+        if self.retained_positional_attributes.is_some()
+            || other.retained_positional_attributes.is_some()
+        {
+            self.retain_positional_attributes();
+            if let Some(retained) = &mut self.retained_positional_attributes {
+                overlay_positional_slots(retained, other.raw_positional_attributes(), mode);
+            }
+        }
+        overlay_positional_slots(
+            &mut self.positional_attributes,
+            &other.positional_attributes,
+            mode,
+        );
     }
 
     /// Whether this metadata serializes to nothing.
@@ -338,72 +376,22 @@ impl<'a> BlockMetadata<'a> {
             && self.attribution.is_none()
             && self.citetitle.is_none()
     }
-
-    #[tracing::instrument(level = "debug", skip_all)]
-    pub(crate) fn merge(&mut self, other: &BlockMetadata<'a>) {
-        if let Some(attributes) = &other.document_attributes {
-            self.document_attributes
-                .get_or_insert_with(Default::default)
-                .0
-                .extend(attributes.0.iter().cloned());
-        }
-        for (name, value) in other.attributes.iter() {
-            self.attributes.set(name.clone(), value.clone());
-        }
-        if self.retained_positional_attributes.is_some()
-            || other.retained_positional_attributes.is_some()
-        {
-            self.retain_positional_attributes();
-            if let Some(retained) = &mut self.retained_positional_attributes {
-                overlay_positional_slots(retained, other.raw_positional_attributes());
-            }
-        }
-        self.overlay_positional_attributes(&other.positional_attributes);
-        if !other.roles.is_empty() {
-            self.roles.clone_from(&other.roles);
-        }
-        if !other.options.is_empty() {
-            self.options.clone_from(&other.options);
-        }
-        if other.style.is_some() {
-            self.style.clone_from(&other.style);
-        }
-        if other.id.is_some() {
-            self.id.clone_from(&other.id);
-        }
-        self.anchors.extend(other.anchors.clone());
-        if other.substitutions.is_some() {
-            self.substitutions.clone_from(&other.substitutions);
-        }
-        if other.alt_source.is_some() {
-            self.alt_source.clone_from(&other.alt_source);
-        }
-        if other.caption_source.is_some() {
-            self.caption_source.clone_from(&other.caption_source);
-        }
-        if other.caption.is_some() {
-            self.caption.clone_from(&other.caption);
-        }
-        if other.attribution.is_some() {
-            self.attribution.clone_from(&other.attribution);
-            self.attribution_substitutions = other.attribution_substitutions;
-        }
-        if other.citetitle.is_some() {
-            self.citetitle.clone_from(&other.citetitle);
-            self.citetitle_substitutions = other.citetitle_substitutions;
-        }
-    }
 }
 
 fn overlay_positional_slots<'a>(
     destination: &mut Vec<PositionalAttribute<'a>>,
     source: &[PositionalAttribute<'a>],
+    mode: CompatibilityMode,
 ) {
     if destination.len() < source.len() {
         destination.resize(source.len(), PositionalAttribute::default());
     }
     for (destination, attribute) in destination.iter_mut().zip(source) {
-        destination.clone_from(attribute);
+        if (attribute.position.is_some() || !attribute.value.is_empty())
+            && (mode == CompatibilityMode::Asciidoctor || !attribute.value.is_empty())
+        {
+            destination.clone_from(attribute);
+        }
     }
 }
 
@@ -421,29 +409,5 @@ fn serialize_caption_content<S: serde::Serializer>(
         content.serialize(serializer)
     } else {
         serializer.serialize_none()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn merging_substitutions_distinguishes_absent_and_explicit_empty() {
-        let mut metadata = BlockMetadata {
-            substitutions: Some(SubstitutionSpec::Explicit(vec![Substitution::Quotes])),
-            ..BlockMetadata::default()
-        };
-        let original = metadata.clone();
-        metadata.merge(&BlockMetadata::default());
-        assert_eq!(metadata, original);
-
-        let empty = BlockMetadata {
-            substitutions: Some(SubstitutionSpec::Explicit(Vec::new())),
-            ..BlockMetadata::default()
-        };
-        metadata.merge(&empty);
-        assert_eq!(metadata, empty);
-        assert!(!metadata.is_default());
     }
 }

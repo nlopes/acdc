@@ -44,7 +44,7 @@ pub use lists::{
 };
 pub use location::*;
 pub use media::{Audio, Image, InlineImage, Source, SourceUrl, Video};
-pub(crate) use metadata::PositionalAttribute;
+pub(crate) use metadata::{AttributePosition, PositionalAttribute};
 pub use metadata::{BlockMetadata, Role};
 pub use section::*;
 pub use substitution::*;

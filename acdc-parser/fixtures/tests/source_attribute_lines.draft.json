@@ -195,6 +195,7 @@
       "delimiter": "----",
       "metadata": {
         "attributes": {
+          "language": "rust",
           "linenums": ""
         },
         "options": [

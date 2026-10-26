@@ -9,19 +9,20 @@ use crate::{
         ParserState,
         attributes::{
             AttributeQuote, BlockAttributeMode, ScannedAttribute, ShorthandKind,
-            block_attribute_line, block_attribute_list_allowed, block_list_style, block_shorthand,
-            decode_anchor_shorthand_reftext, expand_attribute_list, scan_block_attribute_list,
+            block_attribute_entries, block_attribute_line, block_attribute_list_allowed,
+            block_list_style, block_shorthand, decode_anchor_shorthand_reftext,
+            expand_attribute_list, scan_block_attribute_list,
         },
         helpers::{
             BlockParsingMetadata, RESERVED_NAMED_ATTRIBUTE_ID, RESERVED_NAMED_ATTRIBUTE_OPTIONS,
             RESERVED_NAMED_ATTRIBUTE_ROLE, RESERVED_NAMED_ATTRIBUTE_SUBS,
-            parse_comma_separated_values,
         },
         inline_preprocessor::SourceMap,
         inline_processing::process_inlines,
     },
     model::{
-        Caption, CaptionKind, PositionalAttribute, SectionLevel, Substitution, substitute,
+        AttributePosition, Caption, CaptionKind, PositionalAttribute, SectionLevel, Substitution,
+        substitute,
         substitution::{SubstitutionPlan, parse_subs_attribute},
     },
 };
@@ -174,7 +175,26 @@ pub(super) fn merge_attribute_metadata<'input>(
     mut attribute_metadata: BlockMetadata<'input>,
     mode: CompatibilityMode,
 ) {
+    metadata.overlay_positional_attributes(&attribute_metadata, mode);
     metadata.append_document_attributes(attribute_metadata.take_document_attributes());
+    if mode == CompatibilityMode::Asciidoctor
+        && attribute_metadata
+            .attribute_positions
+            .as_ref()
+            .is_some_and(|positions| positions.named.contains_key("role"))
+    {
+        metadata.roles.clear();
+    }
+    if let Some(positions) = attribute_metadata.attribute_positions.take() {
+        let target = metadata
+            .attribute_positions
+            .get_or_insert_with(Default::default);
+        if positions.first.is_some() {
+            target.first = positions.first;
+        }
+        target.named.extend(positions.named);
+    }
+    metadata.anchors.extend(attribute_metadata.anchors);
     if attribute_metadata.id.is_some() {
         metadata.id = attribute_metadata.id;
     }
@@ -199,7 +219,9 @@ pub(super) fn merge_attribute_metadata<'input>(
     if attribute_metadata.caption_source.is_some() {
         metadata.caption_source = attribute_metadata.caption_source;
     }
-    metadata.overlay_positional_attributes(&attribute_metadata.positional_attributes);
+    if attribute_metadata.caption.is_some() {
+        metadata.caption = attribute_metadata.caption;
+    }
     if attribute_metadata.substitutions.is_some() {
         metadata.substitutions = attribute_metadata.substitutions;
     }
@@ -222,11 +244,7 @@ pub(super) fn merge_macro_metadata<'a>(
     attributes: &BlockMetadata<'a>,
     mode: CompatibilityMode,
 ) {
-    if mode == CompatibilityMode::Draft {
-        merge_attribute_metadata(metadata, attributes.clone(), mode);
-    } else {
-        metadata.merge(attributes);
-    }
+    merge_attribute_metadata(metadata, attributes.clone(), mode);
 }
 
 fn attribute_title_source<'input>(
@@ -350,7 +368,7 @@ fn apply_block_style<'input>(
     source_map: &SourceMap,
     content_start: usize,
     offset: usize,
-) -> Result<bool, Error> {
+) -> Result<(), Error> {
     let value = state.intern_str(&attribute.value);
     for part in block_shorthand(value, attribute.quote, state.options.compatibility_mode) {
         let text = &value[part.range.clone()];
@@ -382,7 +400,7 @@ fn apply_block_style<'input>(
             }
         }
     }
-    Ok(matches!(metadata.style, Some("discrete" | "float")))
+    Ok(())
 }
 
 pub(super) fn extract_media_dimensions(metadata: &mut BlockMetadata<'_>) {
@@ -488,9 +506,14 @@ fn store_named_block_attribute<'input>(
                 );
                 unique(&mut metadata.options);
             } else {
+                let value = if value.contains(',') && value.contains(' ') {
+                    state.intern_str(&value.replace(' ', ""))
+                } else {
+                    value
+                };
                 metadata
                     .options
-                    .extend(parse_comma_separated_values(state, value));
+                    .extend(value.split(',').filter(|value| !value.is_empty()));
             }
         }
         "style" => metadata.style = Some(value),
@@ -523,6 +546,28 @@ fn store_named_block_attribute<'input>(
     }
 }
 
+fn record_attribute_position<'a>(
+    metadata: &mut BlockMetadata<'a>,
+    attribute: &ScannedAttribute,
+    name: Option<&'a str>,
+    position: AttributePosition,
+) {
+    if let Some(name) = name {
+        metadata
+            .attribute_positions
+            .get_or_insert_with(Default::default)
+            .named
+            .insert(name, position);
+    } else if position.slot == 0
+        && (!attribute.value.is_empty() || attribute.quote != AttributeQuote::Unquoted)
+    {
+        metadata
+            .attribute_positions
+            .get_or_insert_with(Default::default)
+            .first = Some(position);
+    }
+}
+
 pub(super) fn parse_block_attribute_list<'input>(
     state: &mut ParserState<'input>,
     source: &'input str,
@@ -547,15 +592,23 @@ pub(super) fn parse_block_attribute_list<'input>(
     let scan_list = |text| scan_block_attribute_list(text, state.options.compatibility_mode, mode);
     let authored = (!positions_exact).then(|| scan_list(source));
     let mut metadata = BlockMetadata::default();
-    let mut discrete = false;
     let mut title_source = None;
-
-    for (slot, attribute) in scan_list(substituted).into_iter().enumerate() {
+    let scanned = scan_list(substituted);
+    for (slot, attribute) in
+        block_attribute_entries(&scanned, state.options.compatibility_mode, mode)
+    {
         if attribute.is_ignored(state.options.compatibility_mode) {
             continue;
         }
         let value = state.intern_str(&attribute.value);
-        let name = attribute.name.as_deref().map(|name| state.intern_str(name));
+        let name = attribute
+            .canonical_name()
+            .map(|name| state.intern_str(name));
+        let position = AttributePosition {
+            list_start: content_start + offset,
+            slot,
+        };
+        record_attribute_position(&mut metadata, attribute, name, position);
         let span = attribute.source_range(&expanded.source_map, 0..attribute.value.len())?;
         let location = Some(state.create_block_location(
             content_start + span.start,
@@ -564,11 +617,15 @@ pub(super) fn parse_block_attribute_list<'input>(
         ));
 
         if matches!(name, Some("alt" | "caption")) {
-            let original = authored
-                .as_ref()
-                .and_then(|attributes| attributes.iter().rev().find(|a| a.name.as_deref() == name));
+            let original = authored.as_ref().and_then(|attributes| {
+                attributes.iter().find(|a| {
+                    a.name.as_deref() == name
+                        && a.value_start <= span.start
+                        && span.end <= a.value_end
+                })
+            });
             let pending =
-                capture_block_content(state, source, content_start, &attribute, original, mode);
+                capture_block_content(state, source, content_start, attribute, original, mode);
             if name == Some("alt") {
                 metadata.attributes.set("alt".into(), value.into());
                 metadata.alt_source = Some(Box::new(pending));
@@ -597,10 +654,10 @@ pub(super) fn parse_block_attribute_list<'input>(
                 ));
             }
         } else if slot == 0 {
-            discrete = store_first_block_slot(
+            store_first_block_slot(
                 state,
                 &mut metadata,
-                &attribute,
+                attribute,
                 mode,
                 content_start,
                 offset,
@@ -610,6 +667,7 @@ pub(super) fn parse_block_attribute_list<'input>(
             ensure_positional_slot(&mut metadata, slot);
             if let Some(positional) = metadata.positional_attributes.get_mut(slot - 1) {
                 *positional = PositionalAttribute {
+                    position: Some(position),
                     value,
                     substitutions: attribute.quote == AttributeQuote::Single,
                     location,
@@ -622,6 +680,7 @@ pub(super) fn parse_block_attribute_list<'input>(
         unique(&mut metadata.roles);
         unique(&mut metadata.options);
     }
+    let discrete = matches!(metadata.style, Some("discrete" | "float"));
     Ok((discrete, metadata, title_source))
 }
 
@@ -662,11 +721,11 @@ fn store_first_block_slot<'a>(
     content_start: usize,
     offset: usize,
     source_map: &SourceMap,
-) -> Result<bool, Error> {
+) -> Result<(), Error> {
     let value = state.intern_str(&attribute.value);
     match mode {
         BlockAttributeMode::Block => {
-            let discrete = apply_block_style(
+            apply_block_style(
                 state,
                 metadata,
                 attribute,
@@ -674,7 +733,9 @@ fn store_first_block_slot<'a>(
                 content_start,
                 offset,
             )?;
-            if let Some(style) = metadata.style {
+            if let Some(style) = metadata.style
+                && !metadata.attributes.contains_key("alt")
+            {
                 metadata.alt_source = Some(Box::new(
                     crate::model::content_attribute::PendingContentAttribute {
                         source: style,
@@ -685,7 +746,7 @@ fn store_first_block_slot<'a>(
                     },
                 ));
             }
-            Ok(discrete)
+            Ok(())
         }
         BlockAttributeMode::Macro
             if !value.is_empty() || attribute.quote != AttributeQuote::Unquoted =>
@@ -702,9 +763,9 @@ fn store_first_block_slot<'a>(
                         .then(|| Box::new((*state.document_attributes).clone())),
                 },
             ));
-            Ok(false)
+            Ok(())
         }
-        BlockAttributeMode::Macro => Ok(false),
+        BlockAttributeMode::Macro => Ok(()),
     }
 }
 
@@ -906,4 +967,92 @@ pub(super) fn resolve_block_content_attributes<'a>(
     }
     metadata.alt_source = None;
     Ok(alt)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn merging_substitutions_distinguishes_absent_and_explicit_empty() {
+        for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+            let mut metadata = BlockMetadata {
+                substitutions: Some(crate::SubstitutionSpec::Explicit(vec![
+                    Substitution::Quotes,
+                ])),
+                ..BlockMetadata::default()
+            };
+            let original = metadata.clone();
+            merge_attribute_metadata(&mut metadata, BlockMetadata::default(), mode);
+            assert_eq!(metadata, original);
+            let empty = BlockMetadata {
+                substitutions: Some(crate::SubstitutionSpec::Explicit(Vec::new())),
+                ..BlockMetadata::default()
+            };
+            merge_attribute_metadata(&mut metadata, empty.clone(), mode);
+            assert_eq!(metadata, empty);
+        }
+    }
+    #[test]
+    fn selected_entries_keep_their_order_across_expansion_and_stacked_lists()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let source = ":entries: width=10,old,width=20\n\n[custom,{entries}]\nFirst.\n\n[custom,{entries}]\n[custom,,last]\nSecond.";
+        for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+            let parsed = crate::parse(
+                source,
+                &crate::Options::builder()
+                    .with_compatibility_mode(mode)
+                    .build()?,
+            )?;
+            let first = parsed
+                .document()
+                .blocks
+                .first()
+                .and_then(Block::metadata)
+                .ok_or("missing first metadata")?;
+            let positions = first
+                .attribute_positions
+                .as_ref()
+                .ok_or("missing positions")?;
+            let width = positions
+                .named
+                .get("width")
+                .ok_or("missing named position")?;
+            let positional = first
+                .raw_positional_attributes()
+                .get(1)
+                .ok_or("missing second slot")?;
+            let positional_order = positional.position.ok_or("missing positional order")?;
+            let first_order = positions.first.ok_or("missing first slot order")?;
+            assert_eq!(first_order.slot, 0);
+            assert!(first_order < positional_order);
+            assert_eq!(width.slot, 3);
+            assert_eq!(positional_order.slot, 2);
+            assert!(positional_order < *width);
+            assert_eq!(positional.value, "old");
+            let location = positional.location.as_ref().ok_or("missing location")?;
+            assert_eq!(
+                source.get(location.absolute_start..=location.absolute_end),
+                Some("{entries}")
+            );
+            let second = parsed
+                .document()
+                .blocks
+                .last()
+                .and_then(Block::metadata)
+                .ok_or("missing second metadata")?;
+            let width = second
+                .attribute_positions
+                .as_ref()
+                .and_then(|positions| positions.named.get("width"))
+                .ok_or("missing named order")?;
+            let last = second
+                .raw_positional_attributes()
+                .get(1)
+                .ok_or("missing last slot")?;
+            assert_eq!(last.value, "last");
+            assert!(last.position.ok_or("missing last order")? > *width);
+        }
+        Ok(())
+    }
 }

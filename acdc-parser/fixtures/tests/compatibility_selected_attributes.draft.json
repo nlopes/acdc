@@ -1,0 +1,425 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Selected Attributes",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 21
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 2,
+        "col": 14
+      }
+    ]
+  },
+  "attributes": {
+    "ignored": "None"
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Selected ",
+          "location": [
+            {
+              "line": 5,
+              "col": 9
+            },
+            {
+              "line": 5,
+              "col": 17
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": null,
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Selected title.",
+              "location": [
+                {
+                  "line": 5,
+                  "col": 28
+                },
+                {
+                  "line": 5,
+                  "col": 42
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 5,
+              "col": 18
+            },
+            {
+              "line": 5,
+              "col": 43
+            }
+          ]
+        }
+      ],
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "A selected title registers once.",
+          "location": [
+            {
+              "line": 6,
+              "col": 1
+            },
+            {
+              "line": 6,
+              "col": 32
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 4,
+          "col": 1
+        },
+        {
+          "line": 6,
+          "col": 32
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "caption": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "None",
+            "location": [
+              {
+                "line": 9,
+                "col": 54
+              },
+              {
+                "line": 9,
+                "col": 62
+              }
+            ]
+          }
+        ]
+      },
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Caption",
+          "location": [
+            {
+              "line": 8,
+              "col": 2
+            },
+            {
+              "line": 8,
+              "col": 8
+            }
+          ]
+        }
+      ],
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Photo",
+          "location": [
+            {
+              "line": 10,
+              "col": 18
+            },
+            {
+              "line": 10,
+              "col": 22
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "photo.png"
+      },
+      "location": [
+        {
+          "line": 8,
+          "col": 1
+        },
+        {
+          "line": 10,
+          "col": 23
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Selected ",
+          "location": [
+            {
+              "line": 13,
+              "col": 31
+            },
+            {
+              "line": 13,
+              "col": 39
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": null,
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Macro title.",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 50
+                },
+                {
+                  "line": 13,
+                  "col": 61
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 13,
+              "col": 40
+            },
+            {
+              "line": 13,
+              "col": 62
+            }
+          ]
+        }
+      ],
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Photo",
+          "location": [
+            {
+              "line": 13,
+              "col": 18
+            },
+            {
+              "line": 13,
+              "col": 22
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "photo.png"
+      },
+      "location": [
+        {
+          "line": 12,
+          "col": 1
+        },
+        {
+          "line": 13,
+          "col": 64
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "caption": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Selected ",
+            "location": [
+              {
+                "line": 16,
+                "col": 11
+              },
+              {
+                "line": 16,
+                "col": 19
+              }
+            ]
+          },
+          {
+            "name": "footnote",
+            "type": "inline",
+            "id": null,
+            "inlines": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "New caption.",
+                "location": [
+                  {
+                    "line": 16,
+                    "col": 30
+                  },
+                  {
+                    "line": 16,
+                    "col": 41
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 16,
+                "col": 20
+              },
+              {
+                "line": 16,
+                "col": 42
+              }
+            ]
+          }
+        ]
+      },
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Caption",
+          "location": [
+            {
+              "line": 17,
+              "col": 2
+            },
+            {
+              "line": 17,
+              "col": 8
+            }
+          ]
+        }
+      ],
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Photo",
+          "location": [
+            {
+              "line": 18,
+              "col": 18
+            },
+            {
+              "line": 18,
+              "col": 22
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "photo.png"
+      },
+      "location": [
+        {
+          "line": 15,
+          "col": 1
+        },
+        {
+          "line": 18,
+          "col": 23
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "None",
+          "location": [
+            {
+              "line": 20,
+              "col": 17
+            },
+            {
+              "line": 20,
+              "col": 25
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "photo.png"
+      },
+      "location": [
+        {
+          "line": 20,
+          "col": 1
+        },
+        {
+          "line": 21,
+          "col": 18
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 21,
+      "col": 18
+    }
+  ]
+}

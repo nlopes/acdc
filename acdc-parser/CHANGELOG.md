@@ -68,6 +68,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Stacked block attributes retain earlier positional values across named gaps.
+  Draft also retains them across empty positions; Asciidoctor mode clears an
+  explicitly empty position. Values keep the location of the selected entry.
+- Asciidoctor mode now replaces earlier roles when a later list supplies `role=`,
+  including an empty value, and adds same-list shorthand roles after named roles.
+  Block media macros retain options from preceding attribute lists. Option
+  splitting follows the reference comma/space rules in Asciidoctor mode.
+- Ignored duplicate caption attributes no longer replace the selected caption
+  or suppress its footnotes when the list contains an attribute reference.
 - Draft mode keeps quoted and malformed shorthand literal and supports combined
   anchor/style shorthand. A hash ID overrides an anchor-prefix ID. Block macros
   continue to treat shorthand punctuation as text.

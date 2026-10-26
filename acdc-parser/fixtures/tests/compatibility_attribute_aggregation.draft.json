@@ -1,0 +1,444 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Attribute Aggregation",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 23
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 23
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "A later named role replaces earlier roles in Asciidoctor mode.",
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 62
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "roles": [
+          "old",
+          "new"
+        ],
+        "options": [
+          "one",
+          "two",
+          "three"
+        ]
+      },
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 62
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "The named role and shorthand both contribute.",
+          "location": [
+            {
+              "line": 8,
+              "col": 1
+            },
+            {
+              "line": 8,
+              "col": 45
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "roles": [
+          "short",
+          "named"
+        ]
+      },
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 8,
+          "col": 45
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "An empty named role clears the compatible role list.",
+          "location": [
+            {
+              "line": 12,
+              "col": 1
+            },
+            {
+              "line": 12,
+              "col": 52
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "roles": [
+          "old"
+        ]
+      },
+      "location": [
+        {
+          "line": 10,
+          "col": 1
+        },
+        {
+          "line": 12,
+          "col": 52
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Aliases and splitting follow the selected mode.",
+          "location": [
+            {
+              "line": 16,
+              "col": 1
+            },
+            {
+              "line": 16,
+              "col": 47
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "roles": [
+          "one",
+          "two"
+        ],
+        "options": [
+          "ready",
+          "wide",
+          "compact",
+          "extra"
+        ]
+      },
+      "location": [
+        {
+          "line": 14,
+          "col": 1
+        },
+        {
+          "line": 16,
+          "col": 47
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "roles": [
+          "outer",
+          "inner"
+        ],
+        "options": [
+          "one",
+          "two",
+          "three"
+        ]
+      },
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Photo",
+          "location": [
+            {
+              "line": 19,
+              "col": 18
+            },
+            {
+              "line": 19,
+              "col": 22
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "photo.png"
+      },
+      "location": [
+        {
+          "line": 18,
+          "col": 1
+        },
+        {
+          "line": 19,
+          "col": 45
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "roles": [
+          "outer"
+        ],
+        "options": [
+          "one"
+        ]
+      },
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Photo",
+          "location": [
+            {
+              "line": 22,
+              "col": 18
+            },
+            {
+              "line": 22,
+              "col": 22
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "photo.png"
+      },
+      "location": [
+        {
+          "line": 21,
+          "col": 1
+        },
+        {
+          "line": 22,
+          "col": 39
+        }
+      ]
+    },
+    {
+      "name": "audio",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "roles": [
+          "outer",
+          "inner"
+        ],
+        "options": [
+          "one",
+          "two"
+        ]
+      },
+      "source": {
+        "type": "path",
+        "value": "audio.ogg"
+      },
+      "location": [
+        {
+          "line": 24,
+          "col": 1
+        },
+        {
+          "line": 25,
+          "col": 37
+        }
+      ]
+    },
+    {
+      "name": "video",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "poster": "Poster"
+        },
+        "roles": [
+          "outer",
+          "inner"
+        ],
+        "options": [
+          "one",
+          "two"
+        ]
+      },
+      "source": {
+        "type": "path",
+        "value": "movie.mp4"
+      },
+      "location": [
+        {
+          "line": 27,
+          "col": 1
+        },
+        {
+          "line": 28,
+          "col": 44
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "Nested roles.",
+                        "location": [
+                          {
+                            "line": 34,
+                            "col": 1
+                          },
+                          {
+                            "line": 34,
+                            "col": 13
+                          }
+                        ]
+                      }
+                    ],
+                    "metadata": {
+                      "roles": [
+                        "old",
+                        "new"
+                      ]
+                    },
+                    "location": [
+                      {
+                        "line": 32,
+                        "col": 2
+                      },
+                      {
+                        "line": 34,
+                        "col": 13
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 31,
+            "col": 1
+          },
+          {
+            "line": 35,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 30,
+          "col": 1
+        },
+        {
+          "line": 35,
+          "col": 4
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 35,
+      "col": 4
+    }
+  ]
+}

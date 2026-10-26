@@ -83,6 +83,14 @@ literal. It also supports an anchor prefix followed by other shorthand, such as
 `[[intro,Introduction]note#chosen.example]`. The hash ID wins and the reference
 text is retained. Block macro lists do not interpret shorthand in either mode.
 
+Stacked attribute lists keep the original positional slots. Named entries leave
+earlier positional values intact. An empty position clears an earlier value in
+Asciidoctor mode; Draft keeps that value. A named role replaces earlier roles in
+Asciidoctor mode, including when it is empty. Shorthand roles in the same list
+are added after named roles. Options from preceding lists remain active on block
+media macros in both modes. Draft splits options on commas or whitespace;
+Asciidoctor splits on commas and removes spaces when a comma is present.
+
 Asciidoctor mode ignores an unquoted named `None` entry, preserving any earlier
 value. Draft treats it as ordinary text. Quoted and positional `None` remain
 text in both modes. This policy also applies to inline-image attributes.

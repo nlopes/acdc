@@ -1,0 +1,423 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Positional Slots",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 18
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 2,
+        "col": 29
+      }
+    ]
+  },
+  "attributes": {
+    "entries": "name=expanded,,last"
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Named entries leave earlier positions intact.",
+          "location": [
+            {
+              "line": 6,
+              "col": 1
+            },
+            {
+              "line": 6,
+              "col": 45
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "last": null,
+          "name": "value",
+          "old": null,
+          "tail": null
+        },
+        "style": "custom"
+      },
+      "location": [
+        {
+          "line": 4,
+          "col": 1
+        },
+        {
+          "line": 6,
+          "col": 45
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Empty positions have mode-specific effects.",
+          "location": [
+            {
+              "line": 10,
+              "col": 1
+            },
+            {
+              "line": 10,
+              "col": 43
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "old": null,
+          "tail": null
+        },
+        "style": "custom"
+      },
+      "location": [
+        {
+          "line": 8,
+          "col": 1
+        },
+        {
+          "line": 10,
+          "col": 43
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Expanded entries retain their physical positions.",
+          "location": [
+            {
+              "line": 14,
+              "col": 1
+            },
+            {
+              "line": 14,
+              "col": 49
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "last": null,
+          "name": "expanded",
+          "old": null,
+          "tail": null
+        },
+        "style": "custom"
+      },
+      "location": [
+        {
+          "line": 12,
+          "col": 1
+        },
+        {
+          "line": 14,
+          "col": 49
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "Ada",
+            "location": [
+              {
+                "line": 16,
+                "col": 8
+              },
+              {
+                "line": 16,
+                "col": 10
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "Book",
+            "location": [
+              {
+                "line": 16,
+                "col": 12
+              },
+              {
+                "line": 16,
+                "col": 15
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Draft keeps the earlier attribution and citation.",
+              "location": [
+                {
+                  "line": 19,
+                  "col": 1
+                },
+                {
+                  "line": 19,
+                  "col": 49
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 19,
+              "col": 1
+            },
+            {
+              "line": 19,
+              "col": 49
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 16,
+          "col": 1
+        },
+        {
+          "line": 20,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "audio",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "last": null,
+          "name": "value",
+          "old": null,
+          "tail": null
+        },
+        "style": "custom"
+      },
+      "source": {
+        "type": "path",
+        "value": "audio.ogg"
+      },
+      "location": [
+        {
+          "line": 22,
+          "col": 1
+        },
+        {
+          "line": 23,
+          "col": 41
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Included positional slots.",
+          "location": [
+            {
+              "line": 3,
+              "col": 1,
+              "file": [
+                "includes/compatibility_positional_slots.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 26,
+              "file": [
+                "includes/compatibility_positional_slots.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "Book": null,
+          "café": null,
+          "last": null,
+          "name": "value"
+        },
+        "style": "custom"
+      },
+      "location": [
+        {
+          "line": 1,
+          "col": 1,
+          "file": [
+            "includes/compatibility_positional_slots.adoc"
+          ]
+        },
+        {
+          "line": 3,
+          "col": 26,
+          "file": [
+            "includes/compatibility_positional_slots.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "Nested positional slots.",
+                        "location": [
+                          {
+                            "line": 31,
+                            "col": 1
+                          },
+                          {
+                            "line": 31,
+                            "col": 24
+                          }
+                        ]
+                      }
+                    ],
+                    "metadata": {
+                      "attributes": {
+                        "last": null,
+                        "name": "value",
+                        "old": null,
+                        "tail": null
+                      },
+                      "style": "custom"
+                    },
+                    "location": [
+                      {
+                        "line": 29,
+                        "col": 2
+                      },
+                      {
+                        "line": 31,
+                        "col": 24
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 28,
+            "col": 1
+          },
+          {
+            "line": 32,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 27,
+          "col": 1
+        },
+        {
+          "line": 32,
+          "col": 4
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 32,
+      "col": 4
+    }
+  ]
+}
