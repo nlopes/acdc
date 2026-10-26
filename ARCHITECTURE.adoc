@@ -422,7 +422,7 @@ It's become harder to tell which rules apply to a document than it should be.
 * `Asciidoctor` is the default. I aim for maximum compatibility with Asciidoctor, with documented exceptions for bug fixes and deliberate changes that improve the user experience.
 * `Draft` is opt-in. It follows the draft rules we've reviewed and chosen to support, including rules that differ from Asciidoctor.
 
-Today, the mode controls named block-title quoting, block attribute-list boundaries and quote terminators, and repeated roles and options.
+Today, the mode controls named block-title quoting, block attribute-list boundaries and escapes, block anchor escapes, and repeated roles and options.
 For example, `[title="*Bold*"]` produces a bold title in Asciidoctor mode and literal asterisks in Draft mode.
 A single-quoted named title supports formatting in both modes.
 

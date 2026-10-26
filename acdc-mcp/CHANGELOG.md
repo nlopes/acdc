@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Document rendering reads image alternative text and formatted UI labels from
+  the current parser API. Video playlists retain their source text.
+- The workspace manifest can be read by the parser's minimum supported Rust
+  version, 1.88.
+
 ### Changed
 
 - `adoc_find` and fuzzy title lookup now use case-insensitive Unicode fuzzy matching. Use short terms or abbreviations; all space-separated terms must match, with no English stopword or shared-prefix rules.

@@ -2,6 +2,9 @@ use acdc_parser::{Block, DelimitedBlockType, InlineMacro, InlineNode, Title};
 use rmcp::schemars::{self, JsonSchema};
 use serde::{Deserialize, Serialize};
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub(super) enum Format {
@@ -184,18 +187,23 @@ fn macro_text(m: &InlineMacro<'_>, format: Format) -> String {
                 s.content.to_owned()
             }
         }
-        InlineMacro::Button(b) => b.label.to_owned(),
-        InlineMacro::Keyboard(k) => k.keys.join("+"),
-        InlineMacro::Menu(m) => std::iter::once(m.target)
-            .chain(m.items.iter().copied())
+        InlineMacro::Button(b) => inline_text(&b.label, format),
+        InlineMacro::Keyboard(k) => k
+            .keys
+            .iter()
+            .map(|key| inline_text(key, format))
+            .collect::<Vec<_>>()
+            .join("+"),
+        InlineMacro::Menu(m) => std::iter::once(&m.target)
+            .chain(&m.items)
+            .map(|item| inline_text(item, format))
             .collect::<Vec<_>>()
             .join(" > "),
         InlineMacro::Image(i) => {
             let alt = i
-                .metadata
-                .attributes
-                .get_string("alt")
-                .unwrap_or_else(|| inline_text(&i.title, Format::Plain).into());
+                .alt
+                .as_ref()
+                .map_or_else(String::new, |alt| inline_text(alt, Format::Plain));
             if format == Format::Asciidoc {
                 format!("image:{}[{alt}]", i.source)
             } else {
@@ -279,10 +287,9 @@ pub(super) fn render_block(block: &Block<'_>, format: Format, include_subsection
         Block::DelimitedBlock(d) => render_delimited(d, format),
         Block::Image(i) => {
             let alt = i
-                .metadata
-                .attributes
-                .get_string("alt")
-                .unwrap_or_else(|| "Image".into());
+                .alt
+                .as_ref()
+                .map_or_else(|| "Image".into(), |alt| inline_text(alt, Format::Plain));
             if format == Format::Asciidoc {
                 format!("image::{}[{alt}]", i.source)
             } else {
@@ -374,17 +381,7 @@ fn render_delimited(d: &acdc_parser::DelimitedBlock<'_>, format: Format) -> Stri
 }
 
 fn render_video(video: &acdc_parser::Video<'_>, format: Format) -> String {
-    let separator = if format == Format::Asciidoc {
-        ","
-    } else {
-        ", "
-    };
-    let targets = video
-        .sources
-        .iter()
-        .map(ToString::to_string)
-        .collect::<Vec<_>>()
-        .join(separator);
+    let targets = video.source.to_string();
     if format == Format::Asciidoc {
         format!("video::{targets}[]")
     } else {

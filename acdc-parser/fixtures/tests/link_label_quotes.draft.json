@@ -3119,15 +3119,15 @@
         {
           "name": "raw",
           "type": "string",
-          "value": "One \\\"quote\\\" two",
+          "value": "\"One \\\\\"quote\\\\\" two\"",
           "location": [
             {
               "line": 63,
-              "col": 9
+              "col": 8
             },
             {
               "line": 63,
-              "col": 27
+              "col": 28
             }
           ]
         }

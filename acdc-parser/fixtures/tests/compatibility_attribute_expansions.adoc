@@ -1,0 +1,28 @@
+= Attribute Expansions
+:who: Ada
+:saved: \{who}
+:entries: attribution="café",citetitle="λ"
+:empty:
+
+[quote,{entries}]
+____
+Separators introduced by a reference form separate attributes.
+____
+
+[quote,"{saved}",Book]
+____
+An inserted reference is not expanded again by the attribute-list scanner.
+____
+
+[data="{saved}",other=\{who}]
+An inserted and an escaped reference stay literal.
+
+[quote,"before {who} after","{empty}"]
+____
+Literal and expanded source ranges remain connected.
+____
+
+[quote,"\\{who}",Book]
+____
+An even backslash run controls whether this reference expands.
+____

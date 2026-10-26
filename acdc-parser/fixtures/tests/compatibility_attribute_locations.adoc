@@ -1,0 +1,38 @@
+= Attribute Locations
+:author: café
+:book: λ
+
+[quote,Ada,Book]
+____
+Unquoted values exclude the following comma.
+____
+
+[quote,"café","λ"]
+____
+Quoted values exclude their closing quote.
+____
+
+[quote,"{author}","{book}"]
+____
+Expanded values point to the authored reference.
+____
+
+[quote,attribution="α\"β",citetitle="A\\\"B"]
+____
+The source span includes removed escape characters.
+____
+
+[quote,attribution="",citetitle=""]
+____
+Explicitly empty values retain a valid source position.
+____
+
+include::includes/compatibility_attribute_locations.adoc[lines=2..6]
+
+[cols=a]
+|===
+|[quote,"{author}","{book}"]
+____
+The selected mode and source locations reach table cells.
+____
+|===

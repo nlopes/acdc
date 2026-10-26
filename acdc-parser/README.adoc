@@ -76,6 +76,12 @@ their existing rules in both modes. Asciidoctor mode accepts adjacent text after
 a closing quote and trailing whitespace in block lists. A leading space or tab
 prevents a block attribute line from being recognized in either mode.
 
+Draft counts backslashes before attribute references and matching quotes in block
+lists, and before closing brackets in block anchor labels. Each pair becomes one
+literal backslash; an odd final backslash escapes the next token. Other
+backslashes stay literal. Asciidoctor mode retains its compatible escape rules,
+including literal backslashes before brackets in anchor labels.
+
 These differences follow SDR-2 at revision
 `68ed0b22e8d9b919897542d8ae14f03e7dbdd2e4`; Draft does not mean complete draft
 specification conformance. Custom `subs=` settings and Setext still use their

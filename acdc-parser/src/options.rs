@@ -16,9 +16,9 @@ const DEFAULT_MAX_TOTAL_INCLUDE_BYTES: usize = 64 * 1024 * 1024;
 /// Selects the supported Asciidoctor or draft language rules for one parse.
 ///
 /// Both modes use the same AST. Currently they differ in named block-title
-/// quoting, block attribute-list boundaries and quote terminators, and repeated
-/// block roles and options. Neither mode promises complete conformance, and the
-/// choice does not change safe mode or output format.
+/// quoting, block attribute-list boundaries, quote terminators and escapes,
+/// block anchor escapes, and repeated block roles and options. Neither mode
+/// promises complete conformance. The choice does not change safe mode or output format.
 /// Explicit block `subs=` controls are shared; Draft supports them as an acdc extension.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 #[non_exhaustive]

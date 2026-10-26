@@ -20,7 +20,7 @@ network = ["acdc-parser/network"]
 acdc-parser.workspace = true
 base64.workspace = true
 clap.workspace = true
-chrono = { workspace = true, default-features = false, features = ["std"] }
+chrono = { workspace = true, features = ["std"] }
 ignore = "0.4"
 nucleo-matcher = "0.3.1"
 rmcp = { version = "3.5", default-features = false, features = ["server", "macros", "transport-io"] }

@@ -1,7 +1,7 @@
 {
   "recovery": {
     "location": {
-      "absolute_end": 72,
+      "absolute_end": 71,
       "absolute_start": 53,
       "file": "compatibility_unsupported_substitutions.adoc",
       "location": [
@@ -10,7 +10,7 @@
           "line": 4
         },
         {
-          "col": 27,
+          "col": 26,
           "line": 4
         }
       ]
@@ -20,7 +20,7 @@
   "warnings": [
     {
       "location": {
-        "absolute_end": 72,
+        "absolute_end": 71,
         "absolute_start": 53,
         "file": "compatibility_unsupported_substitutions.adoc",
         "location": [
@@ -29,7 +29,7 @@
             "line": 4
           },
           {
-            "col": 27,
+            "col": 26,
             "line": 4
           }
         ]
@@ -38,7 +38,7 @@
     },
     {
       "location": {
-        "absolute_end": 72,
+        "absolute_end": 71,
         "absolute_start": 53,
         "file": "compatibility_unsupported_substitutions.adoc",
         "location": [
@@ -47,7 +47,7 @@
             "line": 4
           },
           {
-            "col": 27,
+            "col": 26,
             "line": 4
           }
         ]
@@ -56,7 +56,7 @@
     },
     {
       "location": {
-        "absolute_end": 134,
+        "absolute_end": 133,
         "absolute_start": 115,
         "file": "compatibility_unsupported_substitutions.adoc",
         "location": [
@@ -65,7 +65,7 @@
             "line": 7
           },
           {
-            "col": 27,
+            "col": 26,
             "line": 7
           }
         ]

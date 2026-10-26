@@ -68,6 +68,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Draft mode uses odd/even backslash rules for attribute references and quotes in
+  block lists, and for brackets in block anchor labels. Other backslashes stay
+  literal. Asciidoctor mode keeps its compatible escape rules and now recognizes
+  block anchor labels containing right brackets, including escaped brackets.
+- Raw block attribute locations exclude closing quotes and following commas. Expanded
+  values point to their authored references, including Unicode, selected includes,
+  and nested table cells.
+
 - Draft mode rejects outer spaces and tabs in block attribute lists and requires
   a comma, space, tab, or list end after a closing quote. Invalid quote enclosures
   stay literal. Block macros use the same rules; inline macro lists are unchanged.

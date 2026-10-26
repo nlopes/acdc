@@ -1,10 +1,48 @@
 //! Attribute-list scanning shared by grammars and preprocessing.
 
+mod source;
+
+#[cfg(test)]
+mod tests;
+
+use source::decode_attribute_escapes;
+pub(super) use source::expand_attribute_list;
+
 use crate::{
-    CompatibilityMode, DocumentAttributes,
-    model::{Substitution, substitute},
+    CompatibilityMode, DocumentAttributes, Error, grammar::inline_preprocessor::SourceMap,
 };
-use std::ops::Range;
+use std::{borrow::Cow, ops::Range};
+
+pub(super) fn resolve_block_anchor_reftext<'a>(
+    source: &'a str,
+    attributes: &DocumentAttributes<'_>,
+    mode: CompatibilityMode,
+) -> Option<Cow<'a, str>> {
+    if source.is_empty() {
+        return None;
+    }
+    let expanded = expand_attribute_list(source, attributes, mode);
+    if mode == CompatibilityMode::Asciidoctor {
+        return Some(expanded.text);
+    }
+    let mut escaped = false;
+    for character in expanded.text.chars() {
+        if character == ']' && !escaped {
+            return None;
+        }
+        escaped = character == '\\' && !escaped;
+    }
+    if escaped {
+        return None;
+    }
+    if expanded.text.contains('\\') {
+        Some(Cow::Owned(
+            decode_attribute_escapes(&expanded.text, ']', mode, true).0,
+        ))
+    } else {
+        Some(expanded.text)
+    }
+}
 
 #[derive(Clone, Copy)]
 pub(super) enum BlockAttributeMode {
@@ -28,8 +66,8 @@ pub(super) fn block_attribute_list_allowed(
             if source.starts_with([' ', '\t']) || source.ends_with([' ', '\t']) {
                 return false;
             }
-            let expanded = substitute(source, &[Substitution::Attributes], attributes);
-            !expanded.starts_with([' ', '\t']) && !expanded.ends_with([' ', '\t'])
+            let expanded = expand_attribute_list(source, attributes, mode);
+            !expanded.text.starts_with([' ', '\t']) && !expanded.text.ends_with([' ', '\t'])
         }
     }
 }
@@ -60,6 +98,27 @@ pub(super) struct ScannedAttribute {
     pub(super) quote: AttributeQuote,
     pub(super) value_start: usize,
     pub(super) value_end: usize,
+    value_map: SourceMap,
+}
+
+impl ScannedAttribute {
+    /// Map a decoded value range back through quote escapes and list expansion.
+    pub(super) fn source_range(
+        &self,
+        list_map: &SourceMap,
+        range: Range<usize>,
+    ) -> Result<Range<usize>, Error> {
+        let start =
+            list_map.map_position(self.value_start + self.value_map.map_position(range.start)?)?;
+        let end = if range.is_empty() {
+            start
+        } else {
+            list_map.map_end_position(
+                self.value_start + self.value_map.map_end_position(range.end - 1)?,
+            )? + 1
+        };
+        Ok(start..end)
+    }
 }
 
 fn is_attribute_name_start(character: char) -> bool {
@@ -100,7 +159,7 @@ fn closing_quote(
     protected: &[Range<usize>],
     mode: CompatibilityMode,
 ) -> Option<usize> {
-    // AttributeList treats a quote after any backslash run as escaped.
+    // Asciidoctor escapes a quote after any backslash run; Draft uses parity.
     let mut escaped = false;
     for (index, character) in value.char_indices().skip(1) {
         if character == quote && !escaped && !inside_attribute_content(start + index, protected) {
@@ -110,7 +169,7 @@ fn closing_quote(
                 || after.starts_with([',', ' ', '\t']))
             .then_some(index);
         }
-        escaped = character == '\\';
+        escaped = character == '\\' && (mode == CompatibilityMode::Asciidoctor || !escaped);
     }
     None
 }
@@ -177,9 +236,11 @@ fn scan_attributes(
             let quoted = &source[value_start..];
             if let Some(close) = closing_quote(quoted, quote, value_start, protected, mode) {
                 let after_close = value_start + close + quote.len_utf8();
+                let (value, value_map) =
+                    decode_attribute_escapes(&quoted[quote.len_utf8()..close], quote, mode, true);
                 attributes.push(ScannedAttribute {
                     name: named.map(|(name, _)| name.to_string()),
-                    value: unescape_attribute_quote(&quoted[quote.len_utf8()..close], quote),
+                    value,
                     quote: if quote == '\'' {
                         AttributeQuote::Single
                     } else {
@@ -187,6 +248,7 @@ fn scan_attributes(
                     },
                     value_start: value_start + quote.len_utf8(),
                     value_end: value_start + close,
+                    value_map,
                 });
 
                 let trailing = &source[after_close..];
@@ -204,6 +266,7 @@ fn scan_attributes(
                             quote: AttributeQuote::Unquoted,
                             value_start: cursor,
                             value_end: cursor,
+                            value_map: SourceMap::default(),
                         });
                         break;
                     }
@@ -225,6 +288,7 @@ fn scan_attributes(
             quote: AttributeQuote::Unquoted,
             value_start,
             value_end: value_start + trimmed.len(),
+            value_map: SourceMap::default(),
         });
 
         let Some(comma) = comma else {
@@ -238,6 +302,7 @@ fn scan_attributes(
                 quote: AttributeQuote::Unquoted,
                 value_start: cursor,
                 value_end: cursor,
+                value_map: SourceMap::default(),
             });
             break;
         }
@@ -256,9 +321,9 @@ pub(crate) fn verbatim_paragraph_style(
     if source.starts_with('[') {
         return None;
     }
-    let substituted = substitute(source, &[Substitution::Attributes], attributes);
+    let substituted = expand_attribute_list(source, attributes, mode);
     let mut style = None;
-    for (slot, attribute) in scan_block_attribute_list(&substituted, mode)
+    for (slot, attribute) in scan_block_attribute_list(&substituted.text, mode)
         .into_iter()
         .enumerate()
     {

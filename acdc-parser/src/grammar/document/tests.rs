@@ -442,9 +442,9 @@ fn test_document_attribute_with_id() -> Result<(), Error> {
             xreflabel: None,
             location: Location {
                 absolute_start: 4,
-                absolute_end: 9,
+                absolute_end: 8,
                 start: Position::new(1, 5),
-                end: Position::new(1, 10),
+                end: Position::new(1, 9),
             },
             bibliography_label: None,
             bibliography: false,

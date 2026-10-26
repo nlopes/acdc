@@ -489,12 +489,12 @@
           "id": "table",
           "location": [
             {
-              "line": 0,
-              "col": 0
+              "line": 12,
+              "col": 5
             },
             {
-              "line": 0,
-              "col": 0
+              "line": 12,
+              "col": 9
             }
           ]
         }
@@ -594,12 +594,12 @@
           "id": "image",
           "location": [
             {
-              "line": 0,
-              "col": 0
+              "line": 19,
+              "col": 31
             },
             {
-              "line": 0,
-              "col": 0
+              "line": 19,
+              "col": 35
             }
           ]
         }
@@ -698,12 +698,12 @@
           "id": "paragraph",
           "location": [
             {
-              "line": 0,
-              "col": 0
+              "line": 22,
+              "col": 5
             },
             {
-              "line": 0,
-              "col": 0
+              "line": 22,
+              "col": 13
             }
           ]
         }
@@ -737,7 +737,7 @@
             },
             {
               "line": 26,
-              "col": 12
+              "col": 11
             }
           ]
         }
@@ -821,7 +821,7 @@
             },
             {
               "line": 32,
-              "col": 12
+              "col": 11
             }
           ]
         }
@@ -889,7 +889,7 @@
             },
             {
               "line": 38,
-              "col": 9
+              "col": 8
             }
           ]
         }
@@ -967,12 +967,12 @@
           "id": "untitled",
           "location": [
             {
-              "line": 0,
-              "col": 0
+              "line": 43,
+              "col": 5
             },
             {
-              "line": 0,
-              "col": 0
+              "line": 43,
+              "col": 12
             }
           ]
         }
@@ -1006,12 +1006,12 @@
               "id": "untitled",
               "location": [
                 {
-                  "line": 0,
-                  "col": 0
+                  "line": 43,
+                  "col": 5
                 },
                 {
-                  "line": 0,
-                  "col": 0
+                  "line": 43,
+                  "col": 12
                 }
               ]
             }
@@ -1405,12 +1405,12 @@
                         "id": "cell",
                         "location": [
                           {
-                            "line": 1,
+                            "line": 60,
                             "col": 5
                           },
                           {
-                            "line": 1,
-                            "col": 9
+                            "line": 60,
+                            "col": 8
                           }
                         ]
                       }

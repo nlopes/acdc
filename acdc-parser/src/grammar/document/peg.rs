@@ -13,7 +13,9 @@ use crate::{
     document_attribute::{AttributeDeclaration, RawAttributeValue},
     grammar::{
         ParserState,
-        attributes::{BlockAttributeMode, block_attribute_list_allowed},
+        attributes::{
+            BlockAttributeMode, block_attribute_list_allowed, resolve_block_anchor_reftext,
+        },
         document::{
             author::{derive_author_attrs, register_author_attrs},
             callouts::resolve_verbatim_callouts,
@@ -1239,8 +1241,8 @@ peg::parser! {
                     BlockMetadataLine::Anchor(value) => push_metadata_anchor(&mut metadata, value),
                     BlockMetadataLine::Attributes(attributes) => {
                         let (attr_discrete, attr_metadata, title) = parse_block_attribute_list(
-                            state, attributes.source, attributes.start, attributes.end, BlockAttributeMode::Block, offset,
-                        );
+                            state, attributes.source, attributes.start, BlockAttributeMode::Block, offset,
+                        )?;
                         if let Some(title) = title {
                             title_source = Some(title);
                         }
@@ -1263,13 +1265,13 @@ peg::parser! {
             }
             let media_ahead = media_ahead && !matches!(metadata.style, Some("listing" | "source" | "literal" | "verse"));
             let media_attributes = if media_ahead {
-                media_attributes_ahead(state, block_start, offset).map(|attributes| {
+                media_attributes_ahead(state, block_start, offset).map(|attributes| -> Result<_, Error> {
                     let (_, metadata, title) = parse_block_attribute_list(
-                        state, attributes.source, attributes.start, attributes.end, BlockAttributeMode::Macro, offset,
-                    );
+                        state, attributes.source, attributes.start, BlockAttributeMode::Macro, offset,
+                    )?;
                     title_source = title.or_else(|| title_source.take());
-                    Box::new(metadata)
-                })
+                    Ok(Box::new(metadata))
+                }).transpose()?
             } else { None };
             let image_ahead = media_ahead && state.input.get(block_start + offset..).is_some_and(|tail| tail.starts_with("image::"));
             let image_alt = resolve_block_content_attributes(state, &mut metadata, media_attributes.as_deref(), image_ahead, offset)?;
@@ -1951,8 +1953,8 @@ peg::parser! {
           open_square_bracket() attribute_list_content(BlockAttributeMode::Block) (eol() / ![_])
 
         rule anchor_line_match()
-        = double_open_square_bracket() [^'\'' | ',' | ']' | ' ' | '\t' | '\n' | '\r']+
-          (comma() [^']']+)? double_close_square_bracket() (eol() / ![_])
+        = double_open_square_bracket() [^'\'' | ',' | ']' | '[' | ' ' | '\t' | '\n' | '\r']+
+          (comma() block_anchor_reftext() / double_close_square_bracket()) (eol() / ![_])
 
         rule attribute_or_anchor_line_match()
         = anchor_line_match() / attributes_line_match()
@@ -3612,10 +3614,10 @@ peg::parser! {
             //
             // Whitespace is excluded per AsciiDoc documentation at
             // https://docs.asciidoctor.org/asciidoc/latest/attributes/id/#valid-id-characters
-            double_open_square_bracket() warn_anchor_id_with_whitespace()? id:$([^'\'' | ',' | ']' | ' ' | '\t' | '\n' | '\r']+) comma() reftext:$([^']']+) double_close_square_bracket() {
+            double_open_square_bracket() warn_anchor_id_with_whitespace()? id:$([^'\'' | ',' | ']' | '[' | ' ' | '\t' | '\n' | '\r']+) comma() reftext:block_anchor_reftext() {
                 (id, Some(reftext))
             } /
-            double_open_square_bracket() warn_anchor_id_with_whitespace()? id:$([^'\'' | ',' | ']' | ' ' | '\t' | '\n' | '\r']+) double_close_square_bracket() {
+            double_open_square_bracket() warn_anchor_id_with_whitespace()? id:$([^'\'' | ',' | ']' | '[' | ' ' | '\t' | '\n' | '\r']+) double_close_square_bracket() {
                 (id, None)
             } /
             // Single-bracket [#id] shorthand - exclude '.', '%' as they start role/option
@@ -3638,16 +3640,23 @@ peg::parser! {
         {
             let (id, reftext) = result;
             let substituted_id = state.intern_cow(substitute(id, HEADER, &state.document_attributes));
-            let substituted_reftext = reftext.map(|rt| state.intern_cow(substitute(rt, HEADER, &state.document_attributes)));
             // `end` is captured before the trailing eol() so the anchor's
             // location doesn't include the newline.
             Anchor {
                 id: substituted_id,
-                xreflabel: substituted_reftext,
+                xreflabel: reftext,
                 location: state.create_location(span_start, end),
                 bibliography_label: None,
                 bibliography: false,
             }
+        }
+
+        rule block_anchor_reftext() -> &'input str
+        = text:$([^'\n' | '\r']+) {?
+            text.strip_suffix("]]")
+                .and_then(|source| resolve_block_anchor_reftext(source, &state.document_attributes, state.options.compatibility_mode))
+                .map(|value| state.intern_cow(value))
+                .ok_or("block anchor reference text")
         }
 
         rule inline_anchor(offset: usize) -> InlineNode<'input>
@@ -3708,7 +3717,7 @@ peg::parser! {
 
         rule raw_attribute_list(context: BlockAttributeMode) -> RawAttributeList<'input>
             = open_square_bracket() start:position!() source:attribute_list_content(context)
-            { RawAttributeList { source, start, end: span_end } }
+            { RawAttributeList { source, start } }
 
         // Empty brackets followed by a blank line is a list separator
         rule empty_list_separator()
@@ -3719,15 +3728,14 @@ peg::parser! {
               open_square_bracket()
               content_start:position!()
               content:attribute_list_content(BlockAttributeMode::Block)
-            {
+            {?
                 parse_block_attribute_list(
                     state,
                     content,
                     content_start,
-                    span_end,
                     BlockAttributeMode::Block,
                     0,
-                )
+                ).map_err(|_| "cannot map block attribute locations")
             }
 
         /// Macro attribute parsing - simpler than block attributes.
@@ -3742,11 +3750,12 @@ peg::parser! {
             = macro_attributes_for()
 
         rule cached_macro_attributes(block_metadata: &BlockParsingMetadata<'input>) -> (bool, BlockMetadata<'input>, Option<ContentAttributeSource<'input>>)
-            = attributes:raw_attribute_list(BlockAttributeMode::Macro) {
+            = attributes:raw_attribute_list(BlockAttributeMode::Macro) {?
                 if let Some(metadata) = &block_metadata.media_attributes {
-                    (false, (**metadata).clone(), None)
+                    Ok((false, (**metadata).clone(), None))
                 } else {
-                    parse_block_attribute_list(state, attributes.source, attributes.start, attributes.end, BlockAttributeMode::Macro, 0)
+                    parse_block_attribute_list(state, attributes.source, attributes.start, BlockAttributeMode::Macro, 0)
+                        .map_err(|_| "cannot map block macro attribute locations")
                 }
             }
 
@@ -3754,15 +3763,14 @@ peg::parser! {
             = open_square_bracket()
               content_start:position!()
               content:attribute_list_content(BlockAttributeMode::Macro)
-            {
+            {?
                 parse_block_attribute_list(
                     state,
                     content,
                     content_start,
-                    span_end,
                     BlockAttributeMode::Macro,
                     0,
-                )
+                ).map_err(|_| "cannot map block macro attribute locations")
             }
 
         rule open_square_bracket() = "["

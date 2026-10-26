@@ -286,24 +286,24 @@
                 "value": "Alice",
                 "location": [
                   {
-                    "line": 1,
-                    "col": 2
+                    "line": 32,
+                    "col": 10
                   },
                   {
-                    "line": 1,
-                    "col": 6
+                    "line": 32,
+                    "col": 14
                   }
                 ]
               }
             ],
             "location": [
               {
-                "line": 1,
-                "col": 1
+                "line": 32,
+                "col": 9
               },
               {
-                "line": 1,
-                "col": 7
+                "line": 32,
+                "col": 15
               }
             ]
           }
@@ -315,12 +315,12 @@
             "value": "Book, One",
             "location": [
               {
-                "line": 1,
-                "col": 1
+                "line": 32,
+                "col": 27
               },
               {
-                "line": 1,
-                "col": 9
+                "line": 32,
+                "col": 35
               }
             ]
           }
@@ -390,24 +390,24 @@
                 "value": "Alice",
                 "location": [
                   {
-                    "line": 1,
-                    "col": 2
+                    "line": 37,
+                    "col": 10
                   },
                   {
-                    "line": 1,
-                    "col": 6
+                    "line": 37,
+                    "col": 14
                   }
                 ]
               }
             ],
             "location": [
               {
-                "line": 1,
-                "col": 1
+                "line": 37,
+                "col": 9
               },
               {
-                "line": 1,
-                "col": 7
+                "line": 37,
+                "col": 15
               }
             ]
           }
@@ -419,12 +419,12 @@
             "value": "Book, One",
             "location": [
               {
-                "line": 1,
-                "col": 1
+                "line": 37,
+                "col": 27
               },
               {
-                "line": 1,
-                "col": 9
+                "line": 37,
+                "col": 35
               }
             ]
           }

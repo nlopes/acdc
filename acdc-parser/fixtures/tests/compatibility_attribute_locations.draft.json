@@ -1,0 +1,744 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Attribute Locations",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 21
+          }
+        ]
+      }
+    ],
+    "authors": [
+      {
+        "firstname": "café",
+        "lastname": "",
+        "initials": "c"
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 3,
+        "col": 8
+      }
+    ]
+  },
+  "attributes": {
+    "author": "café",
+    "authorcount": "1",
+    "authorinitials": "c",
+    "authors": "café",
+    "book": "λ",
+    "firstname": "café",
+    "lastname": ""
+  },
+  "blocks": [
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "Ada",
+            "location": [
+              {
+                "line": 5,
+                "col": 8
+              },
+              {
+                "line": 5,
+                "col": 10
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "Book",
+            "location": [
+              {
+                "line": 5,
+                "col": 12
+              },
+              {
+                "line": 5,
+                "col": 15
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Unquoted values exclude the following comma.",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 1
+                },
+                {
+                  "line": 7,
+                  "col": 44
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 7,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 44
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 8,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "café",
+            "location": [
+              {
+                "line": 10,
+                "col": 9
+              },
+              {
+                "line": 10,
+                "col": 12
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "λ",
+            "location": [
+              {
+                "line": 10,
+                "col": 16
+              },
+              {
+                "line": 10,
+                "col": 16
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Quoted values exclude their closing quote.",
+              "location": [
+                {
+                  "line": 12,
+                  "col": 1
+                },
+                {
+                  "line": 12,
+                  "col": 42
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 12,
+              "col": 1
+            },
+            {
+              "line": 12,
+              "col": 42
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 10,
+          "col": 1
+        },
+        {
+          "line": 13,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "café",
+            "location": [
+              {
+                "line": 15,
+                "col": 9
+              },
+              {
+                "line": 15,
+                "col": 16
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "λ",
+            "location": [
+              {
+                "line": 15,
+                "col": 20
+              },
+              {
+                "line": 15,
+                "col": 25
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Expanded values point to the authored reference.",
+              "location": [
+                {
+                  "line": 17,
+                  "col": 1
+                },
+                {
+                  "line": 17,
+                  "col": 48
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 17,
+              "col": 1
+            },
+            {
+              "line": 17,
+              "col": 48
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 15,
+          "col": 1
+        },
+        {
+          "line": 18,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "α\"β",
+            "location": [
+              {
+                "line": 20,
+                "col": 21
+              },
+              {
+                "line": 20,
+                "col": 24
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "A\\\"B",
+            "location": [
+              {
+                "line": 20,
+                "col": 38
+              },
+              {
+                "line": 20,
+                "col": 43
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "The source span includes removed escape characters.",
+              "location": [
+                {
+                  "line": 22,
+                  "col": 1
+                },
+                {
+                  "line": 22,
+                  "col": 51
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 22,
+              "col": 1
+            },
+            {
+              "line": 22,
+              "col": 51
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 20,
+          "col": 1
+        },
+        {
+          "line": 23,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "",
+            "location": [
+              {
+                "line": 25,
+                "col": 21
+              },
+              {
+                "line": 25,
+                "col": 21
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "",
+            "location": [
+              {
+                "line": 25,
+                "col": 34
+              },
+              {
+                "line": 25,
+                "col": 34
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Explicitly empty values retain a valid source position.",
+              "location": [
+                {
+                  "line": 27,
+                  "col": 1
+                },
+                {
+                  "line": 27,
+                  "col": 55
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 27,
+              "col": 1
+            },
+            {
+              "line": 27,
+              "col": 55
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 25,
+          "col": 1
+        },
+        {
+          "line": 28,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "café",
+            "location": [
+              {
+                "line": 2,
+                "col": 9,
+                "file": [
+                  "includes/compatibility_attribute_locations.adoc"
+                ]
+              },
+              {
+                "line": 2,
+                "col": 16,
+                "file": [
+                  "includes/compatibility_attribute_locations.adoc"
+                ]
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "λ",
+            "location": [
+              {
+                "line": 2,
+                "col": 20,
+                "file": [
+                  "includes/compatibility_attribute_locations.adoc"
+                ]
+              },
+              {
+                "line": 2,
+                "col": 20,
+                "file": [
+                  "includes/compatibility_attribute_locations.adoc"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "An included attribution points into the included file.",
+              "location": [
+                {
+                  "line": 4,
+                  "col": 1,
+                  "file": [
+                    "includes/compatibility_attribute_locations.adoc"
+                  ]
+                },
+                {
+                  "line": 4,
+                  "col": 54,
+                  "file": [
+                    "includes/compatibility_attribute_locations.adoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 4,
+              "col": 1,
+              "file": [
+                "includes/compatibility_attribute_locations.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 54,
+              "file": [
+                "includes/compatibility_attribute_locations.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 2,
+          "col": 1,
+          "file": [
+            "includes/compatibility_attribute_locations.adoc"
+          ]
+        },
+        {
+          "line": 5,
+          "col": 4,
+          "file": [
+            "includes/compatibility_attribute_locations.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "quote",
+                    "type": "block",
+                    "form": "delimited",
+                    "delimiter": "____",
+                    "metadata": {
+                      "style": "quote",
+                      "attribution": [
+                        {
+                          "name": "raw",
+                          "type": "string",
+                          "value": "café",
+                          "location": [
+                            {
+                              "line": 34,
+                              "col": 10
+                            },
+                            {
+                              "line": 34,
+                              "col": 17
+                            }
+                          ]
+                        }
+                      ],
+                      "citetitle": [
+                        {
+                          "name": "raw",
+                          "type": "string",
+                          "value": "λ",
+                          "location": [
+                            {
+                              "line": 34,
+                              "col": 21
+                            },
+                            {
+                              "line": 34,
+                              "col": 26
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    "blocks": [
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "The selected mode and source locations reach table cells.",
+                            "location": [
+                              {
+                                "line": 36,
+                                "col": 1
+                              },
+                              {
+                                "line": 36,
+                                "col": 57
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 36,
+                            "col": 1
+                          },
+                          {
+                            "line": 36,
+                            "col": 57
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 34,
+                        "col": 2
+                      },
+                      {
+                        "line": 37,
+                        "col": 4
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 33,
+            "col": 1
+          },
+          {
+            "line": 38,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 32,
+          "col": 1
+        },
+        {
+          "line": 38,
+          "col": 4
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 38,
+      "col": 4
+    }
+  ]
+}

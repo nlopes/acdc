@@ -1164,12 +1164,12 @@
               "id": "discrete-target",
               "location": [
                 {
-                  "line": 0,
-                  "col": 0
+                  "line": 50,
+                  "col": 3
                 },
                 {
-                  "line": 0,
-                  "col": 0
+                  "line": 50,
+                  "col": 18
                 }
               ]
             }
