@@ -1,0 +1,7 @@
+// tag::selected[]
+.Included caption
+[caption='{prefix} footnote:included[Included note]: ']
+====
+Body.
+====
+// end::selected[]

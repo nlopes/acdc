@@ -131,13 +131,14 @@ reference resolves to a value changed after the title declaration. Dot titles
 use the ordinary inline substitution order and the attributes in scope after
 the block's metadata.
 
-Quote attributions and citation titles also retain the attributes in scope when
-selected values were declared. In both modes, single-quoted values support
+Quote attributions, citation titles, and custom caption prefixes retain the
+attributes in scope when selected values were declared. In both modes, single-quoted values support
 inline formatting independently of the body's `subs=` setting. Unquoted and
 double-quoted values stay literal. Asciidoctor mode expands references introduced
 by the first attribute-list expansion; Draft keeps them literal unless an
-explicit passthrough requests expansion. Named and positional values follow
-the same content rules.
+explicit passthrough requests expansion. Named and positional quote values
+follow the same content rules. Captions inside block media macros stay literal,
+including single-quoted values. Custom prefixes do not consume caption numbers.
 
 ## Native AST JSON
 

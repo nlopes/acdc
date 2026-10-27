@@ -131,6 +131,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   declaration-time attributes. Asciidoctor mode expands introduced references;
   Draft leaves them literal unless explicit passthrough substitutions request it.
   Explicitly empty attribution and citation content serializes as `[]`.
+- Single-quoted `caption=` prefixes parse formatting introduced by attribute
+  expansion and retain the declaration's attribute values. Asciidoctor mode
+  expands introduced references; Draft keeps them literal unless explicitly
+  requested. Literal and media-macro captions stay literal, and caption source
+  locations cover the authored references and escapes.
 - Icon positional values always select size; named alternative text remains
   independent. Repeated icon attributes use the last value and retain link options.
 

@@ -1277,7 +1277,7 @@ peg::parser! {
                 );
             }
             let image_ahead = media_ahead && state.input.get(block_start + offset..).is_some_and(|tail| tail.starts_with("image::"));
-            let image_alt = resolve_block_content_attributes(state, &mut attributes.metadata, media_attributes.as_deref(), image_ahead, offset)?;
+            let image_alt = resolve_block_content_attributes(state, &mut attributes, media_attributes.as_deref(), image_ahead, offset)?;
             // Titles use the completed metadata attributes, including entries
             // after the title line. Only the last authored title is displayed.
             let title = if let Some(source) = attributes.title.take().filter(|_| parse_title) {
@@ -1299,7 +1299,6 @@ peg::parser! {
                 attributes,
                 title,
                 parent_section_level,
-                offset,
             )?;
             result.media_attributes = media_attributes;
             result.image_alt = image_alt;
@@ -1938,7 +1937,6 @@ peg::parser! {
                 attributes,
                 Title::default(),
                 parent_section_level,
-                offset,
             )
         }
 

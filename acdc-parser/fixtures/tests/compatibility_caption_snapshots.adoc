@@ -1,0 +1,50 @@
+= Caption declaration snapshots
+:other: Before
+:word: \{other}
+
+.Named caption
+[caption='{word}: ']
+:other: After
+====
+Body.
+====
+
+.Literal caption
+[caption="{word}: "]
+:other: After literal
+====
+Body.
+====
+
+.Selected caption
+[caption='footnote:discarded[Unused note]']
+[caption='Selected footnote:selected[Selected note]: ']
+====
+Body footnote:body[Body note].
+====
+
+.Caption before alt
+[caption='Caption footnote:caption_first[Caption first]: ',alt='Alt footnote:alt_second[Alt second]']
+image::photo.png[]
+
+.Alt before caption
+[alt='Alt footnote:alt_first[Alt first]',caption='Caption footnote:caption_second[Caption second]: ']
+image::photo.png[]
+
+:example-caption!:
+.Disabled default
+====
+Body.
+====
+
+:example-caption:
+.Empty default
+====
+Body.
+====
+
+:example-caption: Example
+.Restored default
+====
+Body.
+====

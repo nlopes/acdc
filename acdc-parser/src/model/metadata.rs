@@ -66,8 +66,6 @@ pub struct BlockMetadata<'a> {
     pub(crate) alt_source: Option<Box<super::content_attribute::PendingContentAttribute<'a>>>,
     #[serde(skip)]
     pub(crate) first_source: Option<Box<super::content_attribute::PendingContentAttribute<'a>>>,
-    #[serde(skip)]
-    pub(crate) caption_source: Option<Box<super::content_attribute::PendingContentAttribute<'a>>>,
     #[serde(default, skip_serializing_if = "ElementAttributes::is_empty")]
     pub attributes: ElementAttributes<'a>,
     /// Parser working slots, consumed as attributes are routed to their block context.
@@ -111,7 +109,6 @@ impl PartialEq for BlockMetadata<'_> {
             caption,
             alt_source: _,
             first_source: _,
-            caption_source: _,
             attributes,
             positional_attributes: _,
             retained_positional_attributes: _,
