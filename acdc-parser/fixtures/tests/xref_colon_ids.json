@@ -1281,7 +1281,23 @@
               "name": "anchor",
               "type": "inline",
               "id": ":colon",
-              "xreflabel": "Leading colon",
+              "xreflabel": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Leading colon",
+                  "location": [
+                    {
+                      "line": 28,
+                      "col": 15
+                    },
+                    {
+                      "line": 28,
+                      "col": 27
+                    }
+                  ]
+                }
+              ],
               "location": [
                 {
                   "line": 28,
@@ -1344,7 +1360,23 @@
             "anchors": [
               {
                 "id": "a-b.c:d",
-                "xreflabel": "Mixed ID",
+                "xreflabel": [
+                  {
+                    "name": "text",
+                    "type": "string",
+                    "value": "Mixed ID",
+                    "location": [
+                      {
+                        "line": 30,
+                        "col": 11
+                      },
+                      {
+                        "line": 30,
+                        "col": 18
+                      }
+                    ]
+                  }
+                ],
                 "location": [
                   {
                     "line": 30,
@@ -1393,7 +1425,23 @@
             "anchors": [
               {
                 "id": "topic:one",
-                "xreflabel": "Topic One",
+                "xreflabel": [
+                  {
+                    "name": "text",
+                    "type": "string",
+                    "value": "Topic One",
+                    "location": [
+                      {
+                        "line": 33,
+                        "col": 13
+                      },
+                      {
+                        "line": 33,
+                        "col": 21
+                      }
+                    ]
+                  }
+                ],
                 "location": [
                   {
                     "line": 33,
@@ -1442,7 +1490,23 @@
             "anchors": [
               {
                 "id": "http:local",
-                "xreflabel": "Scheme-like local",
+                "xreflabel": [
+                  {
+                    "name": "text",
+                    "type": "string",
+                    "value": "Scheme-like local",
+                    "location": [
+                      {
+                        "line": 36,
+                        "col": 14
+                      },
+                      {
+                        "line": 36,
+                        "col": 30
+                      }
+                    ]
+                  }
+                ],
                 "location": [
                   {
                     "line": 36,
@@ -1491,7 +1555,23 @@
             "anchors": [
               {
                 "id": "ordinary",
-                "xreflabel": "Ordinary target",
+                "xreflabel": [
+                  {
+                    "name": "text",
+                    "type": "string",
+                    "value": "Ordinary target",
+                    "location": [
+                      {
+                        "line": 39,
+                        "col": 12
+                      },
+                      {
+                        "line": 39,
+                        "col": 26
+                      }
+                    ]
+                  }
+                ],
                 "location": [
                   {
                     "line": 39,

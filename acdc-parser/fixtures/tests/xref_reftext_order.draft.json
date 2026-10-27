@@ -3,13 +3,26 @@
   "type": "block",
   "header": {
     "metadata": {
-      "attributes": {
-        "reftext": "Named document"
-      },
+      "reftext": [
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "Named document",
+          "location": [
+            {
+              "line": 2,
+              "col": 11
+            },
+            {
+              "line": 2,
+              "col": 24
+            }
+          ]
+        }
+      ],
       "anchors": [
         {
           "id": "document",
-          "xreflabel": "Anchor document",
           "location": [
             {
               "line": 1,
@@ -463,13 +476,26 @@
         }
       ],
       "metadata": {
-        "attributes": {
-          "reftext": "Named label"
-        },
+        "reftext": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "Named label",
+            "location": [
+              {
+                "line": 12,
+                "col": 11
+              },
+              {
+                "line": 12,
+                "col": 21
+              }
+            ]
+          }
+        ],
         "anchors": [
           {
             "id": "anchor-first",
-            "xreflabel": "Earlier anchor",
             "location": [
               {
                 "line": 11,
@@ -515,13 +541,26 @@
         }
       ],
       "metadata": {
-        "attributes": {
-          "reftext": "Anchor label"
-        },
+        "reftext": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Anchor label",
+            "location": [
+              {
+                "line": 16,
+                "col": 15
+              },
+              {
+                "line": 16,
+                "col": 26
+              }
+            ]
+          }
+        ],
         "anchors": [
           {
             "id": "named-first",
-            "xreflabel": "Anchor label",
             "location": [
               {
                 "line": 16,
@@ -567,9 +606,23 @@
         }
       ],
       "metadata": {
-        "attributes": {
-          "reftext": "Named before ID"
-        },
+        "reftext": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "Named before ID",
+            "location": [
+              {
+                "line": 19,
+                "col": 11
+              },
+              {
+                "line": 19,
+                "col": 25
+              }
+            ]
+          }
+        ],
         "anchors": [
           {
             "id": "id-only",
@@ -635,9 +688,7 @@
         }
       ],
       "metadata": {
-        "attributes": {
-          "reftext": ""
-        },
+        "reftext": [],
         "id": {
           "id": "empty",
           "location": [
@@ -701,13 +752,10 @@
         }
       ],
       "metadata": {
-        "attributes": {
-          "reftext": ""
-        },
+        "reftext": [],
         "anchors": [
           {
             "id": "empty-anchor",
-            "xreflabel": "Earlier anchor",
             "location": [
               {
                 "line": 27,
@@ -753,9 +801,23 @@
         }
       ],
       "metadata": {
-        "attributes": {
-          "reftext": "link:https://example.org[Link] (C) <tag>"
-        },
+        "reftext": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "link:https://example.org[Link] (C) <tag>",
+            "location": [
+              {
+                "line": 32,
+                "col": 22
+              },
+              {
+                "line": 32,
+                "col": 61
+              }
+            ]
+          }
+        ],
         "id": {
           "id": "literal",
           "location": [
@@ -802,13 +864,26 @@
         }
       ],
       "metadata": {
-        "attributes": {
-          "reftext": "\"Quoted anchor\""
-        },
+        "reftext": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "\"Quoted anchor\"",
+            "location": [
+              {
+                "line": 36,
+                "col": 10
+              },
+              {
+                "line": 36,
+                "col": 24
+              }
+            ]
+          }
+        ],
         "anchors": [
           {
             "id": "quoted",
-            "xreflabel": "\"Quoted anchor\"",
             "location": [
               {
                 "line": 36,
@@ -854,9 +929,23 @@
         }
       ],
       "metadata": {
-        "attributes": {
-          "reftext": "First owner"
-        },
+        "reftext": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "First owner",
+            "location": [
+              {
+                "line": 39,
+                "col": 24
+              },
+              {
+                "line": 39,
+                "col": 34
+              }
+            ]
+          }
+        ],
         "id": {
           "id": "duplicate",
           "location": [
@@ -903,9 +992,23 @@
         }
       ],
       "metadata": {
-        "attributes": {
-          "reftext": "Ignored label"
-        },
+        "reftext": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "Ignored label",
+            "location": [
+              {
+                "line": 42,
+                "col": 24
+              },
+              {
+                "line": 42,
+                "col": 36
+              }
+            ]
+          }
+        ],
         "id": {
           "id": "duplicate",
           "location": [
@@ -953,13 +1056,26 @@
       ],
       "level": 1,
       "metadata": {
-        "attributes": {
-          "reftext": "Section anchor"
-        },
+        "reftext": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Section anchor",
+            "location": [
+              {
+                "line": 46,
+                "col": 11
+              },
+              {
+                "line": 46,
+                "col": 24
+              }
+            ]
+          }
+        ],
         "anchors": [
           {
             "id": "section",
-            "xreflabel": "Section anchor",
             "location": [
               {
                 "line": 46,

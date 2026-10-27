@@ -262,7 +262,23 @@
           "name": "anchor",
           "type": "inline",
           "id": "target",
-          "xreflabel": "Target",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Target",
+              "location": [
+                {
+                  "line": 10,
+                  "col": 22
+                },
+                {
+                  "line": 10,
+                  "col": 27
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 10,

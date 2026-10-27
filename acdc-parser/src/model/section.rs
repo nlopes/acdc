@@ -448,6 +448,18 @@ pub(crate) fn number_parsed_sections<'a>(
                 if let Some(id) = section.id {
                     entry.id = id;
                 }
+                entry.xreflabel = section
+                    .metadata
+                    .reftext
+                    .as_ref()
+                    .or_else(|| {
+                        section
+                            .metadata
+                            .anchors
+                            .last()
+                            .and_then(|anchor| anchor.xreflabel.as_ref())
+                    })
+                    .cloned();
                 entry.set_number(numbers.shown);
                 toc_index += 1;
             }
@@ -1256,6 +1268,7 @@ mod tests {
                 xreflabel: None,
                 location: Location::default(),
                 bibliography: false,
+                reftext_source: None,
                 bibliography_label: None,
             }),
             ..Default::default()
@@ -1272,6 +1285,7 @@ mod tests {
                 xreflabel: None,
                 location: Location::default(),
                 bibliography: false,
+                reftext_source: None,
                 bibliography_label: None,
             }],
             ..Default::default()
@@ -1289,6 +1303,7 @@ mod tests {
                     xreflabel: None,
                     location: Location::default(),
                     bibliography: false,
+                    reftext_source: None,
                     bibliography_label: None,
                 },
                 Anchor {
@@ -1296,6 +1311,7 @@ mod tests {
                     xreflabel: None,
                     location: Location::default(),
                     bibliography: false,
+                    reftext_source: None,
                     bibliography_label: None,
                 },
             ],
@@ -1313,6 +1329,7 @@ mod tests {
                 xreflabel: None,
                 location: Location::default(),
                 bibliography: false,
+                reftext_source: None,
                 bibliography_label: None,
             }),
             anchors: vec![Anchor {
@@ -1320,6 +1337,7 @@ mod tests {
                 xreflabel: None,
                 location: Location::default(),
                 bibliography: false,
+                reftext_source: None,
                 bibliography_label: None,
             }],
             ..Default::default()

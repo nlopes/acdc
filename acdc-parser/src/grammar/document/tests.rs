@@ -443,6 +443,7 @@ fn test_document_attribute_with_id() -> Result<(), Error> {
                 start: Position::new(1, 5),
                 end: Position::new(1, 9),
             },
+            reftext_source: None,
             bibliography_label: None,
             bibliography: false,
         })
@@ -471,6 +472,7 @@ fn test_document_attribute_with_id_mixed() -> Result<(), Error> {
                 start: Position::new(1, 9),
                 end: Position::new(1, 12),
             },
+            reftext_source: None,
             bibliography_label: None,
             bibliography: false,
         })
@@ -499,6 +501,7 @@ fn test_document_attribute_with_id_mixed_with_quotes() -> Result<(), Error> {
                 start: Position::new(1, 9),
                 end: Position::new(1, 12),
             },
+            reftext_source: None,
             bibliography_label: None,
             bibliography: false,
         })
@@ -527,6 +530,7 @@ fn test_shorthand_id_role_combined() -> Result<(), Error> {
                 start: Position::new(1, 3),
                 end: Position::new(1, 12),
             },
+            reftext_source: None,
             bibliography_label: None,
             bibliography: false,
         })
@@ -553,6 +557,7 @@ fn test_shorthand_id_role_option_combined() -> Result<(), Error> {
                 start: Position::new(1, 3),
                 end: Position::new(1, 7),
             },
+            reftext_source: None,
             bibliography_label: None,
             bibliography: false,
         })
@@ -1834,13 +1839,11 @@ fn named_section_reftext_populates_catalog_toc_and_warnings()
         "{:?}",
         reference.xreflabel
     );
-    assert_eq!(
-        doc.toc_entries
-            .iter()
-            .find(|entry| entry.id == "id")
-            .and_then(|entry| entry.xreflabel),
-        Some("Custom Label")
-    );
+    assert!(matches!(
+        doc.toc_entries.iter().find(|entry| entry.id == "id")
+            .and_then(|entry| entry.xreflabel.as_deref()),
+        Some([InlineNode::PlainText(text)]) if text.content == "Custom Label"
+    ));
     let formatted = doc
         .references
         .get("formatted")

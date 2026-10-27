@@ -53,9 +53,23 @@
         }
       ],
       "metadata": {
-        "attributes": {
-          "reftext": "Read, this] label"
-        },
+        "reftext": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Read, this] label",
+            "location": [
+              {
+                "line": 3,
+                "col": 9
+              },
+              {
+                "line": 3,
+                "col": 26
+              }
+            ]
+          }
+        ],
         "roles": [
           "one"
         ],
@@ -220,9 +234,23 @@
         }
       ],
       "metadata": {
-        "attributes": {
-          "reftext": "Named label"
-        },
+        "reftext": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "Named label",
+            "location": [
+              {
+                "line": 11,
+                "col": 45
+              },
+              {
+                "line": 11,
+                "col": 55
+              }
+            ]
+          }
+        ],
         "style": "note",
         "id": {
           "id": "replacement",
@@ -331,9 +359,23 @@
         }
       ],
       "metadata": {
-        "attributes": {
-          "reftext": "\"Literal quotes\""
-        },
+        "reftext": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "\"Literal quotes\"",
+            "location": [
+              {
+                "line": 16,
+                "col": 10
+              },
+              {
+                "line": 16,
+                "col": 25
+              }
+            ]
+          }
+        ],
         "style": "note",
         "id": {
           "id": "quoted",
@@ -547,7 +589,23 @@
         "anchors": [
           {
             "id": "ordinary",
-            "xreflabel": "Ordinary label",
+            "xreflabel": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Ordinary label",
+                "location": [
+                  {
+                    "line": 30,
+                    "col": 12
+                  },
+                  {
+                    "line": 30,
+                    "col": 25
+                  }
+                ]
+              }
+            ],
             "location": [
               {
                 "line": 30,
@@ -590,7 +648,23 @@
               "name": "anchor",
               "type": "inline",
               "id": "reference",
-              "xreflabel": "Entry",
+              "xreflabel": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Entry",
+                  "location": [
+                    {
+                      "line": 34,
+                      "col": 16
+                    },
+                    {
+                      "line": 34,
+                      "col": 20
+                    }
+                  ]
+                }
+              ],
               "location": [
                 {
                   "line": 34,

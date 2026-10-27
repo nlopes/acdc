@@ -1,14 +1,13 @@
 //! Reference registration and document finalization.
 
 use crate::{
-    Anchor, AttributeValue, Block, BlockMetadata, DelimitedBlockType, Document, ElementAttributes,
-    Footnote, Header, InlineMacro, InlineNode, Location, Plain, Reference, Section, Title,
-    TocEntry, Warning, WarningKind,
+    Anchor, Block, BlockMetadata, ContentAttribute, DelimitedBlockType, Document,
+    ElementAttributes, Footnote, Header, InlineMacro, InlineNode, Location, Plain, Reference,
+    Section, Title, TocEntry, Warning, WarningKind,
     grammar::{
         ParserState,
         document::sections::warn_for_nested_special_section,
         helpers::{BlockParsingMetadata, is_valid_bibliography_id},
-        inline_processing::process_inlines,
         location_walk::walk_document_inline_nodes_mut,
         marked_text::MarkedText,
     },
@@ -18,45 +17,22 @@ use crate::{
 };
 use std::collections::{HashMap, HashSet};
 
-/// Parse a target's cross-reference label into inline nodes.
-///
-/// A displayed label takes the reference-text substitutions asciidoctor
-/// documents — specialchars, quotes, and replacements — so `*Bold* label`
-/// renders bold while a macro stays literal: a label cannot become a link, and
-/// therefore cannot nest one inside the reference it labels. Only quotes are a
-/// parse-time concern; converters apply specialchars and replacements to the
-/// resulting text nodes. Attribute references were already substituted when
-/// the block metadata was parsed.
-fn parse_reference_label<'a>(
-    state: &mut ParserState<'a>,
-    label: Option<&'a str>,
-    location: &Location,
-) -> Option<Vec<InlineNode<'a>>> {
-    let label = label?;
-    if label.trim().is_empty() {
-        return None;
-    }
-    let block_metadata = BlockParsingMetadata {
-        substitutions: SubstitutionPlan::only(&Substitution::Quotes),
-        ..BlockParsingMetadata::default()
-    };
-    match process_inlines(
-        state,
-        &block_metadata,
-        location.absolute_start,
-        location.absolute_end,
-        0,
-        label,
-    ) {
-        Ok((inlines, _)) if !inlines.is_empty() => Some(inlines),
-        // A label that does not parse as inline content still reads as its
-        // literal text.
-        _ => Some(vec![InlineNode::PlainText(Plain {
-            content: label,
-            location: location.clone(),
-            escaped: false,
-        })]),
-    }
+fn displayed_reference_label<'a>(
+    label: Option<&ContentAttribute<'a>>,
+) -> Option<ContentAttribute<'a>> {
+    label
+        .filter(|content| {
+            !content.iter().all(|node| {
+                if let InlineNode::PlainText(text) = node {
+                    text.content.trim().is_empty()
+                } else if let InlineNode::RawText(raw) = node {
+                    raw.content.trim().is_empty()
+                } else {
+                    false
+                }
+            })
+        })
+        .cloned()
 }
 
 /// Insert an anchor into the cross-reference catalog with optional reference text.
@@ -68,23 +44,24 @@ pub(super) fn insert_reference<'a>(
     state: &mut ParserState<'a>,
     refs: &mut ReferenceCatalog<'a>,
     anchor: &Anchor<'a>,
-    label: Option<&'a str>,
+    label: Option<&ContentAttribute<'a>>,
+    natural_label: Option<&'a str>,
     title: Option<Title<'a>>,
     caption: Option<Caption<'a>>,
 ) {
     if refs.duplicate(state, anchor.id, &anchor.location) {
         return;
     }
-    let mut xreflabel = parse_reference_label(state, label, &anchor.location);
+    let mut xreflabel = displayed_reference_label(label);
     if !anchor.is_bibliography()
-        && let Some(label) = label.filter(|label| !label.trim().is_empty())
+        && let Some(label) = natural_label.filter(|label| !label.trim().is_empty())
     {
         refs.natural_targets.entry(label).or_insert(anchor.id);
     }
     if anchor.is_bibliography()
         && let Some(label) = xreflabel.as_mut()
     {
-        label.insert(
+        label.inlines_mut().insert(
             0,
             InlineNode::PlainText(Plain {
                 content: "[",
@@ -92,7 +69,7 @@ pub(super) fn insert_reference<'a>(
                 escaped: false,
             }),
         );
-        label.push(InlineNode::PlainText(Plain {
+        label.inlines_mut().push(InlineNode::PlainText(Plain {
             content: "]",
             location: anchor.location.clone(),
             escaped: false,
@@ -243,14 +220,28 @@ pub(super) fn finalize_inline_semantics<'a>(
     });
 }
 
-pub(super) fn metadata_xreflabel<'a>(
+pub(super) fn metadata_xreflabel<'a, 'b>(
+    metadata: &'b BlockMetadata<'a>,
+) -> Option<&'b ContentAttribute<'a>> {
+    metadata.reftext.as_ref().or_else(|| {
+        metadata
+            .anchors
+            .last()
+            .and_then(|anchor| anchor.xreflabel.as_ref())
+    })
+}
+
+pub(super) fn metadata_natural_label<'a>(
     state: &ParserState<'a>,
     metadata: &BlockMetadata<'a>,
 ) -> Option<&'a str> {
-    if let Some(AttributeValue::String(reftext)) = metadata.attributes.get("reftext") {
-        return Some(state.intern_cow(reftext.clone()));
-    }
-    metadata.anchors.last().and_then(|anchor| anchor.xreflabel)
+    let source = metadata.reftext_source.or_else(|| {
+        metadata
+            .anchors
+            .last()
+            .and_then(|anchor| anchor.reftext_source)
+    });
+    crate::grammar::reference_text::text(state, source)
 }
 
 pub(super) fn register_section_header<'a>(
@@ -262,8 +253,7 @@ pub(super) fn register_section_header<'a>(
     location: Location,
     direct_parent_section_kind: Option<SectionKind>,
 ) -> (Title<'a>, section::SectionNumbering, &'a str) {
-    let xreflabel = metadata_xreflabel(state, &block_metadata.metadata);
-    let reference_text = xreflabel
+    let reference_text = metadata_natural_label(state, &block_metadata.metadata)
         .filter(|label| !label.trim().is_empty())
         .unwrap_or(natural_title);
 
@@ -272,7 +262,7 @@ pub(super) fn register_section_header<'a>(
         "",
         title.clone(),
         level,
-        xreflabel,
+        None,
         kind,
         location.clone(),
     ));
@@ -329,12 +319,12 @@ pub(super) fn register_document_top<'a>(
     state: &mut ParserState<'a>,
     document: &mut Document<'a>,
     xrefs: &[CrossReferenceUse<'a>],
-) {
+) -> Result<(), crate::Error> {
     if !xrefs
         .iter()
         .any(|xref| resolve_source_target(state, xref.target, xref.source_syntax) == Some(""))
     {
-        return;
+        return Ok(());
     }
     let title = document
         .header
@@ -349,24 +339,29 @@ pub(super) fn register_document_top<'a>(
                 }
             })
         });
-    let label = document
-        .attributes
-        .text("reftext")
-        .map(|label| state.intern_str(label))
-        .or_else(|| {
-            document
-                .header
-                .as_ref()
-                .and_then(|header| metadata_xreflabel(state, &header.metadata))
-        });
     let location = document.header.as_ref().map_or_else(
         || document.location.clone(),
         |header| header.location.clone(),
     );
+    let label = if let Some(label) = document.attributes.text("reftext") {
+        let source = crate::grammar::reference_text::capture_inline(
+            state,
+            state.intern_str(label),
+            location.absolute_start,
+            false,
+        );
+        let content = crate::grammar::reference_text::resolve(state, source)?;
+        displayed_reference_label(Some(&content))
+    } else {
+        document
+            .header
+            .as_ref()
+            .and_then(|header| displayed_reference_label(metadata_xreflabel(&header.metadata)))
+    };
     document.references.insert(
         "",
         Reference {
-            xreflabel: parse_reference_label(state, label, &location),
+            xreflabel: label,
             title,
             location,
             caption: None,
@@ -375,6 +370,7 @@ pub(super) fn register_document_top<'a>(
             automatic_citation: false,
         },
     );
+    Ok(())
 }
 
 /// Finalize a cross-reference target after IDs and reference-text aliases are known.
@@ -446,11 +442,47 @@ pub(super) fn collect_metadata_references<'a>(
     refs: &mut ReferenceCatalog<'a>,
     xrefs: &mut Vec<CrossReferenceUse<'a>>,
 ) {
+    if let Some(label) = metadata_xreflabel(metadata) {
+        collect_inline_references(state, label, refs, xrefs);
+    }
     if let Some(attribution) = &metadata.attribution {
         collect_inline_references(state, attribution, refs, xrefs);
     }
     if let Some(citetitle) = &metadata.citetitle {
         collect_inline_references(state, citetitle, refs, xrefs);
+    }
+}
+
+fn register_section_reference<'a>(
+    state: &mut ParserState<'a>,
+    section: &mut Section<'a>,
+    refs: &mut ReferenceCatalog<'a>,
+) {
+    let id = refs.section_id(state, section);
+    section.id = Some(id);
+    let reference_text = section.reference_text.take();
+    let xreflabel = metadata_xreflabel(&section.metadata);
+    let mut location = section.location.clone();
+    if let Some(last) = section.title.last() {
+        location.absolute_end = last.location().absolute_end;
+        location.end = last.location().end.clone();
+    }
+    if !refs.duplicate(state, id, &location) {
+        if let Some(text) = reference_text.filter(|text| !text.is_empty()) {
+            refs.natural_targets.entry(text).or_insert(id);
+        }
+        refs.entries.insert(
+            id,
+            Reference {
+                xreflabel: displayed_reference_label(xreflabel),
+                title: Some(section.title.clone()),
+                location,
+                caption: None,
+                section: None,
+                bibliography: false,
+                automatic_citation: false,
+            },
+        );
     }
 }
 
@@ -470,32 +502,7 @@ pub(super) fn collect_references<'a>(
 ) {
     for block in blocks {
         if let Block::Section(section) = block {
-            let id = refs.section_id(state, section);
-            section.id = Some(id);
-            let reference_text = section.reference_text.take();
-            let xreflabel = metadata_xreflabel(state, &section.metadata);
-            let mut location = section.location.clone();
-            if let Some(last) = section.title.last() {
-                location.absolute_end = last.location().absolute_end;
-                location.end = last.location().end.clone();
-            }
-            if !refs.duplicate(state, id, &location) {
-                if let Some(text) = reference_text.filter(|text| !text.is_empty()) {
-                    refs.natural_targets.entry(text).or_insert(id);
-                }
-                refs.entries.insert(
-                    id,
-                    Reference {
-                        xreflabel: parse_reference_label(state, xreflabel, &location),
-                        title: Some(section.title.clone()),
-                        location,
-                        caption: None,
-                        section: None,
-                        bibliography: false,
-                        automatic_citation: false,
-                    },
-                );
-            }
+            register_section_reference(state, section, refs);
         }
         if !matches!(block, Block::Section(_))
             && let Some(anchor) = block.anchor()
@@ -505,9 +512,21 @@ pub(super) fn collect_references<'a>(
                 .and_then(|metadata| metadata.caption.clone());
             let label = block
                 .metadata()
-                .and_then(|metadata| metadata_xreflabel(state, metadata))
-                .or(anchor.xreflabel);
-            insert_reference(state, refs, anchor, label, block.title().cloned(), caption);
+                .and_then(metadata_xreflabel)
+                .or(anchor.xreflabel.as_ref());
+            let natural = block
+                .metadata()
+                .and_then(|metadata| metadata_natural_label(state, metadata))
+                .or_else(|| crate::grammar::reference_text::text(state, anchor.reftext_source));
+            insert_reference(
+                state,
+                refs,
+                anchor,
+                label,
+                natural,
+                block.title().cloned(),
+                caption,
+            );
         }
         if let Some(title) = block.title() {
             collect_inline_references(state, title, refs, xrefs);
@@ -546,7 +565,15 @@ pub(super) fn collect_references<'a>(
             Block::DescriptionList(l) => {
                 for item in &mut l.items {
                     for anchor in &item.anchors {
-                        insert_reference(state, refs, anchor, anchor.xreflabel, None, None);
+                        insert_reference(
+                            state,
+                            refs,
+                            anchor,
+                            anchor.xreflabel.as_ref(),
+                            crate::grammar::reference_text::text(state, anchor.reftext_source),
+                            None,
+                            None,
+                        );
                     }
                     collect_inline_references(state, &item.term, refs, xrefs);
                     collect_inline_references(state, &item.principal_text, refs, xrefs);
@@ -672,8 +699,21 @@ fn promote_bibliography_anchor<'a>(state: &ParserState<'a>, principal: &mut Vec<
     }
 
     anchor.bibliography = true;
-    if let Some(label) = &anchor.bibliography_label {
-        anchor.xreflabel = label.source;
+    if let Some(label) = &mut anchor.bibliography_label {
+        anchor.xreflabel = None;
+        anchor.reftext_source = label.source.take().map(|text| {
+            let after_comma = anchor.location.absolute_start + anchor.id.len() + 3;
+            let whitespace = state
+                .input
+                .get(after_comma..)
+                .map_or(0, |tail| tail.len() - tail.trim_start().len());
+            crate::grammar::reference_text::capture_inline(
+                state,
+                text,
+                after_comma + whitespace,
+                false,
+            )
+        });
     }
     anchor.location =
         state.create_location(open.location.absolute_start, close.location.absolute_start);
@@ -741,7 +781,15 @@ pub(super) fn collect_inline_references<'a>(
     for inline in inlines {
         match inline {
             InlineNode::InlineAnchor(anchor) => {
-                insert_reference(state, refs, anchor, anchor.xreflabel, None, None);
+                insert_reference(
+                    state,
+                    refs,
+                    anchor,
+                    anchor.xreflabel.as_ref(),
+                    crate::grammar::reference_text::text(state, anchor.reftext_source),
+                    None,
+                    None,
+                );
                 if let Some(label) = anchor.bibliography_label() {
                     collect_inline_references(state, label, refs, xrefs);
                 }

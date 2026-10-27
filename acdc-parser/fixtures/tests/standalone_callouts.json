@@ -1055,7 +1055,23 @@
                 "anchors": [
                   {
                     "id": "target",
-                    "xreflabel": "Target",
+                    "xreflabel": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "Target",
+                        "location": [
+                          {
+                            "line": 44,
+                            "col": 10
+                          },
+                          {
+                            "line": 44,
+                            "col": 15
+                          }
+                        ]
+                      }
+                    ],
                     "location": [
                       {
                         "line": 44,

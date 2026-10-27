@@ -44,7 +44,23 @@
           "name": "anchor",
           "type": "inline",
           "id": "expanded",
-          "xreflabel": "Expanded label",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Expanded label",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 17
+                },
+                {
+                  "line": 7,
+                  "col": 23
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 7,
@@ -112,7 +128,23 @@
           "name": "anchor",
           "type": "inline",
           "id": "late-label",
-          "xreflabel": "Expanded label",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Expanded label",
+              "location": [
+                {
+                  "line": 10,
+                  "col": 52
+                },
+                {
+                  "line": 10,
+                  "col": 58
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 10,
@@ -165,7 +197,23 @@
           "name": "anchor",
           "type": "inline",
           "id": "late-bracket",
-          "xreflabel": "Before]after",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Before]after",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 21
+                },
+                {
+                  "line": 13,
+                  "col": 38
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 13,
@@ -218,7 +266,56 @@
           "name": "anchor",
           "type": "inline",
           "id": "late-quotes",
-          "xreflabel": "*Bold* label",
+          "xreflabel": [
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Bold",
+                  "location": [
+                    {
+                      "line": 16,
+                      "col": 21
+                    },
+                    {
+                      "line": 16,
+                      "col": 24
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 16,
+                  "col": 20
+                },
+                {
+                  "line": 16,
+                  "col": 25
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " label",
+              "location": [
+                {
+                  "line": 16,
+                  "col": 26
+                },
+                {
+                  "line": 16,
+                  "col": 31
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 16,
@@ -367,7 +464,23 @@
           "name": "anchor",
           "type": "inline",
           "id": "code",
-          "xreflabel": "Code label",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Code label",
+              "location": [
+                {
+                  "line": 26,
+                  "col": 24
+                },
+                {
+                  "line": 26,
+                  "col": 33
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 26,
@@ -398,7 +511,23 @@
           "name": "anchor",
           "type": "inline",
           "id": "short",
-          "xreflabel": "Short label",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Short label",
+              "location": [
+                {
+                  "line": 27,
+                  "col": 9
+                },
+                {
+                  "line": 27,
+                  "col": 19
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 27,
@@ -429,7 +558,23 @@
           "name": "anchor",
           "type": "inline",
           "id": "code-only",
-          "xreflabel": "Code only",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Code only",
+              "location": [
+                {
+                  "line": 28,
+                  "col": 18
+                },
+                {
+                  "line": 28,
+                  "col": 26
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 28,
@@ -528,7 +673,23 @@
           "name": "anchor",
           "type": "inline",
           "id": "literal",
-          "xreflabel": "Literal label",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Literal label",
+              "location": [
+                {
+                  "line": 34,
+                  "col": 18
+                },
+                {
+                  "line": 34,
+                  "col": 30
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 34,
@@ -575,7 +736,23 @@
           "name": "anchor",
           "type": "inline",
           "id": "styled",
-          "xreflabel": "Styled label",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Styled label",
+              "location": [
+                {
+                  "line": 38,
+                  "col": 15
+                },
+                {
+                  "line": 38,
+                  "col": 26
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 38,
@@ -628,7 +805,23 @@
           "name": "anchor",
           "type": "inline",
           "id": "styled-literal",
-          "xreflabel": "Styled literal",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Styled literal",
+              "location": [
+                {
+                  "line": 41,
+                  "col": 23
+                },
+                {
+                  "line": 41,
+                  "col": 36
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 41,
@@ -689,7 +882,23 @@
           "name": "anchor",
           "type": "inline",
           "id": "empty-code",
-          "xreflabel": "Empty code",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Empty code",
+              "location": [
+                {
+                  "line": 45,
+                  "col": 19
+                },
+                {
+                  "line": 45,
+                  "col": 28
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 45,

@@ -684,12 +684,12 @@
                         "id": "unordered-child",
                         "location": [
                           {
-                            "line": 1,
-                            "col": 10
+                            "line": 67,
+                            "col": 1
                           },
                           {
-                            "line": 3,
-                            "col": 6
+                            "line": 67,
+                            "col": 20
                           }
                         ]
                       }
@@ -822,12 +822,12 @@
                         "id": "ordered-child",
                         "location": [
                           {
-                            "line": 1,
-                            "col": 10
+                            "line": 76,
+                            "col": 1
                           },
                           {
-                            "line": 3,
-                            "col": 4
+                            "line": 76,
+                            "col": 18
                           }
                         ]
                       }

@@ -122,7 +122,23 @@
                   "name": "anchor",
                   "type": "inline",
                   "id": "ref02",
-                  "xreflabel": "Custom Label",
+                  "xreflabel": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Custom Label",
+                      "location": [
+                        {
+                          "line": 7,
+                          "col": 12
+                        },
+                        {
+                          "line": 7,
+                          "col": 23
+                        }
+                      ]
+                    }
+                  ],
                   "location": [
                     {
                       "line": 7,

@@ -525,12 +525,12 @@
                               "id": "inner",
                               "location": [
                                 {
-                                  "line": 5,
-                                  "col": 4
+                                  "line": 29,
+                                  "col": 1
                                 },
                                 {
-                                  "line": 5,
-                                  "col": 13
+                                  "line": 29,
+                                  "col": 10
                                 }
                               ]
                             }
@@ -564,12 +564,12 @@
                                   "id": "deep",
                                   "location": [
                                     {
-                                      "line": 7,
+                                      "line": 32,
                                       "col": 1
                                     },
                                     {
-                                      "line": 8,
-                                      "col": 8
+                                      "line": 32,
+                                      "col": 9
                                     }
                                   ]
                                 }
@@ -719,12 +719,12 @@
                               "id": "second",
                               "location": [
                                 {
-                                  "line": 13,
-                                  "col": 22
+                                  "line": 39,
+                                  "col": 1
                                 },
                                 {
-                                  "line": 13,
-                                  "col": 32
+                                  "line": 39,
+                                  "col": 11
                                 }
                               ]
                             }
@@ -897,12 +897,12 @@
                               "id": "sibling",
                               "location": [
                                 {
-                                  "line": 2,
-                                  "col": 2
+                                  "line": 47,
+                                  "col": 1
                                 },
                                 {
-                                  "line": 2,
-                                  "col": 13
+                                  "line": 47,
+                                  "col": 12
                                 }
                               ]
                             }

@@ -456,7 +456,23 @@
         "anchors": [
           {
             "id": "ordinary",
-            "xreflabel": "Ordinary label",
+            "xreflabel": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Ordinary label",
+                "location": [
+                  {
+                    "line": 30,
+                    "col": 12
+                  },
+                  {
+                    "line": 30,
+                    "col": 25
+                  }
+                ]
+              }
+            ],
             "location": [
               {
                 "line": 30,
@@ -499,7 +515,23 @@
               "name": "anchor",
               "type": "inline",
               "id": "reference",
-              "xreflabel": "Entry",
+              "xreflabel": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Entry",
+                  "location": [
+                    {
+                      "line": 34,
+                      "col": 16
+                    },
+                    {
+                      "line": 34,
+                      "col": 20
+                    }
+                  ]
+                }
+              ],
               "location": [
                 {
                   "line": 34,

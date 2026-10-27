@@ -95,12 +95,12 @@
                 "id": "paragraph-section",
                 "location": [
                   {
-                    "line": 1,
-                    "col": 9
+                    "line": 5,
+                    "col": 1
                   },
                   {
-                    "line": 1,
-                    "col": 30
+                    "line": 5,
+                    "col": 22
                   }
                 ]
               }
@@ -242,12 +242,12 @@
                 "id": "unordered-section",
                 "location": [
                   {
-                    "line": 1,
-                    "col": 8
+                    "line": 14,
+                    "col": 1
                   },
                   {
-                    "line": 1,
-                    "col": 29
+                    "line": 14,
+                    "col": 22
                   }
                 ]
               }
@@ -389,12 +389,12 @@
                 "id": "ordered-section",
                 "location": [
                   {
-                    "line": 1,
-                    "col": 8
+                    "line": 23,
+                    "col": 1
                   },
                   {
-                    "line": 1,
-                    "col": 27
+                    "line": 23,
+                    "col": 20
                   }
                 ]
               }
@@ -550,12 +550,12 @@
                 "id": "description-section",
                 "location": [
                   {
-                    "line": 1,
-                    "col": 20
+                    "line": 32,
+                    "col": 1
                   },
                   {
-                    "line": 4,
-                    "col": 2
+                    "line": 32,
+                    "col": 24
                   }
                 ]
               }
@@ -730,12 +730,12 @@
                 "id": "continuation-section",
                 "location": [
                   {
-                    "line": 1,
-                    "col": 20
+                    "line": 43,
+                    "col": 1
                   },
                   {
-                    "line": 4,
-                    "col": 3
+                    "line": 43,
+                    "col": 25
                   }
                 ]
               }

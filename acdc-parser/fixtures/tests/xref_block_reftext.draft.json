@@ -482,9 +482,23 @@
       "form": "delimited",
       "delimiter": "|===",
       "metadata": {
-        "attributes": {
-          "reftext": "Named *table* Ada"
-        },
+        "reftext": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "Named *table* Ada",
+            "location": [
+              {
+                "line": 12,
+                "col": 20
+              },
+              {
+                "line": 12,
+                "col": 41
+              }
+            ]
+          }
+        ],
         "id": {
           "id": "table",
           "location": [
@@ -587,9 +601,23 @@
       "type": "block",
       "form": "macro",
       "metadata": {
-        "attributes": {
-          "reftext": "Named _image_ Ada"
-        },
+        "reftext": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "Named _image_ Ada",
+            "location": [
+              {
+                "line": 19,
+                "col": 46
+              },
+              {
+                "line": 19,
+                "col": 67
+              }
+            ]
+          }
+        ],
         "id": {
           "id": "image",
           "location": [
@@ -691,9 +719,23 @@
         }
       ],
       "metadata": {
-        "attributes": {
-          "reftext": "Named `paragraph` Ada"
-        },
+        "reftext": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "Named `paragraph` Ada",
+            "location": [
+              {
+                "line": 22,
+                "col": 24
+              },
+              {
+                "line": 22,
+                "col": 49
+              }
+            ]
+          }
+        ],
         "id": {
           "id": "paragraph",
           "location": [
@@ -725,9 +767,23 @@
       "form": "delimited",
       "delimiter": "====",
       "metadata": {
-        "attributes": {
-          "reftext": "Named example"
-        },
+        "reftext": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "Named example",
+            "location": [
+              {
+                "line": 26,
+                "col": 22
+              },
+              {
+                "line": 26,
+                "col": 34
+              }
+            ]
+          }
+        ],
         "id": {
           "id": "example",
           "location": [
@@ -809,9 +865,23 @@
       "form": "delimited",
       "delimiter": "----",
       "metadata": {
-        "attributes": {
-          "reftext": "Named listing"
-        },
+        "reftext": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "Named listing",
+            "location": [
+              {
+                "line": 32,
+                "col": 22
+              },
+              {
+                "line": 32,
+                "col": 34
+              }
+            ]
+          }
+        ],
         "id": {
           "id": "listing",
           "location": [
@@ -877,9 +947,23 @@
       "form": "delimited",
       "delimiter": "--",
       "metadata": {
-        "attributes": {
-          "reftext": "Named open"
-        },
+        "reftext": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "Named open",
+            "location": [
+              {
+                "line": 38,
+                "col": 19
+              },
+              {
+                "line": 38,
+                "col": 28
+              }
+            ]
+          }
+        ],
         "id": {
           "id": "open",
           "location": [
@@ -960,9 +1044,23 @@
       "type": "block",
       "variant": "note",
       "metadata": {
-        "attributes": {
-          "reftext": "Named untitled Ada"
-        },
+        "reftext": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "Named untitled Ada",
+            "location": [
+              {
+                "line": 43,
+                "col": 23
+              },
+              {
+                "line": 43,
+                "col": 45
+              }
+            ]
+          }
+        ],
         "id": {
           "id": "untitled",
           "location": [
@@ -999,9 +1097,23 @@
             }
           ],
           "metadata": {
-            "attributes": {
-              "reftext": "Named untitled Ada"
-            },
+            "reftext": [
+              {
+                "name": "raw",
+                "type": "string",
+                "value": "Named untitled Ada",
+                "location": [
+                  {
+                    "line": 43,
+                    "col": 23
+                  },
+                  {
+                    "line": 43,
+                    "col": 45
+                  }
+                ]
+              }
+            ],
             "id": {
               "id": "untitled",
               "location": [
@@ -1270,13 +1382,26 @@
               "variant": "unordered",
               "marker": "**",
               "metadata": {
-                "attributes": {
-                  "reftext": "Nested list"
-                },
+                "reftext": [
+                  {
+                    "name": "text",
+                    "type": "string",
+                    "value": "Nested list",
+                    "location": [
+                      {
+                        "line": 54,
+                        "col": 15
+                      },
+                      {
+                        "line": 54,
+                        "col": 25
+                      }
+                    ]
+                  }
+                ],
                 "anchors": [
                   {
                     "id": "nested-list",
-                    "xreflabel": "Nested list",
                     "location": [
                       {
                         "line": 54,
@@ -1398,9 +1523,23 @@
                       }
                     ],
                     "metadata": {
-                      "attributes": {
-                        "reftext": "Cell label"
-                      },
+                      "reftext": [
+                        {
+                          "name": "raw",
+                          "type": "string",
+                          "value": "Cell label",
+                          "location": [
+                            {
+                              "line": 60,
+                              "col": 19
+                            },
+                            {
+                              "line": 60,
+                              "col": 28
+                            }
+                          ]
+                        }
+                      ],
                       "id": {
                         "id": "cell",
                         "location": [

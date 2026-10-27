@@ -714,7 +714,23 @@
             "anchors": [
               {
                 "id": "labelled",
-                "xreflabel": "Named chapter",
+                "xreflabel": [
+                  {
+                    "name": "text",
+                    "type": "string",
+                    "value": "Named chapter",
+                    "location": [
+                      {
+                        "line": 37,
+                        "col": 12
+                      },
+                      {
+                        "line": 37,
+                        "col": 24
+                      }
+                    ]
+                  }
+                ],
                 "location": [
                   {
                     "line": 37,

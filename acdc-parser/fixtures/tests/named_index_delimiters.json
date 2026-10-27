@@ -1917,7 +1917,23 @@
                   "name": "anchor",
                   "type": "inline",
                   "id": "inner",
-                  "xreflabel": "Ref",
+                  "xreflabel": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Ref",
+                      "location": [
+                        {
+                          "line": 37,
+                          "col": 37
+                        },
+                        {
+                          "line": 37,
+                          "col": 39
+                        }
+                      ]
+                    }
+                  ],
                   "location": [
                     {
                       "line": 37,

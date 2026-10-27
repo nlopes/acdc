@@ -325,9 +325,23 @@
       ],
       "level": 1,
       "metadata": {
-        "attributes": {
-          "reftext": "Custom Label"
-        },
+        "reftext": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Custom Label",
+            "location": [
+              {
+                "line": 12,
+                "col": 15
+              },
+              {
+                "line": 12,
+                "col": 26
+              }
+            ]
+          }
+        ],
         "id": {
           "id": "id",
           "location": [
@@ -344,7 +358,6 @@
         "anchors": [
           {
             "id": "id",
-            "xreflabel": "Anchor Label",
             "location": [
               {
                 "line": 11,
@@ -391,9 +404,23 @@
       ],
       "level": 1,
       "metadata": {
-        "attributes": {
-          "reftext": "Generated Label"
-        }
+        "reftext": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Generated Label",
+            "location": [
+              {
+                "line": 15,
+                "col": 11
+              },
+              {
+                "line": 15,
+                "col": 25
+              }
+            ]
+          }
+        ]
       },
       "location": [
         {
@@ -428,9 +455,71 @@
       ],
       "level": 1,
       "metadata": {
-        "attributes": {
-          "reftext": "Custom *Formatted* Label"
-        },
+        "reftext": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Custom ",
+            "location": [
+              {
+                "line": 18,
+                "col": 22
+              },
+              {
+                "line": 18,
+                "col": 28
+              }
+            ]
+          },
+          {
+            "name": "span",
+            "type": "inline",
+            "variant": "strong",
+            "form": "constrained",
+            "inlines": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Formatted",
+                "location": [
+                  {
+                    "line": 18,
+                    "col": 30
+                  },
+                  {
+                    "line": 18,
+                    "col": 38
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 18,
+                "col": 29
+              },
+              {
+                "line": 18,
+                "col": 39
+              }
+            ]
+          },
+          {
+            "name": "text",
+            "type": "string",
+            "value": " Label",
+            "location": [
+              {
+                "line": 18,
+                "col": 40
+              },
+              {
+                "line": 18,
+                "col": 45
+              }
+            ]
+          }
+        ],
         "id": {
           "id": "formatted",
           "location": [

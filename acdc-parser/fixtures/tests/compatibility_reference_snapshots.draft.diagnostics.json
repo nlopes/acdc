@@ -1,0 +1,23 @@
+{
+  "recovery": null,
+  "warnings": [
+    {
+      "location": {
+        "absolute_end": 530,
+        "absolute_start": 522,
+        "file": "compatibility_reference_snapshots.adoc",
+        "location": [
+          {
+            "col": 5,
+            "line": 28
+          },
+          {
+            "col": 13,
+            "line": 28
+          }
+        ]
+      },
+      "message": "id already in use: duplicate (first defined at <fixtures>/compatibility_reference_snapshots.adoc:25:5)"
+    }
+  ]
+}

@@ -383,7 +383,23 @@
             "anchors": [
               {
                 "id": "after-description",
-                "xreflabel": "Following paragraph",
+                "xreflabel": [
+                  {
+                    "name": "text",
+                    "type": "string",
+                    "value": "Following paragraph",
+                    "location": [
+                      {
+                        "line": 9,
+                        "col": 21
+                      },
+                      {
+                        "line": 9,
+                        "col": 39
+                      }
+                    ]
+                  }
+                ],
                 "location": [
                   {
                     "line": 9,
@@ -513,7 +529,23 @@
             "anchors": [
               {
                 "id": "next-description",
-                "xreflabel": "Next description list",
+                "xreflabel": [
+                  {
+                    "name": "text",
+                    "type": "string",
+                    "value": "Next description list",
+                    "location": [
+                      {
+                        "line": 15,
+                        "col": 20
+                      },
+                      {
+                        "line": 15,
+                        "col": 40
+                      }
+                    ]
+                  }
+                ],
                 "location": [
                   {
                     "line": 15,
@@ -675,7 +707,23 @@
                     "anchors": [
                       {
                         "id": "nested-unordered",
-                        "xreflabel": "Nested bullets",
+                        "xreflabel": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Nested bullets",
+                            "location": [
+                              {
+                                "line": 21,
+                                "col": 20
+                              },
+                              {
+                                "line": 21,
+                                "col": 33
+                              }
+                            ]
+                          }
+                        ],
                         "location": [
                           {
                             "line": 21,
@@ -843,7 +891,23 @@
                     "anchors": [
                       {
                         "id": "nested-ordered",
-                        "xreflabel": "Nested steps",
+                        "xreflabel": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Nested steps",
+                            "location": [
+                              {
+                                "line": 29,
+                                "col": 18
+                              },
+                              {
+                                "line": 29,
+                                "col": 29
+                              }
+                            ]
+                          }
+                        ],
                         "location": [
                           {
                             "line": 29,
@@ -1080,7 +1144,23 @@
             "anchors": [
               {
                 "id": "after-attached",
-                "xreflabel": "After attached paragraph",
+                "xreflabel": [
+                  {
+                    "name": "text",
+                    "type": "string",
+                    "value": "After attached paragraph",
+                    "location": [
+                      {
+                        "line": 38,
+                        "col": 18
+                      },
+                      {
+                        "line": 38,
+                        "col": 41
+                      }
+                    ]
+                  }
+                ],
                 "location": [
                   {
                     "line": 38,
@@ -1191,7 +1271,23 @@
                     "anchors": [
                       {
                         "id": "attached",
-                        "xreflabel": "Attached paragraph",
+                        "xreflabel": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Attached paragraph",
+                            "location": [
+                              {
+                                "line": 45,
+                                "col": 12
+                              },
+                              {
+                                "line": 45,
+                                "col": 29
+                              }
+                            ]
+                          }
+                        ],
                         "location": [
                           {
                             "line": 45,
@@ -1329,7 +1425,23 @@
             "anchors": [
               {
                 "id": "paragraph",
-                "xreflabel": "Second paragraph",
+                "xreflabel": [
+                  {
+                    "name": "text",
+                    "type": "string",
+                    "value": "Second paragraph",
+                    "location": [
+                      {
+                        "line": 51,
+                        "col": 13
+                      },
+                      {
+                        "line": 51,
+                        "col": 28
+                      }
+                    ]
+                  }
+                ],
                 "location": [
                   {
                     "line": 51,
@@ -1418,7 +1530,23 @@
                   "name": "anchor",
                   "type": "inline",
                   "id": "preserved",
-                  "xreflabel": "Preserved target",
+                  "xreflabel": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Preserved target",
+                      "location": [
+                        {
+                          "line": 57,
+                          "col": 13
+                        },
+                        {
+                          "line": 57,
+                          "col": 28
+                        }
+                      ]
+                    }
+                  ],
                   "location": [
                     {
                       "line": 57,
@@ -1579,7 +1707,23 @@
                   "name": "anchor",
                   "type": "inline",
                   "id": "inline",
-                  "xreflabel": "Inline target",
+                  "xreflabel": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Inline target",
+                      "location": [
+                        {
+                          "line": 64,
+                          "col": 12
+                        },
+                        {
+                          "line": 64,
+                          "col": 24
+                        }
+                      ]
+                    }
+                  ],
                   "location": [
                     {
                       "line": 64,

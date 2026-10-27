@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- Reference labels now expose parsed content. Read named `reftext=` through
+  `BlockMetadata::reftext` instead of `metadata.attributes["reftext"]`.
+  `Anchor::xreflabel`, `TocEntry::xreflabel`, and `Reference::xreflabel` use
+  `Option<ContentAttribute>`; native JSON stores inline arrays.
+
 - The parser AST now has the same substitution fields in every build.
   `SubstitutionSpec`, `SubstitutionOp`, and `BlockMetadata::substitutions` no
   longer require `pre-spec-subs`; remove feature guards used only to access
@@ -67,6 +72,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Asciidoctor accepts the deprecated alias without this warning.
 
 ### Fixed
+
+- Reference labels retain their authored locations through attribute expansion,
+  escaping, includes, and nested blocks. Block anchors use attribute values from
+  their declaration point. Asciidoctor mode keeps restricted label formatting;
+  Draft treats unquoted and double-quoted named labels as literal text and
+  interprets single-quoted content. Empty labels still select title fallback.
 
 - Asciidoctor mode now keeps `[discrete]` and `[float]` headings discrete when a
   later attribute list supplies `style=normal`. Named `style=discrete` alone

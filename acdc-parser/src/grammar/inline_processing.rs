@@ -23,13 +23,25 @@ pub(super) fn process_attribute_inlines<'a>(
     state: &mut ParserState<'a>,
     source: &ResolvedContentAttribute<'a>,
 ) -> Result<Vec<InlineNode<'a>>, Error> {
+    let mut substitutions = SubstitutionPlan::default();
+    if state.options.compatibility_mode == crate::CompatibilityMode::Draft {
+        substitutions = substitutions.without(&Substitution::Attributes);
+    }
+    process_attribute_inlines_with_substitutions(state, source, substitutions)
+}
+
+pub(super) fn process_attribute_inlines_with_substitutions<'a>(
+    state: &ParserState<'a>,
+    source: &ResolvedContentAttribute<'a>,
+    substitutions: SubstitutionPlan,
+) -> Result<Vec<InlineNode<'a>>, Error> {
     let mut child = ParserState::for_inline_parsing(source.text, state, InlineContext::default());
     child.document_attributes = Rc::clone(&source.attributes);
     child.warnings = Rc::default();
-    let mut metadata = BlockParsingMetadata::default();
-    if state.options.compatibility_mode == crate::CompatibilityMode::Draft {
-        metadata.substitutions = metadata.substitutions.without(&Substitution::Attributes);
-    }
+    let metadata = BlockParsingMetadata {
+        substitutions,
+        ..BlockParsingMetadata::default()
+    };
     let parsed = process_inlines(&mut child, &metadata, 0, source.text.len(), 0, source.text);
     for mut warning in std::mem::take(&mut *child.warnings.borrow_mut()) {
         if let Some(location) = &mut warning.location {
@@ -336,6 +348,13 @@ fn parse_processed_inlines<'a>(
         inline_peg_state.outer_constrained_delimiter = None;
     }
     if !processed.passthroughs.is_empty() {
+        if text.contains("[[") || text.contains("anchor:") {
+            inline_peg_state.reference_text_context =
+                Some(Rc::new(super::reference_text::ReferenceTextContext {
+                    input: state.input,
+                    passthroughs: processed.passthroughs.clone().into(),
+                }));
+        }
         inline_peg_state.attribute_passthroughs = if processed
             .passthroughs
             .iter()

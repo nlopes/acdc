@@ -2105,28 +2105,24 @@ peg::parser! {
         }
 
         rule anchor_macro() -> InlineNode<'input>
-        = parts:anchor_macro_pattern() {
-            let (id, text) = parts;
-            let reftext = (!text.is_empty()).then(|| {
-                if text.contains("\\]") {
-                    state.intern_str(&text.replace("\\]", "]"))
-                } else {
-                    text
-                }
-            });
-            InlineNode::InlineAnchor(
-                Anchor::new(id, state.create_block_location(span_start, span_end, state.inline_ctx.offset))
-                    .with_xreflabel(reftext),
-            )
+        = parts:anchor_macro_pattern() {?
+            let (id, text, start) = parts;
+            let mut anchor = Anchor::new(id, state.create_block_location(span_start, span_end, state.inline_ctx.offset));
+            if !text.is_empty() {
+                let source = crate::grammar::reference_text::capture_macro(state, text, start + state.inline_ctx.offset);
+                anchor.xreflabel = Some(crate::grammar::reference_text::resolve(state, source).map_err(|_| "reference label")?);
+                anchor.reftext_source = Some(source);
+            }
+            Ok(InlineNode::InlineAnchor(anchor))
         }
 
         // Share recognition with lookaheads so plain text and xref labels stop at
         // exactly the syntax that creates an anchor. Labels are text, not attributes.
-        rule anchor_macro_pattern() -> (&'input str, &'input str)
+        rule anchor_macro_pattern() -> (&'input str, &'input str, usize)
         = start:position!() "anchor:" id:anchor_macro_id() "["
           open_end:position!() check_anchor_macro_token(start, open_end - start)
-          text:$(("\\]" / !anchor_macro_close() !eol() [_])*) anchor_macro_close()
-        { (id, text) }
+          text_start:position!() text:$(("\\]" / !anchor_macro_close() !eol() [_])*) anchor_macro_close()
+        { (id, text, text_start) }
 
         // Keep combining marks and other non-ASCII ID characters without category
         // tables. This is broader than Asciidoctor's word class; ASCII syntax,
@@ -2158,24 +2154,26 @@ peg::parser! {
         warn_anchor_id_with_whitespace()?
         id:$([^'\'' | ',' | ']' | '[' | ' ' | '\t' | '\n' | '\r']+)
         reftext:(
-            comma() reftext:anchor_reftext(start) {
-                Some(reftext)
+            comma() text_start:position!() reftext:anchor_reftext(start) {
+                Some((text_start, reftext))
             } /
             {
                 None
             }
         )
         double_close_square_bracket()
-        {
+        {?
             let substituted_id = state.intern_cow(substitute(id, HEADER, &state.document_attributes));
-            let substituted_reftext = reftext.map(|rt| state.intern_cow(substitute(rt, HEADER, &state.document_attributes)));
-            InlineNode::InlineAnchor(Anchor {
+            let source = reftext.map(|(start, text)| crate::grammar::reference_text::capture_inline(state, text, start + state.inline_ctx.offset, true));
+            let xreflabel = source.map(|id| crate::grammar::reference_text::resolve(state, id)).transpose().map_err(|_| "reference label")?;
+            Ok(InlineNode::InlineAnchor(Anchor {
                 id: substituted_id,
-                xreflabel: substituted_reftext,
+                xreflabel,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
+                reftext_source: source,
                 bibliography_label: None,
                 bibliography: false,
-            })
+            }))
         }
 
         rule inline_anchor_match() -> ()

@@ -23,7 +23,10 @@ fn block_anchor_bracket_escapes_follow_the_mode(
         return Err("expected a paragraph".into());
     };
     let anchor = block.metadata.anchors.first().ok_or("missing anchor")?;
-    assert_eq!(anchor.xreflabel, Some(expected));
+    assert_eq!(
+        label_text(anchor.xreflabel.as_ref()),
+        Some(expected.to_owned())
+    );
     assert!(parsed.document().references.contains_key("bracket"));
     Ok(())
 }
@@ -208,9 +211,35 @@ fn block_anchor_reftext_expands_saved_references_once() -> Result<(), Error> {
                 .anchors
                 .first()
                 .ok_or("missing anchor")?
-                .xreflabel,
+                .xreflabel
+                .as_ref()
+                .and_then(|label| label.first())
+                .and_then(
+                    |node| if let acdc_parser::InlineNode::PlainText(plain) = node {
+                        Some(plain.content)
+                    } else {
+                        None
+                    }
+                ),
             Some("{next}")
         );
     }
     Ok(())
+}
+
+fn label_text(label: Option<&acdc_parser::ContentAttribute<'_>>) -> Option<String> {
+    label.map(|label| {
+        label
+            .iter()
+            .filter_map(|node| {
+                if let acdc_parser::InlineNode::PlainText(plain) = node {
+                    Some(plain.content)
+                } else if let acdc_parser::InlineNode::RawText(raw) = node {
+                    Some(raw.content)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    })
 }

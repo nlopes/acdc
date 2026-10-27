@@ -2143,7 +2143,56 @@
         "anchors": [
           {
             "id": "labelled",
-            "xreflabel": "Reference *label*",
+            "xreflabel": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Reference ",
+                "location": [
+                  {
+                    "line": 66,
+                    "col": 12
+                  },
+                  {
+                    "line": 66,
+                    "col": 21
+                  }
+                ]
+              },
+              {
+                "name": "span",
+                "type": "inline",
+                "variant": "strong",
+                "form": "constrained",
+                "inlines": [
+                  {
+                    "name": "text",
+                    "type": "string",
+                    "value": "label",
+                    "location": [
+                      {
+                        "line": 66,
+                        "col": 23
+                      },
+                      {
+                        "line": 66,
+                        "col": 27
+                      }
+                    ]
+                  }
+                ],
+                "location": [
+                  {
+                    "line": 66,
+                    "col": 22
+                  },
+                  {
+                    "line": 66,
+                    "col": 28
+                  }
+                ]
+              }
+            ],
             "location": [
               {
                 "line": 66,

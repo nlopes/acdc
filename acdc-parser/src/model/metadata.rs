@@ -12,6 +12,7 @@ use super::{
     attributes::{AttributeValue, ElementAttributes},
     attribution::{Attribution, CiteTitle},
     caption::Caption,
+    content_attribute::ContentAttribute,
     location::Location,
     substitution::{Substitution, SubstitutionSpec},
 };
@@ -68,6 +69,12 @@ pub struct BlockMetadata<'a> {
     pub(crate) first_source: Option<Box<super::content_attribute::PendingContentAttribute<'a>>>,
     #[serde(default, skip_serializing_if = "ElementAttributes::is_empty")]
     pub attributes: ElementAttributes<'a>,
+    /// Explicit reference label, interpreted independently of the block body.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reftext: Option<ContentAttribute<'a>>,
+    #[serde(skip)]
+    // Key into parser-owned input, cleared before returning the AST.
+    pub(crate) reftext_source: Option<usize>,
     /// Parser working slots, consumed as attributes are routed to their block context.
     #[serde(default, skip_serializing)]
     pub(crate) positional_attributes: Vec<PositionalAttribute<'a>>,
@@ -110,6 +117,8 @@ impl PartialEq for BlockMetadata<'_> {
             alt_source: _,
             first_source: _,
             attributes,
+            reftext,
+            reftext_source: _,
             positional_attributes: _,
             retained_positional_attributes: _,
             roles,
@@ -125,6 +134,7 @@ impl PartialEq for BlockMetadata<'_> {
         document_attributes == &other.document_attributes
             && caption == &other.caption
             && attributes == &other.attributes
+            && reftext == &other.reftext
             && roles == &other.roles
             && options == &other.options
             && style == &other.style
@@ -354,6 +364,7 @@ impl<'a> BlockMetadata<'a> {
             && self.id.is_none()
             && self.anchors.is_empty()
             && self.attributes.is_empty()
+            && self.reftext.is_none()
             && self.positional_attributes.is_empty()
             && self.substitutions.is_none()
             && caption_has_no_content(&self.caption)

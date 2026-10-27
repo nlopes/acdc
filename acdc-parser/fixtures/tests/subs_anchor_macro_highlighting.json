@@ -311,7 +311,23 @@
           "name": "anchor",
           "type": "inline",
           "id": "start",
-          "xreflabel": "Start",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Start",
+              "location": [
+                {
+                  "line": 10,
+                  "col": 14
+                },
+                {
+                  "line": 10,
+                  "col": 18
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 10,
@@ -342,7 +358,23 @@
           "name": "anchor",
           "type": "inline",
           "id": "middle",
-          "xreflabel": "Middle",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Middle",
+              "location": [
+                {
+                  "line": 11,
+                  "col": 26
+                },
+                {
+                  "line": 11,
+                  "col": 31
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 11,
@@ -373,7 +405,23 @@
           "name": "anchor",
           "type": "inline",
           "id": "end",
-          "xreflabel": "End",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "End",
+              "location": [
+                {
+                  "line": 11,
+                  "col": 46
+                },
+                {
+                  "line": 11,
+                  "col": 48
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 11,
@@ -404,7 +452,23 @@
           "name": "anchor",
           "type": "inline",
           "id": "only",
-          "xreflabel": "Only",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Only",
+              "location": [
+                {
+                  "line": 12,
+                  "col": 13
+                },
+                {
+                  "line": 12,
+                  "col": 16
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 12,
@@ -435,7 +499,23 @@
           "name": "anchor",
           "type": "inline",
           "id": "short",
-          "xreflabel": "Short",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Short",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 9
+                },
+                {
+                  "line": 13,
+                  "col": 13
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 13,
@@ -466,7 +546,23 @@
           "name": "anchor",
           "type": "inline",
           "id": "last",
-          "xreflabel": "Last",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Last",
+              "location": [
+                {
+                  "line": 14,
+                  "col": 13
+                },
+                {
+                  "line": 14,
+                  "col": 16
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 14,
@@ -531,7 +627,23 @@
               "name": "anchor",
               "type": "inline",
               "id": "formatted",
-              "xreflabel": "Formatted",
+              "xreflabel": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Formatted",
+                  "location": [
+                    {
+                      "line": 19,
+                      "col": 26
+                    },
+                    {
+                      "line": 19,
+                      "col": 34
+                    }
+                  ]
+                }
+              ],
               "location": [
                 {
                   "line": 19,

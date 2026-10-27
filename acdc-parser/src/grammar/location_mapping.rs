@@ -1,8 +1,8 @@
 use std::{borrow::Cow, mem::take};
 
 use crate::{
-    AttributeValue, Error, IndexTermKind, IndexTermRelationship, InlineMacro, InlineNode, Location,
-    PassthroughKind, Plain, ProcessedContent, Source, Substitution,
+    Anchor, AttributeValue, Error, IndexTermKind, IndexTermRelationship, InlineMacro, InlineNode,
+    Location, PassthroughKind, Plain, ProcessedContent, Source, Substitution,
     model::substitution::{
         SubstitutionPlan, character_reference_end, escape_attribute_characters,
         is_restorable_character_reference,
@@ -179,12 +179,12 @@ pub(crate) fn map_inner_content_locations<'a>(
             | InlineNode::CurvedQuotationText(_)
             | InlineNode::CurvedApostropheText(_)) => map_marked_text_locations(marked_text, ctx)?,
             InlineNode::Macro(inline_macro) => map_inline_macro(inline_macro, ctx)?,
+            InlineNode::InlineAnchor(anchor) => map_anchor_locations(anchor, ctx)?,
             // Invisible nodes and resolved escapes still use the enclosing text's local coordinates.
             InlineNode::RawText(_)
             | InlineNode::VerbatimText(_)
             | InlineNode::StandaloneCurvedApostrophe(_)
             | InlineNode::LineBreak(_)
-            | InlineNode::InlineAnchor(_)
             | InlineNode::CalloutRef(_) => {
                 *node.location_mut() = ctx.map_location(node.location())?;
             }
@@ -270,34 +270,43 @@ pub(crate) fn map_inline_locations<'a>(
             InlineNode::VerbatimText(verbatim) => {
                 verbatim.location = ctx.map_location(&verbatim.location)?;
             }
-            InlineNode::InlineAnchor(anchor) => {
-                anchor.location = ctx.map_location(&anchor.location)?;
-                if let Some(label) = &mut anchor.bibliography_label {
-                    label.content =
-                        map_inline_locations(state, processed, take(&mut label.content), location)?;
-                    // Citation registration uses source lines before passthrough extraction.
-                    label.source = anchor
-                        .location
-                        .absolute_start
-                        .checked_sub(1)
-                        .and_then(|start| state.input.get(start..anchor.location.absolute_end + 2))
-                        .and_then(|source| source.strip_prefix("[[["))
-                        .and_then(|source| source.split_once("]]]").map(|(label, _)| label))
-                        .and_then(|source| {
-                            source.split_once(',').map(|(_, label)| label.trim_start())
-                        })
-                        .filter(|source| !source.contains(['\n', '\r']));
-                }
-                anchor.xreflabel = anchor
-                    .xreflabel
-                    .map(|label| restore_reference_label_passthroughs(label, state, processed));
-            }
+            InlineNode::InlineAnchor(anchor) => map_anchor_locations(anchor, &ctx)?,
             InlineNode::CalloutRef(callout) => {
                 callout.location = ctx.map_location(&callout.location)?;
             }
         }
         Ok(None)
     })
+}
+
+fn map_anchor_locations<'a>(
+    anchor: &mut Anchor<'a>,
+    ctx: &LocationMappingContext<'_, 'a>,
+) -> Result<(), Error> {
+    let LocationMappingContext {
+        state,
+        processed,
+        base_location: location,
+    } = *ctx;
+    anchor.location = ctx.map_location(&anchor.location)?;
+    if let Some(label) = &mut anchor.bibliography_label {
+        label.content = map_inline_locations(state, processed, take(&mut label.content), location)?;
+        // Citation registration uses source lines before passthrough extraction.
+        label.source = anchor
+            .location
+            .absolute_start
+            .checked_sub(1)
+            .and_then(|start| state.input.get(start..anchor.location.absolute_end + 2))
+            .and_then(|source| source.strip_prefix("[[["))
+            .and_then(|source| source.split_once("]]]").map(|(label, _)| label))
+            .and_then(|source| source.split_once(',').map(|(_, label)| label.trim_start()))
+            .filter(|source| !source.contains(['\n', '\r']));
+    }
+    if let Some(content) = &mut anchor.xreflabel {
+        *content.inlines_mut() =
+            map_inline_locations(state, processed, take(content.inlines_mut()), location)?;
+    }
+    Ok(())
 }
 
 fn restore_reference_label_passthroughs<'a>(

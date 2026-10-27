@@ -76,7 +76,10 @@ fn bibliography_labels_keep_parent_safe_mode_and_original_citation_text() -> Res
         else {
             return Err("missing bibliography anchor".into());
         };
-        assert_eq!(anchor.xreflabel, Some("pass:a[{safe-mode-name}"));
+        assert_eq!(
+            label_text(anchor.xreflabel.as_ref()),
+            Some("pass:a[{safe-mode-name}".to_owned())
+        );
         let label = anchor.bibliography_label().ok_or("missing entry content")?;
         assert!(
             matches!(label, [InlineNode::RawText(raw)] if raw.content == mode.name()),
@@ -107,7 +110,10 @@ fn bibliography_attribute_values_do_not_become_new_passthroughs() -> Result<(), 
     else {
         return Err("missing bibliography anchor".into());
     };
-    assert_eq!(anchor.xreflabel, Some("{raw}"));
+    assert_eq!(
+        label_text(anchor.xreflabel.as_ref()),
+        Some("{raw}".to_owned())
+    );
     let label = anchor.bibliography_label().ok_or("missing entry content")?;
     assert!(
         matches!(label, [InlineNode::PlainText(plain)] if plain.content == "+++<mark>raw</mark>+++"),
@@ -331,7 +337,7 @@ fn bibliography_anchors_require_valid_leading_triple_syntax() -> Result<(), Erro
         InlineNode::PlainText(open),
         InlineNode::PlainText(number),
         InlineNode::PlainText(close),
-    ] = numbered_label.as_slice()
+    ] = numbered_label.as_ref()
     else {
         return Err("expected a three-part numbered reference label".into());
     };
@@ -379,4 +385,21 @@ fn bibliography_anchors_require_valid_leading_triple_syntax() -> Result<(), Erro
     assert!(matches!(label.last(), Some(InlineNode::PlainText(text)) if text.content == "]"));
     assert!(!parsed.document().references.contains_key("9numeric"));
     Ok(())
+}
+
+fn label_text(label: Option<&acdc_parser::ContentAttribute<'_>>) -> Option<String> {
+    label.map(|label| {
+        label
+            .iter()
+            .filter_map(|node| {
+                if let acdc_parser::InlineNode::PlainText(plain) = node {
+                    Some(plain.content)
+                } else if let acdc_parser::InlineNode::RawText(raw) = node {
+                    Some(raw.content)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    })
 }

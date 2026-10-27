@@ -19,13 +19,13 @@ pub(super) fn resolve_block_anchor_reftext<'a>(
     source: &'a str,
     attributes: &DocumentAttributes<'_>,
     mode: CompatibilityMode,
-) -> Option<Cow<'a, str>> {
+) -> Option<(Cow<'a, str>, SourceMap)> {
     if source.is_empty() {
         return None;
     }
     let expanded = expand_attribute_list(source, attributes, mode);
     if mode == CompatibilityMode::Asciidoctor {
-        return Some(expanded.text);
+        return Some((expanded.text, expanded.source_map));
     }
     let mut escaped = false;
     for character in expanded.text.chars() {
@@ -38,11 +38,13 @@ pub(super) fn resolve_block_anchor_reftext<'a>(
         return None;
     }
     if expanded.text.contains('\\') {
-        Some(Cow::Owned(
-            decode_attribute_escapes(&expanded.text, ']', mode, true).0,
+        let (text, source_map) = decode_attribute_escapes(&expanded.text, ']', mode, true);
+        Some((
+            Cow::Owned(text),
+            source_map.with_origin(expanded.source_map, 0),
         ))
     } else {
-        Some(expanded.text)
+        Some((expanded.text, expanded.source_map))
     }
 }
 
@@ -130,6 +132,36 @@ impl ScannedAttribute {
                 self.value_start,
             ),
             source_range: range.start + offset..range.end + offset,
+            attributes,
+        })
+    }
+
+    pub(super) fn resolve_content_range<'a>(
+        &self,
+        text: &'a str,
+        range: Range<usize>,
+        list_map: &SourceMap,
+        offset: usize,
+        attributes: Rc<DocumentAttributes<'a>>,
+    ) -> Result<ResolvedContentAttribute<'a>, Error> {
+        let (_, escapes) = decode_attribute_escapes(
+            &self.value[range.clone()],
+            ']',
+            CompatibilityMode::Draft,
+            true,
+        );
+        let source_range = self.source_range(list_map, range.clone())?;
+        Ok(ResolvedContentAttribute {
+            text,
+            quote: self.quote,
+            source_map: escapes.with_origin(
+                self.value_map.clone().with_origin(
+                    list_map.clone().with_origin(SourceMap::default(), offset),
+                    self.value_start,
+                ),
+                range.start,
+            ),
+            source_range: source_range.start + offset..source_range.end + offset,
             attributes,
         })
     }

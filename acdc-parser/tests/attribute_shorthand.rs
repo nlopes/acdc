@@ -47,7 +47,18 @@ fn draft_anchor_shorthand_keeps_reftext_and_uses_the_last_id() -> Result<(), Err
     assert_eq!(block.metadata.roles, ["demo"]);
     assert_eq!(block.metadata.options, ["ready"]);
     assert_eq!(
-        block.metadata.attributes.get_string("reftext").as_deref(),
+        block
+            .metadata
+            .reftext
+            .as_ref()
+            .and_then(|label| label.first())
+            .and_then(
+                |node| if let acdc_parser::InlineNode::PlainText(plain) = node {
+                    Some(plain.content)
+                } else {
+                    None
+                }
+            ),
         Some("Read, this] label")
     );
     assert!(parsed.document().references.contains_key("late"));

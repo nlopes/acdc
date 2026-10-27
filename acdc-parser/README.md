@@ -140,6 +140,12 @@ explicit passthrough requests expansion. Named and positional quote values
 follow the same content rules. Captions inside block media macros stay literal,
 including single-quoted values. Custom prefixes do not consume caption numbers.
 
+Reference labels use restricted formatting in Asciidoctor mode: link and
+footnote macros stay literal. In Draft mode, single-quoted named labels support
+inline content; unquoted and double-quoted labels stay literal. Natural-target
+lookup still uses the expanded label's markup, so `Custom *Label*` and
+`Custom Label` are different targets.
+
 ## Native AST JSON
 
 Native JSON preserves acdc's model; it is not a claim of ASG conformance.
@@ -170,6 +176,12 @@ Native JSON preserves acdc's model; it is not a claim of ASG conformance.
 - Read named titles through `title`, rather than `metadata.attributes["title"]`.
   Titles, attributions, and citation titles serialize only their parsed inline
   content. Replacing or removing content cannot leave an old attribute value.
+- Named reference labels are available as `BlockMetadata::reftext`, outside
+  the extension attribute map. `Anchor::xreflabel`, `TocEntry::xreflabel`, and
+  `Reference::xreflabel` also contain optional `ContentAttribute` values.
+  Native JSON stores these labels as inline arrays. The reference catalog uses
+  the target's parsed content without parsing it again. An explicitly empty
+  label remains present on the target and selects title fallback in a reference.
 - `Attribution` and `CiteTitle` are aliases of `ContentAttribute`. Existing
   constructors and slice access remain available.
 - `SubstitutionSpec`, `SubstitutionOp`, and `BlockMetadata::substitutions` are

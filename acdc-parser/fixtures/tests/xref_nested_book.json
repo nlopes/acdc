@@ -156,12 +156,12 @@
                           "id": "chapter",
                           "location": [
                             {
-                              "line": 1,
-                              "col": 17
+                              "line": 12,
+                              "col": 1
                             },
                             {
-                              "line": 2,
-                              "col": 3
+                              "line": 12,
+                              "col": 12
                             }
                           ]
                         }

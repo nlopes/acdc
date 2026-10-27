@@ -222,7 +222,23 @@
                     "anchors": [
                       {
                         "id": "bullet-child",
-                        "xreflabel": "Child list",
+                        "xreflabel": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Child list",
+                            "location": [
+                              {
+                                "line": 11,
+                                "col": 16
+                              },
+                              {
+                                "line": 11,
+                                "col": 25
+                              }
+                            ]
+                          }
+                        ],
                         "location": [
                           {
                             "line": 11,

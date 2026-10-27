@@ -363,7 +363,23 @@
           "name": "anchor",
           "type": "inline",
           "id": "code-target",
-          "xreflabel": "Code target",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Code target",
+              "location": [
+                {
+                  "line": 22,
+                  "col": 27
+                },
+                {
+                  "line": 22,
+                  "col": 37
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 22,

@@ -776,7 +776,23 @@
               "name": "anchor",
               "type": "inline",
               "id": "title-anchor",
-              "xreflabel": "Title anchor",
+              "xreflabel": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Title anchor",
+                  "location": [
+                    {
+                      "line": 31,
+                      "col": 75
+                    },
+                    {
+                      "line": 31,
+                      "col": 86
+                    }
+                  ]
+                }
+              ],
               "location": [
                 {
                   "line": 31,

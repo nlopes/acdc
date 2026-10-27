@@ -43,7 +43,23 @@
           "name": "anchor",
           "type": "inline",
           "id": "café",
-          "xreflabel": "Cafe",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Cafe",
+              "location": [
+                {
+                  "line": 5,
+                  "col": 13
+                },
+                {
+                  "line": 5,
+                  "col": 16
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 5,
@@ -74,7 +90,23 @@
           "name": "anchor",
           "type": "inline",
           "id": "東京",
-          "xreflabel": "Tokyo",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Tokyo",
+              "location": [
+                {
+                  "line": 5,
+                  "col": 37
+                },
+                {
+                  "line": 5,
+                  "col": 41
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 5,
@@ -121,7 +153,23 @@
           "name": "anchor",
           "type": "inline",
           "id": "café",
-          "xreflabel": "Decomposed",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Decomposed",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 14
+                },
+                {
+                  "line": 7,
+                  "col": 23
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 7,
@@ -152,7 +200,23 @@
           "name": "anchor",
           "type": "inline",
           "id": "a‿b",
-          "xreflabel": "Connector",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Connector",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 52
+                },
+                {
+                  "line": 7,
+                  "col": 60
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 7,
@@ -199,7 +263,23 @@
           "name": "anchor",
           "type": "inline",
           "id": ":colon",
-          "xreflabel": "Colon",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Colon",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 15
+                },
+                {
+                  "line": 9,
+                  "col": 19
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 9,
@@ -215,7 +295,23 @@
           "name": "anchor",
           "type": "inline",
           "id": "_under",
-          "xreflabel": "Underscore",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Underscore",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 35
+                },
+                {
+                  "line": 9,
+                  "col": 44
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 9,
@@ -231,7 +327,23 @@
           "name": "anchor",
           "type": "inline",
           "id": "a-b.c:d",
-          "xreflabel": "Punctuation",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Punctuation",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 61
+                },
+                {
+                  "line": 9,
+                  "col": 71
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 9,
@@ -293,7 +405,23 @@
           "name": "anchor",
           "type": "inline",
           "id": "joined",
-          "xreflabel": "Joined",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Joined",
+              "location": [
+                {
+                  "line": 11,
+                  "col": 21
+                },
+                {
+                  "line": 11,
+                  "col": 26
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 11,
@@ -355,7 +483,23 @@
           "name": "anchor",
           "type": "inline",
           "id": "shorthand",
-          "xreflabel": "Shorthand label",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Shorthand label",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 19
+                },
+                {
+                  "line": 13,
+                  "col": 33
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 13,
@@ -402,7 +546,23 @@
           "name": "anchor",
           "type": "inline",
           "id": "comma",
-          "xreflabel": "Plain, label",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Plain, label",
+              "location": [
+                {
+                  "line": 15,
+                  "col": 14
+                },
+                {
+                  "line": 15,
+                  "col": 25
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 15,
@@ -418,7 +578,23 @@
           "name": "anchor",
           "type": "inline",
           "id": "quoted",
-          "xreflabel": "\"Quoted\"",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "\"Quoted\"",
+              "location": [
+                {
+                  "line": 15,
+                  "col": 41
+                },
+                {
+                  "line": 15,
+                  "col": 48
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 15,
@@ -434,7 +610,23 @@
           "name": "anchor",
           "type": "inline",
           "id": "equals",
-          "xreflabel": "reftext=Literal,role=red",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "reftext=Literal,role=red",
+              "location": [
+                {
+                  "line": 15,
+                  "col": 64
+                },
+                {
+                  "line": 15,
+                  "col": 87
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 15,
@@ -481,7 +673,23 @@
           "name": "anchor",
           "type": "inline",
           "id": "bracket",
-          "xreflabel": "Close ] label",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Close ] label",
+              "location": [
+                {
+                  "line": 17,
+                  "col": 16
+                },
+                {
+                  "line": 17,
+                  "col": 29
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 17,
@@ -497,7 +705,23 @@
           "name": "anchor",
           "type": "inline",
           "id": "open",
-          "xreflabel": "Open [ bracket",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Open [ bracket",
+              "location": [
+                {
+                  "line": 17,
+                  "col": 43
+                },
+                {
+                  "line": 17,
+                  "col": 56
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 17,
@@ -1307,7 +1531,23 @@
           "name": "anchor",
           "type": "inline",
           "id": "topic🚀",
-          "xreflabel": "Rocket",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Rocket",
+              "location": [
+                {
+                  "line": 38,
+                  "col": 15
+                },
+                {
+                  "line": 38,
+                  "col": 20
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 38,
@@ -1338,7 +1578,23 @@
           "name": "anchor",
           "type": "inline",
           "id": "a·b",
-          "xreflabel": "Middle dot",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Middle dot",
+              "location": [
+                {
+                  "line": 38,
+                  "col": 50
+                },
+                {
+                  "line": 38,
+                  "col": 59
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 38,
@@ -1385,7 +1641,23 @@
           "name": "anchor",
           "type": "inline",
           "id": "a‍b",
-          "xreflabel": "Joiner",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Joiner",
+              "location": [
+                {
+                  "line": 40,
+                  "col": 12
+                },
+                {
+                  "line": 40,
+                  "col": 17
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 40,

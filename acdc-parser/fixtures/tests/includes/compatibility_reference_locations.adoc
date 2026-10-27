@@ -1,0 +1,6 @@
+Outside the selected region.
+
+// tag::selected[]
+[id=included,reftext='Included *λ*']
+An included block.
+// end::selected[]

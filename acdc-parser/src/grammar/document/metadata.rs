@@ -271,17 +271,22 @@ pub(super) fn order_document_attribute_events(blocks: Vec<Block<'_>>) -> Vec<Blo
     ordered
 }
 
-pub(super) fn push_metadata_anchor<'a>(metadata: &mut BlockMetadata<'a>, anchor: Anchor<'a>) {
-    // A later anchor label replaces an earlier named reftext; an ID alone does not.
-    if let Some(label) = anchor.xreflabel
-        && metadata.attributes.contains_key("reftext")
-    {
-        metadata.attributes.set(
-            "reftext".into(),
-            AttributeValue::String(Cow::Borrowed(label)),
-        );
+pub(super) fn push_metadata_anchor<'a>(
+    state: &ParserState<'a>,
+    metadata: &mut BlockMetadata<'a>,
+    mut anchor: Anchor<'a>,
+) -> Result<(), Error> {
+    if let Some(source) = anchor.reftext_source {
+        anchor.reftext_source = Some(crate::grammar::reference_text::refresh_block_anchor(
+            state, source,
+        )?);
+    }
+    // A later anchor label replaces named reftext; an ID alone does not.
+    if anchor.reftext_source.is_some() && metadata.reftext_source.is_some() {
+        metadata.reftext_source = anchor.reftext_source.take();
     }
     metadata.anchors.push(anchor);
+    Ok(())
 }
 
 pub(super) fn merge_attribute_metadata<'input>(
@@ -309,6 +314,10 @@ pub(super) fn merge_attribute_metadata<'input>(
         target.named.extend(positions.named);
     }
     metadata.anchors.extend(attribute_metadata.anchors);
+    if attribute_metadata.reftext_source.is_some() {
+        metadata.reftext_source = attribute_metadata.reftext_source;
+        metadata.reftext = attribute_metadata.reftext;
+    }
     if attribute_metadata.id.is_some() {
         metadata.id = attribute_metadata.id;
     }
@@ -387,6 +396,7 @@ pub(super) fn finish_block_parsing_metadata<'input>(
         mut caption_source,
         ..
     } = attributes;
+    crate::grammar::reference_text::resolve_metadata(state, &mut metadata)?;
     let discrete = matches!(metadata.style, Some("discrete" | "float"));
     let substitutions = metadata
         .substitutions
@@ -494,6 +504,7 @@ fn apply_block_style<'input>(
                         content_start + range.end,
                         offset,
                     ),
+                    reftext_source: None,
                     bibliography_label: None,
                     bibliography: false,
                 });
@@ -501,12 +512,16 @@ fn apply_block_style<'input>(
             ShorthandKind::Role => metadata.roles.push(text),
             ShorthandKind::Option => metadata.options.push(text),
             ShorthandKind::Reftext => {
-                metadata.attributes.set(
-                    "reftext".into(),
-                    state
-                        .intern_str(&decode_anchor_shorthand_reftext(text))
-                        .into(),
-                );
+                let value = state.intern_str(&decode_anchor_shorthand_reftext(text));
+                let source = attribute.resolve_content_range(
+                    value,
+                    part.range,
+                    source_map,
+                    content_start + offset,
+                    Rc::clone(&state.document_attributes),
+                )?;
+                metadata.reftext_source =
+                    Some(crate::grammar::reference_text::capture_block(state, source));
             }
         }
     }
@@ -689,6 +704,7 @@ fn store_named_block_attribute<'input>(
                 id: value,
                 xreflabel: None,
                 location: location.unwrap_or_default(),
+                reftext_source: None,
                 bibliography_label: None,
                 bibliography: false,
             });
@@ -816,7 +832,7 @@ pub(super) fn parse_block_attribute_list<'input>(
             parsed.metadata.alt_source = Some(Box::new(pending));
             continue;
         }
-        if let Some(name @ ("title" | "attribution" | "citetitle" | "caption")) = name {
+        if let Some(name @ ("title" | "attribution" | "citetitle" | "caption" | "reftext")) = name {
             let value = state.intern_str(&attribute.value);
             let source = attribute.resolve_content(
                 value,
@@ -828,6 +844,10 @@ pub(super) fn parse_block_attribute_list<'input>(
                 "attribution" => parsed.quote_sources.attribution = Some(source),
                 "citetitle" => parsed.quote_sources.citetitle = Some(source),
                 "caption" => parsed.caption_source = Some(source),
+                "reftext" => {
+                    parsed.metadata.reftext_source =
+                        Some(crate::grammar::reference_text::capture_named(state, source));
+                }
                 _ => parsed.title = Some(TitleSource::Attribute(source)),
             }
         } else if let Some(name) = name {
@@ -1068,6 +1088,13 @@ pub(super) fn resolve_block_content_attributes<'a>(
     offset: usize,
 ) -> Result<Option<ContentAttribute<'a>>, Error> {
     let metadata = &mut attributes.metadata;
+    if let Some(media) = media
+        && media.reftext_source.is_some()
+    {
+        metadata.reftext_source = media.reftext_source;
+        metadata.reftext = None;
+    }
+
     if let Some(caption) = media.and_then(|media| media.caption.as_ref()) {
         metadata.caption = Some(caption.clone());
         attributes.caption_source = None;

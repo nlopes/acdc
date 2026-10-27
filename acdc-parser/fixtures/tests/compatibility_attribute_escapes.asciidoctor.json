@@ -454,7 +454,23 @@
         "anchors": [
           {
             "id": "bracket",
-            "xreflabel": "Label\\] with café",
+            "xreflabel": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Label\\] with café",
+                "location": [
+                  {
+                    "line": 33,
+                    "col": 11
+                  },
+                  {
+                    "line": 33,
+                    "col": 27
+                  }
+                ]
+              }
+            ],
             "location": [
               {
                 "line": 33,
@@ -564,7 +580,23 @@
         "anchors": [
           {
             "id": "closing",
-            "xreflabel": "Label\\]",
+            "xreflabel": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Label\\]",
+                "location": [
+                  {
+                    "line": 38,
+                    "col": 11
+                  },
+                  {
+                    "line": 38,
+                    "col": 17
+                  }
+                ]
+              }
+            ],
             "location": [
               {
                 "line": 38,
@@ -613,7 +645,23 @@
         "anchors": [
           {
             "id": "slashes",
-            "xreflabel": "Label\\\\",
+            "xreflabel": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Label\\\\",
+                "location": [
+                  {
+                    "line": 41,
+                    "col": 11
+                  },
+                  {
+                    "line": 41,
+                    "col": 17
+                  }
+                ]
+              }
+            ],
             "location": [
               {
                 "line": 41,

@@ -41,6 +41,12 @@ struct XrefCaptionLabelSnapshots<'a> {
 
 #[derive(Debug)]
 pub(crate) struct ParserState<'a> {
+    // Natural lookup matches expanded markup, which cannot be recovered from display nodes.
+    // These inputs stay in parser state until the reference catalog is complete.
+    pub(super) reference_text_sources:
+        Rc<RefCell<Vec<super::reference_text::ReferenceTextSource<'a>>>>,
+    // Nested inline labels must retain the authored passthrough syntax.
+    pub(super) reference_text_context: Option<Rc<super::reference_text::ReferenceTextContext<'a>>>,
     pub(crate) document_attributes: Rc<DocumentAttributes<'a>>,
     /// Attributes inherited by the current nested document. Asciidoctor-style
     /// table cells may read these values, but attribute entries in the cell
@@ -558,6 +564,8 @@ impl<'a> ParserState<'a> {
 
     pub(crate) fn new(input: &'a str, arena: &'a Bump, options: Rc<Options<'a>>) -> Self {
         let mut state = Self {
+            reference_text_sources: Rc::default(),
+            reference_text_context: None,
             document_attributes: Rc::new(options.document_attributes.clone()),
             options,
             nested_parent_attributes: None,
@@ -602,6 +610,8 @@ impl<'a> ParserState<'a> {
         });
         Self {
             options: Rc::new(EMPTY_OPTIONS.clone()),
+            reference_text_sources: Rc::default(),
+            reference_text_context: None,
             document_attributes: Rc::new(DocumentAttributes::empty()),
             nested_parent_attributes: None,
             hardbreaks: false,
@@ -644,6 +654,8 @@ impl<'a> ParserState<'a> {
     ) -> Self {
         Self {
             options: parent.options.clone(),
+            reference_text_sources: Rc::clone(&parent.reference_text_sources),
+            reference_text_context: parent.reference_text_context.clone(),
             document_attributes: Rc::clone(&parent.document_attributes),
             nested_parent_attributes: parent.nested_parent_attributes.clone(),
             hardbreaks: parent.hardbreaks,

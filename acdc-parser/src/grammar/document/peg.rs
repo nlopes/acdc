@@ -40,9 +40,9 @@ use crate::{
             references::{
                 ReferenceCatalog, collect_inline_references, collect_metadata_references,
                 collect_references, finalize_inline_semantics, header_reference_title,
-                insert_reference, metadata_xreflabel, normalize_bibliography_lists,
-                register_document_top, register_section_header, resolve_source_target,
-                resolve_xref_target,
+                insert_reference, metadata_natural_label, metadata_xreflabel,
+                normalize_bibliography_lists, register_document_top, register_section_header,
+                resolve_source_target, resolve_xref_target,
             },
             revision::{IgnoredRevisionFields, RevisionInfo, process_revision_info},
             sections::{apply_leveloffset, expected_child_level},
@@ -176,6 +176,8 @@ peg::parser! {
             // disturbed by PEG backtracking, and it runs before the reference catalog so that
             // catalog can later carry a target's caption label and ordinal.
             normalize_bibliography_lists(state, &mut blocks);
+            let mut header = header;
+            crate::grammar::reference_text::resolve_tree(state, &mut header, &mut blocks)?;
             caption::renumber_captions(&mut blocks);
 
             let header_has_anchor = header.as_ref().is_some_and(|header| {
@@ -194,12 +196,13 @@ peg::parser! {
                     .as_ref()
                     .or_else(|| header.metadata.anchors.last())
                 {
-                    let label = metadata_xreflabel(state, &header.metadata);
+                    let label = metadata_xreflabel(&header.metadata);
                     insert_reference(
                         state,
                         &mut references,
                         anchor,
                         label,
+                        metadata_natural_label(state, &header.metadata),
                         Some(header_reference_title(header)),
                         None,
                     );
@@ -251,7 +254,7 @@ peg::parser! {
                 toc_entries,
                 references: references.entries,
             };
-            register_document_top(state, &mut document, &xrefs);
+            register_document_top(state, &mut document, &xrefs)?;
             let reference_ids = document.references.keys().copied().collect::<HashSet<_>>();
 
             // An internal `<<id>>` whose target is absent from the catalog is an
@@ -387,6 +390,8 @@ peg::parser! {
             (eol()*<,2> / ![_])
         {
             if let Some((title, subtitle, authors)) = title_authors {
+                let mut metadata = metadata?;
+                crate::grammar::reference_text::resolve_metadata(state, &mut metadata)?;
                 let mut location = state.create_location(start, end);
                 location.absolute_end = crate::grammar::utf8_utils::safe_decrement_offset(state.input, location.absolute_end);
                 location.end.column = location.end.column.saturating_sub(1);
@@ -426,9 +431,9 @@ peg::parser! {
         /// Parse block metadata lines (anchors and attributes) that can appear before a document title.
         /// Only consumes metadata if followed by a document title to avoid stealing attributes
         /// meant for the first block when there's no document title.
-        rule header_metadata() -> BlockMetadata<'input>
+        rule header_metadata() -> Result<BlockMetadata<'input>, Error>
             = lines:(
-                anchor:anchor() { AttributeOrAnchorLine::Anchor(anchor) }
+                anchor:anchor(0) { AttributeOrAnchorLine::Anchor(anchor) }
                 / attr:attributes_line() { AttributeOrAnchorLine::Attributes(Box::new(attr)) }
             )+ &document_title()
             {
@@ -436,7 +441,7 @@ peg::parser! {
 
                 for line in lines {
                     match line {
-                        AttributeOrAnchorLine::Anchor(anchor) => push_metadata_anchor(&mut metadata, anchor),
+                        AttributeOrAnchorLine::Anchor(anchor) => push_metadata_anchor(state, &mut metadata, anchor)?,
                         AttributeOrAnchorLine::Attributes(attributes) => {
                             let attr_metadata = attributes.metadata;
                             // Merge attribute metadata - last one wins for id/style
@@ -452,12 +457,13 @@ peg::parser! {
                                 metadata.attributes.set(name.clone(), value.clone());
                             }
                             metadata.positional_attributes = attr_metadata.positional_attributes;
+                            if attr_metadata.reftext_source.is_some() { metadata.reftext_source = attr_metadata.reftext_source; }
                         }
                     }
                 }
-                metadata
+                Ok(metadata)
             }
-            / { BlockMetadata::default() }
+            / { Ok(BlockMetadata::default()) }
 
         pub(crate) rule title_authors() -> (Title<'input>, Option<Subtitle<'input>>, Vec<Author<'input>>)
         // Attribute entries and comments keep each metadata slot open. Consume
@@ -1224,7 +1230,7 @@ peg::parser! {
 
         rule block_metadata_with_title(offset: usize, parent_section_level: Option<SectionLevel>, parse_title: bool) -> Result<BlockParsingMetadata<'input>, Error>
         = meta_start:position!() lines:(line:(
-            anchor:anchor() { BlockMetadataLine::Anchor(anchor) }
+            anchor:anchor(offset) { BlockMetadataLine::Anchor(anchor) }
             / attr:raw_attributes_line() { BlockMetadataLine::Attributes(attr) }
             / doc_attr:document_attribute_line(offset) { BlockMetadataLine::DocumentAttribute(doc_attr.0, doc_attr.1) }
             / title_line()
@@ -1236,7 +1242,7 @@ peg::parser! {
 
             for (line, _) in lines {
                 match line {
-                    BlockMetadataLine::Anchor(value) => push_metadata_anchor(&mut attributes.metadata, value),
+                    BlockMetadataLine::Anchor(value) => push_metadata_anchor(state, &mut attributes.metadata, value)?,
                     BlockMetadataLine::Attributes(raw) => {
                         let parsed = parse_block_attribute_list(
                             state, raw.source, raw.start, BlockAttributeMode::Block, offset,
@@ -1917,7 +1923,7 @@ peg::parser! {
         // asciidoctor does not assign to an automatically nested list.
         rule nested_list_metadata(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<BlockParsingMetadata<'input>, Error>
         = meta_start:position!() lines:(line:(
-            anchor:anchor() { AttributeOrAnchorLine::Anchor(anchor) }
+            anchor:anchor(offset) { AttributeOrAnchorLine::Anchor(anchor) }
             / attr:attributes_line() { AttributeOrAnchorLine::Attributes(Box::new(attr)) }
         ) end:position!() eol()* { (line, end) })+
         {
@@ -1925,7 +1931,7 @@ peg::parser! {
             let meta_end = lines.last().map_or(meta_start, |(_, end)| *end);
             for (line, _) in lines {
                 match line {
-                    AttributeOrAnchorLine::Anchor(anchor) => push_metadata_anchor(&mut attributes.metadata, anchor),
+                    AttributeOrAnchorLine::Anchor(anchor) => push_metadata_anchor(state, &mut attributes.metadata, anchor)?,
                     AttributeOrAnchorLine::Attributes(parsed) => {
                         attributes.merge(*parsed, state.options.compatibility_mode);
                     }
@@ -1961,7 +1967,7 @@ peg::parser! {
 
         rule anchor_line_match()
         = double_open_square_bracket() [^'\'' | ',' | ']' | '[' | ' ' | '\t' | '\n' | '\r']+
-          (comma() block_anchor_reftext() / double_close_square_bracket()) (eol() / ![_])
+          (comma() block_anchor_reftext(0) / double_close_square_bracket()) (eol() / ![_])
 
         rule attribute_or_anchor_line_match()
         = anchor_line_match() / attributes_line_match()
@@ -3614,14 +3620,14 @@ peg::parser! {
             }
         )
 
-        rule anchor() -> Anchor<'input>
+        rule anchor(offset: usize) -> Anchor<'input>
         = result:(
             // Double-bracket [[id]] syntax - allows dots in ID since no role shorthand
             // possible.
             //
             // Whitespace is excluded per AsciiDoc documentation at
             // https://docs.asciidoctor.org/asciidoc/latest/attributes/id/#valid-id-characters
-            double_open_square_bracket() warn_anchor_id_with_whitespace()? id:$([^'\'' | ',' | ']' | '[' | ' ' | '\t' | '\n' | '\r']+) comma() reftext:block_anchor_reftext() {
+            double_open_square_bracket() warn_anchor_id_with_whitespace()? id:$([^'\'' | ',' | ']' | '[' | ' ' | '\t' | '\n' | '\r']+) comma() reftext:block_anchor_reftext(offset) {
                 (id, Some(reftext))
             } /
             double_open_square_bracket() warn_anchor_id_with_whitespace()? id:$([^'\'' | ',' | ']' | '[' | ' ' | '\t' | '\n' | '\r']+) double_close_square_bracket() {
@@ -3651,18 +3657,29 @@ peg::parser! {
             // location doesn't include the newline.
             Anchor {
                 id: substituted_id,
-                xreflabel: reftext,
-                location: state.create_location(span_start, end),
+                xreflabel: None,
+                location: state.create_location(span_start + offset, end + offset),
+                reftext_source: reftext,
                 bibliography_label: None,
                 bibliography: false,
             }
         }
 
-        rule block_anchor_reftext() -> &'input str
-        = text:$([^'\n' | '\r']+) {?
+        rule block_anchor_reftext(offset: usize) -> usize
+        = start:position!() text:$([^'\n' | '\r']+) {?
             text.strip_suffix("]]")
                 .and_then(|source| resolve_block_anchor_reftext(source, &state.document_attributes, state.options.compatibility_mode))
-                .map(|value| state.intern_cow(value))
+                .map(|(value, source_map)| {
+                    let source_end = start + offset + text.len() - 2;
+                    let text = state.intern_cow(value);
+                    crate::grammar::reference_text::capture_block(state, crate::grammar::attributes::ResolvedContentAttribute {
+                        text,
+                        quote: crate::grammar::attributes::AttributeQuote::Unquoted,
+                        source_map: source_map.with_origin(crate::grammar::inline_preprocessor::SourceMap::default(), start + offset),
+                        source_range: start + offset..source_end,
+                        attributes: Rc::clone(&state.document_attributes),
+                    })
+                })
                 .ok_or("block anchor reference text")
         }
 
@@ -3672,24 +3689,26 @@ peg::parser! {
         warn_anchor_id_with_whitespace()?
         id:$([^'\'' | ',' | ']' | '[' | ' ' | '\t' | '\n' | '\r']+)
         reftext:(
-            comma() reftext:$([^']']+) {
-                Some(reftext)
+            comma() start:position!() reftext:$([^']']+) {
+                Some((start, reftext))
             } /
             {
                 None
             }
         )
         double_close_square_bracket()
-        {
+        {?
             let substituted_id = state.intern_cow(substitute(id, HEADER, &state.document_attributes));
-            let substituted_reftext = reftext.map(|rt| state.intern_cow(substitute(rt, HEADER, &state.document_attributes)));
-            InlineNode::InlineAnchor(Anchor {
+            let source = reftext.map(|(start, text)| crate::grammar::reference_text::capture_inline(state, text, start + offset, true));
+            let xreflabel = source.map(|id| crate::grammar::reference_text::resolve(state, id)).transpose().map_err(|_| "reference label")?;
+            Ok(InlineNode::InlineAnchor(Anchor {
                 id: substituted_id,
-                xreflabel: substituted_reftext,
+                xreflabel,
                 location: state.create_block_location(span_start, span_end, offset),
+                reftext_source: source,
                 bibliography_label: None,
                 bibliography: false,
-            })
+            }))
         }
 
         rule inline_anchor_match() -> ()

@@ -7,6 +7,7 @@ use serde::{
 
 use super::{
     caption::Caption,
+    content_attribute::ContentAttribute,
     inlines::InlineNode,
     location::Location,
     section::{SectionKind, SectionNumber},
@@ -37,8 +38,11 @@ pub const UNNUMBERED_SECTION_STYLES: &[&str] = &[
 pub struct Anchor<'a> {
     pub id: &'a str,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub xreflabel: Option<&'a str>,
+    pub xreflabel: Option<ContentAttribute<'a>>,
     pub location: Location,
+    #[serde(skip)]
+    // Key into parser-owned input, cleared before returning the AST.
+    pub(crate) reftext_source: Option<usize>,
     #[serde(skip)]
     pub(crate) bibliography: bool,
     #[serde(skip)]
@@ -60,13 +64,14 @@ impl<'a> Anchor<'a> {
             xreflabel: None,
             location,
             bibliography: false,
+            reftext_source: None,
             bibliography_label: None,
         }
     }
 
     /// Set the cross-reference label.
     #[must_use]
-    pub fn with_xreflabel(mut self, xreflabel: Option<&'a str>) -> Self {
+    pub fn with_xreflabel(mut self, xreflabel: Option<ContentAttribute<'a>>) -> Self {
         self.xreflabel = xreflabel;
         self
     }
@@ -103,7 +108,7 @@ pub struct TocEntry<'a> {
     /// Section level (1 for top-level, 2 for subsection, etc.)
     pub level: u8,
     /// Optional cross-reference label from `reftext=` or `[[id,xreflabel]]`.
-    pub xreflabel: Option<&'a str>,
+    pub xreflabel: Option<ContentAttribute<'a>>,
     /// The section's structural category (special-section style, or `Normal`).
     /// Converters use it for presentation, such as appendix labels.
     pub kind: SectionKind,
@@ -117,7 +122,7 @@ impl<'a> TocEntry<'a> {
         id: &'a str,
         title: Title<'a>,
         level: u8,
-        xreflabel: Option<&'a str>,
+        xreflabel: Option<ContentAttribute<'a>>,
         kind: SectionKind,
         location: Location,
     ) -> Self {
@@ -180,10 +185,10 @@ pub(crate) struct SectionReference {
 #[non_exhaustive]
 pub struct Reference<'a> {
     /// Optional cross-reference label from `reftext=` or `[[id,xreflabel]]`,
-    /// parsed as inline content. A label carries formatting, so `*Bold* label`
-    /// renders bold. When set, it is the reference text; otherwise converters
+    /// copied from the target's parsed content without another inline parse.
+    /// When set, it is the reference text; otherwise converters
     /// use `title` and, for captioned targets, `caption`.
-    pub xreflabel: Option<Vec<InlineNode<'a>>>,
+    pub xreflabel: Option<ContentAttribute<'a>>,
     /// The target's title, when it has one. `None` for a referenceable element
     /// with no title, such as an untitled block or an inline link with an `id`
     /// attribute. A reference to such a target renders the literal `[id]`,

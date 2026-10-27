@@ -696,7 +696,23 @@
             "anchors": [
               {
                 "id": "topic:one",
-                "xreflabel": "Topic One",
+                "xreflabel": [
+                  {
+                    "name": "text",
+                    "type": "string",
+                    "value": "Topic One",
+                    "location": [
+                      {
+                        "line": 30,
+                        "col": 13
+                      },
+                      {
+                        "line": 30,
+                        "col": 21
+                      }
+                    ]
+                  }
+                ],
                 "location": [
                   {
                     "line": 30,
@@ -745,7 +761,23 @@
             "anchors": [
               {
                 "id": "a-b.c:d",
-                "xreflabel": "Mixed ID",
+                "xreflabel": [
+                  {
+                    "name": "text",
+                    "type": "string",
+                    "value": "Mixed ID",
+                    "location": [
+                      {
+                        "line": 33,
+                        "col": 11
+                      },
+                      {
+                        "line": 33,
+                        "col": 18
+                      }
+                    ]
+                  }
+                ],
                 "location": [
                   {
                     "line": 33,

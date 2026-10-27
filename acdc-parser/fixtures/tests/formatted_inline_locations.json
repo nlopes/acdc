@@ -49,7 +49,23 @@
               "name": "anchor",
               "type": "inline",
               "id": "bold",
-              "xreflabel": "Bold target",
+              "xreflabel": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Bold target",
+                  "location": [
+                    {
+                      "line": 3,
+                      "col": 23
+                    },
+                    {
+                      "line": 3,
+                      "col": 33
+                    }
+                  ]
+                }
+              ],
               "location": [
                 {
                   "line": 3,
@@ -159,7 +175,23 @@
               "name": "anchor",
               "type": "inline",
               "id": "italic",
-              "xreflabel": "Italic target",
+              "xreflabel": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Italic target",
+                  "location": [
+                    {
+                      "line": 5,
+                      "col": 22
+                    },
+                    {
+                      "line": 5,
+                      "col": 34
+                    }
+                  ]
+                }
+              ],
               "location": [
                 {
                   "line": 5,
@@ -269,7 +301,23 @@
               "name": "anchor",
               "type": "inline",
               "id": "code",
-              "xreflabel": "Code target",
+              "xreflabel": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Code target",
+                  "location": [
+                    {
+                      "line": 7,
+                      "col": 23
+                    },
+                    {
+                      "line": 7,
+                      "col": 33
+                    }
+                  ]
+                }
+              ],
               "location": [
                 {
                   "line": 7,
@@ -400,7 +448,23 @@
                   "name": "anchor",
                   "type": "inline",
                   "id": "nested",
-                  "xreflabel": "Nested target",
+                  "xreflabel": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Nested target",
+                      "location": [
+                        {
+                          "line": 9,
+                          "col": 35
+                        },
+                        {
+                          "line": 9,
+                          "col": 47
+                        }
+                      ]
+                    }
+                  ],
                   "location": [
                     {
                       "line": 9,
@@ -1082,7 +1146,29 @@
               "name": "anchor",
               "type": "inline",
               "id": "included",
-              "xreflabel": "Included target",
+              "xreflabel": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Included target",
+                  "location": [
+                    {
+                      "line": 3,
+                      "col": 29,
+                      "file": [
+                        "includes/formatted_inline_locations.adoc"
+                      ]
+                    },
+                    {
+                      "line": 3,
+                      "col": 43,
+                      "file": [
+                        "includes/formatted_inline_locations.adoc"
+                      ]
+                    }
+                  ]
+                }
+              ],
               "location": [
                 {
                   "line": 3,
@@ -1403,7 +1489,23 @@
               "name": "anchor",
               "type": "inline",
               "id": "following",
-              "xreflabel": "Following target",
+              "xreflabel": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Following target",
+                  "location": [
+                    {
+                      "line": 24,
+                      "col": 29
+                    },
+                    {
+                      "line": 24,
+                      "col": 44
+                    }
+                  ]
+                }
+              ],
               "location": [
                 {
                   "line": 24,

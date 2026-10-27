@@ -585,6 +585,7 @@ fn parse_input(
         }
         let result = match grammar::document_parser::document(&owner.source, &mut state) {
             Ok(Ok(mut doc)) => {
+                grammar::reference_text::finish_document(&mut state, &mut doc)?;
                 // Rewrite every node's location from preprocessed coordinates to the
                 // original source (file + line + byte offset). No-op when the
                 // preprocessor recorded no ranges (no includes/edits).
@@ -650,6 +651,7 @@ pub fn parse_inline(input: &str, options: &Options<'_>) -> Result<ParseInlineRes
         state.warnings = warnings_for_state;
         let result = match grammar::inline_parser::inlines(&owner.source, &mut state) {
             Ok(mut inlines) => {
+                grammar::reference_text::resolve_inline_tree(&mut state, &mut inlines)?;
                 grammar::remap_inlines_to_source(
                     &mut inlines,
                     &state.source_ranges,

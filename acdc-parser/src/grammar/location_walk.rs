@@ -6,8 +6,8 @@
 use std::{convert::Infallible, marker::PhantomData};
 
 use crate::model::{
-    Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, Document, InlineMacro, InlineNode,
-    Location,
+    Anchor, Block, BlockMetadata, ContentAttribute, DelimitedBlock, DelimitedBlockType, Document,
+    Header, InlineMacro, InlineNode, Location,
 };
 
 /// Visit every location in a whole document.
@@ -21,6 +21,7 @@ pub(crate) fn walk_document_locations_mut<F: FnMut(&mut Location)>(
             Ok(())
         },
         |_| Ok(()),
+        |_, _| Ok(()),
     )
     .document(doc)
     .unwrap_or_else(|never: Infallible| match never {});
@@ -37,6 +38,7 @@ pub(crate) fn walk_document_inline_nodes_mut<'a, F: FnMut(&mut InlineNode<'a>)>(
             visit(node);
             Ok(())
         },
+        |_, _| Ok(()),
     )
     .document(doc)
     .unwrap_or_else(|never: Infallible| match never {});
@@ -59,7 +61,7 @@ pub(crate) fn try_walk_inline_locations_mut<E>(
     node: &mut InlineNode<'_>,
     visit: &mut impl FnMut(&mut Location) -> Result<(), E>,
 ) -> Result<(), E> {
-    AstWalker::new(visit, |_| Ok(())).inline(node)
+    AstWalker::new(visit, |_| Ok(()), |_, _| Ok(())).inline(node)
 }
 
 /// Visit an inline node, then recurse into its children.
@@ -73,26 +75,57 @@ pub(crate) fn walk_inline_nodes_mut<'a, F: FnMut(&mut InlineNode<'a>)>(
             visit(node);
             Ok(())
         },
+        |_, _| Ok(()),
     )
     .inline(node)
     .unwrap_or_else(|never: Infallible| match never {});
 }
 
-struct AstWalker<'a, FL, FI> {
+/// Visit reference-label owners before building the derived catalog.
+pub(super) fn walk_reference_texts_mut<'a, E>(
+    header: &mut Option<Header<'a>>,
+    blocks: &mut [Block<'a>],
+    visit: &mut impl FnMut(&mut Option<ContentAttribute<'a>>, &mut Option<usize>) -> Result<(), E>,
+) -> Result<(), E> {
+    let mut walker = AstWalker::new(|_| Ok(()), |_| Ok(()), visit);
+    if let Some(header) = header {
+        walker.header(header)?;
+    }
+    walker.blocks(blocks)
+}
+
+pub(super) fn walk_document_reference_texts_mut<'a, E>(
+    document: &mut Document<'a>,
+    visit: &mut impl FnMut(&mut Option<ContentAttribute<'a>>, &mut Option<usize>) -> Result<(), E>,
+) -> Result<(), E> {
+    AstWalker::new(|_| Ok(()), |_| Ok(()), visit).document(document)
+}
+
+pub(crate) fn walk_inline_reference_texts_mut<'a, E>(
+    inlines: &mut [InlineNode<'a>],
+    visit: &mut impl FnMut(&mut Option<ContentAttribute<'a>>, &mut Option<usize>) -> Result<(), E>,
+) -> Result<(), E> {
+    AstWalker::new(|_| Ok(()), |_| Ok(()), visit).inlines(inlines)
+}
+
+struct AstWalker<'a, FL, FI, FR> {
     visit_location: FL,
     visit_inline: FI,
+    visit_reference_text: FR,
     inline_lifetime: PhantomData<fn(&mut InlineNode<'a>)>,
 }
 
-impl<'a, FL, FI, E> AstWalker<'a, FL, FI>
+impl<'a, FL, FI, FR, E> AstWalker<'a, FL, FI, FR>
 where
     FL: FnMut(&mut Location) -> Result<(), E>,
     FI: FnMut(&mut InlineNode<'a>) -> Result<(), E>,
+    FR: FnMut(&mut Option<ContentAttribute<'a>>, &mut Option<usize>) -> Result<(), E>,
 {
-    fn new(visit_location: FL, visit_inline: FI) -> Self {
+    fn new(visit_location: FL, visit_inline: FI, visit_reference_text: FR) -> Self {
         Self {
             visit_location,
             visit_inline,
+            visit_reference_text,
             inline_lifetime: PhantomData,
         }
     }
@@ -100,12 +133,7 @@ where
     fn document(&mut self, doc: &mut Document<'a>) -> Result<(), E> {
         (self.visit_location)(&mut doc.location)?;
         if let Some(header) = &mut doc.header {
-            (self.visit_location)(&mut header.location)?;
-            self.metadata(&mut header.metadata)?;
-            self.inlines(header.title.inlines_mut())?;
-            if let Some(subtitle) = &mut header.subtitle {
-                self.inlines(subtitle.inlines_mut())?;
-            }
+            self.header(header)?;
         }
         self.blocks(&mut doc.blocks)?;
 
@@ -122,12 +150,49 @@ where
         for entry in &mut doc.toc_entries {
             (self.visit_location)(&mut entry.location)?;
             self.inlines(entry.title.inlines_mut())?;
+            if let Some(label) = &mut entry.xreflabel {
+                self.inlines(label.inlines_mut())?;
+            }
         }
         for reference in doc.references.values_mut() {
             (self.visit_location)(&mut reference.location)?;
+            if let Some(label) = &mut reference.xreflabel {
+                self.inlines(label.inlines_mut())?;
+            }
             if let Some(title) = &mut reference.title {
                 self.inlines(title.inlines_mut())?;
             }
+        }
+        Ok(())
+    }
+
+    fn header(&mut self, header: &mut Header<'a>) -> Result<(), E> {
+        (self.visit_location)(&mut header.location)?;
+        self.metadata(&mut header.metadata)?;
+        self.inlines(header.title.inlines_mut())?;
+        if let Some(subtitle) = &mut header.subtitle {
+            self.inlines(subtitle.inlines_mut())?;
+        }
+        Ok(())
+    }
+
+    fn anchor(&mut self, anchor: &mut Anchor<'a>) -> Result<(), E> {
+        (self.visit_location)(&mut anchor.location)?;
+        self.reference_text(&mut anchor.xreflabel, &mut anchor.reftext_source)?;
+        if let Some(label) = &mut anchor.bibliography_label {
+            self.inlines(&mut label.content)?;
+        }
+        Ok(())
+    }
+
+    fn reference_text(
+        &mut self,
+        content: &mut Option<ContentAttribute<'a>>,
+        source: &mut Option<usize>,
+    ) -> Result<(), E> {
+        (self.visit_reference_text)(content, source)?;
+        if let Some(content) = content {
+            self.inlines(content.inlines_mut())?;
         }
         Ok(())
     }
@@ -177,7 +242,7 @@ where
                     (self.visit_location)(&mut item.location)?;
                     self.optional_location(&mut item.delimiter_location)?;
                     for anchor in &mut item.anchors {
-                        (self.visit_location)(&mut anchor.location)?;
+                        self.anchor(anchor)?;
                     }
                     self.inlines(&mut item.term)?;
                     self.inlines(&mut item.principal_text)?;
@@ -206,7 +271,7 @@ where
             Block::ThematicBreak(tb) => {
                 self.inlines(tb.title.inlines_mut())?;
                 for anchor in &mut tb.anchors {
-                    (self.visit_location)(&mut anchor.location)?;
+                    self.anchor(anchor)?;
                 }
             }
             Block::Image(i) => {
@@ -224,11 +289,12 @@ where
                 self.metadata(&mut v.metadata)?;
                 self.inlines(v.title.inlines_mut())?;
             }
-            // Own location already visited; no inline or block children.
-            Block::TableOfContents(_)
-            | Block::DocumentAttribute(_)
-            | Block::PageBreak(_)
-            | Block::Comment(_) => {}
+            Block::PageBreak(block) => {
+                self.metadata(&mut block.metadata)?;
+                self.inlines(block.title.inlines_mut())?;
+            }
+            Block::TableOfContents(block) => self.metadata(&mut block.metadata)?,
+            Block::DocumentAttribute(_) | Block::Comment(_) => {}
         }
         Ok(())
     }
@@ -256,6 +322,7 @@ where
             InlineNode::CurvedApostropheText(t) => self.inlines(&mut t.content)?,
             InlineNode::Macro(m) => self.inline_macro(m)?,
             InlineNode::InlineAnchor(anchor) => {
+                self.reference_text(&mut anchor.xreflabel, &mut anchor.reftext_source)?;
                 if let Some(label) = &mut anchor.bibliography_label {
                     self.inlines(&mut label.content)?;
                 }
@@ -330,14 +397,15 @@ where
 
     fn metadata(&mut self, metadata: &mut BlockMetadata<'a>) -> Result<(), E> {
         self.optional_location(&mut metadata.location)?;
+        self.reference_text(&mut metadata.reftext, &mut metadata.reftext_source)?;
         if let Some(crate::Caption::CustomContent(caption)) = &mut metadata.caption {
             self.inlines(caption.inlines_mut())?;
         }
         if let Some(anchor) = &mut metadata.id {
-            (self.visit_location)(&mut anchor.location)?;
+            self.anchor(anchor)?;
         }
         for anchor in &mut metadata.anchors {
-            (self.visit_location)(&mut anchor.location)?;
+            self.anchor(anchor)?;
         }
         for attribute in &mut metadata.positional_attributes {
             self.optional_location(&mut attribute.location)?;

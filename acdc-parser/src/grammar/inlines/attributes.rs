@@ -56,6 +56,7 @@ pub(super) fn process_attribute_list<'input>(
                     }
                 };
                 metadata.id = Some(Anchor {
+                    reftext_source: None,
                     bibliography_label: None,
                     id,
                     xreflabel: None,
