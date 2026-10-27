@@ -1,0 +1,28 @@
+= Quote content locations
+:person: *λ*
+:quote-entry: attribution='*Expanded*',citetitle='Book'
+
+[quote,'λ','é']
+____
+Single-character source spans.
+____
+
+[quote,attribution='Préfixe {person}',citetitle='A \'quote\'']
+____
+Expanded and decoded source spans.
+____
+
+[quote,{quote-entry}]
+____
+Entries introduced by expansion.
+____
+
+include::includes/compatibility_quote_locations.adoc[tag=selected]
+
+[cols=a]
+|===
+|[verse,'{person}','Book footnote:cell[Cell note]']
+____
+Nested content keeps authored locations.
+____
+|===

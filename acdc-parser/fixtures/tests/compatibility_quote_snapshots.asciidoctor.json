@@ -1,0 +1,651 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Quote declaration snapshots",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 29
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 3,
+        "col": 15
+      }
+    ]
+  },
+  "attributes": {
+    "other": "Before",
+    "word": "{other}"
+  },
+  "blocks": [
+    {
+      "name": "other",
+      "type": "attribute",
+      "value": "After named",
+      "location": [
+        {
+          "line": 6,
+          "col": 1
+        },
+        {
+          "line": 6,
+          "col": 19
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Before",
+            "location": [
+              {
+                "line": 5,
+                "col": 21
+              },
+              {
+                "line": 5,
+                "col": 26
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Before",
+            "location": [
+              {
+                "line": 5,
+                "col": 40
+              },
+              {
+                "line": 5,
+                "col": 45
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Named values keep their declaration context.",
+              "location": [
+                {
+                  "line": 8,
+                  "col": 1
+                },
+                {
+                  "line": 8,
+                  "col": 44
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 8,
+              "col": 1
+            },
+            {
+              "line": 8,
+              "col": 44
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "other",
+      "type": "attribute",
+      "value": "Before positional",
+      "location": [
+        {
+          "line": 11,
+          "col": 1
+        },
+        {
+          "line": 11,
+          "col": 25
+        }
+      ]
+    },
+    {
+      "name": "other",
+      "type": "attribute",
+      "value": "After positional",
+      "location": [
+        {
+          "line": 13,
+          "col": 1
+        },
+        {
+          "line": 13,
+          "col": 24
+        }
+      ]
+    },
+    {
+      "name": "verse",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "verse",
+        "attribution": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Before positional",
+            "location": [
+              {
+                "line": 12,
+                "col": 9
+              },
+              {
+                "line": 12,
+                "col": 14
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Before positional",
+            "location": [
+              {
+                "line": 12,
+                "col": 18
+              },
+              {
+                "line": 12,
+                "col": 23
+              }
+            ]
+          }
+        ]
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Positional values keep their declaration context.",
+          "location": [
+            {
+              "line": 15,
+              "col": 1
+            },
+            {
+              "line": 15,
+              "col": 49
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 12,
+          "col": 1
+        },
+        {
+          "line": 16,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Positional ",
+            "location": [
+              {
+                "line": 18,
+                "col": 9
+              },
+              {
+                "line": 18,
+                "col": 19
+              }
+            ]
+          },
+          {
+            "name": "footnote",
+            "type": "inline",
+            "id": "position",
+            "inlines": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Positional note",
+                "location": [
+                  {
+                    "line": 18,
+                    "col": 38
+                  },
+                  {
+                    "line": 18,
+                    "col": 52
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 18,
+                "col": 20
+              },
+              {
+                "line": 18,
+                "col": 53
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Positional book",
+            "location": [
+              {
+                "line": 18,
+                "col": 57
+              },
+              {
+                "line": 18,
+                "col": 71
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Body ",
+              "location": [
+                {
+                  "line": 21,
+                  "col": 1
+                },
+                {
+                  "line": 21,
+                  "col": 5
+                }
+              ]
+            },
+            {
+              "name": "footnote",
+              "type": "inline",
+              "id": "body",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Body note",
+                  "location": [
+                    {
+                      "line": 21,
+                      "col": 20
+                    },
+                    {
+                      "line": 21,
+                      "col": 28
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 21,
+                  "col": 6
+                },
+                {
+                  "line": 21,
+                  "col": 29
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 21,
+                  "col": 30
+                },
+                {
+                  "line": 21,
+                  "col": 30
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 21,
+              "col": 1
+            },
+            {
+              "line": 21,
+              "col": 30
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 18,
+          "col": 1
+        },
+        {
+          "line": 22,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Selected ",
+            "location": [
+              {
+                "line": 25,
+                "col": 15
+              },
+              {
+                "line": 25,
+                "col": 23
+              }
+            ]
+          },
+          {
+            "name": "footnote",
+            "type": "inline",
+            "id": "selected",
+            "inlines": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Selected note",
+                "location": [
+                  {
+                    "line": 25,
+                    "col": 42
+                  },
+                  {
+                    "line": 25,
+                    "col": 54
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 25,
+                "col": 24
+              },
+              {
+                "line": 25,
+                "col": 55
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Citation ",
+            "location": [
+              {
+                "line": 25,
+                "col": 69
+              },
+              {
+                "line": 25,
+                "col": 77
+              }
+            ]
+          },
+          {
+            "name": "footnote",
+            "type": "inline",
+            "id": "citation",
+            "inlines": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Citation note",
+                "location": [
+                  {
+                    "line": 25,
+                    "col": 96
+                  },
+                  {
+                    "line": 25,
+                    "col": 108
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 25,
+                "col": 78
+              },
+              {
+                "line": 25,
+                "col": 109
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Only selected content registers notes.",
+              "location": [
+                {
+                  "line": 27,
+                  "col": 1
+                },
+                {
+                  "line": 27,
+                  "col": 38
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 27,
+              "col": 1
+            },
+            {
+              "line": 27,
+              "col": 38
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 24,
+          "col": 1
+        },
+        {
+          "line": 28,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "footnote:literal[Literal note]",
+            "location": [
+              {
+                "line": 30,
+                "col": 21
+              },
+              {
+                "line": 30,
+                "col": 50
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "((Literal index))",
+            "location": [
+              {
+                "line": 30,
+                "col": 64
+              },
+              {
+                "line": 30,
+                "col": 80
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Literal values register no macros.",
+              "location": [
+                {
+                  "line": 32,
+                  "col": 1
+                },
+                {
+                  "line": 32,
+                  "col": 34
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 32,
+              "col": 1
+            },
+            {
+              "line": 32,
+              "col": 34
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 30,
+          "col": 1
+        },
+        {
+          "line": 33,
+          "col": 4
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 33,
+      "col": 4
+    }
+  ]
+}

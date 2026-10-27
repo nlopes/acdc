@@ -725,40 +725,8 @@
       "delimiter": "____",
       "metadata": {
         "style": "quote",
-        "attribution": [
-          {
-            "name": "raw",
-            "type": "string",
-            "value": "",
-            "location": [
-              {
-                "line": 66,
-                "col": 9
-              },
-              {
-                "line": 66,
-                "col": 9
-              }
-            ]
-          }
-        ],
-        "citetitle": [
-          {
-            "name": "raw",
-            "type": "string",
-            "value": "",
-            "location": [
-              {
-                "line": 66,
-                "col": 12
-              },
-              {
-                "line": 66,
-                "col": 12
-              }
-            ]
-          }
-        ]
+        "attribution": [],
+        "citetitle": []
       },
       "blocks": [
         {

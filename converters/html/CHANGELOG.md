@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Explicitly empty quote attributions keep their attribution mark, and empty
+  citations keep their `<cite></cite>` element. Absent values stay omitted.
+
 - Formatted alternative content remains rich in visible image/icon fallbacks and
   custom captions. HTML `alt` and tooltip attributes contain escaped plain text;
   unlike Asciidoctor, they never contain generated formatting tags or unescaped

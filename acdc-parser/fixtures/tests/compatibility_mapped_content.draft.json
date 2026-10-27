@@ -247,7 +247,7 @@
               },
               {
                 "line": 11,
-                "col": 12
+                "col": 17
               }
             ]
           },
@@ -263,11 +263,11 @@
                 "location": [
                   {
                     "line": 11,
-                    "col": 23
+                    "col": 28
                   },
                   {
                     "line": 11,
-                    "col": 38
+                    "col": 43
                   }
                 ]
               }
@@ -275,11 +275,11 @@
             "location": [
               {
                 "line": 11,
-                "col": 13
+                "col": 18
               },
               {
                 "line": 11,
-                "col": 39
+                "col": 44
               }
             ]
           }
@@ -351,7 +351,7 @@
               },
               {
                 "line": 2,
-                "col": 17,
+                "col": 22,
                 "file": [
                   "includes/compatibility_mapped_content.adoc"
                 ]
@@ -482,7 +482,7 @@
                             },
                             {
                               "line": 21,
-                              "col": 17
+                              "col": 22
                             }
                           ]
                         }

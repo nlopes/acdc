@@ -516,14 +516,8 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         metadata: &BlockMetadata<'_>,
         line_prefix: &str,
     ) -> Result<(), Error> {
-        let attribution = metadata
-            .attribution
-            .as_ref()
-            .filter(|value| !value.is_empty());
-        let citation = metadata
-            .citetitle
-            .as_ref()
-            .filter(|value| !value.is_empty());
+        let attribution = metadata.attribution.as_ref();
+        let citation = metadata.citetitle.as_ref();
         if attribution.is_none() && citation.is_none() {
             return Ok(());
         }

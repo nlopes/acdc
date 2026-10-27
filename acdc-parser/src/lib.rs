@@ -1301,7 +1301,7 @@ mod tests {
             let mut retained = working.clone();
             for slot in &mut retained.positional_attributes {
                 slot.location = None;
-                slot.substitutions = !slot.substitutions;
+                slot.quoted_empty = !slot.quoted_empty;
             }
             retained.retained_positional_attributes =
                 Some(std::mem::take(&mut retained.positional_attributes));

@@ -270,23 +270,7 @@
             ]
           }
         ],
-        "citetitle": [
-          {
-            "name": "raw",
-            "type": "string",
-            "value": "",
-            "location": [
-              {
-                "line": 20,
-                "col": 30
-              },
-              {
-                "line": 20,
-                "col": 30
-              }
-            ]
-          }
-        ]
+        "citetitle": []
       },
       "blocks": [
         {

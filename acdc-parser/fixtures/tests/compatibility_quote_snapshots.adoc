@@ -1,0 +1,33 @@
+= Quote declaration snapshots
+:other: Before
+:word: \{other}
+
+[quote,attribution='{word}',citetitle='{word}']
+:other: After named
+____
+Named values keep their declaration context.
+____
+
+:other: Before positional
+[verse,'{word}','{word}']
+:other: After positional
+____
+Positional values keep their declaration context.
+____
+
+[quote,'Positional footnote:position[Positional note]','Positional book']
+[attribution='Named footnote:named[Named note]',citetitle='Named book']
+____
+Body footnote:body[Body note].
+____
+
+[quote,attribution='footnote:discarded[Unused note]']
+[attribution='Selected footnote:selected[Selected note]',citetitle='Citation footnote:citation[Citation note]']
+____
+Only selected content registers notes.
+____
+
+[quote,attribution="footnote:literal[Literal note]",citetitle="((Literal index))"]
+____
+Literal values register no macros.
+____

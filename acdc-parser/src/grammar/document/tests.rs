@@ -403,8 +403,7 @@ fn test_title_only_document_is_doctitle() -> Result<(), Error> {
 fn test_document_empty_attribute_list() -> Result<(), Error> {
     let input = "[]";
     let mut state = ParserState::new_for_test(input);
-    let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
-    assert!(!discrete); // Not discrete
+    let metadata = document_parser::attributes(input, &mut state)?.metadata;
     assert_eq!(metadata.id, None);
     assert_eq!(metadata.style, None);
     assert_eq!(metadata.roles, [] as [&str; 0]);
@@ -418,8 +417,7 @@ fn test_document_empty_attribute_list() -> Result<(), Error> {
 fn test_document_empty_attribute_list_with_discrete() -> Result<(), Error> {
     let input = "[discrete]";
     let mut state = ParserState::new_for_test(input);
-    let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
-    assert!(discrete); // Should be discrete
+    let metadata = document_parser::attributes(input, &mut state)?.metadata;
     assert_eq!(metadata.id, None);
     // The `discrete` style is retained so a discrete heading renders it as a class.
     assert_eq!(metadata.style, Some("discrete"));
@@ -433,8 +431,7 @@ fn test_document_empty_attribute_list_with_discrete() -> Result<(), Error> {
 fn test_document_attribute_with_id() -> Result<(), Error> {
     let input = "[id=my-id,role=admin,options=read,options=write]";
     let mut state = ParserState::new_for_test(input);
-    let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
-    assert!(!discrete); // Not discrete
+    let metadata = document_parser::attributes(input, &mut state)?.metadata;
     assert_eq!(
         metadata.id,
         Some(Anchor {
@@ -462,8 +459,7 @@ fn test_document_attribute_with_id() -> Result<(), Error> {
 fn test_document_attribute_with_id_mixed() -> Result<(), Error> {
     let input = "[astyle#myid.admin,options=read,options=write]";
     let mut state = ParserState::new_for_test(input);
-    let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
-    assert!(!discrete); // Not discrete
+    let metadata = document_parser::attributes(input, &mut state)?.metadata;
     assert_eq!(
         metadata.id,
         Some(Anchor {
@@ -491,8 +487,7 @@ fn test_document_attribute_with_id_mixed() -> Result<(), Error> {
 fn test_document_attribute_with_id_mixed_with_quotes() -> Result<(), Error> {
     let input = "[astyle#myid.admin,options=\"read,write\"]";
     let mut state = ParserState::new_for_test(input);
-    let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
-    assert!(!discrete); // Not discrete
+    let metadata = document_parser::attributes(input, &mut state)?.metadata;
     assert_eq!(
         metadata.id,
         Some(Anchor {
@@ -520,8 +515,7 @@ fn test_document_attribute_with_id_mixed_with_quotes() -> Result<(), Error> {
 fn test_shorthand_id_role_combined() -> Result<(), Error> {
     let input = "[#bracket-id.some-role]";
     let mut state = ParserState::new_for_test(input);
-    let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
-    assert!(!discrete);
+    let metadata = document_parser::attributes(input, &mut state)?.metadata;
     assert_eq!(
         metadata.id,
         Some(Anchor {
@@ -547,8 +541,7 @@ fn test_shorthand_id_role_combined() -> Result<(), Error> {
 fn test_shorthand_id_role_option_combined() -> Result<(), Error> {
     let input = "[#my-id.my-role%my-option]";
     let mut state = ParserState::new_for_test(input);
-    let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
-    assert!(!discrete);
+    let metadata = document_parser::attributes(input, &mut state)?.metadata;
     assert_eq!(
         metadata.id,
         Some(Anchor {
@@ -575,9 +568,9 @@ fn test_shorthand_id_role_option_combined() -> Result<(), Error> {
 fn test_shorthand_multiple_roles() -> Result<(), Error> {
     let input = "[#my-id.role-one.role-two]";
     let mut state = ParserState::new_for_test(input);
-    let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
-    assert!(!discrete);
+    let metadata = document_parser::attributes(input, &mut state)?.metadata;
     assert_eq!(metadata.id.as_ref().map(|a| a.id), Some("my-id"));
+    assert_eq!(metadata.style, None);
     assert!(metadata.roles.contains(&"role-one"));
     assert!(metadata.roles.contains(&"role-two"));
     Ok(())
@@ -588,8 +581,7 @@ fn test_shorthand_multiple_roles() -> Result<(), Error> {
 fn test_shorthand_style_id_role() -> Result<(), Error> {
     let input = "[quote#my-id.my-role]";
     let mut state = ParserState::new_for_test(input);
-    let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
-    assert!(!discrete);
+    let metadata = document_parser::attributes(input, &mut state)?.metadata;
     assert_eq!(metadata.id.as_ref().map(|a| a.id), Some("my-id"));
     assert_eq!(metadata.style, Some("quote"));
     assert!(metadata.roles.contains(&"my-role"));
@@ -601,9 +593,9 @@ fn test_shorthand_style_id_role() -> Result<(), Error> {
 fn test_shorthand_just_roles() -> Result<(), Error> {
     let input = "[.role-one.role-two]";
     let mut state = ParserState::new_for_test(input);
-    let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
-    assert!(!discrete);
+    let metadata = document_parser::attributes(input, &mut state)?.metadata;
     assert_eq!(metadata.id, None);
+    assert_eq!(metadata.style, None);
     assert!(metadata.roles.contains(&"role-one"));
     assert!(metadata.roles.contains(&"role-two"));
     Ok(())

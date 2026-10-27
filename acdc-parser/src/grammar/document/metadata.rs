@@ -1,8 +1,8 @@
 //! Block styles, attributes, anchors, and captions.
 
 use crate::{
-    Anchor, AttributeValue, Attribution, Block, BlockMetadata, CiteTitle, CompatibilityMode,
-    ContentAttribute, Error, InlineNode, Location, Plain, Title, Warning, WarningKind,
+    Anchor, AttributeValue, Block, BlockMetadata, CompatibilityMode, ContentAttribute, Error,
+    InlineNode, Location, Plain, Title, Warning, WarningKind,
     document_attribute::AttributeDeclaration,
     grammar::{
         ParserState,
@@ -26,7 +26,7 @@ use crate::{
         substitution::{SubstitutionPlan, parse_subs_attribute},
     },
 };
-use std::{borrow::Cow, rc::Rc};
+use std::{borrow::Cow, collections::BTreeMap, rc::Rc};
 
 use super::delimited::DelimitedKind;
 
@@ -67,6 +67,99 @@ pub(super) enum TitleSource<'a> {
     Attribute(ResolvedContentAttribute<'a>),
 }
 
+/// Attribute sources stay here until block routing selects the displayed content.
+#[derive(Debug, Default)]
+pub(super) struct ParsedAttributeList<'a> {
+    pub(super) metadata: BlockMetadata<'a>,
+    pub(super) title: Option<TitleSource<'a>>,
+    quote_sources: QuoteSources<'a>,
+}
+
+#[derive(Debug, Default)]
+struct QuoteSources<'a> {
+    attribution: Option<ResolvedContentAttribute<'a>>,
+    citetitle: Option<ResolvedContentAttribute<'a>>,
+    // Match sources to the selected slots without duplicating their merge rules.
+    positional: BTreeMap<AttributePosition, ResolvedContentAttribute<'a>>,
+}
+
+impl<'a> QuoteSources<'a> {
+    fn capture_positional(
+        &mut self,
+        state: &ParserState<'a>,
+        attribute: &ScannedAttribute,
+        position: AttributePosition,
+        location: Option<Location>,
+        mode: BlockAttributeMode,
+        source_map: &SourceMap,
+    ) -> Result<PositionalAttribute<'a>, Error> {
+        let value = state.intern_str(&attribute.value);
+        if position.slot <= 2 && matches!(mode, BlockAttributeMode::Block) {
+            self.positional.insert(
+                position,
+                attribute.resolve_content(
+                    value,
+                    source_map,
+                    position.list_start,
+                    Rc::clone(&state.document_attributes),
+                )?,
+            );
+        }
+        Ok(PositionalAttribute {
+            position: Some(position),
+            value,
+            quoted_empty: value.is_empty() && attribute.quote != AttributeQuote::Unquoted,
+            location,
+        })
+    }
+}
+
+impl<'a> ParsedAttributeList<'a> {
+    pub(super) fn merge(&mut self, other: Self, mode: CompatibilityMode) {
+        merge_attribute_metadata(&mut self.metadata, other.metadata, mode);
+        if other.title.is_some() {
+            self.title = other.title;
+        }
+        if other.quote_sources.attribution.is_some() {
+            self.quote_sources.attribution = other.quote_sources.attribution;
+        }
+        if other.quote_sources.citetitle.is_some() {
+            self.quote_sources.citetitle = other.quote_sources.citetitle;
+        }
+        self.quote_sources
+            .positional
+            .extend(other.quote_sources.positional);
+        self.quote_sources.positional.retain(|position, _| {
+            self.metadata
+                .positional_attributes
+                .iter()
+                .any(|slot| slot.position == Some(*position))
+        });
+    }
+
+    pub(super) fn from_metadata(metadata: BlockMetadata<'a>) -> Self {
+        Self {
+            metadata,
+            ..Self::default()
+        }
+    }
+
+    fn finish(
+        mut self,
+        state: &mut ParserState<'a>,
+        mode: BlockAttributeMode,
+    ) -> Result<Self, Error> {
+        if state.options.compatibility_mode == CompatibilityMode::Draft {
+            unique(&mut self.metadata.roles);
+            unique(&mut self.metadata.options);
+        }
+        if matches!(mode, BlockAttributeMode::Macro) {
+            resolve_quote_content(state, &mut self.metadata, &mut self.quote_sources, mode)?;
+        }
+        Ok(self)
+    }
+}
+
 pub(super) fn resolve_title<'a>(
     state: &mut ParserState<'a>,
     source: TitleSource<'a>,
@@ -88,23 +181,30 @@ pub(super) fn resolve_title<'a>(
             if state.options.compatibility_mode == CompatibilityMode::Draft
                 && source.quote != AttributeQuote::Single =>
         {
-            if source.text.is_empty() {
-                Vec::new()
-            } else {
-                vec![InlineNode::RawText(crate::Raw {
-                    content: source.text,
-                    location: state.create_block_location(
-                        source.source_range.start,
-                        source.source_range.end,
-                        0,
-                    ),
-                    subs: vec![Substitution::SpecialChars],
-                })]
-            }
+            literal_attribute_inlines(state, &source)
         }
         TitleSource::Attribute(source) => process_attribute_inlines(state, &source)?,
     };
     Ok(Title::new(inlines))
+}
+
+fn literal_attribute_inlines<'a>(
+    state: &ParserState<'a>,
+    source: &ResolvedContentAttribute<'a>,
+) -> Vec<InlineNode<'a>> {
+    if source.text.is_empty() {
+        Vec::new()
+    } else {
+        vec![InlineNode::RawText(crate::Raw {
+            content: source.text,
+            location: state.create_block_location(
+                source.source_range.start,
+                source.source_range.end,
+                0,
+            ),
+            subs: vec![Substitution::SpecialChars],
+        })]
+    }
 }
 
 fn unique(values: &mut Vec<&str>) {
@@ -116,7 +216,7 @@ fn unique(values: &mut Vec<&str>) {
 #[derive(Debug)]
 pub(super) enum AttributeOrAnchorLine<'input> {
     Anchor(Anchor<'input>),
-    Attributes((bool, Box<BlockMetadata<'input>>)),
+    Attributes(Box<ParsedAttributeList<'input>>),
 }
 
 /// Resolve the block caption after parsing its content. An attribute inside an
@@ -237,15 +337,9 @@ pub(super) fn merge_attribute_metadata<'input>(
     }
     if attribute_metadata.attribution.is_some() {
         metadata.attribution = attribute_metadata.attribution;
-        metadata.attribution_substitutions = attribute_metadata.attribution_substitutions;
-    } else if attribute_metadata.attribution_substitutions {
-        metadata.attribution_substitutions = true;
     }
     if attribute_metadata.citetitle.is_some() {
         metadata.citetitle = attribute_metadata.citetitle;
-        metadata.citetitle_substitutions = attribute_metadata.citetitle_substitutions;
-    } else if attribute_metadata.citetitle_substitutions {
-        metadata.citetitle_substitutions = true;
     }
 }
 
@@ -282,11 +376,16 @@ pub(super) fn media_attributes_ahead<'input>(
 
 pub(super) fn finish_block_parsing_metadata<'input>(
     state: &mut ParserState<'input>,
-    mut metadata: BlockMetadata<'input>,
+    attributes: ParsedAttributeList<'input>,
     title: Title<'input>,
     parent_section_level: Option<SectionLevel>,
     offset: usize,
 ) -> Result<BlockParsingMetadata<'input>, Error> {
+    let ParsedAttributeList {
+        mut metadata,
+        mut quote_sources,
+        ..
+    } = attributes;
     let discrete = matches!(metadata.style, Some("discrete" | "float"));
     let substitutions = metadata
         .substitutions
@@ -295,7 +394,12 @@ pub(super) fn finish_block_parsing_metadata<'input>(
     let hardbreaks = substitutions.enabled(&Substitution::PostReplacements)
         && (state.hardbreaks || metadata.options.contains(&"hardbreaks"));
     resolve_caption_content(state, &mut metadata, offset)?;
-    apply_quote_attribute_substitutions(state, &mut metadata, offset, substitutions)?;
+    resolve_quote_content(
+        state,
+        &mut metadata,
+        &mut quote_sources,
+        BlockAttributeMode::Block,
+    )?;
     Ok(BlockParsingMetadata {
         metadata,
         title,
@@ -468,9 +572,10 @@ pub(super) fn route_media_attributes<'a>(
 
 pub(super) fn route_block_positions<'a>(
     state: &ParserState<'a>,
-    metadata: &mut BlockMetadata<'a>,
+    attributes: &mut ParsedAttributeList<'a>,
     form: AttributeBlockForm<'a>,
 ) {
+    let metadata = &mut attributes.metadata;
     let (source, quote) = match form {
         AttributeBlockForm::Delimited(DelimitedKind::Listing, language) => {
             if let Some(language) = language {
@@ -499,7 +604,11 @@ pub(super) fn route_block_positions<'a>(
         extract_source_attributes(state, metadata, None);
     }
     if quote {
-        extract_quote_attributes(metadata, state.options.compatibility_mode);
+        extract_quote_attributes(
+            metadata,
+            &mut attributes.quote_sources,
+            state.options.compatibility_mode,
+        );
     }
 }
 
@@ -565,7 +674,6 @@ fn store_named_block_attribute<'input>(
     metadata: &mut BlockMetadata<'input>,
     name: &'input str,
     value: &'input str,
-    quote: AttributeQuote,
     location: Option<Location>,
 ) {
     match name {
@@ -574,7 +682,7 @@ fn store_named_block_attribute<'input>(
             metadata.id = Some(Anchor {
                 id: value,
                 xreflabel: None,
-                location: location.clone().unwrap_or_default(),
+                location: location.unwrap_or_default(),
                 bibliography_label: None,
                 bibliography: false,
             });
@@ -620,14 +728,6 @@ fn store_named_block_attribute<'input>(
             }
             metadata.substitutions = Some(spec);
         }
-        "attribution" => {
-            metadata.attribution = Some(Attribution::new(plain_attribute_value(value, location)));
-            metadata.attribution_substitutions = quote == AttributeQuote::Single;
-        }
-        "citetitle" => {
-            metadata.citetitle = Some(CiteTitle::new(plain_attribute_value(value, location)));
-            metadata.citetitle_substitutions = quote == AttributeQuote::Single;
-        }
         _ => {
             metadata.attributes.set(
                 Cow::Borrowed(name),
@@ -662,7 +762,7 @@ pub(super) fn parse_block_attribute_list<'input>(
     content_start: usize,
     mode: BlockAttributeMode,
     offset: usize,
-) -> Result<(bool, BlockMetadata<'input>, Option<TitleSource<'input>>), Error> {
+) -> Result<ParsedAttributeList<'input>, Error> {
     let expanded = expand_attribute_list(
         source,
         &state.document_attributes,
@@ -672,8 +772,7 @@ pub(super) fn parse_block_attribute_list<'input>(
     let positions_exact = matches!(substituted, Cow::Borrowed(_));
     let scan_list = |text| scan_block_attribute_list(text, state.options.compatibility_mode, mode);
     let authored = (!positions_exact).then(|| scan_list(source));
-    let mut metadata = BlockMetadata::default();
-    let mut title_source = None;
+    let mut parsed = ParsedAttributeList::default();
     let scanned = scan_list(substituted);
     for (slot, attribute) in
         block_attribute_entries(&scanned, state.options.compatibility_mode, mode)
@@ -681,7 +780,6 @@ pub(super) fn parse_block_attribute_list<'input>(
         if attribute.is_ignored(state.options.compatibility_mode) {
             continue;
         }
-        let value = state.intern_str(&attribute.value);
         let name = attribute
             .canonical_name()
             .map(|name| state.intern_str(name));
@@ -697,7 +795,8 @@ pub(super) fn parse_block_attribute_list<'input>(
         ));
 
         if matches!(name, Some("alt" | "caption")) {
-            record_attribute_position(&mut metadata, name, position);
+            let value = state.intern_str(&attribute.value);
+            record_attribute_position(&mut parsed.metadata, name, position);
             let original = authored.as_ref().and_then(|attributes| {
                 attributes.iter().find(|a| {
                     a.name.as_deref() == name
@@ -708,34 +807,33 @@ pub(super) fn parse_block_attribute_list<'input>(
             let pending =
                 capture_block_content(state, source, content_start, attribute, original, mode);
             if name == Some("alt") {
-                metadata.attributes.set("alt".into(), value.into());
-                metadata.alt_source = Some(Box::new(pending));
+                parsed.metadata.attributes.set("alt".into(), value.into());
+                parsed.metadata.alt_source = Some(Box::new(pending));
             } else {
-                metadata.caption_source = Some(Box::new(pending));
+                parsed.metadata.caption_source = Some(Box::new(pending));
             }
             continue;
         }
-        if let Some(name) = name {
-            store_named_block_attribute(
-                state,
-                &mut metadata,
-                name,
+        if let Some(name @ ("title" | "attribution" | "citetitle")) = name {
+            let value = state.intern_str(&attribute.value);
+            let source = attribute.resolve_content(
                 value,
-                attribute.quote,
-                location,
-            );
-            if name == "title" {
-                title_source = Some(TitleSource::Attribute(attribute.resolve_content(
-                    value,
-                    &expanded.source_map,
-                    content_start + offset,
-                    Rc::clone(&state.document_attributes),
-                )?));
+                &expanded.source_map,
+                content_start + offset,
+                Rc::clone(&state.document_attributes),
+            )?;
+            match name {
+                "attribution" => parsed.quote_sources.attribution = Some(source),
+                "citetitle" => parsed.quote_sources.citetitle = Some(source),
+                _ => parsed.title = Some(TitleSource::Attribute(source)),
             }
+        } else if let Some(name) = name {
+            let value = state.intern_str(&attribute.value);
+            store_named_block_attribute(state, &mut parsed.metadata, name, value, location);
         } else if slot == 0 {
             store_first_block_slot(
                 state,
-                &mut metadata,
+                &mut parsed.metadata,
                 attribute,
                 mode,
                 content_start,
@@ -743,26 +841,22 @@ pub(super) fn parse_block_attribute_list<'input>(
                 &expanded.source_map,
             )?;
         } else {
-            ensure_positional_slot(&mut metadata, slot);
-            if let Some(positional) = metadata.positional_attributes.get_mut(slot - 1) {
-                *positional = PositionalAttribute {
-                    position: Some(position),
-                    value,
-                    quoted_empty: value.is_empty() && attribute.quote != AttributeQuote::Unquoted,
-                    substitutions: attribute.quote == AttributeQuote::Single,
+            ensure_positional_slot(&mut parsed.metadata, slot);
+            if let Some(positional) = parsed.metadata.positional_attributes.get_mut(slot - 1) {
+                *positional = parsed.quote_sources.capture_positional(
+                    state,
+                    attribute,
+                    position,
                     location,
-                };
+                    mode,
+                    &expanded.source_map,
+                )?;
             }
         }
-        record_attribute_position(&mut metadata, name, position);
+        record_attribute_position(&mut parsed.metadata, name, position);
     }
 
-    if state.options.compatibility_mode == CompatibilityMode::Draft {
-        unique(&mut metadata.roles);
-        unique(&mut metadata.options);
-    }
-    let discrete = matches!(metadata.style, Some("discrete" | "float"));
-    Ok((discrete, metadata, title_source))
+    parsed.finish(state, mode)
 }
 
 fn capture_block_content<'a>(
@@ -854,99 +948,48 @@ fn store_first_block_slot<'a>(
     }
 }
 
-fn plain_attribute_value(value: &str, location: Option<Location>) -> Vec<InlineNode<'_>> {
-    vec![InlineNode::PlainText(Plain {
-        content: value,
-        location: location.unwrap_or_default(),
-        escaped: false,
-    })]
-}
-
-fn extract_quote_attributes(metadata: &mut BlockMetadata<'_>, mode: CompatibilityMode) {
-    let named_attribution = metadata.attribution.take();
-    let named_citetitle = metadata.citetitle.take();
-    let positional_attribution = metadata.take_next_positional_attribute();
-    let positional_citetitle = metadata.take_next_positional_attribute();
-
-    if let Some(attribute) = positional_attribution.filter(|value| {
-        (!value.value.is_empty() || (mode == CompatibilityMode::Asciidoctor && value.quoted_empty))
-            && positional_wins(metadata, value.position, "attribution", mode, false)
-    }) {
-        metadata.attribution = Some(Attribution::new(plain_attribute_value(
-            attribute.value,
-            attribute.location,
-        )));
-        metadata.attribution_substitutions = attribute.substitutions;
-    } else {
-        metadata.attribution = named_attribution;
-    }
-
-    if let Some(attribute) = positional_citetitle.filter(|value| {
-        (!value.value.is_empty() || (mode == CompatibilityMode::Asciidoctor && value.quoted_empty))
-            && positional_wins(metadata, value.position, "citetitle", mode, false)
-    }) {
-        metadata.citetitle = Some(CiteTitle::new(plain_attribute_value(
-            attribute.value,
-            attribute.location,
-        )));
-        metadata.citetitle_substitutions = attribute.substitutions;
-    } else {
-        metadata.citetitle = named_citetitle;
-    }
-}
-
-fn apply_quote_attribute_substitutions<'input>(
-    state: &mut ParserState<'input>,
-    metadata: &mut BlockMetadata<'input>,
-    offset: usize,
-    substitutions: SubstitutionPlan,
-) -> Result<(), Error> {
-    let block_metadata = BlockParsingMetadata {
-        substitutions,
-        ..BlockParsingMetadata::default()
-    };
-
-    if metadata.attribution_substitutions
-        && let Some(InlineNode::PlainText(plain)) = metadata
-            .attribution
-            .as_deref()
-            .and_then(|value| value.first())
-    {
-        let start = plain.location.absolute_start.saturating_sub(offset);
-        let end = plain.location.absolute_end.saturating_sub(offset);
-        let (inlines, _) =
-            process_inlines(state, &block_metadata, start, end, offset, plain.content)?;
-        metadata.attribution = Some(Attribution::new(inlines));
-    }
-    if metadata.citetitle_substitutions
-        && let Some(InlineNode::PlainText(plain)) = metadata
-            .citetitle
-            .as_deref()
-            .and_then(|value| value.first())
-    {
-        let start = plain.location.absolute_start.saturating_sub(offset);
-        let end = plain.location.absolute_end.saturating_sub(offset);
-        let (inlines, _) =
-            process_inlines(state, &block_metadata, start, end, offset, plain.content)?;
-        metadata.citetitle = Some(CiteTitle::new(inlines));
-    }
-    for (value, formatted) in [
-        (
-            &mut metadata.attribution,
-            metadata.attribution_substitutions,
-        ),
-        (&mut metadata.citetitle, metadata.citetitle_substitutions),
-    ] {
-        if !formatted && let Some(value) = value {
-            for node in value.inlines_mut() {
-                if let InlineNode::PlainText(plain) = node {
-                    *node = InlineNode::RawText(crate::Raw {
-                        content: plain.content,
-                        location: plain.location.clone(),
-                        subs: vec![Substitution::SpecialChars],
-                    });
-                }
+fn extract_quote_attributes<'a>(
+    metadata: &mut BlockMetadata<'a>,
+    sources: &mut QuoteSources<'a>,
+    mode: CompatibilityMode,
+) {
+    for name in ["attribution", "citetitle"] {
+        if let Some(attribute) = metadata.take_next_positional_attribute().filter(|value| {
+            (!value.value.is_empty()
+                || (mode == CompatibilityMode::Asciidoctor && value.quoted_empty))
+                && positional_wins(metadata, value.position, name, mode, false)
+        }) {
+            let source = attribute
+                .position
+                .and_then(|position| sources.positional.remove(&position));
+            if name == "attribution" {
+                sources.attribution = source;
+            } else {
+                sources.citetitle = source;
             }
+        }
+    }
+}
+
+fn resolve_quote_content<'a>(
+    state: &mut ParserState<'a>,
+    metadata: &mut BlockMetadata<'a>,
+    sources: &mut QuoteSources<'a>,
+    mode: BlockAttributeMode,
+) -> Result<(), Error> {
+    for (source, content) in [
+        (&mut sources.attribution, &mut metadata.attribution),
+        (&mut sources.citetitle, &mut metadata.citetitle),
+    ] {
+        if let Some(source) = source.take() {
+            let inlines = if matches!(mode, BlockAttributeMode::Block)
+                && source.quote == AttributeQuote::Single
+            {
+                process_attribute_inlines(state, &source)?
+            } else {
+                literal_attribute_inlines(state, &source)
+            };
+            *content = Some(ContentAttribute::new(inlines));
         }
     }
     Ok(())

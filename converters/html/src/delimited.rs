@@ -1126,8 +1126,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         metadata: &BlockMetadata,
     ) -> Result<(), Error> {
         let has_title = title.is_present();
-        let has_attribution = metadata.attribution.as_ref().is_some_and(|a| !a.is_empty())
-            || metadata.citetitle.as_ref().is_some_and(|c| !c.is_empty());
+        let has_attribution = metadata.attribution.is_some() || metadata.citetitle.is_some();
 
         if has_title {
             write_semantic_tag_open(&mut self.writer, "section", metadata, "verse-block")?;

@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Explicitly empty quote attributions keep their attribution mark, and empty
+  citations keep their `<cite></cite>` element. Absent values stay omitted.
+
 - Image and link tooltips retain their plain text. Icon alternatives, UI labels,
   custom captions, and admonition labels retain formatting. Custom admonition
   labels use a blockquote in both variants because GitHub Alerts fix their labels.

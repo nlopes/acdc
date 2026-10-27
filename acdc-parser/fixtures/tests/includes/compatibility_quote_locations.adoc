@@ -1,0 +1,6 @@
+// tag::selected[]
+[quote,attribution='{person}',citetitle='Book footnote:included[Included note]']
+____
+Included content keeps its source file.
+____
+// end::selected[]

@@ -1,0 +1,713 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Quote content locations",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 25
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 3,
+        "col": 55
+      }
+    ]
+  },
+  "attributes": {
+    "person": "*λ*",
+    "quote-entry": "attribution='*Expanded*',citetitle='Book'"
+  },
+  "blocks": [
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "λ",
+            "location": [
+              {
+                "line": 5,
+                "col": 9
+              },
+              {
+                "line": 5,
+                "col": 9
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "é",
+            "location": [
+              {
+                "line": 5,
+                "col": 13
+              },
+              {
+                "line": 5,
+                "col": 13
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Single-character source spans.",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 1
+                },
+                {
+                  "line": 7,
+                  "col": 30
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 7,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 30
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 8,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Préfixe ",
+            "location": [
+              {
+                "line": 10,
+                "col": 21
+              },
+              {
+                "line": 10,
+                "col": 28
+              }
+            ]
+          },
+          {
+            "name": "span",
+            "type": "inline",
+            "variant": "strong",
+            "form": "constrained",
+            "inlines": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "λ",
+                "location": [
+                  {
+                    "line": 10,
+                    "col": 29
+                  },
+                  {
+                    "line": 10,
+                    "col": 36
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 10,
+                "col": 29
+              },
+              {
+                "line": 10,
+                "col": 36
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "A 'quote'",
+            "location": [
+              {
+                "line": 10,
+                "col": 50
+              },
+              {
+                "line": 10,
+                "col": 60
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Expanded and decoded source spans.",
+              "location": [
+                {
+                  "line": 12,
+                  "col": 1
+                },
+                {
+                  "line": 12,
+                  "col": 34
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 12,
+              "col": 1
+            },
+            {
+              "line": 12,
+              "col": 34
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 10,
+          "col": 1
+        },
+        {
+          "line": 13,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "span",
+            "type": "inline",
+            "variant": "strong",
+            "form": "constrained",
+            "inlines": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Expanded",
+                "location": [
+                  {
+                    "line": 15,
+                    "col": 8
+                  },
+                  {
+                    "line": 15,
+                    "col": 20
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 15,
+                "col": 8
+              },
+              {
+                "line": 15,
+                "col": 20
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Book",
+            "location": [
+              {
+                "line": 15,
+                "col": 8
+              },
+              {
+                "line": 15,
+                "col": 20
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Entries introduced by expansion.",
+              "location": [
+                {
+                  "line": 17,
+                  "col": 1
+                },
+                {
+                  "line": 17,
+                  "col": 32
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 17,
+              "col": 1
+            },
+            {
+              "line": 17,
+              "col": 32
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 15,
+          "col": 1
+        },
+        {
+          "line": 18,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "span",
+            "type": "inline",
+            "variant": "strong",
+            "form": "constrained",
+            "inlines": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "λ",
+                "location": [
+                  {
+                    "line": 2,
+                    "col": 21,
+                    "file": [
+                      "includes/compatibility_quote_locations.adoc"
+                    ]
+                  },
+                  {
+                    "line": 2,
+                    "col": 28,
+                    "file": [
+                      "includes/compatibility_quote_locations.adoc"
+                    ]
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 2,
+                "col": 21,
+                "file": [
+                  "includes/compatibility_quote_locations.adoc"
+                ]
+              },
+              {
+                "line": 2,
+                "col": 28,
+                "file": [
+                  "includes/compatibility_quote_locations.adoc"
+                ]
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Book ",
+            "location": [
+              {
+                "line": 2,
+                "col": 42,
+                "file": [
+                  "includes/compatibility_quote_locations.adoc"
+                ]
+              },
+              {
+                "line": 2,
+                "col": 46,
+                "file": [
+                  "includes/compatibility_quote_locations.adoc"
+                ]
+              }
+            ]
+          },
+          {
+            "name": "footnote",
+            "type": "inline",
+            "id": "included",
+            "inlines": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Included note",
+                "location": [
+                  {
+                    "line": 2,
+                    "col": 65,
+                    "file": [
+                      "includes/compatibility_quote_locations.adoc"
+                    ]
+                  },
+                  {
+                    "line": 2,
+                    "col": 77,
+                    "file": [
+                      "includes/compatibility_quote_locations.adoc"
+                    ]
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 2,
+                "col": 47,
+                "file": [
+                  "includes/compatibility_quote_locations.adoc"
+                ]
+              },
+              {
+                "line": 2,
+                "col": 78,
+                "file": [
+                  "includes/compatibility_quote_locations.adoc"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Included content keeps its source file.",
+              "location": [
+                {
+                  "line": 4,
+                  "col": 1,
+                  "file": [
+                    "includes/compatibility_quote_locations.adoc"
+                  ]
+                },
+                {
+                  "line": 4,
+                  "col": 39,
+                  "file": [
+                    "includes/compatibility_quote_locations.adoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 4,
+              "col": 1,
+              "file": [
+                "includes/compatibility_quote_locations.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 39,
+              "file": [
+                "includes/compatibility_quote_locations.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 2,
+          "col": 1,
+          "file": [
+            "includes/compatibility_quote_locations.adoc"
+          ]
+        },
+        {
+          "line": 5,
+          "col": 4,
+          "file": [
+            "includes/compatibility_quote_locations.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "verse",
+                    "type": "block",
+                    "form": "delimited",
+                    "delimiter": "____",
+                    "metadata": {
+                      "style": "verse",
+                      "attribution": [
+                        {
+                          "name": "span",
+                          "type": "inline",
+                          "variant": "strong",
+                          "form": "constrained",
+                          "inlines": [
+                            {
+                              "name": "text",
+                              "type": "string",
+                              "value": "λ",
+                              "location": [
+                                {
+                                  "line": 24,
+                                  "col": 10
+                                },
+                                {
+                                  "line": 24,
+                                  "col": 17
+                                }
+                              ]
+                            }
+                          ],
+                          "location": [
+                            {
+                              "line": 24,
+                              "col": 10
+                            },
+                            {
+                              "line": 24,
+                              "col": 17
+                            }
+                          ]
+                        }
+                      ],
+                      "citetitle": [
+                        {
+                          "name": "text",
+                          "type": "string",
+                          "value": "Book ",
+                          "location": [
+                            {
+                              "line": 24,
+                              "col": 21
+                            },
+                            {
+                              "line": 24,
+                              "col": 25
+                            }
+                          ]
+                        },
+                        {
+                          "name": "footnote",
+                          "type": "inline",
+                          "id": "cell",
+                          "inlines": [
+                            {
+                              "name": "text",
+                              "type": "string",
+                              "value": "Cell note",
+                              "location": [
+                                {
+                                  "line": 24,
+                                  "col": 40
+                                },
+                                {
+                                  "line": 24,
+                                  "col": 48
+                                }
+                              ]
+                            }
+                          ],
+                          "location": [
+                            {
+                              "line": 24,
+                              "col": 26
+                            },
+                            {
+                              "line": 24,
+                              "col": 49
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "Nested content keeps authored locations.",
+                        "location": [
+                          {
+                            "line": 26,
+                            "col": 1
+                          },
+                          {
+                            "line": 26,
+                            "col": 40
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 24,
+                        "col": 2
+                      },
+                      {
+                        "line": 27,
+                        "col": 4
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 23,
+            "col": 1
+          },
+          {
+            "line": 28,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 22,
+          "col": 1
+        },
+        {
+          "line": 28,
+          "col": 4
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 28,
+      "col": 4
+    }
+  ]
+}

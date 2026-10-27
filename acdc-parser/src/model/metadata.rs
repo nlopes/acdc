@@ -31,12 +31,11 @@ pub(crate) struct AttributePositions<'a> {
     pub(crate) named: BTreeMap<&'a str, AttributePosition>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default)]
 pub(crate) struct PositionalAttribute<'a> {
     pub(crate) position: Option<AttributePosition>,
     pub(crate) value: &'a str,
     pub(crate) quoted_empty: bool,
-    pub(crate) substitutions: bool,
     pub(crate) location: Option<Location>,
 }
 
@@ -100,10 +99,6 @@ pub struct BlockMetadata<'a> {
     pub attribution: Option<Attribution<'a>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub citetitle: Option<CiteTitle<'a>>,
-    #[serde(default, skip_serializing)]
-    pub(crate) attribution_substitutions: bool,
-    #[serde(default, skip_serializing)]
-    pub(crate) citetitle_substitutions: bool,
     #[serde(skip)]
     pub location: Option<Location>,
 }
@@ -128,8 +123,6 @@ impl PartialEq for BlockMetadata<'_> {
             substitutions,
             attribution,
             citetitle,
-            attribution_substitutions,
-            citetitle_substitutions,
             location,
         } = self;
         document_attributes == &other.document_attributes
@@ -143,8 +136,6 @@ impl PartialEq for BlockMetadata<'_> {
             && substitutions == &other.substitutions
             && attribution == &other.attribution
             && citetitle == &other.citetitle
-            && attribution_substitutions == &other.attribution_substitutions
-            && citetitle_substitutions == &other.citetitle_substitutions
             && location == &other.location
             && self
                 .positional_attributes()

@@ -1159,8 +1159,8 @@ pub(crate) fn write_attribution<
     visitor: &mut V,
     metadata: &BlockMetadata,
 ) -> Result<(), Error> {
-    let attribution = metadata.attribution.as_ref().filter(|a| !a.is_empty());
-    let citetitle = metadata.citetitle.as_ref().filter(|c| !c.is_empty());
+    let attribution = metadata.attribution.as_ref();
+    let citetitle = metadata.citetitle.as_ref();
 
     if attribution.is_some() || citetitle.is_some() {
         let w = visitor.writer_mut();
@@ -1204,8 +1204,8 @@ pub(crate) fn write_semantic_attribution<
     visitor: &mut V,
     metadata: &BlockMetadata,
 ) -> Result<(), Error> {
-    let attribution = metadata.attribution.as_ref().filter(|a| !a.is_empty());
-    let citetitle = metadata.citetitle.as_ref().filter(|c| !c.is_empty());
+    let attribution = metadata.attribution.as_ref();
+    let citetitle = metadata.citetitle.as_ref();
 
     if attribution.is_some() || citetitle.is_some() {
         let w = visitor.writer_mut();

@@ -1,0 +1,801 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Quote content interpretation",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 30
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 3,
+        "col": 14
+      }
+    ]
+  },
+  "attributes": {
+    "book": "_Notes_",
+    "person": "*Ada*"
+  },
+  "blocks": [
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "Ada -- Lovelace",
+            "location": [
+              {
+                "line": 5,
+                "col": 21
+              },
+              {
+                "line": 5,
+                "col": 35
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "Book -- Title",
+            "location": [
+              {
+                "line": 5,
+                "col": 49
+              },
+              {
+                "line": 5,
+                "col": 61
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Literal named values.",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 1
+                },
+                {
+                  "line": 7,
+                  "col": 21
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 7,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 21
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 8,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "verse",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "verse",
+        "attribution": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "Ada -- Lovelace",
+            "location": [
+              {
+                "line": 10,
+                "col": 9
+              },
+              {
+                "line": 10,
+                "col": 23
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "Book -- Title",
+            "location": [
+              {
+                "line": 10,
+                "col": 27
+              },
+              {
+                "line": 10,
+                "col": 39
+              }
+            ]
+          }
+        ]
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Literal positional values.",
+          "location": [
+            {
+              "line": 12,
+              "col": 1
+            },
+            {
+              "line": 12,
+              "col": 26
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 10,
+          "col": 1
+        },
+        {
+          "line": 13,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "substitutions": [],
+        "attribution": [
+          {
+            "name": "span",
+            "type": "inline",
+            "variant": "strong",
+            "form": "constrained",
+            "inlines": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Ada",
+                "location": [
+                  {
+                    "line": 15,
+                    "col": 9
+                  },
+                  {
+                    "line": 15,
+                    "col": 16
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 15,
+                "col": 9
+              },
+              {
+                "line": 15,
+                "col": 16
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "span",
+            "type": "inline",
+            "variant": "emphasis",
+            "form": "constrained",
+            "inlines": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Notes",
+                "location": [
+                  {
+                    "line": 15,
+                    "col": 20
+                  },
+                  {
+                    "line": 15,
+                    "col": 25
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 15,
+                "col": 20
+              },
+              {
+                "line": 15,
+                "col": 25
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Literal body",
+                  "location": [
+                    {
+                      "line": 17,
+                      "col": 2
+                    },
+                    {
+                      "line": 17,
+                      "col": 13
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 17,
+                  "col": 1
+                },
+                {
+                  "line": 17,
+                  "col": 14
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " with formatted attribution and citation.",
+              "location": [
+                {
+                  "line": 17,
+                  "col": 15
+                },
+                {
+                  "line": 17,
+                  "col": 55
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 17,
+              "col": 1
+            },
+            {
+              "line": 17,
+              "col": 55
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 15,
+          "col": 1
+        },
+        {
+          "line": 18,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "verse",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "verse",
+        "substitutions": [],
+        "attribution": [
+          {
+            "name": "span",
+            "type": "inline",
+            "variant": "strong",
+            "form": "constrained",
+            "inlines": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Ada",
+                "location": [
+                  {
+                    "line": 20,
+                    "col": 21
+                  },
+                  {
+                    "line": 20,
+                    "col": 28
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 20,
+                "col": 21
+              },
+              {
+                "line": 20,
+                "col": 28
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "span",
+            "type": "inline",
+            "variant": "emphasis",
+            "form": "constrained",
+            "inlines": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Notes",
+                "location": [
+                  {
+                    "line": 20,
+                    "col": 42
+                  },
+                  {
+                    "line": 20,
+                    "col": 47
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 20,
+                "col": 42
+              },
+              {
+                "line": 20,
+                "col": 47
+              }
+            ]
+          }
+        ]
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "*Literal verse* with formatted attribution and citation.",
+          "location": [
+            {
+              "line": 22,
+              "col": 1
+            },
+            {
+              "line": 22,
+              "col": 56
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 20,
+          "col": 1
+        },
+        {
+          "line": 23,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Paragraph quote.",
+          "location": [
+            {
+              "line": 26,
+              "col": 1
+            },
+            {
+              "line": 26,
+              "col": 16
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "ref",
+            "type": "inline",
+            "variant": "link",
+            "target": {
+              "type": "url",
+              "value": "https://example.org"
+            },
+            "inlines": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Ada",
+                "location": [
+                  {
+                    "line": 25,
+                    "col": 41
+                  },
+                  {
+                    "line": 25,
+                    "col": 43
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 25,
+                "col": 21
+              },
+              {
+                "line": 25,
+                "col": 44
+              }
+            ],
+            "attributes": {}
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "A ",
+            "location": [
+              {
+                "line": 25,
+                "col": 58
+              },
+              {
+                "line": 25,
+                "col": 59
+              }
+            ]
+          },
+          {
+            "name": "span",
+            "type": "inline",
+            "variant": "emphasis",
+            "form": "constrained",
+            "inlines": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "book",
+                "location": [
+                  {
+                    "line": 25,
+                    "col": 61
+                  },
+                  {
+                    "line": 25,
+                    "col": 64
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 25,
+                "col": 60
+              },
+              {
+                "line": 25,
+                "col": 65
+              }
+            ]
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 25,
+          "col": 1
+        },
+        {
+          "line": 26,
+          "col": 16
+        }
+      ]
+    },
+    {
+      "name": "open",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "--",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "*Literal*",
+            "location": [
+              {
+                "line": 28,
+                "col": 11
+              },
+              {
+                "line": 28,
+                "col": 19
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "span",
+            "type": "inline",
+            "variant": "strong",
+            "form": "constrained",
+            "inlines": [
+              {
+                "name": "raw",
+                "type": "string",
+                "value": "Formatted",
+                "location": [
+                  {
+                    "line": 28,
+                    "col": 33
+                  },
+                  {
+                    "line": 28,
+                    "col": 41
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 28,
+                "col": 32
+              },
+              {
+                "line": 28,
+                "col": 42
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Open quote with passthroughs.",
+              "location": [
+                {
+                  "line": 30,
+                  "col": 1
+                },
+                {
+                  "line": 30,
+                  "col": 29
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 30,
+              "col": 1
+            },
+            {
+              "line": 30,
+              "col": 29
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 28,
+          "col": 1
+        },
+        {
+          "line": 31,
+          "col": 2
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "attribution": [],
+        "citetitle": []
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Present empty named values.",
+              "location": [
+                {
+                  "line": 35,
+                  "col": 1
+                },
+                {
+                  "line": 35,
+                  "col": 27
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 35,
+              "col": 1
+            },
+            {
+              "line": 35,
+              "col": 27
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 33,
+          "col": 1
+        },
+        {
+          "line": 36,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote"
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Quoted empty positions.",
+              "location": [
+                {
+                  "line": 40,
+                  "col": 1
+                },
+                {
+                  "line": 40,
+                  "col": 23
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 40,
+              "col": 1
+            },
+            {
+              "line": 40,
+              "col": 23
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 38,
+          "col": 1
+        },
+        {
+          "line": 41,
+          "col": 4
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 41,
+      "col": 4
+    }
+  ]
+}

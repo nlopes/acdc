@@ -126,7 +126,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Image and icon alternative content, tooltips, custom captions, and UI labels
   retain supported inline formatting, escapes, substitutions, and source locations.
   Only selected values register footnotes. Literal quote attributions and citation
-  titles retain dashes; single-quoted values support normal substitutions.
+  titles retain dashes; single-quoted values support normal substitutions even
+  when the body uses `subs=none`. Named and positional quote values retain their
+  declaration-time attributes. Asciidoctor mode expands introduced references;
+  Draft leaves them literal unless explicit passthrough substitutions request it.
+  Explicitly empty attribution and citation content serializes as `[]`.
 - Icon positional values always select size; named alternative text remains
   independent. Repeated icon attributes use the last value and retain link options.
 

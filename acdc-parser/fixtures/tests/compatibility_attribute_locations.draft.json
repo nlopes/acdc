@@ -398,40 +398,8 @@
       "delimiter": "____",
       "metadata": {
         "style": "quote",
-        "attribution": [
-          {
-            "name": "raw",
-            "type": "string",
-            "value": "",
-            "location": [
-              {
-                "line": 25,
-                "col": 21
-              },
-              {
-                "line": 25,
-                "col": 21
-              }
-            ]
-          }
-        ],
-        "citetitle": [
-          {
-            "name": "raw",
-            "type": "string",
-            "value": "",
-            "location": [
-              {
-                "line": 25,
-                "col": 34
-              },
-              {
-                "line": 25,
-                "col": 34
-              }
-            ]
-          }
-        ]
+        "attribution": [],
+        "citetitle": []
       },
       "blocks": [
         {

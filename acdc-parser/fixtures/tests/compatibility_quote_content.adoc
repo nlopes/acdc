@@ -1,0 +1,41 @@
+= Quote content interpretation
+:person: *Ada*
+:book: _Notes_
+
+[quote,attribution="Ada -- Lovelace",citetitle="Book -- Title"]
+____
+Literal named values.
+____
+
+[verse,"Ada -- Lovelace","Book -- Title"]
+____
+Literal positional values.
+____
+
+[quote,'{person}','{book}',subs=none]
+____
+*Literal body* with formatted attribution and citation.
+____
+
+[verse,attribution='{person}',citetitle='{book}',subs=none]
+____
+*Literal verse* with formatted attribution and citation.
+____
+
+[quote,attribution='https://example.org[Ada]',citetitle='A _book_']
+Paragraph quote.
+
+[quote,'++*Literal*++','pass:q[*Formatted*]']
+--
+Open quote with passthroughs.
+--
+
+[quote,attribution='',citetitle=""]
+____
+Present empty named values.
+____
+
+[quote,'',""]
+____
+Quoted empty positions.
+____

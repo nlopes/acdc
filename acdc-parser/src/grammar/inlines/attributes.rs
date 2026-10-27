@@ -118,7 +118,6 @@ pub(super) fn process_attribute_list<'input>(
                             position: None,
                             value: key_str,
                             quoted_empty: false,
-                            substitutions: false,
                             location: None,
                         });
                     }
