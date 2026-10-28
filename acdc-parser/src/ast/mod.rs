@@ -63,6 +63,7 @@ macro_rules! node_ref {
     };
 }
 
+mod attributes;
 mod blocks;
 mod content;
 mod inlines;
@@ -71,10 +72,11 @@ mod media;
 mod tables;
 mod values;
 
+pub use attributes::AttributesRef;
 pub use blocks::*;
 pub use content::ContentRef;
 pub use inlines::*;
 pub use location::{LocationRef, PositionRef};
 pub use media::{ImageRef, InlineImageRef, SourceKind, SourceRef};
 pub use tables::{ColumnFormatRef, TableCellRef, TableRef, TableRowRef};
-pub use values::{AttributeValueRef, ElementIdRef};
+pub use values::{AttributeValueRef, ElementIdRef, TokensRef};

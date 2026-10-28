@@ -3,7 +3,9 @@ use crate::{
     TableColumn, TablePresentation, TableRow, VerticalAlignment,
 };
 
-use super::{AttributeValueRef, BlockRef, ContentRef, ElementIdRef, LocationRef};
+use super::{
+    AttributeValueRef, AttributesRef, BlockRef, ContentRef, ElementIdRef, LocationRef, TokensRef,
+};
 
 /// A table block, including its title and local declarations.
 #[derive(Clone, Copy, Debug)]
@@ -13,6 +15,30 @@ pub struct TableRef<'doc> {
 }
 
 impl<'doc> TableRef<'doc> {
+    /// Read this element's attributes.
+    #[must_use]
+    pub fn attributes(self) -> AttributesRef<'doc> {
+        AttributesRef::table(self.block)
+    }
+
+    /// Role tokens in their retained order.
+    #[must_use]
+    pub fn roles(self) -> TokensRef<'doc> {
+        self.attributes().roles()
+    }
+
+    /// Option tokens in their retained order.
+    #[must_use]
+    pub fn options(self) -> TokensRef<'doc> {
+        self.attributes().options()
+    }
+
+    /// The retained block style, including an explicitly empty style.
+    #[must_use]
+    pub fn style(self) -> Option<&'doc str> {
+        self.attributes().style()
+    }
+
     pub(super) fn new(block: &'doc DelimitedBlock<'doc>, table: &'doc Table<'doc>) -> Self {
         Self { block, table }
     }
@@ -26,10 +52,7 @@ impl<'doc> TableRef<'doc> {
     /// The primary ID, if present.
     #[must_use]
     pub fn id(self) -> Option<ElementIdRef<'doc>> {
-        self.block
-            .metadata
-            .id_anchor()
-            .map(|id| ElementIdRef::new(id.id, &id.location))
+        self.attributes().id()
     }
 
     /// The source span of the complete table block.
@@ -69,31 +92,19 @@ impl<'doc> TableRef<'doc> {
     /// The local `frame` value, without document defaults or interpretation.
     #[must_use]
     pub fn declared_frame(self) -> Option<AttributeValueRef<'doc>> {
-        self.block
-            .metadata
-            .attributes
-            .get("frame")
-            .map(AttributeValueRef::from)
+        self.attributes().get("frame")
     }
 
     /// The local `grid` value, without document defaults or interpretation.
     #[must_use]
     pub fn declared_grid(self) -> Option<AttributeValueRef<'doc>> {
-        self.block
-            .metadata
-            .attributes
-            .get("grid")
-            .map(AttributeValueRef::from)
+        self.attributes().get("grid")
     }
 
     /// The local `stripes` value, without document defaults or interpretation.
     #[must_use]
     pub fn declared_stripes(self) -> Option<AttributeValueRef<'doc>> {
-        self.block
-            .metadata
-            .attributes
-            .get("stripes")
-            .map(AttributeValueRef::from)
+        self.attributes().get("stripes")
     }
 }
 

@@ -1,6 +1,6 @@
 use crate::{Block, DelimitedBlockType, Document, Paragraph, Section};
 
-use super::{ContentRef, ImageRef, LocationRef, TableRef};
+use super::{AttributesRef, ContentRef, ElementIdRef, ImageRef, LocationRef, TableRef, TokensRef};
 
 node_ref!(DocumentRef<'doc>, Document<'doc>, "A document.");
 node_ref!(SectionRef<'doc>, Section<'doc>, "A section.");
@@ -211,6 +211,36 @@ impl<'doc> DocumentRef<'doc> {
 }
 
 impl<'doc> SectionRef<'doc> {
+    /// Read this element's attributes.
+    #[must_use]
+    pub fn attributes(self) -> AttributesRef<'doc> {
+        AttributesRef::section(self.node)
+    }
+
+    /// Role tokens in their retained order.
+    #[must_use]
+    pub fn roles(self) -> TokensRef<'doc> {
+        self.attributes().roles()
+    }
+
+    /// Option tokens in their retained order.
+    #[must_use]
+    pub fn options(self) -> TokensRef<'doc> {
+        self.attributes().options()
+    }
+
+    /// The retained block style, including an explicitly empty style.
+    #[must_use]
+    pub fn style(self) -> Option<&'doc str> {
+        self.attributes().style()
+    }
+
+    /// The primary ID, if present.
+    #[must_use]
+    pub fn id(self) -> Option<ElementIdRef<'doc>> {
+        self.attributes().id()
+    }
+
     /// Read direct blocks and subsections in document order.
     pub fn blocks(self) -> impl Iterator<Item = BlockRef<'doc>> + Send + Sync + 'doc {
         self.node.content.iter().map(BlockRef::from)
@@ -236,6 +266,36 @@ impl<'doc> SectionRef<'doc> {
 }
 
 impl<'doc> ParagraphRef<'doc> {
+    /// Read this element's attributes.
+    #[must_use]
+    pub fn attributes(self) -> AttributesRef<'doc> {
+        AttributesRef::paragraph(self.node)
+    }
+
+    /// Role tokens in their retained order.
+    #[must_use]
+    pub fn roles(self) -> TokensRef<'doc> {
+        self.attributes().roles()
+    }
+
+    /// Option tokens in their retained order.
+    #[must_use]
+    pub fn options(self) -> TokensRef<'doc> {
+        self.attributes().options()
+    }
+
+    /// The retained block style, including an explicitly empty style.
+    #[must_use]
+    pub fn style(self) -> Option<&'doc str> {
+        self.attributes().style()
+    }
+
+    /// The primary ID, if present.
+    #[must_use]
+    pub fn id(self) -> Option<ElementIdRef<'doc>> {
+        self.attributes().id()
+    }
+
     /// Read the paragraph body in inline order.
     #[must_use]
     pub fn content(self) -> ContentRef<'doc> {

@@ -1,9 +1,9 @@
 use crate::{AttributeValue, ElementId};
 
-use super::LocationRef;
+use super::{ContentRef, LocationRef};
 
-/// A retained scalar attribute value. Absence is represented by the enclosing `Option`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// An element attribute value. Absence is represented by the enclosing `Option`.
+#[derive(Clone, Copy, Debug, PartialEq)]
 #[non_exhaustive]
 pub enum AttributeValueRef<'doc> {
     /// Exact semantic text, including meaningful quotes and empty strings.
@@ -12,6 +12,10 @@ pub enum AttributeValueRef<'doc> {
     Bool(bool),
     /// A retained valueless attribute.
     None,
+    /// Parsed inline content, including present-empty content.
+    Content(ContentRef<'doc>),
+    /// Role or option tokens in their retained order.
+    Tokens(TokensRef<'doc>),
 }
 
 impl<'doc> From<&'doc AttributeValue<'doc>> for AttributeValueRef<'doc> {
@@ -55,5 +59,36 @@ impl<'doc> ElementIdRef<'doc> {
 impl<'doc> From<&'doc ElementId<'doc>> for ElementIdRef<'doc> {
     fn from(id: &'doc ElementId<'doc>) -> Self {
         Self::new(id.id, &id.location)
+    }
+}
+
+/// Role or option tokens in retained semantic order.
+///
+/// Reads preserve duplicates and spelling. They do not split or normalize tokens.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TokensRef<'doc> {
+    tokens: &'doc [&'doc str],
+}
+
+impl<'doc> TokensRef<'doc> {
+    pub(super) fn new(tokens: &'doc [&'doc str]) -> Self {
+        Self { tokens }
+    }
+
+    /// Iterate in token order, including any retained duplicates.
+    pub fn iter(self) -> impl Iterator<Item = &'doc str> + Send + Sync + 'doc {
+        self.tokens.iter().copied()
+    }
+
+    /// Whether this collection contains no tokens.
+    #[must_use]
+    pub fn is_empty(self) -> bool {
+        self.tokens.is_empty()
+    }
+
+    /// Whether an exact token is present.
+    #[must_use]
+    pub fn contains(self, token: &str) -> bool {
+        self.tokens.contains(&token)
     }
 }

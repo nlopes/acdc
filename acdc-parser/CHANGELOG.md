@@ -55,8 +55,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   paragraphs, tables, and images, with lazy child and inline iterators. Read table
   declarations separately from resolved presentation, and preserve absent versus
   empty image alt and tooltips. Match block and inline kinds without depending on
-  collection storage. Existing owner APIs and JSON
-  output remain unchanged.
+  collection storage. Their `attributes()` reads expose titles, image content,
+  IDs, styles, role/option tokens, and scalar controls without copying values.
+  Lookup and iteration preserve missing, empty, false, and valueless attributes;
+  `roles` and `options` aliases share their canonical entries. Existing owner
+  APIs and JSON output remain unchanged.
 
 - Parser fixtures support shared expectations or explicit Asciidoctor/Draft
   pairs, optional diagnostics, and stable test names. The runner rejects missing

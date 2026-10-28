@@ -63,6 +63,16 @@ tooltips preserve absent versus explicitly empty content. For a constructed node
 use `ast::ParagraphRef::from(&paragraph)`. The existing `document()` API remains
 available for other reads, construction, and editing.
 
+Use `attributes().get(name)`, `contains(name)`, or `iter()` on sections,
+paragraphs, tables, and images to read titles, image alt/tooltips, IDs, styles,
+role/option tokens, and scalar controls. `AttributeValueRef` distinguishes text,
+booleans, valueless attributes, inline content, and tokens. Text keeps meaningful
+quotes; reading a value does not render or copy it. `roles` and `options` alias
+`role` and `opts`; iteration returns each canonical name once in unspecified
+order. Empty role/option collections are absent, while empty text and content
+remain present. Other block content, substitution settings, and document
+assignments still use the owner API.
+
 [#cargo-features]
 == Cargo features
 

@@ -20,7 +20,7 @@ use super::InlineRef;
 /// };
 /// println!("{}", content.is_empty());
 /// ```
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ContentRef<'doc> {
     nodes: &'doc [InlineNode<'doc>],
 }

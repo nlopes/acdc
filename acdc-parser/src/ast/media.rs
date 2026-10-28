@@ -2,12 +2,36 @@ use std::{fmt, path::Path};
 
 use crate::{Image, InlineImage, Source};
 
-use super::{ContentRef, ElementIdRef};
+use super::{AttributesRef, ContentRef, ElementIdRef, TokensRef};
 
 node_ref!(ImageRef<'doc>, Image<'doc>, "A block image.");
 node_ref!(InlineImageRef<'doc>, InlineImage<'doc>, "An inline image.");
 
 impl<'doc> ImageRef<'doc> {
+    /// Read this element's attributes.
+    #[must_use]
+    pub fn attributes(self) -> AttributesRef<'doc> {
+        AttributesRef::image(self.node)
+    }
+
+    /// Role tokens in their retained order.
+    #[must_use]
+    pub fn roles(self) -> TokensRef<'doc> {
+        self.attributes().roles()
+    }
+
+    /// Option tokens in their retained order.
+    #[must_use]
+    pub fn options(self) -> TokensRef<'doc> {
+        self.attributes().options()
+    }
+
+    /// The retained block style, including an explicitly empty style.
+    #[must_use]
+    pub fn style(self) -> Option<&'doc str> {
+        self.attributes().style()
+    }
+
     /// The image target before converter path resolution.
     #[must_use]
     pub fn source(self) -> SourceRef<'doc> {
@@ -29,10 +53,7 @@ impl<'doc> ImageRef<'doc> {
     /// The primary ID, if present.
     #[must_use]
     pub fn id(self) -> Option<ElementIdRef<'doc>> {
-        self.node
-            .metadata
-            .id_anchor()
-            .map(|id| ElementIdRef::new(id.id, &id.location))
+        self.attributes().id()
     }
 }
 
@@ -43,6 +64,24 @@ impl<'doc> From<&'doc Image<'doc>> for ImageRef<'doc> {
 }
 
 impl<'doc> InlineImageRef<'doc> {
+    /// Read this element's attributes.
+    #[must_use]
+    pub fn attributes(self) -> AttributesRef<'doc> {
+        AttributesRef::inline_image(self.node)
+    }
+
+    /// Role tokens in their retained order.
+    #[must_use]
+    pub fn roles(self) -> TokensRef<'doc> {
+        self.attributes().roles()
+    }
+
+    /// Option tokens in their retained order.
+    #[must_use]
+    pub fn options(self) -> TokensRef<'doc> {
+        self.attributes().options()
+    }
+
     /// The image target before converter path resolution.
     #[must_use]
     pub fn source(self) -> SourceRef<'doc> {
@@ -64,7 +103,7 @@ impl<'doc> InlineImageRef<'doc> {
     /// The element ID, if present.
     #[must_use]
     pub fn id(self) -> Option<ElementIdRef<'doc>> {
-        self.node.metadata.id.as_ref().map(ElementIdRef::from)
+        self.attributes().id()
     }
 }
 
