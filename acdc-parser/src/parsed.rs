@@ -150,7 +150,17 @@ impl ParseResult {
         })
     }
 
-    /// Borrow the document AST.
+    /// Borrow the document AST for as long as this result remains alive.
+    ///
+    /// ```compile_fail,E0597
+    /// use acdc_parser::{Options, parse};
+    ///
+    /// let document = {
+    ///     let parsed = parse("A paragraph.", &Options::default()).unwrap();
+    ///     parsed.document()
+    /// };
+    /// println!("{}", document.blocks.len());
+    /// ```
     #[must_use]
     pub fn document(&self) -> &Document<'_> {
         self.cell.borrow_dependent()
