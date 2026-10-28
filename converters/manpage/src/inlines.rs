@@ -199,7 +199,7 @@ pub(crate) fn contains_link(node: &InlineNode<'_>) -> bool {
             | InlineMacro::CrossReference(_),
         ) => return true,
         InlineNode::Macro(InlineMacro::Image(image)) => {
-            return image.metadata.attributes.contains_key("link");
+            return image.attributes().contains_key("link");
         }
         InlineNode::BoldText(n) => &n.content,
         InlineNode::ItalicText(n) => &n.content,

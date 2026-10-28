@@ -70,7 +70,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             traversal,
             image.alt.as_ref(),
             &alt,
-            image.metadata.attributes.get_string("link").as_deref(),
+            image.attributes().get_string("link").as_deref(),
             true,
         )
     }

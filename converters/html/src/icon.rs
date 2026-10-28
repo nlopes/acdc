@@ -113,13 +113,15 @@ impl<'a, W: std::io::Write> HtmlVisitor<'a, '_, W> {
             let mut metadata = BlockMetadata::new().with_attributes(attrs.clone());
             if let Some(options) = attrs.get_string("options") {
                 metadata.options = options.split(',').map(str::trim).collect();
-                let controls = image_link_control_attributes(&metadata);
+                let controls =
+                    image_link_control_attributes(&metadata.attributes, &metadata.options);
                 inner = format!(
                     "<a class=\"image\" href=\"{}\"{controls}>{inner}</a>",
                     escape_attribute(&link)
                 );
             } else {
-                let controls = image_link_control_attributes(&metadata);
+                let controls =
+                    image_link_control_attributes(&metadata.attributes, &metadata.options);
                 inner = format!(
                     "<a class=\"image\" href=\"{}\"{controls}>{inner}</a>",
                     escape_attribute(&link)

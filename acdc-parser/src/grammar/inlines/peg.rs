@@ -1183,7 +1183,14 @@ peg::parser! {
                 alt: parsed.alt,
                 tooltip: parsed.tooltip,
                 source,
-                metadata: parsed.metadata,
+                metadata: crate::InlineMetadata {
+                    id: parsed.metadata.id.map(|anchor| crate::ElementId::new(anchor.id, anchor.location)),
+                    roles: parsed.metadata.roles,
+                },
+                macro_attributes: crate::model::MacroAttributes {
+                    attributes: parsed.metadata.attributes,
+                    options: parsed.metadata.options,
+                },
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
             }))))
         }

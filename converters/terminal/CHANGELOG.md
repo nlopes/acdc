@@ -348,6 +348,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Support the parser’s revised inline-image API without changing rendered output.
+
 - **Breaking:** configure conversion with the parser options builder, then use
   the converter's validated parser options for parsing. Invalid attribute values
   are rejected before conversion.

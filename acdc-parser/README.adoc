@@ -180,6 +180,14 @@ Native JSON preserves acdc's model; it is not a claim of ASG conformance.
 * Read named titles through `title`, rather than `metadata.attributes["title"]`.
   Titles, attributions, and citation titles serialize only their parsed inline
   content. Replacing or removing content cannot leave an old attribute value.
+* `InlineImage::metadata` uses `InlineMetadata` for roles and an optional
+  `ElementId`. The owning node's `image.attributes()` map contains scalar
+  controls such as width and link; it does not include alt, tooltip, identity,
+  roles, or options. Read alt and tooltip from the image, identity and roles
+  from `metadata`, and options with `options()`. Use `set_attribute` /
+  `remove_attribute` for scalar controls and `options_mut()` to edit options.
+  Reserved names and aliases return `ReservedAttribute` rather than shadowing
+  a dedicated value.
 * Named reference labels are available as `BlockMetadata::reftext`, outside
   the extension attribute map. `Anchor::xreflabel`, `TocEntry::xreflabel`, and
   `Reference::xreflabel` also contain optional `ContentAttribute` values.

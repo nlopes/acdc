@@ -375,12 +375,12 @@ fn restore_macro_attributes<'a>(
                     .collect();
             }
             if image
-                .metadata
+                .macro_attributes
                 .options
                 .iter()
                 .any(|option| contains_passthrough_placeholders(option, ctx.processed))
             {
-                image.metadata.options = take(&mut image.metadata.options)
+                image.macro_attributes.options = take(&mut image.macro_attributes.options)
                     .into_iter()
                     .flat_map(|option| restore(option).unwrap_or(option).split(','))
                     .map(str::trim)
@@ -392,7 +392,7 @@ fn restore_macro_attributes<'a>(
             {
                 id.id = restored;
             }
-            &mut image.metadata.attributes
+            &mut image.macro_attributes.attributes
         }
         InlineMacro::Footnote(_)
         | InlineMacro::Keyboard(_)
@@ -820,7 +820,7 @@ mod tests {
             .ok_or("expected an inline image")?;
 
         assert_eq!(image.metadata.roles, ["hot", "cool"]);
-        assert_eq!(image.metadata.options, ["foo", "bar"]);
+        assert_eq!(image.macro_attributes.options, ["foo", "bar"]);
         assert_eq!(
             image.metadata.id.as_ref().map(|anchor| anchor.id),
             Some("image-id")

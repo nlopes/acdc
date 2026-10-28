@@ -9,9 +9,14 @@ use serde::{
 
 use crate::{ContentAttribute, Error, SourceLocation};
 
-use super::location::{Location, Position};
-use super::metadata::BlockMetadata;
-use super::title::Title;
+use super::{
+    attributes::{AttributeName, AttributeValue, ElementAttributes},
+    location::{Location, Position},
+    metadata::{
+        BlockMetadata, InlineMetadata, InlineMetadataView, MacroAttributes, ReservedAttribute,
+    },
+    title::Title,
+};
 
 /// The source location for media content (images, audio, video).
 ///
@@ -321,7 +326,8 @@ pub struct InlineImage<'a> {
     /// Hover text supplied by the inline macro's `title=` attribute.
     pub tooltip: Option<ContentAttribute<'a>>,
     pub source: Source<'a>,
-    pub metadata: BlockMetadata<'a>,
+    pub metadata: InlineMetadata<'a>,
+    pub(crate) macro_attributes: MacroAttributes<'a>,
     pub location: Location,
 }
 
@@ -333,8 +339,66 @@ impl<'a> InlineImage<'a> {
             alt: None,
             tooltip: None,
             source,
-            metadata: BlockMetadata::default(),
+            metadata: InlineMetadata::default(),
+            macro_attributes: MacroAttributes::default(),
             location,
+        }
+    }
+
+    /// Read scalar macro controls, such as width and link.
+    ///
+    /// This map excludes alt, tooltip, identity, roles, and options. Read those
+    /// values through their dedicated fields or methods.
+    #[must_use]
+    pub fn attributes(&self) -> &ElementAttributes<'a> {
+        &self.macro_attributes.attributes
+    }
+
+    /// Set an attribute without a dedicated field.
+    ///
+    /// # Errors
+    /// Rejects `alt`, `title`, `id`, `role`/`roles`, and `opts`/`options`.
+    /// Update the content, metadata, or options directly instead.
+    pub fn set_attribute(
+        &mut self,
+        name: AttributeName<'a>,
+        value: AttributeValue<'a>,
+    ) -> Result<(), ReservedAttribute> {
+        self.macro_attributes.set(name, value, &["alt", "title"])
+    }
+
+    /// Remove an attribute without a dedicated field and return its previous value.
+    ///
+    /// # Errors
+    /// Rejects the dedicated names listed by [`Self::set_attribute`].
+    pub fn remove_attribute(
+        &mut self,
+        name: &str,
+    ) -> Result<Option<AttributeValue<'a>>, ReservedAttribute> {
+        self.macro_attributes.remove(name, &["alt", "title"])
+    }
+
+    /// Read the macro's option names in their stored order.
+    #[must_use]
+    pub fn options(&self) -> &[&'a str] {
+        &self.macro_attributes.options
+    }
+
+    /// Edit the macro's option names without creating attribute-map aliases.
+    pub fn options_mut(&mut self) -> &mut Vec<&'a str> {
+        &mut self.macro_attributes.options
+    }
+
+    pub(crate) fn has_metadata(&self) -> bool {
+        !self.metadata.is_empty() || !self.macro_attributes.is_empty()
+    }
+
+    pub(crate) fn metadata_view(&self) -> InlineMetadataView<'_, 'a> {
+        InlineMetadataView {
+            attributes: &self.macro_attributes.attributes,
+            roles: &self.metadata.roles,
+            options: &self.macro_attributes.options,
+            id: &self.metadata.id,
         }
     }
 }

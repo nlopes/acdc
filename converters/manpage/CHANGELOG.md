@@ -417,6 +417,8 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 
 ### Changed
 
+- Support the parser’s revised inline-image API without changing rendered output.
+
 - **Breaking:** configure conversion with the parser options builder, then use
   the converter's validated parser options for parsing. Invalid attribute values
   are rejected before conversion.

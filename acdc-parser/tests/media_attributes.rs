@@ -181,11 +181,11 @@ fn media_attributes_select_named_values_and_keep_empty_slots() -> Result<(), Err
         );
         if attributes.contains("40") {
             assert_eq!(
-                image.metadata.attributes.get_string("width").as_deref(),
+                image.attributes().get_string("width").as_deref(),
                 Some("40")
             );
             assert_eq!(
-                image.metadata.attributes.get_string("height").as_deref(),
+                image.attributes().get_string("height").as_deref(),
                 Some("20")
             );
         }

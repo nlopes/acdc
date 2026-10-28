@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- Inline images expose identity and roles through `InlineMetadata`, with
+  `ElementId` preserving the ID's source location. The owning image's
+  `attributes()` map contains scalar controls such as width and link; read alt,
+  tooltip, identity, roles, and options separately. Use `set_attribute()` /
+  `remove_attribute()` for scalar controls and `options()` / `options_mut()`
+  for macro options. Reserved names and aliases return `ReservedAttribute`
+  instead of shadowing a dedicated value.
+
 - Reference labels now expose parsed content. Read named `reftext=` through
   `BlockMetadata::reftext` instead of `metadata.attributes["reftext"]`.
   `Anchor::xreflabel`, `TocEntry::xreflabel`, and `Reference::xreflabel` use

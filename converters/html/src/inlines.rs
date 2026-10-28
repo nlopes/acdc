@@ -306,7 +306,7 @@ fn link_label_needs_split(node: &InlineNode<'_>, in_reference: bool, index: bool
             return true;
         }
         InlineNode::Macro(InlineMacro::Image(n)) => {
-            return n.metadata.attributes.contains_key("link");
+            return n.attributes().contains_key("link");
         }
         InlineNode::Macro(InlineMacro::CrossReference(n)) => &n.text,
         InlineNode::BoldText(n) => &n.content,
@@ -863,13 +863,13 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         let markup = self.image_markup(
             traversal,
             &i.source,
-            &i.metadata,
+            i.attributes(),
+            i.options(),
             i.alt.as_ref(),
             i.tooltip.as_ref(),
         )?;
         let mut classes = vec!["image"];
-        if let Some(acdc_parser::AttributeValue::String(float)) = i.metadata.attributes.get("float")
-        {
+        if let Some(acdc_parser::AttributeValue::String(float)) = i.attributes().get("float") {
             classes.push(float.as_ref());
         }
         classes.extend(&i.metadata.roles);
@@ -883,8 +883,8 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             )?;
         }
 
-        let link = i.metadata.attributes.get("link");
-        let link_controls = image_link_control_attributes(&i.metadata);
+        let link = i.attributes().get("link");
+        let link_controls = image_link_control_attributes(i.attributes(), i.options());
         if let Some(link) = link {
             write!(
                 w,

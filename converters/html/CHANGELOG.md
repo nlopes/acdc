@@ -811,6 +811,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Support the parser’s revised inline-image API without changing rendered output.
+
 - Library conversion now defaults to Secure: document-info files are not read
   and terminal blocks render as listings. Select a lower mode explicitly for
   trusted documents. The CLI retains its Unsafe default.

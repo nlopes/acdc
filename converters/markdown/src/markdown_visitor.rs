@@ -24,11 +24,11 @@ use acdc_converters_core::{
 use acdc_parser::{
     Admonition, AdmonitionVariant, Anchor, Audio, Author, Block, BlockMetadata, CalloutList,
     CaptionKind, ColumnStyle, ColumnWidth, CrossReference, DelimitedBlock, DelimitedBlockType,
-    DescriptionList, DiscreteHeader, Document, Footnote, Header, HorizontalAlignment, Image,
-    IndexTerm, IndexTermRelationship, InlineImage, InlineMacro, InlineNode, Link, ListItem,
-    ListItemCheckedStatus, Location, OrderedList, PageBreak, Paragraph, Section, SectionKind,
-    Source, SourceLocation, Substitution, Table, TableColumn, TableOfContents, ThematicBreak,
-    Title, TocEntry, UnorderedList, VerticalAlignment, Video,
+    DescriptionList, DiscreteHeader, Document, ElementAttributes, Footnote, Header,
+    HorizontalAlignment, Image, IndexTerm, IndexTermRelationship, InlineImage, InlineMacro,
+    InlineNode, Link, ListItem, ListItemCheckedStatus, Location, OrderedList, PageBreak, Paragraph,
+    Section, SectionKind, Source, SourceLocation, Substitution, Table, TableColumn,
+    TableOfContents, ThematicBreak, Title, TocEntry, UnorderedList, VerticalAlignment, Video,
 };
 
 use crate::{
@@ -184,7 +184,7 @@ fn is_linked_image(node: &InlineNode<'_>) -> bool {
     matches!(
         node,
         InlineNode::Macro(InlineMacro::Image(image))
-            if image.metadata.attributes.get_string("link").is_some()
+            if image.attributes().get_string("link").is_some()
     )
 }
 
@@ -1884,7 +1884,13 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
     ) -> Result<(), Self::Error> {
         self.write_metadata_anchor(&image.metadata)?;
         let alt = block_image_alt(image);
-        self.write_image(traversal, &image.source, &image.metadata, &alt, None)?;
+        self.write_image(
+            traversal,
+            &image.source,
+            &image.metadata.attributes,
+            &alt,
+            None,
+        )?;
         writeln!(self.writer)?;
         if image.title.is_present() {
             writeln!(self.writer)?;
@@ -2316,7 +2322,7 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
         self.write_image(
             traversal,
             &image.source,
-            &image.metadata,
+            image.attributes(),
             &alt,
             image
                 .tooltip
@@ -2611,16 +2617,16 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
         &mut self,
         traversal: &mut TraversalContext<'a>,
         source: &Source<'_>,
-        metadata: &BlockMetadata<'_>,
+        attributes: &ElementAttributes<'_>,
         alt: &str,
         title: Option<&str>,
     ) -> Result<(), Error> {
-        if let Some(link) = metadata.attributes.get_string("link") {
+        if let Some(link) = attributes.get_string("link") {
             self.write_link(&link, |visitor| {
-                visitor.write_image_markup(traversal, source, metadata, alt, title)
+                visitor.write_image_markup(traversal, source, attributes, alt, title)
             })
         } else {
-            self.write_image_markup(traversal, source, metadata, alt, title)
+            self.write_image_markup(traversal, source, attributes, alt, title)
         }
     }
 
@@ -2628,13 +2634,13 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
         &mut self,
         traversal: &mut TraversalContext<'a>,
         source: &Source<'_>,
-        metadata: &BlockMetadata<'_>,
+        attributes: &ElementAttributes<'_>,
         alt: &str,
         title: Option<&str>,
     ) -> Result<(), Error> {
         let target = Self::media_target(traversal, source);
-        let width = metadata.attributes.get_string("width");
-        let height = metadata.attributes.get_string("height");
+        let width = attributes.get_string("width");
+        let height = attributes.get_string("height");
         if width.is_some() || height.is_some() {
             write!(
                 self.writer,

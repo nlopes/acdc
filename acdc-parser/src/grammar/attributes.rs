@@ -167,11 +167,9 @@ impl ScannedAttribute {
     }
 
     pub(super) fn canonical_name(&self) -> Option<&str> {
-        self.name.as_deref().map(|name| match name {
-            "roles" => "role",
-            "options" => "opts",
-            name => name,
-        })
+        self.name
+            .as_deref()
+            .map(crate::model::canonical_attribute_name)
     }
 
     pub(super) fn is_ignored(&self, mode: CompatibilityMode) -> bool {

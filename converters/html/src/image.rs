@@ -1,7 +1,7 @@
 use std::{io::Write, string::ToString};
 
 use acdc_converters_core::{TraversalContext, media::resolve_target};
-use acdc_parser::{BlockMetadata, CaptionKind, Image};
+use acdc_parser::{CaptionKind, ElementAttributes, Image};
 
 use crate::{Error, HtmlVariant, HtmlVisitor, inlines::escape_attribute};
 
@@ -46,7 +46,8 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
         // Wrap in link if link attribute exists
         let link = img.metadata.attributes.get("link");
-        let link_controls = image_link_control_attributes(&img.metadata);
+        let link_controls =
+            image_link_control_attributes(&img.metadata.attributes, &img.metadata.options);
         if let Some(link) = link {
             write!(
                 self.writer,
@@ -58,7 +59,8 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         let markup = self.image_markup(
             traversal,
             &img.source,
-            &img.metadata,
+            &img.metadata.attributes,
+            &img.metadata.options,
             img.alt.as_ref(),
             None,
         )?;
@@ -132,7 +134,8 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
         // Check for link=self, link=none, or html5s-image-default-link=self
         let link = img.metadata.attributes.get("link");
-        let link_controls = image_link_control_attributes(&img.metadata);
+        let link_controls =
+            image_link_control_attributes(&img.metadata.attributes, &img.metadata.options);
         let link_str = link.as_ref().map(ToString::to_string);
         let is_link_none = link_str.as_deref() == Some("none");
         let is_link_self = link_str.as_deref() == Some("self");
@@ -178,7 +181,8 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         let markup = self.image_markup(
             traversal,
             &img.source,
-            &img.metadata,
+            &img.metadata.attributes,
+            &img.metadata.options,
             img.alt.as_ref(),
             None,
         )?;
@@ -207,15 +211,17 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     }
 }
 
-pub(crate) fn image_link_control_attributes(metadata: &BlockMetadata<'_>) -> String {
-    let window = metadata
-        .attributes
+pub(crate) fn image_link_control_attributes(
+    attributes: &ElementAttributes<'_>,
+    options: &[&str],
+) -> String {
+    let window = attributes
         .get_string("window")
         .filter(|window| !window.is_empty());
-    let nofollow = metadata.options.contains(&"nofollow");
+    let nofollow = options.contains(&"nofollow");
     let noopener = window
         .as_deref()
-        .is_some_and(|window| window == "_blank" || metadata.options.contains(&"noopener"));
+        .is_some_and(|window| window == "_blank" || options.contains(&"noopener"));
 
     let mut attributes = window.map_or_else(String::new, |window| {
         format!(" target=\"{}\"", escape_attribute(&window))

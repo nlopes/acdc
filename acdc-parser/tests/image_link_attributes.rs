@@ -8,8 +8,7 @@ fn inline_image_link(input: &str) -> Result<Option<String>, Box<dyn std::error::
         return Err(format!("expected one inline image, got {:?}", parsed.inlines()).into());
     };
     Ok(image
-        .metadata
-        .attributes
+        .attributes()
         .get("link")
         .map(std::string::ToString::to_string))
 }

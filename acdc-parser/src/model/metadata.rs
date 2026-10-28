@@ -9,7 +9,7 @@ use crate::CompatibilityMode;
 use super::{
     DocumentAttribute,
     anchor::Anchor,
-    attributes::{AttributeValue, ElementAttributes},
+    attributes::{AttributeName, AttributeValue, ElementAttributes},
     attribution::{Attribution, CiteTitle},
     caption::Caption,
     content_attribute::ContentAttribute,
@@ -405,4 +405,106 @@ fn serialize_caption_content<S: serde::Serializer>(
     } else {
         serializer.serialize_none()
     }
+}
+
+/// An element ID and the source that supplied it.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[non_exhaustive]
+pub struct ElementId<'a> {
+    pub id: &'a str,
+    pub location: Location,
+}
+
+impl<'a> ElementId<'a> {
+    /// Create an ID at its source location.
+    #[must_use]
+    pub fn new(id: &'a str, location: Location) -> Self {
+        Self { id, location }
+    }
+}
+
+/// Identity and roles shared by inline elements.
+///
+/// Content and macro-specific attributes belong to the owning node.
+///
+/// ```compile_fail
+/// let metadata = acdc_parser::InlineMetadata::default();
+/// let _ = metadata.caption;
+/// ```
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+#[non_exhaustive]
+pub struct InlineMetadata<'a> {
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub roles: Vec<Role<'a>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<ElementId<'a>>,
+}
+
+impl InlineMetadata<'_> {
+    pub(crate) fn is_empty(&self) -> bool {
+        self.roles.is_empty() && self.id.is_none()
+    }
+}
+
+/// An attribute name belongs to a dedicated field.
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("attribute `{name}` has a dedicated field")]
+pub struct ReservedAttribute {
+    /// The rejected attribute name, including any alias used by the caller.
+    pub name: String,
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub(crate) struct MacroAttributes<'a> {
+    pub(crate) attributes: ElementAttributes<'a>,
+    pub(crate) options: Vec<&'a str>,
+}
+
+impl<'a> MacroAttributes<'a> {
+    pub(crate) fn set(
+        &mut self,
+        name: AttributeName<'a>,
+        value: AttributeValue<'a>,
+        reserved: &[&str],
+    ) -> Result<(), ReservedAttribute> {
+        Self::check_name(&name, reserved)?;
+        self.attributes.set(name, value);
+        Ok(())
+    }
+
+    pub(crate) fn remove(
+        &mut self,
+        name: &str,
+        reserved: &[&str],
+    ) -> Result<Option<AttributeValue<'a>>, ReservedAttribute> {
+        Self::check_name(name, reserved)?;
+        Ok(self.attributes.remove(name))
+    }
+
+    fn check_name(name: &str, reserved: &[&str]) -> Result<(), ReservedAttribute> {
+        let canonical = super::attributes::canonical_attribute_name(name);
+        if matches!(canonical, "id" | "role" | "opts") || reserved.contains(&canonical) {
+            Err(ReservedAttribute {
+                name: name.to_owned(),
+            })
+        } else {
+            Ok(())
+        }
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.attributes.is_empty() && self.options.is_empty()
+    }
+}
+
+#[derive(Serialize)]
+pub(crate) struct InlineMetadataView<'node, 'a> {
+    #[serde(skip_serializing_if = "ElementAttributes::is_empty")]
+    pub(crate) attributes: &'node ElementAttributes<'a>,
+    #[serde(skip_serializing_if = "<[_]>::is_empty")]
+    pub(crate) roles: &'node [Role<'a>],
+    #[serde(skip_serializing_if = "<[_]>::is_empty")]
+    pub(crate) options: &'node [&'a str],
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) id: &'node Option<ElementId<'a>>,
 }

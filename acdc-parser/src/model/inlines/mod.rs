@@ -410,8 +410,8 @@ where
 {
     map.serialize_entry("name", "image")?;
     map.serialize_entry("type", "inline")?;
-    if !i.metadata.is_default() {
-        map.serialize_entry("metadata", &i.metadata)?;
+    if i.has_metadata() {
+        map.serialize_entry("metadata", &i.metadata_view())?;
     }
     if let Some(alt) = &i.alt {
         map.serialize_entry("alt", alt)?;

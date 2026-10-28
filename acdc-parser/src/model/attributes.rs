@@ -15,6 +15,14 @@ use crate::{
     },
 };
 
+pub(crate) fn canonical_attribute_name(name: &str) -> &str {
+    match name {
+        "roles" => "role",
+        "options" => "opts",
+        name => name,
+    }
+}
+
 pub(crate) type RawAttributes<'a> = FxHashMap<AttributeName<'a>, AttributeValue<'a>>;
 
 pub const MAX_TOC_LEVELS: u8 = 5;

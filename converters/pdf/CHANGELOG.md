@@ -69,6 +69,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Support the parser’s revised inline-image API without changing rendered output.
+
 - **Breaking for library callers:** exhaustive `PdfOptions` literals must include
   `theme_format: ThemeFormat::Acdc` and `emit_theme_config: None`.
   Use `..PdfOptions::default()` to keep the defaults.

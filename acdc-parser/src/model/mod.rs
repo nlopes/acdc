@@ -28,7 +28,8 @@ pub use admonition::{Admonition, AdmonitionVariant};
 pub use anchor::{Anchor, Reference, TocEntry, UNNUMBERED_SECTION_STYLES};
 pub(crate) use attributes::RawAttributes;
 pub(crate) use attributes::{
-    AttributeInlineFragment, DocumentAttributeStatus, default_document_attribute_values,
+    AttributeInlineFragment, DocumentAttributeStatus, canonical_attribute_name,
+    default_document_attribute_values,
 };
 pub use attributes::{
     AttributeName, AttributeValue, DocumentAttributeAssignment, DocumentAttributeValue,
@@ -44,8 +45,8 @@ pub use lists::{
 };
 pub use location::*;
 pub use media::{Audio, Image, InlineImage, Source, SourceUrl, Video};
-pub(crate) use metadata::{AttributePosition, PositionalAttribute};
-pub use metadata::{BlockMetadata, Role};
+pub(crate) use metadata::{AttributePosition, MacroAttributes, PositionalAttribute};
+pub use metadata::{BlockMetadata, ElementId, InlineMetadata, ReservedAttribute, Role};
 pub use section::*;
 pub use substitution::*;
 pub use tables::{

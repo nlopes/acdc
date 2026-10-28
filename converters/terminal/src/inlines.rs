@@ -816,7 +816,7 @@ fn is_self_linked_image(node: &InlineNode<'_>) -> bool {
     matches!(
         node,
         InlineNode::Macro(InlineMacro::Image(image))
-            if image.metadata.attributes.get_string("link").is_some()
+            if image.attributes().get_string("link").is_some()
     )
 }
 
@@ -839,7 +839,7 @@ fn render_inline_image<'a, W: Write + ?Sized>(
         None => inline_image_alt(image),
     };
     let text = format!("[Image: {alt}]");
-    if let Some(target) = image.metadata.attributes.get_string("link") {
+    if let Some(target) = image.attributes().get_string("link") {
         maybe_render_osc8_link(&target, &text, w, processor)
     } else {
         write!(w, "{text}")?;
