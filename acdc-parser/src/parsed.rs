@@ -166,6 +166,24 @@ impl ParseResult {
         self.cell.borrow_dependent()
     }
 
+    /// Read the document through the typed AST API.
+    ///
+    /// The document cannot outlive this parse result:
+    ///
+    /// ```compile_fail,E0597
+    /// use acdc_parser::{Options, parse};
+    ///
+    /// let document = {
+    ///     let parsed = parse("A paragraph.", &Options::default()).unwrap();
+    ///     parsed.document_ref()
+    /// };
+    /// println!("{}", document.blocks().count());
+    /// ```
+    #[must_use]
+    pub fn document_ref(&self) -> crate::ast::DocumentRef<'_> {
+        crate::ast::DocumentRef::from(self.document())
+    }
+
     /// Borrow the preprocessed source the AST was parsed from.
     ///
     /// Note: this is the text as seen by the grammar, after include
@@ -184,6 +202,15 @@ impl ParseResult {
     #[must_use]
     pub fn source_location(&self, location: &Location) -> SourceLocation {
         self.source_files.location(location)
+    }
+
+    /// Resolve a location from this parse to its original file and position.
+    ///
+    /// This has the same source-mapping rules as [`Self::source_location`] and
+    /// returns an owned location, which may copy its file path.
+    #[must_use]
+    pub fn resolve_location(&self, location: crate::ast::LocationRef<'_>) -> SourceLocation {
+        self.source_location(location.as_location())
     }
 
     /// Borrow the collected warnings.

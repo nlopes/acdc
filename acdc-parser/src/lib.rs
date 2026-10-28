@@ -154,6 +154,7 @@ use std::{
 
 use tracing::instrument;
 
+pub mod ast;
 mod blocks;
 mod constants;
 mod document_attribute;

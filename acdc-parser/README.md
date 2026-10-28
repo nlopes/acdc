@@ -34,6 +34,32 @@ for inline content. `ParseResult` owns the parsed document and its backing text;
 keep it alive while reading `document()`. A successful parse can contain warnings
 and recovered content. See [Source text and diagnostics](#source-text-and-diagnostics).
 
+## Reading the tree
+
+Use `document_ref()` to read nodes through typed handles and lazy iterators:
+
+```rust
+use acdc_parser::{Options, parse, ast::{BlockKind, InlineKind}};
+
+let parsed = parse("Hello, *world*.", &Options::default())?;
+for block in parsed.document_ref().blocks() {
+    if let BlockKind::Paragraph(paragraph) = block.kind() {
+        for inline in paragraph.content().inlines() {
+            if let InlineKind::Plain(text) = inline.kind() {
+                println!("{}", text.text());
+            }
+        }
+    }
+}
+# Ok::<(), acdc_parser::Error>(())
+```
+
+Kind matching covers all block and inline kinds. Detailed accessors currently
+cover document and section children, titles, paragraph bodies, plain text, bold
+content, and source locations. For a constructed node, use
+`ast::ParagraphRef::from(&paragraph)`. The existing `document()` API remains
+available for other reads, construction, and editing.
+
 ## Cargo features
 
 | Feature | Default | Effect |
