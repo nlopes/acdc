@@ -52,8 +52,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `ParseResult::document_ref()` provides typed reads of documents, sections,
-  and paragraphs, with lazy child and inline iterators. Match block and inline
-  kinds without depending on collection storage. Existing owner APIs and JSON
+  paragraphs, tables, and images, with lazy child and inline iterators. Read table
+  declarations separately from resolved presentation, and preserve absent versus
+  empty image alt and tooltips. Match block and inline kinds without depending on
+  collection storage. Existing owner APIs and JSON
   output remain unchanged.
 
 - Parser fixtures support shared expectations or explicit Asciidoctor/Draft

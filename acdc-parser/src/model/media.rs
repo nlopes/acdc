@@ -84,6 +84,10 @@ impl<'a> SourceUrl<'a> {
         Ok(Self { url, original })
     }
 
+    pub(crate) fn original(&self) -> &str {
+        self.original
+    }
+
     /// Get the underlying `url::Url`.
     #[must_use]
     pub fn url(&self) -> &url::Url {

@@ -1,6 +1,6 @@
 use crate::{InlineMacro, InlineNode};
 
-use super::{ContentRef, LocationRef};
+use super::{ContentRef, InlineImageRef, LocationRef};
 
 node_ref!(PlainRef<'doc>, crate::Plain<'doc>, "Plain text.");
 node_ref!(
@@ -63,11 +63,6 @@ node_ref!(
     "A footnote definition or reference."
 );
 node_ref!(IconRef<'doc>, crate::Icon<'doc>, "An icon macro.");
-node_ref!(
-    InlineImageRef<'doc>,
-    crate::InlineImage<'doc>,
-    "An inline image."
-);
 node_ref!(
     KeyboardRef<'doc>,
     crate::Keyboard<'doc>,

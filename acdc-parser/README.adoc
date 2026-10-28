@@ -56,9 +56,11 @@ for block in parsed.document_ref().blocks() {
 ----
 
 Kind matching covers all block and inline kinds. Detailed accessors currently
-cover document and section children, titles, paragraph bodies, plain text, bold
-content, and source locations. For a constructed node, use
-`ast::ParagraphRef::from(&paragraph)`. The existing `document()` API remains
+cover document and section children, titles, paragraph bodies, table rows and
+cells, image targets and content, plain text, bold content, and source locations.
+Table declarations remain separate from resolved presentation. Image alt and
+tooltips preserve absent versus explicitly empty content. For a constructed node,
+use `ast::ParagraphRef::from(&paragraph)`. The existing `document()` API remains
 available for other reads, construction, and editing.
 
 [#cargo-features]

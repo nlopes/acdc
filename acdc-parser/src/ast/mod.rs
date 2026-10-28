@@ -32,7 +32,8 @@
 //!
 //! Kind matching covers every supported block and inline kind. Detailed reads
 //! currently cover document/section children, their titles, paragraph bodies,
-//! plain text, bold content, and locations. The existing owner API remains
+//! table rows and cells, image targets and content, plain text, bold content, and
+//! locations. The existing owner API remains
 //! available for other reads and for construction and editing.
 //!
 //! Handles and direct iterators support shared immutable access (`Send + Sync`).
@@ -66,8 +67,14 @@ mod blocks;
 mod content;
 mod inlines;
 mod location;
+mod media;
+mod tables;
+mod values;
 
 pub use blocks::*;
 pub use content::ContentRef;
 pub use inlines::*;
 pub use location::{LocationRef, PositionRef};
+pub use media::{ImageRef, InlineImageRef, SourceKind, SourceRef};
+pub use tables::{ColumnFormatRef, TableCellRef, TableRef, TableRowRef};
+pub use values::{AttributeValueRef, ElementIdRef};

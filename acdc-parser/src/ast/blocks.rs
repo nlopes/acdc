@@ -1,6 +1,6 @@
 use crate::{Block, DelimitedBlockType, Document, Paragraph, Section};
 
-use super::{ContentRef, LocationRef};
+use super::{ContentRef, ImageRef, LocationRef, TableRef};
 
 node_ref!(DocumentRef<'doc>, Document<'doc>, "A document.");
 node_ref!(SectionRef<'doc>, Section<'doc>, "A section.");
@@ -51,7 +51,6 @@ node_ref!(
     crate::DescriptionList<'doc>,
     "A description list."
 );
-node_ref!(ImageRef<'doc>, crate::Image<'doc>, "A block image.");
 node_ref!(AudioRef<'doc>, crate::Audio<'doc>, "An audio block.");
 node_ref!(VideoRef<'doc>, crate::Video<'doc>, "A video block.");
 node_ref!(
@@ -81,11 +80,6 @@ node_ref!(
 );
 node_ref!(OpenRef<'doc>, crate::DelimitedBlock<'doc>, "An open block.");
 node_ref!(SidebarRef<'doc>, crate::DelimitedBlock<'doc>, "A sidebar.");
-node_ref!(
-    TableRef<'doc>,
-    crate::DelimitedBlock<'doc>,
-    "A table block."
-);
 node_ref!(
     PassthroughRef<'doc>,
     crate::DelimitedBlock<'doc>,
@@ -315,7 +309,9 @@ impl<'doc> From<&'doc crate::DelimitedBlock<'doc>> for BlockRef<'doc> {
             DelimitedBlockType::DelimitedLiteral(_) => BlockKind::Literal(LiteralRef::new(block)),
             DelimitedBlockType::DelimitedOpen(_) => BlockKind::Open(OpenRef::new(block)),
             DelimitedBlockType::DelimitedSidebar(_) => BlockKind::Sidebar(SidebarRef::new(block)),
-            DelimitedBlockType::DelimitedTable(_) => BlockKind::Table(TableRef::new(block)),
+            DelimitedBlockType::DelimitedTable(table) => {
+                BlockKind::Table(TableRef::new(block, table))
+            }
             DelimitedBlockType::DelimitedPass(_) => {
                 BlockKind::Passthrough(PassthroughRef::new(block))
             }
