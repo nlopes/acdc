@@ -1,7 +1,8 @@
 use crate::{
-    Admonition, Audio, BlockMetadata, CalloutList, DelimitedBlock, DescriptionList, DiscreteHeader,
-    ElementAttributes, Header, Image, InlineImage, OrderedList, PageBreak, Paragraph, Section,
-    TableOfContents, ThematicBreak, UnorderedList, Video,
+    Admonition, Audio, BlockMetadata, Bold, CalloutList, CurvedApostrophe, CurvedQuotation,
+    DelimitedBlock, DescriptionList, DiscreteHeader, ElementAttributes, Header, Highlight, Image,
+    InlineImage, Italic, Monospace, OrderedList, PageBreak, Paragraph, Section, Subscript,
+    Superscript, TableOfContents, ThematicBreak, UnorderedList, Video,
 };
 
 use super::{AttributeValueRef, ContentRef, ElementIdRef, TokensRef};
@@ -46,6 +47,15 @@ pub struct AttributesRef<'doc> {
 
 #[derive(Clone, Copy, Debug)]
 enum Owner<'doc> {
+    Bold(&'doc Bold<'doc>),
+    Italic(&'doc Italic<'doc>),
+    Monospace(&'doc Monospace<'doc>),
+    Highlight(&'doc Highlight<'doc>),
+    Subscript(&'doc Subscript<'doc>),
+    Superscript(&'doc Superscript<'doc>),
+    CurvedQuotation(&'doc CurvedQuotation<'doc>),
+    CurvedApostrophe(&'doc CurvedApostrophe<'doc>),
+
     Header(&'doc Header<'doc>),
     Paragraph(&'doc Paragraph<'doc>),
     Section(&'doc Section<'doc>),
@@ -89,6 +99,54 @@ impl Field {
 }
 
 impl<'doc> AttributesRef<'doc> {
+    pub(super) fn bold(owner: &'doc Bold<'doc>) -> Self {
+        Self {
+            owner: Owner::Bold(owner),
+        }
+    }
+
+    pub(super) fn italic(owner: &'doc Italic<'doc>) -> Self {
+        Self {
+            owner: Owner::Italic(owner),
+        }
+    }
+
+    pub(super) fn monospace(owner: &'doc Monospace<'doc>) -> Self {
+        Self {
+            owner: Owner::Monospace(owner),
+        }
+    }
+
+    pub(super) fn highlight(owner: &'doc Highlight<'doc>) -> Self {
+        Self {
+            owner: Owner::Highlight(owner),
+        }
+    }
+
+    pub(super) fn subscript(owner: &'doc Subscript<'doc>) -> Self {
+        Self {
+            owner: Owner::Subscript(owner),
+        }
+    }
+
+    pub(super) fn superscript(owner: &'doc Superscript<'doc>) -> Self {
+        Self {
+            owner: Owner::Superscript(owner),
+        }
+    }
+
+    pub(super) fn curved_quotation(owner: &'doc CurvedQuotation<'doc>) -> Self {
+        Self {
+            owner: Owner::CurvedQuotation(owner),
+        }
+    }
+
+    pub(super) fn curved_apostrophe(owner: &'doc CurvedApostrophe<'doc>) -> Self {
+        Self {
+            owner: Owner::CurvedApostrophe(owner),
+        }
+    }
+
     pub(super) fn audio(owner: &'doc Audio<'doc>) -> Self {
         Self {
             owner: Owner::Audio(owner),
@@ -243,6 +301,14 @@ impl<'doc> AttributesRef<'doc> {
     fn fields(self) -> &'static [Field] {
         use Field::{Alt, Id, Options, Roles, Style, Title};
         match self.owner {
+            Owner::Bold(_)
+            | Owner::Italic(_)
+            | Owner::Monospace(_)
+            | Owner::Highlight(_)
+            | Owner::Subscript(_)
+            | Owner::Superscript(_)
+            | Owner::CurvedQuotation(_)
+            | Owner::CurvedApostrophe(_) => &[Id, Roles],
             Owner::Image(_) => &[Title, Id, Roles, Options, Style, Alt],
             Owner::InlineImage(_) => &[Title, Id, Roles, Options, Alt],
             Owner::ThematicBreak(_) => &[Title, Id],
@@ -304,7 +370,16 @@ impl<'doc> AttributesRef<'doc> {
             Owner::TableOfContents(node) => Some(&node.metadata),
             Owner::DiscreteHeader(node) => Some(&node.metadata),
             Owner::PageBreak(node) => Some(&node.metadata),
-            Owner::InlineImage(_) | Owner::ThematicBreak(_) => None,
+            Owner::InlineImage(_)
+            | Owner::ThematicBreak(_)
+            | Owner::Bold(_)
+            | Owner::Italic(_)
+            | Owner::Monospace(_)
+            | Owner::Highlight(_)
+            | Owner::Subscript(_)
+            | Owner::Superscript(_)
+            | Owner::CurvedQuotation(_)
+            | Owner::CurvedApostrophe(_) => None,
         }
     }
 
@@ -333,7 +408,15 @@ impl<'doc> AttributesRef<'doc> {
             Owner::DiscreteHeader(node) => &node.title,
             Owner::PageBreak(node) => &node.title,
             Owner::ThematicBreak(node) => &node.title,
-            Owner::TableOfContents(_) => return None,
+            Owner::TableOfContents(_)
+            | Owner::Bold(_)
+            | Owner::Italic(_)
+            | Owner::Monospace(_)
+            | Owner::Highlight(_)
+            | Owner::Subscript(_)
+            | Owner::Superscript(_)
+            | Owner::CurvedQuotation(_)
+            | Owner::CurvedApostrophe(_) => return None,
             Owner::InlineImage(node) => return node.tooltip.as_ref().map(ContentRef::from),
         };
         title.content()
@@ -350,26 +433,75 @@ impl<'doc> AttributesRef<'doc> {
     }
 
     pub(super) fn id(self) -> Option<ElementIdRef<'doc>> {
-        if let Owner::InlineImage(node) = self.owner {
-            return node.metadata.id.as_ref().map(ElementIdRef::from);
+        match self.owner {
+            Owner::Bold(node) => node.id.map(|id| ElementIdRef::new(id, &node.location)),
+            Owner::Italic(node) => node.id.map(|id| ElementIdRef::new(id, &node.location)),
+            Owner::Monospace(node) => node.id.map(|id| ElementIdRef::new(id, &node.location)),
+            Owner::Highlight(node) => node.id.map(|id| ElementIdRef::new(id, &node.location)),
+            Owner::Subscript(node) => node.id.map(|id| ElementIdRef::new(id, &node.location)),
+            Owner::Superscript(node) => node.id.map(|id| ElementIdRef::new(id, &node.location)),
+            Owner::CurvedQuotation(node) => node.id.map(|id| ElementIdRef::new(id, &node.location)),
+            Owner::CurvedApostrophe(node) => {
+                node.id.map(|id| ElementIdRef::new(id, &node.location))
+            }
+            Owner::InlineImage(node) => node.metadata.id.as_ref().map(ElementIdRef::from),
+            Owner::ThematicBreak(node) => node
+                .anchors
+                .first()
+                .map(|id| ElementIdRef::new(id.id, &id.location)),
+            Owner::Header(_)
+            | Owner::Paragraph(_)
+            | Owner::Section(_)
+            | Owner::Delimited(_)
+            | Owner::Admonition(_)
+            | Owner::UnorderedList(_)
+            | Owner::OrderedList(_)
+            | Owner::DescriptionList(_)
+            | Owner::CalloutList(_)
+            | Owner::Image(_)
+            | Owner::Audio(_)
+            | Owner::Video(_)
+            | Owner::TableOfContents(_)
+            | Owner::DiscreteHeader(_)
+            | Owner::PageBreak(_) => self
+                .metadata()
+                .and_then(BlockMetadata::id_anchor)
+                .map(|id| ElementIdRef::new(id.id, &id.location)),
         }
-        let anchor = if let Owner::ThematicBreak(node) = self.owner {
-            node.anchors.first()
-        } else {
-            self.metadata().and_then(BlockMetadata::id_anchor)
-        };
-        anchor.map(|id| ElementIdRef::new(id.id, &id.location))
     }
 
     pub(super) fn roles(self) -> TokensRef<'doc> {
-        let roles = if let Owner::InlineImage(node) = self.owner {
-            node.metadata.roles.as_slice()
-        } else {
-            self.metadata()
-                .map(|metadata| metadata.roles.as_slice())
-                .unwrap_or_default()
-        };
-        TokensRef::new(roles)
+        match self.owner {
+            Owner::Bold(node) => TokensRef::from_text(node.role.unwrap_or_default()),
+            Owner::Italic(node) => TokensRef::from_text(node.role.unwrap_or_default()),
+            Owner::Monospace(node) => TokensRef::from_text(node.role.unwrap_or_default()),
+            Owner::Highlight(node) => TokensRef::from_text(node.role.unwrap_or_default()),
+            Owner::Subscript(node) => TokensRef::from_text(node.role.unwrap_or_default()),
+            Owner::Superscript(node) => TokensRef::from_text(node.role.unwrap_or_default()),
+            Owner::CurvedQuotation(node) => TokensRef::from_text(node.role.unwrap_or_default()),
+            Owner::CurvedApostrophe(node) => TokensRef::from_text(node.role.unwrap_or_default()),
+            Owner::InlineImage(node) => TokensRef::new(&node.metadata.roles),
+            Owner::ThematicBreak(_) => TokensRef::new(&[]),
+            Owner::Header(_)
+            | Owner::Paragraph(_)
+            | Owner::Section(_)
+            | Owner::Delimited(_)
+            | Owner::Admonition(_)
+            | Owner::UnorderedList(_)
+            | Owner::OrderedList(_)
+            | Owner::DescriptionList(_)
+            | Owner::CalloutList(_)
+            | Owner::Image(_)
+            | Owner::Audio(_)
+            | Owner::Video(_)
+            | Owner::TableOfContents(_)
+            | Owner::DiscreteHeader(_)
+            | Owner::PageBreak(_) => TokensRef::new(
+                self.metadata()
+                    .map(|metadata| metadata.roles.as_slice())
+                    .unwrap_or_default(),
+            ),
+        }
     }
 
     pub(super) fn options(self) -> TokensRef<'doc> {

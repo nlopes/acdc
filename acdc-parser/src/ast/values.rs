@@ -28,7 +28,7 @@ impl<'doc> From<&'doc AttributeValue<'doc>> for AttributeValueRef<'doc> {
     }
 }
 
-/// An element ID and the source that supplied it.
+/// An element ID and its recorded source location.
 #[derive(Clone, Copy, Debug)]
 pub struct ElementIdRef<'doc> {
     text: &'doc str,
@@ -49,7 +49,7 @@ impl<'doc> ElementIdRef<'doc> {
         self.text
     }
 
-    /// The source span recorded for this ID.
+    /// The recorded source range; formatting spans use their node's range.
     #[must_use]
     pub fn location(self) -> LocationRef<'doc> {
         self.location
@@ -64,31 +64,61 @@ impl<'doc> From<&'doc ElementId<'doc>> for ElementIdRef<'doc> {
 
 /// Role or option tokens in retained semantic order.
 ///
-/// Reads preserve duplicates and spelling. They do not split or normalize tokens.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// Tokens preserve order, duplicates, and spelling. Span role text is split on
+/// whitespace; entries already stored as tokens are read as-is.
+#[derive(Clone, Copy, Debug)]
 pub struct TokensRef<'doc> {
-    tokens: &'doc [&'doc str],
+    source: Tokens<'doc>,
+}
+
+#[derive(Clone, Copy, Debug)]
+enum Tokens<'doc> {
+    List(&'doc [&'doc str]),
+    Text(&'doc str),
 }
 
 impl<'doc> TokensRef<'doc> {
     pub(super) fn new(tokens: &'doc [&'doc str]) -> Self {
-        Self { tokens }
+        Self {
+            source: Tokens::List(tokens),
+        }
+    }
+
+    pub(super) fn from_text(text: &'doc str) -> Self {
+        Self {
+            source: Tokens::Text(text),
+        }
     }
 
     /// Iterate in token order, including any retained duplicates.
     pub fn iter(self) -> impl Iterator<Item = &'doc str> + Send + Sync + 'doc {
-        self.tokens.iter().copied()
+        let (list, text) = match self.source {
+            Tokens::List(tokens) => (tokens, ""),
+            Tokens::Text(text) => (&[][..], text),
+        };
+        list.iter().copied().chain(text.split_whitespace())
     }
 
     /// Whether this collection contains no tokens.
     #[must_use]
     pub fn is_empty(self) -> bool {
-        self.tokens.is_empty()
+        match self.source {
+            Tokens::List(tokens) => tokens.is_empty(),
+            Tokens::Text(text) => text.split_whitespace().next().is_none(),
+        }
     }
 
     /// Whether an exact token is present.
     #[must_use]
     pub fn contains(self, token: &str) -> bool {
-        self.tokens.contains(&token)
+        self.iter().any(|value| value == token)
     }
 }
+
+impl PartialEq for TokensRef<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.iter().eq(other.iter())
+    }
+}
+
+impl Eq for TokensRef<'_> {}

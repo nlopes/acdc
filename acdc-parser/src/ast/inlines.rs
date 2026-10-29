@@ -2,6 +2,8 @@ use crate::{InlineMacro, InlineNode};
 
 use super::{ContentRef, InlineImageRef, LocationRef};
 
+mod spans;
+
 node_ref!(PlainRef<'doc>, crate::Plain<'doc>, "Plain text.");
 node_ref!(
     RawRef<'doc>,
@@ -205,14 +207,6 @@ impl<'doc> VerbatimRef<'doc> {
     #[must_use]
     pub fn text(self) -> &'doc str {
         self.node.content
-    }
-}
-
-impl<'doc> BoldRef<'doc> {
-    /// Read this span's direct inline content.
-    #[must_use]
-    pub fn content(self) -> ContentRef<'doc> {
-        ContentRef::new(&self.node.content)
     }
 }
 

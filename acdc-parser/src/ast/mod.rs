@@ -34,8 +34,32 @@
 //! currently cover headers and authors, document attributes, document/section
 //! children and titles, block bodies and metadata, lists and their items, tables,
 //! media, discrete headings, TOC blocks, breaks, and comments. Inline reads cover
-//! plain/raw/verbatim text, bold content, images, and locations.
+//! plain/raw/verbatim text, formatting spans, images, and locations.
 //! The owner API remains available for other reads and for construction and editing.
+//!
+//! Formatting spans keep distinct types, with `content()`, `form()`, `id()`,
+//! `roles()`, and `attributes()`. Span IDs use the span's recorded location;
+//! the parser does not retain a separate ID range.
+//!
+//! ```
+//! use acdc_parser::{Form, Options, parse, ast::{BlockKind, BoldRef, InlineKind}};
+//!
+//! fn has_warning_role(span: BoldRef<'_>) -> bool {
+//!     span.form() == Form::Constrained && span.roles().contains("warning")
+//! }
+//!
+//! let parsed = parse("A [.warning]*bold* word.", &Options::default())?;
+//! let block = parsed.document_ref().blocks().next().unwrap();
+//! if let BlockKind::Paragraph(paragraph) = block.kind() {
+//!     for inline in paragraph.content().inlines() {
+//!         if let InlineKind::Bold(span) = inline.kind() {
+//!             assert!(has_warning_role(span));
+//!             assert!(!span.content().is_empty());
+//!         }
+//!     }
+//! }
+//! # Ok::<(), acdc_parser::Error>(())
+//! ```
 //!
 //! Container blocks expose `blocks()`; inline bodies expose `content()`.
 //! Formula blocks expose `text()` and `notation()`. Source text stays separate

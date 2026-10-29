@@ -57,7 +57,12 @@ for block in parsed.document_ref().blocks() {
 Kind matching covers all block and inline kinds. Detailed accessors currently
 cover headers, authors, document attributes, block bodies and metadata, lists and
 list items, tables, media, discrete headings, TOC blocks, breaks, and comments.
-Inline reads include text, bold content, images, and source locations.
+Inline reads include text, formatting spans, images, and source locations.
+Formatting spans expose nested content, constrained/unconstrained form, IDs, and
+role tokens. Each span keeps its concrete type, such as `BoldRef` or `ItalicRef`.
+`HighlightRef::is_marked()` distinguishes an unadorned mark from a generic span
+with an ID or role. Span IDs use the span's recorded location; the parser does
+not retain a separate ID range.
 Table declarations remain separate from resolved presentation. Image alt and
 tooltips preserve absent versus explicitly empty content. For a constructed node,
 use `ast::ParagraphRef::from(&paragraph)`. The existing `document()` API remains
@@ -65,7 +70,7 @@ available for other reads, construction, and editing.
 
 Use `attributes().get(name)`, `contains(name)`, or `iter()` on headers, sections,
 paragraphs, delimited blocks, admonitions, lists, tables, media, TOC blocks,
-discrete headings, and breaks to read retained titles,
+discrete headings, breaks, and formatting spans to read retained titles,
 image alt/tooltips, IDs, styles, role/option tokens, and scalar controls.
 `AttributeValueRef` distinguishes text, booleans, valueless attributes, inline
 content, and tokens. Text keeps meaningful

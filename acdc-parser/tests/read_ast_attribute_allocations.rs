@@ -1,8 +1,8 @@
 use std::{alloc::System, hint::black_box};
 
 use acdc_parser::{
-    ContentAttribute, InlineImage, InlineNode, Location, Plain, Source,
-    ast::{AttributeValueRef, InlineImageRef},
+    Bold, ContentAttribute, Form, InlineImage, InlineNode, Location, Plain, Source,
+    ast::{AttributeValueRef, BoldRef, InlineImageRef},
 };
 use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
 
@@ -47,4 +47,42 @@ fn direct_attribute_reads_do_not_allocate_for_owned_text_or_content()
     assert_eq!(stats.reallocations, 0);
     assert_eq!(stats.deallocations, 0);
     Ok(())
+}
+
+#[test]
+fn span_attribute_reads_split_role_text_without_allocating() {
+    let bold = Bold {
+        role: Some("one\ttwo\u{2003}one"),
+        id: Some("span"),
+        form: Form::Unconstrained,
+        content: vec![InlineNode::PlainText(Plain {
+            content: "content",
+            location: Location::default(),
+            escaped: false,
+        })],
+        location: Location::default(),
+    };
+    let region = Region::new(ALLOCATOR);
+    let span = BoldRef::from(&bold);
+    black_box(span.id());
+    black_box(span.form());
+    black_box(span.roles().contains(black_box("two")));
+    black_box(span.roles().is_empty());
+    let roles = black_box(span.roles());
+    black_box(span.roles() == roles);
+    for inline in span.content().inlines() {
+        black_box(inline);
+    }
+    for (name, value) in span.attributes().iter() {
+        black_box(span.attributes().get(name));
+        if let AttributeValueRef::Tokens(tokens) = value {
+            for token in tokens.iter() {
+                black_box(token);
+            }
+        }
+    }
+    let stats = region.change();
+    assert_eq!(stats.allocations, 0);
+    assert_eq!(stats.reallocations, 0);
+    assert_eq!(stats.deallocations, 0);
 }
