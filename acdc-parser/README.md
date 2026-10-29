@@ -56,14 +56,15 @@ for block in parsed.document_ref().blocks() {
 
 Kind matching covers all block and inline kinds. Detailed accessors currently
 cover document and section children, titles, paragraph bodies, delimited blocks,
-admonitions, tables, images, text, bold content, and source locations.
+admonitions, lists and list items, tables, images, text, bold content, and source
+locations.
 Table declarations remain separate from resolved presentation. Image alt and
 tooltips preserve absent versus explicitly empty content. For a constructed node,
 use `ast::ParagraphRef::from(&paragraph)`. The existing `document()` API remains
 available for other reads, construction, and editing.
 
 Use `attributes().get(name)`, `contains(name)`, or `iter()` on sections,
-paragraphs, delimited blocks, admonitions, tables, and images to read titles,
+paragraphs, delimited blocks, admonitions, lists, tables, and images to read titles,
 image alt/tooltips, IDs, styles, role/option tokens, and scalar controls.
 `AttributeValueRef` distinguishes text, booleans, valueless attributes, inline
 content, and tokens. Text keeps meaningful
@@ -80,6 +81,13 @@ and delimited comments expose `content()`. Match their inline kinds to distingui
 formatted, verbatim, and raw text. STEM blocks expose `text()` and `notation()`.
 Delimited handles retain the delimiter text and its optional source locations.
 `source_text()` reads the body before inline substitutions, when retained.
+
+Lists expose `items()`. Each item separates its `principal()` inline content from
+attached `blocks()`. Description items also expose `term()`, `delimiter()`, and
+`anchors()`. Ordered and unordered items retain their markers; `checked()`
+distinguishes checked, unchecked, and ordinary items. Numbering controls such as
+`start` stay in the list attributes. Callout items expose their marker kind and
+number through `callout()`; that number belongs to its local callout sequence.
 
 ## Cargo features
 

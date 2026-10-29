@@ -55,7 +55,7 @@ node_ref!(
     crate::LineBreak,
     "An inline line break."
 );
-node_ref!(AnchorRef<'doc>, crate::Anchor<'doc>, "An inline anchor.");
+node_ref!(AnchorRef<'doc>, crate::Anchor<'doc>, "An anchor.");
 node_ref!(CalloutRef<'doc>, crate::CalloutRef, "A callout reference.");
 node_ref!(
     FootnoteRef<'doc>,
@@ -267,5 +267,45 @@ impl<'doc> From<&'doc InlineMacro<'doc>> for InlineRef<'doc> {
             InlineMacro::IndexTerm(node) => InlineKind::IndexTerm(IndexTermRef::new(node)),
         };
         Self { kind }
+    }
+}
+
+impl<'doc> AnchorRef<'doc> {
+    /// The anchor's ID text.
+    #[must_use]
+    pub fn id(self) -> &'doc str {
+        self.node.id
+    }
+
+    /// Supplied reference text, including explicitly empty content.
+    #[must_use]
+    pub fn reftext(self) -> Option<ContentRef<'doc>> {
+        self.node.xreflabel.as_ref().map(ContentRef::from)
+    }
+}
+
+impl<'doc> From<&'doc crate::Anchor<'doc>> for AnchorRef<'doc> {
+    fn from(owner: &'doc crate::Anchor<'doc>) -> Self {
+        Self::new(owner)
+    }
+}
+
+impl CalloutRef<'_> {
+    /// Whether the marker was explicit or automatically numbered.
+    #[must_use]
+    pub fn kind(self) -> crate::CalloutRefKind {
+        self.node.kind
+    }
+
+    /// The resolved number within its callout sequence, not a global identity.
+    #[must_use]
+    pub fn number(self) -> usize {
+        self.node.number
+    }
+}
+
+impl<'doc> From<&'doc crate::CalloutRef> for CalloutRef<'doc> {
+    fn from(owner: &'doc crate::CalloutRef) -> Self {
+        Self::new(owner)
     }
 }

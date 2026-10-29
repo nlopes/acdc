@@ -1,6 +1,6 @@
 use crate::{
-    Admonition, BlockMetadata, DelimitedBlock, ElementAttributes, Image, InlineImage, Paragraph,
-    Section, Title,
+    Admonition, BlockMetadata, CalloutList, DelimitedBlock, DescriptionList, ElementAttributes,
+    Image, InlineImage, OrderedList, Paragraph, Section, Title, UnorderedList,
 };
 
 use super::{AttributeValueRef, ContentRef, ElementIdRef, TokensRef};
@@ -48,6 +48,10 @@ enum Owner<'doc> {
     Section(&'doc Section<'doc>),
     Delimited(&'doc DelimitedBlock<'doc>),
     Admonition(&'doc Admonition<'doc>),
+    UnorderedList(&'doc UnorderedList<'doc>),
+    OrderedList(&'doc OrderedList<'doc>),
+    DescriptionList(&'doc DescriptionList<'doc>),
+    CalloutList(&'doc CalloutList<'doc>),
     Image(&'doc Image<'doc>),
     InlineImage(&'doc InlineImage<'doc>),
 }
@@ -97,6 +101,30 @@ impl<'doc> AttributesRef<'doc> {
     pub(super) fn admonition(owner: &'doc Admonition<'doc>) -> Self {
         Self {
             owner: Owner::Admonition(owner),
+        }
+    }
+
+    pub(super) fn unordered_list(owner: &'doc UnorderedList<'doc>) -> Self {
+        Self {
+            owner: Owner::UnorderedList(owner),
+        }
+    }
+
+    pub(super) fn ordered_list(owner: &'doc OrderedList<'doc>) -> Self {
+        Self {
+            owner: Owner::OrderedList(owner),
+        }
+    }
+
+    pub(super) fn description_list(owner: &'doc DescriptionList<'doc>) -> Self {
+        Self {
+            owner: Owner::DescriptionList(owner),
+        }
+    }
+
+    pub(super) fn callout_list(owner: &'doc CalloutList<'doc>) -> Self {
+        Self {
+            owner: Owner::CalloutList(owner),
         }
     }
 
@@ -165,7 +193,11 @@ impl<'doc> AttributesRef<'doc> {
             Owner::Paragraph(_)
             | Owner::Section(_)
             | Owner::Delimited(_)
-            | Owner::Admonition(_) => &[Title, Id, Roles, Options, Style],
+            | Owner::Admonition(_)
+            | Owner::UnorderedList(_)
+            | Owner::OrderedList(_)
+            | Owner::DescriptionList(_)
+            | Owner::CalloutList(_) => &[Title, Id, Roles, Options, Style],
         }
     }
 
@@ -199,6 +231,10 @@ impl<'doc> AttributesRef<'doc> {
             Owner::Section(node) => Some((&node.metadata, &node.title)),
             Owner::Delimited(node) => Some((&node.metadata, &node.title)),
             Owner::Admonition(node) => Some((&node.metadata, &node.title)),
+            Owner::UnorderedList(node) => Some((&node.metadata, &node.title)),
+            Owner::OrderedList(node) => Some((&node.metadata, &node.title)),
+            Owner::DescriptionList(node) => Some((&node.metadata, &node.title)),
+            Owner::CalloutList(node) => Some((&node.metadata, &node.title)),
             Owner::Image(node) => Some((&node.metadata, &node.title)),
             Owner::InlineImage(_) => None,
         }
@@ -210,6 +246,10 @@ impl<'doc> AttributesRef<'doc> {
             Owner::Section(node) => &node.metadata.attributes,
             Owner::Delimited(node) => &node.metadata.attributes,
             Owner::Admonition(node) => &node.metadata.attributes,
+            Owner::UnorderedList(node) => &node.metadata.attributes,
+            Owner::OrderedList(node) => &node.metadata.attributes,
+            Owner::DescriptionList(node) => &node.metadata.attributes,
+            Owner::CalloutList(node) => &node.metadata.attributes,
             Owner::Image(node) => &node.metadata.attributes,
             Owner::InlineImage(node) => node.attributes(),
         }
@@ -222,6 +262,10 @@ impl<'doc> AttributesRef<'doc> {
             | Owner::Section(_)
             | Owner::Delimited(_)
             | Owner::Admonition(_)
+            | Owner::UnorderedList(_)
+            | Owner::OrderedList(_)
+            | Owner::DescriptionList(_)
+            | Owner::CalloutList(_)
             | Owner::Image(_) => self.block().and_then(|(_, title)| title.content()),
         }
     }
@@ -233,7 +277,11 @@ impl<'doc> AttributesRef<'doc> {
             Owner::Paragraph(_)
             | Owner::Section(_)
             | Owner::Delimited(_)
-            | Owner::Admonition(_) => None,
+            | Owner::Admonition(_)
+            | Owner::UnorderedList(_)
+            | Owner::OrderedList(_)
+            | Owner::DescriptionList(_)
+            | Owner::CalloutList(_) => None,
         }
     }
 
@@ -244,6 +292,10 @@ impl<'doc> AttributesRef<'doc> {
             | Owner::Section(_)
             | Owner::Delimited(_)
             | Owner::Admonition(_)
+            | Owner::UnorderedList(_)
+            | Owner::OrderedList(_)
+            | Owner::DescriptionList(_)
+            | Owner::CalloutList(_)
             | Owner::Image(_) => self
                 .block()
                 .and_then(|(metadata, _)| metadata.id_anchor())
@@ -257,6 +309,10 @@ impl<'doc> AttributesRef<'doc> {
             Owner::Section(node) => &node.metadata.roles,
             Owner::Delimited(node) => &node.metadata.roles,
             Owner::Admonition(node) => &node.metadata.roles,
+            Owner::UnorderedList(node) => &node.metadata.roles,
+            Owner::OrderedList(node) => &node.metadata.roles,
+            Owner::DescriptionList(node) => &node.metadata.roles,
+            Owner::CalloutList(node) => &node.metadata.roles,
             Owner::Image(node) => &node.metadata.roles,
             Owner::InlineImage(node) => &node.metadata.roles,
         };
@@ -269,6 +325,10 @@ impl<'doc> AttributesRef<'doc> {
             Owner::Section(node) => node.metadata.options.as_slice(),
             Owner::Delimited(node) => node.metadata.options.as_slice(),
             Owner::Admonition(node) => node.metadata.options.as_slice(),
+            Owner::UnorderedList(node) => node.metadata.options.as_slice(),
+            Owner::OrderedList(node) => node.metadata.options.as_slice(),
+            Owner::DescriptionList(node) => node.metadata.options.as_slice(),
+            Owner::CalloutList(node) => node.metadata.options.as_slice(),
             Owner::Image(node) => node.metadata.options.as_slice(),
             Owner::InlineImage(node) => node.options(),
         };

@@ -52,10 +52,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `ParseResult::document_ref()` provides typed reads of documents, sections,
-  paragraphs, delimited blocks, admonitions, tables, and images, with lazy child
-  and inline iterators. Read nested bodies, formula text and notation, source
+  paragraphs, delimited blocks, admonitions, lists, tables, and images, with lazy
+  child and inline iterators. Read nested bodies, formula text and notation, source
   delimiters, and quote/caption content without rendering. Raw and verbatim text
-  remain distinct from formatted content. Read table declarations separately
+  remain distinct from formatted content. List items separate principal text
+  from attached blocks and preserve terms, markers, checklist states, anchors,
+  and callout numbers. Read table declarations separately
   from resolved presentation, and preserve absent versus
   empty image alt and tooltips. Match block and inline kinds without depending on
   collection storage. Their `attributes()` reads expose titles, image content,
