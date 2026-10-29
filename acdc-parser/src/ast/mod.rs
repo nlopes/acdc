@@ -31,11 +31,11 @@
 //! ```
 //!
 //! Kind matching covers every supported block and inline kind. Detailed reads
-//! currently cover document/section children, their titles, paragraph bodies,
-//! delimited blocks and admonitions, lists and their items, table rows and cells,
+//! currently cover headers and authors, document attributes, document/section
+//! children, their titles, paragraph bodies, delimited blocks and admonitions,
+//! lists and their items, table rows and cells,
 //! image targets and content, plain/raw/verbatim text, bold content, and locations.
-//! The existing
-//! owner API remains available for other reads and for construction and editing.
+//! The owner API remains available for other reads and for construction and editing.
 //!
 //! Container blocks expose `blocks()`; inline bodies expose `content()`.
 //! Formula blocks expose `text()` and `notation()`. Source text stays separate
@@ -84,6 +84,31 @@
 //! term remains a separate entry. Callout items expose their marker through
 //! `callout()`. List styles and `start` attributes remain declared controls;
 //! these reads do not calculate rendered ordinals.
+//!
+//! Document `attributes()` is the end-of-header snapshot. Later accepted changes
+//! remain in the block tree; an unset is distinct from an absent assignment:
+//!
+//! ```
+//! use acdc_parser::{DocumentAttributeValue, Options, parse, ast::BlockKind};
+//!
+//! let parsed = parse(":audience: everyone\n\nBefore.\n\n:audience!:\n\nAfter.\n", &Options::default())?;
+//! let document = parsed.document_ref();
+//! let mut audience = document.attributes().get("audience");
+//! for block in document.blocks() {
+//!     if let BlockKind::DocumentAttribute(event) = block.kind() {
+//!         if event.name() == "audience" {
+//!             audience = event.assignment().value();
+//!         }
+//!     }
+//! }
+//! assert!(audience.is_none());
+//! assert_eq!(document.attributes().get("audience").and_then(DocumentAttributeValue::text), Some("everyone"));
+//! # Ok::<(), acdc_parser::Error>(())
+//! ```
+//!
+//! `header()` reads title, subtitle and author data. Revision values use the
+//! document attributes `revnumber`, `revdate`, and `revremark`. A table cell's
+//! `initial_attributes()` initializes its local scope before its child blocks.
 //!
 //! Handles and direct iterators support shared immutable access (`Send + Sync`).
 //! Reads do not allocate collections, render content, or update document catalogs.

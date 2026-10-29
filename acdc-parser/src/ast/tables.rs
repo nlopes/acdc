@@ -1,6 +1,6 @@
 use crate::{
-    ColumnFormat, ColumnStyle, ColumnWidth, DelimitedBlock, HorizontalAlignment, Table,
-    TableColumn, TablePresentation, TableRow, VerticalAlignment,
+    ColumnFormat, ColumnStyle, ColumnWidth, DelimitedBlock, DocumentAttributeAssignment,
+    HorizontalAlignment, Table, TableColumn, TablePresentation, TableRow, VerticalAlignment,
 };
 
 use super::{
@@ -134,6 +134,16 @@ pub struct TableCellRef<'doc> {
 }
 
 impl<'doc> TableCellRef<'doc> {
+    /// Assignments applied before this `AsciiDoc` cell's blocks, in application order.
+    ///
+    /// They initialize the cell's scope without changing its parent document.
+    pub fn initial_attributes(
+        self,
+    ) -> impl Iterator<Item = (&'doc str, &'doc DocumentAttributeAssignment<'doc>)> + Send + Sync + 'doc
+    {
+        self.cell.initial_attributes()
+    }
+
     /// Direct blocks in cell order; their locations retain the original source coordinates.
     pub fn blocks(self) -> impl Iterator<Item = BlockRef<'doc>> + Send + Sync + 'doc {
         self.cell.content.iter().map(BlockRef::from)

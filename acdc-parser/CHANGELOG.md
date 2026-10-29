@@ -51,9 +51,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `ParseResult::document_ref()` provides typed reads of documents, sections,
-  paragraphs, delimited blocks, admonitions, lists, tables, and images, with lazy
-  child and inline iterators. Read nested bodies, formula text and notation, source
+- `ParseResult::document_ref()` provides typed reads of documents, headers, authors,
+  sections, paragraphs, delimited blocks, admonitions, lists, tables, and images,
+  with lazy child and inline iterators. Read nested bodies, formula text and notation, source
   delimiters, and quote/caption content without rendering. Raw and verbatim text
   remain distinct from formatted content. List items separate principal text
   from attached blocks and preserve terms, markers, checklist states, anchors,
@@ -65,6 +65,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Lookup and iteration preserve missing, empty, false, and valueless attributes;
   `roles` and `options` aliases share their canonical entries. Existing owner
   APIs and JSON output remain unchanged.
+  Document attribute reads preserve the header snapshot, explicit unsets, and
+  validated values with retained text. Body assignments and table-cell initial
+  assignments remain separate ordered sequences, with existing parser policy.
 
 - Parser fixtures support shared expectations or explicit Asciidoctor/Draft
   pairs, optional diagnostics, and stable test names. The runner rejects missing

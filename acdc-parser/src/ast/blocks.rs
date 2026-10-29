@@ -1,6 +1,8 @@
 mod bodies;
+mod document;
 mod lists;
 
+pub use document::{AuthorRef, DocumentAttributesRef, HeaderRef};
 pub use lists::{CalloutListItemRef, DescriptionListItemRef, ListItemRef};
 
 use crate::{Block, DelimitedBlockType, Document, Paragraph, Section};

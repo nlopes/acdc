@@ -1,6 +1,6 @@
 use crate::{
     Admonition, BlockMetadata, CalloutList, DelimitedBlock, DescriptionList, ElementAttributes,
-    Image, InlineImage, OrderedList, Paragraph, Section, Title, UnorderedList,
+    Header, Image, InlineImage, OrderedList, Paragraph, Section, Title, UnorderedList,
 };
 
 use super::{AttributeValueRef, ContentRef, ElementIdRef, TokensRef};
@@ -44,6 +44,7 @@ pub struct AttributesRef<'doc> {
 
 #[derive(Clone, Copy, Debug)]
 enum Owner<'doc> {
+    Header(&'doc Header<'doc>),
     Paragraph(&'doc Paragraph<'doc>),
     Section(&'doc Section<'doc>),
     Delimited(&'doc DelimitedBlock<'doc>),
@@ -80,6 +81,12 @@ impl Field {
 }
 
 impl<'doc> AttributesRef<'doc> {
+    pub(super) fn header(owner: &'doc Header<'doc>) -> Self {
+        Self {
+            owner: Owner::Header(owner),
+        }
+    }
+
     pub(super) fn paragraph(owner: &'doc Paragraph<'doc>) -> Self {
         Self {
             owner: Owner::Paragraph(owner),
@@ -190,7 +197,8 @@ impl<'doc> AttributesRef<'doc> {
         match self.owner {
             Owner::Image(_) => &[Title, Id, Roles, Options, Style, Alt],
             Owner::InlineImage(_) => &[Title, Id, Roles, Options, Alt],
-            Owner::Paragraph(_)
+            Owner::Header(_)
+            | Owner::Paragraph(_)
             | Owner::Section(_)
             | Owner::Delimited(_)
             | Owner::Admonition(_)
@@ -227,6 +235,7 @@ impl<'doc> AttributesRef<'doc> {
 
     fn block(self) -> Option<(&'doc BlockMetadata<'doc>, &'doc Title<'doc>)> {
         match self.owner {
+            Owner::Header(node) => Some((&node.metadata, &node.title)),
             Owner::Paragraph(node) => Some((&node.metadata, &node.title)),
             Owner::Section(node) => Some((&node.metadata, &node.title)),
             Owner::Delimited(node) => Some((&node.metadata, &node.title)),
@@ -242,6 +251,7 @@ impl<'doc> AttributesRef<'doc> {
 
     fn attribute_map(self) -> &'doc ElementAttributes<'doc> {
         match self.owner {
+            Owner::Header(node) => &node.metadata.attributes,
             Owner::Paragraph(node) => &node.metadata.attributes,
             Owner::Section(node) => &node.metadata.attributes,
             Owner::Delimited(node) => &node.metadata.attributes,
@@ -258,7 +268,8 @@ impl<'doc> AttributesRef<'doc> {
     fn title(self) -> Option<ContentRef<'doc>> {
         match self.owner {
             Owner::InlineImage(node) => node.tooltip.as_ref().map(ContentRef::from),
-            Owner::Paragraph(_)
+            Owner::Header(_)
+            | Owner::Paragraph(_)
             | Owner::Section(_)
             | Owner::Delimited(_)
             | Owner::Admonition(_)
@@ -274,7 +285,8 @@ impl<'doc> AttributesRef<'doc> {
         match self.owner {
             Owner::Image(node) => node.alt.as_ref().map(ContentRef::from),
             Owner::InlineImage(node) => node.alt.as_ref().map(ContentRef::from),
-            Owner::Paragraph(_)
+            Owner::Header(_)
+            | Owner::Paragraph(_)
             | Owner::Section(_)
             | Owner::Delimited(_)
             | Owner::Admonition(_)
@@ -288,7 +300,8 @@ impl<'doc> AttributesRef<'doc> {
     pub(super) fn id(self) -> Option<ElementIdRef<'doc>> {
         match self.owner {
             Owner::InlineImage(node) => node.metadata.id.as_ref().map(ElementIdRef::from),
-            Owner::Paragraph(_)
+            Owner::Header(_)
+            | Owner::Paragraph(_)
             | Owner::Section(_)
             | Owner::Delimited(_)
             | Owner::Admonition(_)
@@ -305,6 +318,7 @@ impl<'doc> AttributesRef<'doc> {
 
     pub(super) fn roles(self) -> TokensRef<'doc> {
         let roles = match self.owner {
+            Owner::Header(node) => &node.metadata.roles,
             Owner::Paragraph(node) => &node.metadata.roles,
             Owner::Section(node) => &node.metadata.roles,
             Owner::Delimited(node) => &node.metadata.roles,
@@ -321,6 +335,7 @@ impl<'doc> AttributesRef<'doc> {
 
     pub(super) fn options(self) -> TokensRef<'doc> {
         let options = match self.owner {
+            Owner::Header(node) => node.metadata.options.as_slice(),
             Owner::Paragraph(node) => node.metadata.options.as_slice(),
             Owner::Section(node) => node.metadata.options.as_slice(),
             Owner::Delimited(node) => node.metadata.options.as_slice(),

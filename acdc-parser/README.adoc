@@ -56,7 +56,8 @@ for block in parsed.document_ref().blocks() {
 ----
 
 Kind matching covers all block and inline kinds. Detailed accessors currently
-cover document and section children, titles, paragraph bodies, delimited blocks,
+cover headers, authors, document attributes, document and section children,
+titles, paragraph bodies, delimited blocks,
 admonitions, lists and list items, tables, images, text, bold content, and source
 locations.
 Table declarations remain separate from resolved presentation. Image alt and
@@ -64,7 +65,7 @@ tooltips preserve absent versus explicitly empty content. For a constructed node
 use `ast::ParagraphRef::from(&paragraph)`. The existing `document()` API remains
 available for other reads, construction, and editing.
 
-Use `attributes().get(name)`, `contains(name)`, or `iter()` on sections,
+Use `attributes().get(name)`, `contains(name)`, or `iter()` on headers, sections,
 paragraphs, delimited blocks, admonitions, lists, tables, and images to read titles,
 image alt/tooltips, IDs, styles, role/option tokens, and scalar controls.
 `AttributeValueRef` distinguishes text, booleans, valueless attributes, inline
@@ -89,6 +90,19 @@ attached `blocks()`. Description items also expose `term()`, `delimiter()`, and
 distinguishes checked, unchecked, and ordinary items. Numbering controls such as
 `start` stay in the list attributes. Callout items expose their marker kind and
 number through `callout()`; that number belongs to its local callout sequence.
+
+`document_ref().header()` exposes the title, subtitle, and authors. Read revision
+values through `document_ref().attributes().get("revnumber")`, `revdate`, and
+`revremark`. Header `attributes()` reads element metadata on the title;
+document `attributes()` reads the end-of-header snapshot.
+
+Document values keep their validated type and retained text. `assignment(name)`
+distinguishes an explicit unset from no assignment, while `get(name)` includes
+referenceable defaults. Document names do not use element aliases: `role` and
+`roles` remain separate names. Walk `BlockKind::DocumentAttribute` nodes for
+later accepted assignments and their source locations. When entering an AsciiDoc
+table cell, apply its `initial_attributes()` in order within that cell's scope,
+then walk its blocks. Neither sequence changes the header snapshot.
 
 [#cargo-features]
 == Cargo features
