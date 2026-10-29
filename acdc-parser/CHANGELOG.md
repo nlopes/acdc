@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- Link, URL, and mailto macros expose IDs and roles through `metadata`, options
+  through `options()`, and scalar controls through `attributes()`. Use
+  `set_attribute()` / `remove_attribute()` for scalar edits; `Link::with_attributes()`
+  now returns an error for dedicated metadata names. Native JSON groups metadata
+  consistently and retains unencoded mail subject/body values, including empty
+  values. Typed reads expose labels, destinations, tooltips, and display policy.
+
 - Icons retain IDs with source locations, roles, and options through the same
   metadata API as inline images. Replace `icon.attributes` with `icon.attributes()`
   for scalar controls; read identity and roles through `icon.metadata` and options

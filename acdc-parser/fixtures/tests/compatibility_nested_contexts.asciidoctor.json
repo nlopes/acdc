@@ -448,6 +448,9 @@
       "type": "block",
       "inlines": [
         {
+          "name": "ref",
+          "type": "inline",
+          "variant": "link",
           "tooltip": [
             {
               "name": "span",
@@ -483,9 +486,6 @@
               ]
             }
           ],
-          "name": "ref",
-          "type": "inline",
-          "variant": "link",
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -534,8 +534,7 @@
               "line": 21,
               "col": 53
             }
-          ],
-          "attributes": {}
+          ]
         }
       ],
       "location": [

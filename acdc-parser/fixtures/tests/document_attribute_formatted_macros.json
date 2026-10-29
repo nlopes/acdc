@@ -227,6 +227,27 @@
               "name": "ref",
               "type": "inline",
               "variant": "link",
+              "metadata": {
+                "attributes": {
+                  "window": "_blank"
+                },
+                "roles": [
+                  "hot"
+                ],
+                "id": {
+                  "id": "dest",
+                  "location": [
+                    {
+                      "line": 21,
+                      "col": 19
+                    },
+                    {
+                      "line": 21,
+                      "col": 28
+                    }
+                  ]
+                }
+              },
               "target": {
                 "type": "url",
                 "value": "https://example.org"
@@ -257,12 +278,7 @@
                   "line": 21,
                   "col": 28
                 }
-              ],
-              "attributes": {
-                "id": "dest",
-                "role": "hot",
-                "window": "_blank"
-              }
+              ]
             },
             {
               "name": "text",
@@ -304,6 +320,8 @@
                   ]
                 }
               ],
+              "subject": "Hello",
+              "body": "Body",
               "location": [
                 {
                   "line": 21,
@@ -313,8 +331,7 @@
                   "line": 21,
                   "col": 38
                 }
-              ],
-              "attributes": {}
+              ]
             },
             {
               "name": "text",

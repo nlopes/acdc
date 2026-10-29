@@ -1,0 +1,395 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Hyperlink contexts",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 20
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 20
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "é ",
+          "location": [
+            {
+              "line": 1,
+              "col": 1,
+              "file": [
+                "includes/inline_hyperlink_metadata.adoc"
+              ]
+            },
+            {
+              "line": 1,
+              "col": 2,
+              "file": [
+                "includes/inline_hyperlink_metadata.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "ref",
+          "type": "inline",
+          "variant": "link",
+          "metadata": {
+            "roles": [
+              "resource"
+            ],
+            "id": {
+              "id": "included-link",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 35,
+                  "file": [
+                    "includes/inline_hyperlink_metadata.adoc"
+                  ]
+                },
+                {
+                  "line": 1,
+                  "col": 47,
+                  "file": [
+                    "includes/inline_hyperlink_metadata.adoc"
+                  ]
+                }
+              ]
+            }
+          },
+          "tooltip": [],
+          "target": {
+            "type": "url",
+            "value": "https://example.org"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Included",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 23,
+                  "file": [
+                    "includes/inline_hyperlink_metadata.adoc"
+                  ]
+                },
+                {
+                  "line": 1,
+                  "col": 30,
+                  "file": [
+                    "includes/inline_hyperlink_metadata.adoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 1,
+              "col": 3,
+              "file": [
+                "includes/inline_hyperlink_metadata.adoc"
+              ]
+            },
+            {
+              "line": 1,
+              "col": 71,
+              "file": [
+                "includes/inline_hyperlink_metadata.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1,
+          "file": [
+            "includes/inline_hyperlink_metadata.adoc"
+          ]
+        },
+        {
+          "line": 1,
+          "col": 71,
+          "file": [
+            "includes/inline_hyperlink_metadata.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "ref",
+                        "type": "inline",
+                        "variant": "link",
+                        "metadata": {
+                          "roles": [
+                            "one",
+                            "two"
+                          ],
+                          "options": [
+                            "a",
+                            "b"
+                          ],
+                          "id": {
+                            "id": "cell-link",
+                            "location": [
+                              {
+                                "line": 7,
+                                "col": 26
+                              },
+                              {
+                                "line": 7,
+                                "col": 34
+                              }
+                            ]
+                          }
+                        },
+                        "tooltip": [
+                          {
+                            "name": "span",
+                            "type": "inline",
+                            "variant": "strong",
+                            "form": "constrained",
+                            "inlines": [
+                              {
+                                "name": "text",
+                                "type": "string",
+                                "value": "Tip",
+                                "location": [
+                                  {
+                                    "line": 7,
+                                    "col": 70
+                                  },
+                                  {
+                                    "line": 7,
+                                    "col": 72
+                                  }
+                                ]
+                              }
+                            ],
+                            "location": [
+                              {
+                                "line": 7,
+                                "col": 69
+                              },
+                              {
+                                "line": 7,
+                                "col": 73
+                              }
+                            ]
+                          }
+                        ],
+                        "target": {
+                          "type": "path",
+                          "value": "guide.adoc"
+                        },
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell",
+                            "location": [
+                              {
+                                "line": 7,
+                                "col": 18
+                              },
+                              {
+                                "line": 7,
+                                "col": 21
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 7,
+                            "col": 2
+                          },
+                          {
+                            "line": 7,
+                            "col": 75
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 7,
+                        "col": 2
+                      },
+                      {
+                        "line": 7,
+                        "col": 75
+                      }
+                    ]
+                  },
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "ref",
+                        "type": "inline",
+                        "variant": "mailto",
+                        "metadata": {
+                          "attributes": {
+                            "custom": "kept"
+                          },
+                          "id": {
+                            "id": "cell-mail",
+                            "location": [
+                              {
+                                "line": 9,
+                                "col": 46
+                              },
+                              {
+                                "line": 9,
+                                "col": 54
+                              }
+                            ]
+                          }
+                        },
+                        "target": {
+                          "type": "url",
+                          "value": "mailto:team@example.org"
+                        },
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Mail",
+                            "location": [
+                              {
+                                "line": 9,
+                                "col": 25
+                              },
+                              {
+                                "line": 9,
+                                "col": 28
+                              }
+                            ]
+                          }
+                        ],
+                        "subject": "Subject",
+                        "body": "Body",
+                        "location": [
+                          {
+                            "line": 9,
+                            "col": 1
+                          },
+                          {
+                            "line": 9,
+                            "col": 67
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 9,
+                        "col": 1
+                      },
+                      {
+                        "line": 9,
+                        "col": 67
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 6,
+            "col": 1
+          },
+          {
+            "line": 10,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 10,
+          "col": 4
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 10,
+      "col": 4
+    }
+  ]
+}

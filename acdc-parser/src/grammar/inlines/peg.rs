@@ -887,7 +887,7 @@ peg::parser! {
                 substitutions: state.inline_ctx.substitutions,
                 ..BlockParsingMetadata::default()
             };
-            let ProcessedLinkContent { text, tooltip, attributes, .. } = process_link_content(state, &bm, content_start, span_end, &content, false)
+            let ProcessedLinkContent { text, tooltip, metadata, macro_attributes, .. } = process_link_content(state, &bm, content_start, span_end, &content, false)
                 .map_err(|_| {
                     tracing::error!("could not process link text");
                     "could not process link text"
@@ -898,7 +898,8 @@ peg::parser! {
                 text,
                 tooltip,
                 target: target_source,
-                attributes,
+                metadata,
+                macro_attributes,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
                 hide_uri_scheme: state.document_attributes.contains_key("hide-uri-scheme"),
             }))))
@@ -937,7 +938,7 @@ peg::parser! {
                 substitutions: state.inline_ctx.substitutions,
                 ..BlockParsingMetadata::default()
             };
-            let ProcessedLinkContent { text, tooltip, attributes, subject, body } = process_link_content(state, &bm, content_start, span_end, &content, true)
+            let ProcessedLinkContent { text, tooltip, metadata, macro_attributes, subject, body } = process_link_content(state, &bm, content_start, span_end, &content, true)
                 .map_err(|_| {
                     tracing::error!("could not process link text");
                     "could not process link text"
@@ -949,7 +950,8 @@ peg::parser! {
                 subject,
                 body,
                 target: target_source,
-                attributes,
+                metadata,
+                macro_attributes,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
             }))))
         }
@@ -1223,7 +1225,7 @@ peg::parser! {
                 }
                 None => target,
             };
-            let ProcessedLinkContent { text, tooltip, attributes, .. } = process_link_content(state, &bm, content_start, span_end, &content, false)
+            let ProcessedLinkContent { text, tooltip, metadata, macro_attributes, .. } = process_link_content(state, &bm, content_start, span_end, &content, false)
                 .map_err(|_| {
                     tracing::error!("could not process link text");
                     "could not process link text"
@@ -1232,7 +1234,8 @@ peg::parser! {
                 text,
                 tooltip,
                 target,
-                attributes,
+                metadata,
+                macro_attributes,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
                 hide_uri_scheme: state.document_attributes.contains_key("hide-uri-scheme"),
             }))))

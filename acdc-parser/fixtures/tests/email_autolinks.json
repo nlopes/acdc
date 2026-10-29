@@ -424,8 +424,7 @@
                   "line": 17,
                   "col": 61
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "location": [
@@ -475,8 +474,7 @@
                   "line": 19,
                   "col": 48
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "location": [
@@ -513,6 +511,11 @@
               "name": "ref",
               "type": "inline",
               "variant": "mailto",
+              "metadata": {
+                "roles": [
+                  "highlight"
+                ]
+              },
               "target": {
                 "type": "url",
                 "value": "mailto:sales@example.com"
@@ -543,10 +546,7 @@
                   "line": 21,
                   "col": 75
                 }
-              ],
-              "attributes": {
-                "role": "highlight"
-              }
+              ]
             }
           ],
           "location": [
@@ -731,8 +731,7 @@
                   "line": 29,
                   "col": 51
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "location": [

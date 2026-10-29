@@ -92,7 +92,7 @@ fn denied_non_http_uri_uses_link_fallback_instead_of_local_file_handling() -> Te
         };
         assert_eq!(link.target.to_string(), target);
         assert_eq!(
-            link.attributes.get_string("role").as_deref(),
+            link.metadata.roles.first().copied(),
             (!compat_mode).then_some("include")
         );
         let [warning] = result.warnings() else {

@@ -2,9 +2,7 @@ use std::{fmt, num::NonZeroUsize};
 
 use serde::Serialize;
 
-use crate::{
-    ContentAttribute, ElementAttributes, InlineNode, Location, Source, StemNotation, Substitution,
-};
+use crate::{ContentAttribute, InlineNode, Location, Source, StemNotation, Substitution};
 
 pub const ICON_SIZES: &[&str] = &["1x", "2x", "3x", "4x", "5x", "lg", "fw"];
 
@@ -51,101 +49,6 @@ pub struct Footnote<'a> {
     pub content: Vec<InlineNode<'a>>,
     #[serde(skip)]
     pub number: u32,
-    pub location: Location,
-}
-
-/// A `Link` represents an inline link in a document.
-#[derive(Clone, Debug, PartialEq, Serialize)]
-#[non_exhaustive]
-pub struct Link<'a> {
-    /// Hover content supplied by `title=`.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tooltip: Option<ContentAttribute<'a>>,
-    #[serde(skip_serializing)]
-    pub text: Vec<InlineNode<'a>>,
-    pub target: Source<'a>,
-    pub attributes: ElementAttributes<'a>,
-    pub location: Location,
-    #[serde(skip)]
-    pub(crate) hide_uri_scheme: bool,
-}
-
-impl<'a> Link<'a> {
-    /// Creates a new `Link` with the given target.
-    #[must_use]
-    pub fn new(target: Source<'a>, location: Location) -> Self {
-        Self {
-            text: Vec::new(),
-            tooltip: None,
-            target,
-            attributes: ElementAttributes::default(),
-            location,
-            hide_uri_scheme: false,
-        }
-    }
-
-    /// Sets the link text as inline nodes.
-    #[must_use]
-    pub fn with_text(mut self, text: Vec<InlineNode<'a>>) -> Self {
-        self.text = text;
-        self
-    }
-
-    /// Sets the link attributes.
-    #[must_use]
-    pub fn with_attributes(mut self, attributes: ElementAttributes<'a>) -> Self {
-        self.attributes = attributes;
-        self
-    }
-
-    /// Whether fallback display text omits the target's URI scheme.
-    #[must_use]
-    pub fn hides_uri_scheme(&self) -> bool {
-        self.hide_uri_scheme
-    }
-}
-
-/// An `Url` represents an inline URL in a document.
-#[derive(Clone, Debug, PartialEq, Serialize)]
-#[non_exhaustive]
-pub struct Url<'a> {
-    /// Hover content supplied by `title=`.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tooltip: Option<ContentAttribute<'a>>,
-    #[serde(skip_serializing)]
-    pub text: Vec<InlineNode<'a>>,
-    pub target: Source<'a>,
-    pub attributes: ElementAttributes<'a>,
-    pub location: Location,
-    #[serde(skip)]
-    pub(crate) hide_uri_scheme: bool,
-}
-
-impl Url<'_> {
-    /// Whether fallback display text omits the target's URI scheme.
-    #[must_use]
-    pub fn hides_uri_scheme(&self) -> bool {
-        self.hide_uri_scheme
-    }
-}
-
-/// An `Mailto` represents an inline `mailto:` in a document.
-#[derive(Clone, Debug, PartialEq, Serialize)]
-#[non_exhaustive]
-pub struct Mailto<'a> {
-    /// Hover content supplied by `title=`.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tooltip: Option<ContentAttribute<'a>>,
-    #[serde(skip_serializing)]
-    pub text: Vec<InlineNode<'a>>,
-    pub target: Source<'a>,
-    /// The second positional argument, before URI encoding.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub subject: Option<&'a str>,
-    /// The third positional argument, before URI encoding.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub body: Option<&'a str>,
-    pub attributes: ElementAttributes<'a>,
     pub location: Location,
 }
 

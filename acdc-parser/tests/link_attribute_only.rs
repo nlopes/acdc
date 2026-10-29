@@ -26,11 +26,8 @@ fn attribute_only_link_role_is_not_display_text() -> TestResult {
 
     assert_eq!(link.target.to_string(), "https://example.com");
     assert_eq!(link.text, []);
-    assert_eq!(link.attributes.iter().count(), 1);
-    assert_eq!(
-        link.attributes.get_string("role").as_deref(),
-        Some("include")
-    );
+    assert_eq!(link.attributes().iter().count(), 0);
+    assert_eq!(link.metadata.roles, ["include"]);
 
     Ok(())
 }
@@ -44,11 +41,8 @@ fn attribute_only_url_role_is_not_display_text() -> TestResult {
 
     assert_eq!(url.target.to_string(), "https://example.com");
     assert_eq!(url.text, []);
-    assert_eq!(url.attributes.iter().count(), 1);
-    assert_eq!(
-        url.attributes.get_string("role").as_deref(),
-        Some("include")
-    );
+    assert_eq!(url.attributes().iter().count(), 0);
+    assert_eq!(url.metadata.roles, ["include"]);
 
     Ok(())
 }
@@ -62,7 +56,7 @@ fn attribute_like_mailto_content_remains_display_text() -> TestResult {
 
     assert_eq!(mailto.target.to_string(), "mailto:joe@example.com");
     assert_plain_text(&mailto.text, "role=include")?;
-    assert!(mailto.attributes.is_empty());
+    assert!(mailto.attributes().is_empty());
 
     Ok(())
 }
@@ -78,7 +72,7 @@ fn quoted_named_attribute_syntax_remains_link_text() -> TestResult {
     };
 
     assert_plain_text(&link.text, "role=include")?;
-    assert!(link.attributes.is_empty());
+    assert!(link.attributes().is_empty());
 
     Ok(())
 }
@@ -94,7 +88,7 @@ fn positional_value_without_named_attribute_remains_link_text() -> TestResult {
     };
 
     assert_plain_text(&link.text, "Example,positional-id")?;
-    assert!(link.attributes.is_empty());
+    assert!(link.attributes().is_empty());
 
     Ok(())
 }
@@ -111,13 +105,10 @@ fn link_with_text_and_attributes_parses_both() -> TestResult {
 
     assert_eq!(link.target.to_string(), "https://example.com");
     assert_plain_text(&link.text, "Example")?;
-    assert_eq!(link.attributes.iter().count(), 2);
+    assert_eq!(link.attributes().iter().count(), 1);
+    assert_eq!(link.metadata.roles, ["external"]);
     assert_eq!(
-        link.attributes.get_string("role").as_deref(),
-        Some("external")
-    );
-    assert_eq!(
-        link.attributes.get_string("window").as_deref(),
+        link.attributes().get_string("window").as_deref(),
         Some("_blank")
     );
 
@@ -136,13 +127,10 @@ fn url_with_text_and_attributes_parses_both() -> TestResult {
 
     assert_eq!(url.target.to_string(), "https://example.com");
     assert_plain_text(&url.text, "Example")?;
-    assert_eq!(url.attributes.iter().count(), 2);
+    assert_eq!(url.attributes().iter().count(), 1);
+    assert_eq!(url.metadata.roles, ["external"]);
     assert_eq!(
-        url.attributes.get_string("role").as_deref(),
-        Some("external")
-    );
-    assert_eq!(
-        url.attributes.get_string("window").as_deref(),
+        url.attributes().get_string("window").as_deref(),
         Some("_blank")
     );
 
@@ -161,11 +149,8 @@ fn mailto_with_text_and_attributes_parses_both() -> TestResult {
 
     assert_eq!(mailto.target.to_string(), "mailto:joe@example.com");
     assert_plain_text(&mailto.text, "Joe")?;
-    assert_eq!(mailto.attributes.iter().count(), 1);
-    assert_eq!(
-        mailto.attributes.get_string("role").as_deref(),
-        Some("include")
-    );
+    assert_eq!(mailto.attributes().iter().count(), 0);
+    assert_eq!(mailto.metadata.roles, ["include"]);
 
     Ok(())
 }

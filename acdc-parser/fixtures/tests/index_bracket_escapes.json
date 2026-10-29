@@ -849,8 +849,7 @@
                   "line": 26,
                   "col": 44
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "location": [
@@ -872,6 +871,11 @@
               "name": "ref",
               "type": "inline",
               "variant": "link",
+              "metadata": {
+                "roles": [
+                  "green"
+                ]
+              },
               "target": {
                 "type": "url",
                 "value": "https://example.org"
@@ -1010,10 +1014,7 @@
                   "line": 28,
                   "col": 57
                 }
-              ],
-              "attributes": {
-                "role": "green"
-              }
+              ]
             }
           ],
           "location": [
@@ -1377,8 +1378,7 @@
                   "line": 36,
                   "col": 63
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "location": [
@@ -1905,8 +1905,7 @@
                   "line": 44,
                   "col": 64
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "location": [

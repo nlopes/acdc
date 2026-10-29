@@ -1,7 +1,7 @@
 //! Link attributes and cross-reference labels.
 
 use crate::{
-    ContentAttribute, CrossReference, ElementAttributes, InlineNode,
+    ContentAttribute, CrossReference, ElementId, InlineMetadata, InlineNode,
     grammar::{
         ParserState,
         helpers::BlockParsingMetadata,
@@ -13,7 +13,7 @@ use crate::{
         },
         state::InlineRules,
     },
-    model::XrefSourceSyntax,
+    model::{MacroAttributes, XrefSourceSyntax},
 };
 use std::{borrow::Cow, ops::Range};
 
@@ -166,9 +166,41 @@ impl LinkContent<'_> {
 pub(super) struct ProcessedLinkContent<'a> {
     pub(super) text: Vec<InlineNode<'a>>,
     pub(super) tooltip: Option<ContentAttribute<'a>>,
-    pub(super) attributes: ElementAttributes<'a>,
+    pub(super) metadata: InlineMetadata<'a>,
+    pub(super) macro_attributes: MacroAttributes<'a>,
     pub(super) subject: Option<&'a str>,
     pub(super) body: Option<&'a str>,
+}
+
+impl<'a> ProcessedLinkContent<'a> {
+    fn insert_named(
+        &mut self,
+        state: &ParserState<'a>,
+        name: Cow<'a, str>,
+        value: String,
+        range: Range<usize>,
+    ) {
+        match name.as_ref() {
+            "id" => {
+                self.metadata.id = Some(ElementId {
+                    id: state.intern_str(&value),
+                    location: state
+                        .create_location(range.start, range.end.saturating_sub(1).max(range.start)),
+                });
+            }
+            "role" => {
+                self.metadata.roles = value
+                    .split_whitespace()
+                    .map(|role| state.intern_str(role))
+                    .collect();
+            }
+            "options" => {
+                self.macro_attributes.options =
+                    crate::grammar::helpers::parse_comma_separated_values(state, &value);
+            }
+            _ => self.macro_attributes.attributes.set(name, value.into()),
+        }
+    }
 }
 
 pub(super) fn process_link_content<'a>(
@@ -236,7 +268,9 @@ pub(super) fn process_link_content<'a>(
                         |quote| crate::grammar::attributes::unescape_attribute_quote(value, quote),
                     )
                 };
-                result.attributes.set(name, value.into());
+                let from = start + restored_label_offset(attribute.value_start, &restored, false);
+                let to = start + restored_label_offset(attribute.value_end, &restored, false);
+                result.insert_named(state, name, value, from..to);
             } else if index == 0 {
                 quote = attribute_quote;
                 offset = restored_label_offset(attribute.value_start, &restored, false);
@@ -254,7 +288,10 @@ pub(super) fn process_link_content<'a>(
     }
     if let Some(label) = text.strip_suffix('^') {
         text = label;
-        result.attributes.insert("window".into(), "_blank".into());
+        result
+            .macro_attributes
+            .attributes
+            .insert("window".into(), "_blank".into());
     }
     if !text.is_empty() {
         result.text = parse_link_label(state, metadata, text, start + offset, end, quote)?;

@@ -154,8 +154,7 @@
               "line": 8,
               "col": 38
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -237,8 +236,7 @@
               "line": 10,
               "col": 45
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -320,8 +318,7 @@
               "line": 12,
               "col": 53
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -403,8 +400,7 @@
               "line": 14,
               "col": 50
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -551,8 +547,7 @@
               "line": 18,
               "col": 47
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -604,6 +599,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "hot"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.com/?x=foo"
@@ -634,10 +634,7 @@
               "line": 20,
               "col": 60
             }
-          ],
-          "attributes": {
-            "role": "hot"
-          }
+          ]
         },
         {
           "name": "text",

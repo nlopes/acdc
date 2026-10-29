@@ -57,7 +57,14 @@ for block in parsed.document_ref().blocks() {
 Kind matching covers all block and inline kinds. Detailed accessors currently
 cover headers, authors, document attributes, block bodies and metadata, lists and
 list items, tables, media, discrete headings, TOC blocks, breaks, and comments.
-Inline reads include text, formatting spans, images, icons, and source locations.
+Inline reads include text, formatting spans, images, icons, links, URLs, email
+links, and source locations.
+`LinkRef`, `UrlRef`, and `MailtoRef` expose the label through `text()` and the
+unencoded destination through `target()`. Empty labels use automatic display
+text. IDs retain their own source ranges. Mail `subject()` and `body()` read the
+second and third positional values before URI encoding; named attributes with
+those names remain extensions and do not populate the query.
+
 Formatting spans expose nested content, constrained/unconstrained form, IDs, and
 role tokens. Each span keeps its concrete type, such as `BoldRef` or `ItalicRef`.
 `HighlightRef::is_marked()` distinguishes an unadorned mark from a generic span
@@ -241,6 +248,13 @@ lookup still uses the expanded label's markup, so `Custom *Label*` and
 Native JSON preserves acdc's model; it is not a claim of ASG conformance.
 
 ## Migrating from 0.11
+
+For link, URL, and mailto owners, replace scalar-map field reads with
+`attributes()`. Use `metadata` for IDs and roles and `options()` for option
+names. Scalar setters reject dedicated metadata names. `Link::with_attributes()`
+returns a `Result` and accepts only scalar controls or extensions. Native JSON
+places metadata under `metadata` and retains mail `subject` and `body` separately.
+
 
 - `InlineMacro::Image` contains `InlineImage`; `Image` represents block images.
   Both expose `alt: Option<ContentAttribute>`. Inline images and icons also expose

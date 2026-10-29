@@ -87,8 +87,7 @@
               "line": 4,
               "col": 48
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -139,8 +138,7 @@
               "line": 4,
               "col": 89
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -177,6 +175,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -297,10 +300,7 @@
               "line": 6,
               "col": 59
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         }
       ],
       "location": [
@@ -322,6 +322,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -412,10 +417,7 @@
               "line": 8,
               "col": 51
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         }
       ],
       "location": [
@@ -437,6 +439,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "path",
             "value": "guide.html"
@@ -527,10 +534,7 @@
               "line": 10,
               "col": 47
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         }
       ],
       "location": [
@@ -552,6 +556,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -582,10 +591,7 @@
               "line": 12,
               "col": 56
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         }
       ],
       "location": [
@@ -607,6 +613,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -697,10 +708,7 @@
               "line": 14,
               "col": 58
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         }
       ],
       "location": [
@@ -722,6 +730,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -812,10 +825,7 @@
               "line": 16,
               "col": 60
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         }
       ],
       "location": [
@@ -837,6 +847,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -927,10 +942,7 @@
               "line": 18,
               "col": 62
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         }
       ],
       "location": [
@@ -982,8 +994,7 @@
               "line": 20,
               "col": 36
             }
-          ],
-          "attributes": {}
+          ]
         }
       ],
       "location": [
@@ -1005,6 +1016,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -1035,10 +1051,7 @@
               "line": 22,
               "col": 47
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         }
       ],
       "location": [
@@ -1060,6 +1073,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -1090,10 +1108,7 @@
               "line": 24,
               "col": 45
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         }
       ],
       "location": [
@@ -1145,8 +1160,7 @@
               "line": 26,
               "col": 35
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -1167,6 +1181,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "attributes": {
+              "One": "two"
+            }
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -1180,10 +1199,7 @@
               "line": 26,
               "col": 75
             }
-          ],
-          "attributes": {
-            "One": "two"
-          }
+          ]
         }
       ],
       "location": [
@@ -1205,6 +1221,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -1218,10 +1239,7 @@
               "line": 28,
               "col": 39
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         },
         {
           "name": "text",
@@ -1242,6 +1260,14 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "attributes": {
+              "window": "_blank"
+            },
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -1255,11 +1281,7 @@
               "line": 28,
               "col": 97
             }
-          ],
-          "attributes": {
-            "role": "green",
-            "window": "_blank"
-          }
+          ]
         }
       ],
       "location": [
@@ -1281,6 +1303,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -1371,10 +1398,7 @@
               "line": 30,
               "col": 63
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         }
       ],
       "location": [
@@ -1411,6 +1435,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -1501,10 +1530,7 @@
               "line": 32,
               "col": 55
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         },
         {
           "name": "text",
@@ -1541,6 +1567,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -1631,10 +1662,7 @@
               "line": 35,
               "col": 16
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         }
       ],
       "location": [
@@ -1656,6 +1684,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -1812,10 +1845,7 @@
               "line": 37,
               "col": 74
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         }
       ],
       "location": [
@@ -1837,6 +1867,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -1912,10 +1947,7 @@
               "line": 39,
               "col": 56
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         }
       ],
       "location": [
@@ -1937,6 +1969,14 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "attributes": {
+              "window": "_blank"
+            },
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -2012,11 +2052,7 @@
               "line": 41,
               "col": 56
             }
-          ],
-          "attributes": {
-            "role": "green",
-            "window": "_blank"
-          }
+          ]
         }
       ],
       "location": [
@@ -2038,6 +2074,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "attributes": {
+              "window": "_blank"
+            }
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -2068,10 +2109,7 @@
               "line": 43,
               "col": 41
             }
-          ],
-          "attributes": {
-            "window": "_blank"
-          }
+          ]
         },
         {
           "name": "text",
@@ -2122,8 +2160,7 @@
               "line": 43,
               "col": 87
             }
-          ],
-          "attributes": {}
+          ]
         }
       ],
       "location": [
@@ -2175,8 +2212,7 @@
               "line": 45,
               "col": 50
             }
-          ],
-          "attributes": {}
+          ]
         }
       ],
       "location": [
@@ -2198,6 +2234,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "mailto",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "mailto:test@example.org"
@@ -2288,10 +2329,7 @@
               "line": 47,
               "col": 60
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         }
       ],
       "location": [
@@ -2343,8 +2381,7 @@
               "line": 49,
               "col": 35
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -2395,8 +2432,7 @@
               "line": 49,
               "col": 74
             }
-          ],
-          "attributes": {}
+          ]
         }
       ],
       "location": [
@@ -2418,6 +2454,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -2448,10 +2489,7 @@
               "line": 51,
               "col": 48
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         },
         {
           "name": "text",
@@ -2472,6 +2510,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -2502,10 +2545,7 @@
               "line": 51,
               "col": 101
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         }
       ],
       "location": [
@@ -2527,6 +2567,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -2664,10 +2709,7 @@
               "line": 53,
               "col": 82
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         }
       ],
       "location": [
@@ -2751,6 +2793,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -2888,10 +2935,7 @@
               "line": 57,
               "col": 65
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         }
       ],
       "location": [
@@ -2913,6 +2957,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -3050,10 +3099,7 @@
               "line": 59,
               "col": 78
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         }
       ],
       "location": [
@@ -3280,6 +3326,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -3480,10 +3531,7 @@
               "line": 71,
               "col": 100
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         }
       ],
       "location": [
@@ -3567,6 +3615,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -3622,10 +3675,7 @@
               "line": 75,
               "col": 93
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         }
       ],
       "location": [

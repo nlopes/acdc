@@ -249,8 +249,7 @@
                       "line": 15,
                       "col": 52
                     }
-                  ],
-                  "attributes": {}
+                  ]
                 },
                 {
                   "name": "text",
@@ -410,8 +409,7 @@
                       "line": 17,
                       "col": 58
                     }
-                  ],
-                  "attributes": {}
+                  ]
                 },
                 {
                   "name": "text",
@@ -571,8 +569,7 @@
                       "line": 19,
                       "col": 52
                     }
-                  ],
-                  "attributes": {}
+                  ]
                 },
                 {
                   "name": "text",
@@ -1748,8 +1745,7 @@
                       "line": 35,
                       "col": 63
                     }
-                  ],
-                  "attributes": {}
+                  ]
                 }
               ],
               "tertiary": [
@@ -2751,8 +2747,7 @@
                       "line": 47,
                       "col": 57
                     }
-                  ],
-                  "attributes": {}
+                  ]
                 },
                 {
                   "name": "text",
@@ -2984,8 +2979,7 @@
                           "line": 49,
                           "col": 82
                         }
-                      ],
-                      "attributes": {}
+                      ]
                     },
                     {
                       "name": "text",
@@ -3012,8 +3006,7 @@
                       "line": 49,
                       "col": 88
                     }
-                  ],
-                  "attributes": {}
+                  ]
                 },
                 {
                   "name": "text",
@@ -3391,8 +3384,7 @@
                       "line": 55,
                       "col": 56
                     }
-                  ],
-                  "attributes": {}
+                  ]
                 },
                 {
                   "name": "text",
@@ -3582,8 +3574,7 @@
                       "line": 57,
                       "col": 67
                     }
-                  ],
-                  "attributes": {}
+                  ]
                 },
                 {
                   "name": "text",
@@ -3773,8 +3764,7 @@
                       "line": 60,
                       "col": 6
                     }
-                  ],
-                  "attributes": {}
+                  ]
                 },
                 {
                   "name": "text",
@@ -3934,8 +3924,7 @@
                       "line": 62,
                       "col": 47
                     }
-                  ],
-                  "attributes": {}
+                  ]
                 },
                 {
                   "name": "text",
@@ -3986,8 +3975,7 @@
                       "line": 62,
                       "col": 76
                     }
-                  ],
-                  "attributes": {}
+                  ]
                 },
                 {
                   "name": "text",
@@ -4467,8 +4455,7 @@
                   "line": 68,
                   "col": 62
                 }
-              ],
-              "attributes": {}
+              ]
             },
             {
               "name": "text",
@@ -4632,6 +4619,11 @@
                   "name": "ref",
                   "type": "inline",
                   "variant": "link",
+                  "metadata": {
+                    "roles": [
+                      "term"
+                    ]
+                  },
                   "target": {
                     "type": "url",
                     "value": "https://example.org/quoted"
@@ -4662,10 +4654,7 @@
                       "line": 72,
                       "col": 75
                     }
-                  ],
-                  "attributes": {
-                    "role": "term"
-                  }
+                  ]
                 },
                 {
                   "name": "text",
@@ -4825,8 +4814,7 @@
                       "line": 74,
                       "col": 56
                     }
-                  ],
-                  "attributes": {}
+                  ]
                 }
               ],
               "catalog": {

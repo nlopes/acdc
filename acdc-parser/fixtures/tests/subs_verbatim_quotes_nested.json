@@ -490,8 +490,7 @@
                       "line": 19,
                       "col": 70
                     }
-                  ],
-                  "attributes": {}
+                  ]
                 },
                 {
                   "name": "text",
@@ -776,8 +775,7 @@
                   "line": 20,
                   "col": 50
                 }
-              ],
-              "attributes": {}
+              ]
             },
             {
               "name": "text",

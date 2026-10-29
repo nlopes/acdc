@@ -135,8 +135,7 @@
               "line": 10,
               "col": 42
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -193,8 +192,7 @@
                   "line": 11,
                   "col": 40
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "location": [
@@ -261,8 +259,7 @@
                   "line": 12,
                   "col": 44
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "catalog": {
@@ -404,6 +401,27 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "attributes": {
+              "window": "_blank"
+            },
+            "roles": [
+              "custom"
+            ],
+            "id": {
+              "id": "code-link",
+              "location": [
+                {
+                  "line": 14,
+                  "col": 41
+                },
+                {
+                  "line": 14,
+                  "col": 49
+                }
+              ]
+            }
+          },
           "target": {
             "type": "url",
             "value": "https://example.org/id"
@@ -434,12 +452,7 @@
               "line": 14,
               "col": 76
             }
-          ],
-          "attributes": {
-            "id": "code-link",
-            "role": "custom",
-            "window": "_blank"
-          }
+          ]
         },
         {
           "name": "text",
@@ -473,8 +486,7 @@
               "line": 15,
               "col": 28
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -572,6 +584,21 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "id": {
+              "id": "empty-code",
+              "location": [
+                {
+                  "line": 22,
+                  "col": 54
+                },
+                {
+                  "line": 22,
+                  "col": 63
+                }
+              ]
+            }
+          },
           "target": {
             "type": "url",
             "value": "https://example.org/empty"
@@ -619,10 +646,7 @@
               "line": 22,
               "col": 64
             }
-          ],
-          "attributes": {
-            "id": "empty-code"
-          }
+          ]
         },
         {
           "name": "text",
@@ -670,6 +694,21 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "id": {
+              "id": "empty-block",
+              "location": [
+                {
+                  "line": 27,
+                  "col": 60
+                },
+                {
+                  "line": 27,
+                  "col": 70
+                }
+              ]
+            }
+          },
           "target": {
             "type": "url",
             "value": "https://example.org/empty-block"
@@ -717,10 +756,7 @@
               "line": 27,
               "col": 71
             }
-          ],
-          "attributes": {
-            "id": "empty-block"
-          }
+          ]
         }
       ],
       "location": [

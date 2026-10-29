@@ -928,6 +928,11 @@
               "name": "ref",
               "type": "inline",
               "variant": "link",
+              "metadata": {
+                "attributes": {
+                  "window": "_blank"
+                }
+              },
               "target": {
                 "type": "url",
                 "value": "https://example.com"
@@ -958,10 +963,7 @@
                   "line": 55,
                   "col": 60
                 }
-              ],
-              "attributes": {
-                "window": "_blank"
-              }
+              ]
             },
             {
               "name": "text",

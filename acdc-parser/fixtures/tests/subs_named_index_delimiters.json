@@ -213,8 +213,7 @@
                       "line": 15,
                       "col": 53
                     }
-                  ],
-                  "attributes": {}
+                  ]
                 },
                 {
                   "name": "text",
@@ -470,8 +469,7 @@
                       "line": 17,
                       "col": 67
                     }
-                  ],
-                  "attributes": {}
+                  ]
                 }
               ],
               "tertiary": [
@@ -699,8 +697,7 @@
                       "line": 22,
                       "col": 57
                     }
-                  ],
-                  "attributes": {}
+                  ]
                 },
                 {
                   "name": "text",
@@ -999,8 +996,7 @@
                       "line": 34,
                       "col": 60
                     }
-                  ],
-                  "attributes": {}
+                  ]
                 },
                 {
                   "name": "text",
@@ -1166,8 +1162,7 @@
                       "line": 37,
                       "col": 30
                     }
-                  ],
-                  "attributes": {}
+                  ]
                 },
                 {
                   "name": "text",
@@ -1448,8 +1443,7 @@
                       "line": 42,
                       "col": 61
                     }
-                  ],
-                  "attributes": {}
+                  ]
                 },
                 {
                   "name": "raw",

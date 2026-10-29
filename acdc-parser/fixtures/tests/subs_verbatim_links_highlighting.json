@@ -101,8 +101,7 @@
               "line": 7,
               "col": 64
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -261,8 +260,7 @@
               "line": 10,
               "col": 57
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -392,8 +390,7 @@
               "line": 11,
               "col": 84
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -444,8 +441,7 @@
               "line": 12,
               "col": 185
             }
-          ],
-          "attributes": {}
+          ]
         }
       ],
       "location": [
@@ -618,8 +614,7 @@
               "line": 18,
               "col": 81
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -712,8 +707,7 @@
               "line": 23,
               "col": 52
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -816,6 +810,21 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "id": {
+              "id": "multiline-link",
+              "location": [
+                {
+                  "line": 34,
+                  "col": 11
+                },
+                {
+                  "line": 34,
+                  "col": 24
+                }
+              ]
+            }
+          },
           "target": {
             "type": "url",
             "value": "https://example.org/multiline"
@@ -846,10 +855,7 @@
               "line": 34,
               "col": 25
             }
-          ],
-          "attributes": {
-            "id": "multiline-link"
-          }
+          ]
         },
         {
           "name": "text",

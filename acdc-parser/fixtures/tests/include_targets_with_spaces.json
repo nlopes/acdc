@@ -115,6 +115,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "include"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.invalid/remote chapter.adoc"
@@ -128,10 +133,7 @@
               "line": 7,
               "col": 70
             }
-          ],
-          "attributes": {
-            "role": "include"
-          }
+          ]
         }
       ],
       "location": [

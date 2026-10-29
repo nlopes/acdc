@@ -37,11 +37,8 @@ fn secure_mode_preserves_local_and_uri_includes_without_reading_them()
 
         assert_eq!(link.target.to_string(), expected_target);
         assert_eq!(link.text, []);
-        assert_eq!(link.attributes.iter().count(), 1);
-        assert_eq!(
-            link.attributes.get_string("role").as_deref(),
-            Some("include")
-        );
+        assert_eq!(link.attributes().iter().count(), 0);
+        assert_eq!(link.metadata.roles, ["include"]);
         assert_eq!(paragraph.location.start.line, expected_line);
         assert!(paragraph.location.start.file.is_none());
     }

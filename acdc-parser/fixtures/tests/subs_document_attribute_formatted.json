@@ -454,8 +454,7 @@
                   "line": 28,
                   "col": 49
                 }
-              ],
-              "attributes": {}
+              ]
             },
             {
               "name": "text",
@@ -749,8 +748,7 @@
                   "line": 34,
                   "col": 46
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "location": [
@@ -1104,8 +1102,7 @@
                   "line": 44,
                   "col": 32
                 }
-              ],
-              "attributes": {}
+              ]
             },
             {
               "name": "text",

@@ -1,6 +1,6 @@
 //! Link labels, destinations, and footnote markers used inside code blocks.
 
-use std::{borrow::Cow, collections::HashMap, fmt::Write as _};
+use std::{collections::HashMap, fmt::Write as _};
 
 use acdc_parser::{InlineMacro, InlineNode, Reference};
 
@@ -135,10 +135,22 @@ fn link_anchor(
     location: &acdc_parser::Location,
     references: &HashMap<&str, Reference<'_>>,
 ) -> Option<String> {
-    let attributes = match node {
-        InlineMacro::Link(link) => Some(&link.attributes),
-        InlineMacro::Url(link) => Some(&link.attributes),
-        InlineMacro::Mailto(link) => Some(&link.attributes),
+    let id = match node {
+        InlineMacro::Link(link) => link
+            .metadata
+            .id
+            .as_ref()
+            .map(|id| acdc_parser::strip_quotes(id.id)),
+        InlineMacro::Url(link) => link
+            .metadata
+            .id
+            .as_ref()
+            .map(|id| acdc_parser::strip_quotes(id.id)),
+        InlineMacro::Mailto(link) => link
+            .metadata
+            .id
+            .as_ref()
+            .map(|id| acdc_parser::strip_quotes(id.id)),
         InlineMacro::Autolink(_)
         | InlineMacro::CrossReference(_)
         | InlineMacro::Footnote(_)
@@ -152,14 +164,12 @@ fn link_anchor(
         | InlineMacro::IndexTerm(_)
         | _ => None,
     };
-    attributes
-        .and_then(|attributes| attributes.get_string("id"))
-        .filter(|id| {
-            references
-                .get(id.as_ref())
-                .is_some_and(|reference| reference.location == *location)
-        })
-        .map(Cow::into_owned)
+    id.filter(|id| {
+        references
+            .get(*id)
+            .is_some_and(|reference| reference.location == *location)
+    })
+    .map(str::to_owned)
 }
 
 /// Inline content that keeps its place in a code block's text.

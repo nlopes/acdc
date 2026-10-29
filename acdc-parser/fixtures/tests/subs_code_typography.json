@@ -513,8 +513,7 @@
                   "line": 31,
                   "col": 62
                 }
-              ],
-              "attributes": {}
+              ]
             },
             {
               "name": "text",
@@ -565,8 +564,7 @@
                   "line": 32,
                   "col": 70
                 }
-              ],
-              "attributes": {}
+              ]
             },
             {
               "name": "text",
@@ -1286,8 +1284,7 @@
                   "line": 61,
                   "col": 62
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "metadata": {
@@ -1947,8 +1944,7 @@
                   "line": 86,
                   "col": 65
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "location": [

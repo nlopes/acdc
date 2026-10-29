@@ -169,10 +169,7 @@ fn assert_include_fallback(result: &ParseResult, target: &str) -> TestResult {
     };
     assert_eq!(link.target.to_string(), target);
     assert_eq!(link.text, []);
-    assert_eq!(
-        link.attributes.get_string("role").as_deref(),
-        Some("include")
-    );
+    assert_eq!(link.metadata.roles, ["include"]);
     let [warning] = result.warnings() else {
         return Err("expected a content-recovery warning".into());
     };

@@ -65,11 +65,8 @@ fn assert_denied_uri_fallback(result: &ParseResult, target: &str) -> TestResult 
     };
     assert_eq!(link.target.to_string(), target);
     assert_eq!(link.text, []);
-    assert_eq!(link.attributes.iter().count(), 1);
-    assert_eq!(
-        link.attributes.get_string("role").as_deref(),
-        Some("include")
-    );
+    assert_eq!(link.attributes().iter().count(), 0);
+    assert_eq!(link.metadata.roles, ["include"]);
     assert_eq!(fallback.location.start.line, 3);
     assert!(fallback.location.start.file.is_none());
     let [warning] = result.warnings() else {
@@ -119,7 +116,7 @@ fn compat_mode_omits_include_role_from_denied_uri_fallback() -> TestResult {
         return Err(format!("expected one fallback link, got {:?}", fallback.content).into());
     };
     assert_eq!(link.target.to_string(), target);
-    assert_eq!(link.attributes.iter().count(), 0);
+    assert_eq!(link.attributes().iter().count(), 0);
     let [warning] = result.warnings() else {
         return Err("expected a content-recovery warning".into());
     };

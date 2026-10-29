@@ -1,9 +1,9 @@
 //! Reference registration and document finalization.
 
 use crate::{
-    Anchor, Block, BlockMetadata, ContentAttribute, DelimitedBlockType, Document,
-    ElementAttributes, Footnote, Header, InlineMacro, InlineNode, Location, Plain, Reference,
-    Section, Title, TocEntry, Warning, WarningKind,
+    Anchor, Block, BlockMetadata, ContentAttribute, DelimitedBlockType, Document, Footnote, Header,
+    InlineMacro, InlineMetadata, InlineNode, Location, Plain, Reference, Section, Title, TocEntry,
+    Warning, WarningKind,
     grammar::{
         ParserState,
         document::sections::warn_for_nested_special_section,
@@ -411,14 +411,14 @@ fn collect_formatted_references<'a, T>(
 
 fn collect_link_references<'a>(
     state: &mut ParserState<'a>,
-    attributes: &ElementAttributes<'a>,
+    metadata: &InlineMetadata<'a>,
     location: &Location,
     text: &[InlineNode<'a>],
     refs: &mut ReferenceCatalog<'a>,
     xrefs: &mut Vec<CrossReferenceUse<'a>>,
 ) {
-    if let Some(id) = attributes.get_string("id") {
-        insert_untitled_reference(state, refs, state.intern_cow(id), location);
+    if let Some(id) = &metadata.id {
+        insert_untitled_reference(state, refs, crate::strip_quotes(id.id), location);
     }
     collect_inline_references(state, text, refs, xrefs);
 }
@@ -814,23 +814,25 @@ pub(super) fn collect_inline_references<'a>(
             }
             InlineNode::Macro(InlineMacro::Link(link)) => collect_link_references(
                 state,
-                &link.attributes,
+                &link.metadata,
                 &link.location,
                 &link.text,
                 refs,
                 xrefs,
             ),
-            InlineNode::Macro(InlineMacro::Url(url)) => collect_link_references(
-                state,
-                &url.attributes,
-                &url.location,
-                &url.text,
-                refs,
-                xrefs,
-            ),
+            InlineNode::Macro(InlineMacro::Url(url)) => {
+                collect_link_references(
+                    state,
+                    &url.metadata,
+                    &url.location,
+                    &url.text,
+                    refs,
+                    xrefs,
+                );
+            }
             InlineNode::Macro(InlineMacro::Mailto(mailto)) => collect_link_references(
                 state,
-                &mailto.attributes,
+                &mailto.metadata,
                 &mailto.location,
                 &mailto.text,
                 refs,

@@ -152,21 +152,10 @@ fn raw_fragment_placeholder(index: usize) -> String {
     format!("\0{index}\0")
 }
 
-/// Extract the `role` attribute as a non-empty, unquoted string.
-///
-/// Returns `None` when the attribute is absent, non-string, or empty after stripping quotes.
-fn role_from_attrs(attributes: &ElementAttributes) -> Option<String> {
-    attributes.get("role").and_then(|v| match v {
-        AttributeValue::String(s) => {
-            let role = strip_quotes(s);
-            if role.is_empty() {
-                None
-            } else {
-                Some(role.to_string())
-            }
-        }
-        AttributeValue::Bool(_) | AttributeValue::None | _ => None,
-    })
+fn role_from_metadata(metadata: &acdc_parser::InlineMetadata<'_>) -> Option<String> {
+    (!metadata.roles.is_empty())
+        .then(|| strip_quotes(&metadata.roles.join(" ")).to_owned())
+        .filter(|role| !role.is_empty())
 }
 
 /// Build the ` class="..."` attribute (with leading space) for link-like anchors.
@@ -184,10 +173,11 @@ fn link_class_attr(role: Option<String>, bare: bool) -> String {
     }
 }
 
-fn link_id_attr(attributes: &ElementAttributes<'_>) -> String {
-    attributes
-        .get_string("id")
-        .map_or_else(String::new, |id| format!(" id=\"{id}\""))
+fn link_id_attr(metadata: &acdc_parser::InlineMetadata<'_>) -> String {
+    metadata
+        .id
+        .as_ref()
+        .map_or_else(String::new, |id| format!(" id=\"{}\"", strip_quotes(id.id)))
 }
 
 /// Extract `target` and `rel` attributes from `window` or `target` attribute values.
@@ -830,9 +820,9 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             return Ok(());
         }
 
-        let id_attr = link_id_attr(&l.attributes);
-        let class_attr = link_class_attr(role_from_attrs(&l.attributes), l.text.is_empty());
-        let target_attr = window_attrs(&l.attributes);
+        let id_attr = link_id_attr(&l.metadata);
+        let class_attr = link_class_attr(role_from_metadata(&l.metadata), l.text.is_empty());
+        let target_attr = window_attrs(l.attributes());
         let tooltip = tooltip_attribute(l.tooltip.as_ref());
         self.with_inline_link(
             InlineLink::new(
@@ -943,9 +933,9 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             return Ok(());
         }
 
-        let id_attr = link_id_attr(&u.attributes);
-        let class_attr = link_class_attr(role_from_attrs(&u.attributes), u.text.is_empty());
-        let target_attr = window_attrs(&u.attributes);
+        let id_attr = link_id_attr(&u.metadata);
+        let class_attr = link_class_attr(role_from_metadata(&u.metadata), u.text.is_empty());
+        let target_attr = window_attrs(u.attributes());
         let tooltip = tooltip_attribute(u.tooltip.as_ref());
         self.with_inline_link(
             InlineLink::new(
@@ -989,9 +979,9 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             return Ok(());
         }
 
-        let id_attr = link_id_attr(&m.attributes);
-        let class_attr = link_class_attr(role_from_attrs(&m.attributes), false);
-        let target_attr = window_attrs(&m.attributes);
+        let id_attr = link_id_attr(&m.metadata);
+        let class_attr = link_class_attr(role_from_metadata(&m.metadata), false);
+        let target_attr = window_attrs(m.attributes());
         let tooltip = tooltip_attribute(m.tooltip.as_ref());
         self.with_inline_link(
             InlineLink::new(

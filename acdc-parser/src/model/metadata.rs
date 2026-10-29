@@ -461,6 +461,18 @@ pub(crate) struct MacroAttributes<'a> {
 }
 
 impl<'a> MacroAttributes<'a> {
+    pub(crate) fn replace(
+        &mut self,
+        attributes: ElementAttributes<'a>,
+        reserved: &[&str],
+    ) -> Result<(), ReservedAttribute> {
+        for (name, _) in attributes.iter() {
+            Self::check_name(name, reserved)?;
+        }
+        self.attributes = attributes;
+        Ok(())
+    }
+
     pub(crate) fn set(
         &mut self,
         name: AttributeName<'a>,

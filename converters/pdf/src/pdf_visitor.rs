@@ -4075,7 +4075,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     traversal,
                     &target,
                     &url.text,
-                    Some(&url.attributes),
+                    Some(&url.metadata),
                     Some(&url.location),
                     fallback,
                 )?;
@@ -4087,7 +4087,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     traversal,
                     &target,
                     &link.text,
-                    Some(&link.attributes),
+                    Some(&link.metadata),
                     Some(&link.location),
                     fallback,
                 )?;
@@ -4099,7 +4099,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     traversal,
                     &mailto_target(mailto),
                     &mailto.text,
-                    Some(&mailto.attributes),
+                    Some(&mailto.metadata),
                     Some(&mailto.location),
                     fallback,
                 )?;
@@ -4413,22 +4413,29 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         traversal: &mut TraversalContext<'a>,
         target: &str,
         text: &[InlineNode<'_>],
-        attributes: Option<&ElementAttributes<'_>>,
+        metadata: Option<&acdc_parser::InlineMetadata<'_>>,
         location: Option<&Location>,
         fallback: &str,
     ) -> Result<(), Error> {
-        let id = attributes
-            .and_then(|attributes| attributes.get_string("id"))
+        let id = metadata
+            .and_then(|metadata| {
+                metadata
+                    .id
+                    .as_ref()
+                    .map(|id| acdc_parser::strip_quotes(id.id))
+            })
             .filter(|id| {
                 location.is_some_and(|location| {
                     self.processor
                         .references
-                        .get(id.as_ref())
+                        .get(*id)
                         .is_some_and(|reference| reference.location == *location)
                 })
             });
-        let role = attributes.and_then(|attributes| attributes.get_string("role"));
-        let state = self.write_inline_span_start(id.as_deref(), role.as_deref());
+        let role = metadata
+            .filter(|metadata| !metadata.roles.is_empty())
+            .map(|metadata| acdc_parser::strip_quotes(&metadata.roles.join(" ")).to_owned());
+        let state = self.write_inline_span_start(id, role.as_deref());
 
         match text {
             [InlineNode::Macro(InlineMacro::Image(image))]

@@ -348,8 +348,7 @@
                   "line": 16,
                   "col": 43
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "location": [
@@ -399,8 +398,7 @@
                   "line": 18,
                   "col": 31
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "location": [
@@ -467,8 +465,7 @@
                   "line": 20,
                   "col": 41
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "location": [
@@ -949,8 +946,7 @@
                   "line": 40,
                   "col": 37
                 }
-              ],
-              "attributes": {}
+              ]
             },
             {
               "name": "text",
@@ -1062,8 +1058,7 @@
                   "line": 42,
                   "col": 75
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "location": [
@@ -1590,8 +1585,7 @@
                   "line": 58,
                   "col": 60
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "location": [
@@ -1953,8 +1947,7 @@
                   "line": 67,
                   "col": 77
                 }
-              ],
-              "attributes": {}
+              ]
             },
             {
               "name": "text",

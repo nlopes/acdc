@@ -2,6 +2,7 @@ use crate::{InlineMacro, InlineNode};
 
 use super::{ContentRef, InlineImageRef, LocationRef};
 
+mod hyperlinks;
 mod icons;
 mod spans;
 

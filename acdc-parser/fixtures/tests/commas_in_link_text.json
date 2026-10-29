@@ -55,8 +55,7 @@
               "line": 1,
               "col": 50
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -138,8 +137,7 @@
               "line": 3,
               "col": 117
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -191,6 +189,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "external"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://rust-lang.org"
@@ -221,10 +224,7 @@
               "line": 5,
               "col": 101
             }
-          ],
-          "attributes": {
-            "role": "external"
-          }
+          ]
         },
         {
           "name": "text",
@@ -326,8 +326,7 @@
                   "line": 9,
                   "col": 37
                 }
-              ],
-              "attributes": {}
+              ]
             },
             {
               "name": "text",

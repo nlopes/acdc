@@ -425,6 +425,27 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "attributes": {
+              "window": "frame"
+            },
+            "roles": [
+              "hot"
+            ],
+            "id": {
+              "id": "link-id",
+              "location": [
+                {
+                  "line": 18,
+                  "col": 66
+                },
+                {
+                  "line": 18,
+                  "col": 74
+                }
+              ]
+            }
+          },
           "target": {
             "type": "url",
             "value": "https://example.com"
@@ -455,12 +476,7 @@
               "line": 18,
               "col": 75
             }
-          ],
-          "attributes": {
-            "id": "link-id",
-            "role": "hot",
-            "window": "frame"
-          }
+          ]
         },
         {
           "name": "text",
@@ -512,6 +528,27 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "attributes": {
+              "window": "frame"
+            },
+            "roles": [
+              "hot"
+            ],
+            "id": {
+              "id": "url-id",
+              "location": [
+                {
+                  "line": 20,
+                  "col": 59
+                },
+                {
+                  "line": 20,
+                  "col": 66
+                }
+              ]
+            }
+          },
           "target": {
             "type": "url",
             "value": "https://example.com"
@@ -542,12 +579,7 @@
               "line": 20,
               "col": 67
             }
-          ],
-          "attributes": {
-            "id": "url-id",
-            "role": "hot",
-            "window": "frame"
-          }
+          ]
         },
         {
           "name": "text",
@@ -599,6 +631,27 @@
           "name": "ref",
           "type": "inline",
           "variant": "mailto",
+          "metadata": {
+            "attributes": {
+              "window": "frame"
+            },
+            "roles": [
+              "hot"
+            ],
+            "id": {
+              "id": "mail-id",
+              "location": [
+                {
+                  "line": 22,
+                  "col": 65
+                },
+                {
+                  "line": 22,
+                  "col": 73
+                }
+              ]
+            }
+          },
           "target": {
             "type": "url",
             "value": "mailto:user@example.com"
@@ -629,12 +682,7 @@
               "line": 22,
               "col": 74
             }
-          ],
-          "attributes": {
-            "id": "mail-id",
-            "role": "hot",
-            "window": "frame"
-          }
+          ]
         },
         {
           "name": "text",
@@ -916,6 +964,12 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "hot",
+              "cool"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.com"
@@ -946,10 +1000,7 @@
               "line": 28,
               "col": 58
             }
-          ],
-          "attributes": {
-            "role": "hot cool"
-          }
+          ]
         },
         {
           "name": "text",
@@ -1001,6 +1052,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "hot"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.com"
@@ -1031,10 +1087,7 @@
               "line": 30,
               "col": 53
             }
-          ],
-          "attributes": {
-            "role": "hot"
-          }
+          ]
         },
         {
           "name": "text",
@@ -1086,6 +1139,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "hot"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.com"
@@ -1116,10 +1174,7 @@
               "line": 32,
               "col": 63
             }
-          ],
-          "attributes": {
-            "role": "hot"
-          }
+          ]
         },
         {
           "name": "text",
@@ -1140,6 +1195,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "cool"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.com"
@@ -1170,10 +1230,7 @@
               "line": 32,
               "col": 109
             }
-          ],
-          "attributes": {
-            "role": "cool"
-          }
+          ]
         },
         {
           "name": "text",
@@ -1225,6 +1282,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "{role-name}"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.com"
@@ -1255,10 +1317,7 @@
               "line": 34,
               "col": 75
             }
-          ],
-          "attributes": {
-            "role": "{role-name}"
-          }
+          ]
         },
         {
           "name": "text",
@@ -1310,6 +1369,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "+hot+"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.com"
@@ -1340,10 +1404,7 @@
               "line": 36,
               "col": 65
             }
-          ],
-          "attributes": {
-            "role": "+hot+"
-          }
+          ]
         },
         {
           "name": "text",
@@ -1395,6 +1456,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "+hot+"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.com"
@@ -1425,10 +1491,7 @@
               "line": 38,
               "col": 55
             }
-          ],
-          "attributes": {
-            "role": "+hot+"
-          }
+          ]
         },
         {
           "name": "text",
@@ -1480,6 +1543,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "hot[0],cool"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.com"
@@ -1510,10 +1578,7 @@
               "line": 40,
               "col": 62
             }
-          ],
-          "attributes": {
-            "role": "hot[0],cool"
-          }
+          ]
         },
         {
           "name": "text",

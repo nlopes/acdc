@@ -14,8 +14,7 @@ use acdc_converters_core::{
     xref::{XrefDisplay, resolve_xref},
 };
 use acdc_parser::{
-    Autolink, CrossReference, ElementAttributes, InlineMacro, InlineNode, Link, Mailto,
-    Substitution,
+    Autolink, CrossReference, InlineMacro, InlineMetadata, InlineNode, Link, Mailto, Substitution,
 };
 
 use crate::{
@@ -77,8 +76,9 @@ fn role_affixes(
     (prefix, suffix)
 }
 
-fn role_from_attributes<'a>(attributes: &ElementAttributes<'a>) -> Option<Cow<'a, str>> {
-    attributes.get_string("role")
+fn role_from_metadata(metadata: &InlineMetadata<'_>) -> Option<String> {
+    (!metadata.roles.is_empty())
+        .then(|| acdc_parser::strip_quotes(&metadata.roles.join(" ")).to_owned())
 }
 
 fn has_degraded_role(role: Option<&str>) -> bool {
@@ -563,7 +563,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         link: &Link,
     ) -> Result<(), Error> {
         let target = link.target.to_string();
-        let role = role_from_attributes(&link.attributes);
+        let role = role_from_metadata(&link.metadata);
         self.with_link_label(escape_roff_macro_argument(&target), false, |visitor| {
             let styled = !role_affixes(role.as_deref(), RoleDefault::Plain, &mut "\\fR")
                 .0
@@ -588,7 +588,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         let target = mailto.target.to_string();
         let destination = mailto_target(mailto);
         let email = escape_roff_macro_argument(mailto_fallback(&destination)).replace('@', "\\(at");
-        let role = role_from_attributes(&mailto.attributes);
+        let role = role_from_metadata(&mailto.metadata);
         self.with_link_label(email, true, |visitor| {
             let styled = !role_affixes(role.as_deref(), RoleDefault::Plain, &mut "\\fR")
                 .0
@@ -667,7 +667,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         match macro_node {
             InlineMacro::Url(url) => {
                 let target = url.target.to_string();
-                let role = role_from_attributes(&url.attributes);
+                let role = role_from_metadata(&url.metadata);
                 self.with_link_label(escape_roff_macro_argument(&target), false, |visitor| {
                     let styled = !role_affixes(role.as_deref(), RoleDefault::Plain, &mut "\\fR")
                         .0

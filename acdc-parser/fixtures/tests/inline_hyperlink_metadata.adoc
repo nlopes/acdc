@@ -1,0 +1,28 @@
+= Hyperlink metadata
+:hide-uri-scheme:
+:role-name: resource
+:link-id: expanded-id
+
+link:guide.adoc[*Guide*,id=guide,role="one two",opts="nofollow,noopener",title='_Tip_',window=_blank,custom=kept]
+
+https://example.org[*Web*,id=web,roles="one two",options="nofollow,noopener",title='_Tip_',window=reading,custom=kept]
+
+mailto:team@example.org[Team,"Hello & goodbye","Body with café",id=mail,role=email,opts=nofollow,title='*Tip*',window=_blank,custom=kept]
+
+mailto:team@example.org[Team,subject="Named subject",body="Named body"]
+
+mailto:team@example.org[,"",""]
+
+link:guide.adoc[title="",id="",role="",opts="",custom=""]
+
+https://example.org[]
+
+link:guide.adoc[Label^,title=Tip]
+
+link:guide.adoc[Label,id=first,id=last,role=old,role="new role",opts=old,opts="new,other"]
+
+link:guide.adoc[Expanded,id={link-id},role={role-name}]
+
+é https://example.org[Unicode,id=étoile中,title='*Café*']
+
+link:guide.adoc[Protected,id=+protected-id+,role=+two roles+,opts=+one,two+,custom=+a,b]+]

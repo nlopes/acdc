@@ -340,7 +340,7 @@ fn restore_reference_label_passthroughs<'a>(
     }
 }
 
-fn restore_media_metadata<'a>(
+fn restore_inline_metadata<'a>(
     metadata: &mut crate::InlineMetadata<'a>,
     attributes: &mut crate::model::MacroAttributes<'a>,
     ctx: &LocationMappingContext<'_, 'a>,
@@ -385,11 +385,20 @@ fn restore_macro_attributes<'a>(
 
     let restore = |text: &str| ctx.restore_passthrough_text(text);
     let attributes = match inline_macro {
-        InlineMacro::Link(link) => &mut link.attributes,
-        InlineMacro::Url(url) => &mut url.attributes,
-        InlineMacro::Mailto(mailto) => &mut mailto.attributes,
+        InlineMacro::Link(link) => {
+            restore_inline_metadata(&mut link.metadata, &mut link.macro_attributes, ctx);
+            &mut link.macro_attributes.attributes
+        }
+        InlineMacro::Url(url) => {
+            restore_inline_metadata(&mut url.metadata, &mut url.macro_attributes, ctx);
+            &mut url.macro_attributes.attributes
+        }
+        InlineMacro::Mailto(mailto) => {
+            restore_inline_metadata(&mut mailto.metadata, &mut mailto.macro_attributes, ctx);
+            &mut mailto.macro_attributes.attributes
+        }
         InlineMacro::Icon(icon) => {
-            restore_media_metadata(&mut icon.metadata, &mut icon.macro_attributes, ctx);
+            restore_inline_metadata(&mut icon.metadata, &mut icon.macro_attributes, ctx);
             &mut icon.macro_attributes.attributes
         }
         InlineMacro::CrossReference(xref) => {
@@ -401,7 +410,7 @@ fn restore_macro_attributes<'a>(
             return;
         }
         InlineMacro::Image(image) => {
-            restore_media_metadata(&mut image.metadata, &mut image.macro_attributes, ctx);
+            restore_inline_metadata(&mut image.metadata, &mut image.macro_attributes, ctx);
             &mut image.macro_attributes.attributes
         }
         InlineMacro::Footnote(_)
@@ -517,14 +526,23 @@ fn map_inline_macro<'a>(
         }
         InlineMacro::Url(url) => {
             url.location = ctx.map_location(&url.location)?;
+            if let Some(id) = &mut url.metadata.id {
+                id.location = ctx.map_location(&id.location)?;
+            }
             url.text = map_inline_locations(state, processed, take(&mut url.text), location)?;
         }
         InlineMacro::Mailto(mailto) => {
             mailto.location = ctx.map_location(&mailto.location)?;
+            if let Some(id) = &mut mailto.metadata.id {
+                id.location = ctx.map_location(&id.location)?;
+            }
             mailto.text = map_inline_locations(state, processed, take(&mut mailto.text), location)?;
         }
         InlineMacro::Link(link) => {
             link.location = ctx.map_location(&link.location)?;
+            if let Some(id) = &mut link.metadata.id {
+                id.location = ctx.map_location(&id.location)?;
+            }
             link.text = map_inline_locations(state, processed, take(&mut link.text), location)?;
         }
         InlineMacro::Icon(icon) => {

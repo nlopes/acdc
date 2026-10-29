@@ -118,3 +118,43 @@ fn icon_reads_borrow_content_and_controls_without_allocating()
     assert_eq!(stats.deallocations, 0);
     Ok(())
 }
+
+#[test]
+fn hyperlink_reads_do_not_allocate() -> Result<(), Box<dyn std::error::Error>> {
+    let mut link = acdc_parser::Link::new(Source::Name("guide.adoc"), Location::default());
+    link.set_attribute(
+        String::from("window").into(),
+        String::from("reading").into(),
+    )?;
+    link.metadata.roles.push("one");
+    link.options_mut().push("first");
+    link.tooltip = Some(ContentAttribute::default());
+    let mut mail =
+        acdc_parser::Mailto::new(Source::Name("mailto:a@example.org"), Location::default());
+    mail.subject = Some("Hello & café");
+    mail.body = Some("");
+    let region = Region::new(ALLOCATOR);
+    let link = acdc_parser::ast::LinkRef::from(&link);
+    black_box(link.target().kind());
+    black_box(link.text().inlines().next());
+    black_box(link.tooltip());
+    black_box(link.id());
+    black_box(link.window());
+    black_box(link.hides_uri_scheme());
+    for (name, value) in link.attributes().iter() {
+        black_box(link.attributes().get(name));
+        if let AttributeValueRef::Tokens(tokens) = value {
+            for token in tokens.iter() {
+                black_box(token);
+            }
+        }
+    }
+    let mail = acdc_parser::ast::MailtoRef::from(&mail);
+    black_box(mail.subject());
+    black_box(mail.body());
+    let stats = region.change();
+    assert_eq!(stats.allocations, 0);
+    assert_eq!(stats.reallocations, 0);
+    assert_eq!(stats.deallocations, 0);
+    Ok(())
+}

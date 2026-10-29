@@ -5,15 +5,17 @@ use serde::{
     ser::{Error as _, SerializeMap, Serializer},
 };
 
+mod hyperlinks;
 mod icon;
 mod macros;
 mod text;
 
+pub use hyperlinks::{Link, Mailto, Url};
 pub use icon::Icon;
 pub use macros::*;
 pub use text::*;
 
-use crate::{Anchor, ElementAttributes, InlineImage, Location, Source};
+use crate::{Anchor, InlineImage, Location};
 
 /// An `InlineNode` represents an inline node in a document.
 ///
@@ -321,26 +323,6 @@ fn serialize_inline_macro<S>(
 where
     S: Serializer,
 {
-    let tooltip = match macro_node {
-        InlineMacro::Link(value) => value.tooltip.as_ref(),
-        InlineMacro::Url(value) => value.tooltip.as_ref(),
-        InlineMacro::Mailto(value) => value.tooltip.as_ref(),
-
-        InlineMacro::Icon(_)
-        | InlineMacro::Footnote(_)
-        | InlineMacro::Image(_)
-        | InlineMacro::Keyboard(_)
-        | InlineMacro::Button(_)
-        | InlineMacro::Menu(_)
-        | InlineMacro::Autolink(_)
-        | InlineMacro::CrossReference(_)
-        | InlineMacro::Pass(_)
-        | InlineMacro::Stem(_)
-        | InlineMacro::IndexTerm(_) => None,
-    };
-    if let Some(tooltip) = tooltip {
-        map.serialize_entry("tooltip", tooltip)?;
-    }
     match macro_node {
         InlineMacro::Footnote(f) => serialize_footnote::<S>(f, map),
         InlineMacro::Icon(i) => serialize_icon::<S>(i, map),
@@ -348,20 +330,9 @@ where
         InlineMacro::Keyboard(k) => serialize_keyboard::<S>(k, map),
         InlineMacro::Button(b) => serialize_button::<S>(b, map),
         InlineMacro::Menu(m) => serialize_menu::<S>(m, map),
-        InlineMacro::Url(u) => {
-            serialize_ref::<S>(map, "link", &u.target, &u.text, &u.attributes, &u.location)
-        }
-        InlineMacro::Mailto(m) => serialize_ref::<S>(
-            map,
-            "mailto",
-            &m.target,
-            &m.text,
-            &m.attributes,
-            &m.location,
-        ),
-        InlineMacro::Link(l) => {
-            serialize_ref::<S>(map, "link", &l.target, &l.text, &l.attributes, &l.location)
-        }
+        InlineMacro::Url(u) => serialize_url::<S>(u, map),
+        InlineMacro::Mailto(m) => serialize_mailto::<S>(m, map),
+        InlineMacro::Link(l) => serialize_link::<S>(l, map),
         InlineMacro::Autolink(a) => serialize_autolink::<S>(a, map),
         InlineMacro::CrossReference(x) => serialize_xref::<S>(x, map),
         InlineMacro::Stem(s) => serialize_stem::<S>(s, map),
@@ -470,29 +441,35 @@ where
     map.serialize_entry("location", &m.location)
 }
 
-/// Serialize a `link`/`mailto`-style inline reference (`Url`, `Mailto`, `Link` —
-/// all structurally identical) into the shared ASG `ref` shape.
-fn serialize_ref<S>(
-    map: &mut S::SerializeMap,
-    variant: &str,
-    target: &Source<'_>,
-    text: &[InlineNode<'_>],
-    attributes: &ElementAttributes<'_>,
-    location: &Location,
-) -> Result<(), S::Error>
-where
-    S: Serializer,
-{
-    map.serialize_entry("name", "ref")?;
-    map.serialize_entry("type", "inline")?;
-    map.serialize_entry("variant", variant)?;
-    map.serialize_entry("target", target)?;
-    if !text.is_empty() {
-        map.serialize_entry("inlines", text)?;
-    }
-    map.serialize_entry("location", location)?;
-    map.serialize_entry("attributes", attributes)
+macro_rules! serialize_hyperlink {
+    ($owner:ident, $function:ident, $variant:literal $(, $field:ident)*) => {
+        impl Serialize for $owner<'_> {
+            fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+                let mut map = serializer.serialize_map(None)?;
+                $function::<S>(self, &mut map)?;
+                map.end()
+            }
+        }
+
+        fn $function<S: Serializer>(node: &$owner<'_>, map: &mut S::SerializeMap) -> Result<(), S::Error> {
+            map.serialize_entry("name", "ref")?;
+            map.serialize_entry("type", "inline")?;
+            map.serialize_entry("variant", $variant)?;
+            if !node.metadata.is_empty() || !node.macro_attributes.is_empty() {
+                map.serialize_entry("metadata", &node.metadata_view())?;
+            }
+            if let Some(tooltip) = &node.tooltip { map.serialize_entry("tooltip", tooltip)?; }
+            map.serialize_entry("target", &node.target)?;
+            if !node.text.is_empty() { map.serialize_entry("inlines", &node.text)?; }
+            $(if let Some(value) = &node.$field { map.serialize_entry(stringify!($field), value)?; })*
+            map.serialize_entry("location", &node.location)
+        }
+    };
 }
+
+serialize_hyperlink!(Link, serialize_link, "link");
+serialize_hyperlink!(Url, serialize_url, "link");
+serialize_hyperlink!(Mailto, serialize_mailto, "mailto", subject, body);
 
 fn serialize_autolink<S>(a: &Autolink<'_>, map: &mut S::SerializeMap) -> Result<(), S::Error>
 where

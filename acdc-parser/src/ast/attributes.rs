@@ -1,15 +1,15 @@
 use crate::{
     Admonition, Audio, BlockMetadata, Bold, CalloutList, CurvedApostrophe, CurvedQuotation,
     DelimitedBlock, DescriptionList, DiscreteHeader, ElementAttributes, Header, Highlight, Icon,
-    Image, InlineImage, Italic, Monospace, OrderedList, PageBreak, Paragraph, Section, Subscript,
-    Superscript, TableOfContents, ThematicBreak, UnorderedList, Video,
+    Image, InlineImage, Italic, Link, Mailto, Monospace, OrderedList, PageBreak, Paragraph,
+    Section, Subscript, Superscript, TableOfContents, ThematicBreak, UnorderedList, Url, Video,
 };
 
 use super::{AttributeValueRef, ContentRef, ElementIdRef, TokensRef};
 
 /// Named values on an element.
 ///
-/// Reads cover titles, image alt and tooltips, IDs, styles, role/option tokens,
+/// Reads cover titles, image alt, inline tooltips, IDs, styles, role/option tokens,
 /// and scalar controls. Quote/caption content and substitution settings use
 /// dedicated accessors or the owner API. Restricted owners expose only the fields
 /// they retain.
@@ -68,6 +68,9 @@ enum Owner<'doc> {
     Image(&'doc Image<'doc>),
     InlineImage(&'doc InlineImage<'doc>),
     Icon(&'doc Icon<'doc>),
+    Link(&'doc Link<'doc>),
+    Url(&'doc Url<'doc>),
+    Mailto(&'doc Mailto<'doc>),
     Audio(&'doc Audio<'doc>),
     Video(&'doc Video<'doc>),
     TableOfContents(&'doc TableOfContents<'doc>),
@@ -100,6 +103,24 @@ impl Field {
 }
 
 impl<'doc> AttributesRef<'doc> {
+    pub(super) fn link(owner: &'doc Link<'doc>) -> Self {
+        Self {
+            owner: Owner::Link(owner),
+        }
+    }
+
+    pub(super) fn url(owner: &'doc Url<'doc>) -> Self {
+        Self {
+            owner: Owner::Url(owner),
+        }
+    }
+
+    pub(super) fn mailto(owner: &'doc Mailto<'doc>) -> Self {
+        Self {
+            owner: Owner::Mailto(owner),
+        }
+    }
+
     pub(super) fn bold(owner: &'doc Bold<'doc>) -> Self {
         Self {
             owner: Owner::Bold(owner),
@@ -258,7 +279,7 @@ impl<'doc> AttributesRef<'doc> {
 
     /// Read a value by name. `roles` aliases `role`; `options` aliases `opts`.
     ///
-    /// `title` means the tooltip on an inline image or icon and the title on a block.
+    /// `title` means the tooltip on an image, icon, or hyperlink inline and the title on a block.
     /// Missing values return `None`; empty text/content, false and a
     /// retained valueless attribute remain present.
     #[must_use]
@@ -318,6 +339,7 @@ impl<'doc> AttributesRef<'doc> {
             | Owner::CurvedApostrophe(_) => &[Id, Roles],
             Owner::Image(_) => &[Title, Id, Roles, Options, Style, Alt],
             Owner::InlineImage(_) | Owner::Icon(_) => &[Title, Id, Roles, Options, Alt],
+            Owner::Link(_) | Owner::Url(_) | Owner::Mailto(_) => &[Title, Id, Roles, Options],
             Owner::ThematicBreak(_) => &[Title, Id],
             Owner::TableOfContents(_) => &[Id, Roles, Options, Style],
             Owner::Header(_)
@@ -379,6 +401,9 @@ impl<'doc> AttributesRef<'doc> {
             Owner::PageBreak(node) => Some(&node.metadata),
             Owner::InlineImage(_)
             | Owner::Icon(_)
+            | Owner::Link(_)
+            | Owner::Url(_)
+            | Owner::Mailto(_)
             | Owner::ThematicBreak(_)
             | Owner::Bold(_)
             | Owner::Italic(_)
@@ -393,6 +418,12 @@ impl<'doc> AttributesRef<'doc> {
 
     fn attribute_map(self) -> Option<&'doc ElementAttributes<'doc>> {
         if let Owner::InlineImage(node) = self.owner {
+            Some(node.attributes())
+        } else if let Owner::Link(node) = self.owner {
+            Some(node.attributes())
+        } else if let Owner::Url(node) = self.owner {
+            Some(node.attributes())
+        } else if let Owner::Mailto(node) = self.owner {
             Some(node.attributes())
         } else if let Owner::Icon(node) = self.owner {
             Some(node.attributes())
@@ -429,6 +460,9 @@ impl<'doc> AttributesRef<'doc> {
             | Owner::CurvedApostrophe(_) => return None,
             Owner::InlineImage(node) => return node.tooltip.as_ref().map(ContentRef::from),
             Owner::Icon(node) => return node.tooltip.as_ref().map(ContentRef::from),
+            Owner::Link(node) => return node.tooltip.as_ref().map(ContentRef::from),
+            Owner::Url(node) => return node.tooltip.as_ref().map(ContentRef::from),
+            Owner::Mailto(node) => return node.tooltip.as_ref().map(ContentRef::from),
         };
         title.content()
     }
@@ -459,6 +493,9 @@ impl<'doc> AttributesRef<'doc> {
             }
             Owner::InlineImage(node) => node.metadata.id.as_ref().map(ElementIdRef::from),
             Owner::Icon(node) => node.metadata.id.as_ref().map(ElementIdRef::from),
+            Owner::Link(node) => node.metadata.id.as_ref().map(ElementIdRef::from),
+            Owner::Url(node) => node.metadata.id.as_ref().map(ElementIdRef::from),
+            Owner::Mailto(node) => node.metadata.id.as_ref().map(ElementIdRef::from),
             Owner::ThematicBreak(node) => node
                 .anchors
                 .first()
@@ -496,6 +533,9 @@ impl<'doc> AttributesRef<'doc> {
             Owner::CurvedApostrophe(node) => TokensRef::from_text(node.role.unwrap_or_default()),
             Owner::InlineImage(node) => TokensRef::new(&node.metadata.roles),
             Owner::Icon(node) => TokensRef::new(&node.metadata.roles),
+            Owner::Link(node) => TokensRef::new(&node.metadata.roles),
+            Owner::Url(node) => TokensRef::new(&node.metadata.roles),
+            Owner::Mailto(node) => TokensRef::new(&node.metadata.roles),
             Owner::ThematicBreak(_) => TokensRef::new(&[]),
             Owner::Header(_)
             | Owner::Paragraph(_)
@@ -521,6 +561,12 @@ impl<'doc> AttributesRef<'doc> {
 
     pub(super) fn options(self) -> TokensRef<'doc> {
         let options = if let Owner::InlineImage(node) = self.owner {
+            node.options()
+        } else if let Owner::Link(node) = self.owner {
+            node.options()
+        } else if let Owner::Url(node) = self.owner {
+            node.options()
+        } else if let Owner::Mailto(node) = self.owner {
             node.options()
         } else if let Owner::Icon(node) = self.owner {
             node.options()

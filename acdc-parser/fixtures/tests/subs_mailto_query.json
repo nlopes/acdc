@@ -221,6 +221,8 @@
                   ]
                 }
               ],
+              "subject": "Expanded subject",
+              "body": "Café & tea",
               "location": [
                 {
                   "line": 18,
@@ -230,8 +232,7 @@
                   "line": 18,
                   "col": 50
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "location": [
@@ -253,6 +254,11 @@
               "name": "ref",
               "type": "inline",
               "variant": "mailto",
+              "metadata": {
+                "roles": [
+                  "green"
+                ]
+              },
               "target": {
                 "type": "url",
                 "value": "mailto:late@example.org"
@@ -274,6 +280,8 @@
                   ]
                 }
               ],
+              "subject": "{subject}",
+              "body": "{body}",
               "location": [
                 {
                   "line": 21,
@@ -283,10 +291,7 @@
                   "line": 21,
                   "col": 62
                 }
-              ],
-              "attributes": {
-                "role": "green"
-              }
+              ]
             }
           ],
           "metadata": {
@@ -335,6 +340,8 @@
                   ]
                 }
               ],
+              "subject": "Expanded subject",
+              "body": "Café & tea",
               "location": [
                 {
                   "line": 24,
@@ -344,8 +351,7 @@
                   "line": 24,
                   "col": 48
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "metadata": {
@@ -405,6 +411,8 @@
                   ]
                 }
               ],
+              "subject": "Subject text",
+              "body": "Body text",
               "location": [
                 {
                   "line": 28,
@@ -414,8 +422,7 @@
                   "line": 28,
                   "col": 52
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "location": [
@@ -467,8 +474,7 @@
                   "line": 32,
                   "col": 33
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "metadata": {
@@ -517,6 +523,8 @@
                   ]
                 }
               ],
+              "subject": "Subject",
+              "body": "Body",
               "location": [
                 {
                   "line": 34,
@@ -526,8 +534,7 @@
                   "line": 34,
                   "col": 50
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "location": [

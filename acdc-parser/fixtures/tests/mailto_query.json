@@ -216,6 +216,7 @@
                   ]
                 }
               ],
+              "subject": "Test subject",
               "location": [
                 {
                   "line": 13,
@@ -225,8 +226,7 @@
                   "line": 13,
                   "col": 48
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "location": [
@@ -269,6 +269,8 @@
                   ]
                 }
               ],
+              "subject": "Test subject",
+              "body": "Message body",
               "location": [
                 {
                   "line": 15,
@@ -278,8 +280,7 @@
                   "line": 15,
                   "col": 55
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "location": [
@@ -305,6 +306,8 @@
                 "type": "url",
                 "value": "mailto:fallback@example.org"
               },
+              "subject": "Test subject",
+              "body": "Message body",
               "location": [
                 {
                   "line": 17,
@@ -314,8 +317,7 @@
                   "line": 17,
                   "col": 55
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "location": [
@@ -358,6 +360,8 @@
                   ]
                 }
               ],
+              "subject": "",
+              "body": "Message body",
               "location": [
                 {
                   "line": 19,
@@ -367,8 +371,7 @@
                   "line": 19,
                   "col": 45
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "location": [
@@ -411,6 +414,8 @@
                   ]
                 }
               ],
+              "subject": "",
+              "body": "",
               "location": [
                 {
                   "line": 21,
@@ -420,8 +425,7 @@
                   "line": 21,
                   "col": 37
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "location": [
@@ -464,6 +468,8 @@
                   ]
                 }
               ],
+              "subject": "Hello, world",
+              "body": "Say \"hello\", please",
               "location": [
                 {
                   "line": 23,
@@ -473,8 +479,7 @@
                   "line": 23,
                   "col": 72
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "location": [
@@ -517,6 +522,8 @@
                   ]
                 }
               ],
+              "subject": "Café & tea? + 50% #1 ~",
+              "body": "x=y / café",
               "location": [
                 {
                   "line": 25,
@@ -526,8 +533,7 @@
                   "line": 25,
                   "col": 73
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "location": [
@@ -549,6 +555,11 @@
               "name": "ref",
               "type": "inline",
               "variant": "mailto",
+              "metadata": {
+                "roles": [
+                  "green"
+                ]
+              },
               "target": {
                 "type": "url",
                 "value": "mailto:named@example.org"
@@ -570,6 +581,7 @@
                   ]
                 }
               ],
+              "body": "Test subject",
               "location": [
                 {
                   "line": 27,
@@ -579,10 +591,7 @@
                   "line": 27,
                   "col": 68
                 }
-              ],
-              "attributes": {
-                "role": "green"
-              }
+              ]
             }
           ],
           "location": [
@@ -604,6 +613,12 @@
               "name": "ref",
               "type": "inline",
               "variant": "mailto",
+              "metadata": {
+                "attributes": {
+                  "body": "Ignored",
+                  "subject": "Ignored"
+                }
+              },
               "target": {
                 "type": "url",
                 "value": "mailto:named-only@example.org"
@@ -634,11 +649,7 @@
                   "line": 29,
                   "col": 70
                 }
-              ],
-              "attributes": {
-                "body": "Ignored",
-                "subject": "Ignored"
-              }
+              ]
             }
           ],
           "location": [
@@ -681,6 +692,8 @@
                   ]
                 }
               ],
+              "subject": "New subject",
+              "body": "New body",
               "location": [
                 {
                   "line": 31,
@@ -690,8 +703,7 @@
                   "line": 31,
                   "col": 89
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "location": [
@@ -734,6 +746,8 @@
                   ]
                 }
               ],
+              "subject": "Subject]",
+              "body": "Body]",
               "location": [
                 {
                   "line": 33,
@@ -743,8 +757,7 @@
                   "line": 33,
                   "col": 50
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "location": [
@@ -796,8 +809,7 @@
                   "line": 35,
                   "col": 35
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "location": [
@@ -840,6 +852,7 @@
                   ]
                 }
               ],
+              "subject": "",
               "location": [
                 {
                   "line": 37,
@@ -849,8 +862,7 @@
                   "line": 37,
                   "col": 38
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "location": [
@@ -893,6 +905,8 @@
                   ]
                 }
               ],
+              "subject": "",
+              "body": "Body",
               "location": [
                 {
                   "line": 39,
@@ -902,8 +916,7 @@
                   "line": 39,
                   "col": 43
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "location": [
@@ -925,6 +938,12 @@
               "name": "ref",
               "type": "inline",
               "variant": "mailto",
+              "metadata": {
+                "attributes": {
+                  "2": "Ignored",
+                  "3": "Ignored"
+                }
+              },
               "target": {
                 "type": "url",
                 "value": "mailto:numeric@example.org"
@@ -955,11 +974,7 @@
                   "line": 41,
                   "col": 55
                 }
-              ],
-              "attributes": {
-                "2": "Ignored",
-                "3": "Ignored"
-              }
+              ]
             }
           ],
           "location": [
@@ -981,6 +996,24 @@
               "name": "ref",
               "type": "inline",
               "variant": "mailto",
+              "metadata": {
+                "roles": [
+                  "green"
+                ],
+                "id": {
+                  "id": "mail",
+                  "location": [
+                    {
+                      "line": 43,
+                      "col": 65
+                    },
+                    {
+                      "line": 43,
+                      "col": 68
+                    }
+                  ]
+                }
+              },
               "target": {
                 "type": "url",
                 "value": "mailto:attributes@example.org"
@@ -1002,6 +1035,8 @@
                   ]
                 }
               ],
+              "subject": "Subject",
+              "body": "Body",
               "location": [
                 {
                   "line": 43,
@@ -1011,11 +1046,7 @@
                   "line": 43,
                   "col": 69
                 }
-              ],
-              "attributes": {
-                "id": "mail",
-                "role": "green"
-              }
+              ]
             }
           ],
           "location": [
@@ -1058,6 +1089,8 @@
                   ]
                 }
               ],
+              "subject": "It's fine",
+              "body": "Say \"hello\"",
               "location": [
                 {
                   "line": 45,
@@ -1067,8 +1100,7 @@
                   "line": 45,
                   "col": 60
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "location": [
@@ -1111,6 +1143,8 @@
                   ]
                 }
               ],
+              "subject": "one,two",
+              "body": "+",
               "location": [
                 {
                   "line": 47,
@@ -1120,8 +1154,7 @@
                   "line": 47,
                   "col": 58
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "location": [
@@ -1156,8 +1189,7 @@
                   "line": 49,
                   "col": 33
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "location": [
@@ -1200,6 +1232,8 @@
                   ]
                 }
               ],
+              "subject": "*Bold* <tag> (C)",
+              "body": "a -> b",
               "location": [
                 {
                   "line": 51,
@@ -1209,8 +1243,7 @@
                   "line": 51,
                   "col": 64
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "location": [

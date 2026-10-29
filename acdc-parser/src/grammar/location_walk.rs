@@ -343,9 +343,24 @@ where
         // inline-bearing macro variants.
         match m {
             InlineMacro::Footnote(f) => self.inlines(&mut f.content)?,
-            InlineMacro::Link(l) => self.inlines(&mut l.text)?,
-            InlineMacro::Url(u) => self.inlines(&mut u.text)?,
-            InlineMacro::Mailto(m) => self.inlines(&mut m.text)?,
+            InlineMacro::Link(l) => {
+                if let Some(id) = &mut l.metadata.id {
+                    (self.visit_location)(&mut id.location)?;
+                }
+                self.inlines(&mut l.text)?;
+            }
+            InlineMacro::Url(u) => {
+                if let Some(id) = &mut u.metadata.id {
+                    (self.visit_location)(&mut id.location)?;
+                }
+                self.inlines(&mut u.text)?;
+            }
+            InlineMacro::Mailto(m) => {
+                if let Some(id) = &mut m.metadata.id {
+                    (self.visit_location)(&mut id.location)?;
+                }
+                self.inlines(&mut m.text)?;
+            }
             InlineMacro::CrossReference(x) => self.inlines(&mut x.text)?,
             InlineMacro::IndexTerm(term) => self.index_term(term)?,
             InlineMacro::Icon(icon) => {

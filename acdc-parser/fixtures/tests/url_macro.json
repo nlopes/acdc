@@ -55,8 +55,7 @@
               "line": 1,
               "col": 42
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -108,6 +107,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "external"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://github.com/anthropics/claude-code"
@@ -138,10 +142,7 @@
               "line": 3,
               "col": 97
             }
-          ],
-          "attributes": {
-            "role": "external"
-          }
+          ]
         },
         {
           "name": "text",
@@ -192,8 +193,7 @@
               "line": 3,
               "col": 152
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -242,6 +242,14 @@
           ]
         },
         {
+          "name": "ref",
+          "type": "inline",
+          "variant": "link",
+          "metadata": {
+            "attributes": {
+              "target": "_blank"
+            }
+          },
           "tooltip": [
             {
               "name": "text",
@@ -259,9 +267,6 @@
               ]
             }
           ],
-          "name": "ref",
-          "type": "inline",
-          "variant": "link",
           "target": {
             "type": "url",
             "value": "https://rust-lang.org"
@@ -292,10 +297,7 @@
               "line": 5,
               "col": 121
             }
-          ],
-          "attributes": {
-            "target": "_blank"
-          }
+          ]
         },
         {
           "name": "text",

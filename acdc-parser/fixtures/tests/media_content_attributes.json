@@ -433,6 +433,9 @@
       "type": "block",
       "inlines": [
         {
+          "name": "ref",
+          "type": "inline",
+          "variant": "link",
           "tooltip": [
             {
               "name": "span",
@@ -468,9 +471,6 @@
               ]
             }
           ],
-          "name": "ref",
-          "type": "inline",
-          "variant": "link",
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -501,8 +501,7 @@
               "line": 16,
               "col": 50
             }
-          ],
-          "attributes": {}
+          ]
         }
       ],
       "location": [
@@ -521,6 +520,9 @@
       "type": "block",
       "inlines": [
         {
+          "name": "ref",
+          "type": "inline",
+          "variant": "link",
           "tooltip": [
             {
               "name": "span",
@@ -556,9 +558,6 @@
               ]
             }
           ],
-          "name": "ref",
-          "type": "inline",
-          "variant": "link",
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -589,8 +588,7 @@
               "line": 18,
               "col": 42
             }
-          ],
-          "attributes": {}
+          ]
         }
       ],
       "location": [
@@ -609,6 +607,9 @@
       "type": "block",
       "inlines": [
         {
+          "name": "ref",
+          "type": "inline",
+          "variant": "mailto",
           "tooltip": [
             {
               "name": "span",
@@ -644,9 +645,6 @@
               ]
             }
           ],
-          "name": "ref",
-          "type": "inline",
-          "variant": "mailto",
           "target": {
             "type": "url",
             "value": "mailto:user@example.org"
@@ -677,8 +675,7 @@
               "line": 20,
               "col": 48
             }
-          ],
-          "attributes": {}
+          ]
         }
       ],
       "location": [

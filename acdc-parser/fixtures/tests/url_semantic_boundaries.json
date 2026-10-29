@@ -467,8 +467,7 @@
                   "line": 28,
                   "col": 36
                 }
-              ],
-              "attributes": {}
+              ]
             },
             {
               "name": "ref",
@@ -504,8 +503,7 @@
                   "line": 28,
                   "col": 68
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "location": [
@@ -605,8 +603,7 @@
                   "line": 30,
                   "col": 43
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "location": [
@@ -911,8 +908,7 @@
                   "line": 38,
                   "col": 39
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "location": [
