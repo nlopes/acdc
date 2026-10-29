@@ -2009,6 +2009,7 @@
               "name": "xref",
               "type": "inline",
               "target": "empty-id",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",

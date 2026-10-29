@@ -20,7 +20,7 @@ fn cross_references<'d, 'a>(blocks: &'d [Block<'a>]) -> Vec<&'d CrossReference<'
         if let Block::Paragraph(paragraph) = block {
             for node in &paragraph.content {
                 if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = node {
-                    found.push(xref);
+                    found.push(xref.as_ref());
                 }
             }
         } else if let Block::Section(section) = block {
@@ -228,7 +228,7 @@ fn the_xref_macro_reads_its_brackets_as_an_attribute_list() -> Result<(), Error>
                     }
                 })
                 .collect();
-            (text, xref.xrefstyle, xref.role)
+            (text, xref.xrefstyle, xref.metadata.roles.clone())
         })
         .collect();
 
@@ -236,22 +236,22 @@ fn the_xref_macro_reads_its_brackets_as_an_attribute_list() -> Result<(), Error>
         seen,
         [
             // A named attribute alone leaves the text automatic.
-            (String::new(), XrefStyle::Short, None),
+            (String::new(), XrefStyle::Short, vec![]),
             // The first positional attribute is the link text.
-            ("Custom".to_string(), XrefStyle::Full, None),
+            ("Custom".to_string(), XrefStyle::Full, vec![]),
             // Text after a named attribute is not the first positional one.
-            (String::new(), XrefStyle::Short, None),
-            ("Quoted, text".to_string(), XrefStyle::Short, None),
+            (String::new(), XrefStyle::Short, vec![]),
+            ("Quoted, text".to_string(), XrefStyle::Short, vec![]),
             // Without an `=`, the brackets are the text as written.
-            ("text, with comma".to_string(), XrefStyle::Default, None),
+            ("text, with comma".to_string(), XrefStyle::Default, vec![]),
             // `1+1` is no attribute name, so this is text too.
-            ("1+1=2".to_string(), XrefStyle::Default, None),
+            ("1+1=2".to_string(), XrefStyle::Default, vec![]),
             // `role=` is kept for the link, unquoted, and the last one wins.
-            (String::new(), XrefStyle::Default, Some("r")),
-            ("Text".to_string(), XrefStyle::Short, Some("a b")),
-            (String::new(), XrefStyle::Default, Some("s")),
+            (String::new(), XrefStyle::Default, vec!["r"]),
+            ("Text".to_string(), XrefStyle::Short, vec!["a", "b"]),
+            (String::new(), XrefStyle::Default, vec!["s"]),
             // The shorthand has no attribute list, so this is its text.
-            ("role=r".to_string(), XrefStyle::Default, None),
+            ("role=r".to_string(), XrefStyle::Default, vec![]),
         ]
     );
     Ok(())

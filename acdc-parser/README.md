@@ -58,12 +58,19 @@ Kind matching covers all block and inline kinds. Detailed accessors currently
 cover headers, authors, document attributes, block bodies and metadata, lists and
 list items, tables, media, discrete headings, TOC blocks, breaks, and comments.
 Inline reads include text, formatting spans, images, icons, links, URLs, email
-links, and source locations.
+links, cross-references, and source locations.
 `LinkRef`, `UrlRef`, and `MailtoRef` expose the label through `text()` and the
 unencoded destination through `target()`. Empty labels use automatic display
 text. IDs retain their own source ranges. Mail `subject()` and `body()` read the
 second and third positional values before URI encoding; named attributes with
 those names remain extensions and do not populate the query.
+
+`CrossReferenceRef` keeps the resolved target, explicit label, and automatic-label
+policy separate. Target `reftext` belongs to the referenced element. Named
+`title` and `reftext` on the xref itself remain scalar extensions. Read identity,
+roles, options, and effective `xrefstyle` through `attributes()`; edit them through
+the owner fields and guarded scalar methods. As with other acdc inline macros,
+`roles` aliases `role`; Asciidoctor recognizes only `role` on xrefs.
 
 Formatting spans expose nested content, constrained/unconstrained form, IDs, and
 role tokens. Each span keeps its concrete type, such as `BoldRef` or `ItalicRef`.

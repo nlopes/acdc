@@ -2029,6 +2029,7 @@
               "name": "xref",
               "type": "inline",
               "target": "gap",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",

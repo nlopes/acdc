@@ -443,6 +443,7 @@
               "name": "xref",
               "type": "inline",
               "target": "bullet-child",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 17,
@@ -473,6 +474,7 @@
               "name": "xref",
               "type": "inline",
               "target": "bullet-callouts",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 17,
@@ -1171,6 +1173,7 @@
               "name": "xref",
               "type": "inline",
               "target": "description-child",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -1576,6 +1579,7 @@
               "name": "xref",
               "type": "inline",
               "target": "explicit-child",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -2956,6 +2960,7 @@
               "name": "xref",
               "type": "inline",
               "target": "separate-child",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -3266,6 +3271,7 @@
               "name": "xref",
               "type": "inline",
               "target": "blank-child",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",

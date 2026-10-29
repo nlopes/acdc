@@ -122,6 +122,7 @@
           "name": "xref",
           "type": "inline",
           "target": "destination",
+          "target_is_local": true,
           "inlines": [
             {
               "name": "text",
@@ -200,6 +201,7 @@
           "name": "xref",
           "type": "inline",
           "target": "destination",
+          "target_is_local": true,
           "location": [
             {
               "line": 9,
@@ -554,6 +556,7 @@
           "name": "xref",
           "type": "inline",
           "target": "destination",
+          "target_is_local": true,
           "location": [
             {
               "line": 18,
@@ -876,6 +879,7 @@
           "name": "xref",
           "type": "inline",
           "target": "destination",
+          "target_is_local": true,
           "inlines": [
             {
               "name": "text",
@@ -939,6 +943,7 @@
           "name": "xref",
           "type": "inline",
           "target": "multiline-link",
+          "target_is_local": true,
           "location": [
             {
               "line": 39,

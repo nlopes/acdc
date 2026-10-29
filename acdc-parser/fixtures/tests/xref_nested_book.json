@@ -58,6 +58,8 @@
           "name": "xref",
           "type": "inline",
           "target": "chapter",
+          "target_is_local": true,
+          "xrefstyle": "full",
           "location": [
             {
               "line": 5,
@@ -191,6 +193,8 @@
                             "name": "xref",
                             "type": "inline",
                             "target": "chapter",
+                            "target_is_local": true,
+                            "xrefstyle": "full",
                             "location": [
                               {
                                 "line": 15,

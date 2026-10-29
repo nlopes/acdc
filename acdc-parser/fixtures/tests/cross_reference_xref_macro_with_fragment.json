@@ -10,6 +10,7 @@
           "name": "xref",
           "type": "inline",
           "target": "chapter.adoc#my-section",
+          "target_is_local": false,
           "inlines": [
             {
               "name": "text",

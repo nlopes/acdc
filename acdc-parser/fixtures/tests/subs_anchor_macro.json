@@ -945,6 +945,7 @@
           "name": "xref",
           "type": "inline",
           "target": "empty-code",
+          "target_is_local": true,
           "location": [
             {
               "line": 48,
@@ -975,6 +976,7 @@
           "name": "xref",
           "type": "inline",
           "target": "late-bracket",
+          "target_is_local": true,
           "location": [
             {
               "line": 48,
@@ -1005,6 +1007,7 @@
           "name": "xref",
           "type": "inline",
           "target": "expanded",
+          "target_is_local": true,
           "location": [
             {
               "line": 48,
@@ -1035,6 +1038,7 @@
           "name": "xref",
           "type": "inline",
           "target": "late-label",
+          "target_is_local": true,
           "location": [
             {
               "line": 48,
@@ -1065,6 +1069,7 @@
           "name": "xref",
           "type": "inline",
           "target": "late-quotes",
+          "target_is_local": true,
           "location": [
             {
               "line": 48,
@@ -1095,6 +1100,7 @@
           "name": "xref",
           "type": "inline",
           "target": "code",
+          "target_is_local": true,
           "location": [
             {
               "line": 48,
@@ -1125,6 +1131,7 @@
           "name": "xref",
           "type": "inline",
           "target": "short",
+          "target_is_local": true,
           "location": [
             {
               "line": 48,
@@ -1155,6 +1162,7 @@
           "name": "xref",
           "type": "inline",
           "target": "code-only",
+          "target_is_local": true,
           "location": [
             {
               "line": 48,
@@ -1185,6 +1193,7 @@
           "name": "xref",
           "type": "inline",
           "target": "literal",
+          "target_is_local": true,
           "location": [
             {
               "line": 48,
@@ -1215,6 +1224,7 @@
           "name": "xref",
           "type": "inline",
           "target": "styled",
+          "target_is_local": true,
           "location": [
             {
               "line": 48,
@@ -1245,6 +1255,7 @@
           "name": "xref",
           "type": "inline",
           "target": "styled-literal",
+          "target_is_local": true,
           "location": [
             {
               "line": 48,

@@ -361,7 +361,12 @@ where
                 }
                 self.inlines(&mut m.text)?;
             }
-            InlineMacro::CrossReference(x) => self.inlines(&mut x.text)?,
+            InlineMacro::CrossReference(x) => {
+                if let Some(id) = &mut x.metadata.id {
+                    (self.visit_location)(&mut id.location)?;
+                }
+                self.inlines(&mut x.text)?;
+            }
             InlineMacro::IndexTerm(term) => self.index_term(term)?,
             InlineMacro::Icon(icon) => {
                 if let Some(id) = &mut icon.metadata.id {

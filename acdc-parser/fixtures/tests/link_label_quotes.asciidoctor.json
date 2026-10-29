@@ -3136,6 +3136,7 @@
           "name": "xref",
           "type": "inline",
           "target": "target",
+          "target_is_local": true,
           "location": [
             {
               "line": 61,
@@ -3277,7 +3278,13 @@
         {
           "name": "xref",
           "type": "inline",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": "xref-target",
+          "target_is_local": true,
           "inlines": [
             {
               "name": "text",

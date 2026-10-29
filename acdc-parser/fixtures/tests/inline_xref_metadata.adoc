@@ -1,0 +1,32 @@
+= Cross-reference metadata
+:sectnums:
+:control-id: expanded-xref
+
+[#target,reftext='Reference *Label*']
+== Target title
+
+xref:target[Explicit *Label*,id=xref-id,role="one two",opts="nofollow,noopener",window=_blank,title="Hover *text*",reftext="Own reference",custom=kept]
+
+xref:target[id=automatic-id,role=resource,xrefstyle=short]
+
+xref:other.adoc#section[External,id=external-id,role=external,options="nofollow,noopener",window=reading,title=Tip,custom=kept]
+
+xref:target[role="",id="",opts="",custom=""]
+
+xref:target[xrefstyle=unknown]
+
+xref:target[role=old,role=new,id=first,id=last,opts=old,opts="new,other"]
+
+xref:target[Aliases,roles="one two",options="a,b"]
+
+xref:target[Expanded,id={control-id},custom=""]
+
+é xref:target[Unicode,id=référence中,role=+two roles+,opts=+one,two+,custom=+a,b]+]
+
+<<target,Shorthand *label*>>
+
+:compat-mode:
+
+xref:target[role=literal,window=literal]
+
+:!compat-mode:

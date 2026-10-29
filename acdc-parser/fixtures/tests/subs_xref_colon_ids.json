@@ -229,6 +229,7 @@
               "name": "xref",
               "type": "inline",
               "target": "topic:one",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -276,6 +277,7 @@
               "name": "xref",
               "type": "inline",
               "target": "topic:one",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -360,6 +362,7 @@
               "name": "xref",
               "type": "inline",
               "target": "topic:one",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -491,6 +494,7 @@
               "name": "xref",
               "type": "inline",
               "target": "topic:one",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -538,6 +542,7 @@
               "name": "xref",
               "type": "inline",
               "target": "topic:one",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -585,6 +590,7 @@
               "name": "xref",
               "type": "inline",
               "target": "a-b.c:d",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -632,6 +638,7 @@
               "name": "xref",
               "type": "inline",
               "target": "topic:one",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",

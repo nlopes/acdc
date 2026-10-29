@@ -58,6 +58,8 @@
           "name": "xref",
           "type": "inline",
           "target": "table",
+          "target_is_local": true,
+          "xrefstyle": "full",
           "location": [
             {
               "line": 5,
@@ -88,6 +90,8 @@
           "name": "xref",
           "type": "inline",
           "target": "table",
+          "target_is_local": true,
+          "xrefstyle": "short",
           "location": [
             {
               "line": 5,
@@ -118,6 +122,8 @@
           "name": "xref",
           "type": "inline",
           "target": "table",
+          "target_is_local": true,
+          "xrefstyle": "basic",
           "location": [
             {
               "line": 5,
@@ -148,6 +154,8 @@
           "name": "xref",
           "type": "inline",
           "target": "image",
+          "target_is_local": true,
+          "xrefstyle": "full",
           "location": [
             {
               "line": 6,
@@ -178,6 +186,8 @@
           "name": "xref",
           "type": "inline",
           "target": "paragraph",
+          "target_is_local": true,
+          "xrefstyle": "full",
           "location": [
             {
               "line": 6,
@@ -208,6 +218,8 @@
           "name": "xref",
           "type": "inline",
           "target": "example",
+          "target_is_local": true,
+          "xrefstyle": "full",
           "location": [
             {
               "line": 6,
@@ -238,6 +250,8 @@
           "name": "xref",
           "type": "inline",
           "target": "listing",
+          "target_is_local": true,
+          "xrefstyle": "full",
           "location": [
             {
               "line": 7,
@@ -268,6 +282,8 @@
           "name": "xref",
           "type": "inline",
           "target": "open",
+          "target_is_local": true,
+          "xrefstyle": "full",
           "location": [
             {
               "line": 7,
@@ -298,6 +314,8 @@
           "name": "xref",
           "type": "inline",
           "target": "untitled",
+          "target_is_local": true,
+          "xrefstyle": "full",
           "location": [
             {
               "line": 7,
@@ -328,6 +346,8 @@
           "name": "xref",
           "type": "inline",
           "target": "table",
+          "target_is_local": true,
+          "xrefstyle": "full",
           "inlines": [
             {
               "name": "text",
@@ -408,6 +428,8 @@
           "name": "xref",
           "type": "inline",
           "target": "table",
+          "target_is_local": true,
+          "xrefstyle": "full",
           "location": [
             {
               "line": 9,
@@ -438,6 +460,8 @@
           "name": "xref",
           "type": "inline",
           "target": "Table title",
+          "target_is_local": true,
+          "xrefstyle": "full",
           "location": [
             {
               "line": 9,
@@ -1333,6 +1357,8 @@
           "name": "xref",
           "type": "inline",
           "target": "untitled",
+          "target_is_local": true,
+          "xrefstyle": "full",
           "location": [
             {
               "line": 48,
@@ -1363,6 +1389,8 @@
           "name": "xref",
           "type": "inline",
           "target": "untitled",
+          "target_is_local": true,
+          "xrefstyle": "full",
           "location": [
             {
               "line": 48,
@@ -1424,6 +1452,8 @@
           "name": "xref",
           "type": "inline",
           "target": "nested-list",
+          "target_is_local": true,
+          "xrefstyle": "full",
           "location": [
             {
               "line": 50,
@@ -1454,6 +1484,8 @@
           "name": "xref",
           "type": "inline",
           "target": "cell",
+          "target_is_local": true,
+          "xrefstyle": "full",
           "location": [
             {
               "line": 50,

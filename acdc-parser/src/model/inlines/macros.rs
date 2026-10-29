@@ -2,7 +2,11 @@ use std::{fmt, num::NonZeroUsize};
 
 use serde::Serialize;
 
-use crate::{ContentAttribute, InlineNode, Location, Source, StemNotation, Substitution};
+use crate::{
+    AttributeName, AttributeValue, ContentAttribute, ElementAttributes, InlineMetadata, InlineNode,
+    Location, ReservedAttribute, Source, StemNotation, Substitution,
+    model::metadata::{InlineMetadataView, MacroAttributes},
+};
 
 pub const ICON_SIZES: &[&str] = &["1x", "2x", "3x", "4x", "5x", "lg", "fw"];
 
@@ -91,9 +95,8 @@ pub type Key<'a> = ContentAttribute<'a>;
 
 /// A `CrossReference` represents an inline cross-reference (xref) in a document.
 ///
-/// Equality and debug output include `target`, `text`, `location`, `xrefstyle`,
-/// `caption_label`, `signifier`, `role`, and `target_is_local`; parser-only state is excluded.
-#[derive(Clone, Serialize)]
+/// Equality and debug output omit parser-only state.
+#[derive(Clone)]
 #[non_exhaustive]
 pub struct CrossReference<'a> {
     /// The effective link target. A resolved natural reference contains the
@@ -103,28 +106,17 @@ pub struct CrossReference<'a> {
     pub target: &'a str,
     /// Whether `target` addresses this document, even when its ID is missing.
     /// Set this together with `target` when changing a reference destination.
-    #[serde(skip)]
     pub target_is_local: bool,
-    #[serde(skip_serializing)]
     pub text: Vec<InlineNode<'a>>,
     pub location: Location,
-    #[serde(skip)]
     pub xrefstyle: XrefStyle,
-    #[serde(skip)]
     pub caption_label: XrefCaptionLabel<'a>,
-    #[serde(skip)]
     signifier: XrefSignifier<'a>,
-    #[serde(skip)]
     pub(crate) section_signifiers: Option<&'a [XrefSignifier<'a>; REFSIG_ATTRIBUTES.len()]>,
-    /// The `role=` of an `xref:` macro after attribute substitution and
-    /// passthrough restoration. It may be empty; HTML uses it as the link's class.
-    #[serde(skip)]
-    pub role: Option<&'a str>,
-    #[serde(skip)]
+    pub metadata: InlineMetadata<'a>,
+    pub(crate) macro_attributes: MacroAttributes<'a>,
     pub(crate) caption_label_snapshot_id: Option<NonZeroUsize>,
-    #[serde(skip)]
     pub(crate) resolve_natural_target: bool,
-    #[serde(skip)]
     pub(crate) source_syntax: XrefSourceSyntax,
 }
 
@@ -143,10 +135,61 @@ impl<'a> CrossReference<'a> {
             caption_label: XrefCaptionLabel::AtTarget,
             signifier: XrefSignifier::Standard,
             section_signifiers: None,
-            role: None,
+            metadata: InlineMetadata::default(),
+            macro_attributes: MacroAttributes::default(),
             caption_label_snapshot_id: None,
             resolve_natural_target: false,
             source_syntax: XrefSourceSyntax::Literal,
+        }
+    }
+
+    /// Scalar controls and extensions, excluding identity, roles, options, and xref style.
+    #[must_use]
+    pub fn attributes(&self) -> &ElementAttributes<'a> {
+        &self.macro_attributes.attributes
+    }
+
+    /// Set a scalar control or extension attribute.
+    ///
+    /// # Errors
+    /// Rejects `xrefstyle`, `id`, `role`/`roles`, and `opts`/`options`.
+    /// Update their dedicated fields instead.
+    pub fn set_attribute(
+        &mut self,
+        name: AttributeName<'a>,
+        value: AttributeValue<'a>,
+    ) -> Result<(), ReservedAttribute> {
+        self.macro_attributes.set(name, value, &["xrefstyle"])
+    }
+
+    /// Remove a scalar control or extension attribute.
+    ///
+    /// # Errors
+    /// Rejects the dedicated names listed by [`Self::set_attribute`].
+    pub fn remove_attribute(
+        &mut self,
+        name: &str,
+    ) -> Result<Option<AttributeValue<'a>>, ReservedAttribute> {
+        self.macro_attributes.remove(name, &["xrefstyle"])
+    }
+
+    /// Option tokens in their retained order.
+    #[must_use]
+    pub fn options(&self) -> &[&'a str] {
+        &self.macro_attributes.options
+    }
+
+    /// Edit option tokens without creating attribute-map aliases.
+    pub fn options_mut(&mut self) -> &mut Vec<&'a str> {
+        &mut self.macro_attributes.options
+    }
+
+    pub(crate) fn metadata_view(&self) -> InlineMetadataView<'_, 'a> {
+        InlineMetadataView {
+            attributes: &self.macro_attributes.attributes,
+            roles: &self.metadata.roles,
+            options: &self.macro_attributes.options,
+            id: &self.metadata.id,
         }
     }
 
@@ -205,7 +248,8 @@ impl fmt::Debug for CrossReference<'_> {
             .field("xrefstyle", &self.xrefstyle)
             .field("caption_label", &self.caption_label)
             .field("signifier", &self.signifier)
-            .field("role", &self.role)
+            .field("metadata", &self.metadata)
+            .field("macro_attributes", &self.macro_attributes)
             .finish()
     }
 }
@@ -219,7 +263,8 @@ impl PartialEq for CrossReference<'_> {
             && self.xrefstyle == other.xrefstyle
             && self.caption_label == other.caption_label
             && self.signifier == other.signifier
-            && self.role == other.role
+            && self.metadata == other.metadata
+            && self.macro_attributes == other.macro_attributes
     }
 }
 
@@ -318,6 +363,15 @@ pub enum XrefStyle {
 }
 
 impl XrefStyle {
+    pub(crate) fn attribute_value(self) -> Option<&'static str> {
+        match self {
+            Self::Default => None,
+            Self::Basic => Some("basic"),
+            Self::Short => Some("short"),
+            Self::Full => Some("full"),
+        }
+    }
+
     pub(crate) fn from_attribute(value: Option<&str>) -> Self {
         match value {
             None => Self::Default,

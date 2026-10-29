@@ -121,6 +121,7 @@
           "name": "xref",
           "type": "inline",
           "target": "destination",
+          "target_is_local": true,
           "inlines": [
             {
               "name": "text",
@@ -168,6 +169,7 @@
           "name": "xref",
           "type": "inline",
           "target": "destination",
+          "target_is_local": true,
           "location": [
             {
               "line": 10,
@@ -709,6 +711,7 @@
           "name": "xref",
           "type": "inline",
           "target": "destination",
+          "target_is_local": true,
           "inlines": [
             {
               "name": "text",
@@ -823,6 +826,7 @@
           "name": "xref",
           "type": "inline",
           "target": "destination",
+          "target_is_local": true,
           "location": [
             {
               "line": 27,
@@ -941,6 +945,7 @@
           "name": "xref",
           "type": "inline",
           "target": "destination",
+          "target_is_local": true,
           "location": [
             {
               "line": 30,
@@ -1059,6 +1064,7 @@
           "name": "xref",
           "type": "inline",
           "target": "destination",
+          "target_is_local": true,
           "location": [
             {
               "line": 33,
@@ -1385,6 +1391,7 @@
           "name": "xref",
           "type": "inline",
           "target": "missing",
+          "target_is_local": true,
           "location": [
             {
               "line": 57,
@@ -1415,6 +1422,7 @@
           "name": "xref",
           "type": "inline",
           "target": "other.adoc#part",
+          "target_is_local": false,
           "inlines": [
             {
               "name": "text",
@@ -1462,6 +1470,7 @@
           "name": "xref",
           "type": "inline",
           "target": "",
+          "target_is_local": true,
           "inlines": [
             {
               "name": "text",

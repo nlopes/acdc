@@ -58,6 +58,7 @@
           "name": "xref",
           "type": "inline",
           "target": "target",
+          "target_is_local": true,
           "location": [
             {
               "line": 5,
@@ -88,6 +89,7 @@
           "name": "xref",
           "type": "inline",
           "target": "empty",
+          "target_is_local": true,
           "location": [
             {
               "line": 5,
@@ -118,6 +120,7 @@
           "name": "xref",
           "type": "inline",
           "target": "expanded",
+          "target_is_local": true,
           "location": [
             {
               "line": 5,
@@ -148,6 +151,7 @@
           "name": "xref",
           "type": "inline",
           "target": "bullet",
+          "target_is_local": true,
           "location": [
             {
               "line": 5,
@@ -178,6 +182,7 @@
           "name": "xref",
           "type": "inline",
           "target": "term",
+          "target_is_local": true,
           "location": [
             {
               "line": 5,
@@ -208,6 +213,7 @@
           "name": "xref",
           "type": "inline",
           "target": "cell",
+          "target_is_local": true,
           "location": [
             {
               "line": 5,
@@ -238,6 +244,7 @@
           "name": "xref",
           "type": "inline",
           "target": "note",
+          "target_is_local": true,
           "location": [
             {
               "line": 5,
@@ -880,6 +887,7 @@
           "name": "xref",
           "type": "inline",
           "target": "target",
+          "target_is_local": true,
           "inlines": [
             {
               "name": "text",
@@ -1119,6 +1127,7 @@
           "name": "xref",
           "type": "inline",
           "target": "xref-label",
+          "target_is_local": true,
           "location": [
             {
               "line": 27,
@@ -1149,6 +1158,7 @@
           "name": "xref",
           "type": "inline",
           "target": "url-label",
+          "target_is_local": true,
           "location": [
             {
               "line": 27,
@@ -1305,6 +1315,7 @@
           "name": "xref",
           "type": "inline",
           "target": "first",
+          "target_is_local": true,
           "location": [
             {
               "line": 31,
@@ -1335,6 +1346,7 @@
           "name": "xref",
           "type": "inline",
           "target": "second",
+          "target_is_local": true,
           "location": [
             {
               "line": 31,
@@ -1365,6 +1377,7 @@
           "name": "xref",
           "type": "inline",
           "target": "target",
+          "target_is_local": true,
           "location": [
             {
               "line": 31,

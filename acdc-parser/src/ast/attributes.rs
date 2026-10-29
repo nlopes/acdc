@@ -1,8 +1,9 @@
 use crate::{
-    Admonition, Audio, BlockMetadata, Bold, CalloutList, CurvedApostrophe, CurvedQuotation,
-    DelimitedBlock, DescriptionList, DiscreteHeader, ElementAttributes, Header, Highlight, Icon,
-    Image, InlineImage, Italic, Link, Mailto, Monospace, OrderedList, PageBreak, Paragraph,
-    Section, Subscript, Superscript, TableOfContents, ThematicBreak, UnorderedList, Url, Video,
+    Admonition, Audio, BlockMetadata, Bold, CalloutList, CrossReference, CurvedApostrophe,
+    CurvedQuotation, DelimitedBlock, DescriptionList, DiscreteHeader, ElementAttributes, Header,
+    Highlight, Icon, Image, InlineImage, Italic, Link, Mailto, Monospace, OrderedList, PageBreak,
+    Paragraph, Section, Subscript, Superscript, TableOfContents, ThematicBreak, UnorderedList, Url,
+    Video,
 };
 
 use super::{AttributeValueRef, ContentRef, ElementIdRef, TokensRef};
@@ -68,6 +69,7 @@ enum Owner<'doc> {
     Image(&'doc Image<'doc>),
     InlineImage(&'doc InlineImage<'doc>),
     Icon(&'doc Icon<'doc>),
+    CrossReference(&'doc CrossReference<'doc>),
     Link(&'doc Link<'doc>),
     Url(&'doc Url<'doc>),
     Mailto(&'doc Mailto<'doc>),
@@ -87,6 +89,7 @@ enum Field {
     Options,
     Style,
     Alt,
+    XrefStyle,
 }
 
 impl Field {
@@ -98,11 +101,18 @@ impl Field {
             Self::Options => "opts",
             Self::Style => "style",
             Self::Alt => "alt",
+            Self::XrefStyle => "xrefstyle",
         }
     }
 }
 
 impl<'doc> AttributesRef<'doc> {
+    pub(super) fn cross_reference(owner: &'doc CrossReference<'doc>) -> Self {
+        Self {
+            owner: Owner::CrossReference(owner),
+        }
+    }
+
     pub(super) fn link(owner: &'doc Link<'doc>) -> Self {
         Self {
             owner: Owner::Link(owner),
@@ -279,7 +289,8 @@ impl<'doc> AttributesRef<'doc> {
 
     /// Read a value by name. `roles` aliases `role`; `options` aliases `opts`.
     ///
-    /// `title` means the tooltip on an image, icon, or hyperlink inline and the title on a block.
+    /// `title` means the tooltip on an image, icon, explicit link, URL, or email
+    /// macro, and the title on a block. Xrefs retain it as a scalar extension.
     /// Missing values return `None`; empty text/content, false and a
     /// retained valueless attribute remain present.
     #[must_use]
@@ -340,6 +351,7 @@ impl<'doc> AttributesRef<'doc> {
             Owner::Image(_) => &[Title, Id, Roles, Options, Style, Alt],
             Owner::InlineImage(_) | Owner::Icon(_) => &[Title, Id, Roles, Options, Alt],
             Owner::Link(_) | Owner::Url(_) | Owner::Mailto(_) => &[Title, Id, Roles, Options],
+            Owner::CrossReference(_) => &[Id, Roles, Options, Field::XrefStyle],
             Owner::ThematicBreak(_) => &[Title, Id],
             Owner::TableOfContents(_) => &[Id, Roles, Options, Style],
             Owner::Header(_)
@@ -379,6 +391,15 @@ impl<'doc> AttributesRef<'doc> {
             }
             Field::Style => self.style().map(AttributeValueRef::Text),
             Field::Alt => self.alt().map(AttributeValueRef::Content),
+            Field::XrefStyle => {
+                if let Owner::CrossReference(node) = self.owner {
+                    node.xrefstyle
+                        .attribute_value()
+                        .map(AttributeValueRef::Text)
+                } else {
+                    None
+                }
+            }
         }
     }
 
@@ -399,7 +420,8 @@ impl<'doc> AttributesRef<'doc> {
             Owner::TableOfContents(node) => Some(&node.metadata),
             Owner::DiscreteHeader(node) => Some(&node.metadata),
             Owner::PageBreak(node) => Some(&node.metadata),
-            Owner::InlineImage(_)
+            Owner::CrossReference(_)
+            | Owner::InlineImage(_)
             | Owner::Icon(_)
             | Owner::Link(_)
             | Owner::Url(_)
@@ -417,7 +439,9 @@ impl<'doc> AttributesRef<'doc> {
     }
 
     fn attribute_map(self) -> Option<&'doc ElementAttributes<'doc>> {
-        if let Owner::InlineImage(node) = self.owner {
+        if let Owner::CrossReference(node) = self.owner {
+            Some(node.attributes())
+        } else if let Owner::InlineImage(node) = self.owner {
             Some(node.attributes())
         } else if let Owner::Link(node) = self.owner {
             Some(node.attributes())
@@ -449,7 +473,8 @@ impl<'doc> AttributesRef<'doc> {
             Owner::DiscreteHeader(node) => &node.title,
             Owner::PageBreak(node) => &node.title,
             Owner::ThematicBreak(node) => &node.title,
-            Owner::TableOfContents(_)
+            Owner::CrossReference(_)
+            | Owner::TableOfContents(_)
             | Owner::Bold(_)
             | Owner::Italic(_)
             | Owner::Monospace(_)
@@ -493,6 +518,7 @@ impl<'doc> AttributesRef<'doc> {
             }
             Owner::InlineImage(node) => node.metadata.id.as_ref().map(ElementIdRef::from),
             Owner::Icon(node) => node.metadata.id.as_ref().map(ElementIdRef::from),
+            Owner::CrossReference(node) => node.metadata.id.as_ref().map(ElementIdRef::from),
             Owner::Link(node) => node.metadata.id.as_ref().map(ElementIdRef::from),
             Owner::Url(node) => node.metadata.id.as_ref().map(ElementIdRef::from),
             Owner::Mailto(node) => node.metadata.id.as_ref().map(ElementIdRef::from),
@@ -533,6 +559,7 @@ impl<'doc> AttributesRef<'doc> {
             Owner::CurvedApostrophe(node) => TokensRef::from_text(node.role.unwrap_or_default()),
             Owner::InlineImage(node) => TokensRef::new(&node.metadata.roles),
             Owner::Icon(node) => TokensRef::new(&node.metadata.roles),
+            Owner::CrossReference(node) => TokensRef::new(&node.metadata.roles),
             Owner::Link(node) => TokensRef::new(&node.metadata.roles),
             Owner::Url(node) => TokensRef::new(&node.metadata.roles),
             Owner::Mailto(node) => TokensRef::new(&node.metadata.roles),
@@ -560,7 +587,9 @@ impl<'doc> AttributesRef<'doc> {
     }
 
     pub(super) fn options(self) -> TokensRef<'doc> {
-        let options = if let Owner::InlineImage(node) = self.owner {
+        let options = if let Owner::CrossReference(node) = self.owner {
+            node.options()
+        } else if let Owner::InlineImage(node) = self.owner {
             node.options()
         } else if let Owner::Link(node) = self.owner {
             node.options()

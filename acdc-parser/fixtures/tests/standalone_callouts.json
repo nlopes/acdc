@@ -1230,6 +1230,7 @@
                   "name": "xref",
                   "type": "inline",
                   "target": "target",
+                  "target_is_local": true,
                   "location": [
                     {
                       "line": 52,
@@ -1860,6 +1861,7 @@
                   "name": "xref",
                   "type": "inline",
                   "target": "nested-target",
+                  "target_is_local": true,
                   "location": [
                     {
                       "line": 78,

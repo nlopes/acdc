@@ -5,6 +5,7 @@ use super::{ContentRef, InlineImageRef, LocationRef};
 mod hyperlinks;
 mod icons;
 mod spans;
+mod xrefs;
 
 node_ref!(PlainRef<'doc>, crate::Plain<'doc>, "Plain text.");
 node_ref!(

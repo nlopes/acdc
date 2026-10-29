@@ -967,6 +967,7 @@
               "name": "xref",
               "type": "inline",
               "target": "named-target",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 40,
@@ -997,6 +998,7 @@
               "name": "xref",
               "type": "inline",
               "target": "anonymous-target",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 40,
@@ -1027,6 +1029,7 @@
               "name": "xref",
               "type": "inline",
               "target": "title-anchor",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 40,

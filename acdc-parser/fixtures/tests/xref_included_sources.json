@@ -58,6 +58,8 @@
           "name": "xref",
           "type": "inline",
           "target": "included-target",
+          "target_is_local": true,
+          "xrefstyle": "short",
           "location": [
             {
               "line": 5,
@@ -119,6 +121,8 @@
           "name": "xref",
           "type": "inline",
           "target": "included-target",
+          "target_is_local": true,
+          "xrefstyle": "short",
           "location": [
             {
               "line": 7,
@@ -180,6 +184,8 @@
           "name": "xref",
           "type": "inline",
           "target": "included-target",
+          "target_is_local": true,
+          "xrefstyle": "short",
           "inlines": [
             {
               "name": "text",
@@ -291,6 +297,8 @@
           "name": "xref",
           "type": "inline",
           "target": "included-target",
+          "target_is_local": true,
+          "xrefstyle": "short",
           "location": [
             {
               "line": 11,
@@ -352,6 +360,8 @@
           "name": "xref",
           "type": "inline",
           "target": "other.adoc#included-target",
+          "target_is_local": false,
+          "xrefstyle": "short",
           "location": [
             {
               "line": 13,
@@ -413,6 +423,8 @@
           "name": "xref",
           "type": "inline",
           "target": "https://example.org/other.adoc#included-target",
+          "target_is_local": false,
+          "xrefstyle": "short",
           "inlines": [
             {
               "name": "text",
@@ -491,6 +503,8 @@
           "name": "xref",
           "type": "inline",
           "target": "missing-target",
+          "target_is_local": true,
+          "xrefstyle": "short",
           "location": [
             {
               "line": 17,
@@ -552,6 +566,8 @@
           "name": "xref",
           "type": "inline",
           "target": "included-target",
+          "target_is_local": true,
+          "xrefstyle": "short",
           "location": [
             {
               "line": 19,
@@ -613,6 +629,8 @@
           "name": "xref",
           "type": "inline",
           "target": "./xref_include_target.adoc#included-target",
+          "target_is_local": false,
+          "xrefstyle": "short",
           "location": [
             {
               "line": 21,
@@ -768,6 +786,8 @@
               "name": "xref",
               "type": "inline",
               "target": "included-target",
+              "target_is_local": true,
+              "xrefstyle": "short",
               "location": [
                 {
                   "line": 25,

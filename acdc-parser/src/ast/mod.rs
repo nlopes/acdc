@@ -34,7 +34,7 @@
 //! currently cover headers and authors, document attributes, document/section
 //! children and titles, block bodies and metadata, lists and their items, tables,
 //! media, discrete headings, TOC blocks, breaks, and comments. Inline reads cover
-//! plain/raw/verbatim text, formatting spans, images, icons, hyperlinks, and locations.
+//! plain/raw/verbatim text, formatting spans, images, icons, hyperlinks, cross-references, and locations.
 //! The owner API remains available for other reads and for construction and editing.
 //!
 //! Formatting spans keep distinct types, with `content()`, `form()`, `id()`,

@@ -55,6 +55,7 @@
           "name": "xref",
           "type": "inline",
           "target": "xref_include_target.adoc#included-target",
+          "target_is_local": false,
           "location": [
             {
               "line": 3,
@@ -116,6 +117,7 @@
           "name": "xref",
           "type": "inline",
           "target": "xref_include_target.adoc#included-target",
+          "target_is_local": false,
           "location": [
             {
               "line": 5,
@@ -177,6 +179,7 @@
           "name": "xref",
           "type": "inline",
           "target": "included-target",
+          "target_is_local": true,
           "location": [
             {
               "line": 7,

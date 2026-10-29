@@ -1245,6 +1245,7 @@
                   "name": "xref",
                   "type": "inline",
                   "target": "cell-target",
+                  "target_is_local": true,
                   "location": [
                     {
                       "line": 53,

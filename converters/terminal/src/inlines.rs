@@ -1326,10 +1326,10 @@ mod tests {
 
     #[test]
     fn test_cross_reference_with_text() -> Result<(), Error> {
-        let xref = InlineNode::Macro(InlineMacro::CrossReference(
+        let xref = InlineNode::Macro(InlineMacro::CrossReference(Box::new(
             CrossReference::new("section-id", Location::default())
                 .with_text(vec![create_plain_text("See Section 1")]),
-        ));
+        )));
 
         let output = render_paragraph(vec![xref])?;
         assert!(
@@ -1345,10 +1345,10 @@ mod tests {
 
     #[test]
     fn test_cross_reference_without_text() -> Result<(), Error> {
-        let xref = InlineNode::Macro(InlineMacro::CrossReference(CrossReference::new(
+        let xref = InlineNode::Macro(InlineMacro::CrossReference(Box::new(CrossReference::new(
             "section-id",
             Location::default(),
-        )));
+        ))));
 
         let output = render_paragraph(vec![xref])?;
         assert!(

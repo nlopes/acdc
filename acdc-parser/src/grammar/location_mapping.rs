@@ -402,12 +402,8 @@ fn restore_macro_attributes<'a>(
             &mut icon.macro_attributes.attributes
         }
         InlineMacro::CrossReference(xref) => {
-            if let Some(role) = xref.role
-                && let Some(restored) = restore(role)
-            {
-                xref.role = Some(restored);
-            }
-            return;
+            restore_inline_metadata(&mut xref.metadata, &mut xref.macro_attributes, ctx);
+            &mut xref.macro_attributes.attributes
         }
         InlineMacro::Image(image) => {
             restore_inline_metadata(&mut image.metadata, &mut image.macro_attributes, ctx);
@@ -561,6 +557,9 @@ fn map_inline_macro<'a>(
         }
         InlineMacro::CrossReference(xref) => {
             xref.location = ctx.map_location(&xref.location)?;
+            if let Some(id) = &mut xref.metadata.id {
+                id.location = ctx.map_location(&id.location)?;
+            }
             xref.text = map_inline_locations(state, processed, take(&mut xref.text), location)?;
             if !processed.passthroughs.is_empty() {
                 let restored = replace_passthrough_placeholders(xref.target, processed);

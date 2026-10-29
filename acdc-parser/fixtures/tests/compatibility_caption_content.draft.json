@@ -1034,6 +1034,7 @@
           "name": "xref",
           "type": "inline",
           "target": "custom-example",
+          "target_is_local": true,
           "location": [
             {
               "line": 56,
@@ -1064,6 +1065,7 @@
           "name": "xref",
           "type": "inline",
           "target": "numbered-example",
+          "target_is_local": true,
           "location": [
             {
               "line": 56,

@@ -55,6 +55,7 @@
           "name": "xref",
           "type": "inline",
           "target": "_syntax_highlighting",
+          "target_is_local": true,
           "location": [
             {
               "line": 3,
@@ -116,6 +117,7 @@
           "name": "xref",
           "type": "inline",
           "target": "_syntax_highlighting",
+          "target_is_local": true,
           "inlines": [
             {
               "name": "text",
@@ -194,6 +196,7 @@
           "name": "xref",
           "type": "inline",
           "target": "explicit-id",
+          "target_is_local": true,
           "location": [
             {
               "line": 7,
@@ -255,6 +258,7 @@
           "name": "xref",
           "type": "inline",
           "target": "explicit-id",
+          "target_is_local": true,
           "location": [
             {
               "line": 9,
@@ -316,6 +320,7 @@
           "name": "xref",
           "type": "inline",
           "target": "Missing Title",
+          "target_is_local": true,
           "location": [
             {
               "line": 11,

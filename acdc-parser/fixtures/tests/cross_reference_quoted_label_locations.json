@@ -57,7 +57,13 @@
         {
           "name": "xref",
           "type": "inline",
+          "metadata": {
+            "roles": [
+              "hot"
+            ]
+          },
           "target": "target",
+          "target_is_local": true,
           "inlines": [
             {
               "name": "text",
@@ -183,7 +189,13 @@
         {
           "name": "xref",
           "type": "inline",
+          "metadata": {
+            "roles": [
+              "hot"
+            ]
+          },
           "target": "target",
+          "target_is_local": true,
           "inlines": [
             {
               "name": "text",
@@ -309,7 +321,13 @@
         {
           "name": "xref",
           "type": "inline",
+          "metadata": {
+            "roles": [
+              "hot"
+            ]
+          },
           "target": "target",
+          "target_is_local": true,
           "inlines": [
             {
               "name": "text",
@@ -435,7 +453,13 @@
         {
           "name": "xref",
           "type": "inline",
+          "metadata": {
+            "roles": [
+              "hot"
+            ]
+          },
           "target": "target",
+          "target_is_local": true,
           "inlines": [
             {
               "name": "text",
@@ -546,7 +570,13 @@
         {
           "name": "xref",
           "type": "inline",
+          "metadata": {
+            "roles": [
+              "hot"
+            ]
+          },
           "target": "target",
+          "target_is_local": true,
           "inlines": [
             {
               "name": "text",
@@ -657,7 +687,13 @@
         {
           "name": "xref",
           "type": "inline",
+          "metadata": {
+            "roles": [
+              "hot"
+            ]
+          },
           "target": "target",
+          "target_is_local": true,
           "inlines": [
             {
               "name": "text",
@@ -783,7 +819,13 @@
         {
           "name": "xref",
           "type": "inline",
+          "metadata": {
+            "roles": [
+              "hot"
+            ]
+          },
           "target": "target",
+          "target_is_local": true,
           "inlines": [
             {
               "name": "text",
@@ -909,7 +951,13 @@
         {
           "name": "xref",
           "type": "inline",
+          "metadata": {
+            "roles": [
+              "hot"
+            ]
+          },
           "target": "target",
+          "target_is_local": true,
           "inlines": [
             {
               "name": "text",
@@ -1035,7 +1083,13 @@
         {
           "name": "xref",
           "type": "inline",
+          "metadata": {
+            "roles": [
+              "hot"
+            ]
+          },
           "target": "target",
+          "target_is_local": true,
           "inlines": [
             {
               "name": "text",
@@ -1146,7 +1200,13 @@
         {
           "name": "xref",
           "type": "inline",
+          "metadata": {
+            "roles": [
+              "hot"
+            ]
+          },
           "target": "target",
+          "target_is_local": true,
           "inlines": [
             {
               "name": "raw",
@@ -1302,7 +1362,13 @@
         {
           "name": "xref",
           "type": "inline",
+          "metadata": {
+            "roles": [
+              "hot"
+            ]
+          },
           "target": "target",
+          "target_is_local": true,
           "inlines": [
             {
               "name": "text",
@@ -1461,7 +1527,13 @@
         {
           "name": "xref",
           "type": "inline",
+          "metadata": {
+            "roles": [
+              "hot"
+            ]
+          },
           "target": "target",
+          "target_is_local": true,
           "inlines": [
             {
               "name": "text",
@@ -1539,7 +1611,13 @@
         {
           "name": "xref",
           "type": "inline",
+          "metadata": {
+            "roles": [
+              "hot"
+            ]
+          },
           "target": "target",
+          "target_is_local": true,
           "inlines": [
             {
               "name": "text",

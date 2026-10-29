@@ -585,6 +585,7 @@
               "name": "xref",
               "type": "inline",
               "target": "code-target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -1981,6 +1982,7 @@
               "name": "xref",
               "type": "inline",
               "target": "code-target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -2028,6 +2030,7 @@
               "name": "xref",
               "type": "inline",
               "target": "after-raw",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",

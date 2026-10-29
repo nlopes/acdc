@@ -87,6 +87,7 @@
           "name": "xref",
           "type": "inline",
           "target": "document",
+          "target_is_local": true,
           "location": [
             {
               "line": 6,
@@ -117,6 +118,7 @@
           "name": "xref",
           "type": "inline",
           "target": "anchor-first",
+          "target_is_local": true,
           "location": [
             {
               "line": 6,
@@ -147,6 +149,7 @@
           "name": "xref",
           "type": "inline",
           "target": "named-first",
+          "target_is_local": true,
           "location": [
             {
               "line": 6,
@@ -177,6 +180,7 @@
           "name": "xref",
           "type": "inline",
           "target": "id-only",
+          "target_is_local": true,
           "location": [
             {
               "line": 6,
@@ -207,6 +211,7 @@
           "name": "xref",
           "type": "inline",
           "target": "empty",
+          "target_is_local": true,
           "location": [
             {
               "line": 7,
@@ -237,6 +242,7 @@
           "name": "xref",
           "type": "inline",
           "target": "empty-anchor",
+          "target_is_local": true,
           "location": [
             {
               "line": 7,
@@ -267,6 +273,7 @@
           "name": "xref",
           "type": "inline",
           "target": "literal",
+          "target_is_local": true,
           "location": [
             {
               "line": 7,
@@ -297,6 +304,7 @@
           "name": "xref",
           "type": "inline",
           "target": "quoted",
+          "target_is_local": true,
           "location": [
             {
               "line": 7,
@@ -327,6 +335,7 @@
           "name": "xref",
           "type": "inline",
           "target": "duplicate",
+          "target_is_local": true,
           "location": [
             {
               "line": 7,
@@ -357,6 +366,7 @@
           "name": "xref",
           "type": "inline",
           "target": "anchor-first",
+          "target_is_local": true,
           "location": [
             {
               "line": 8,
@@ -387,6 +397,7 @@
           "name": "xref",
           "type": "inline",
           "target": "named-first",
+          "target_is_local": true,
           "location": [
             {
               "line": 8,
@@ -417,6 +428,7 @@
           "name": "xref",
           "type": "inline",
           "target": "Ignored label",
+          "target_is_local": true,
           "location": [
             {
               "line": 9,
@@ -1098,6 +1110,7 @@
               "name": "xref",
               "type": "inline",
               "target": "section",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 49,
@@ -1128,6 +1141,7 @@
               "name": "xref",
               "type": "inline",
               "target": "section",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 49,

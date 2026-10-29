@@ -342,7 +342,7 @@ mod tests {
             } else if let Block::Paragraph(paragraph) = block {
                 references.extend(paragraph.content.iter().filter_map(|inline| {
                     if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline {
-                        Some(xref)
+                        Some(xref.as_ref())
                     } else {
                         None
                     }
@@ -357,7 +357,7 @@ mod tests {
         for footnote in &document.footnotes {
             xrefs.extend(footnote.content.iter().filter_map(|inline| {
                 if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline {
-                    Some(xref)
+                    Some(xref.as_ref())
                 } else {
                     None
                 }

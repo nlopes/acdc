@@ -584,6 +584,8 @@
           "name": "xref",
           "type": "inline",
           "target": "custom-image",
+          "target_is_local": true,
+          "xrefstyle": "short",
           "location": [
             {
               "line": 27,

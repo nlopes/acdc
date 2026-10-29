@@ -228,6 +228,7 @@
               "name": "xref",
               "type": "inline",
               "target": ":colon",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 14,
@@ -258,6 +259,7 @@
               "name": "xref",
               "type": "inline",
               "target": ":colon",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -305,6 +307,7 @@
               "name": "xref",
               "type": "inline",
               "target": ":colon",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -352,6 +355,7 @@
               "name": "xref",
               "type": "inline",
               "target": ":colon",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -430,6 +434,7 @@
               "name": "xref",
               "type": "inline",
               "target": "a-b.c:d",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 16,
@@ -460,6 +465,7 @@
               "name": "xref",
               "type": "inline",
               "target": "a-b.c:d",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -507,6 +513,7 @@
               "name": "xref",
               "type": "inline",
               "target": "a-b.c:d",
+              "target_is_local": false,
               "location": [
                 {
                   "line": 16,
@@ -537,6 +544,7 @@
               "name": "xref",
               "type": "inline",
               "target": "a-b.c:d",
+              "target_is_local": false,
               "inlines": [
                 {
                   "name": "text",
@@ -584,6 +592,7 @@
               "name": "xref",
               "type": "inline",
               "target": "a-b.c:d",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -662,6 +671,7 @@
               "name": "xref",
               "type": "inline",
               "target": "topic:one",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 18,
@@ -692,6 +702,7 @@
               "name": "xref",
               "type": "inline",
               "target": "topic:one",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 18,
@@ -722,6 +733,7 @@
               "name": "xref",
               "type": "inline",
               "target": "topic:one",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -800,6 +812,7 @@
               "name": "xref",
               "type": "inline",
               "target": "http:local",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 20,
@@ -830,6 +843,7 @@
               "name": "xref",
               "type": "inline",
               "target": "http:local",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -908,6 +922,7 @@
               "name": "xref",
               "type": "inline",
               "target": "missing:one",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 22,
@@ -938,6 +953,7 @@
               "name": "xref",
               "type": "inline",
               "target": "missing:one",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -985,6 +1001,7 @@
               "name": "xref",
               "type": "inline",
               "target": "missing:one",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -1063,6 +1080,7 @@
               "name": "xref",
               "type": "inline",
               "target": "guide.adoc#topic:one",
+              "target_is_local": false,
               "inlines": [
                 {
                   "name": "text",
@@ -1110,6 +1128,7 @@
               "name": "xref",
               "type": "inline",
               "target": "https://example.org/guide#topic:one",
+              "target_is_local": false,
               "inlines": [
                 {
                   "name": "text",
@@ -1188,6 +1207,7 @@
               "name": "xref",
               "type": "inline",
               "target": "_chapter_details",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 26,
@@ -1218,6 +1238,7 @@
               "name": "xref",
               "type": "inline",
               "target": "ordinary",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -1653,6 +1674,7 @@
               "name": "xref",
               "type": "inline",
               "target": "topic:one",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 44,
@@ -1683,6 +1705,7 @@
               "name": "xref",
               "type": "inline",
               "target": "topic:one",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -1776,6 +1799,7 @@
               "name": "xref",
               "type": "inline",
               "target": "topic:one",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -1823,6 +1847,7 @@
               "name": "xref",
               "type": "inline",
               "target": "topic:one",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -2022,6 +2047,7 @@
               "name": "xref",
               "type": "inline",
               "target": "dir.name/topic:one",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -2069,6 +2095,7 @@
               "name": "xref",
               "type": "inline",
               "target": "missing.id",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -2116,6 +2143,7 @@
               "name": "xref",
               "type": "inline",
               "target": "missing.id",
+              "target_is_local": false,
               "inlines": [
                 {
                   "name": "text",

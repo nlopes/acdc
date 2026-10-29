@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- Cross-references retain IDs, options, and extension attributes. Use
+  `xref.metadata.roles` instead of `xref.role`, and `attributes()` with
+  `set_attribute()` / `remove_attribute()` for scalar controls. Typed reads keep
+  targets, explicit labels, and automatic-label policy distinct. Native JSON
+  retains metadata, local-target classification, and effective nondefault
+  `xrefstyle`. `InlineMacro::CrossReference` now holds `Box<CrossReference>`.
+  As with other acdc inline macros, `roles` aliases `role`; Asciidoctor recognizes
+  only `role` on xrefs.
+
 - Link, URL, and mailto macros expose IDs and roles through `metadata`, options
   through `options()`, and scalar controls through `attributes()`. Use
   `set_attribute()` / `remove_attribute()` for scalar edits; `Link::with_attributes()`

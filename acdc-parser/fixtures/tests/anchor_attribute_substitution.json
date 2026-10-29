@@ -436,6 +436,7 @@
               "name": "xref",
               "type": "inline",
               "target": "doc-intro",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 25,
@@ -497,6 +498,7 @@
               "name": "xref",
               "type": "inline",
               "target": "ch1-overview",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",

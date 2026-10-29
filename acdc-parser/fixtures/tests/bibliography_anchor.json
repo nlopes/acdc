@@ -212,6 +212,7 @@
               "name": "xref",
               "type": "inline",
               "target": "ref01",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 9,
@@ -242,6 +243,7 @@
               "name": "xref",
               "type": "inline",
               "target": "ref02",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 9,

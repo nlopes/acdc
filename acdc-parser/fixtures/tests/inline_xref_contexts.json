@@ -1,0 +1,504 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Cross-reference contexts",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 26
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 2,
+        "col": 10
+      }
+    ]
+  },
+  "attributes": {
+    "sectnums": true
+  },
+  "blocks": [
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Target",
+          "location": [
+            {
+              "line": 5,
+              "col": 4
+            },
+            {
+              "line": 5,
+              "col": 9
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "metadata": {
+        "anchors": [
+          {
+            "id": "target",
+            "location": [
+              {
+                "line": 4,
+                "col": 1
+              },
+              {
+                "line": 4,
+                "col": 10
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "é ",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 1,
+                  "file": [
+                    "includes/inline_xref_metadata.adoc"
+                  ]
+                },
+                {
+                  "line": 1,
+                  "col": 2,
+                  "file": [
+                    "includes/inline_xref_metadata.adoc"
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "xref",
+              "type": "inline",
+              "metadata": {
+                "attributes": {
+                  "custom": "kept"
+                },
+                "roles": [
+                  "resource"
+                ],
+                "id": {
+                  "id": "included-xref",
+                  "location": [
+                    {
+                      "line": 1,
+                      "col": 27,
+                      "file": [
+                        "includes/inline_xref_metadata.adoc"
+                      ]
+                    },
+                    {
+                      "line": 1,
+                      "col": 39,
+                      "file": [
+                        "includes/inline_xref_metadata.adoc"
+                      ]
+                    }
+                  ]
+                }
+              },
+              "target": "target",
+              "target_is_local": true,
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Included",
+                  "location": [
+                    {
+                      "line": 1,
+                      "col": 15,
+                      "file": [
+                        "includes/inline_xref_metadata.adoc"
+                      ]
+                    },
+                    {
+                      "line": 1,
+                      "col": 22,
+                      "file": [
+                        "includes/inline_xref_metadata.adoc"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 1,
+                  "col": 3,
+                  "file": [
+                    "includes/inline_xref_metadata.adoc"
+                  ]
+                },
+                {
+                  "line": 1,
+                  "col": 66,
+                  "file": [
+                    "includes/inline_xref_metadata.adoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 1,
+              "col": 1,
+              "file": [
+                "includes/inline_xref_metadata.adoc"
+              ]
+            },
+            {
+              "line": 1,
+              "col": 66,
+              "file": [
+                "includes/inline_xref_metadata.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "table",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "|===",
+          "metadata": {
+            "attributes": {
+              "cols": "a"
+            }
+          },
+          "content": {
+            "header": null,
+            "footer": null,
+            "rows": [
+              {
+                "columns": [
+                  {
+                    "content": [
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "xref",
+                            "type": "inline",
+                            "metadata": {
+                              "attributes": {
+                                "custom": "kept"
+                              },
+                              "roles": [
+                                "one",
+                                "two"
+                              ],
+                              "options": [
+                                "a",
+                                "b"
+                              ],
+                              "id": {
+                                "id": "cell-xref",
+                                "location": [
+                                  {
+                                    "line": 11,
+                                    "col": 22
+                                  },
+                                  {
+                                    "line": 11,
+                                    "col": 30
+                                  }
+                                ]
+                              }
+                            },
+                            "target": "target",
+                            "target_is_local": true,
+                            "xrefstyle": "short",
+                            "inlines": [
+                              {
+                                "name": "text",
+                                "type": "string",
+                                "value": "Cell",
+                                "location": [
+                                  {
+                                    "line": 11,
+                                    "col": 14
+                                  },
+                                  {
+                                    "line": 11,
+                                    "col": 17
+                                  }
+                                ]
+                              }
+                            ],
+                            "location": [
+                              {
+                                "line": 11,
+                                "col": 2
+                              },
+                              {
+                                "line": 11,
+                                "col": 85
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 11,
+                            "col": 2
+                          },
+                          {
+                            "line": 11,
+                            "col": 85
+                          }
+                        ]
+                      },
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "xref",
+                            "type": "inline",
+                            "metadata": {
+                              "attributes": {
+                                "window": "reading"
+                              },
+                              "id": {
+                                "id": "cell-external",
+                                "location": [
+                                  {
+                                    "line": 13,
+                                    "col": 37
+                                  },
+                                  {
+                                    "line": 13,
+                                    "col": 49
+                                  }
+                                ]
+                              }
+                            },
+                            "target": "other.adoc#section",
+                            "target_is_local": false,
+                            "inlines": [
+                              {
+                                "name": "text",
+                                "type": "string",
+                                "value": "External",
+                                "location": [
+                                  {
+                                    "line": 13,
+                                    "col": 25
+                                  },
+                                  {
+                                    "line": 13,
+                                    "col": 32
+                                  }
+                                ]
+                              }
+                            ],
+                            "location": [
+                              {
+                                "line": 13,
+                                "col": 1
+                              },
+                              {
+                                "line": 13,
+                                "col": 65
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 13,
+                            "col": 1
+                          },
+                          {
+                            "line": 13,
+                            "col": 65
+                          }
+                        ]
+                      }
+                    ],
+                    "style": "asciidoc"
+                  }
+                ]
+              }
+            ],
+            "columns": [
+              {
+                "style": "asciidoc"
+              }
+            ],
+            "location": [
+              {
+                "line": 10,
+                "col": 1
+              },
+              {
+                "line": 14,
+                "col": 4
+              }
+            ]
+          },
+          "location": [
+            {
+              "line": 9,
+              "col": 1
+            },
+            {
+              "line": 14,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "xrefstyle",
+          "type": "attribute",
+          "value": "full",
+          "location": [
+            {
+              "line": 16,
+              "col": 1
+            },
+            {
+              "line": 16,
+              "col": 16
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "xref",
+              "type": "inline",
+              "target": "target",
+              "target_is_local": true,
+              "xrefstyle": "full",
+              "location": [
+                {
+                  "line": 18,
+                  "col": 1
+                },
+                {
+                  "line": 18,
+                  "col": 13
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 18,
+              "col": 1
+            },
+            {
+              "line": 18,
+              "col": 13
+            }
+          ]
+        },
+        {
+          "name": "xrefstyle",
+          "type": "attribute",
+          "value": "short",
+          "location": [
+            {
+              "line": 20,
+              "col": 1
+            },
+            {
+              "line": 20,
+              "col": 17
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "xref",
+              "type": "inline",
+              "target": "target",
+              "target_is_local": true,
+              "xrefstyle": "basic",
+              "location": [
+                {
+                  "line": 22,
+                  "col": 1
+                },
+                {
+                  "line": 22,
+                  "col": 28
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 22,
+              "col": 1
+            },
+            {
+              "line": 22,
+              "col": 28
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 4,
+          "col": 1
+        },
+        {
+          "line": 22,
+          "col": 28
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 22,
+      "col": 28
+    }
+  ]
+}

@@ -57,6 +57,7 @@
           "name": "xref",
           "type": "inline",
           "target": "start",
+          "target_is_local": true,
           "location": [
             {
               "line": 4,
@@ -87,6 +88,7 @@
           "name": "xref",
           "type": "inline",
           "target": "middle",
+          "target_is_local": true,
           "location": [
             {
               "line": 4,
@@ -117,6 +119,7 @@
           "name": "xref",
           "type": "inline",
           "target": "end",
+          "target_is_local": true,
           "location": [
             {
               "line": 4,
@@ -147,6 +150,7 @@
           "name": "xref",
           "type": "inline",
           "target": "only",
+          "target_is_local": true,
           "location": [
             {
               "line": 4,
@@ -177,6 +181,7 @@
           "name": "xref",
           "type": "inline",
           "target": "short",
+          "target_is_local": true,
           "location": [
             {
               "line": 4,
@@ -207,6 +212,7 @@
           "name": "xref",
           "type": "inline",
           "target": "last",
+          "target_is_local": true,
           "location": [
             {
               "line": 4,
@@ -237,6 +243,7 @@
           "name": "xref",
           "type": "inline",
           "target": "formatted",
+          "target_is_local": true,
           "location": [
             {
               "line": 4,

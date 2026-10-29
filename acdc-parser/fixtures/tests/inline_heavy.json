@@ -1218,6 +1218,7 @@
                   "name": "xref",
                   "type": "inline",
                   "target": "section-one",
+                  "target_is_local": true,
                   "location": [
                     {
                       "line": 25,
@@ -1248,6 +1249,7 @@
                   "name": "xref",
                   "type": "inline",
                   "target": "section-two",
+                  "target_is_local": true,
                   "inlines": [
                     {
                       "name": "text",
@@ -1295,6 +1297,7 @@
                   "name": "xref",
                   "type": "inline",
                   "target": "other-doc.adoc",
+                  "target_is_local": false,
                   "inlines": [
                     {
                       "name": "text",
@@ -1342,6 +1345,7 @@
                   "name": "xref",
                   "type": "inline",
                   "target": "guide.adoc#tips",
+                  "target_is_local": false,
                   "inlines": [
                     {
                       "name": "text",
@@ -1471,6 +1475,7 @@
                   "name": "xref",
                   "type": "inline",
                   "target": "section-one",
+                  "target_is_local": true,
                   "location": [
                     {
                       "line": 31,
@@ -1501,6 +1506,7 @@
                   "name": "xref",
                   "type": "inline",
                   "target": "section-three",
+                  "target_is_local": true,
                   "inlines": [
                     {
                       "name": "text",
@@ -1548,6 +1554,7 @@
                   "name": "xref",
                   "type": "inline",
                   "target": "api.adoc",
+                  "target_is_local": false,
                   "inlines": [
                     {
                       "name": "text",
@@ -1595,6 +1602,7 @@
                   "name": "xref",
                   "type": "inline",
                   "target": "tutorial.adoc#step1",
+                  "target_is_local": false,
                   "inlines": [
                     {
                       "name": "text",
@@ -1724,6 +1732,7 @@
                   "name": "xref",
                   "type": "inline",
                   "target": "section-one",
+                  "target_is_local": true,
                   "location": [
                     {
                       "line": 37,
@@ -1754,6 +1763,7 @@
                   "name": "xref",
                   "type": "inline",
                   "target": "section-two",
+                  "target_is_local": true,
                   "location": [
                     {
                       "line": 37,
@@ -1784,6 +1794,7 @@
                   "name": "xref",
                   "type": "inline",
                   "target": "section-three",
+                  "target_is_local": true,
                   "location": [
                     {
                       "line": 37,
@@ -4969,6 +4980,7 @@
               "name": "xref",
               "type": "inline",
               "target": "section-one",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 69,
@@ -4999,6 +5011,7 @@
               "name": "xref",
               "type": "inline",
               "target": "doc.adoc",
+              "target_is_local": false,
               "inlines": [
                 {
                   "name": "text",
@@ -8212,6 +8225,7 @@
               "name": "xref",
               "type": "inline",
               "target": "section-one",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 108,
@@ -8242,6 +8256,7 @@
               "name": "xref",
               "type": "inline",
               "target": "section-two",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 108,
@@ -8272,6 +8287,7 @@
               "name": "xref",
               "type": "inline",
               "target": "section-three",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 108,
@@ -9270,6 +9286,7 @@
               "name": "xref",
               "type": "inline",
               "target": "section-one",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",

@@ -783,6 +783,7 @@
           "name": "xref",
           "type": "inline",
           "target": "café",
+          "target_is_local": true,
           "location": [
             {
               "line": 19,
@@ -813,6 +814,7 @@
           "name": "xref",
           "type": "inline",
           "target": "東京",
+          "target_is_local": true,
           "location": [
             {
               "line": 19,
@@ -843,6 +845,7 @@
           "name": "xref",
           "type": "inline",
           "target": "café",
+          "target_is_local": true,
           "location": [
             {
               "line": 19,
@@ -873,6 +876,7 @@
           "name": "xref",
           "type": "inline",
           "target": "a‿b",
+          "target_is_local": true,
           "location": [
             {
               "line": 19,
@@ -903,6 +907,7 @@
           "name": "xref",
           "type": "inline",
           "target": ":colon",
+          "target_is_local": true,
           "location": [
             {
               "line": 19,
@@ -933,6 +938,7 @@
           "name": "xref",
           "type": "inline",
           "target": "_under",
+          "target_is_local": true,
           "location": [
             {
               "line": 19,
@@ -963,6 +969,7 @@
           "name": "xref",
           "type": "inline",
           "target": "a-b.c:d",
+          "target_is_local": true,
           "location": [
             {
               "line": 19,
@@ -993,6 +1000,7 @@
           "name": "xref",
           "type": "inline",
           "target": "joined",
+          "target_is_local": true,
           "location": [
             {
               "line": 19,
@@ -1023,6 +1031,7 @@
           "name": "xref",
           "type": "inline",
           "target": "comma",
+          "target_is_local": true,
           "location": [
             {
               "line": 19,
@@ -1053,6 +1062,7 @@
           "name": "xref",
           "type": "inline",
           "target": "quoted",
+          "target_is_local": true,
           "location": [
             {
               "line": 19,
@@ -1083,6 +1093,7 @@
           "name": "xref",
           "type": "inline",
           "target": "equals",
+          "target_is_local": true,
           "location": [
             {
               "line": 19,
@@ -1113,6 +1124,7 @@
           "name": "xref",
           "type": "inline",
           "target": "bracket",
+          "target_is_local": true,
           "location": [
             {
               "line": 19,
@@ -1143,6 +1155,7 @@
           "name": "xref",
           "type": "inline",
           "target": "open",
+          "target_is_local": true,
           "location": [
             {
               "line": 19,
@@ -1719,6 +1732,7 @@
           "name": "xref",
           "type": "inline",
           "target": "topic🚀",
+          "target_is_local": true,
           "location": [
             {
               "line": 42,
@@ -1749,6 +1763,7 @@
           "name": "xref",
           "type": "inline",
           "target": "a·b",
+          "target_is_local": true,
           "location": [
             {
               "line": 42,
@@ -1779,6 +1794,7 @@
           "name": "xref",
           "type": "inline",
           "target": "a‍b",
+          "target_is_local": true,
           "location": [
             {
               "line": 42,

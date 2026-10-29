@@ -221,6 +221,7 @@
           "name": "xref",
           "type": "inline",
           "target": "code-target",
+          "target_is_local": true,
           "inlines": [
             {
               "name": "text",

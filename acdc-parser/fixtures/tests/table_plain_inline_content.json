@@ -1027,6 +1027,7 @@
               "name": "xref",
               "type": "inline",
               "target": "plain-cell-target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",

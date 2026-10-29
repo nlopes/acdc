@@ -518,6 +518,7 @@
           "name": "xref",
           "type": "inline",
           "target": "bracket",
+          "target_is_local": true,
           "location": [
             {
               "line": 36,

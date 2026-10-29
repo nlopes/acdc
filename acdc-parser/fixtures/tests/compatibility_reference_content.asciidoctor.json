@@ -799,6 +799,7 @@
               "name": "xref",
               "type": "inline",
               "target": "single",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 29,
@@ -829,6 +830,7 @@
               "name": "xref",
               "type": "inline",
               "target": "double",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 29,
@@ -859,6 +861,7 @@
               "name": "xref",
               "type": "inline",
               "target": "unquoted",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 29,
@@ -889,6 +892,7 @@
               "name": "xref",
               "type": "inline",
               "target": "expanded",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 29,
@@ -919,6 +923,7 @@
               "name": "xref",
               "type": "inline",
               "target": "empty",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 29,
@@ -949,6 +954,7 @@
               "name": "xref",
               "type": "inline",
               "target": "anchor",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 29,
@@ -979,6 +985,7 @@
               "name": "xref",
               "type": "inline",
               "target": "figure",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 29,
@@ -1200,6 +1207,7 @@
               "name": "xref",
               "type": "inline",
               "target": "inline",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 32,
@@ -1230,6 +1238,7 @@
               "name": "xref",
               "type": "inline",
               "target": "macro",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 32,

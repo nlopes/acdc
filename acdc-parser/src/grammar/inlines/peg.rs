@@ -1332,7 +1332,7 @@ peg::parser! {
             if xref.text.is_empty() {
                 xref.caption_label_snapshot_id = Some(state.capture_xref_caption_labels());
             }
-            Ok(InlineNode::Macro(InlineMacro::CrossReference(xref)))
+            Ok(InlineNode::Macro(InlineMacro::CrossReference(Box::new(xref))))
         }
 
         /// Pattern for cross-reference shorthand: <<id>> or <<reference text,custom text>>
@@ -1358,10 +1358,11 @@ peg::parser! {
                 substitutions: state.inline_ctx.substitutions,
                 ..BlockParsingMetadata::default()
             };
-            let macro_text = xref_macro_text(
+            let mut macro_text = xref_macro_text(
                 raw_text,
                 state.document_attributes.contains_key("compat-mode"),
             );
+            let (metadata, macro_attributes) = macro_text.take_metadata(state, content_start + state.inline_ctx.offset);
             let text = if macro_text.text.is_empty() {
                 vec![]
             } else {
@@ -1407,11 +1408,12 @@ peg::parser! {
                     .or_else(|| state.document_attributes.get("xrefstyle").map(|value| value.text().unwrap_or_default()))
                     .map(crate::strip_quotes),
             );
-            xref.role = macro_text.role.as_deref().map(|role| state.intern_str(role));
+            xref.metadata = metadata;
+            xref.macro_attributes = macro_attributes;
             if xref.text.is_empty() {
                 xref.caption_label_snapshot_id = Some(state.capture_xref_caption_labels());
             }
-            Ok(InlineNode::Macro(InlineMacro::CrossReference(xref)))
+            Ok(InlineNode::Macro(InlineMacro::CrossReference(Box::new(xref))))
         }
 
         /// Parse explicit xref text without balancing arbitrary brackets.

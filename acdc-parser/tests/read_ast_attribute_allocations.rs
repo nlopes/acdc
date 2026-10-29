@@ -158,3 +158,34 @@ fn hyperlink_reads_do_not_allocate() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(stats.deallocations, 0);
     Ok(())
 }
+
+#[test]
+fn cross_reference_reads_do_not_allocate() -> Result<(), Box<dyn std::error::Error>> {
+    let mut owner = acdc_parser::CrossReference::new("target", Location::default());
+    owner.xrefstyle = acdc_parser::XrefStyle::Short;
+    owner.metadata.roles.push("resource");
+    owner.options_mut().push("nofollow");
+    owner.set_attribute(String::from("custom").into(), String::from("owned").into())?;
+    let region = Region::new(ALLOCATOR);
+    let node = acdc_parser::ast::CrossReferenceRef::from(&owner);
+    black_box(node.target());
+    black_box(node.target_is_local());
+    black_box(node.text().inlines().next());
+    black_box(node.id());
+    black_box(node.xrefstyle());
+    black_box(node.caption_label());
+    black_box(node.signifier());
+    for (name, value) in node.attributes().iter() {
+        black_box(node.attributes().get(name));
+        if let AttributeValueRef::Tokens(tokens) = value {
+            for token in tokens.iter() {
+                black_box(token);
+            }
+        }
+    }
+    let stats = region.change();
+    assert_eq!(stats.allocations, 0);
+    assert_eq!(stats.reallocations, 0);
+    assert_eq!(stats.deallocations, 0);
+    Ok(())
+}

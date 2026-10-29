@@ -21,7 +21,7 @@ fn paragraph_xrefs<'d, 'a>(blocks: &'d [Block<'a>]) -> Vec<&'d CrossReference<'a
         .flatten()
         .filter_map(|inline| {
             if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline {
-                Some(xref)
+                Some(xref.as_ref())
             } else {
                 None
             }

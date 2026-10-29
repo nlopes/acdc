@@ -61,6 +61,8 @@
           "name": "xref",
           "type": "inline",
           "target": "part",
+          "target_is_local": true,
+          "xrefstyle": "short",
           "location": [
             {
               "line": 8,
@@ -122,6 +124,8 @@
           "name": "xref",
           "type": "inline",
           "target": "chapter",
+          "target_is_local": true,
+          "xrefstyle": "full",
           "location": [
             {
               "line": 10,
@@ -183,6 +187,8 @@
           "name": "xref",
           "type": "inline",
           "target": "section",
+          "target_is_local": true,
+          "xrefstyle": "full",
           "location": [
             {
               "line": 12,
@@ -244,6 +250,8 @@
           "name": "xref",
           "type": "inline",
           "target": "appendix",
+          "target_is_local": true,
+          "xrefstyle": "full",
           "location": [
             {
               "line": 14,
@@ -305,6 +313,8 @@
           "name": "xref",
           "type": "inline",
           "target": "plain",
+          "target_is_local": true,
+          "xrefstyle": "basic",
           "location": [
             {
               "line": 16,
@@ -366,6 +376,8 @@
           "name": "xref",
           "type": "inline",
           "target": "labelled",
+          "target_is_local": true,
+          "xrefstyle": "full",
           "location": [
             {
               "line": 18,
@@ -427,6 +439,8 @@
           "name": "xref",
           "type": "inline",
           "target": "block",
+          "target_is_local": true,
+          "xrefstyle": "full",
           "location": [
             {
               "line": 20,

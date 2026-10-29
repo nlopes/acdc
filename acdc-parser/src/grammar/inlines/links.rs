@@ -4,6 +4,7 @@ use crate::{
     ContentAttribute, CrossReference, ElementId, InlineMetadata, InlineNode,
     grammar::{
         ParserState,
+        attributes::ScannedAttribute,
         helpers::BlockParsingMetadata,
         inline_preprocessor::{ProcessedKind, SourceMap},
         inline_processing::process_inlines_no_autolinks,
@@ -45,7 +46,7 @@ fn file_xref_fragment(target: &str) -> Option<&str> {
     (!fragment.is_empty() && !path.starts_with("//") && !has_scheme).then_some(fragment)
 }
 
-/// The parts of `xref:target[...]` that decide what the link shows.
+/// The label and controls in `xref:target[...]`.
 pub(super) struct XrefMacroText<'s> {
     /// The link text, empty for an automatic reference.
     pub(super) text: Cow<'s, str>,
@@ -57,8 +58,7 @@ pub(super) struct XrefMacroText<'s> {
     pub(super) as_written: bool,
     /// A `xrefstyle=` for this reference alone, overriding the document's.
     pub(super) xrefstyle: Option<String>,
-    /// A `role=` for the link.
-    pub(super) role: Option<String>,
+    attributes: Vec<ScannedAttribute>,
 }
 
 /// Read `xref:target[...]`'s brackets the way Asciidoctor does.
@@ -66,10 +66,10 @@ pub(super) struct XrefMacroText<'s> {
 /// Brackets holding an `=` are an attribute list: the first positional
 /// attribute is the link text, `xrefstyle=` overrides the document's style
 /// for this reference, so `xref:fig[xrefstyle=short]` prints `Figure 1`, and
-/// `role=` is kept for the link. Any other brackets, and all brackets in
+/// named controls are retained. Any other brackets, and all brackets in
 /// compat mode, are the link text as written, commas included.
 ///
-/// Other named attributes are read and set aside rather than shown, so
+/// Named attributes do not supply display text, so
 /// `xref:fig[id=x]` still has automatic text, as in Asciidoctor.
 pub(super) fn xref_macro_text(raw: &str, compat_mode: bool) -> XrefMacroText<'_> {
     if compat_mode || !raw.contains('=') {
@@ -79,7 +79,7 @@ pub(super) fn xref_macro_text(raw: &str, compat_mode: bool) -> XrefMacroText<'_>
             source_map: SourceMap::default(),
             as_written: true,
             xrefstyle: None,
-            role: None,
+            attributes: Vec::new(),
         };
     }
     let mut parsed = XrefMacroText {
@@ -88,7 +88,7 @@ pub(super) fn xref_macro_text(raw: &str, compat_mode: bool) -> XrefMacroText<'_>
         source_map: SourceMap::default(),
         as_written: false,
         xrefstyle: None,
-        role: None,
+        attributes: Vec::new(),
     };
     for (index, attribute) in crate::grammar::attributes::scan_attribute_list(raw, &[])
         .into_iter()
@@ -97,7 +97,7 @@ pub(super) fn xref_macro_text(raw: &str, compat_mode: bool) -> XrefMacroText<'_>
         match attribute.name.as_deref() {
             Some("xrefstyle") => parsed.xrefstyle = Some(attribute.value),
             // A repeated attribute takes its last value, as in Asciidoctor.
-            Some("role") => parsed.role = Some(attribute.value),
+            Some(_) => parsed.attributes.push(attribute),
             // Positional attributes are numbered by their place in the list,
             // so text after a named attribute is not the link text:
             // `xref:fig[xrefstyle=short,Words]` is still automatic.
@@ -127,10 +127,40 @@ pub(super) fn xref_macro_text(raw: &str, compat_mode: bool) -> XrefMacroText<'_>
                 };
                 parsed.offset = attribute.value_start;
             }
-            Some(_) | None => {}
+            None => {}
         }
     }
     parsed
+}
+
+impl XrefMacroText<'_> {
+    pub(super) fn take_metadata<'a>(
+        &mut self,
+        state: &ParserState<'a>,
+        offset: usize,
+    ) -> (InlineMetadata<'a>, MacroAttributes<'a>) {
+        let mut metadata = InlineMetadata::default();
+        let mut attributes = MacroAttributes::default();
+        for attribute in std::mem::take(&mut self.attributes) {
+            let Some(name) = attribute.name else {
+                continue;
+            };
+            let name = match name.as_str() {
+                "roles" => Cow::Borrowed("role"),
+                "opts" => Cow::Borrowed("options"),
+                _ => Cow::Owned(name),
+            };
+            insert_named_metadata(
+                state,
+                &mut metadata,
+                &mut attributes,
+                name,
+                attribute.value,
+                offset + attribute.value_start..offset + attribute.value_end,
+            );
+        }
+        (metadata, attributes)
+    }
 }
 
 #[derive(Debug)]
@@ -172,34 +202,33 @@ pub(super) struct ProcessedLinkContent<'a> {
     pub(super) body: Option<&'a str>,
 }
 
-impl<'a> ProcessedLinkContent<'a> {
-    fn insert_named(
-        &mut self,
-        state: &ParserState<'a>,
-        name: Cow<'a, str>,
-        value: String,
-        range: Range<usize>,
-    ) {
-        match name.as_ref() {
-            "id" => {
-                self.metadata.id = Some(ElementId {
-                    id: state.intern_str(&value),
-                    location: state
-                        .create_location(range.start, range.end.saturating_sub(1).max(range.start)),
-                });
-            }
-            "role" => {
-                self.metadata.roles = value
-                    .split_whitespace()
-                    .map(|role| state.intern_str(role))
-                    .collect();
-            }
-            "options" => {
-                self.macro_attributes.options =
-                    crate::grammar::helpers::parse_comma_separated_values(state, &value);
-            }
-            _ => self.macro_attributes.attributes.set(name, value.into()),
+fn insert_named_metadata<'a>(
+    state: &ParserState<'a>,
+    metadata: &mut InlineMetadata<'a>,
+    attributes: &mut MacroAttributes<'a>,
+    name: Cow<'a, str>,
+    value: String,
+    range: Range<usize>,
+) {
+    match name.as_ref() {
+        "id" => {
+            metadata.id = Some(ElementId {
+                id: state.intern_str(&value),
+                location: state
+                    .create_location(range.start, range.end.saturating_sub(1).max(range.start)),
+            });
         }
+        "role" => {
+            metadata.roles = value
+                .split_whitespace()
+                .map(|role| state.intern_str(role))
+                .collect();
+        }
+        "options" => {
+            attributes.options =
+                crate::grammar::helpers::parse_comma_separated_values(state, &value);
+        }
+        _ => attributes.attributes.set(name, value.into()),
     }
 }
 
@@ -270,7 +299,14 @@ pub(super) fn process_link_content<'a>(
                 };
                 let from = start + restored_label_offset(attribute.value_start, &restored, false);
                 let to = start + restored_label_offset(attribute.value_end, &restored, false);
-                result.insert_named(state, name, value, from..to);
+                insert_named_metadata(
+                    state,
+                    &mut result.metadata,
+                    &mut result.macro_attributes,
+                    name,
+                    value,
+                    from..to,
+                );
             } else if index == 0 {
                 quote = attribute_quote;
                 offset = restored_label_offset(attribute.value_start, &restored, false);

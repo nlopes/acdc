@@ -57,6 +57,7 @@
           "name": "xref",
           "type": "inline",
           "target": "outer",
+          "target_is_local": true,
           "location": [
             {
               "line": 9,
@@ -324,6 +325,7 @@
           "name": "xref",
           "type": "inline",
           "target": "",
+          "target_is_local": true,
           "inlines": [
             {
               "name": "text",
@@ -371,6 +373,7 @@
           "name": "xref",
           "type": "inline",
           "target": "other.adoc#target",
+          "target_is_local": false,
           "location": [
             {
               "line": 13,
@@ -542,6 +545,7 @@
           "name": "xref",
           "type": "inline",
           "target": "code-link",
+          "target_is_local": true,
           "location": [
             {
               "line": 18,
@@ -778,6 +782,7 @@
           "name": "xref",
           "type": "inline",
           "target": "empty-code",
+          "target_is_local": true,
           "location": [
             {
               "line": 30,
@@ -808,6 +813,7 @@
           "name": "xref",
           "type": "inline",
           "target": "empty-block",
+          "target_is_local": true,
           "location": [
             {
               "line": 30,
@@ -869,6 +875,7 @@
           "name": "xref",
           "type": "inline",
           "target": "destination",
+          "target_is_local": true,
           "location": [
             {
               "line": 33,

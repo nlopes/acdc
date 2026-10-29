@@ -180,7 +180,13 @@
         {
           "name": "xref",
           "type": "inline",
+          "metadata": {
+            "roles": [
+              "hot"
+            ]
+          },
           "target": "target",
+          "target_is_local": true,
           "location": [
             {
               "line": 10,
@@ -241,7 +247,13 @@
         {
           "name": "xref",
           "type": "inline",
+          "metadata": {
+            "roles": [
+              "{role-name}"
+            ]
+          },
           "target": "target",
+          "target_is_local": true,
           "location": [
             {
               "line": 12,
@@ -302,7 +314,13 @@
         {
           "name": "xref",
           "type": "inline",
+          "metadata": {
+            "roles": [
+              "+hot+"
+            ]
+          },
           "target": "target",
+          "target_is_local": true,
           "location": [
             {
               "line": 14,
@@ -363,7 +381,13 @@
         {
           "name": "xref",
           "type": "inline",
+          "metadata": {
+            "roles": [
+              "+hot+"
+            ]
+          },
           "target": "target",
+          "target_is_local": true,
           "location": [
             {
               "line": 16,
@@ -1629,7 +1653,13 @@
         {
           "name": "xref",
           "type": "inline",
+          "metadata": {
+            "roles": [
+              "café"
+            ]
+          },
           "target": "target",
+          "target_is_local": true,
           "location": [
             {
               "line": 42,

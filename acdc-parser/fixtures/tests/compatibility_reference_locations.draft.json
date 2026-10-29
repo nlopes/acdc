@@ -596,6 +596,7 @@
                             "name": "xref",
                             "type": "inline",
                             "target": "cell",
+                            "target_is_local": true,
                             "location": [
                               {
                                 "line": 17,
@@ -690,6 +691,7 @@
               "name": "xref",
               "type": "inline",
               "target": "unicode",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 20,
@@ -720,6 +722,7 @@
               "name": "xref",
               "type": "inline",
               "target": "inline-location",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 20,
@@ -750,6 +753,7 @@
               "name": "xref",
               "type": "inline",
               "target": "macro-location",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 20,
@@ -780,6 +784,7 @@
               "name": "xref",
               "type": "inline",
               "target": "included",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 20,
@@ -1255,6 +1260,7 @@
               "name": "xref",
               "type": "inline",
               "target": "title-anchor",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 31,
@@ -1285,6 +1291,7 @@
               "name": "xref",
               "type": "inline",
               "target": "index-anchor",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 31,
@@ -1315,6 +1322,7 @@
               "name": "xref",
               "type": "inline",
               "target": "formatted-anchor",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 31,
@@ -1345,6 +1353,7 @@
               "name": "xref",
               "type": "inline",
               "target": "pass-anchor",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 31,
@@ -1375,6 +1384,7 @@
               "name": "xref",
               "type": "inline",
               "target": "note-anchor",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 31,

@@ -5,7 +5,6 @@ use acdc_parser::{
 
 type Error = Box<dyn std::error::Error>;
 
-// Fixture JSON omits whether a cross-reference targets this document.
 #[test]
 fn cross_reference_syntax_classifies_punctuation_before_catalog_lookup() -> Result<(), Error> {
     for (source, target, local) in [
@@ -135,16 +134,16 @@ fn cross_reference_model_equality_ignores_parser_state() -> Result<(), Error> {
     };
     let expected = CrossReference::new("id", actual.location.clone());
 
-    assert_eq!(actual, &expected);
+    assert_eq!(actual.as_ref(), &expected);
     let mut differing_destination = expected.clone();
     differing_destination.target_is_local = false;
-    assert_ne!(actual, &differing_destination);
+    assert_ne!(actual.as_ref(), &differing_destination);
     let mut differing_style = expected.clone();
     differing_style.xrefstyle = XrefStyle::Full;
-    assert_ne!(actual, &differing_style);
+    assert_ne!(actual.as_ref(), &differing_style);
     let mut differing_label = expected;
     differing_label.caption_label = XrefCaptionLabel::NumberOnly;
-    assert_ne!(actual, &differing_label);
+    assert_ne!(actual.as_ref(), &differing_label);
     Ok(())
 }
 

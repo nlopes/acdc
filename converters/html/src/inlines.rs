@@ -1087,11 +1087,14 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         // An `xref:` macro's `role=` becomes the link's class, as in
         // asciidoctor, whatever the link text. An empty role adds no class,
         // matching how a `link:` macro's role is handled here.
-        let class = xref
-            .role
-            .filter(|role| !role.is_empty())
-            .map(|role| format!(" class=\"{}\"", escape_attribute(role)))
-            .unwrap_or_default();
+        let class = if xref.metadata.roles.is_empty() {
+            String::new()
+        } else {
+            format!(
+                " class=\"{}\"",
+                escape_attribute(&xref.metadata.roles.join(" "))
+            )
+        };
         if xref.text.is_empty() {
             // Resolve via the id -> reference map (sections + titled blocks):
             // xreflabel (from [[id,Custom Text]]) > caption style or target title >

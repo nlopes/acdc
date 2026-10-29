@@ -14,7 +14,7 @@ fn cross_references<'d, 'a>(blocks: &'d [Block<'a>]) -> Vec<&'d CrossReference<'
         if let Block::Paragraph(paragraph) = block {
             for inline in &paragraph.content {
                 if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline {
-                    found.push(xref);
+                    found.push(xref.as_ref());
                 }
             }
         } else if let Block::Section(section) = block {

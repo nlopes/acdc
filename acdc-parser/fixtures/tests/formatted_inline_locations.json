@@ -1287,6 +1287,7 @@
           "name": "xref",
           "type": "inline",
           "target": "bold",
+          "target_is_local": true,
           "location": [
             {
               "line": 22,
@@ -1317,6 +1318,7 @@
           "name": "xref",
           "type": "inline",
           "target": "italic",
+          "target_is_local": true,
           "location": [
             {
               "line": 22,
@@ -1347,6 +1349,7 @@
           "name": "xref",
           "type": "inline",
           "target": "code",
+          "target_is_local": true,
           "location": [
             {
               "line": 22,
@@ -1377,6 +1380,7 @@
           "name": "xref",
           "type": "inline",
           "target": "nested",
+          "target_is_local": true,
           "location": [
             {
               "line": 22,
@@ -1407,6 +1411,7 @@
           "name": "xref",
           "type": "inline",
           "target": "included",
+          "target_is_local": true,
           "location": [
             {
               "line": 22,

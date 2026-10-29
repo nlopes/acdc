@@ -131,7 +131,7 @@ impl InlineMacro<'_> {
 /// | `Url` | `\https://...` or `link:` | URL reference |
 /// | `Mailto` | `mailto:addr[text]` | Email link |
 /// | `Autolink` | `<\https://...>` | Auto-detected URL |
-/// | `CrossReference` | `<<id>>` or `xref:id[]` | Internal document reference |
+/// | `CrossReference` | `<<id>>` or `xref:id[]` | Local or external reference |
 /// | `Image` | `image:file.png[alt]` | Inline image |
 /// | `Icon` | `icon:name[]` | Icon reference (font or image) |
 /// | `Footnote` | `footnote:[text]` | Footnote reference |
@@ -179,7 +179,7 @@ pub enum InlineMacro<'a> {
     /// Auto-detected URL: `<\https://example.com>`
     Autolink(Autolink<'a>),
     /// Cross-reference: `<<id,text>>` or `xref:id[text]`
-    CrossReference(CrossReference<'a>),
+    CrossReference(Box<CrossReference<'a>>),
     /// Inline passthrough: `pass:[content]` - not serialized to ASG
     Pass(Pass<'a>),
     /// Inline math: `stem:[formula]` or `latexmath:[...]` / `asciimath:[...]`
@@ -482,13 +482,28 @@ where
     map.serialize_entry("location", &a.location)
 }
 
+impl Serialize for CrossReference<'_> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut map = serializer.serialize_map(None)?;
+        serialize_xref::<S>(self, &mut map)?;
+        map.end()
+    }
+}
+
 fn serialize_xref<S>(x: &CrossReference<'_>, map: &mut S::SerializeMap) -> Result<(), S::Error>
 where
     S: Serializer,
 {
     map.serialize_entry("name", "xref")?;
     map.serialize_entry("type", "inline")?;
+    if !x.metadata.is_empty() || !x.macro_attributes.is_empty() {
+        map.serialize_entry("metadata", &x.metadata_view())?;
+    }
     map.serialize_entry("target", &x.target)?;
+    map.serialize_entry("target_is_local", &x.target_is_local)?;
+    if let Some(style) = x.xrefstyle.attribute_value() {
+        map.serialize_entry("xrefstyle", style)?;
+    }
     if !x.text.is_empty() {
         map.serialize_entry("inlines", &x.text)?;
     }

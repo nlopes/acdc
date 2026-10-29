@@ -822,6 +822,7 @@
               "name": "xref",
               "type": "inline",
               "target": "snapshot",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 31,
@@ -852,6 +853,7 @@
               "name": "xref",
               "type": "inline",
               "target": "selected",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 31,
@@ -882,6 +884,7 @@
               "name": "xref",
               "type": "inline",
               "target": "named",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 31,
@@ -912,6 +915,7 @@
               "name": "xref",
               "type": "inline",
               "target": "restricted",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 31,
@@ -942,6 +946,7 @@
               "name": "xref",
               "type": "inline",
               "target": "natural",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 31,
@@ -972,6 +977,7 @@
               "name": "xref",
               "type": "inline",
               "target": "duplicate",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 31,
@@ -1151,6 +1157,7 @@
               "name": "xref",
               "type": "inline",
               "target": "book",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 36,
@@ -1310,6 +1317,7 @@
               "name": "xref",
               "type": "inline",
               "target": "anchor-snapshot",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 44,
