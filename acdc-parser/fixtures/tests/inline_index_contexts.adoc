@@ -1,0 +1,15 @@
+= Index contexts
+:index-id: expanded
+
+include::includes/inline_index_metadata.adoc[]
+
+[cols="a"]
+|===
+|indexterm2:[Cell *label*,id=cell,custom=kept]
+
+indexterm:[Primary,Secondary,see-also="One,Two",custom=cell]
+|===
+
+é indexterm2:[Before link:guide.adoc[Child,role=child] after,custom=outer].
+
+indexterm2:[Selected footnote:[Only note.],custom=kept].

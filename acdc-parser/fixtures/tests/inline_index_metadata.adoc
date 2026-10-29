@@ -1,0 +1,35 @@
+= Index metadata
+
+Named visible: indexterm2:[Visible *label*,custom=kept,id=entry,role="one two",opts="a,b",title="Scalar title"].
+
+Named concealed: indexterm:[Primary,Secondary,Tertiary,custom=kept].
+
+Named gap: indexterm:[Primary,custom=kept,Secondary,Tertiary].
+
+Named first stays literal: indexterm2:[custom=kept,Visible].
+
+Plain comma stays visible: indexterm2:[Visible,Secondary].
+
+Quoted comma: indexterm2:["Visible, quoted",custom="a,b"].
+
+Empty controls: indexterm2:[Visible,id="",custom="",opts="",role=""].
+
+Repeated controls: indexterm2:[Visible,custom=old,custom=new,role=old,roles=new].
+
+Empty levels: indexterm:[Primary,"",Tertiary,custom=""].
+
+See: indexterm2:[Visible,see=*Target*,custom=kept].
+
+See also: indexterm:[Primary,see-also="One, _Two_",custom=kept].
+
+Empty see: indexterm2:[Visible,see="",see-also="One,Two"].
+
+Discarded control content: indexterm2:[Visible,custom=footnote:unused[Unregistered]].
+
+Discarded relationship: indexterm2:[Visible,see=Target,see-also="footnote:ignored[Unregistered]"].
+
+Shorthand visible: ((Visible,custom=literal)).
+
+Shorthand concealed: (((Primary,custom=literal))).
+
+Present empty primary: indexterm2:["",custom=kept].
