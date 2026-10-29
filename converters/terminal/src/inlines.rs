@@ -751,7 +751,7 @@ fn render_inline_macro_to_writer<'a, W: Write + ?Sized>(
                 None => acdc_converters_core::icon::alt(&icon.target, None).into_owned(),
             };
             let label = format!("[Icon: {alt}]");
-            if let Some(target) = icon.attributes.get_string("link") {
+            if let Some(target) = icon.attributes().get_string("link") {
                 maybe_render_osc8_link(&target, &label, w, processor)?;
             } else {
                 write!(w, "{label}")?;

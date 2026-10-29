@@ -58,20 +58,26 @@ for block in parsed.document_ref().blocks() {
 Kind matching covers all block and inline kinds. Detailed accessors currently
 cover headers, authors, document attributes, block bodies and metadata, lists and
 list items, tables, media, discrete headings, TOC blocks, breaks, and comments.
-Inline reads include text, formatting spans, images, and source locations.
+Inline reads include text, formatting spans, images, icons, and source locations.
 Formatting spans expose nested content, constrained/unconstrained form, IDs, and
 role tokens. Each span keeps its concrete type, such as `BoldRef` or `ItalicRef`.
 `HighlightRef::is_marked()` distinguishes an unadorned mark from a generic span
 with an ID or role. Span IDs use the span's recorded location; the parser does
 not retain a separate ID range.
-Table declarations remain separate from resolved presentation. Image alt and
+Table declarations remain separate from resolved presentation. Image and icon alt and
 tooltips preserve absent versus explicitly empty content. For a constructed node,
 use `ast::ParagraphRef::from(&paragraph)`. The existing `document()` API remains
 available for other reads, construction, and editing.
 
+`IconRef` exposes the target, declared size, alt, tooltip, ID, role tokens, and
+option tokens. An icon ID is retained even when a converter does not emit it.
+To construct an icon, use `Icon::new(target, location)` and edit its content and
+metadata directly. Its `attributes()` map holds scalar controls;
+`set_attribute()` rejects names that belong to dedicated fields.
+
 Use `attributes().get(name)`, `contains(name)`, or `iter()` on headers, sections,
 paragraphs, delimited blocks, admonitions, lists, tables, media, TOC blocks,
-discrete headings, breaks, and formatting spans to read retained titles,
+discrete headings, breaks, formatting spans, and icons to read retained titles,
 image alt/tooltips, IDs, styles, role/option tokens, and scalar controls.
 `AttributeValueRef` distinguishes text, booleans, valueless attributes, inline
 content, and tokens. Text keeps meaningful

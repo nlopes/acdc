@@ -34,7 +34,7 @@
 //! currently cover headers and authors, document attributes, document/section
 //! children and titles, block bodies and metadata, lists and their items, tables,
 //! media, discrete headings, TOC blocks, breaks, and comments. Inline reads cover
-//! plain/raw/verbatim text, formatting spans, images, and locations.
+//! plain/raw/verbatim text, formatting spans, images, icons, and locations.
 //! The owner API remains available for other reads and for construction and editing.
 //!
 //! Formatting spans keep distinct types, with `content()`, `form()`, `id()`,
@@ -144,6 +144,25 @@
 //! if let BlockKind::Video(video) = block.kind() {
 //!     assert_eq!(video.source().kind(), SourceKind::Name("one,,three"));
 //!     assert_eq!(video.attributes().get("poster"), Some(AttributeValueRef::Text("youtube")));
+//! }
+//! # Ok::<(), acdc_parser::Error>(())
+//! ```
+//!
+//! Icon identity is retained independently of converter emission:
+//!
+//! ```
+//! use acdc_parser::{Options, parse, ast::{BlockKind, InlineKind}};
+//!
+//! let parsed = parse("icon:star[2x,id=favorite,role=gold]", &Options::default())?;
+//! let block = parsed.document_ref().blocks().next().unwrap();
+//! if let BlockKind::Paragraph(paragraph) = block.kind() {
+//!     for inline in paragraph.content().inlines() {
+//!         if let InlineKind::Icon(icon) = inline.kind() {
+//!             assert_eq!(icon.size(), Some("2x"));
+//!             assert_eq!(icon.id().map(|id| id.as_str()), Some("favorite"));
+//!             assert!(icon.roles().contains("gold"));
+//!         }
+//!     }
 //! }
 //! # Ok::<(), acdc_parser::Error>(())
 //! ```

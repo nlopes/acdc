@@ -809,6 +809,31 @@
           ]
         },
         {
+          "name": "icon",
+          "type": "inline",
+          "metadata": {
+            "attributes": {
+              "link": "https://example.com",
+              "size": "2x",
+              "window": "frame"
+            },
+            "roles": [
+              "hot"
+            ],
+            "id": {
+              "id": "icon-id",
+              "location": [
+                {
+                  "line": 26,
+                  "col": 88
+                },
+                {
+                  "line": 26,
+                  "col": 96
+                }
+              ]
+            }
+          },
           "tooltip": [
             {
               "name": "raw",
@@ -826,17 +851,9 @@
               ]
             }
           ],
-          "name": "icon",
-          "type": "inline",
           "target": {
             "type": "name",
             "value": "heart"
-          },
-          "attributes": {
-            "link": "https://example.com",
-            "role": "hot",
-            "size": "2x",
-            "window": "frame"
           },
           "location": [
             {

@@ -3943,7 +3943,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         icon: &Icon<'_>,
     ) -> Result<(), Error> {
         let alt = icon_alt(&icon.target, icon.alt.as_ref());
-        let link = icon.attributes.get_string("link");
+        let link = icon.attributes().get_string("link");
         if let Some(target) = &link {
             self.writer.raw("#link(");
             self.writer.string_literal(target);
@@ -3952,7 +3952,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         match IconMode::from_attributes(traversal) {
             IconMode::Font => {
                 if let Some(glyph) = builtin_icon_glyph(&icon.target.to_string()) {
-                    match icon.attributes.get_string("size").as_deref() {
+                    match icon.attributes().get_string("size").as_deref() {
                         Some("2x") => self.write_sized_icon_glyph(glyph, "2em"),
                         Some("3x") => self.write_sized_icon_glyph(glyph, "3em"),
                         Some("4x") => self.write_sized_icon_glyph(glyph, "4em"),
@@ -3970,7 +3970,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 }
             }
             IconMode::Image => {
-                let source = icon.attributes.get_string("icon").map_or_else(
+                let source = icon.attributes().get_string("icon").map_or_else(
                     || icon_image_source(traversal, &icon.target),
                     |value| acdc_converters_core::icon::custom_image_source(traversal, &value),
                 );

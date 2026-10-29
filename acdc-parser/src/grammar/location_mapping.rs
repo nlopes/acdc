@@ -340,6 +340,41 @@ fn restore_reference_label_passthroughs<'a>(
     }
 }
 
+fn restore_media_metadata<'a>(
+    metadata: &mut crate::InlineMetadata<'a>,
+    attributes: &mut crate::model::MacroAttributes<'a>,
+    ctx: &LocationMappingContext<'_, 'a>,
+) {
+    let restore = |text: &str| ctx.restore_passthrough_text(text);
+    if metadata
+        .roles
+        .iter()
+        .any(|role| contains_passthrough_placeholders(role, ctx.processed))
+    {
+        metadata.roles = take(&mut metadata.roles)
+            .into_iter()
+            .flat_map(|role| restore(role).unwrap_or(role).split_whitespace())
+            .collect();
+    }
+    if attributes
+        .options
+        .iter()
+        .any(|option| contains_passthrough_placeholders(option, ctx.processed))
+    {
+        attributes.options = take(&mut attributes.options)
+            .into_iter()
+            .flat_map(|option| restore(option).unwrap_or(option).split(','))
+            .map(str::trim)
+            .filter(|option| !option.is_empty())
+            .collect();
+    }
+    if let Some(id) = &mut metadata.id
+        && let Some(restored) = restore(id.id)
+    {
+        id.id = restored;
+    }
+}
+
 fn restore_macro_attributes<'a>(
     inline_macro: &mut InlineMacro<'a>,
     ctx: &LocationMappingContext<'_, 'a>,
@@ -353,7 +388,10 @@ fn restore_macro_attributes<'a>(
         InlineMacro::Link(link) => &mut link.attributes,
         InlineMacro::Url(url) => &mut url.attributes,
         InlineMacro::Mailto(mailto) => &mut mailto.attributes,
-        InlineMacro::Icon(icon) => &mut icon.attributes,
+        InlineMacro::Icon(icon) => {
+            restore_media_metadata(&mut icon.metadata, &mut icon.macro_attributes, ctx);
+            &mut icon.macro_attributes.attributes
+        }
         InlineMacro::CrossReference(xref) => {
             if let Some(role) = xref.role
                 && let Some(restored) = restore(role)
@@ -363,35 +401,7 @@ fn restore_macro_attributes<'a>(
             return;
         }
         InlineMacro::Image(image) => {
-            if image
-                .metadata
-                .roles
-                .iter()
-                .any(|role| contains_passthrough_placeholders(role, ctx.processed))
-            {
-                image.metadata.roles = take(&mut image.metadata.roles)
-                    .into_iter()
-                    .flat_map(|role| restore(role).unwrap_or(role).split_whitespace())
-                    .collect();
-            }
-            if image
-                .macro_attributes
-                .options
-                .iter()
-                .any(|option| contains_passthrough_placeholders(option, ctx.processed))
-            {
-                image.macro_attributes.options = take(&mut image.macro_attributes.options)
-                    .into_iter()
-                    .flat_map(|option| restore(option).unwrap_or(option).split(','))
-                    .map(str::trim)
-                    .filter(|option| !option.is_empty())
-                    .collect();
-            }
-            if let Some(id) = &mut image.metadata.id
-                && let Some(restored) = restore(id.id)
-            {
-                id.id = restored;
-            }
+            restore_media_metadata(&mut image.metadata, &mut image.macro_attributes, ctx);
             &mut image.macro_attributes.attributes
         }
         InlineMacro::Footnote(_)
@@ -517,7 +527,12 @@ fn map_inline_macro<'a>(
             link.location = ctx.map_location(&link.location)?;
             link.text = map_inline_locations(state, processed, take(&mut link.text), location)?;
         }
-        InlineMacro::Icon(icon) => icon.location = ctx.map_location(&icon.location)?,
+        InlineMacro::Icon(icon) => {
+            icon.location = ctx.map_location(&icon.location)?;
+            if let Some(id) = &mut icon.metadata.id {
+                id.location = ctx.map_location(&id.location)?;
+            }
+        }
         InlineMacro::Button(button) => {
             button.location = ctx.map_location(&button.location)?;
         }

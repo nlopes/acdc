@@ -172,9 +172,17 @@
       "type": "block",
       "inlines": [
         {
-          "tooltip": [],
           "name": "icon",
           "type": "inline",
+          "metadata": {
+            "attributes": {
+              "size": "2x"
+            },
+            "options": [
+              "nofollow",
+              "noopener"
+            ]
+          },
           "alt": [
             {
               "name": "text",
@@ -237,13 +245,10 @@
               ]
             }
           ],
+          "tooltip": [],
           "target": {
             "type": "name",
             "value": "heart"
-          },
-          "attributes": {
-            "options": "nofollow,noopener",
-            "size": "2x"
           },
           "location": [
             {

@@ -1600,7 +1600,7 @@ fn collect_inline_preparation(
             InlineNode::Macro(InlineMacro::Icon(icon)) => {
                 match IconMode::from_attributes(attributes) {
                     IconMode::Image => preparation.insert_image_icon(
-                        icon.attributes.get_string("icon").map_or_else(
+                        icon.attributes().get_string("icon").map_or_else(
                             || icon_image_source(attributes, &icon.target),
                             |value| {
                                 acdc_converters_core::icon::custom_image_source(attributes, &value)

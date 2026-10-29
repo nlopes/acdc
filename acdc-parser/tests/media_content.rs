@@ -38,7 +38,7 @@ fn media_content_has_one_semantic_owner() -> Result<(), Error> {
         Some(&json!("strong"))
     );
     assert_eq!(
-        doc.pointer("/blocks/4/inlines/0/attributes/size"),
+        doc.pointer("/blocks/4/inlines/0/metadata/attributes/size"),
         Some(&json!("Other"))
     );
     for index in 5..=7 {

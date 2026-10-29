@@ -5,9 +5,11 @@ use serde::{
     ser::{Error as _, SerializeMap, Serializer},
 };
 
+mod icon;
 mod macros;
 mod text;
 
+pub use icon::Icon;
 pub use macros::*;
 pub use text::*;
 
@@ -157,7 +159,7 @@ pub enum InlineMacro<'a> {
     /// Footnote reference: `footnote:[content]` or `footnote:id[content]`
     Footnote(Footnote<'a>),
     /// Icon macro: `icon:name[attributes]`
-    Icon(Icon<'a>),
+    Icon(Box<Icon<'a>>),
     /// Inline image: `image:path[alt,width,height]`
     Image(Box<InlineImage<'a>>),
     /// Keyboard shortcut: `kbd:[Ctrl+C]`
@@ -323,8 +325,9 @@ where
         InlineMacro::Link(value) => value.tooltip.as_ref(),
         InlineMacro::Url(value) => value.tooltip.as_ref(),
         InlineMacro::Mailto(value) => value.tooltip.as_ref(),
-        InlineMacro::Icon(value) => value.tooltip.as_ref(),
-        InlineMacro::Footnote(_)
+
+        InlineMacro::Icon(_)
+        | InlineMacro::Footnote(_)
         | InlineMacro::Image(_)
         | InlineMacro::Keyboard(_)
         | InlineMacro::Button(_)
@@ -380,19 +383,30 @@ where
     map.serialize_entry("location", &f.location)
 }
 
+impl Serialize for Icon<'_> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut map = serializer.serialize_map(None)?;
+        serialize_icon::<S>(self, &mut map)?;
+        map.end()
+    }
+}
+
 fn serialize_icon<S>(i: &Icon<'_>, map: &mut S::SerializeMap) -> Result<(), S::Error>
 where
     S: Serializer,
 {
     map.serialize_entry("name", "icon")?;
     map.serialize_entry("type", "inline")?;
+    if i.has_metadata() {
+        map.serialize_entry("metadata", &i.metadata_view())?;
+    }
     if let Some(alt) = &i.alt {
         map.serialize_entry("alt", alt)?;
     }
-    map.serialize_entry("target", &i.target)?;
-    if !i.attributes.is_empty() {
-        map.serialize_entry("attributes", &i.attributes)?;
+    if let Some(tooltip) = &i.tooltip {
+        map.serialize_entry("tooltip", tooltip)?;
     }
+    map.serialize_entry("target", &i.target)?;
     map.serialize_entry("location", &i.location)
 }
 

@@ -802,7 +802,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
                     traversal,
                     icon.alt.as_ref(),
                     &fallback,
-                    icon.attributes.get_string("link").as_deref(),
+                    icon.attributes().get_string("link").as_deref(),
                     true,
                 )?;
             }

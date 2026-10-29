@@ -2356,7 +2356,7 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
             write!(visitor.writer, "]")?;
             Ok(())
         };
-        if let Some(link) = icon_macro.attributes.get_string("link") {
+        if let Some(link) = icon_macro.attributes().get_string("link") {
             self.write_link_with_tooltip(&link, icon_macro.tooltip.as_ref(), render)?;
         } else {
             let mut render = render;

@@ -2,6 +2,7 @@ use crate::{InlineMacro, InlineNode};
 
 use super::{ContentRef, InlineImageRef, LocationRef};
 
+mod icons;
 mod spans;
 
 node_ref!(PlainRef<'doc>, crate::Plain<'doc>, "Plain text.");

@@ -1,8 +1,8 @@
 use std::{alloc::System, hint::black_box};
 
 use acdc_parser::{
-    Bold, ContentAttribute, Form, InlineImage, InlineNode, Location, Plain, Source,
-    ast::{AttributeValueRef, BoldRef, InlineImageRef},
+    Bold, ContentAttribute, Form, Icon, InlineImage, InlineNode, Location, Plain, Source,
+    ast::{AttributeValueRef, BoldRef, IconRef, InlineImageRef},
 };
 use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
 
@@ -85,4 +85,36 @@ fn span_attribute_reads_split_role_text_without_allocating() {
     assert_eq!(stats.allocations, 0);
     assert_eq!(stats.reallocations, 0);
     assert_eq!(stats.deallocations, 0);
+}
+
+#[test]
+fn icon_reads_borrow_content_and_controls_without_allocating()
+-> Result<(), Box<dyn std::error::Error>> {
+    let mut icon = Icon::new(Source::Name("star"), Location::default());
+    icon.set_attribute(String::from("custom").into(), String::from("owned").into())?;
+    icon.set_attribute("size".into(), "2x".into())?;
+    icon.metadata.roles.push("red");
+    icon.options_mut().push("nofollow");
+    icon.alt = Some(ContentAttribute::default());
+    icon.tooltip = Some(ContentAttribute::default());
+    let region = Region::new(ALLOCATOR);
+    let icon = IconRef::from(&icon);
+    black_box(icon.target().kind());
+    black_box(icon.id());
+    black_box(icon.size());
+    black_box(icon.alt());
+    black_box(icon.tooltip());
+    for (name, value) in icon.attributes().iter() {
+        black_box(icon.attributes().get(name));
+        if let AttributeValueRef::Tokens(tokens) = value {
+            for token in tokens.iter() {
+                black_box(token);
+            }
+        }
+    }
+    let stats = region.change();
+    assert_eq!(stats.allocations, 0);
+    assert_eq!(stats.reallocations, 0);
+    assert_eq!(stats.deallocations, 0);
+    Ok(())
 }

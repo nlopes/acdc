@@ -348,8 +348,12 @@ where
             InlineMacro::Mailto(m) => self.inlines(&mut m.text)?,
             InlineMacro::CrossReference(x) => self.inlines(&mut x.text)?,
             InlineMacro::IndexTerm(term) => self.index_term(term)?,
-            InlineMacro::Icon(_)
-            | InlineMacro::Image(_)
+            InlineMacro::Icon(icon) => {
+                if let Some(id) = &mut icon.metadata.id {
+                    (self.visit_location)(&mut id.location)?;
+                }
+            }
+            InlineMacro::Image(_)
             | InlineMacro::Keyboard(_)
             | InlineMacro::Button(_)
             | InlineMacro::Menu(_)

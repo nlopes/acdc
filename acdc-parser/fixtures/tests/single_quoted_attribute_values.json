@@ -469,12 +469,14 @@
             {
               "name": "icon",
               "type": "inline",
+              "metadata": {
+                "attributes": {
+                  "size": "Favorite"
+                }
+              },
               "target": {
                 "type": "name",
                 "value": "heart"
-              },
-              "attributes": {
-                "size": "Favorite"
               },
               "location": [
                 {

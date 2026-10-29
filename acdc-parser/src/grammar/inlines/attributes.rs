@@ -286,18 +286,18 @@ pub(super) fn process_media_content<'a>(
     metadata.attributes.remove("alt");
     metadata.attributes.remove("title");
     if icon {
+        if let Some(id) = &mut metadata.id {
+            // Attribute scanning uses an exclusive end; locations use an inclusive end.
+            id.location = state.create_location(
+                id.location.absolute_start,
+                id.location
+                    .absolute_end
+                    .saturating_sub(1)
+                    .max(id.location.absolute_start),
+            );
+        }
         if let Some(size) = metadata.style.take() {
             metadata.attributes.insert("size".into(), size.into());
-        }
-        if !metadata.roles.is_empty() {
-            metadata
-                .attributes
-                .set("role".into(), metadata.roles.join(" ").into());
-        }
-        if !metadata.options.is_empty() {
-            metadata
-                .attributes
-                .set("options".into(), metadata.options.join(",").into());
         }
     } else {
         metadata.style = None;

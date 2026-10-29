@@ -316,43 +316,21 @@
       "type": "block",
       "inlines": [
         {
-          "tooltip": [
-            {
-              "name": "span",
-              "type": "inline",
-              "variant": "emphasis",
-              "form": "constrained",
-              "inlines": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Tip",
-                  "location": [
-                    {
-                      "line": 14,
-                      "col": 50
-                    },
-                    {
-                      "line": 14,
-                      "col": 52
-                    }
-                  ]
-                }
-              ],
-              "location": [
-                {
-                  "line": 14,
-                  "col": 49
-                },
-                {
-                  "line": 14,
-                  "col": 53
-                }
-              ]
-            }
-          ],
           "name": "icon",
           "type": "inline",
+          "metadata": {
+            "attributes": {
+              "float": "right",
+              "height": "24",
+              "link": "https://example.org",
+              "size": "Other",
+              "window": "preview"
+            },
+            "options": [
+              "nofollow",
+              "noopener"
+            ]
+          },
           "alt": [
             {
               "name": "span",
@@ -388,17 +366,44 @@
               ]
             }
           ],
+          "tooltip": [
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "emphasis",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Tip",
+                  "location": [
+                    {
+                      "line": 14,
+                      "col": 50
+                    },
+                    {
+                      "line": 14,
+                      "col": 52
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 14,
+                  "col": 49
+                },
+                {
+                  "line": 14,
+                  "col": 53
+                }
+              ]
+            }
+          ],
           "target": {
             "type": "name",
             "value": "heart"
-          },
-          "attributes": {
-            "float": "right",
-            "height": "24",
-            "link": "https://example.org",
-            "options": "nofollow,noopener",
-            "size": "Other",
-            "window": "preview"
           },
           "location": [
             {

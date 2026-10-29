@@ -4,7 +4,7 @@ use acdc_converters_core::{
     TraversalContext,
     icon::{IconMode, alt as icon_alt, image_source},
 };
-use acdc_parser::{BlockMetadata, ElementAttributes, Icon};
+use acdc_parser::{ElementAttributes, Icon};
 
 use crate::{
     Error, HtmlVisitor,
@@ -61,12 +61,13 @@ impl<'a, W: std::io::Write> HtmlVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         icon: &Icon<'_>,
     ) -> Result<String, Error> {
-        let attrs = &icon.attributes;
+        let attrs = icon.attributes();
         let mut class = String::from("icon");
-        for name in ["float", "role"] {
-            if let Some(value) = attrs.get_string(name) {
-                write!(class, " {value}")?;
-            }
+        if let Some(value) = attrs.get_string("float") {
+            write!(class, " {value}")?;
+        }
+        for role in &icon.metadata.roles {
+            write!(class, " {role}")?;
         }
         let tooltip = tooltip_attribute(icon.tooltip.as_ref());
         let mut inner = match IconMode::from_attributes(traversal) {
@@ -110,23 +111,11 @@ impl<'a, W: std::io::Write> HtmlVisitor<'a, '_, W> {
             }
         };
         if let Some(link) = attrs.get_string("link") {
-            let mut metadata = BlockMetadata::new().with_attributes(attrs.clone());
-            if let Some(options) = attrs.get_string("options") {
-                metadata.options = options.split(',').map(str::trim).collect();
-                let controls =
-                    image_link_control_attributes(&metadata.attributes, &metadata.options);
-                inner = format!(
-                    "<a class=\"image\" href=\"{}\"{controls}>{inner}</a>",
-                    escape_attribute(&link)
-                );
-            } else {
-                let controls =
-                    image_link_control_attributes(&metadata.attributes, &metadata.options);
-                inner = format!(
-                    "<a class=\"image\" href=\"{}\"{controls}>{inner}</a>",
-                    escape_attribute(&link)
-                );
-            }
+            let controls = image_link_control_attributes(attrs, icon.options());
+            inner = format!(
+                "<a class=\"image\" href=\"{}\"{controls}>{inner}</a>",
+                escape_attribute(&link)
+            );
         }
         Ok(format!(
             "<span class=\"{}\">{inner}</span>",

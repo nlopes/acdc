@@ -1,7 +1,7 @@
 use crate::{
     Admonition, Audio, BlockMetadata, Bold, CalloutList, CurvedApostrophe, CurvedQuotation,
-    DelimitedBlock, DescriptionList, DiscreteHeader, ElementAttributes, Header, Highlight, Image,
-    InlineImage, Italic, Monospace, OrderedList, PageBreak, Paragraph, Section, Subscript,
+    DelimitedBlock, DescriptionList, DiscreteHeader, ElementAttributes, Header, Highlight, Icon,
+    Image, InlineImage, Italic, Monospace, OrderedList, PageBreak, Paragraph, Section, Subscript,
     Superscript, TableOfContents, ThematicBreak, UnorderedList, Video,
 };
 
@@ -67,6 +67,7 @@ enum Owner<'doc> {
     CalloutList(&'doc CalloutList<'doc>),
     Image(&'doc Image<'doc>),
     InlineImage(&'doc InlineImage<'doc>),
+    Icon(&'doc Icon<'doc>),
     Audio(&'doc Audio<'doc>),
     Video(&'doc Video<'doc>),
     TableOfContents(&'doc TableOfContents<'doc>),
@@ -243,6 +244,12 @@ impl<'doc> AttributesRef<'doc> {
         }
     }
 
+    pub(super) fn icon(owner: &'doc Icon<'doc>) -> Self {
+        Self {
+            owner: Owner::Icon(owner),
+        }
+    }
+
     pub(super) fn inline_image(owner: &'doc InlineImage<'doc>) -> Self {
         Self {
             owner: Owner::InlineImage(owner),
@@ -251,7 +258,7 @@ impl<'doc> AttributesRef<'doc> {
 
     /// Read a value by name. `roles` aliases `role`; `options` aliases `opts`.
     ///
-    /// `title` means the tooltip on an inline image and the title on a block.
+    /// `title` means the tooltip on an inline image or icon and the title on a block.
     /// Missing values return `None`; empty text/content, false and a
     /// retained valueless attribute remain present.
     #[must_use]
@@ -310,7 +317,7 @@ impl<'doc> AttributesRef<'doc> {
             | Owner::CurvedQuotation(_)
             | Owner::CurvedApostrophe(_) => &[Id, Roles],
             Owner::Image(_) => &[Title, Id, Roles, Options, Style, Alt],
-            Owner::InlineImage(_) => &[Title, Id, Roles, Options, Alt],
+            Owner::InlineImage(_) | Owner::Icon(_) => &[Title, Id, Roles, Options, Alt],
             Owner::ThematicBreak(_) => &[Title, Id],
             Owner::TableOfContents(_) => &[Id, Roles, Options, Style],
             Owner::Header(_)
@@ -371,6 +378,7 @@ impl<'doc> AttributesRef<'doc> {
             Owner::DiscreteHeader(node) => Some(&node.metadata),
             Owner::PageBreak(node) => Some(&node.metadata),
             Owner::InlineImage(_)
+            | Owner::Icon(_)
             | Owner::ThematicBreak(_)
             | Owner::Bold(_)
             | Owner::Italic(_)
@@ -385,6 +393,8 @@ impl<'doc> AttributesRef<'doc> {
 
     fn attribute_map(self) -> Option<&'doc ElementAttributes<'doc>> {
         if let Owner::InlineImage(node) = self.owner {
+            Some(node.attributes())
+        } else if let Owner::Icon(node) = self.owner {
             Some(node.attributes())
         } else {
             self.metadata().map(|metadata| &metadata.attributes)
@@ -418,6 +428,7 @@ impl<'doc> AttributesRef<'doc> {
             | Owner::CurvedQuotation(_)
             | Owner::CurvedApostrophe(_) => return None,
             Owner::InlineImage(node) => return node.tooltip.as_ref().map(ContentRef::from),
+            Owner::Icon(node) => return node.tooltip.as_ref().map(ContentRef::from),
         };
         title.content()
     }
@@ -426,6 +437,8 @@ impl<'doc> AttributesRef<'doc> {
         if let Owner::Image(node) = self.owner {
             node.alt.as_ref().map(ContentRef::from)
         } else if let Owner::InlineImage(node) = self.owner {
+            node.alt.as_ref().map(ContentRef::from)
+        } else if let Owner::Icon(node) = self.owner {
             node.alt.as_ref().map(ContentRef::from)
         } else {
             None
@@ -445,6 +458,7 @@ impl<'doc> AttributesRef<'doc> {
                 node.id.map(|id| ElementIdRef::new(id, &node.location))
             }
             Owner::InlineImage(node) => node.metadata.id.as_ref().map(ElementIdRef::from),
+            Owner::Icon(node) => node.metadata.id.as_ref().map(ElementIdRef::from),
             Owner::ThematicBreak(node) => node
                 .anchors
                 .first()
@@ -481,6 +495,7 @@ impl<'doc> AttributesRef<'doc> {
             Owner::CurvedQuotation(node) => TokensRef::from_text(node.role.unwrap_or_default()),
             Owner::CurvedApostrophe(node) => TokensRef::from_text(node.role.unwrap_or_default()),
             Owner::InlineImage(node) => TokensRef::new(&node.metadata.roles),
+            Owner::Icon(node) => TokensRef::new(&node.metadata.roles),
             Owner::ThematicBreak(_) => TokensRef::new(&[]),
             Owner::Header(_)
             | Owner::Paragraph(_)
@@ -506,6 +521,8 @@ impl<'doc> AttributesRef<'doc> {
 
     pub(super) fn options(self) -> TokensRef<'doc> {
         let options = if let Owner::InlineImage(node) = self.owner {
+            node.options()
+        } else if let Owner::Icon(node) = self.owner {
             node.options()
         } else {
             self.metadata()

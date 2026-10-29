@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- Icons retain IDs with source locations, roles, and options through the same
+  metadata API as inline images. Replace `icon.attributes` with `icon.attributes()`
+  for scalar controls; read identity and roles through `icon.metadata` and options
+  through `icon.options()`. Use `set_attribute()` / `remove_attribute()` for scalar
+  edits. Native JSON groups these values under `metadata`, while alt and tooltip
+  remain separate content. `InlineMacro::Icon` now holds `Box<Icon>`.
+
 - Inline images expose identity and roles through `InlineMetadata`, with
   `ElementId` preserving the ID's source location. The owning image's
   `attributes()` map contains scalar controls such as width and link; read alt,

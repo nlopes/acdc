@@ -1132,13 +1132,20 @@ peg::parser! {
         = "icon:" source:source() "[" start:position!() content:link_macro_content() "]"
         {?
             let parsed = process_media_content(state, &content, start, true).map_err(|_| "invalid icon content")?;
-            Ok(InlineNode::Macro(InlineMacro::Icon(Icon {
+            Ok(InlineNode::Macro(InlineMacro::Icon(Box::new(Icon {
                 alt: parsed.alt,
                 tooltip: parsed.tooltip,
                 target: source,
-                attributes: parsed.metadata.attributes,
+                metadata: crate::InlineMetadata {
+                    id: parsed.metadata.id.map(|anchor| crate::ElementId::new(anchor.id, anchor.location)),
+                    roles: parsed.metadata.roles,
+                },
+                macro_attributes: crate::model::MacroAttributes {
+                    attributes: parsed.metadata.attributes,
+                    options: parsed.metadata.options,
+                },
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
-            })))
+            }))))
         }
 
         /// Match inline icon without consuming - for use in negative lookaheads.

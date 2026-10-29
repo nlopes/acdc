@@ -1,0 +1,22 @@
+= Icon metadata
+:icon-name: star
+:icon-id: expanded-id
+:icon-role: red blue
+:icon-options: nofollow,custom
+
+icon:{icon-name}[2x,id=first,role="one two",opts="nofollow,custom",alt='*Star*',title='_Favorite_',link=https://example.org,window=preview,custom=kept]
+
+icon:star[] icon:star[alt="",title="",id="",role="",opts="",size=""]
+
+icon:star[lg,size=3x,role=first,role="last other",options=one,opts=two,extra="quoted value"]
+
+icon:star[id={icon-id},role={icon-role},opts="{icon-options}",custom="{icon-name}"]
+
+icon:star[id=++protected-id++,role=++one two++,opts=++first,second++,custom=++a,b++]
+
+Icon after Unicode é: icon:star[id=étoile,alt='*中*',title='Tip']
+
+[cols=a]
+|===
+|icon:star[id=cell,role=inside,opts=custom]
+|===

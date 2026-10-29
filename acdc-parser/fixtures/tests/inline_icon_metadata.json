@@ -1,0 +1,661 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Icon metadata",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 15
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 5,
+        "col": 30
+      }
+    ]
+  },
+  "attributes": {
+    "icon-id": "expanded-id",
+    "icon-name": "star",
+    "icon-options": "nofollow,custom",
+    "icon-role": "red blue"
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "icon",
+          "type": "inline",
+          "metadata": {
+            "attributes": {
+              "custom": "kept",
+              "link": "https://example.org",
+              "size": "2x",
+              "window": "preview"
+            },
+            "roles": [
+              "one",
+              "two"
+            ],
+            "options": [
+              "nofollow",
+              "custom"
+            ],
+            "id": {
+              "id": "first",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 24
+                },
+                {
+                  "line": 7,
+                  "col": 28
+                }
+              ]
+            }
+          },
+          "alt": [
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Star",
+                  "location": [
+                    {
+                      "line": 7,
+                      "col": 74
+                    },
+                    {
+                      "line": 7,
+                      "col": 77
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 7,
+                  "col": 73
+                },
+                {
+                  "line": 7,
+                  "col": 78
+                }
+              ]
+            }
+          ],
+          "tooltip": [
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "emphasis",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Favorite",
+                  "location": [
+                    {
+                      "line": 7,
+                      "col": 89
+                    },
+                    {
+                      "line": 7,
+                      "col": 96
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 7,
+                  "col": 88
+                },
+                {
+                  "line": 7,
+                  "col": 97
+                }
+              ]
+            }
+          ],
+          "target": {
+            "type": "name",
+            "value": "star"
+          },
+          "location": [
+            {
+              "line": 7,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 151
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 151
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "icon",
+          "type": "inline",
+          "target": {
+            "type": "name",
+            "value": "star"
+          },
+          "location": [
+            {
+              "line": 9,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 11
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " ",
+          "location": [
+            {
+              "line": 9,
+              "col": 12
+            },
+            {
+              "line": 9,
+              "col": 12
+            }
+          ]
+        },
+        {
+          "name": "icon",
+          "type": "inline",
+          "metadata": {
+            "attributes": {
+              "size": ""
+            },
+            "id": {
+              "id": "",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 43
+                },
+                {
+                  "line": 9,
+                  "col": 43
+                }
+              ]
+            }
+          },
+          "alt": [],
+          "tooltip": [],
+          "target": {
+            "type": "name",
+            "value": "star"
+          },
+          "location": [
+            {
+              "line": 9,
+              "col": 13
+            },
+            {
+              "line": 9,
+              "col": 68
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 9,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 68
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "icon",
+          "type": "inline",
+          "metadata": {
+            "attributes": {
+              "extra": "quoted value",
+              "size": "3x"
+            },
+            "roles": [
+              "last",
+              "other"
+            ],
+            "options": [
+              "one",
+              "two"
+            ]
+          },
+          "target": {
+            "type": "name",
+            "value": "star"
+          },
+          "location": [
+            {
+              "line": 11,
+              "col": 1
+            },
+            {
+              "line": 11,
+              "col": 92
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 11,
+          "col": 1
+        },
+        {
+          "line": 11,
+          "col": 92
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "icon",
+          "type": "inline",
+          "metadata": {
+            "attributes": {
+              "custom": "star"
+            },
+            "roles": [
+              "red",
+              "blue"
+            ],
+            "options": [
+              "nofollow",
+              "custom"
+            ],
+            "id": {
+              "id": "expanded-id",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 14
+                },
+                {
+                  "line": 13,
+                  "col": 22
+                }
+              ]
+            }
+          },
+          "target": {
+            "type": "name",
+            "value": "star"
+          },
+          "location": [
+            {
+              "line": 13,
+              "col": 1
+            },
+            {
+              "line": 13,
+              "col": 83
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 13,
+          "col": 1
+        },
+        {
+          "line": 13,
+          "col": 83
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "icon",
+          "type": "inline",
+          "metadata": {
+            "attributes": {
+              "custom": "a,b"
+            },
+            "roles": [
+              "one",
+              "two"
+            ],
+            "options": [
+              "first",
+              "second"
+            ],
+            "id": {
+              "id": "protected-id",
+              "location": [
+                {
+                  "line": 15,
+                  "col": 14
+                },
+                {
+                  "line": 15,
+                  "col": 29
+                }
+              ]
+            }
+          },
+          "target": {
+            "type": "name",
+            "value": "star"
+          },
+          "location": [
+            {
+              "line": 15,
+              "col": 1
+            },
+            {
+              "line": 15,
+              "col": 84
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 15,
+          "col": 1
+        },
+        {
+          "line": 15,
+          "col": 84
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Icon after Unicode é: ",
+          "location": [
+            {
+              "line": 17,
+              "col": 1
+            },
+            {
+              "line": 17,
+              "col": 22
+            }
+          ]
+        },
+        {
+          "name": "icon",
+          "type": "inline",
+          "metadata": {
+            "id": {
+              "id": "étoile",
+              "location": [
+                {
+                  "line": 17,
+                  "col": 36
+                },
+                {
+                  "line": 17,
+                  "col": 41
+                }
+              ]
+            }
+          },
+          "alt": [
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "中",
+                  "location": [
+                    {
+                      "line": 17,
+                      "col": 49
+                    },
+                    {
+                      "line": 17,
+                      "col": 49
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 17,
+                  "col": 48
+                },
+                {
+                  "line": 17,
+                  "col": 50
+                }
+              ]
+            }
+          ],
+          "tooltip": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Tip",
+              "location": [
+                {
+                  "line": 17,
+                  "col": 60
+                },
+                {
+                  "line": 17,
+                  "col": 62
+                }
+              ]
+            }
+          ],
+          "target": {
+            "type": "name",
+            "value": "star"
+          },
+          "location": [
+            {
+              "line": 17,
+              "col": 23
+            },
+            {
+              "line": 17,
+              "col": 64
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 17,
+          "col": 1
+        },
+        {
+          "line": 17,
+          "col": 64
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "icon",
+                        "type": "inline",
+                        "metadata": {
+                          "roles": [
+                            "inside"
+                          ],
+                          "options": [
+                            "custom"
+                          ],
+                          "id": {
+                            "id": "cell",
+                            "location": [
+                              {
+                                "line": 21,
+                                "col": 15
+                              },
+                              {
+                                "line": 21,
+                                "col": 18
+                              }
+                            ]
+                          }
+                        },
+                        "target": {
+                          "type": "name",
+                          "value": "star"
+                        },
+                        "location": [
+                          {
+                            "line": 21,
+                            "col": 2
+                          },
+                          {
+                            "line": 21,
+                            "col": 43
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 21,
+                        "col": 2
+                      },
+                      {
+                        "line": 21,
+                        "col": 43
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 20,
+            "col": 1
+          },
+          {
+            "line": 22,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 19,
+          "col": 1
+        },
+        {
+          "line": 22,
+          "col": 4
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 22,
+      "col": 4
+    }
+  ]
+}

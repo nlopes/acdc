@@ -54,21 +54,6 @@ pub struct Footnote<'a> {
     pub location: Location,
 }
 
-/// An `Icon` represents an inline icon in a document.
-#[derive(Clone, Debug, PartialEq, Serialize)]
-#[non_exhaustive]
-pub struct Icon<'a> {
-    /// Explicit alternative content; the target supplies the default.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub alt: Option<ContentAttribute<'a>>,
-    /// Hover content supplied by `title=`.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tooltip: Option<ContentAttribute<'a>>,
-    pub target: Source<'a>,
-    pub attributes: ElementAttributes<'a>,
-    pub location: Location,
-}
-
 /// A `Link` represents an inline link in a document.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
