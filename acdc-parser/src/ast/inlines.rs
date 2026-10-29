@@ -192,6 +192,22 @@ impl<'doc> PlainRef<'doc> {
     }
 }
 
+impl<'doc> RawRef<'doc> {
+    /// The passthrough text, without rendering.
+    #[must_use]
+    pub fn text(self) -> &'doc str {
+        self.node.content
+    }
+}
+
+impl<'doc> VerbatimRef<'doc> {
+    /// The literal or code text, without rendering.
+    #[must_use]
+    pub fn text(self) -> &'doc str {
+        self.node.content
+    }
+}
+
 impl<'doc> BoldRef<'doc> {
     /// Read this span's direct inline content.
     #[must_use]

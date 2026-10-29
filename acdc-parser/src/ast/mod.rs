@@ -32,9 +32,29 @@
 //!
 //! Kind matching covers every supported block and inline kind. Detailed reads
 //! currently cover document/section children, their titles, paragraph bodies,
-//! table rows and cells, image targets and content, plain text, bold content, and
-//! locations. The existing owner API remains
-//! available for other reads and for construction and editing.
+//! delimited blocks and admonitions, table rows and cells, image targets and
+//! content, plain/raw/verbatim text, bold content, and locations. The existing
+//! owner API remains available for other reads and for construction and editing.
+//!
+//! Container blocks expose `blocks()`; inline bodies expose `content()`.
+//! Formula blocks expose `text()` and `notation()`. Source text stays separate
+//! from parsed content:
+//!
+//! ```
+//! use acdc_parser::{Options, parse, ast::{BlockKind, InlineKind}};
+//!
+//! let parsed = parse("----\n*literal code*\n----\n", &Options::default())?;
+//! let block = parsed.document_ref().blocks().next().unwrap();
+//! if let BlockKind::Listing(listing) = block.kind() {
+//!     assert_eq!(listing.source_text(), Some("*literal code*\n"));
+//!     for inline in listing.content().inlines() {
+//!         if let InlineKind::Verbatim(code) = inline.kind() {
+//!             assert_eq!(code.text(), "*literal code*");
+//!         }
+//!     }
+//! }
+//! # Ok::<(), acdc_parser::Error>(())
+//! ```
 //!
 //! Handles and direct iterators support shared immutable access (`Send + Sync`).
 //! Reads do not allocate collections, render content, or update document catalogs.

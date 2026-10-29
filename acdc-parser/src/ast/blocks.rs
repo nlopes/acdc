@@ -1,6 +1,35 @@
+mod bodies;
+
 use crate::{Block, DelimitedBlockType, Document, Paragraph, Section};
 
 use super::{AttributesRef, ContentRef, ElementIdRef, ImageRef, LocationRef, TableRef, TokensRef};
+
+macro_rules! delimited_ref {
+    ($name:ident<$lifetime:lifetime>, $body:ty, $doc:literal) => {
+        #[doc = $doc]
+        #[derive(Clone, Copy, Debug)]
+        pub struct $name<$lifetime> {
+            node: &$lifetime crate::DelimitedBlock<$lifetime>,
+            // A thin reference keeps this handle the same size as TableRef.
+            body: &$lifetime $body,
+        }
+
+        impl<$lifetime> $name<$lifetime> {
+            pub(super) fn new(
+                node: &$lifetime crate::DelimitedBlock<$lifetime>,
+                body: &$lifetime $body,
+            ) -> Self {
+                Self { node, body }
+            }
+
+            /// The source span of this node.
+            #[must_use]
+            pub fn location(self) -> LocationRef<$lifetime> {
+                LocationRef::new(&self.node.location)
+            }
+        }
+    };
+}
 
 node_ref!(DocumentRef<'doc>, Document<'doc>, "A document.");
 node_ref!(SectionRef<'doc>, Section<'doc>, "A section.");
@@ -58,46 +87,38 @@ node_ref!(
     crate::Comment<'doc>,
     "A line or paragraph comment."
 );
-node_ref!(
+delimited_ref!(
     DelimitedCommentRef<'doc>,
-    crate::DelimitedBlock<'doc>,
+    Vec<crate::InlineNode<'doc>>,
     "A delimited comment."
 );
-node_ref!(
-    ExampleRef<'doc>,
-    crate::DelimitedBlock<'doc>,
-    "An example block."
-);
-node_ref!(
+delimited_ref!(ExampleRef<'doc>, Vec<Block<'doc>>, "An example block.");
+delimited_ref!(
     ListingRef<'doc>,
-    crate::DelimitedBlock<'doc>,
+    Vec<crate::InlineNode<'doc>>,
     "A listing block."
 );
-node_ref!(
+delimited_ref!(
     LiteralRef<'doc>,
-    crate::DelimitedBlock<'doc>,
+    Vec<crate::InlineNode<'doc>>,
     "A literal block."
 );
-node_ref!(OpenRef<'doc>, crate::DelimitedBlock<'doc>, "An open block.");
-node_ref!(SidebarRef<'doc>, crate::DelimitedBlock<'doc>, "A sidebar.");
-node_ref!(
+delimited_ref!(OpenRef<'doc>, Vec<Block<'doc>>, "An open block.");
+delimited_ref!(SidebarRef<'doc>, Vec<Block<'doc>>, "A sidebar.");
+delimited_ref!(
     PassthroughRef<'doc>,
-    crate::DelimitedBlock<'doc>,
+    Vec<crate::InlineNode<'doc>>,
     "A passthrough block."
 );
-node_ref!(
-    QuoteRef<'doc>,
-    crate::DelimitedBlock<'doc>,
-    "A quote block."
-);
-node_ref!(
+delimited_ref!(QuoteRef<'doc>, Vec<Block<'doc>>, "A quote block.");
+delimited_ref!(
     VerseRef<'doc>,
-    crate::DelimitedBlock<'doc>,
+    Vec<crate::InlineNode<'doc>>,
     "A verse block."
 );
-node_ref!(
+delimited_ref!(
     StemBlockRef<'doc>,
-    crate::DelimitedBlock<'doc>,
+    crate::StemContent<'doc>,
     "A mathematical block."
 );
 
@@ -361,23 +382,37 @@ impl<'doc> From<&'doc Block<'doc>> for BlockRef<'doc> {
 impl<'doc> From<&'doc crate::DelimitedBlock<'doc>> for BlockRef<'doc> {
     fn from(block: &'doc crate::DelimitedBlock<'doc>) -> Self {
         let kind = match &block.inner {
-            DelimitedBlockType::DelimitedComment(_) => {
-                BlockKind::DelimitedComment(DelimitedCommentRef::new(block))
+            DelimitedBlockType::DelimitedComment(body) => {
+                BlockKind::DelimitedComment(DelimitedCommentRef::new(block, body))
             }
-            DelimitedBlockType::DelimitedExample(_) => BlockKind::Example(ExampleRef::new(block)),
-            DelimitedBlockType::DelimitedListing(_) => BlockKind::Listing(ListingRef::new(block)),
-            DelimitedBlockType::DelimitedLiteral(_) => BlockKind::Literal(LiteralRef::new(block)),
-            DelimitedBlockType::DelimitedOpen(_) => BlockKind::Open(OpenRef::new(block)),
-            DelimitedBlockType::DelimitedSidebar(_) => BlockKind::Sidebar(SidebarRef::new(block)),
+            DelimitedBlockType::DelimitedExample(body) => {
+                BlockKind::Example(ExampleRef::new(block, body))
+            }
+            DelimitedBlockType::DelimitedListing(body) => {
+                BlockKind::Listing(ListingRef::new(block, body))
+            }
+            DelimitedBlockType::DelimitedLiteral(body) => {
+                BlockKind::Literal(LiteralRef::new(block, body))
+            }
+            DelimitedBlockType::DelimitedOpen(body) => BlockKind::Open(OpenRef::new(block, body)),
+            DelimitedBlockType::DelimitedSidebar(body) => {
+                BlockKind::Sidebar(SidebarRef::new(block, body))
+            }
             DelimitedBlockType::DelimitedTable(table) => {
                 BlockKind::Table(TableRef::new(block, table))
             }
-            DelimitedBlockType::DelimitedPass(_) => {
-                BlockKind::Passthrough(PassthroughRef::new(block))
+            DelimitedBlockType::DelimitedPass(body) => {
+                BlockKind::Passthrough(PassthroughRef::new(block, body))
             }
-            DelimitedBlockType::DelimitedQuote(_) => BlockKind::Quote(QuoteRef::new(block)),
-            DelimitedBlockType::DelimitedVerse(_) => BlockKind::Verse(VerseRef::new(block)),
-            DelimitedBlockType::DelimitedStem(_) => BlockKind::Stem(StemBlockRef::new(block)),
+            DelimitedBlockType::DelimitedQuote(body) => {
+                BlockKind::Quote(QuoteRef::new(block, body))
+            }
+            DelimitedBlockType::DelimitedVerse(body) => {
+                BlockKind::Verse(VerseRef::new(block, body))
+            }
+            DelimitedBlockType::DelimitedStem(body) => {
+                BlockKind::Stem(StemBlockRef::new(block, body))
+            }
         };
         Self { kind }
     }

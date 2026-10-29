@@ -18,7 +18,7 @@ impl<'doc> TableRef<'doc> {
     /// Read this element's attributes.
     #[must_use]
     pub fn attributes(self) -> AttributesRef<'doc> {
-        AttributesRef::table(self.block)
+        AttributesRef::delimited(self.block)
     }
 
     /// Role tokens in their retained order.

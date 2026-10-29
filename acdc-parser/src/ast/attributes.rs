@@ -1,5 +1,6 @@
 use crate::{
-    BlockMetadata, DelimitedBlock, ElementAttributes, Image, InlineImage, Paragraph, Section, Title,
+    Admonition, BlockMetadata, DelimitedBlock, ElementAttributes, Image, InlineImage, Paragraph,
+    Section, Title,
 };
 
 use super::{AttributeValueRef, ContentRef, ElementIdRef, TokensRef};
@@ -7,8 +8,8 @@ use super::{AttributeValueRef, ContentRef, ElementIdRef, TokensRef};
 /// Named values on an element.
 ///
 /// Reads cover titles, image alt and tooltips, IDs, styles, role/option tokens,
-/// and scalar controls. Other block content and substitution settings remain
-/// available through the owner API.
+/// and scalar controls. Quote/caption content and substitution settings use
+/// dedicated accessors or the owner API.
 ///
 /// Dedicated fields supply their values even when the scalar map contains a
 /// conflicting entry. An absent field stays absent; it does not reveal a stale
@@ -45,7 +46,8 @@ pub struct AttributesRef<'doc> {
 enum Owner<'doc> {
     Paragraph(&'doc Paragraph<'doc>),
     Section(&'doc Section<'doc>),
-    Table(&'doc DelimitedBlock<'doc>),
+    Delimited(&'doc DelimitedBlock<'doc>),
+    Admonition(&'doc Admonition<'doc>),
     Image(&'doc Image<'doc>),
     InlineImage(&'doc InlineImage<'doc>),
 }
@@ -86,9 +88,15 @@ impl<'doc> AttributesRef<'doc> {
         }
     }
 
-    pub(super) fn table(owner: &'doc DelimitedBlock<'doc>) -> Self {
+    pub(super) fn delimited(owner: &'doc DelimitedBlock<'doc>) -> Self {
         Self {
-            owner: Owner::Table(owner),
+            owner: Owner::Delimited(owner),
+        }
+    }
+
+    pub(super) fn admonition(owner: &'doc Admonition<'doc>) -> Self {
+        Self {
+            owner: Owner::Admonition(owner),
         }
     }
 
@@ -154,9 +162,10 @@ impl<'doc> AttributesRef<'doc> {
         match self.owner {
             Owner::Image(_) => &[Title, Id, Roles, Options, Style, Alt],
             Owner::InlineImage(_) => &[Title, Id, Roles, Options, Alt],
-            Owner::Paragraph(_) | Owner::Section(_) | Owner::Table(_) => {
-                &[Title, Id, Roles, Options, Style]
-            }
+            Owner::Paragraph(_)
+            | Owner::Section(_)
+            | Owner::Delimited(_)
+            | Owner::Admonition(_) => &[Title, Id, Roles, Options, Style],
         }
     }
 
@@ -188,7 +197,8 @@ impl<'doc> AttributesRef<'doc> {
         match self.owner {
             Owner::Paragraph(node) => Some((&node.metadata, &node.title)),
             Owner::Section(node) => Some((&node.metadata, &node.title)),
-            Owner::Table(node) => Some((&node.metadata, &node.title)),
+            Owner::Delimited(node) => Some((&node.metadata, &node.title)),
+            Owner::Admonition(node) => Some((&node.metadata, &node.title)),
             Owner::Image(node) => Some((&node.metadata, &node.title)),
             Owner::InlineImage(_) => None,
         }
@@ -198,7 +208,8 @@ impl<'doc> AttributesRef<'doc> {
         match self.owner {
             Owner::Paragraph(node) => &node.metadata.attributes,
             Owner::Section(node) => &node.metadata.attributes,
-            Owner::Table(node) => &node.metadata.attributes,
+            Owner::Delimited(node) => &node.metadata.attributes,
+            Owner::Admonition(node) => &node.metadata.attributes,
             Owner::Image(node) => &node.metadata.attributes,
             Owner::InlineImage(node) => node.attributes(),
         }
@@ -207,9 +218,11 @@ impl<'doc> AttributesRef<'doc> {
     fn title(self) -> Option<ContentRef<'doc>> {
         match self.owner {
             Owner::InlineImage(node) => node.tooltip.as_ref().map(ContentRef::from),
-            Owner::Paragraph(_) | Owner::Section(_) | Owner::Table(_) | Owner::Image(_) => {
-                self.block().and_then(|(_, title)| title.content())
-            }
+            Owner::Paragraph(_)
+            | Owner::Section(_)
+            | Owner::Delimited(_)
+            | Owner::Admonition(_)
+            | Owner::Image(_) => self.block().and_then(|(_, title)| title.content()),
         }
     }
 
@@ -217,14 +230,21 @@ impl<'doc> AttributesRef<'doc> {
         match self.owner {
             Owner::Image(node) => node.alt.as_ref().map(ContentRef::from),
             Owner::InlineImage(node) => node.alt.as_ref().map(ContentRef::from),
-            Owner::Paragraph(_) | Owner::Section(_) | Owner::Table(_) => None,
+            Owner::Paragraph(_)
+            | Owner::Section(_)
+            | Owner::Delimited(_)
+            | Owner::Admonition(_) => None,
         }
     }
 
     pub(super) fn id(self) -> Option<ElementIdRef<'doc>> {
         match self.owner {
             Owner::InlineImage(node) => node.metadata.id.as_ref().map(ElementIdRef::from),
-            Owner::Paragraph(_) | Owner::Section(_) | Owner::Table(_) | Owner::Image(_) => self
+            Owner::Paragraph(_)
+            | Owner::Section(_)
+            | Owner::Delimited(_)
+            | Owner::Admonition(_)
+            | Owner::Image(_) => self
                 .block()
                 .and_then(|(metadata, _)| metadata.id_anchor())
                 .map(|id| ElementIdRef::new(id.id, &id.location)),
@@ -235,7 +255,8 @@ impl<'doc> AttributesRef<'doc> {
         let roles = match self.owner {
             Owner::Paragraph(node) => &node.metadata.roles,
             Owner::Section(node) => &node.metadata.roles,
-            Owner::Table(node) => &node.metadata.roles,
+            Owner::Delimited(node) => &node.metadata.roles,
+            Owner::Admonition(node) => &node.metadata.roles,
             Owner::Image(node) => &node.metadata.roles,
             Owner::InlineImage(node) => &node.metadata.roles,
         };
@@ -246,7 +267,8 @@ impl<'doc> AttributesRef<'doc> {
         let options = match self.owner {
             Owner::Paragraph(node) => node.metadata.options.as_slice(),
             Owner::Section(node) => node.metadata.options.as_slice(),
-            Owner::Table(node) => node.metadata.options.as_slice(),
+            Owner::Delimited(node) => node.metadata.options.as_slice(),
+            Owner::Admonition(node) => node.metadata.options.as_slice(),
             Owner::Image(node) => node.metadata.options.as_slice(),
             Owner::InlineImage(node) => node.options(),
         };
