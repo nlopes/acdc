@@ -1,6 +1,7 @@
 use crate::{
-    Admonition, BlockMetadata, CalloutList, DelimitedBlock, DescriptionList, ElementAttributes,
-    Header, Image, InlineImage, OrderedList, Paragraph, Section, Title, UnorderedList,
+    Admonition, Audio, BlockMetadata, CalloutList, DelimitedBlock, DescriptionList, DiscreteHeader,
+    ElementAttributes, Header, Image, InlineImage, OrderedList, PageBreak, Paragraph, Section,
+    TableOfContents, ThematicBreak, UnorderedList, Video,
 };
 
 use super::{AttributeValueRef, ContentRef, ElementIdRef, TokensRef};
@@ -9,7 +10,8 @@ use super::{AttributeValueRef, ContentRef, ElementIdRef, TokensRef};
 ///
 /// Reads cover titles, image alt and tooltips, IDs, styles, role/option tokens,
 /// and scalar controls. Quote/caption content and substitution settings use
-/// dedicated accessors or the owner API.
+/// dedicated accessors or the owner API. Restricted owners expose only the fields
+/// they retain.
 ///
 /// Dedicated fields supply their values even when the scalar map contains a
 /// conflicting entry. An absent field stays absent; it does not reveal a stale
@@ -55,6 +57,12 @@ enum Owner<'doc> {
     CalloutList(&'doc CalloutList<'doc>),
     Image(&'doc Image<'doc>),
     InlineImage(&'doc InlineImage<'doc>),
+    Audio(&'doc Audio<'doc>),
+    Video(&'doc Video<'doc>),
+    TableOfContents(&'doc TableOfContents<'doc>),
+    DiscreteHeader(&'doc DiscreteHeader<'doc>),
+    PageBreak(&'doc PageBreak<'doc>),
+    ThematicBreak(&'doc ThematicBreak<'doc>),
 }
 
 #[derive(Clone, Copy)]
@@ -81,6 +89,42 @@ impl Field {
 }
 
 impl<'doc> AttributesRef<'doc> {
+    pub(super) fn audio(owner: &'doc Audio<'doc>) -> Self {
+        Self {
+            owner: Owner::Audio(owner),
+        }
+    }
+
+    pub(super) fn video(owner: &'doc Video<'doc>) -> Self {
+        Self {
+            owner: Owner::Video(owner),
+        }
+    }
+
+    pub(super) fn table_of_contents(owner: &'doc TableOfContents<'doc>) -> Self {
+        Self {
+            owner: Owner::TableOfContents(owner),
+        }
+    }
+
+    pub(super) fn discrete_header(owner: &'doc DiscreteHeader<'doc>) -> Self {
+        Self {
+            owner: Owner::DiscreteHeader(owner),
+        }
+    }
+
+    pub(super) fn page_break(owner: &'doc PageBreak<'doc>) -> Self {
+        Self {
+            owner: Owner::PageBreak(owner),
+        }
+    }
+
+    pub(super) fn thematic_break(owner: &'doc ThematicBreak<'doc>) -> Self {
+        Self {
+            owner: Owner::ThematicBreak(owner),
+        }
+    }
+
     pub(super) fn header(owner: &'doc Header<'doc>) -> Self {
         Self {
             owner: Owner::Header(owner),
@@ -157,7 +201,10 @@ impl<'doc> AttributesRef<'doc> {
         let name = crate::model::canonical_attribute_name(name);
         match self.field(name) {
             Some(field) => self.field_value(field),
-            None => self.attribute_map().get(name).map(AttributeValueRef::from),
+            None => self
+                .attribute_map()
+                .and_then(|attributes| attributes.get(name))
+                .map(AttributeValueRef::from),
         }
     }
 
@@ -177,7 +224,8 @@ impl<'doc> AttributesRef<'doc> {
             .filter_map(move |&field| self.field_value(field).map(|value| (field.name(), value)));
         let map_entries = self
             .attribute_map()
-            .iter()
+            .into_iter()
+            .flat_map(ElementAttributes::iter)
             .filter(move |(name, _)| {
                 self.field(crate::model::canonical_attribute_name(name))
                     .is_none()
@@ -197,6 +245,8 @@ impl<'doc> AttributesRef<'doc> {
         match self.owner {
             Owner::Image(_) => &[Title, Id, Roles, Options, Style, Alt],
             Owner::InlineImage(_) => &[Title, Id, Roles, Options, Alt],
+            Owner::ThematicBreak(_) => &[Title, Id],
+            Owner::TableOfContents(_) => &[Id, Roles, Options, Style],
             Owner::Header(_)
             | Owner::Paragraph(_)
             | Owner::Section(_)
@@ -205,7 +255,11 @@ impl<'doc> AttributesRef<'doc> {
             | Owner::UnorderedList(_)
             | Owner::OrderedList(_)
             | Owner::DescriptionList(_)
-            | Owner::CalloutList(_) => &[Title, Id, Roles, Options, Style],
+            | Owner::CalloutList(_)
+            | Owner::Audio(_)
+            | Owner::Video(_)
+            | Owner::DiscreteHeader(_)
+            | Owner::PageBreak(_) => &[Title, Id, Roles, Options, Style],
         }
     }
 
@@ -233,124 +287,103 @@ impl<'doc> AttributesRef<'doc> {
         }
     }
 
-    fn block(self) -> Option<(&'doc BlockMetadata<'doc>, &'doc Title<'doc>)> {
+    fn metadata(self) -> Option<&'doc BlockMetadata<'doc>> {
         match self.owner {
-            Owner::Header(node) => Some((&node.metadata, &node.title)),
-            Owner::Paragraph(node) => Some((&node.metadata, &node.title)),
-            Owner::Section(node) => Some((&node.metadata, &node.title)),
-            Owner::Delimited(node) => Some((&node.metadata, &node.title)),
-            Owner::Admonition(node) => Some((&node.metadata, &node.title)),
-            Owner::UnorderedList(node) => Some((&node.metadata, &node.title)),
-            Owner::OrderedList(node) => Some((&node.metadata, &node.title)),
-            Owner::DescriptionList(node) => Some((&node.metadata, &node.title)),
-            Owner::CalloutList(node) => Some((&node.metadata, &node.title)),
-            Owner::Image(node) => Some((&node.metadata, &node.title)),
-            Owner::InlineImage(_) => None,
+            Owner::Header(node) => Some(&node.metadata),
+            Owner::Paragraph(node) => Some(&node.metadata),
+            Owner::Section(node) => Some(&node.metadata),
+            Owner::Delimited(node) => Some(&node.metadata),
+            Owner::Admonition(node) => Some(&node.metadata),
+            Owner::UnorderedList(node) => Some(&node.metadata),
+            Owner::OrderedList(node) => Some(&node.metadata),
+            Owner::DescriptionList(node) => Some(&node.metadata),
+            Owner::CalloutList(node) => Some(&node.metadata),
+            Owner::Image(node) => Some(&node.metadata),
+            Owner::Audio(node) => Some(&node.metadata),
+            Owner::Video(node) => Some(&node.metadata),
+            Owner::TableOfContents(node) => Some(&node.metadata),
+            Owner::DiscreteHeader(node) => Some(&node.metadata),
+            Owner::PageBreak(node) => Some(&node.metadata),
+            Owner::InlineImage(_) | Owner::ThematicBreak(_) => None,
         }
     }
 
-    fn attribute_map(self) -> &'doc ElementAttributes<'doc> {
-        match self.owner {
-            Owner::Header(node) => &node.metadata.attributes,
-            Owner::Paragraph(node) => &node.metadata.attributes,
-            Owner::Section(node) => &node.metadata.attributes,
-            Owner::Delimited(node) => &node.metadata.attributes,
-            Owner::Admonition(node) => &node.metadata.attributes,
-            Owner::UnorderedList(node) => &node.metadata.attributes,
-            Owner::OrderedList(node) => &node.metadata.attributes,
-            Owner::DescriptionList(node) => &node.metadata.attributes,
-            Owner::CalloutList(node) => &node.metadata.attributes,
-            Owner::Image(node) => &node.metadata.attributes,
-            Owner::InlineImage(node) => node.attributes(),
+    fn attribute_map(self) -> Option<&'doc ElementAttributes<'doc>> {
+        if let Owner::InlineImage(node) = self.owner {
+            Some(node.attributes())
+        } else {
+            self.metadata().map(|metadata| &metadata.attributes)
         }
     }
 
     fn title(self) -> Option<ContentRef<'doc>> {
-        match self.owner {
-            Owner::InlineImage(node) => node.tooltip.as_ref().map(ContentRef::from),
-            Owner::Header(_)
-            | Owner::Paragraph(_)
-            | Owner::Section(_)
-            | Owner::Delimited(_)
-            | Owner::Admonition(_)
-            | Owner::UnorderedList(_)
-            | Owner::OrderedList(_)
-            | Owner::DescriptionList(_)
-            | Owner::CalloutList(_)
-            | Owner::Image(_) => self.block().and_then(|(_, title)| title.content()),
-        }
+        let title = match self.owner {
+            Owner::Header(node) => &node.title,
+            Owner::Paragraph(node) => &node.title,
+            Owner::Section(node) => &node.title,
+            Owner::Delimited(node) => &node.title,
+            Owner::Admonition(node) => &node.title,
+            Owner::UnorderedList(node) => &node.title,
+            Owner::OrderedList(node) => &node.title,
+            Owner::DescriptionList(node) => &node.title,
+            Owner::CalloutList(node) => &node.title,
+            Owner::Image(node) => &node.title,
+            Owner::Audio(node) => &node.title,
+            Owner::Video(node) => &node.title,
+            Owner::DiscreteHeader(node) => &node.title,
+            Owner::PageBreak(node) => &node.title,
+            Owner::ThematicBreak(node) => &node.title,
+            Owner::TableOfContents(_) => return None,
+            Owner::InlineImage(node) => return node.tooltip.as_ref().map(ContentRef::from),
+        };
+        title.content()
     }
 
     fn alt(self) -> Option<ContentRef<'doc>> {
-        match self.owner {
-            Owner::Image(node) => node.alt.as_ref().map(ContentRef::from),
-            Owner::InlineImage(node) => node.alt.as_ref().map(ContentRef::from),
-            Owner::Header(_)
-            | Owner::Paragraph(_)
-            | Owner::Section(_)
-            | Owner::Delimited(_)
-            | Owner::Admonition(_)
-            | Owner::UnorderedList(_)
-            | Owner::OrderedList(_)
-            | Owner::DescriptionList(_)
-            | Owner::CalloutList(_) => None,
+        if let Owner::Image(node) = self.owner {
+            node.alt.as_ref().map(ContentRef::from)
+        } else if let Owner::InlineImage(node) = self.owner {
+            node.alt.as_ref().map(ContentRef::from)
+        } else {
+            None
         }
     }
 
     pub(super) fn id(self) -> Option<ElementIdRef<'doc>> {
-        match self.owner {
-            Owner::InlineImage(node) => node.metadata.id.as_ref().map(ElementIdRef::from),
-            Owner::Header(_)
-            | Owner::Paragraph(_)
-            | Owner::Section(_)
-            | Owner::Delimited(_)
-            | Owner::Admonition(_)
-            | Owner::UnorderedList(_)
-            | Owner::OrderedList(_)
-            | Owner::DescriptionList(_)
-            | Owner::CalloutList(_)
-            | Owner::Image(_) => self
-                .block()
-                .and_then(|(metadata, _)| metadata.id_anchor())
-                .map(|id| ElementIdRef::new(id.id, &id.location)),
+        if let Owner::InlineImage(node) = self.owner {
+            return node.metadata.id.as_ref().map(ElementIdRef::from);
         }
+        let anchor = if let Owner::ThematicBreak(node) = self.owner {
+            node.anchors.first()
+        } else {
+            self.metadata().and_then(BlockMetadata::id_anchor)
+        };
+        anchor.map(|id| ElementIdRef::new(id.id, &id.location))
     }
 
     pub(super) fn roles(self) -> TokensRef<'doc> {
-        let roles = match self.owner {
-            Owner::Header(node) => &node.metadata.roles,
-            Owner::Paragraph(node) => &node.metadata.roles,
-            Owner::Section(node) => &node.metadata.roles,
-            Owner::Delimited(node) => &node.metadata.roles,
-            Owner::Admonition(node) => &node.metadata.roles,
-            Owner::UnorderedList(node) => &node.metadata.roles,
-            Owner::OrderedList(node) => &node.metadata.roles,
-            Owner::DescriptionList(node) => &node.metadata.roles,
-            Owner::CalloutList(node) => &node.metadata.roles,
-            Owner::Image(node) => &node.metadata.roles,
-            Owner::InlineImage(node) => &node.metadata.roles,
+        let roles = if let Owner::InlineImage(node) = self.owner {
+            node.metadata.roles.as_slice()
+        } else {
+            self.metadata()
+                .map(|metadata| metadata.roles.as_slice())
+                .unwrap_or_default()
         };
         TokensRef::new(roles)
     }
 
     pub(super) fn options(self) -> TokensRef<'doc> {
-        let options = match self.owner {
-            Owner::Header(node) => node.metadata.options.as_slice(),
-            Owner::Paragraph(node) => node.metadata.options.as_slice(),
-            Owner::Section(node) => node.metadata.options.as_slice(),
-            Owner::Delimited(node) => node.metadata.options.as_slice(),
-            Owner::Admonition(node) => node.metadata.options.as_slice(),
-            Owner::UnorderedList(node) => node.metadata.options.as_slice(),
-            Owner::OrderedList(node) => node.metadata.options.as_slice(),
-            Owner::DescriptionList(node) => node.metadata.options.as_slice(),
-            Owner::CalloutList(node) => node.metadata.options.as_slice(),
-            Owner::Image(node) => node.metadata.options.as_slice(),
-            Owner::InlineImage(node) => node.options(),
+        let options = if let Owner::InlineImage(node) = self.owner {
+            node.options()
+        } else {
+            self.metadata()
+                .map(|metadata| metadata.options.as_slice())
+                .unwrap_or_default()
         };
         TokensRef::new(options)
     }
 
     pub(super) fn style(self) -> Option<&'doc str> {
-        self.block().and_then(|(metadata, _)| metadata.style)
+        self.metadata().and_then(|metadata| metadata.style)
     }
 }

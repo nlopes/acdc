@@ -55,17 +55,17 @@ for block in parsed.document_ref().blocks() {
 ```
 
 Kind matching covers all block and inline kinds. Detailed accessors currently
-cover headers, authors, document attributes, document and section children,
-titles, paragraph bodies, delimited blocks,
-admonitions, lists and list items, tables, images, text, bold content, and source
-locations.
+cover headers, authors, document attributes, block bodies and metadata, lists and
+list items, tables, media, discrete headings, TOC blocks, breaks, and comments.
+Inline reads include text, bold content, images, and source locations.
 Table declarations remain separate from resolved presentation. Image alt and
 tooltips preserve absent versus explicitly empty content. For a constructed node,
 use `ast::ParagraphRef::from(&paragraph)`. The existing `document()` API remains
 available for other reads, construction, and editing.
 
 Use `attributes().get(name)`, `contains(name)`, or `iter()` on headers, sections,
-paragraphs, delimited blocks, admonitions, lists, tables, and images to read titles,
+paragraphs, delimited blocks, admonitions, lists, tables, media, TOC blocks,
+discrete headings, and breaks to read retained titles,
 image alt/tooltips, IDs, styles, role/option tokens, and scalar controls.
 `AttributeValueRef` distinguishes text, booleans, valueless attributes, inline
 content, and tokens. Text keeps meaningful
@@ -102,6 +102,16 @@ referenceable defaults. Document names do not use element aliases: `role` and
 later accepted assignments and their source locations. When entering an AsciiDoc
 table cell, apply its `initial_attributes()` in order within that cell's scope,
 then walk its blocks. Neither sequence changes the header snapshot.
+
+Audio and video expose their complete `source()` operand. Video targets keep
+commas and empty playlist slots; read provider and poster controls through the
+`poster` attribute. `title()` and `caption_content()` stay separate. Media,
+TOC blocks, discrete headings, and page breaks expose their retained IDs and
+anchors. Thematic breaks expose their title and anchors, with no scalar map.
+
+Retained line and paragraph comments expose `kind()` and literal `text()`.
+Delimited comments use `content()`. Includes and conditional directives have
+already been processed; these reads do not reconstruct consumed source.
 
 ## Cargo features
 

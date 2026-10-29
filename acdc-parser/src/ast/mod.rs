@@ -32,9 +32,9 @@
 //!
 //! Kind matching covers every supported block and inline kind. Detailed reads
 //! currently cover headers and authors, document attributes, document/section
-//! children, their titles, paragraph bodies, delimited blocks and admonitions,
-//! lists and their items, table rows and cells,
-//! image targets and content, plain/raw/verbatim text, bold content, and locations.
+//! children and titles, block bodies and metadata, lists and their items, tables,
+//! media, discrete headings, TOC blocks, breaks, and comments. Inline reads cover
+//! plain/raw/verbatim text, bold content, images, and locations.
 //! The owner API remains available for other reads and for construction and editing.
 //!
 //! Container blocks expose `blocks()`; inline bodies expose `content()`.
@@ -109,6 +109,24 @@
 //! `header()` reads title, subtitle and author data. Revision values use the
 //! document attributes `revnumber`, `revdate`, and `revremark`. A table cell's
 //! `initial_attributes()` initializes its local scope before its child blocks.
+//!
+//! Media sources retain their full operand. Provider controls are separate values:
+//!
+//! ```
+//! use acdc_parser::{Options, parse, ast::{AttributeValueRef, BlockKind, SourceKind}};
+//!
+//! let parsed = parse("video::one,,three[youtube]", &Options::default())?;
+//! let block = parsed.document_ref().blocks().next().unwrap();
+//! if let BlockKind::Video(video) = block.kind() {
+//!     assert_eq!(video.source().kind(), SourceKind::Name("one,,three"));
+//!     assert_eq!(video.attributes().get("poster"), Some(AttributeValueRef::Text("youtube")));
+//! }
+//! # Ok::<(), acdc_parser::Error>(())
+//! ```
+//!
+//! Retained line/paragraph comments expose `kind()` and literal `text()`;
+//! delimited comments expose `content()`. Includes and conditional directives
+//! have already been processed and are not reconstructed by these reads.
 //!
 //! Handles and direct iterators support shared immutable access (`Send + Sync`).
 //! Reads do not allocate collections, render content, or update document catalogs.
