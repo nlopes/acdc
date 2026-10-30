@@ -5,7 +5,10 @@ use acdc_parser::{Block, DelimitedBlockType, InlineMacro, InlineNode, Location};
 use tower_lsp_server::ls_types::{DocumentLink, Uri};
 
 use crate::{
-    convert::{is_primary_location, location_to_range, resolve_relative_uri},
+    convert::{
+        byte_range_to_utf16_range, is_primary_location, location_to_utf16_range,
+        resolve_relative_uri,
+    },
     state::DocumentState,
 };
 
@@ -30,6 +33,7 @@ pub(crate) fn collect_document_links(doc: &DocumentState, doc_uri: &Uri) -> Vec<
         .into_iter()
         .filter(|info| is_primary_location(&info.location))
         .filter_map(|info| {
+            let range = location_to_utf16_range(doc.text(), &info.location)?;
             let target = if info.target.starts_with("http://")
                 || info.target.starts_with("https://")
                 || info.target.starts_with("mailto:")
@@ -43,7 +47,7 @@ pub(crate) fn collect_document_links(doc: &DocumentState, doc_uri: &Uri) -> Vec<
             };
 
             target.map(|uri| DocumentLink {
-                range: location_to_range(&info.location),
+                range,
                 target: Some(uri),
                 tooltip: info.tooltip,
                 data: None,
@@ -53,9 +57,14 @@ pub(crate) fn collect_document_links(doc: &DocumentState, doc_uri: &Uri) -> Vec<
 
     // Add include directives as clickable links
     for (include_target, include_loc) in &doc.includes {
-        if let Some(target_uri) = resolve_relative_uri(doc_uri, include_target) {
+        if let Some(target_uri) = resolve_relative_uri(doc_uri, include_target)
+            && let Some(range) = byte_range_to_utf16_range(
+                doc.text(),
+                include_loc.absolute_start..include_loc.absolute_end,
+            )
+        {
             result.push(DocumentLink {
-                range: location_to_range(include_loc),
+                range,
                 target: Some(target_uri),
                 tooltip: Some(format!("Open included file: {include_target}")),
                 data: None,

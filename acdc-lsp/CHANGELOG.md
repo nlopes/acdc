@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Hover, reference-count code lenses, inlay hints, and document links now align
+  correctly after emoji and in CRLF files. Navigation finds targets correctly
+  after preprocessing. Hovering immediately after an attribute's closing brace
+  no longer selects it.
+
 - Diagnostics, document and workspace symbols, and include call hierarchy now
   use UTF-16 positions from the original source, including unsaved buffers and
   selected or reindented includes. Missing source text no longer produces guessed

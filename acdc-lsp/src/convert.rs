@@ -2,7 +2,9 @@
 
 mod coordinates;
 
-pub(crate) use coordinates::{byte_range_to_utf16_range, location_to_utf16_range};
+pub(crate) use coordinates::{
+    byte_range_to_utf16_range, location_to_utf16_range, position_to_scalar_position,
+};
 
 use std::path::Path;
 
@@ -62,6 +64,13 @@ pub(crate) fn offset_in_location(offset: usize, location: &Location) -> bool {
     is_primary_location(location)
         && offset >= location.absolute_start
         && offset <= location.absolute_end
+}
+
+/// Match an original-source scalar cursor against an inclusive primary-file span.
+pub(crate) fn position_in_location(position: &acdc_parser::Position, location: &Location) -> bool {
+    is_primary_location(location)
+        && (position.line, position.column) >= (location.start.line, location.start.column)
+        && (position.line, position.column) <= (location.end.line, location.end.column)
 }
 
 /// Whether both endpoints belong to the text supplied by the editor.

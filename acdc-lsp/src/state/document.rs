@@ -236,9 +236,10 @@ pub(crate) fn extract_attribute_defs(text: &str) -> Vec<(String, Location)> {
     let mut defs = Vec::new();
     let mut line_start = 0usize;
 
-    for (line_idx, line) in text.lines().enumerate() {
+    for (line_idx, raw_line) in text.split_inclusive('\n').enumerate() {
+        let line = raw_line.trim_end_matches(['\r', '\n']);
         let this_line_start = line_start;
-        line_start += line.len() + 1;
+        line_start += raw_line.len();
 
         let trimmed = line.trim();
         let after_colon = if let Some(rest) = trimmed.strip_prefix(":!") {
@@ -262,10 +263,11 @@ pub(crate) fn extract_attribute_defs(text: &str) -> Vec<(String, Location)> {
             let line_end = line.len();
 
             let mut location = Location::default();
-            location.start = Position::from_line_col(line_idx + 1, col_offset + 1);
-            location.end = Position::from_line_col(line_idx + 1, line_end);
+            location.start =
+                Position::from_line_col(line_idx + 1, line[..col_offset].chars().count() + 1);
+            location.end = Position::from_line_col(line_idx + 1, line.chars().count());
             location.absolute_start = this_line_start + col_offset;
-            location.absolute_end = this_line_start + line_end;
+            location.absolute_end = this_line_start + line_end - 1;
 
             defs.push((name_candidate.to_string(), location));
         }
@@ -276,15 +278,15 @@ pub(crate) fn extract_attribute_defs(text: &str) -> Vec<(String, Location)> {
 
 /// Extract attribute references (`{name}`) from raw text.
 ///
-/// Scans for `{name}` patterns, skipping escaped references (`\{name}`)
-/// and attribute definition lines (`:name:`).
+/// Skips escaped references (`\{name}`) and includes references in attribute values.
 pub(crate) fn extract_attribute_refs(text: &str) -> Vec<(String, Location)> {
     let mut refs = Vec::new();
     let mut line_start = 0usize;
 
-    for (line_idx, line) in text.lines().enumerate() {
+    for (line_idx, raw_line) in text.split_inclusive('\n').enumerate() {
+        let line = raw_line.trim_end_matches(['\r', '\n']);
         let this_line_start = line_start;
-        line_start += line.len() + 1;
+        line_start += raw_line.len();
 
         let trimmed = line.trim();
         // Check if this is an attribute definition: :name: value
@@ -343,10 +345,11 @@ fn extract_refs_from_line(
             let col_end = segment_offset_in_line + close + 1;
 
             let mut location = Location::default();
-            location.start = Position::from_line_col(line_idx + 1, col_in_line + 1);
-            location.end = Position::from_line_col(line_idx + 1, col_end);
+            location.start =
+                Position::from_line_col(line_idx + 1, line[..col_in_line].chars().count() + 1);
+            location.end = Position::from_line_col(line_idx + 1, line[..col_end].chars().count());
             location.absolute_start = line_start + col_in_line;
-            location.absolute_end = line_start + col_end;
+            location.absolute_end = line_start + col_end - 1;
 
             refs.push((name.to_string(), location));
         }

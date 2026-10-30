@@ -3,7 +3,7 @@
 use tower_lsp_server::ls_types::{Position, Uri};
 
 use crate::{
-    convert::{position_to_offset, source_uri},
+    convert::{position_to_scalar_position, source_uri},
     state::{DocumentState, Workspace, XrefTarget},
 };
 
@@ -20,12 +20,13 @@ pub(crate) fn find_references(
     position: Position,
     include_declaration: bool,
 ) -> Option<Vec<tower_lsp_server::ls_types::Location>> {
-    let offset = position_to_offset(doc.text(), position)?;
+    let source_position = position_to_scalar_position(doc.text(), position)?;
     let ast_guard = doc.ast()?;
     let ast = ast_guard.document();
 
     // Check if cursor is on an xref - find all references to its target
-    if let Some((target_id, _xref_loc)) = super::hover::find_xref_at_offset(ast, offset) {
+    if let Some((target_id, _xref_loc)) = super::hover::find_xref_at_position(ast, &source_position)
+    {
         let parsed = XrefTarget::parse(&target_id);
         let anchor_id = parsed.anchor.as_deref().unwrap_or(&target_id);
         return Some(collect_cross_file_references(
@@ -38,7 +39,9 @@ pub(crate) fn find_references(
     }
 
     // Check if cursor is on an anchor - find all xrefs pointing to it
-    if let Some((anchor_id, _anchor_loc)) = super::hover::find_anchor_at_offset(ast, offset, doc) {
+    if let Some((anchor_id, _anchor_loc)) =
+        super::hover::find_anchor_at_position(ast, &source_position, doc)
+    {
         return Some(collect_cross_file_references(
             workspace,
             doc_uri,

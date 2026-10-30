@@ -564,28 +564,32 @@ pub(crate) fn find_definition_at_position(
     workspace: &Workspace,
     position: Position,
 ) -> Option<(Uri, Location)> {
-    let offset = crate::convert::position_to_offset(doc_state.text(), position)?;
+    let source_position = crate::convert::position_to_scalar_position(doc_state.text(), position)?;
     let ast_guard = doc_state.ast()?;
     let ast = ast_guard.document();
     tracing::info!(
         ?position,
-        offset,
+        ?source_position,
         text_len = doc_state.text().len(),
         "find_definition_at_position"
     );
 
     // Check if cursor is on an xref
-    if let Some((target, _)) = crate::capabilities::hover::find_xref_at_offset(ast, offset) {
-        tracing::info!(target, "found xref at offset");
+    if let Some((target, _)) =
+        crate::capabilities::hover::find_xref_at_position(ast, &source_position)
+    {
+        tracing::info!(target, "found xref at source position");
         return resolve_xref_target(&target, doc_state, doc_uri, workspace);
     }
 
     // Check if cursor is on a link macro
-    if let Some((target, _)) = crate::capabilities::hover::find_link_at_offset(ast, offset) {
+    if let Some((target, _)) =
+        crate::capabilities::hover::find_link_at_position(ast, &source_position)
+    {
         return resolve_link_target(&target, doc_uri);
     }
 
-    tracing::info!("no xref or link found at offset");
+    tracing::info!("no xref or link found at source position");
     None
 }
 
@@ -764,21 +768,20 @@ Content.
             .ok_or("a.adoc should be indexed")?;
         assert!(!a_doc.xrefs.is_empty(), "a.adoc should have xrefs");
 
-        // Verify the AST has the xref findable at offset. The guard holds the
-        // `ParsedDocument` mutex, so it must drop before the call below — which
-        // re-enters `doc_state.ast()` and would deadlock on a non-reentrant
-        // `std::sync::Mutex`.
+        // Drop the AST guard before go-to-definition acquires it again.
         {
             let ast_guard = a_doc.ast().ok_or("a.adoc should have AST")?;
             let ast = ast_guard.document();
-            let xref_offset = a_content
-                .find("xref:")
-                .ok_or("xref: not found in content")?;
-            let found = crate::capabilities::hover::find_xref_at_offset(ast, xref_offset + 10);
-            assert!(found.is_some(), "xref should be findable at offset");
+            let source_position =
+                crate::convert::position_to_scalar_position(a_content, Position::new(4, 20))
+                    .ok_or("source position")?;
+            let found = crate::capabilities::hover::find_xref_at_position(ast, &source_position);
+            assert!(
+                found.is_some(),
+                "xref should be findable at its source position"
+            );
         }
 
-        // Use position_to_offset round-trip like the real code path
         let position = tower_lsp_server::ls_types::Position {
             line: 4,       // 0-indexed: line 5 of the document
             character: 20, // middle of the xref

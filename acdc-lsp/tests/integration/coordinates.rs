@@ -324,3 +324,95 @@ fn closed_file_symbols_and_callers_use_disk_text_and_skip_removed_sources() -> T
     client.shutdown();
     Ok(())
 }
+
+#[test]
+fn annotations_and_document_links_use_utf16_after_emoji() -> TestResult {
+    let project = Project::new("utf16-annotations")?;
+    let uri = project.uri("document.adoc")?;
+    let mut client = LspTestClient::new()?;
+    client.initialize()?;
+    client.open_document(&uri, "= Doc\r\n:name: Value\r\n\r\n[[target]]\r\n== Target\r\n\r\n😀 [[inline]] text\r\n\r\n😀 <<target>> {name}\r\n\r\n😀 link:next.adoc[Next]\r\n")?;
+    for (line, cursor, start, end) in [
+        (6, 6, 3, 13),
+        (8, 6, 3, 13),
+        (8, 17, 14, 20),
+        (10, 8, 3, 23),
+    ] {
+        let hovered = client.send_request(
+            "textDocument/hover",
+            json!({"textDocument":{"uri":uri},"position":{"line":line,"character":cursor}}),
+        )?;
+        assert!(!hovered.is_null(), "missing hover at {line}:{cursor}");
+        assert_eq!(
+            json_field(&hovered, "/range")?,
+            &json!({"start":{"line":line,"character":start},"end":{"line":line,"character":end}})
+        );
+    }
+    let request = json!({"textDocument":{"uri":uri},"position":{"line":8,"character":6}});
+    let definition = client.send_request("textDocument/definition", request.clone())?;
+    assert_eq!(
+        definition,
+        json!({"uri":uri,"range":{"start":{"line":3,"character":0},"end":{"line":3,"character":10}}})
+    );
+    let prepared = client.send_request("textDocument/prepareRename", request)?;
+    assert_eq!(
+        json_field(&prepared, "/range")?,
+        &json!({"start":{"line":8,"character":5},"end":{"line":8,"character":11}})
+    );
+    let references = client.send_request("textDocument/references", json!({"textDocument":{"uri":uri},"position":{"line":8,"character":6},"context":{"includeDeclaration":false}}))?;
+    assert_eq!(
+        references,
+        json!([{"uri":uri,"range":{"start":{"line":8,"character":3},"end":{"line":8,"character":13}}}])
+    );
+    assert!(
+        client
+            .send_request(
+                "textDocument/hover",
+                json!({"textDocument":{"uri":uri},"position":{"line":6,"character":1}})
+            )?
+            .is_null()
+    );
+    let lenses =
+        client.send_request("textDocument/codeLens", json!({"textDocument":{"uri":uri}}))?;
+    let lens = lenses
+        .as_array()
+        .ok_or("lens array")?
+        .iter()
+        .find(|lens| lens.pointer("/range/start/line") == Some(&json!(6)))
+        .ok_or("inline anchor lens")?;
+    assert_eq!(
+        json_field(lens, "/range")?,
+        &json!({"start":{"line":6,"character":3},"end":{"line":6,"character":3}})
+    );
+    assert_eq!(
+        json_field(lens, "/command/arguments/1")?,
+        &json!({"line":6,"character":3})
+    );
+    let hints = client.send_request("textDocument/inlayHint", json!({"textDocument":{"uri":uri},"range":{"start":{"line":8,"character":0},"end":{"line":8,"character":20}}}))?;
+    let hints = hints.as_array().ok_or("hint array")?;
+    assert_eq!(hints.len(), 2);
+    assert!(hints.iter().any(|hint| hint.get("position")
+        == Some(&json!({"line":8,"character":13}))
+        && hint.get("label") == Some(&json!("→ Target"))));
+    assert!(hints.iter().any(|hint| hint.get("position")
+        == Some(&json!({"line":8,"character":20}))
+        && hint.get("label") == Some(&json!("= Value"))));
+    let links = client.send_request(
+        "textDocument/documentLink",
+        json!({"textDocument":{"uri":uri}}),
+    )?;
+    let link = links
+        .as_array()
+        .and_then(|links| links.first())
+        .ok_or("document link")?;
+    assert_eq!(
+        json_field(link, "/range")?,
+        &json!({"start":{"line":10,"character":3},"end":{"line":10,"character":23}})
+    );
+    assert_eq!(
+        json_field(link, "/target")?,
+        &json!(project.uri("next.adoc")?)
+    );
+    client.shutdown();
+    Ok(())
+}

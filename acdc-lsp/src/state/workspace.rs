@@ -1546,3 +1546,6 @@ mod tests {
 
 #[cfg(test)]
 mod diagnostic_ranges;
+
+#[cfg(test)]
+mod annotation_ranges;

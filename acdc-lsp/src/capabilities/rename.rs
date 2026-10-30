@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use tower_lsp_server::ls_types::{Position, PrepareRenameResponse, TextEdit, Uri, WorkspaceEdit};
 
 use crate::{
-    convert::{position_to_offset, source_uri},
+    convert::{position_to_scalar_position, source_uri},
     state::{DocumentState, Workspace, XrefTarget},
 };
 
@@ -19,12 +19,12 @@ pub(crate) fn prepare_rename(
     doc: &DocumentState,
     position: Position,
 ) -> Option<PrepareRenameResponse> {
-    let offset = position_to_offset(doc.text(), position)?;
+    let source_position = position_to_scalar_position(doc.text(), position)?;
     let ast_guard = doc.ast()?;
     let ast = ast_guard.document();
 
     // Check if cursor is on an xref
-    if let Some((target, xref_loc)) = super::hover::find_xref_at_offset(ast, offset)
+    if let Some((target, xref_loc)) = super::hover::find_xref_at_position(ast, &source_position)
         && let Some(target_id) = XrefTarget::parse(&target).anchor
         && let Some(range) = xref_anchor_range(doc.text(), &xref_loc, &target_id)
     {
@@ -35,7 +35,8 @@ pub(crate) fn prepare_rename(
     }
 
     // Check if cursor is on an anchor
-    if let Some((anchor_id, anchor_loc)) = super::hover::find_anchor_at_offset(ast, offset, doc)
+    if let Some((anchor_id, anchor_loc)) =
+        super::hover::find_anchor_at_position(ast, &source_position, doc)
         && let Some(range) = anchor_range(doc.text(), &anchor_loc, &anchor_id)
     {
         return Some(PrepareRenameResponse::RangeWithPlaceholder {
@@ -59,18 +60,18 @@ pub(crate) fn compute_rename(
     position: Position,
     new_name: &str,
 ) -> Option<WorkspaceEdit> {
-    let offset = position_to_offset(doc.text(), position)?;
+    let source_position = position_to_scalar_position(doc.text(), position)?;
     let ast_guard = doc.ast()?;
     let ast = ast_guard.document();
 
     // Find the target ID (from either xref or anchor)
-    let target_id = if let Some((id, _)) = super::hover::find_xref_at_offset(ast, offset) {
-        // If it's a cross-file xref, extract just the anchor part
-        let parsed = XrefTarget::parse(&id);
-        parsed.anchor.unwrap_or(id)
-    } else {
-        super::hover::find_anchor_at_offset(ast, offset, doc).map(|(id, _)| id)?
-    };
+    let target_id =
+        if let Some((id, _)) = super::hover::find_xref_at_position(ast, &source_position) {
+            let parsed = XrefTarget::parse(&id);
+            parsed.anchor.unwrap_or(id)
+        } else {
+            super::hover::find_anchor_at_position(ast, &source_position, doc).map(|(id, _)| id)?
+        };
     drop(ast_guard);
 
     let mut changes: HashMap<Uri, Vec<TextEdit>> = HashMap::new();

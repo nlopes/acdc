@@ -5,7 +5,7 @@ use acdc_parser::{Block, DelimitedBlockType, Document, InlineMacro, InlineNode};
 use tower_lsp_server::ls_types::{InlayHint, InlayHintLabel, Position, Range};
 
 use crate::{
-    convert::{is_primary_location, location_to_range},
+    convert::{is_primary_location, location_to_utf16_range},
     state::DocumentState,
 };
 
@@ -20,7 +20,7 @@ pub(crate) fn compute_inlay_hints(doc: &DocumentState, range: &Range) -> Vec<Inl
     collect_attribute_hints(doc, range, &mut hints);
 
     if let Some(ast) = doc.ast() {
-        collect_xref_hints(ast.document(), range, &mut hints);
+        collect_xref_hints(ast.document(), doc.text(), range, &mut hints);
     }
 
     hints
@@ -36,7 +36,10 @@ fn collect_attribute_hints(doc: &DocumentState, range: &Range, hints: &mut Vec<I
     let ast = ast.document();
 
     for (name, loc) in &doc.attribute_refs {
-        let hint_pos = location_to_range(loc).end;
+        let Some(reference_range) = location_to_utf16_range(doc.text(), loc) else {
+            continue;
+        };
+        let hint_pos = reference_range.end;
         if !position_in_range(hint_pos, range) {
             continue;
         }
@@ -66,57 +69,58 @@ fn collect_attribute_hints(doc: &DocumentState, range: &Range, hints: &mut Vec<I
 ///
 /// For each `<<id>>` or `xref:file#id[]` that has no display text,
 /// shows the resolved section reference text as a hint after the xref.
-fn collect_xref_hints(ast: &Document, range: &Range, hints: &mut Vec<InlayHint>) {
+fn collect_xref_hints(ast: &Document, source: &str, range: &Range, hints: &mut Vec<InlayHint>) {
     for block in &ast.blocks {
-        collect_xref_hints_in_block(block, ast, range, hints);
+        collect_xref_hints_in_block(block, ast, source, range, hints);
     }
 }
 
 fn collect_xref_hints_in_block(
     block: &Block,
     ast: &Document,
+    source: &str,
     range: &Range,
     hints: &mut Vec<InlayHint>,
 ) {
     match block {
         Block::Section(section) => {
             for child in &section.content {
-                collect_xref_hints_in_block(child, ast, range, hints);
+                collect_xref_hints_in_block(child, ast, source, range, hints);
             }
         }
         Block::Paragraph(para) => {
-            collect_xref_hints_in_inlines(&para.content, ast, range, hints);
+            collect_xref_hints_in_inlines(&para.content, ast, source, range, hints);
         }
         Block::DelimitedBlock(delimited) => {
-            collect_xref_hints_in_delimited(&delimited.inner, ast, range, hints);
+            collect_xref_hints_in_delimited(&delimited.inner, ast, source, range, hints);
         }
         Block::UnorderedList(list) => {
             for item in &list.items {
-                collect_xref_hints_in_inlines(&item.principal, ast, range, hints);
+                collect_xref_hints_in_inlines(&item.principal, ast, source, range, hints);
                 for b in &item.blocks {
-                    collect_xref_hints_in_block(b, ast, range, hints);
+                    collect_xref_hints_in_block(b, ast, source, range, hints);
                 }
             }
         }
         Block::OrderedList(list) => {
             for item in &list.items {
-                collect_xref_hints_in_inlines(&item.principal, ast, range, hints);
+                collect_xref_hints_in_inlines(&item.principal, ast, source, range, hints);
                 for b in &item.blocks {
-                    collect_xref_hints_in_block(b, ast, range, hints);
+                    collect_xref_hints_in_block(b, ast, source, range, hints);
                 }
             }
         }
         Block::DescriptionList(list) => {
             for item in &list.items {
-                collect_xref_hints_in_inlines(&item.principal_text, ast, range, hints);
+                collect_xref_hints_in_inlines(&item.principal_text, ast, source, range, hints);
                 for b in &item.description {
-                    collect_xref_hints_in_block(b, ast, range, hints);
+                    collect_xref_hints_in_block(b, ast, source, range, hints);
                 }
             }
         }
         Block::Admonition(adm) => {
             for b in &adm.blocks {
-                collect_xref_hints_in_block(b, ast, range, hints);
+                collect_xref_hints_in_block(b, ast, source, range, hints);
             }
         }
         Block::TableOfContents(_)
@@ -137,6 +141,7 @@ fn collect_xref_hints_in_block(
 fn collect_xref_hints_in_delimited(
     inner: &DelimitedBlockType,
     ast: &Document,
+    source: &str,
     range: &Range,
     hints: &mut Vec<InlayHint>,
 ) {
@@ -146,7 +151,7 @@ fn collect_xref_hints_in_delimited(
         | DelimitedBlockType::DelimitedSidebar(blocks)
         | DelimitedBlockType::DelimitedQuote(blocks) => {
             for block in blocks {
-                collect_xref_hints_in_block(block, ast, range, hints);
+                collect_xref_hints_in_block(block, ast, source, range, hints);
             }
         }
         DelimitedBlockType::DelimitedListing(inlines)
@@ -154,7 +159,7 @@ fn collect_xref_hints_in_delimited(
         | DelimitedBlockType::DelimitedPass(inlines)
         | DelimitedBlockType::DelimitedVerse(inlines)
         | DelimitedBlockType::DelimitedComment(inlines) => {
-            collect_xref_hints_in_inlines(inlines, ast, range, hints);
+            collect_xref_hints_in_inlines(inlines, ast, source, range, hints);
         }
         DelimitedBlockType::DelimitedTable(_)
         | DelimitedBlockType::DelimitedStem(_)
@@ -166,17 +171,19 @@ fn collect_xref_hints_in_delimited(
 fn collect_xref_hints_in_inlines(
     inlines: &[InlineNode],
     ast: &Document,
+    source: &str,
     range: &Range,
     hints: &mut Vec<InlayHint>,
 ) {
     for inline in inlines {
-        collect_xref_hint_in_inline(inline, ast, range, hints);
+        collect_xref_hint_in_inline(inline, ast, source, range, hints);
     }
 }
 
 fn collect_xref_hint_in_inline(
     inline: &InlineNode,
     ast: &Document,
+    source: &str,
     range: &Range,
     hints: &mut Vec<InlayHint>,
 ) {
@@ -186,7 +193,8 @@ fn collect_xref_hint_in_inline(
                 return;
             }
 
-            let hint_pos = location_to_range(&xref.location).end;
+            let Some(xref_range) = location_to_utf16_range(source, &xref.location) else { return; };
+            let hint_pos = xref_range.end;
             if !position_in_range(hint_pos, range) {
                 return;
             }
@@ -205,22 +213,22 @@ fn collect_xref_hint_in_inline(
             }
         }
         InlineNode::BoldText(b) => {
-            collect_xref_hints_in_inlines(&b.content, ast, range, hints);
+            collect_xref_hints_in_inlines(&b.content, ast, source, range, hints);
         }
         InlineNode::ItalicText(i) => {
-            collect_xref_hints_in_inlines(&i.content, ast, range, hints);
+            collect_xref_hints_in_inlines(&i.content, ast, source, range, hints);
         }
         InlineNode::MonospaceText(m) => {
-            collect_xref_hints_in_inlines(&m.content, ast, range, hints);
+            collect_xref_hints_in_inlines(&m.content, ast, source, range, hints);
         }
         InlineNode::HighlightText(h) => {
-            collect_xref_hints_in_inlines(&h.content, ast, range, hints);
+            collect_xref_hints_in_inlines(&h.content, ast, source, range, hints);
         }
         InlineNode::SubscriptText(s) => {
-            collect_xref_hints_in_inlines(&s.content, ast, range, hints);
+            collect_xref_hints_in_inlines(&s.content, ast, source, range, hints);
         }
         InlineNode::SuperscriptText(s) => {
-            collect_xref_hints_in_inlines(&s.content, ast, range, hints);
+            collect_xref_hints_in_inlines(&s.content, ast, source, range, hints);
         }
         InlineNode::PlainText(_)
         | InlineNode::RawText(_)

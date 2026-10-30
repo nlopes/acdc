@@ -32,6 +32,20 @@ pub(crate) fn location_to_utf16_range(source: &str, location: &Location) -> Opti
     byte_range_to_utf16_range(source, start..end)
 }
 
+/// Convert a UTF-16 cursor to an original-source scalar position.
+/// Reject positions inside a surrogate pair or outside the source.
+pub(crate) fn position_to_scalar_position(
+    source: &str,
+    position: Position,
+) -> Option<acdc_parser::Position> {
+    let offset = super::position_to_offset(source, position)?;
+    let prefix = source.get(..offset)?.rsplit('\n').next()?;
+    Some(acdc_parser::Position::new(
+        position.line.checked_add(1)?,
+        u32::try_from(prefix.chars().count()).ok()?.checked_add(1)?,
+    ))
+}
+
 fn scalar_offset(source: &str, line: u32, boundary: u32) -> Option<usize> {
     let target_line = line.checked_sub(1)? as usize;
     let boundary = boundary as usize;
@@ -76,6 +90,58 @@ mod tests {
         location.absolute_start = usize::MAX;
         location.absolute_end = usize::MAX;
         location
+    }
+
+    #[test]
+    fn utf16_cursors_map_to_scalar_positions_without_byte_offsets() {
+        let text = "😀x\r\né😀z\n";
+        for (wire, scalar) in [
+            (Position::new(0, 0), acdc_parser::Position::new(1, 1)),
+            (Position::new(0, 2), acdc_parser::Position::new(1, 2)),
+            (Position::new(1, 3), acdc_parser::Position::new(2, 3)),
+            (Position::new(2, 0), acdc_parser::Position::new(3, 1)),
+        ] {
+            assert_eq!(position_to_scalar_position(text, wire), Some(scalar));
+        }
+        for invalid in [
+            Position::new(0, 1),
+            Position::new(1, 2),
+            Position::new(1, 5),
+            Position::new(3, 0),
+        ] {
+            assert_eq!(position_to_scalar_position(text, invalid), None);
+        }
+        assert_eq!(
+            position_to_scalar_position("", Position::new(0, 0)),
+            Some(acdc_parser::Position::new(1, 1))
+        );
+    }
+
+    #[test]
+    fn scalar_cursor_matching_ignores_byte_offsets_and_rejects_other_files() {
+        let mut span = location((1, 2), (1, 3));
+        assert!(crate::convert::position_in_location(
+            &acdc_parser::Position::new(1, 2),
+            &span
+        ));
+        assert!(crate::convert::position_in_location(
+            &acdc_parser::Position::new(1, 3),
+            &span
+        ));
+        assert!(!crate::convert::position_in_location(
+            &acdc_parser::Position::new(1, 4),
+            &span
+        ));
+        span.end.file = Some(Arc::new(vec!["included.adoc".into()]));
+        assert!(!crate::convert::position_in_location(
+            &acdc_parser::Position::new(1, 2),
+            &span
+        ));
+        span.start.file = span.end.file.clone();
+        assert!(!crate::convert::position_in_location(
+            &acdc_parser::Position::new(1, 2),
+            &span
+        ));
     }
 
     #[test]
