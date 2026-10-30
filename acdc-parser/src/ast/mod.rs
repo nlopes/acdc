@@ -206,6 +206,7 @@ mod content;
 mod inlines;
 mod location;
 mod media;
+mod substitutions;
 mod tables;
 mod values;
 
@@ -215,5 +216,6 @@ pub use content::{ContentListRef, ContentRef};
 pub use inlines::*;
 pub use location::{LocationRef, PositionRef};
 pub use media::{ImageRef, InlineImageRef, SourceKind, SourceRef};
+pub use substitutions::{SubstitutionEntryRef, SubstitutionSpecKind, SubstitutionSpecRef};
 pub use tables::{ColumnFormatRef, TableCellRef, TableRef, TableRowRef};
 pub use values::{AttributeValueRef, ElementIdRef, TokensRef};

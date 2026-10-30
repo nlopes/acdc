@@ -115,6 +115,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   content separately from the text produced by document parsing.
   Hyperlinks share destination, label, and location reads while retaining their
   concrete forms, display settings, metadata, and unencoded mail subject/body.
+  Block attribute reads also expose attribution, citation, authored captions,
+  named reference text, and retained `subs` settings, including explicit emptiness
+  and unsupported entries. Generated captions remain separate.
 
 - Parser fixtures support shared expectations or explicit Asciidoctor/Draft
   pairs, optional diagnostics, and stable test names. The runner rejects missing

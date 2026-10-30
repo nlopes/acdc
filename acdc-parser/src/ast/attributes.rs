@@ -6,14 +6,16 @@ use crate::{
     ThematicBreak, UnorderedList, Url, Video,
 };
 
-use super::{AttributeValueRef, ContentListRef, ContentRef, ElementIdRef, TokensRef};
+use super::{
+    AttributeValueRef, ContentListRef, ContentRef, ElementIdRef, SubstitutionSpecRef, TokensRef,
+};
 
 /// Named values on an element.
 ///
 /// Reads cover titles, image alt, inline tooltips, IDs, styles, role/option tokens,
-/// and scalar controls. Quote/caption content and substitution settings use
-/// dedicated accessors or the owner API. Restricted owners expose only the fields
-/// they retain.
+/// attribution, citation, authored captions, named reftext, substitution settings,
+/// and scalar controls. Generated caption labels and anchor labels are separate.
+/// Restricted owners expose only the fields they retain.
 ///
 /// Dedicated fields supply their values even when the scalar map contains a
 /// conflicting entry. An absent field stays absent; it does not reveal a stale
@@ -94,6 +96,11 @@ enum Field {
     Terms,
     See,
     SeeAlso,
+    Attribution,
+    CiteTitle,
+    Caption,
+    Reftext,
+    Substitutions,
 }
 
 impl Field {
@@ -109,6 +116,11 @@ impl Field {
             Self::Terms => "terms",
             Self::See => "see",
             Self::SeeAlso => "see-also",
+            Self::Attribution => "attribution",
+            Self::CiteTitle => "citetitle",
+            Self::Caption => "caption",
+            Self::Reftext => "reftext",
+            Self::Substitutions => "subs",
         }
     }
 }
@@ -352,7 +364,10 @@ impl<'doc> AttributesRef<'doc> {
     }
 
     fn fields(self) -> &'static [Field] {
-        use Field::{Alt, Id, Options, Roles, Style, Title};
+        use Field::{
+            Alt, Attribution, Caption, CiteTitle, Id, Options, Reftext, Roles, Style,
+            Substitutions, Title,
+        };
         match self.owner {
             Owner::Bold(_)
             | Owner::Italic(_)
@@ -362,13 +377,35 @@ impl<'doc> AttributesRef<'doc> {
             | Owner::Superscript(_)
             | Owner::CurvedQuotation(_)
             | Owner::CurvedApostrophe(_) => &[Id, Roles],
-            Owner::Image(_) => &[Title, Id, Roles, Options, Style, Alt],
+            Owner::Image(_) => &[
+                Title,
+                Id,
+                Roles,
+                Options,
+                Style,
+                Alt,
+                Attribution,
+                CiteTitle,
+                Caption,
+                Reftext,
+                Substitutions,
+            ],
             Owner::InlineImage(_) | Owner::Icon(_) => &[Title, Id, Roles, Options, Alt],
             Owner::Link(_) | Owner::Url(_) | Owner::Mailto(_) => &[Title, Id, Roles, Options],
             Owner::CrossReference(_) => &[Id, Roles, Options, Field::XrefStyle],
             Owner::IndexTerm(_) => &[Id, Roles, Options, Field::Terms, Field::See, Field::SeeAlso],
             Owner::ThematicBreak(_) => &[Title, Id],
-            Owner::TableOfContents(_) => &[Id, Roles, Options, Style],
+            Owner::TableOfContents(_) => &[
+                Id,
+                Roles,
+                Options,
+                Style,
+                Attribution,
+                CiteTitle,
+                Caption,
+                Reftext,
+                Substitutions,
+            ],
             Owner::Header(_)
             | Owner::Paragraph(_)
             | Owner::Section(_)
@@ -381,7 +418,18 @@ impl<'doc> AttributesRef<'doc> {
             | Owner::Audio(_)
             | Owner::Video(_)
             | Owner::DiscreteHeader(_)
-            | Owner::PageBreak(_) => &[Title, Id, Roles, Options, Style],
+            | Owner::PageBreak(_) => &[
+                Title,
+                Id,
+                Roles,
+                Options,
+                Style,
+                Attribution,
+                CiteTitle,
+                Caption,
+                Reftext,
+                Substitutions,
+            ],
         }
     }
 
@@ -406,6 +454,26 @@ impl<'doc> AttributesRef<'doc> {
             }
             Field::Style => self.style().map(AttributeValueRef::Text),
             Field::Alt => self.alt().map(AttributeValueRef::Content),
+            Field::Attribution => self
+                .metadata()
+                .and_then(|metadata| metadata.attribution.as_ref())
+                .map(|content| AttributeValueRef::Content(ContentRef::from(content))),
+            Field::CiteTitle => self
+                .metadata()
+                .and_then(|metadata| metadata.citetitle.as_ref())
+                .map(|content| AttributeValueRef::Content(ContentRef::from(content))),
+            Field::Caption => self
+                .metadata()
+                .and_then(BlockMetadata::caption_content)
+                .map(|content| AttributeValueRef::Content(ContentRef::from(content))),
+            Field::Reftext => self
+                .metadata()
+                .and_then(|metadata| metadata.reftext.as_ref())
+                .map(|content| AttributeValueRef::Content(ContentRef::from(content))),
+            Field::Substitutions => self
+                .metadata()
+                .and_then(|metadata| metadata.substitutions.as_ref())
+                .map(|spec| AttributeValueRef::Substitutions(SubstitutionSpecRef::from(spec))),
             Field::Terms => {
                 if let Owner::IndexTerm(node) = self.owner {
                     Some(AttributeValueRef::ContentList(ContentListRef::index_terms(

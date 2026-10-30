@@ -94,14 +94,22 @@ paragraphs, delimited blocks, admonitions, lists, tables, media, TOC blocks,
 discrete headings, breaks, formatting spans, and icons to read retained titles,
 image alt/tooltips, IDs, styles, role/option tokens, and scalar controls.
 `AttributeValueRef` distinguishes text, booleans, valueless attributes, inline
-content, and tokens. Text keeps meaningful
-quotes; reading a value does not render or copy it. `roles` and `options` alias
+content, tokens, and substitution settings. Text keeps meaningful quotes;
+reading a value does not render or copy it. `roles` and `options` alias
 `role` and `opts`; iteration returns each canonical name once in unspecified
 order. Empty role/option collections are absent, while empty text and content
 remain present. Read quote and verse authors with `attribution()` and citation
 titles with `citetitle()`. `caption_content()` returns authored caption content,
-separate from the title and generated labels. These content attributes,
-substitution settings, and document assignments are outside the generic inventory.
+separate from the title and generated labels. The same inventory exposes
+`attribution`, `citetitle`, `caption`, and named `reftext` from their typed owners.
+Generated captions and anchor labels do not become named block attributes.
+Document assignments remain separate.
+
+For `subs`, match `AttributeValueRef::Substitutions(spec)`. `spec.kind()` distinguishes
+authored entries, typed explicit substitutions, and typed modifier operations.
+`entries()` preserves order and duplicates without resolving block defaults.
+Authored entries keep aliases and unsupported names; an explicitly empty setting
+remains present. Reads do not render, reparse, or collect the entries.
 
 Container blocks expose child `blocks()`; listings, literals, verse, passthroughs,
 and delimited comments expose `content()`. Match their inline kinds to distinguish

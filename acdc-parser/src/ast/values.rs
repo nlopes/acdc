@@ -1,6 +1,6 @@
 use crate::{AttributeValue, ElementId};
 
-use super::{ContentListRef, ContentRef, LocationRef};
+use super::{ContentListRef, ContentRef, LocationRef, SubstitutionSpecRef};
 
 /// An element attribute value. Absence is represented by the enclosing `Option`.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -18,6 +18,8 @@ pub enum AttributeValueRef<'doc> {
     ContentList(ContentListRef<'doc>),
     /// Role or option tokens in their retained order.
     Tokens(TokensRef<'doc>),
+    /// Retained block substitution settings, without resolving block defaults.
+    Substitutions(SubstitutionSpecRef<'doc>),
 }
 
 impl<'doc> From<&'doc AttributeValue<'doc>> for AttributeValueRef<'doc> {

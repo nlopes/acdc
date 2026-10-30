@@ -6,6 +6,43 @@ use acdc_parser::{
 };
 use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
 
+#[test]
+fn block_content_and_substitution_reads_do_not_allocate() {
+    let mut paragraph = acdc_parser::Paragraph::new(Vec::new(), Location::default());
+    paragraph.metadata.attribution = Some(ContentAttribute::default());
+    paragraph.metadata.citetitle = Some(ContentAttribute::default());
+    paragraph.metadata.reftext = Some(ContentAttribute::default());
+    paragraph.metadata.caption = Some(acdc_parser::Caption::CustomContent(
+        ContentAttribute::default(),
+    ));
+    paragraph.metadata.substitutions = Some(acdc_parser::SubstitutionSpec::Source(vec![
+        String::from("q"),
+        String::from("+macros"),
+        String::from("unknown"),
+    ]));
+    let region = Region::new(ALLOCATOR);
+    let attributes = acdc_parser::ast::ParagraphRef::from(&paragraph).attributes();
+    for (name, value) in attributes.iter() {
+        black_box(attributes.get(name));
+        black_box(attributes.contains(name));
+        if let AttributeValueRef::Content(content) = value {
+            for node in content.inlines() {
+                black_box(node);
+            }
+        } else if let AttributeValueRef::Substitutions(spec) = value {
+            black_box(spec.kind());
+            black_box(spec.is_empty());
+            for entry in spec.entries() {
+                black_box(entry);
+            }
+        }
+    }
+    let stats = region.change();
+    assert_eq!(stats.allocations, 0);
+    assert_eq!(stats.reallocations, 0);
+    assert_eq!(stats.deallocations, 0);
+}
+
 #[global_allocator]
 static ALLOCATOR: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
 
