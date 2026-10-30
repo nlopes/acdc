@@ -90,7 +90,7 @@ fn direct_attribute_reads_do_not_allocate_for_owned_text_or_content()
 fn span_attribute_reads_split_role_text_without_allocating() {
     let bold = Bold {
         role: Some("one\ttwo\u{2003}one"),
-        id: Some("span"),
+        id: Some(acdc_parser::ElementId::new("span", Location::default())),
         form: Form::Unconstrained,
         content: vec![InlineNode::PlainText(Plain {
             content: "content",

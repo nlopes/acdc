@@ -619,16 +619,14 @@ impl<'doc> AttributesRef<'doc> {
 
     pub(super) fn id(self) -> Option<ElementIdRef<'doc>> {
         match self.owner {
-            Owner::Bold(node) => node.id.map(|id| ElementIdRef::new(id, &node.location)),
-            Owner::Italic(node) => node.id.map(|id| ElementIdRef::new(id, &node.location)),
-            Owner::Monospace(node) => node.id.map(|id| ElementIdRef::new(id, &node.location)),
-            Owner::Highlight(node) => node.id.map(|id| ElementIdRef::new(id, &node.location)),
-            Owner::Subscript(node) => node.id.map(|id| ElementIdRef::new(id, &node.location)),
-            Owner::Superscript(node) => node.id.map(|id| ElementIdRef::new(id, &node.location)),
-            Owner::CurvedQuotation(node) => node.id.map(|id| ElementIdRef::new(id, &node.location)),
-            Owner::CurvedApostrophe(node) => {
-                node.id.map(|id| ElementIdRef::new(id, &node.location))
-            }
+            Owner::Bold(node) => node.id.as_ref().map(ElementIdRef::from),
+            Owner::Italic(node) => node.id.as_ref().map(ElementIdRef::from),
+            Owner::Monospace(node) => node.id.as_ref().map(ElementIdRef::from),
+            Owner::Highlight(node) => node.id.as_ref().map(ElementIdRef::from),
+            Owner::Subscript(node) => node.id.as_ref().map(ElementIdRef::from),
+            Owner::Superscript(node) => node.id.as_ref().map(ElementIdRef::from),
+            Owner::CurvedQuotation(node) => node.id.as_ref().map(ElementIdRef::from),
+            Owner::CurvedApostrophe(node) => node.id.as_ref().map(ElementIdRef::from),
             Owner::InlineImage(node) => node.metadata.id.as_ref().map(ElementIdRef::from),
             Owner::Icon(node) => node.metadata.id.as_ref().map(ElementIdRef::from),
             Owner::CrossReference(node) => node.metadata.id.as_ref().map(ElementIdRef::from),

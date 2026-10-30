@@ -79,7 +79,7 @@ fn inline_unicode_ids_keep_their_full_target_and_roles() -> Result<(), Error> {
             else {
                 return Err(format!("unexpected inlines: {source:?}: {paragraph:?}").into());
             };
-            assert_eq!(bold.id, Some(id), "{source:?}");
+            assert_eq!(bold.id.as_ref().map(|id| id.id), Some(id), "{source:?}");
             assert_eq!(
                 bold.role,
                 attribute.contains("résumé").then_some("résumé"),

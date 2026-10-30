@@ -75,8 +75,9 @@ the owner fields and guarded scalar methods. As with other acdc inline macros,
 Formatting spans expose nested content, constrained/unconstrained form, IDs, and
 role tokens. Each span keeps its concrete type, such as `BoldRef` or `ItalicRef`.
 `HighlightRef::is_marked()` distinguishes an unadorned mark from a generic span
-with an ID or role. Span IDs use the span's recorded location; the parser does
-not retain a separate ID range.
+with an ID or role. Span IDs retain the source range that supplied the ID.
+For an expanded ID, this range covers the authored attribute reference, so tools
+must check the source before offering a literal ID edit.
 Table declarations remain separate from resolved presentation. Image and icon alt and
 tooltips preserve absent versus explicitly empty content. For a constructed node,
 use `ast::ParagraphRef::from(&paragraph)`. The existing `document()` API remains

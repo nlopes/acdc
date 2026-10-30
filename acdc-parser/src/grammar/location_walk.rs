@@ -312,14 +312,14 @@ where
         // The formatted-text variants are distinct struct types, so each needs its own
         // arm (they can't share an or-pattern binding).
         match node {
-            InlineNode::BoldText(t) => self.inlines(&mut t.content)?,
-            InlineNode::ItalicText(t) => self.inlines(&mut t.content)?,
-            InlineNode::MonospaceText(t) => self.inlines(&mut t.content)?,
-            InlineNode::HighlightText(t) => self.inlines(&mut t.content)?,
-            InlineNode::SubscriptText(t) => self.inlines(&mut t.content)?,
-            InlineNode::SuperscriptText(t) => self.inlines(&mut t.content)?,
-            InlineNode::CurvedQuotationText(t) => self.inlines(&mut t.content)?,
-            InlineNode::CurvedApostropheText(t) => self.inlines(&mut t.content)?,
+            InlineNode::BoldText(t) => self.formatting(&mut t.id, &mut t.content)?,
+            InlineNode::ItalicText(t) => self.formatting(&mut t.id, &mut t.content)?,
+            InlineNode::MonospaceText(t) => self.formatting(&mut t.id, &mut t.content)?,
+            InlineNode::HighlightText(t) => self.formatting(&mut t.id, &mut t.content)?,
+            InlineNode::SubscriptText(t) => self.formatting(&mut t.id, &mut t.content)?,
+            InlineNode::SuperscriptText(t) => self.formatting(&mut t.id, &mut t.content)?,
+            InlineNode::CurvedQuotationText(t) => self.formatting(&mut t.id, &mut t.content)?,
+            InlineNode::CurvedApostropheText(t) => self.formatting(&mut t.id, &mut t.content)?,
             InlineNode::Macro(m) => self.inline_macro(m)?,
             InlineNode::InlineAnchor(anchor) => {
                 self.reference_text(&mut anchor.xreflabel, &mut anchor.reftext_source)?;
@@ -335,6 +335,17 @@ where
             | InlineNode::CalloutRef(_) => {}
         }
         Ok(())
+    }
+
+    fn formatting(
+        &mut self,
+        id: &mut Option<crate::ElementId<'a>>,
+        content: &mut [InlineNode<'a>],
+    ) -> Result<(), E> {
+        if let Some(id) = id {
+            (self.visit_location)(&mut id.location)?;
+        }
+        self.inlines(content)
     }
 
     fn inline_macro(&mut self, m: &mut InlineMacro<'a>) -> Result<(), E> {

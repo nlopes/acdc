@@ -52,11 +52,8 @@ fn concrete_spans_keep_content_form_identity_and_tokens(
             assert_eq!(node.form(), expected_form);
             let id = node.id().ok_or("id")?;
             assert_eq!(id.as_str(), "span");
-            assert_eq!(
-                id.location().absolute_start(),
-                node.location().absolute_start()
-            );
-            assert_eq!(id.location().absolute_end(), node.location().absolute_end());
+            assert_eq!(id.location().absolute_start(), 9);
+            assert_eq!(id.location().absolute_end(), 12);
             assert_eq!(
                 node.roles().iter().collect::<Vec<_>>(),
                 ["one", "two", "one"]
@@ -265,7 +262,7 @@ fn included_and_table_cell_spans_keep_original_source_context(
 #[test]
 fn constructed_spans_keep_empty_identity_and_semantic_token_equality() -> Result<(), Error> {
     let mut bold = Bold {
-        id: Some(""),
+        id: Some(acdc_parser::ElementId::new("", Location::default())),
         role: Some("one\ttwo\u{2003}one"),
         form: Form::Unconstrained,
         content: Vec::new(),
@@ -296,7 +293,7 @@ fn constructed_spans_keep_empty_identity_and_semantic_token_equality() -> Result
     highlight.role = Some("");
     assert!(!HighlightRef::from(&highlight).is_marked());
     highlight.role = None;
-    highlight.id = Some("");
+    highlight.id = Some(acdc_parser::ElementId::new("", Location::default()));
     assert!(!HighlightRef::from(&highlight).is_marked());
     assert_eq!(
         HighlightRef::from(&highlight).attributes().get("id"),

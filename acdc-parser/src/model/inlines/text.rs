@@ -3,7 +3,7 @@ use serde::{
     ser::{SerializeMap, Serializer},
 };
 
-use crate::{Location, Role, Substitution};
+use crate::{ElementId, Location, Role, Substitution};
 
 use super::InlineNode;
 
@@ -19,7 +19,7 @@ pub enum Form {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Subscript<'a> {
     pub role: Option<Role<'a>>,
-    pub id: Option<&'a str>,
+    pub id: Option<ElementId<'a>>,
     pub form: Form,
     pub content: Vec<InlineNode<'a>>,
     pub location: Location,
@@ -29,7 +29,7 @@ pub struct Subscript<'a> {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Superscript<'a> {
     pub role: Option<Role<'a>>,
-    pub id: Option<&'a str>,
+    pub id: Option<ElementId<'a>>,
     pub form: Form,
     pub content: Vec<InlineNode<'a>>,
     pub location: Location,
@@ -39,7 +39,7 @@ pub struct Superscript<'a> {
 #[derive(Clone, Debug, PartialEq)]
 pub struct CurvedQuotation<'a> {
     pub role: Option<Role<'a>>,
-    pub id: Option<&'a str>,
+    pub id: Option<ElementId<'a>>,
     pub form: Form,
     pub content: Vec<InlineNode<'a>>,
     pub location: Location,
@@ -49,7 +49,7 @@ pub struct CurvedQuotation<'a> {
 #[derive(Clone, Debug, PartialEq)]
 pub struct CurvedApostrophe<'a> {
     pub role: Option<Role<'a>>,
-    pub id: Option<&'a str>,
+    pub id: Option<ElementId<'a>>,
     pub form: Form,
     pub content: Vec<InlineNode<'a>>,
     pub location: Location,
@@ -65,7 +65,7 @@ pub struct StandaloneCurvedApostrophe {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Monospace<'a> {
     pub role: Option<Role<'a>>,
-    pub id: Option<&'a str>,
+    pub id: Option<ElementId<'a>>,
     pub form: Form,
     pub content: Vec<InlineNode<'a>>,
     pub location: Location,
@@ -75,7 +75,7 @@ pub struct Monospace<'a> {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Highlight<'a> {
     pub role: Option<Role<'a>>,
-    pub id: Option<&'a str>,
+    pub id: Option<ElementId<'a>>,
     pub form: Form,
     pub content: Vec<InlineNode<'a>>,
     pub location: Location,
@@ -85,7 +85,7 @@ pub struct Highlight<'a> {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Bold<'a> {
     pub role: Option<Role<'a>>,
-    pub id: Option<&'a str>,
+    pub id: Option<ElementId<'a>>,
     pub form: Form,
     pub content: Vec<InlineNode<'a>>,
     pub location: Location,
@@ -95,7 +95,7 @@ pub struct Bold<'a> {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Italic<'a> {
     pub role: Option<Role<'a>>,
-    pub id: Option<&'a str>,
+    pub id: Option<ElementId<'a>>,
     pub form: Form,
     pub content: Vec<InlineNode<'a>>,
     pub location: Location,

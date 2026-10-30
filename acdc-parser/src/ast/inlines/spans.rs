@@ -23,7 +23,7 @@ macro_rules! span_reads {
                 self.node.form.clone()
             }
 
-            /// The retained ID, using the span's location rather than an exact ID range.
+            /// The retained ID and the source range that supplied it.
             #[must_use]
             pub fn id(self) -> Option<ElementIdRef<'doc>> {
                 self.attributes().id()

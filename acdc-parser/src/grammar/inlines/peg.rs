@@ -1445,7 +1445,7 @@ peg::parser! {
                     Some(state.intern_join(roles.iter(), " "))
                 }
             });
-            let id = attrs.as_ref().and_then(|(_roles, id)| *id);
+            let id = attrs.and_then(|(_roles, id)| id);
 
             let bm = BlockParsingMetadata {
                 substitutions: state.inline_ctx.substitutions,
@@ -1544,7 +1544,7 @@ peg::parser! {
                     Some(state.intern_join(roles.iter(), " "))
                 }
             });
-            let id = attrs.as_ref().and_then(|(_roles, id)| *id);
+            let id = attrs.and_then(|(_roles, id)| id);
 
             // Check if we're at start of input OR preceded by word boundary character
             let absolute_pos = start + state.inline_ctx.offset;
@@ -1616,7 +1616,7 @@ peg::parser! {
                     Some(state.intern_join(roles.iter(), " "))
                 }
             });
-            let id = attrs.as_ref().and_then(|(_roles, id)| *id);
+            let id = attrs.and_then(|(_roles, id)| id);
 
             // Check if we're at start of input OR preceded by word boundary character
             let absolute_pos = start + state.inline_ctx.offset;
@@ -1680,7 +1680,7 @@ peg::parser! {
                     Some(state.intern_join(roles.iter(), " "))
                 }
             });
-            let id = attrs.as_ref().and_then(|(_roles, id)| *id);
+            let id = attrs.and_then(|(_roles, id)| id);
 
             let bm = BlockParsingMetadata {
                 substitutions: state.inline_ctx.substitutions,
@@ -1714,7 +1714,7 @@ peg::parser! {
                     Some(state.intern_join(roles.iter(), " "))
                 }
             });
-            let id = attrs.as_ref().and_then(|(_roles, id)| *id);
+            let id = attrs.and_then(|(_roles, id)| id);
 
             let bm = BlockParsingMetadata {
                 substitutions: state.inline_ctx.substitutions,
@@ -1761,7 +1761,7 @@ peg::parser! {
                     Some(state.intern_join(roles.iter(), " "))
                 }
             });
-            let id = attrs.as_ref().and_then(|(_roles, id)| *id);
+            let id = attrs.and_then(|(_roles, id)| id);
 
             // Check if we're at start of input OR preceded by word boundary character
             let absolute_pos = start + state.inline_ctx.offset;
@@ -1825,7 +1825,7 @@ peg::parser! {
                     Some(state.intern_join(roles.iter(), " "))
                 }
             });
-            let id = attrs.as_ref().and_then(|(_roles, id)| *id);
+            let id = attrs.and_then(|(_roles, id)| id);
 
             let bm = BlockParsingMetadata {
                 substitutions: state.inline_ctx.substitutions,
@@ -1866,7 +1866,7 @@ peg::parser! {
                     Some(state.intern_join(roles.iter(), " "))
                 }
             });
-            let id = attrs.as_ref().and_then(|(_roles, id)| *id);
+            let id = attrs.and_then(|(_roles, id)| id);
 
             // Check if we're at start of input OR preceded by word boundary character
             let absolute_pos = start + state.inline_ctx.offset;
@@ -1932,7 +1932,7 @@ peg::parser! {
                     Some(state.intern_join(roles.iter(), " "))
                 }
             });
-            let id = attrs.as_ref().and_then(|(_roles, id)| *id);
+            let id = attrs.and_then(|(_roles, id)| id);
 
             let bm = BlockParsingMetadata {
                 substitutions: state.inline_ctx.substitutions,
@@ -1967,7 +1967,7 @@ peg::parser! {
                     Some(state.intern_join(roles.iter(), " "))
                 }
             });
-            let id = attrs.as_ref().and_then(|(_roles, id)| *id);
+            let id = attrs.and_then(|(_roles, id)| id);
 
             let bm = BlockParsingMetadata {
                 substitutions: state.inline_ctx.substitutions,
@@ -2002,7 +2002,7 @@ peg::parser! {
                     Some(state.intern_join(roles.iter(), " "))
                 }
             });
-            let id = attrs.as_ref().and_then(|(_roles, id)| *id);
+            let id = attrs.and_then(|(_roles, id)| id);
 
             let bm = BlockParsingMetadata {
                 substitutions: state.inline_ctx.substitutions,
@@ -2037,7 +2037,7 @@ peg::parser! {
                     Some(state.intern_join(roles.iter(), " "))
                 }
             });
-            let id = attrs.as_ref().and_then(|(_roles, id)| *id);
+            let id = attrs.and_then(|(_roles, id)| id);
 
             let bm = BlockParsingMetadata {
                 substitutions: state.inline_ctx.substitutions,
@@ -2281,20 +2281,20 @@ peg::parser! {
         /// This is a simplified version of block attributes, used for inline formatting
         /// A bare first positional value is a role; only a leading . or # starts shorthand.
         /// In inline context, % is a literal character, not an option separator.
-        rule inline_attributes() -> (Vec<&'input str>, Option<&'input str>)
+        rule inline_attributes() -> (Vec<&'input str>, Option<crate::ElementId<'input>>)
         = open_square_bracket() role:bare_inline_role() [^']']* close_square_bracket()
         { (vec![role], None) }
         / open_square_bracket() whitespace()* shorthands:inline_shorthand()+ [^']']* close_square_bracket()
         {
             let mut roles: Vec<&'input str> = Vec::new();
-            let mut id: Option<&'input str> = None;
+            let mut id = None;
 
             for s in shorthands {
                 match s {
                     Shorthand::Role(r) => roles.push(state.intern_cow(r)),
                     Shorthand::Id(i) => {
                         // If multiple IDs are specified, last one wins
-                        id = Some(state.intern_cow(i));
+                        id = Some(i);
                     }
                 }
             }
@@ -2304,7 +2304,9 @@ peg::parser! {
 
         /// Parse inline .role and #id shorthand, preserving % as literal text.
         rule inline_shorthand() -> Shorthand<'input>
-        = "#" id:inline_id() { Shorthand::Id(id.into()) }
+        = "#" start:position!() id:inline_id() end:position!() {
+            Shorthand::Id(crate::ElementId::new(id, state.create_block_location(start, end, state.inline_ctx.offset)))
+        }
         / "." role:inline_role() { Shorthand::Role(role.into()) }
 
         // Bare roles are positional text, not CSS identifiers. Preserve Unicode,

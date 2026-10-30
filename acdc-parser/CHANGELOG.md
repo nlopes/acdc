@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- Formatting IDs now retain their authored source ranges, including expanded
+  references, nested content, includes, and table cells. When constructing
+  formatting nodes, use `ElementId::new(value, location)` instead of a string
+  for `id`. Typed `id()` reads and the scalar native JSON `id` stay unchanged.
+
 - Serializing an index term directly now produces the same native JSON as its
   inline node. Read labels from `term`/`secondary`/`tertiary` and visibility from
   `visible`, rather than the former `kind` object. Nested catalog labels keep

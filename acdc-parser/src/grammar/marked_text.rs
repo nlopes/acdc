@@ -1,4 +1,4 @@
-use crate::{Error, InlineNode, Location};
+use crate::{ElementId, Error, InlineNode, Location};
 
 use super::location_mapping::LocationMappingContext;
 
@@ -9,6 +9,8 @@ pub(crate) trait MarkedText<'a>: Sized {
 
     /// Get the optional cross-reference ID.
     fn id(&self) -> Option<&'a str>;
+
+    fn id_mut(&mut self) -> Option<&mut ElementId<'a>>;
 
     /// Get an immutable reference to the location
     fn location(&self) -> &Location;
@@ -32,6 +34,9 @@ pub(crate) trait MarkedText<'a>: Sized {
         );
         *self.location_mut() = extended_location;
 
+        if let Some(id) = self.id_mut() {
+            id.location = ctx.map_location(&id.location)?;
+        }
         self.content_mut().map_locations_with(ctx)?;
 
         Ok(())
@@ -60,7 +65,11 @@ macro_rules! impl_marked_text {
                 type Content = Vec<InlineNode<'a>>;
 
                 fn id(&self) -> Option<&'a str> {
-                    self.id
+                    self.id.as_ref().map(|id| id.id)
+                }
+
+                fn id_mut(&mut self) -> Option<&mut ElementId<'a>> {
+                    self.id.as_mut()
                 }
 
                 fn location(&self) -> &Location {

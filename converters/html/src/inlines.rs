@@ -600,7 +600,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         self.render_simple_quote(
             traversal,
             "strong",
-            b.id,
+            b.id.as_ref().map(|id| id.id),
             b.role,
             &b.content,
             options.inlines_basic,
@@ -616,7 +616,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         self.render_simple_quote(
             traversal,
             "em",
-            i.id,
+            i.id.as_ref().map(|id| id.id),
             i.role,
             &i.content,
             options.inlines_basic,
@@ -632,7 +632,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         self.render_simple_quote(
             traversal,
             "code",
-            m.id,
+            m.id.as_ref().map(|id| id.id),
             m.role,
             &m.content,
             options.inlines_basic,
@@ -672,7 +672,12 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         let tag_role = if use_s_tag { None } else { h.role };
 
         if !options.inlines_basic {
-            write_tag_with_attrs(self.writer_mut(), tag, h.id, tag_role)?;
+            write_tag_with_attrs(
+                self.writer_mut(),
+                tag,
+                h.id.as_ref().map(|id| id.id),
+                tag_role,
+            )?;
         }
         self.visit_inline_nodes(traversal, &h.content)?;
         if !options.inlines_basic {
@@ -686,7 +691,13 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         c: &CurvedQuotation<'_>,
     ) -> Result<(), Error> {
-        self.render_curved(traversal, ("&ldquo;", "&rdquo;"), c.id, c.role, &c.content)
+        self.render_curved(
+            traversal,
+            ("&ldquo;", "&rdquo;"),
+            c.id.as_ref().map(|id| id.id),
+            c.role,
+            &c.content,
+        )
     }
 
     fn render_curved_apostrophe(
@@ -694,7 +705,13 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         c: &CurvedApostrophe<'_>,
     ) -> Result<(), Error> {
-        self.render_curved(traversal, ("&lsquo;", "&rsquo;"), c.id, c.role, &c.content)
+        self.render_curved(
+            traversal,
+            ("&lsquo;", "&rsquo;"),
+            c.id.as_ref().map(|id| id.id),
+            c.role,
+            &c.content,
+        )
     }
 
     fn render_standalone_apostrophe(&mut self) -> Result<(), Error> {
@@ -708,7 +725,14 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         s: &Superscript<'_>,
     ) -> Result<(), Error> {
         // Note: superscript doesn't check inlines_basic (pass false to preserve behavior).
-        self.render_simple_quote(traversal, "sup", s.id, s.role, &s.content, false)
+        self.render_simple_quote(
+            traversal,
+            "sup",
+            s.id.as_ref().map(|id| id.id),
+            s.role,
+            &s.content,
+            false,
+        )
     }
 
     fn render_subscript(
@@ -717,7 +741,14 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         s: &Subscript<'_>,
     ) -> Result<(), Error> {
         // Note: subscript doesn't check inlines_basic (pass false to preserve behavior).
-        self.render_simple_quote(traversal, "sub", s.id, s.role, &s.content, false)
+        self.render_simple_quote(
+            traversal,
+            "sub",
+            s.id.as_ref().map(|id| id.id),
+            s.role,
+            &s.content,
+            false,
+        )
     }
 
     /// Render an inline macro by dispatching to the per-variant renderer.

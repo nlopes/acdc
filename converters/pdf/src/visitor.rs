@@ -664,7 +664,7 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
                 InlineNode::BoldText(bold) => {
                     self.write_quoted_span(
                         traversal,
-                        bold.id,
+                        bold.id.as_ref().map(|id| id.id),
                         bold.role,
                         "#strong[",
                         &bold.content,
@@ -674,7 +674,7 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
                 InlineNode::ItalicText(italic) => {
                     self.write_quoted_span(
                         traversal,
-                        italic.id,
+                        italic.id.as_ref().map(|id| id.id),
                         italic.role,
                         "#emph[",
                         &italic.content,
@@ -682,7 +682,8 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
                     )?;
                 }
                 InlineNode::MonospaceText(mono) => {
-                    let state = self.write_inline_span_start(mono.id, mono.role);
+                    let state =
+                        self.write_inline_span_start(mono.id.as_ref().map(|id| id.id), mono.role);
                     self.write_inline_verbatim_nodes(traversal, &mono.content)?;
                     self.write_inline_span_end(state);
                 }
@@ -694,7 +695,7 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
                     };
                     self.write_quoted_span(
                         traversal,
-                        highlight.id,
+                        highlight.id.as_ref().map(|id| id.id),
                         highlight.role,
                         prefix,
                         &highlight.content,
@@ -704,7 +705,7 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
                 InlineNode::SubscriptText(sub) => {
                     self.write_quoted_span(
                         traversal,
-                        sub.id,
+                        sub.id.as_ref().map(|id| id.id),
                         sub.role,
                         "#sub[",
                         &sub.content,
@@ -714,7 +715,7 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
                 InlineNode::SuperscriptText(sup) => {
                     self.write_quoted_span(
                         traversal,
-                        sup.id,
+                        sup.id.as_ref().map(|id| id.id),
                         sup.role,
                         "#super[",
                         &sup.content,
@@ -722,14 +723,16 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
                     )?;
                 }
                 InlineNode::CurvedQuotationText(quoted) => {
-                    let state = self.write_inline_span_start(quoted.id, quoted.role);
+                    let state = self
+                        .write_inline_span_start(quoted.id.as_ref().map(|id| id.id), quoted.role);
                     self.write_text_expr("\u{201C}");
                     self.write_inlines(traversal, &quoted.content)?;
                     self.write_text_expr("\u{201D}");
                     self.write_inline_span_end(state);
                 }
                 InlineNode::CurvedApostropheText(quoted) => {
-                    let state = self.write_inline_span_start(quoted.id, quoted.role);
+                    let state = self
+                        .write_inline_span_start(quoted.id.as_ref().map(|id| id.id), quoted.role);
                     self.write_text_expr("\u{2018}");
                     self.write_inlines(traversal, &quoted.content)?;
                     self.write_text_expr("\u{2019}");

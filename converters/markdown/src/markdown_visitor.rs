@@ -2036,19 +2036,19 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
                 self.write_escaped_text(text.content)?;
             }
             InlineNode::BoldText(text) => {
-                self.write_inline_anchor(text.id)?;
+                self.write_inline_anchor(text.id.as_ref().map(|id| id.id))?;
                 let role = self.write_role_start(text.role)?;
                 self.write_emphasis(traversal, &text.content, "**", "strong")?;
                 self.write_role_end(role)?;
             }
             InlineNode::ItalicText(text) => {
-                self.write_inline_anchor(text.id)?;
+                self.write_inline_anchor(text.id.as_ref().map(|id| id.id))?;
                 let role = self.write_role_start(text.role)?;
                 self.write_emphasis(traversal, &text.content, "*", "em")?;
                 self.write_role_end(role)?;
             }
             InlineNode::MonospaceText(text) => {
-                self.write_inline_anchor(text.id)?;
+                self.write_inline_anchor(text.id.as_ref().map(|id| id.id))?;
                 let role = self.write_role_start(text.role)?;
                 let content = InlineTextTransform::default()
                     .line_break("\n")
@@ -2057,7 +2057,7 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
                 self.write_role_end(role)?;
             }
             InlineNode::HighlightText(text) => {
-                self.write_inline_anchor(text.id)?;
+                self.write_inline_anchor(text.id.as_ref().map(|id| id.id))?;
                 let role = self.write_role_start(text.role)?;
                 if role.is_none() {
                     write!(self.writer, "<mark>")?;
@@ -2069,7 +2069,7 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
                 self.write_role_end(role)?;
             }
             InlineNode::SubscriptText(text) => {
-                self.write_inline_anchor(text.id)?;
+                self.write_inline_anchor(text.id.as_ref().map(|id| id.id))?;
                 let role = self.write_role_start(text.role)?;
                 write!(self.writer, "<sub>")?;
                 self.visit_inline_nodes(traversal, &text.content)?;
@@ -2077,7 +2077,7 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
                 self.write_role_end(role)?;
             }
             InlineNode::SuperscriptText(text) => {
-                self.write_inline_anchor(text.id)?;
+                self.write_inline_anchor(text.id.as_ref().map(|id| id.id))?;
                 let role = self.write_role_start(text.role)?;
                 write!(self.writer, "<sup>")?;
                 self.visit_inline_nodes(traversal, &text.content)?;
@@ -2093,7 +2093,7 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
                 write!(self.writer, "'")?;
             }
             InlineNode::CurvedQuotationText(text) => {
-                self.write_inline_anchor(text.id)?;
+                self.write_inline_anchor(text.id.as_ref().map(|id| id.id))?;
                 let role = self.write_role_start(text.role)?;
                 write!(self.writer, "\"")?;
                 self.visit_inline_nodes(traversal, &text.content)?;
@@ -2101,7 +2101,7 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
                 self.write_role_end(role)?;
             }
             InlineNode::CurvedApostropheText(text) => {
-                self.write_inline_anchor(text.id)?;
+                self.write_inline_anchor(text.id.as_ref().map(|id| id.id))?;
                 let role = self.write_role_start(text.role)?;
                 write!(self.writer, "'")?;
                 self.visit_inline_nodes(traversal, &text.content)?;

@@ -2190,21 +2190,35 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
 
     fn code_formatting(&mut self, node: &InlineNode<'_>) -> Option<CodeSpan> {
         let (id, role, prefix, suffix) = match node {
-            InlineNode::BoldText(text) => (text.id, text.role, "#strong[", "]"),
-            InlineNode::ItalicText(text) => (text.id, text.role, "#emph[", "]"),
-            InlineNode::MonospaceText(text) => (text.id, text.role, "", ""),
+            InlineNode::BoldText(text) => {
+                (text.id.as_ref().map(|id| id.id), text.role, "#strong[", "]")
+            }
+            InlineNode::ItalicText(text) => {
+                (text.id.as_ref().map(|id| id.id), text.role, "#emph[", "]")
+            }
+            InlineNode::MonospaceText(text) => {
+                (text.id.as_ref().map(|id| id.id), text.role, "", "")
+            }
             InlineNode::HighlightText(text) => {
                 let (prefix, suffix) = if text.id.is_none() && text.role.is_none() {
                     ("#highlight[", "]")
                 } else {
                     ("", "")
                 };
-                (text.id, text.role, prefix, suffix)
+                (text.id.as_ref().map(|id| id.id), text.role, prefix, suffix)
             }
-            InlineNode::SuperscriptText(text) => (text.id, text.role, "#super[", "]"),
-            InlineNode::SubscriptText(text) => (text.id, text.role, "#sub[", "]"),
-            InlineNode::CurvedQuotationText(text) => (text.id, text.role, "", ""),
-            InlineNode::CurvedApostropheText(text) => (text.id, text.role, "", ""),
+            InlineNode::SuperscriptText(text) => {
+                (text.id.as_ref().map(|id| id.id), text.role, "#super[", "]")
+            }
+            InlineNode::SubscriptText(text) => {
+                (text.id.as_ref().map(|id| id.id), text.role, "#sub[", "]")
+            }
+            InlineNode::CurvedQuotationText(text) => {
+                (text.id.as_ref().map(|id| id.id), text.role, "", "")
+            }
+            InlineNode::CurvedApostropheText(text) => {
+                (text.id.as_ref().map(|id| id.id), text.role, "", "")
+            }
             InlineNode::PlainText(_)
             | InlineNode::RawText(_)
             | InlineNode::VerbatimText(_)

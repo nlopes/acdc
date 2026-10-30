@@ -320,10 +320,8 @@ fn expanded_unicode_ids_keep_include_and_table_source_provenance(
     #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
 ) -> Result<(), Error> {
     let dir = tempfile::tempdir()?;
-    std::fs::write(
-        dir.path().join("child.adoc"),
-        ":target: café\n\n[[{target}]]\n== Included\n\n[cols=\"a\"]\n|===\n|[[table-id]]\nText [#span]*Ω*.\n|===\n",
-    )?;
+    let child = ":target: café\n\n[[{target}]]\n== Included\n\n[cols=\"a\"]\n|===\n|[[table-id]]\nText [#span]*Ω*.\n|===\n";
+    std::fs::write(dir.path().join("child.adoc"), child)?;
     let path = dir.path().join("root.adoc");
     std::fs::write(&path, "include::child.adoc[]\n")?;
     let parsed = parse_file(
@@ -373,11 +371,12 @@ fn expanded_unicode_ids_keep_include_and_table_source_provenance(
         .inlines()
         .find(|inline| inline.id().is_some())
         .ok_or("span")?;
-    assert_eq!(
-        span.id().ok_or("span ID")?.location().absolute_start(),
-        span.location().absolute_start()
-    );
-    assert_eq!(span.id().ok_or("span ID")?.location().start().line(), 9);
+    let id = span.id().ok_or("span ID")?;
+    let start = child.find("span").ok_or("authored ID")?;
+    assert_eq!(id.location().absolute_start(), start);
+    assert_eq!(id.location().absolute_end(), start + 3);
+    assert_eq!(id.location().start().line(), 9);
+    assert_eq!(id.location().start().column(), 8);
     Ok(())
 }
 

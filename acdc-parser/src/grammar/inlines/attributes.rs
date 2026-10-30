@@ -19,7 +19,7 @@ use crate::{
 /// Attribute shorthand syntax for inline formatting attributes.
 #[derive(Debug)]
 pub(super) enum Shorthand<'input> {
-    Id(Cow<'input, str>),
+    Id(ElementId<'input>),
     Role(Cow<'input, str>),
 }
 

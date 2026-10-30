@@ -223,7 +223,7 @@ macro_rules! serialize_inline_format {
             $map.serialize_entry("role", role)?;
         }
         if let Some(id) = &$value.id {
-            $map.serialize_entry("id", id)?;
+            $map.serialize_entry("id", &id.id)?;
         }
         $map.serialize_entry("inlines", &$value.content)?;
         $map.serialize_entry("location", &$value.location)?;
