@@ -115,6 +115,11 @@ distinguishes checked, unchecked, and ordinary items. Numbering controls such as
 `start` stay in the list attributes. Callout items expose their marker kind and
 number through `callout()`; that number belongs to its local callout sequence.
 
+Buttons expose `label()` as parsed content. Keyboard `keys()` and menu `items()`
+iterate separate content values in order; a menu's `target()` is its menu name.
+These labels are not attribute lists. Inline formulas expose protected `text()`
+and resolved `notation()`, using the same methods as formula blocks.
+
 Footnotes expose `id()`, `number()`, and the `content()` retained on each
 occurrence. References, including repeated definitions, have empty content.
 `document_ref().footnotes()` reads the registered definitions separately, in

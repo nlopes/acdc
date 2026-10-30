@@ -107,6 +107,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Footnote reads separate occurrence content and shared numbers from registered
   definitions. Bibliography anchors expose entry labels separately from citation
   text, with their original source locations.
+  Button, keyboard, and menu reads preserve formatted labels and ordered key/item
+  sequences. Inline formulas expose protected text and resolved notation without
+  rendering or further substitutions.
 
 - Parser fixtures support shared expectations or explicit Asciidoctor/Draft
   pairs, optional diagnostics, and stable test names. The runner rejects missing

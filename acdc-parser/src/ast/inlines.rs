@@ -7,6 +7,8 @@ mod icons;
 mod index_terms;
 mod notes;
 mod spans;
+mod stem;
+mod ui;
 mod xrefs;
 
 pub use index_terms::{IndexTermLabelsRef, IndexTermRelationshipRef};
