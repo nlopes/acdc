@@ -113,6 +113,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Text reads retain escape protection, ordered passthrough substitutions, and
   verbatim whitespace. Standalone inline parsing exposes retained passthrough
   content separately from the text produced by document parsing.
+  Hyperlinks share destination, label, and location reads while retaining their
+  concrete forms, display settings, metadata, and unencoded mail subject/body.
 
 - Parser fixtures support shared expectations or explicit Asciidoctor/Draft
   pairs, optional diagnostics, and stable test names. The runner rejects missing

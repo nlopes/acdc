@@ -12,6 +12,7 @@ mod text;
 mod ui;
 mod xrefs;
 
+pub use hyperlinks::HyperlinkRef;
 pub use index_terms::{IndexTermLabelsRef, IndexTermRelationshipRef};
 
 node_ref!(PlainRef<'doc>, crate::Plain<'doc>, "Plain text.");

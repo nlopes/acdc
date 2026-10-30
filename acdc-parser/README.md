@@ -132,6 +132,14 @@ iterate separate content values in order; a menu's `target()` is its menu name.
 These labels are not attribute lists. Inline formulas expose protected `text()`
 and resolved `notation()`, using the same methods as formula blocks.
 
+Use `InlineRef::as_hyperlink()` to read link, URL, mailto, and autolink targets,
+labels, and locations through `HyperlinkRef`. Match its concrete variant for
+metadata and display settings. Empty label content selects automatic display;
+these reads do not generate it. Autolinks retain whether angle brackets were
+written and whether `hide-uri-scheme` was active. Mail subject/body values stay
+unencoded until conversion. Xrefs remain separate because they need reference
+resolution.
+
 Footnotes expose `id()`, `number()`, and the `content()` retained on each
 occurrence. References, including repeated definitions, have empty content.
 `document_ref().footnotes()` reads the registered definitions separately, in
