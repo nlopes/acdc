@@ -385,6 +385,9 @@ where
     }
 
     fn index_term(&mut self, term: &mut crate::IndexTerm<'a>) -> Result<(), E> {
+        if let Some(id) = &mut term.metadata.id {
+            (self.visit_location)(&mut id.location)?;
+        }
         match &mut term.kind {
             crate::IndexTermKind::Flow(term) => self.inlines(term)?,
             crate::IndexTermKind::Concealed {

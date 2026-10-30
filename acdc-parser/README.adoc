@@ -254,6 +254,15 @@ inline content; unquoted and double-quoted labels stay literal. Natural-target
 lookup still uses the expanded label's markup, so `Custom *Label*` and
 `Custom Label` are different targets.
 
+Named index macros retain scalar controls separately from their labels.
+Use `IndexTermRef::attributes()` to read identity, roles, options, `terms`,
+`see`, `see-also`, and extensions. Hierarchy and see-also values use
+`AttributeValueRef::ContentList`; iterate each value's inline content separately.
+`catalog()` exposes registration-time labels without creating another occurrence.
+Controls freeze when macros are recognized; display labels may still undergo
+later substitutions. An index macro ID is retained but does not register an anchor.
+Native JSON uses the same node form for an index term and its enclosing inline node.
+
 == Native AST JSON
 
 Native JSON preserves acdc's model; it is not a claim of ASG conformance.

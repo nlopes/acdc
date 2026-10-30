@@ -1,7 +1,7 @@
 //! Link attributes and cross-reference labels.
 
 use crate::{
-    ContentAttribute, CrossReference, ElementId, InlineMetadata, InlineNode,
+    ContentAttribute, CrossReference, InlineMetadata, InlineNode,
     grammar::{
         ParserState,
         attributes::ScannedAttribute,
@@ -9,6 +9,7 @@ use crate::{
         inline_preprocessor::{ProcessedKind, SourceMap},
         inline_processing::process_inlines_no_autolinks,
         inlines::{
+            attributes::insert_named_metadata,
             index_terms::IndexTermSegment,
             text::{RestoredRange, registration_source, restored_label_offset},
         },
@@ -200,36 +201,6 @@ pub(super) struct ProcessedLinkContent<'a> {
     pub(super) macro_attributes: MacroAttributes<'a>,
     pub(super) subject: Option<&'a str>,
     pub(super) body: Option<&'a str>,
-}
-
-fn insert_named_metadata<'a>(
-    state: &ParserState<'a>,
-    metadata: &mut InlineMetadata<'a>,
-    attributes: &mut MacroAttributes<'a>,
-    name: Cow<'a, str>,
-    value: String,
-    range: Range<usize>,
-) {
-    match name.as_ref() {
-        "id" => {
-            metadata.id = Some(ElementId {
-                id: state.intern_str(&value),
-                location: state
-                    .create_location(range.start, range.end.saturating_sub(1).max(range.start)),
-            });
-        }
-        "role" => {
-            metadata.roles = value
-                .split_whitespace()
-                .map(|role| state.intern_str(role))
-                .collect();
-        }
-        "options" => {
-            attributes.options =
-                crate::grammar::helpers::parse_comma_separated_values(state, &value);
-        }
-        _ => attributes.attributes.set(name, value.into()),
-    }
 }
 
 pub(super) fn process_link_content<'a>(

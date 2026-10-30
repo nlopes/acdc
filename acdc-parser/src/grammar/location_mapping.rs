@@ -405,6 +405,10 @@ fn restore_macro_attributes<'a>(
             restore_inline_metadata(&mut xref.metadata, &mut xref.macro_attributes, ctx);
             &mut xref.macro_attributes.attributes
         }
+        InlineMacro::IndexTerm(term) => {
+            restore_inline_metadata(&mut term.metadata, &mut term.macro_attributes, ctx);
+            &mut term.macro_attributes.attributes
+        }
         InlineMacro::Image(image) => {
             restore_inline_metadata(&mut image.metadata, &mut image.macro_attributes, ctx);
             &mut image.macro_attributes.attributes
@@ -415,8 +419,7 @@ fn restore_macro_attributes<'a>(
         | InlineMacro::Menu(_)
         | InlineMacro::Autolink(_)
         | InlineMacro::Pass(_)
-        | InlineMacro::Stem(_)
-        | InlineMacro::IndexTerm(_) => return,
+        | InlineMacro::Stem(_) => return,
     };
 
     // Restore after attribute parsing so protected commas and brackets stay in the value.
@@ -597,6 +600,9 @@ fn map_index_term_locations<'a>(
         base_location: location,
     };
     index_term.location = ctx.map_location(&index_term.location)?;
+    if let Some(id) = &mut index_term.metadata.id {
+        id.location = ctx.map_location(&id.location)?;
+    }
     match &mut index_term.kind {
         IndexTermKind::Flow(term) => {
             *term = map_inline_locations(state, processed, take(term), location)?;

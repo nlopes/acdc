@@ -1,10 +1,20 @@
 //! Index terms and their reference labels.
 
+use std::borrow::Cow;
+
 use crate::{
-    IndexTerm, IndexTermKind, IndexTermRelationship, InlineMacro, InlineNode, Substitution,
+    CompatibilityMode, IndexTerm, IndexTermKind, IndexTermRelationship, InlineMacro, InlineNode,
+    Substitution,
     grammar::{
-        ParserState, inline_parser,
-        inlines::text::{map_registered_inline, registration_source, restored_label_offset},
+        ParserState,
+        attributes::{AttributeQuote, ScannedAttribute, scan_attribute_list},
+        inline_parser,
+        inline_preprocessor::{ProcessedKind, SourceMap},
+        inlines::{
+            attributes::insert_named_metadata,
+            recognition::structural_token_allowed,
+            text::{map_registered_inline, registration_source, restored_label_offset},
+        },
         state::{InlineContext, InlineRules},
     },
     model::substitution::SubstitutionPlan,
@@ -16,15 +26,27 @@ pub(super) struct IndexTermSegment<'a> {
     pub(super) start: usize,
 }
 
-#[derive(Clone)]
-pub(super) enum IndexTermRelationshipSegments<'a> {
-    See(IndexTermSegment<'a>),
-    SeeAlso(Vec<IndexTermSegment<'a>>),
+#[derive(Clone, Copy)]
+pub(super) struct IndexTermLabel<'a> {
+    pub(super) text: &'a str,
+    pub(super) start: usize,
+    quote: Option<char>,
 }
 
-pub(super) enum IndexTermMacroItem<'a> {
-    Term(IndexTermSegment<'a>),
-    Relationship(IndexTermRelationshipSegments<'a>),
+impl<'a> From<IndexTermSegment<'a>> for IndexTermLabel<'a> {
+    fn from(segment: IndexTermSegment<'a>) -> Self {
+        Self {
+            text: segment.text,
+            start: segment.start,
+            quote: None,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub(super) enum IndexTermRelationshipSegments<'a> {
+    See(IndexTermLabel<'a>),
+    SeeAlso(Vec<IndexTermLabel<'a>>),
 }
 
 #[derive(Clone, Copy)]
@@ -43,7 +65,7 @@ impl IndexTermForm {
 
 #[derive(Clone)]
 struct IndexTermParts<'a> {
-    terms: Vec<IndexTermSegment<'a>>,
+    terms: Vec<IndexTermLabel<'a>>,
     relationship: Option<IndexTermRelationshipSegments<'a>>,
 }
 
@@ -67,7 +89,7 @@ fn split_index_term_relationship(
         return (
             trimmed_index_term_segment(term, segment.start),
             Some(IndexTermRelationshipSegments::See(
-                trimmed_index_term_segment(target, segment.start + term.len() + 4),
+                trimmed_index_term_segment(target, segment.start + term.len() + 4).into(),
             )),
         );
     }
@@ -78,7 +100,7 @@ fn split_index_term_relationship(
             .map(|target| {
                 let segment = trimmed_index_term_segment(target, start);
                 start += target.len() + 4;
-                segment
+                segment.into()
             })
             .collect();
         return (
@@ -91,18 +113,38 @@ fn split_index_term_relationship(
 
 fn parse_index_term_inlines<'a>(
     state: &mut ParserState<'a>,
-    segment: IndexTermSegment<'a>,
+    segment: IndexTermLabel<'a>,
     form: Option<IndexTermForm>,
 ) -> Result<Vec<InlineNode<'a>>, &'static str> {
     if segment.text.is_empty() {
         return Ok(Vec::new());
     }
 
-    // Each label newline becomes one space; equal byte lengths preserve source offsets.
-    let text = if segment.text.contains('\n') {
-        state.intern_str(&segment.text.replace('\n', " "))
-    } else {
+    let mut source_map = SourceMap::default();
+    if let Some(quote) = segment.quote {
+        for (offset, _) in segment.text.match_indices(&format!("\\{quote}")) {
+            if structural_token_allowed(state, &Substitution::Macros, segment.start + offset, 2) {
+                source_map.add_replacement(offset, offset + 2, 1, ProcessedKind::Escape);
+            }
+        }
+    }
+    let text = if source_map.replacements.is_empty() && !segment.text.contains('\n') {
         segment.text
+    } else {
+        let mut decoded = String::with_capacity(segment.text.len());
+        let mut cursor = 0;
+        for replacement in &source_map.replacements {
+            decoded.push_str(&segment.text[cursor..replacement.absolute_start]);
+            cursor = replacement.absolute_start + 1;
+        }
+        decoded.push_str(&segment.text[cursor..]);
+        state.intern_str(&decoded.replace('\n', " "))
+    };
+    let unescaped_offset = |position: usize| {
+        position
+            - source_map
+                .replacements
+                .partition_point(|replacement| replacement.absolute_start < position)
     };
     let end = segment.start + segment.text.len();
     let mut rules = state.inline_ctx.rules;
@@ -130,15 +172,17 @@ fn parse_index_term_inlines<'a>(
         .filter_map(|range| {
             let range_start = range.start.max(segment.start);
             let range_end = range.end.min(end);
-            (range_start < range_end)
-                .then(|| range_start - segment.start..range_end - segment.start)
+            (range_start < range_end).then(|| {
+                unescaped_offset(range_start - segment.start)
+                    ..unescaped_offset(range_end - segment.start)
+            })
         })
         .collect();
     child.empty_attribute_offsets = state
         .empty_attribute_offsets
         .iter()
         .filter(|offset| segment.start <= **offset && **offset <= end)
-        .map(|offset| offset - segment.start)
+        .map(|offset| unescaped_offset(offset - segment.start))
         .collect();
     child.late_attribute_sources = state
         .late_attribute_sources
@@ -146,7 +190,8 @@ fn parse_index_term_inlines<'a>(
         .filter(|(range, _)| range.start >= segment.start && range.end <= end)
         .map(|(range, source)| {
             (
-                range.start - segment.start..range.end - segment.start,
+                unescaped_offset(range.start - segment.start)
+                    ..unescaped_offset(range.end - segment.start),
                 *source,
             )
         })
@@ -157,16 +202,13 @@ fn parse_index_term_inlines<'a>(
 
     let mut parsed = parsed;
     for inline in &mut parsed {
-        crate::grammar::location_walk::walk_inline_locations_mut(inline, &mut |location| {
-            location.absolute_start += segment.start;
-            location.absolute_end += segment.start;
-            location.start = state
-                .line_map
-                .offset_to_position(location.absolute_start, state.input);
-            location.end = state
-                .line_map
-                .offset_to_position(location.absolute_end, state.input);
-        });
+        crate::grammar::location_walk::try_walk_inline_locations_mut(inline, &mut |location| {
+            let start = segment.start + source_map.map_position(location.absolute_start)?;
+            let end = segment.start + source_map.map_end_position(location.absolute_end)?;
+            *location = state.create_location(start, end);
+            Ok::<_, crate::Error>(())
+        })
+        .map_err(|_| "could not map index label content")?;
     }
     Ok(parsed)
 }
@@ -212,7 +254,8 @@ pub(super) fn expand_escaped_index_terms<'a>(
             IndexTermSegment {
                 text: plain.content,
                 start: plain.location.absolute_start + escapes,
-            },
+            }
+            .into(),
             None,
         )?;
         if matches!(parsed.as_slice(), [InlineNode::PlainText(text)] if text.content == plain.content)
@@ -234,7 +277,7 @@ pub(super) fn parse_index_term<'a>(
     location: crate::Location,
 ) -> Result<InlineNode<'a>, &'static str> {
     let (source, restored_ranges) = registration_source(state, content);
-    let mut parts = index_term_parts(state, source, form)?;
+    let (mut parts, attributes) = index_term_parts(state, source, form)?;
     let plan = state.inline_ctx.substitutions;
     let catalog = if plan.precedes(&Substitution::Macros, &Substitution::Attributes)
         || plan.precedes(&Substitution::Macros, &Substitution::Quotes)
@@ -277,14 +320,12 @@ pub(super) fn parse_index_term<'a>(
     } else {
         None
     };
-    let map_segment = |segment: &mut IndexTermSegment<'a>| {
+    let map_segment = |segment: &mut IndexTermLabel<'a>| {
         let start = content.start + restored_label_offset(segment.start, &restored_ranges, false);
         let end = content.start
             + restored_label_offset(segment.start + segment.text.len(), &restored_ranges, false);
-        *segment = IndexTermSegment {
-            text: &state.input[start..end],
-            start,
-        };
+        segment.text = &state.input[start..end];
+        segment.start = start;
     };
     for segment in &mut parts.terms {
         map_segment(segment);
@@ -299,6 +340,28 @@ pub(super) fn parse_index_term<'a>(
         None => {}
     }
     let mut term = parse_index_parts(state, parts, form, location)?;
+    for attribute in attributes {
+        let Some(name) = attribute.name else {
+            continue;
+        };
+        let name = match name.as_str() {
+            "roles" => Cow::Borrowed("role"),
+            "opts" => Cow::Borrowed("options"),
+            _ => Cow::Owned(name),
+        };
+        let start =
+            content.start + restored_label_offset(attribute.value_start, &restored_ranges, false);
+        let end =
+            content.start + restored_label_offset(attribute.value_end, &restored_ranges, false);
+        insert_named_metadata(
+            state,
+            &mut term.metadata,
+            &mut term.macro_attributes,
+            name,
+            attribute.value,
+            start..end,
+        );
+    }
     term.catalog = catalog;
     Ok(index_term_node(term, plan))
 }
@@ -307,35 +370,138 @@ fn index_term_parts<'a>(
     state: &mut ParserState<'a>,
     text: &'a str,
     form: IndexTermForm,
-) -> Result<IndexTermParts<'a>, &'static str> {
+) -> Result<(IndexTermParts<'a>, Vec<ScannedAttribute>), &'static str> {
     let content = trimmed_index_term_segment(text, 0);
     let (terms, relationship) = match form {
         IndexTermForm::Flow => {
             let (term, relationship) = split_index_term_relationship(content);
-            (vec![term], relationship)
+            (vec![term.into()], relationship)
         }
         IndexTermForm::Concealed => {
             let (terms, relationship) = split_index_term_relationship(content);
             let terms = inline_parser::index_term_list(terms.text, state, terms.start)
                 .map_err(|_| "could not parse index terms")?;
-            (terms, relationship)
+            (terms.into_iter().map(Into::into).collect(), relationship)
         }
         IndexTermForm::NamedFlow | IndexTermForm::NamedConcealed => {
-            let items = inline_parser::index_term_macro_list(content.text, state, content.start)
-                .map_err(|_| "could not parse index term attributes")?;
-            let (terms, relationship) = partition_index_term_macro_items(items);
-            let terms = if matches!(form, IndexTermForm::NamedFlow) && relationship.is_none() {
-                vec![content]
+            if text.contains('=') {
+                return named_index_parts(state, text, form);
+            }
+            let terms = if form.visible() {
+                vec![content.into()]
             } else {
-                terms
+                inline_parser::named_index_term_list(content.text, state, content.start)
+                    .map_err(|_| "could not parse index terms")?
+                    .into_iter()
+                    .map(Into::into)
+                    .collect()
             };
-            (terms, relationship)
+            (terms, None)
         }
     };
-    Ok(IndexTermParts {
-        terms,
-        relationship,
-    })
+    Ok((
+        IndexTermParts {
+            terms,
+            relationship,
+        },
+        Vec::new(),
+    ))
+}
+
+fn attribute_ranges<'a>(
+    state: &mut ParserState<'a>,
+    text: &'a str,
+) -> Result<Vec<std::ops::Range<usize>>, &'static str> {
+    let mut context = state.inline_ctx;
+    context.offset = 0;
+    let mut child = ParserState::for_inline_parsing(text, state, context);
+    inline_parser::index_term_attribute_ranges(text, &mut child)
+        .map_err(|_| "could not scan nested index content")
+}
+
+fn named_index_parts<'a>(
+    state: &mut ParserState<'a>,
+    text: &'a str,
+    form: IndexTermForm,
+) -> Result<(IndexTermParts<'a>, Vec<ScannedAttribute>), &'static str> {
+    let protected = attribute_ranges(state, text)?;
+    let scanned = scan_attribute_list(text, &protected);
+    if scanned.first().is_none_or(|attribute| {
+        attribute.name.is_some()
+            || (attribute.value.is_empty() && attribute.quote == AttributeQuote::Unquoted)
+    }) {
+        return Ok((
+            IndexTermParts {
+                terms: vec![trimmed_index_term_segment(text, 0).into()],
+                relationship: None,
+            },
+            Vec::new(),
+        ));
+    }
+    let mut terms = Vec::new();
+    let mut controls = Vec::new();
+    let mut see = None;
+    let mut see_also = None;
+    let limit = if form.visible() { 1 } else { 3 };
+    for (slot, attribute) in scanned.into_iter().enumerate() {
+        if attribute.is_ignored(CompatibilityMode::Asciidoctor) {
+            continue;
+        }
+        let quote = match attribute.quote {
+            AttributeQuote::Double => Some('"'),
+            AttributeQuote::Single => Some('\''),
+            AttributeQuote::Unquoted => None,
+        };
+        let label = IndexTermLabel {
+            text: &text[attribute.value_start..attribute.value_end],
+            start: attribute.value_start,
+            quote,
+        };
+        match attribute.name.as_deref() {
+            None if slot < limit
+                && slot == terms.len()
+                && (!label.text.is_empty() || quote.is_some()) =>
+            {
+                terms.push(label);
+            }
+            None | Some("terms") => {}
+            Some("see") => see = Some(IndexTermRelationshipSegments::See(label)),
+            Some("see-also") => {
+                let nested = attribute_ranges(state, label.text)?;
+                let mut targets = Vec::new();
+                let mut start = 0;
+                for (end, _) in label
+                    .text
+                    .match_indices(',')
+                    .filter(|(offset, _)| !nested.iter().any(|range| range.contains(offset)))
+                {
+                    let part =
+                        trimmed_index_term_segment(&label.text[start..end], label.start + start);
+                    targets.push(IndexTermLabel {
+                        text: part.text,
+                        start: part.start,
+                        quote,
+                    });
+                    start = end + 1;
+                }
+                let part = trimmed_index_term_segment(&label.text[start..], label.start + start);
+                targets.push(IndexTermLabel {
+                    text: part.text,
+                    start: part.start,
+                    quote,
+                });
+                see_also = Some(IndexTermRelationshipSegments::SeeAlso(targets));
+            }
+            Some(_) => controls.push(attribute),
+        }
+    }
+    Ok((
+        IndexTermParts {
+            terms,
+            relationship: see.or(see_also),
+        },
+        controls,
+    ))
 }
 
 fn parse_index_parts<'a>(
@@ -349,7 +515,7 @@ fn parse_index_parts<'a>(
         state,
         terms
             .next()
-            .unwrap_or(IndexTermSegment { text: "", start: 0 }),
+            .unwrap_or_else(|| IndexTermSegment { text: "", start: 0 }.into()),
         Some(form),
     )?;
     let kind = if form.visible() {
@@ -367,13 +533,9 @@ fn parse_index_parts<'a>(
                 .transpose()?,
         }
     };
-    Ok(IndexTerm {
-        kind,
-        relationship: parse_index_term_relationship(state, parts.relationship, form)?,
-        catalog: None,
-        catalog_substitutions: None,
-        location,
-    })
+    let mut term = IndexTerm::new(kind, location);
+    term.relationship = parse_index_term_relationship(state, parts.relationship, form)?;
+    Ok(term)
 }
 
 fn parse_index_term_relationship<'a>(
@@ -395,27 +557,4 @@ fn parse_index_term_relationship<'a>(
             Ok(Some(IndexTermRelationship::SeeAlso { targets }))
         }
     }
-}
-
-fn partition_index_term_macro_items(
-    items: Vec<IndexTermMacroItem<'_>>,
-) -> (
-    Vec<IndexTermSegment<'_>>,
-    Option<IndexTermRelationshipSegments<'_>>,
-) {
-    let mut terms = Vec::new();
-    let mut see = None;
-    let mut see_also = None;
-    for item in items {
-        match item {
-            IndexTermMacroItem::Term(term) => terms.push(term),
-            IndexTermMacroItem::Relationship(IndexTermRelationshipSegments::See(target)) => {
-                see = Some(IndexTermRelationshipSegments::See(target));
-            }
-            IndexTermMacroItem::Relationship(IndexTermRelationshipSegments::SeeAlso(targets)) => {
-                see_also = Some(IndexTermRelationshipSegments::SeeAlso(targets));
-            }
-        }
-    }
-    (terms, see.or(see_also))
 }

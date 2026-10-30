@@ -521,12 +521,31 @@ where
     map.serialize_entry("location", &s.location)
 }
 
+impl Serialize for IndexTerm<'_> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut map = serializer.serialize_map(None)?;
+        serialize_indexterm::<S>(self, &mut map)?;
+        map.end()
+    }
+}
+
+#[derive(Serialize)]
+struct IndexCatalog<'node, 'a> {
+    kind: &'node crate::IndexTermKind<'a>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    relationship: &'node Option<crate::IndexTermRelationship<'a>>,
+    location: &'node crate::Location,
+}
+
 fn serialize_indexterm<S>(i: &IndexTerm<'_>, map: &mut S::SerializeMap) -> Result<(), S::Error>
 where
     S: Serializer,
 {
     map.serialize_entry("name", "indexterm")?;
     map.serialize_entry("type", "inline")?;
+    if !i.metadata.is_empty() || !i.macro_attributes.is_empty() {
+        map.serialize_entry("metadata", &i.metadata_view())?;
+    }
     map.serialize_entry("term", i.term())?;
     if let Some(secondary) = i.secondary() {
         map.serialize_entry("secondary", secondary)?;
@@ -538,7 +557,14 @@ where
         map.serialize_entry("relationship", relationship)?;
     }
     if let Some(catalog) = &i.catalog {
-        map.serialize_entry("catalog", catalog)?;
+        map.serialize_entry(
+            "catalog",
+            &IndexCatalog {
+                kind: &catalog.kind,
+                relationship: &catalog.relationship,
+                location: &catalog.location,
+            },
+        )?;
     }
     map.serialize_entry("visible", &i.is_visible())?;
     map.serialize_entry("location", &i.location)

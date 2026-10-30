@@ -1,6 +1,6 @@
 use crate::{
     IndexTerm, IndexTermRelationship,
-    ast::{ContentListRef, ContentRef},
+    ast::{AttributesRef, ContentListRef, ContentRef, ElementIdRef, TokensRef},
 };
 
 use super::IndexTermRef;
@@ -61,6 +61,30 @@ impl<'doc> IndexTermLabelsRef<'doc> {
 }
 
 impl<'doc> IndexTermRef<'doc> {
+    /// Retained occurrence ID and its source location. This does not register an anchor.
+    #[must_use]
+    pub fn id(self) -> Option<ElementIdRef<'doc>> {
+        self.attributes().id()
+    }
+
+    /// Role tokens in their retained order.
+    #[must_use]
+    pub fn roles(self) -> TokensRef<'doc> {
+        self.attributes().roles()
+    }
+
+    /// Option tokens in their retained order.
+    #[must_use]
+    pub fn options(self) -> TokensRef<'doc> {
+        self.attributes().options()
+    }
+
+    /// Identity, roles, options, hierarchy, selected relationships, and scalar controls.
+    #[must_use]
+    pub fn attributes(self) -> AttributesRef<'doc> {
+        AttributesRef::index_term(self.node)
+    }
+
     /// The primary label after its configured substitutions.
     #[must_use]
     pub fn term(self) -> ContentRef<'doc> {

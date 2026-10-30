@@ -25,6 +25,7 @@ fn text(nodes: &[InlineNode<'_>]) -> Result<String, Error> {
 
 #[rstest::rstest]
 #[case("indexterm2:[Visible,custom=kept]", "Visible")]
+#[case("indexterm2:[,custom=kept]", ",custom=kept")]
 #[case("indexterm2:[\"Visible, quoted\",custom=\"a,b\"]", "Visible, quoted")]
 #[case("indexterm2:[Visible,role=red,id=entry,opts=\"a,b\"]", "Visible")]
 #[case("indexterm2:[Visible,Secondary]", "Visible,Secondary")]
@@ -48,6 +49,7 @@ fn named_index_controls_stay_out_of_visible_labels(
 
 #[rstest::rstest]
 #[case("indexterm:[Primary,custom=kept,Secondary,Tertiary]", None, None)]
+#[case("indexterm:[Primary,,Tertiary,custom=kept]", None, None)]
 #[case(
     "indexterm:[Primary,Secondary,Tertiary,custom=kept]",
     Some("Secondary"),

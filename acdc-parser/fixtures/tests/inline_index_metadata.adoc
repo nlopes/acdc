@@ -33,3 +33,9 @@ Shorthand visible: ((Visible,custom=literal)).
 Shorthand concealed: (((Primary,custom=literal))).
 
 Present empty primary: indexterm2:["",custom=kept].
+
+Missing primary: indexterm2:[,custom=kept].
+
+Missing secondary: indexterm:[Primary,,Tertiary,custom=kept].
+
+Omitted controls: indexterm2:[Visible,custom=before,custom=None,removed=None,title="None",see=None,see-also=Target].

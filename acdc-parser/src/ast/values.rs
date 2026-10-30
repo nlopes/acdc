@@ -1,6 +1,6 @@
 use crate::{AttributeValue, ElementId};
 
-use super::{ContentRef, LocationRef};
+use super::{ContentListRef, ContentRef, LocationRef};
 
 /// An element attribute value. Absence is represented by the enclosing `Option`.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -14,6 +14,8 @@ pub enum AttributeValueRef<'doc> {
     None,
     /// Parsed inline content, including present-empty content.
     Content(ContentRef<'doc>),
+    /// Separate parsed values, such as hierarchy levels or see-also targets.
+    ContentList(ContentListRef<'doc>),
     /// Role or option tokens in their retained order.
     Tokens(TokensRef<'doc>),
 }

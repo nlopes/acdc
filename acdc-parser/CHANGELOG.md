@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- Serializing an index term directly now produces the same native JSON as its
+  inline node. Read labels from `term`/`secondary`/`tertiary` and visibility from
+  `visible`, rather than the former `kind` object. Nested catalog labels keep
+  their existing JSON form.
+
 - Cross-references retain IDs, options, and extension attributes. Use
   `xref.metadata.roles` instead of `xref.role`, and `attributes()` with
   `set_attribute()` / `remove_attribute()` for scalar controls. Typed reads keep
@@ -129,6 +134,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Asciidoctor accepts the deprecated alias without this warning.
 
 ### Fixed
+
+- Named index macros keep controls out of visible labels and hierarchy levels,
+  matching Asciidoctor. Discarded controls no longer register nested footnotes.
+  IDs, roles, options, and accepted extensions are retained in native JSON;
+  typed attributes expose hierarchy and the selected see/see-also relationship.
+  As with other acdc inline macros, `roles` aliases `role`.
 
 - Reference labels retain their authored locations through attribute expansion,
   escaping, includes, and nested blocks. Block anchors use attribute values from

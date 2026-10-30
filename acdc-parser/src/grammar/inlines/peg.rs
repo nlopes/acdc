@@ -17,8 +17,8 @@ use crate::{
         inlines::{
             attributes::{Shorthand, parse_content, process_attribute_list, process_media_content},
             index_terms::{
-                IndexTermForm, IndexTermMacroItem, IndexTermRelationshipSegments, IndexTermSegment,
-                expand_escaped_index_terms, parse_index_term, trimmed_index_term_segment,
+                IndexTermForm, IndexTermSegment, expand_escaped_index_terms, parse_index_term,
+                trimmed_index_term_segment,
             },
             links::{
                 LinkContent, ProcessedLinkContent, force_local_file_xref, process_link_content,
@@ -688,34 +688,14 @@ peg::parser! {
             parse_index_term(state, content, IndexTermForm::NamedFlow, location)
         }
 
-        pub(crate) rule index_term_macro_list(base: usize) -> Vec<IndexTermMacroItem<'input>>
-        = items:(index_term_macro_item(base) ** ",") { items }
+        pub(crate) rule index_term_attribute_ranges() -> Vec<Range<usize>>
+        = parts:(
+            start:position!() (formatting_link_match() / bracket_label_macro_match()) end:position!() { Some(start..end) }
+            / [_] { None }
+        )* { parts.into_iter().flatten().collect() }
 
-        rule index_term_macro_item(base: usize) -> IndexTermMacroItem<'input>
-        = whitespace()* "see-also" "=" targets:index_term_see_also_value(base) whitespace()* {
-            IndexTermMacroItem::Relationship(IndexTermRelationshipSegments::SeeAlso(targets))
-        }
-        / whitespace()* "see" "=" target:index_term_relation_value(base) whitespace()* {
-            IndexTermMacroItem::Relationship(IndexTermRelationshipSegments::See(target))
-        }
-        / term:index_term_segment(base) { IndexTermMacroItem::Term(term) }
-
-        rule index_term_relation_value(base: usize) -> IndexTermSegment<'input>
-        = "\"" start:position!() content:$([^'"']*) "\"" &(whitespace()* ("," / ![_])) {
-            trimmed_index_term_segment(content, base + start)
-        }
-        / start:position!() content:$([^',']*) {
-            trimmed_index_term_segment(content, base + start)
-        }
-
-        rule index_term_see_also_value(base: usize) -> Vec<IndexTermSegment<'input>>
-        = "\"" targets:(index_term_see_also_target(base) ** ",") "\"" &(whitespace()* ("," / ![_])) { targets }
-        / target:index_term_relation_value(base) { vec![target] }
-
-        rule index_term_see_also_target(base: usize) -> IndexTermSegment<'input>
-        = whitespace()* start:position!() content:$([^(',' | '"')]*) whitespace()* {
-            trimmed_index_term_segment(content, base + start)
-        }
+        pub(crate) rule named_index_term_list(base: usize) -> Vec<IndexTermSegment<'input>>
+        = terms:(index_term_segment(base) ** ",") { terms }
 
         /// Parse comma-separated index term list with support for quoted segments
         /// e.g., "knight, Knight of the Round Table, Lancelot"

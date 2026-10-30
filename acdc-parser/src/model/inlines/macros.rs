@@ -450,24 +450,89 @@ pub enum IndexTermRelationship<'a> {
 }
 
 /// An `IndexTerm` represents an index term in a document.
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct IndexTerm<'a> {
     /// The kind and content of this index term.
     pub kind: IndexTermKind<'a>,
     /// The relationship from this entry to other index terms.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub relationship: Option<IndexTermRelationship<'a>>,
     /// Labels captured at index registration, before later substitutions.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) catalog: Option<Box<IndexTerm<'a>>>,
     /// Consumed after catalog source locations and passthroughs are resolved.
-    #[serde(skip)]
     pub(crate) catalog_substitutions: Option<crate::model::substitution::SubstitutionPlan>,
+    pub metadata: InlineMetadata<'a>,
+    pub(crate) macro_attributes: MacroAttributes<'a>,
     pub location: Location,
 }
 
 impl<'a> IndexTerm<'a> {
+    /// Construct an index occurrence without controls or registration snapshots.
+    #[must_use]
+    pub fn new(kind: IndexTermKind<'a>, location: Location) -> Self {
+        Self {
+            kind,
+            relationship: None,
+            catalog: None,
+            catalog_substitutions: None,
+            metadata: InlineMetadata::default(),
+            macro_attributes: MacroAttributes::default(),
+            location,
+        }
+    }
+
+    /// Scalar controls and extensions, excluding identity, roles, options, and labels.
+    #[must_use]
+    pub fn attributes(&self) -> &ElementAttributes<'a> {
+        &self.macro_attributes.attributes
+    }
+
+    /// Set a scalar control or extension attribute.
+    ///
+    /// # Errors
+    /// Rejects `terms`, `see`, `see-also`, `id`, `role`/`roles`, and `opts`/`options`.
+    /// Update their dedicated fields instead.
+    pub fn set_attribute(
+        &mut self,
+        name: AttributeName<'a>,
+        value: AttributeValue<'a>,
+    ) -> Result<(), ReservedAttribute> {
+        self.macro_attributes
+            .set(name, value, &["terms", "see", "see-also"])
+    }
+
+    /// Remove a scalar control or extension attribute.
+    ///
+    /// # Errors
+    /// Rejects the dedicated names listed by [`Self::set_attribute`].
+    pub fn remove_attribute(
+        &mut self,
+        name: &str,
+    ) -> Result<Option<AttributeValue<'a>>, ReservedAttribute> {
+        self.macro_attributes
+            .remove(name, &["terms", "see", "see-also"])
+    }
+
+    /// Option tokens in their retained order.
+    #[must_use]
+    pub fn options(&self) -> &[&'a str] {
+        &self.macro_attributes.options
+    }
+
+    /// Edit option tokens without creating attribute-map aliases.
+    pub fn options_mut(&mut self) -> &mut Vec<&'a str> {
+        &mut self.macro_attributes.options
+    }
+
+    pub(crate) fn metadata_view(&self) -> InlineMetadataView<'_, 'a> {
+        InlineMetadataView {
+            attributes: &self.macro_attributes.attributes,
+            roles: &self.metadata.roles,
+            options: &self.macro_attributes.options,
+            id: &self.metadata.id,
+        }
+    }
+
     pub(crate) fn for_each_label_mut(&mut self, mut visit: impl FnMut(&mut Vec<InlineNode<'a>>)) {
         match &mut self.kind {
             IndexTermKind::Flow(term) => visit(term),

@@ -49,25 +49,56 @@ impl<'doc> From<&'doc ContentAttribute<'doc>> for ContentRef<'doc> {
 }
 
 /// An ordered collection of separate inline-content values.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug)]
 pub struct ContentListRef<'doc> {
-    items: &'doc [Vec<InlineNode<'doc>>],
+    source: ContentList<'doc>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum ContentList<'doc> {
+    Values(&'doc [Vec<InlineNode<'doc>>]),
+    IndexTerms(&'doc crate::IndexTerm<'doc>),
+}
+
+impl PartialEq for ContentListRef<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.iter().eq(other.iter())
+    }
 }
 
 impl<'doc> ContentListRef<'doc> {
     pub(super) fn new(items: &'doc [Vec<InlineNode<'doc>>]) -> Self {
-        Self { items }
+        Self {
+            source: ContentList::Values(items),
+        }
+    }
+
+    pub(super) fn index_terms(node: &'doc crate::IndexTerm<'doc>) -> Self {
+        Self {
+            source: ContentList::IndexTerms(node),
+        }
     }
 
     /// Read each content value in order, including empty values.
     pub fn iter(self) -> impl Iterator<Item = ContentRef<'doc>> + Send + Sync + 'doc {
-        self.items.iter().map(|nodes| ContentRef::new(nodes))
+        let (levels, values) = match self.source {
+            ContentList::Values(values) => ([None, None, None], values),
+            ContentList::IndexTerms(node) => (
+                [Some(node.term()), node.secondary(), node.tertiary()],
+                &[][..],
+            ),
+        };
+        levels
+            .into_iter()
+            .flatten()
+            .map(ContentRef::new)
+            .chain(values.iter().map(|nodes| ContentRef::new(nodes)))
     }
 
     /// Whether there are no content values, rather than one empty value.
     #[must_use]
     pub fn is_empty(self) -> bool {
-        self.items.is_empty()
+        self.iter().next().is_none()
     }
 }
 

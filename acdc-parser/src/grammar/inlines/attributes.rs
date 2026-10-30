@@ -1,9 +1,9 @@
 //! Inline shorthand and macro attributes.
 
-use std::borrow::Cow;
+use std::{borrow::Cow, ops::Range};
 
 use crate::{
-    Anchor, AttributeValue, BlockMetadata, ContentAttribute, Error,
+    Anchor, AttributeValue, BlockMetadata, ContentAttribute, ElementId, Error, InlineMetadata,
     grammar::{
         ParserState,
         attributes::{AttributeQuote, scan_attribute_list},
@@ -13,7 +13,7 @@ use crate::{
             parse_comma_separated_values,
         },
     },
-    model::PositionalAttribute,
+    model::{MacroAttributes, PositionalAttribute},
 };
 
 /// Attribute shorthand syntax for inline formatting attributes.
@@ -316,4 +316,34 @@ pub(super) fn process_media_content<'a>(
         alt,
         tooltip,
     })
+}
+
+pub(super) fn insert_named_metadata<'a>(
+    state: &ParserState<'a>,
+    metadata: &mut InlineMetadata<'a>,
+    attributes: &mut MacroAttributes<'a>,
+    name: Cow<'a, str>,
+    value: String,
+    range: Range<usize>,
+) {
+    match name.as_ref() {
+        "id" => {
+            metadata.id = Some(ElementId {
+                id: state.intern_str(&value),
+                location: state
+                    .create_location(range.start, range.end.saturating_sub(1).max(range.start)),
+            });
+        }
+        "role" => {
+            metadata.roles = value
+                .split_whitespace()
+                .map(|role| state.intern_str(role))
+                .collect();
+        }
+        "options" => {
+            attributes.options =
+                crate::grammar::helpers::parse_comma_separated_values(state, &value);
+        }
+        _ => attributes.attributes.set(name, value.into()),
+    }
 }
