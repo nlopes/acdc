@@ -174,7 +174,8 @@
 //! have already been processed and are not reconstructed by these reads.
 //!
 //! Handles and direct iterators support shared immutable access (`Send + Sync`).
-//! Reads do not allocate collections, render content, or update document catalogs.
+//! Direct reads do not allocate collections, render content, or update document catalogs.
+//! Descendant traversal can allocate a stack of pending siblings as nesting increases.
 //! Iterator order follows the owner's content order; concrete storage, iterator
 //! types, and attribute serialization are not part of this interface.
 
@@ -183,7 +184,7 @@ macro_rules! node_ref {
         #[doc = $doc]
         #[derive(Clone, Copy, Debug)]
         pub struct $name<$lifetime> {
-            node: &$lifetime $owner,
+            pub(in crate::ast) node: &$lifetime $owner,
         }
 
         impl<$lifetime> $name<$lifetime> {
@@ -208,6 +209,7 @@ mod location;
 mod media;
 mod substitutions;
 mod tables;
+mod traversal;
 mod values;
 
 pub use attributes::AttributesRef;
@@ -218,4 +220,5 @@ pub use location::{LocationRef, PositionRef};
 pub use media::{ImageRef, InlineImageRef, SourceKind, SourceRef};
 pub use substitutions::{SubstitutionEntryRef, SubstitutionSpecKind, SubstitutionSpecRef};
 pub use tables::{ColumnFormatRef, TableCellRef, TableRef, TableRowRef};
+pub use traversal::StructuralRef;
 pub use values::{AttributeValueRef, ElementIdRef, TokensRef};

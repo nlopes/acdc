@@ -118,6 +118,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Block attribute reads also expose attribution, citation, authored captions,
   named reference text, and retained `subs` settings, including explicit emptiness
   and unsupported entries. Generated captions remain separate.
+  Structural traversal visits nested blocks, list items, table rows, and cells
+  in a documented order, with early stopping and no allocation for direct children
+  or flat walks. Nested walks use temporary memory proportional to nesting.
 
 - Parser fixtures support shared expectations or explicit Asciidoctor/Draft
   pairs, optional diagnostics, and stable test names. The runner rejects missing

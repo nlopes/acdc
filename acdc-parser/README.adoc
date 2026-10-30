@@ -111,6 +111,16 @@ authored entries, typed explicit substitutions, and typed modifier operations.
 Authored entries keep aliases and unsupported names; an explicitly empty setting
 remains present. Reads do not render, reparse, or collect the entries.
 
+Use `children()` on a document or block for its direct structural children, or
+`descendants()` for depth-first pre-order traversal. Both return `StructuralRef`
+values for headers, blocks, list items, table rows, and cells. A header precedes
+the document blocks; table rows follow header, body, footer order. Spanning cells
+occur once. Inline content and derived catalogs are read separately.
+
+The iterators can stop early with `find`, `take`, or `try_for_each`. Direct children
+and flat walks allocate no memory. Nested walks use a growable stack of pending
+siblings whose space grows with nesting, without recursion on the call stack.
+
 Container blocks expose child `blocks()`; listings, literals, verse, passthroughs,
 and delimited comments expose `content()`. Match their inline kinds to distinguish
 formatted, verbatim, and raw text. STEM blocks expose `text()` and `notation()`.

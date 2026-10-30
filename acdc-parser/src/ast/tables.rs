@@ -11,7 +11,7 @@ use super::{
 #[derive(Clone, Copy, Debug)]
 pub struct TableRef<'doc> {
     block: &'doc DelimitedBlock<'doc>,
-    table: &'doc Table<'doc>,
+    pub(super) table: &'doc Table<'doc>,
 }
 
 impl<'doc> TableRef<'doc> {
@@ -111,7 +111,7 @@ impl<'doc> TableRef<'doc> {
 /// A table row.
 #[derive(Clone, Copy, Debug)]
 pub struct TableRowRef<'doc> {
-    row: &'doc TableRow<'doc>,
+    pub(super) row: &'doc TableRow<'doc>,
 }
 
 impl<'doc> TableRowRef<'doc> {
@@ -130,7 +130,7 @@ impl<'doc> From<&'doc TableRow<'doc>> for TableRowRef<'doc> {
 /// A table cell and its parsed formatting.
 #[derive(Clone, Copy, Debug)]
 pub struct TableCellRef<'doc> {
-    cell: &'doc TableColumn<'doc>,
+    pub(super) cell: &'doc TableColumn<'doc>,
 }
 
 impl<'doc> TableCellRef<'doc> {

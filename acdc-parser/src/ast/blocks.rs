@@ -17,7 +17,7 @@ macro_rules! delimited_ref {
         pub struct $name<$lifetime> {
             node: &$lifetime crate::DelimitedBlock<$lifetime>,
             // A thin reference keeps this handle the same size as TableRef.
-            body: &$lifetime $body,
+            pub(in crate::ast) body: &$lifetime $body,
         }
 
         impl<$lifetime> $name<$lifetime> {
