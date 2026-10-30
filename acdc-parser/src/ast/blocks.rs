@@ -262,7 +262,8 @@ impl<'doc> SectionRef<'doc> {
         self.attributes().style()
     }
 
-    /// The primary ID, if present.
+    /// The explicit or parser-assigned section ID. Caller-built sections without
+    /// an explicit ID have no assigned value; this read does not generate one.
     #[must_use]
     pub fn id(self) -> Option<ElementIdRef<'doc>> {
         self.attributes().id()

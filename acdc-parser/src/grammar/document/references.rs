@@ -460,6 +460,7 @@ fn register_section_reference<'a>(
 ) {
     let id = refs.section_id(state, section);
     section.id = Some(id);
+    section.id_generated = Section::explicit_id(&section.metadata).is_none();
     let reference_text = section.reference_text.take();
     let xreflabel = metadata_xreflabel(&section.metadata);
     let mut location = section.location.clone();

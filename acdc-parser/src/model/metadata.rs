@@ -188,6 +188,10 @@ impl<'a> BlockMetadata<'a> {
         self.id.as_ref().or_else(|| self.anchors.first())
     }
 
+    pub(crate) fn heading_anchor(&self) -> Option<&Anchor<'a>> {
+        self.id.as_ref().or_else(|| self.anchors.last())
+    }
+
     /// Set the attributes.
     #[must_use]
     pub fn with_attributes(mut self, attributes: ElementAttributes<'a>) -> Self {

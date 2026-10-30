@@ -7,7 +7,8 @@ use crate::{
 };
 
 use super::{
-    AttributeValueRef, ContentListRef, ContentRef, ElementIdRef, SubstitutionSpecRef, TokensRef,
+    AnchorRef, AttributeValueRef, ContentListRef, ContentRef, ElementIdRef, SubstitutionSpecRef,
+    TokensRef,
 };
 
 /// Named values on an element.
@@ -15,7 +16,8 @@ use super::{
 /// Reads cover titles, image alt, inline tooltips, IDs, styles, role/option tokens,
 /// attribution, citation, authored captions, named reftext, substitution settings,
 /// and scalar controls. Generated caption labels and anchor labels are separate.
-/// Restricted owners expose only the fields they retain.
+/// Restricted owners expose only the fields they retain. Section IDs include
+/// parser-assigned values; other ID reads select the retained primary identity.
 ///
 /// Dedicated fields supply their values even when the scalar map contains a
 /// conflicting entry. An absent field stays absent; it does not reveal a stale
@@ -566,7 +568,7 @@ impl<'doc> AttributesRef<'doc> {
         }
     }
 
-    fn title(self) -> Option<ContentRef<'doc>> {
+    pub(super) fn title(self) -> Option<ContentRef<'doc>> {
         let title = match self.owner {
             Owner::Header(node) => &node.title,
             Owner::Paragraph(node) => &node.title,
@@ -634,13 +636,22 @@ impl<'doc> AttributesRef<'doc> {
             Owner::Link(node) => node.metadata.id.as_ref().map(ElementIdRef::from),
             Owner::Url(node) => node.metadata.id.as_ref().map(ElementIdRef::from),
             Owner::Mailto(node) => node.metadata.id.as_ref().map(ElementIdRef::from),
-            Owner::ThematicBreak(node) => node
-                .anchors
-                .first()
-                .map(|id| ElementIdRef::new(id.id, &id.location)),
-            Owner::Header(_)
-            | Owner::Paragraph(_)
-            | Owner::Section(_)
+            Owner::Section(node) => node
+                .metadata
+                .heading_anchor()
+                .map(ElementIdRef::from)
+                .or_else(|| {
+                    node.id.map(|id| {
+                        if node.id_generated {
+                            ElementIdRef::generated(id, &node.location)
+                        } else {
+                            ElementIdRef::new(id, &node.location)
+                        }
+                    })
+                }),
+            Owner::Header(node) => node.metadata.heading_anchor().map(ElementIdRef::from),
+            Owner::ThematicBreak(node) => node.anchors.first().map(ElementIdRef::from),
+            Owner::Paragraph(_)
             | Owner::Delimited(_)
             | Owner::Admonition(_)
             | Owner::UnorderedList(_)
@@ -655,8 +666,32 @@ impl<'doc> AttributesRef<'doc> {
             | Owner::PageBreak(_) => self
                 .metadata()
                 .and_then(BlockMetadata::id_anchor)
-                .map(|id| ElementIdRef::new(id.id, &id.location)),
+                .map(ElementIdRef::from),
         }
+    }
+
+    pub(super) fn primary_anchor(self) -> Option<AnchorRef<'doc>> {
+        if let Owner::ThematicBreak(node) = self.owner {
+            return node.anchors.first().map(AnchorRef::from);
+        }
+        let metadata = self.metadata()?;
+        let anchor = if matches!(self.owner, Owner::Section(_) | Owner::Header(_)) {
+            metadata.heading_anchor()
+        } else {
+            metadata.id_anchor()
+        };
+        anchor.map(AnchorRef::from)
+    }
+
+    pub(super) fn anchors(self) -> impl Iterator<Item = AnchorRef<'doc>> + Send + Sync + 'doc {
+        let (id, anchors) = if let Owner::ThematicBreak(node) = self.owner {
+            (None, node.anchors.as_slice())
+        } else if let Some(metadata) = self.metadata() {
+            (metadata.id.as_ref(), metadata.anchors.as_slice())
+        } else {
+            (None, &[][..])
+        };
+        id.into_iter().chain(anchors).map(AnchorRef::from)
     }
 
     pub(super) fn roles(self) -> TokensRef<'doc> {

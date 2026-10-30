@@ -190,11 +190,7 @@ peg::parser! {
             };
             let mut xrefs = Vec::new();
             if let Some(header) = &header {
-                if let Some(anchor) = header
-                    .metadata
-                    .id
-                    .as_ref()
-                    .or_else(|| header.metadata.anchors.last())
+                if let Some(anchor) = header.metadata.heading_anchor()
                 {
                     let label = metadata_xreflabel(&header.metadata);
                     insert_reference(

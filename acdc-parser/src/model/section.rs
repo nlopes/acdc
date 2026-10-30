@@ -172,6 +172,8 @@ pub struct Section<'a> {
     pub kind: SectionKind,
     numbering: SectionNumbering,
     pub(crate) id: Option<&'a str>,
+    // Preserve the assigned origin when callers later edit metadata directly.
+    pub(crate) id_generated: bool,
     // Retained until the reference catalog assigns the section's ID.
     pub(crate) reference_text: Option<&'a str>,
     pub location: Location,
@@ -195,6 +197,7 @@ impl<'a> Section<'a> {
             kind,
             numbering,
             id: None,
+            id_generated: false,
             reference_text: None,
             location,
         }
@@ -216,6 +219,7 @@ impl<'a> Section<'a> {
             kind: SectionKind::Normal,
             numbering: SectionNumbering::disabled(),
             id: None,
+            id_generated: false,
             reference_text: None,
             location,
         }
@@ -226,6 +230,7 @@ impl<'a> Section<'a> {
     pub fn with_metadata(mut self, metadata: BlockMetadata<'a>) -> Self {
         self.metadata = metadata;
         self.id = None;
+        self.id_generated = false;
         self
     }
 
@@ -986,10 +991,7 @@ impl<'a> Section<'a> {
     /// Pick the explicit id if metadata provides one, else None. Shared by
     /// the arena-returning and `String`-returning variants below.
     pub(crate) fn explicit_id(metadata: &BlockMetadata<'a>) -> Option<&'a str> {
-        if let Some(anchor) = &metadata.id {
-            return Some(anchor.id);
-        }
-        metadata.anchors.last().map(|a| a.id)
+        metadata.heading_anchor().map(|anchor| anchor.id)
     }
 
     /// Generate a section ID based on its title and metadata.

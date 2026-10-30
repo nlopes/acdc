@@ -204,6 +204,7 @@ macro_rules! node_ref {
 mod attributes;
 mod blocks;
 mod content;
+mod identity;
 mod inlines;
 mod location;
 mod media;
@@ -221,4 +222,4 @@ pub use media::{ImageRef, InlineImageRef, SourceKind, SourceRef};
 pub use substitutions::{SubstitutionEntryRef, SubstitutionSpecKind, SubstitutionSpecRef};
 pub use tables::{ColumnFormatRef, TableCellRef, TableRef, TableRowRef};
 pub use traversal::StructuralRef;
-pub use values::{AttributeValueRef, ElementIdRef, TokensRef};
+pub use values::{AttributeValueRef, ElementIdRef, IdOrigin, TokensRef};

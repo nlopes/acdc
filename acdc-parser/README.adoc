@@ -121,6 +121,19 @@ The iterators can stop early with `find`, `take`, or `try_for_each`. Direct chil
 and flat walks allocate no memory. Nested walks use a growable stack of pending
 siblings whose space grows with nesting, without recursion on the call stack.
 
+`title()` and `id()` on a block use the same rules as its concrete typed read.
+Section IDs include the value assigned by the parser, including collision suffixes.
+`id().origin()` distinguishes explicit values from generated section IDs; an
+explicit value may still contain expanded attributes or come from a caller.
+Source locations identify the recorded range, not a guaranteed editable spelling.
+
+`primary_anchor()` selects the retained anchor used for the primary ID.
+`anchors()` lists the dedicated ID anchor, then all retained anchors in order,
+including duplicates. Generated section IDs have no authored anchor. Retention
+does not imply registration in the reference catalog. Inline `id()` reads the
+occurrence's identity, including image and span IDs, separately from xref targets
+and footnote keys. These reads do not rebuild catalogs or generate missing IDs.
+
 Container blocks expose child `blocks()`; listings, literals, verse, passthroughs,
 and delimited comments expose `content()`. Match their inline kinds to distinguish
 formatted, verbatim, and raw text. STEM blocks expose `text()` and `notation()`.

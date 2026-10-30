@@ -121,6 +121,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Structural traversal visits nested blocks, list items, table rows, and cells
   in a documented order, with early stopping and no allocation for direct children
   or flat walks. Nested walks use temporary memory proportional to nesting.
+  Block titles and primary IDs are available without matching each block kind.
+  Document and section ID reads now agree with reference resolution, including
+  generated section IDs. Retained anchors and inline element IDs remain separate
+  from registered targets; reads preserve their locations without assuming an
+  editable source spelling.
 
 - Parser fixtures support shared expectations or explicit Asciidoctor/Draft
   pairs, optional diagnostics, and stable test names. The runner rejects missing

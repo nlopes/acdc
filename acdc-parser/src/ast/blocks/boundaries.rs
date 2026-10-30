@@ -26,7 +26,7 @@ macro_rules! metadata_reads {
 
                 /// The dedicated ID, when present, followed by the retained anchor list.
                 pub fn anchors(self) -> impl Iterator<Item = AnchorRef<'doc>> + Send + Sync + 'doc {
-                    self.node.metadata.id.iter().chain(&self.node.metadata.anchors).map(AnchorRef::from)
+                    self.attributes().anchors()
                 }
 
                 /// The retained block style.
@@ -132,7 +132,7 @@ impl<'doc> ThematicBreakRef<'doc> {
 
     /// Anchors in their retained order.
     pub fn anchors(self) -> impl Iterator<Item = AnchorRef<'doc>> + Send + Sync + 'doc {
-        self.node.anchors.iter().map(AnchorRef::from)
+        self.attributes().anchors()
     }
 }
 
