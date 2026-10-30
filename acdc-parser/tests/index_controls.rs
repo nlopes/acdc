@@ -14,9 +14,11 @@ fn index<'a>(nodes: &'a [InlineNode<'a>]) -> Result<&'a IndexTerm<'a>, Error> {
 fn text(nodes: &[InlineNode<'_>]) -> Result<String, Error> {
     nodes
         .iter()
-        .map(|node| match node {
-            InlineNode::PlainText(node) => Ok(node.content),
-            _ => Err(format!("expected plain label: {node:?}").into()),
+        .map(|node| {
+            let InlineNode::PlainText(node) = node else {
+                return Err(format!("expected plain label: {node:?}").into());
+            };
+            Ok(node.content)
         })
         .collect()
 }

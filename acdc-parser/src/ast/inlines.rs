@@ -4,8 +4,11 @@ use super::{ContentRef, InlineImageRef, LocationRef};
 
 mod hyperlinks;
 mod icons;
+mod index_terms;
 mod spans;
 mod xrefs;
+
+pub use index_terms::{IndexTermLabelsRef, IndexTermRelationshipRef};
 
 node_ref!(PlainRef<'doc>, crate::Plain<'doc>, "Plain text.");
 node_ref!(

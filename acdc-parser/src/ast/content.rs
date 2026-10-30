@@ -48,6 +48,29 @@ impl<'doc> From<&'doc ContentAttribute<'doc>> for ContentRef<'doc> {
     }
 }
 
+/// An ordered collection of separate inline-content values.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ContentListRef<'doc> {
+    items: &'doc [Vec<InlineNode<'doc>>],
+}
+
+impl<'doc> ContentListRef<'doc> {
+    pub(super) fn new(items: &'doc [Vec<InlineNode<'doc>>]) -> Self {
+        Self { items }
+    }
+
+    /// Read each content value in order, including empty values.
+    pub fn iter(self) -> impl Iterator<Item = ContentRef<'doc>> + Send + Sync + 'doc {
+        self.items.iter().map(|nodes| ContentRef::new(nodes))
+    }
+
+    /// Whether there are no content values, rather than one empty value.
+    #[must_use]
+    pub fn is_empty(self) -> bool {
+        self.items.is_empty()
+    }
+}
+
 impl Title<'_> {
     /// The title content; `None` if no title was supplied.
     #[must_use]

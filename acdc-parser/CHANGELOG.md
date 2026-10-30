@@ -97,6 +97,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Formatting spans expose nested content, constrained/unconstrained form, IDs,
   and ordered role tokens through their concrete types. Unadorned marks remain
   distinct from attributed generic spans.
+  Index entries expose hierarchy levels, see/see-also targets, and catalog
+  labels captured before later substitutions.
 
 - Parser fixtures support shared expectations or explicit Asciidoctor/Draft
   pairs, optional diagnostics, and stable test names. The runner rejects missing
