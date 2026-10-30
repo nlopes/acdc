@@ -1,0 +1,17 @@
+:picture-id: expanded-picture
+
+.Earlier block
+image::bird.png[]
+
+é😀 image:bird.png[Alt,id=primary-picture] tail.
+
+é😀 *image:bird.png[Alt,id="formatted-picture"]* tail.
+
+image:bird.png[Alt,id={picture-id}]
+
+[cols="a"]
+|===
+|é😀 image:bird.png[Alt,id=cell-picture]
+|===
+
+include::includes/inline_image_id_locations.adoc[lines=2..4,indent=0]

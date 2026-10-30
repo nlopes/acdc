@@ -157,6 +157,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Inline image IDs now point to their authored values after earlier blocks,
+  formatting, attribute expansion, includes, and AsciiDoc table cells. Nonempty
+  ID ranges exclude the closing quote or bracket.
+
 - Named index macros keep controls out of visible labels and hierarchy levels,
   matching Asciidoctor. Discarded controls no longer register nested footnotes.
   IDs, roles, options, and accepted extensions are retained in native JSON;

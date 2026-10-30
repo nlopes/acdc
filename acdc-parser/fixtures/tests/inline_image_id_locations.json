@@ -1,0 +1,577 @@
+{
+  "name": "document",
+  "type": "block",
+  "attributes": {
+    "picture-id": "expanded-picture"
+  },
+  "blocks": [
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Earlier block",
+          "location": [
+            {
+              "line": 3,
+              "col": 2
+            },
+            {
+              "line": 3,
+              "col": 14
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "bird.png"
+      },
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 4,
+          "col": 17
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "é😀 ",
+          "location": [
+            {
+              "line": 6,
+              "col": 1
+            },
+            {
+              "line": 6,
+              "col": 3
+            }
+          ]
+        },
+        {
+          "name": "image",
+          "type": "inline",
+          "metadata": {
+            "id": {
+              "id": "primary-picture",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 26
+                },
+                {
+                  "line": 6,
+                  "col": 40
+                }
+              ]
+            }
+          },
+          "alt": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Alt",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 19
+                },
+                {
+                  "line": 6,
+                  "col": 21
+                }
+              ]
+            }
+          ],
+          "target": {
+            "type": "path",
+            "value": "bird.png"
+          },
+          "location": [
+            {
+              "line": 6,
+              "col": 4
+            },
+            {
+              "line": 6,
+              "col": 41
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " tail.",
+          "location": [
+            {
+              "line": 6,
+              "col": 42
+            },
+            {
+              "line": 6,
+              "col": 47
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 6,
+          "col": 1
+        },
+        {
+          "line": 6,
+          "col": 47
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "é😀 ",
+          "location": [
+            {
+              "line": 8,
+              "col": 1
+            },
+            {
+              "line": 8,
+              "col": 3
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "image",
+              "type": "inline",
+              "metadata": {
+                "id": {
+                  "id": "formatted-picture",
+                  "location": [
+                    {
+                      "line": 8,
+                      "col": 28
+                    },
+                    {
+                      "line": 8,
+                      "col": 44
+                    }
+                  ]
+                }
+              },
+              "alt": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Alt",
+                  "location": [
+                    {
+                      "line": 8,
+                      "col": 20
+                    },
+                    {
+                      "line": 8,
+                      "col": 22
+                    }
+                  ]
+                }
+              ],
+              "target": {
+                "type": "path",
+                "value": "bird.png"
+              },
+              "location": [
+                {
+                  "line": 8,
+                  "col": 5
+                },
+                {
+                  "line": 8,
+                  "col": 46
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 8,
+              "col": 4
+            },
+            {
+              "line": 8,
+              "col": 47
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " tail.",
+          "location": [
+            {
+              "line": 8,
+              "col": 48
+            },
+            {
+              "line": 8,
+              "col": 53
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 8,
+          "col": 1
+        },
+        {
+          "line": 8,
+          "col": 53
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "image",
+          "type": "inline",
+          "metadata": {
+            "id": {
+              "id": "expanded-picture",
+              "location": [
+                {
+                  "line": 10,
+                  "col": 23
+                },
+                {
+                  "line": 10,
+                  "col": 34
+                }
+              ]
+            }
+          },
+          "alt": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Alt",
+              "location": [
+                {
+                  "line": 10,
+                  "col": 16
+                },
+                {
+                  "line": 10,
+                  "col": 18
+                }
+              ]
+            }
+          ],
+          "target": {
+            "type": "path",
+            "value": "bird.png"
+          },
+          "location": [
+            {
+              "line": 10,
+              "col": 1
+            },
+            {
+              "line": 10,
+              "col": 35
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 10,
+          "col": 1
+        },
+        {
+          "line": 10,
+          "col": 35
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "é😀 ",
+                        "location": [
+                          {
+                            "line": 14,
+                            "col": 2
+                          },
+                          {
+                            "line": 14,
+                            "col": 4
+                          }
+                        ]
+                      },
+                      {
+                        "name": "image",
+                        "type": "inline",
+                        "metadata": {
+                          "id": {
+                            "id": "cell-picture",
+                            "location": [
+                              {
+                                "line": 14,
+                                "col": 27
+                              },
+                              {
+                                "line": 14,
+                                "col": 38
+                              }
+                            ]
+                          }
+                        },
+                        "alt": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Alt",
+                            "location": [
+                              {
+                                "line": 14,
+                                "col": 20
+                              },
+                              {
+                                "line": 14,
+                                "col": 22
+                              }
+                            ]
+                          }
+                        ],
+                        "target": {
+                          "type": "path",
+                          "value": "bird.png"
+                        },
+                        "location": [
+                          {
+                            "line": 14,
+                            "col": 5
+                          },
+                          {
+                            "line": 14,
+                            "col": 39
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 14,
+                        "col": 2
+                      },
+                      {
+                        "line": 14,
+                        "col": 39
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 13,
+            "col": 1
+          },
+          {
+            "line": 15,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 12,
+          "col": 1
+        },
+        {
+          "line": 15,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "é😀 ",
+          "location": [
+            {
+              "line": 3,
+              "col": 5,
+              "file": [
+                "includes/inline_image_id_locations.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 7,
+              "file": [
+                "includes/inline_image_id_locations.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "image",
+          "type": "inline",
+          "metadata": {
+            "id": {
+              "id": "included-picture",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 30,
+                  "file": [
+                    "includes/inline_image_id_locations.adoc"
+                  ]
+                },
+                {
+                  "line": 3,
+                  "col": 45,
+                  "file": [
+                    "includes/inline_image_id_locations.adoc"
+                  ]
+                }
+              ]
+            }
+          },
+          "alt": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Alt",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 23,
+                  "file": [
+                    "includes/inline_image_id_locations.adoc"
+                  ]
+                },
+                {
+                  "line": 3,
+                  "col": 25,
+                  "file": [
+                    "includes/inline_image_id_locations.adoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "target": {
+            "type": "path",
+            "value": "bird.png"
+          },
+          "location": [
+            {
+              "line": 3,
+              "col": 8,
+              "file": [
+                "includes/inline_image_id_locations.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 46,
+              "file": [
+                "includes/inline_image_id_locations.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 5,
+          "file": [
+            "includes/inline_image_id_locations.adoc"
+          ]
+        },
+        {
+          "line": 3,
+          "col": 46,
+          "file": [
+            "includes/inline_image_id_locations.adoc"
+          ]
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 3,
+      "col": 46,
+      "file": [
+        "includes/inline_image_id_locations.adoc"
+      ]
+    }
+  ]
+}

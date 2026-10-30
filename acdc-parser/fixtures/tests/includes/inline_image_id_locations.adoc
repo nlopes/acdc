@@ -1,0 +1,5 @@
+// Omitted before the selected lines.
+
+    é😀 image:bird.png[Alt,id=included-picture]
+
+// Omitted after the selected lines.

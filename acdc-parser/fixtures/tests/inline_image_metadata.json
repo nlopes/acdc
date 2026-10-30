@@ -57,12 +57,12 @@
               "id": "positional",
               "location": [
                 {
-                  "line": 1,
+                  "line": 3,
                   "col": 42
                 },
                 {
-                  "line": 1,
-                  "col": 52
+                  "line": 3,
+                  "col": 51
                 }
               ]
             }
@@ -144,12 +144,12 @@
               "id": "named",
               "location": [
                 {
-                  "line": 1,
+                  "line": 5,
                   "col": 104
                 },
                 {
-                  "line": 1,
-                  "col": 109
+                  "line": 5,
+                  "col": 108
                 }
               ]
             }

@@ -553,7 +553,12 @@ fn map_inline_macro<'a>(
         InlineMacro::Button(button) => {
             button.location = ctx.map_location(&button.location)?;
         }
-        InlineMacro::Image(image) => image.location = ctx.map_location(&image.location)?,
+        InlineMacro::Image(image) => {
+            image.location = ctx.map_location(&image.location)?;
+            if let Some(id) = &mut image.metadata.id {
+                id.location = ctx.map_location(&id.location)?;
+            }
+        }
         InlineMacro::Menu(menu) => menu.location = ctx.map_location(&menu.location)?,
         InlineMacro::Keyboard(keyboard) => {
             keyboard.location = ctx.map_location(&keyboard.location)?;

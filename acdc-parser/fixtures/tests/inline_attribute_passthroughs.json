@@ -775,12 +775,12 @@
               "id": "image-id",
               "location": [
                 {
-                  "line": 1,
-                  "col": 102
+                  "line": 24,
+                  "col": 121
                 },
                 {
-                  "line": 1,
-                  "col": 109
+                  "line": 24,
+                  "col": 130
                 }
               ]
             }

@@ -373,8 +373,12 @@ where
                     (self.visit_location)(&mut id.location)?;
                 }
             }
-            InlineMacro::Image(_)
-            | InlineMacro::Keyboard(_)
+            InlineMacro::Image(image) => {
+                if let Some(id) = &mut image.metadata.id {
+                    (self.visit_location)(&mut id.location)?;
+                }
+            }
+            InlineMacro::Keyboard(_)
             | InlineMacro::Button(_)
             | InlineMacro::Menu(_)
             | InlineMacro::Autolink(_)
