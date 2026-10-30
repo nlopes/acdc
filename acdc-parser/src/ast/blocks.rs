@@ -3,7 +3,7 @@ mod boundaries;
 mod document;
 mod lists;
 
-pub use document::{AuthorRef, DocumentAttributesRef, HeaderRef};
+pub use document::{AuthorRef, DocumentAttributesRef, FootnoteDefinitionRef, HeaderRef};
 pub use lists::{CalloutListItemRef, DescriptionListItemRef, ListItemRef};
 
 use crate::{Block, DelimitedBlockType, Document, Paragraph, Section};

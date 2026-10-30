@@ -5,6 +5,7 @@ use super::{ContentRef, InlineImageRef, LocationRef};
 mod hyperlinks;
 mod icons;
 mod index_terms;
+mod notes;
 mod spans;
 mod xrefs;
 
@@ -281,6 +282,19 @@ impl<'doc> AnchorRef<'doc> {
     #[must_use]
     pub fn reftext(self) -> Option<ContentRef<'doc>> {
         self.node.xreflabel.as_ref().map(ContentRef::from)
+    }
+
+    /// Whether this anchor identifies a bibliography entry.
+    #[must_use]
+    pub fn is_bibliography(self) -> bool {
+        self.node.is_bibliography()
+    }
+
+    /// The bibliography entry's display label, separate from citation `reftext()`.
+    /// `None` means an ordinary anchor or an entry that uses its ID as the label.
+    #[must_use]
+    pub fn bibliography_label(self) -> Option<ContentRef<'doc>> {
+        self.node.bibliography_label().map(ContentRef::new)
     }
 }
 

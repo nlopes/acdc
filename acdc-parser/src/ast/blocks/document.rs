@@ -1,10 +1,18 @@
-use crate::{Author, DocumentAttributeAssignment, DocumentAttributeValue, DocumentAttributes};
+use crate::{
+    Author, DocumentAttributeAssignment, DocumentAttributeValue, DocumentAttributes, Footnote,
+};
 
 use super::{
     AttributesRef, ContentRef, DocumentAttributeRef, DocumentRef, ElementIdRef, TokensRef,
 };
 
 node_ref!(HeaderRef<'doc>, crate::Header<'doc>, "A document header.");
+
+node_ref!(
+    FootnoteDefinitionRef<'doc>,
+    Footnote<'doc>,
+    "A registered footnote definition from the document catalog, not another authored occurrence."
+);
 
 /// An author's retained name parts and optional email address.
 #[derive(Clone, Copy, Debug)]
@@ -33,6 +41,14 @@ impl<'doc> DocumentRef<'doc> {
     #[must_use]
     pub fn attributes(self) -> DocumentAttributesRef<'doc> {
         DocumentAttributesRef::from(&self.node.attributes)
+    }
+
+    /// Registered definitions in numbering order, separate from occurrences in
+    /// the block tree. Reads preserve the catalog without refreshing it.
+    pub fn footnotes(
+        self,
+    ) -> impl Iterator<Item = FootnoteDefinitionRef<'doc>> + Send + Sync + 'doc {
+        self.node.footnotes.iter().map(FootnoteDefinitionRef::new)
     }
 }
 
@@ -206,5 +222,25 @@ impl<'doc> DocumentAttributeRef<'doc> {
 impl<'doc> From<&'doc crate::DocumentAttribute<'doc>> for DocumentAttributeRef<'doc> {
     fn from(attribute: &'doc crate::DocumentAttribute<'doc>) -> Self {
         Self::new(attribute)
+    }
+}
+
+impl<'doc> FootnoteDefinitionRef<'doc> {
+    /// The named footnote key; `None` for an anonymous note.
+    #[must_use]
+    pub fn id(self) -> Option<&'doc str> {
+        self.node.id
+    }
+
+    /// The assigned number referenced by footnote occurrences.
+    #[must_use]
+    pub fn number(self) -> u32 {
+        self.node.number
+    }
+
+    /// The registered body, with the defining occurrence's source locations.
+    #[must_use]
+    pub fn content(self) -> ContentRef<'doc> {
+        ContentRef::new(&self.node.content)
     }
 }

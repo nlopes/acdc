@@ -35,7 +35,8 @@
 //! children and titles, block bodies and metadata, lists and their items, tables,
 //! media, discrete headings, TOC blocks, breaks, and comments. Inline reads cover
 //! plain/raw/verbatim text, formatting spans, images, icons, hyperlinks,
-//! cross-references, index labels and relationships, and locations.
+//! cross-references, index labels and relationships, footnotes, anchors, callouts,
+//! and locations.
 //! The owner API remains available for other reads and for construction and editing.
 //!
 //! Formatting spans keep distinct types, with `content()`, `form()`, `id()`,

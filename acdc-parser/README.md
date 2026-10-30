@@ -115,6 +115,13 @@ distinguishes checked, unchecked, and ordinary items. Numbering controls such as
 `start` stay in the list attributes. Callout items expose their marker kind and
 number through `callout()`; that number belongs to its local callout sequence.
 
+Footnotes expose `id()`, `number()`, and the `content()` retained on each
+occurrence. References, including repeated definitions, have empty content.
+`document_ref().footnotes()` reads the registered definitions separately, in
+numbering order. Reading either form does not register notes or resolve references.
+Anchors expose `is_bibliography()` and `bibliography_label()` alongside `reftext()`:
+the entry's display label and its citation text can differ.
+
 `document_ref().header()` exposes the title, subtitle, and authors. Read revision
 values through `document_ref().attributes().get("revnumber")`, `revdate`, and
 `revremark`. Header `attributes()` reads element metadata on the title;
