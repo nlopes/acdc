@@ -19,6 +19,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Formatting, completion, signature help, and block wrapping now use UTF-16
+  cursor positions after emoji and reject invalid selections. Formatting emits
+  valid, non-overlapping edits at the end of a file, and inserted line breaks
+  follow the file's LF or CRLF style. Wrapping preserves the selected source.
+  Renaming a file updates Unicode include paths without leaving stray characters.
+  Unfinished listing blocks keep their whitespace; pressing Enter after the
+  opening delimiter can insert its matching closer.
+
 - Expand selection now follows the original source after includes and uses
   correct UTF-16 positions after emoji, through CRLF endings, and at end of file.
   Highlighting validates source spans and avoids duplicate tokens in nested

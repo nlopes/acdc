@@ -10,7 +10,12 @@ use std::ops;
 use acdc_parser::{Block, DelimitedBlockType, Document, Location};
 use tower_lsp_server::ls_types::{FormattingOptions, Position, Range, TextEdit};
 
-use crate::{convert::is_primary_location, state::DocumentState};
+use crate::{
+    convert::{
+        LineIndex, byte_range_to_utf16_range, is_primary_location, position_to_offset, to_lsp_u32,
+    },
+    state::DocumentState,
+};
 
 /// A line range where formatting must not be applied (e.g., inside listing blocks).
 /// Lines are 0-indexed.
@@ -36,20 +41,26 @@ pub(crate) fn format_document(doc: &DocumentState, options: &FormattingOptions) 
     let mut edits = Vec::new();
 
     edits.extend(trim_trailing_whitespace(&lines, &protected, range.clone()));
-    edits.extend(collapse_blank_lines(&lines, &protected, range.clone()));
+    edits.extend(collapse_blank_lines(
+        &lines,
+        &protected,
+        range.clone(),
+        doc.text(),
+    ));
 
     if let Some(ast) = doc.ast() {
         edits.extend(ensure_block_separation(
             &lines,
             ast.document(),
+            doc.text(),
             &protected,
             range,
         ));
     }
 
-    edits.extend(normalize_final_newline(doc.text(), options));
+    edits.extend(normalize_final_newline(doc.text(), options, &protected));
 
-    edits
+    coalesce_deletions(edits)
 }
 
 /// Format a range of a document, returning a list of text edits.
@@ -60,12 +71,23 @@ pub(crate) fn format_range(
     range: &Range,
     options: &FormattingOptions,
 ) -> Vec<TextEdit> {
+    if range.start > range.end
+        || position_to_offset(doc.text(), range.start).is_none()
+        || position_to_offset(doc.text(), range.end).is_none()
+    {
+        return Vec::new();
+    }
     let lines: Vec<&str> = doc.text().lines().collect();
     let line_count = lines.len();
 
     // Expand to full lines
     let start_line = range.start.line as usize;
-    let end_line = (range.end.line as usize).min(line_count.saturating_sub(1));
+    let last_selected = if range.end.character == 0 && range.end.line > range.start.line {
+        range.end.line - 1
+    } else {
+        range.end.line
+    };
+    let end_line = (last_selected as usize).min(line_count.saturating_sub(1));
     let line_range = start_line..end_line + 1;
 
     let protected = if let Some(ast) = doc.ast() {
@@ -81,12 +103,18 @@ pub(crate) fn format_range(
         &protected,
         line_range.clone(),
     ));
-    edits.extend(collapse_blank_lines(&lines, &protected, line_range.clone()));
+    edits.extend(collapse_blank_lines(
+        &lines,
+        &protected,
+        line_range.clone(),
+        doc.text(),
+    ));
 
     if let Some(ast) = doc.ast() {
         edits.extend(ensure_block_separation(
             &lines,
             ast.document(),
+            doc.text(),
             &protected,
             line_range.clone(),
         ));
@@ -94,10 +122,10 @@ pub(crate) fn format_range(
 
     // Only normalize final newline if range includes the last line
     if end_line >= line_count.saturating_sub(1) {
-        edits.extend(normalize_final_newline(doc.text(), options));
+        edits.extend(normalize_final_newline(doc.text(), options, &protected));
     }
 
-    edits
+    coalesce_deletions(edits)
 }
 
 /// Protect verbatim blocks in the original text and primary-source AST ranges.
@@ -178,7 +206,7 @@ fn is_verbatim_block_type(inner: &DelimitedBlockType) -> bool {
     )
 }
 
-/// Fallback: detect verbatim block ranges from raw text when AST is unavailable.
+/// Protect verbatim source through its closing delimiter or end of file.
 pub(crate) fn collect_protected_ranges_from_text(text: &str) -> Vec<ProtectedRange> {
     let mut ranges = Vec::new();
     let delimiter_chars = ['-', '.', '+', '/'];
@@ -206,6 +234,12 @@ pub(crate) fn collect_protected_ranges_from_text(text: &str) -> Vec<ProtectedRan
         }
     }
 
+    if let Some((_, start_line)) = open_delimiter {
+        ranges.push(ProtectedRange {
+            start_line,
+            end_line: text.lines().count().saturating_sub(1),
+        });
+    }
     ranges
 }
 
@@ -214,6 +248,12 @@ pub(crate) fn is_protected(line: usize, ranges: &[ProtectedRange]) -> bool {
     ranges
         .iter()
         .any(|r| line >= r.start_line && line <= r.end_line)
+}
+
+pub(super) fn is_protected_after_opener(line: usize, ranges: &[ProtectedRange]) -> bool {
+    ranges
+        .iter()
+        .any(|range| range.start_line < line && line <= range.end_line)
 }
 
 /// Generate edits to trim trailing whitespace from lines.
@@ -235,8 +275,8 @@ fn trim_trailing_whitespace(
 
         let trimmed = line.trim_end();
         if trimmed.len() < line.len() {
-            let start_char = trimmed.len() as u32;
-            let end_char = line.len() as u32;
+            let start_char = to_lsp_u32(trimmed.encode_utf16().count());
+            let end_char = to_lsp_u32(line.encode_utf16().count());
             edits.push(TextEdit {
                 range: Range {
                     start: Position {
@@ -262,6 +302,7 @@ fn collapse_blank_lines(
     lines: &[&str],
     protected: &[ProtectedRange],
     range: ops::Range<usize>,
+    text: &str,
 ) -> Vec<TextEdit> {
     let mut edits = Vec::new();
     let mut blank_run_start: Option<usize> = None;
@@ -313,9 +354,13 @@ fn collapse_blank_lines(
                         line: (start + 1) as u32,
                         character: 0,
                     },
-                    end: Position {
-                        line: end as u32,
-                        character: 0,
+                    end: if end < lines.len() || text.ends_with('\n') {
+                        Position::new(to_lsp_u32(end), 0)
+                    } else {
+                        Position::new(
+                            to_lsp_u32(end - 1),
+                            to_lsp_u32(lines.last().map_or(0, |line| line.encode_utf16().count())),
+                        )
                     },
                 },
                 new_text: String::new(),
@@ -360,11 +405,13 @@ fn block_location<'a>(block: &'a Block<'_>) -> &'a Location {
 fn ensure_block_separation(
     lines: &[&str],
     ast: &Document,
+    text: &str,
     protected: &[ProtectedRange],
     range: ops::Range<usize>,
 ) -> Vec<TextEdit> {
     let mut edits = Vec::new();
     let blocks = &ast.blocks;
+    let source = LineIndex::new(text);
 
     for pair in blocks.windows(2) {
         let (Some(prev_block), Some(curr_block)) = (pair.first(), pair.get(1)) else {
@@ -373,6 +420,8 @@ fn ensure_block_separation(
 
         if !is_primary_location(block_location(prev_block))
             || !is_primary_location(block_location(curr_block))
+            || source.range(block_location(prev_block)).is_none()
+            || source.range(block_location(curr_block)).is_none()
         {
             continue;
         }
@@ -406,7 +455,7 @@ fn ensure_block_separation(
 
             // Insert a blank line at the end of the previous block's last line
             if let Some(line) = lines.get(prev_end_line) {
-                let col = line.len() as u32;
+                let col = to_lsp_u32(line.encode_utf16().count());
                 edits.push(TextEdit {
                     range: Range {
                         start: Position {
@@ -418,7 +467,7 @@ fn ensure_block_separation(
                             character: col,
                         },
                     },
-                    new_text: "\n".to_string(),
+                    new_text: line_ending(text).to_string(),
                 });
             }
         }
@@ -427,92 +476,71 @@ fn ensure_block_separation(
     edits
 }
 
-/// Generate edits to normalize the final newline.
-#[allow(clippy::cast_possible_truncation)]
-fn normalize_final_newline(text: &str, options: &FormattingOptions) -> Vec<TextEdit> {
-    let mut edits = Vec::new();
+pub(super) fn line_ending(text: &str) -> &str {
+    if text
+        .split_once('\n')
+        .is_some_and(|(prefix, _)| prefix.ends_with('\r'))
+    {
+        "\r\n"
+    } else {
+        "\n"
+    }
+}
 
+fn normalize_final_newline(
+    text: &str,
+    options: &FormattingOptions,
+    protected: &[ProtectedRange],
+) -> Vec<TextEdit> {
     let insert_final = options.insert_final_newline.unwrap_or(true);
     let trim_final = options.trim_final_newlines.unwrap_or(true);
-
-    if text.is_empty() {
-        if insert_final {
-            edits.push(TextEdit {
-                range: Range {
-                    start: Position {
-                        line: 0,
-                        character: 0,
-                    },
-                    end: Position {
-                        line: 0,
-                        character: 0,
-                    },
-                },
-                new_text: "\n".to_string(),
-            });
+    let last_line = text.lines().count().saturating_sub(1);
+    let content = if is_protected(last_line, protected) {
+        text.trim_end_matches(['\r', '\n'])
+    } else {
+        text.trim_end()
+    };
+    let trailing = text.get(content.len()..).unwrap_or_default();
+    let bytes = if let Some(newline) = trailing.find('\n') {
+        // Keep the first line ending, including its CR when present.
+        let keep_end = content.len() + newline + 1;
+        if !trim_final || keep_end == text.len() {
+            return Vec::new();
         }
-        return edits;
+        keep_end..text.len()
+    } else if insert_final {
+        text.len()..text.len()
+    } else {
+        return Vec::new();
+    };
+    let Some(range) = byte_range_to_utf16_range(text, bytes.clone()) else {
+        return Vec::new();
+    };
+    vec![TextEdit {
+        range,
+        new_text: if bytes.is_empty() {
+            line_ending(text).to_string()
+        } else {
+            String::new()
+        },
+    }]
+}
+
+fn coalesce_deletions(mut edits: Vec<TextEdit>) -> Vec<TextEdit> {
+    edits.sort_by_key(|edit| (edit.range.start, edit.range.end));
+    let mut result: Vec<TextEdit> = Vec::with_capacity(edits.len());
+    for edit in edits {
+        if let Some(previous) = result.last_mut()
+            && previous.new_text.is_empty()
+            && edit.new_text.is_empty()
+            && edit.range.start <= previous.range.end
+        {
+            previous.range.end = previous.range.end.max(edit.range.end);
+        } else {
+            result.push(edit);
+        }
     }
-
-    // Count trailing newlines
-    let content_end = text.trim_end_matches('\n').trim_end_matches('\r');
-    let trailing = &text[content_end.len()..];
-    let trailing_newline_count = trailing.matches('\n').count();
-
-    if trim_final && trailing_newline_count > 1 {
-        let lines: Vec<&str> = text.lines().collect();
-        let total_lines = lines.len();
-
-        // Find the last non-empty line
-        let mut last_content_line = total_lines.saturating_sub(1);
-        while last_content_line > 0 {
-            if let Some(line) = lines.get(last_content_line)
-                && !line.trim().is_empty()
-            {
-                break;
-            }
-            last_content_line -= 1;
-        }
-
-        // Replace from end of last content line + 1 newline to end of file
-        // Keep exactly one newline after last content line
-        let replace_start_line = last_content_line + 1;
-        if replace_start_line < total_lines || text.ends_with('\n') {
-            edits.push(TextEdit {
-                range: Range {
-                    start: Position {
-                        line: replace_start_line as u32,
-                        character: 0,
-                    },
-                    end: Position {
-                        line: (total_lines + trailing_newline_count - 1) as u32,
-                        character: 0,
-                    },
-                },
-                new_text: String::new(),
-            });
-        }
-    } else if insert_final && trailing_newline_count == 0 {
-        let lines: Vec<&str> = text.lines().collect();
-        let last_line = lines.len().saturating_sub(1);
-        let last_col = lines.last().map_or(0, |l| l.len()) as u32;
-
-        edits.push(TextEdit {
-            range: Range {
-                start: Position {
-                    line: last_line as u32,
-                    character: last_col,
-                },
-                end: Position {
-                    line: last_line as u32,
-                    character: last_col,
-                },
-            },
-            new_text: "\n".to_string(),
-        });
-    }
-
-    edits
+    result
 }
 
 #[cfg(test)]
@@ -564,25 +592,12 @@ mod tests {
 
         let mut result = src.to_string();
         for edit in sorted {
-            let start_offset = position_to_offset(&result, edit.range.start);
-            let end_offset = position_to_offset(&result, edit.range.end);
+            let start_offset = position_to_offset(&result, edit.range.start).unwrap();
+            let end_offset = position_to_offset(&result, edit.range.end).unwrap();
             result.replace_range(start_offset..end_offset, &edit.new_text);
         }
 
         result
-    }
-
-    /// Convert an LSP Position to a byte offset in the source text.
-    #[allow(clippy::cast_possible_truncation)]
-    fn position_to_offset(text: &str, pos: Position) -> usize {
-        let mut offset = 0;
-        for (i, line) in text.split('\n').enumerate() {
-            if i == pos.line as usize {
-                return offset + (pos.character as usize).min(line.len());
-            }
-            offset += line.len() + 1; // +1 for the '\n'
-        }
-        text.len()
     }
 
     // ── Trailing whitespace tests ───────────────────────────────────────
@@ -756,7 +771,7 @@ mod tests {
             },
             end: Position {
                 line: 2,
-                character: 12,
+                character: 11,
             },
         };
         let options = make_options();

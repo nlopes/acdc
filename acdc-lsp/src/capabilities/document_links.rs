@@ -5,10 +5,7 @@ use acdc_parser::{Block, DelimitedBlockType, InlineMacro, InlineNode, Location};
 use tower_lsp_server::ls_types::{DocumentLink, Uri};
 
 use crate::{
-    convert::{
-        byte_range_to_utf16_range, is_primary_location, location_to_utf16_range,
-        resolve_relative_uri,
-    },
+    convert::{is_primary_location, location_to_utf16_range, resolve_relative_uri},
     state::DocumentState,
 };
 
@@ -58,10 +55,7 @@ pub(crate) fn collect_document_links(doc: &DocumentState, doc_uri: &Uri) -> Vec<
     // Add include directives as clickable links
     for (include_target, include_loc) in &doc.includes {
         if let Some(target_uri) = resolve_relative_uri(doc_uri, include_target)
-            && let Some(range) = byte_range_to_utf16_range(
-                doc.text(),
-                include_loc.absolute_start..include_loc.absolute_end,
-            )
+            && let Some(range) = location_to_utf16_range(doc.text(), include_loc)
         {
             result.push(DocumentLink {
                 range,

@@ -8,4 +8,5 @@ mod integration {
     mod inlay_hints;
     mod preview;
     mod selection_range;
+    mod source_edits;
 }

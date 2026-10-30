@@ -523,7 +523,7 @@ pub(crate) fn extract_includes(text: &str) -> Vec<(String, Location)> {
                 location.end =
                     Position::from_line_col(line_idx + 1, line[..target_end].chars().count());
                 location.absolute_start = this_line_start + target_start;
-                location.absolute_end = this_line_start + target_end;
+                location.absolute_end = this_line_start + target_end - 1;
 
                 includes.push((target.to_string(), location));
             }

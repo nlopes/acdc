@@ -8,7 +8,7 @@ use tower_lsp_server::ls_types::{
 };
 
 use crate::{
-    convert::uri_filename,
+    convert::{position_to_offset, uri_filename},
     state::{DocumentState, Workspace},
 };
 
@@ -216,14 +216,8 @@ pub(crate) fn compute_completions(
 
 /// Detect the completion context from cursor position
 fn detect_context(text: &str, position: Position) -> Option<CompletionContext> {
-    let line_num = position.line as usize;
-    let char_num = position.character as usize;
-
-    // Get the line at cursor
-    let line = text.lines().nth(line_num)?;
-
-    // Get text before cursor on this line
-    let before_cursor: String = line.chars().take(char_num).collect();
+    let offset = position_to_offset(text, position)?;
+    let before_cursor = text.get(..offset)?.rsplit('\n').next()?;
 
     // Check for cross-reference patterns: << or xref:
     if let Some(xref_start) = before_cursor.rfind("<<") {
@@ -279,7 +273,7 @@ fn detect_context(text: &str, position: Position) -> Option<CompletionContext> {
     }
 
     // Check for macro snippet context: user is typing a word that could be a macro name
-    if let Some(word_start) = find_word_start(&before_cursor) {
+    if let Some(word_start) = find_word_start(before_cursor) {
         let word = &before_cursor[word_start..];
         // Need at least 2 chars and word must not contain : or [ (already inside a macro)
         if word.len() >= 2
@@ -321,11 +315,16 @@ fn complete_macro_snippets(
     at_line_start: bool,
     position: Position,
 ) -> Vec<CompletionItem> {
-    let prefix_len = u32::try_from(prefix.len()).unwrap_or(0);
+    let Ok(prefix_len) = u32::try_from(prefix.encode_utf16().count()) else {
+        return Vec::new();
+    };
+    let Some(start_character) = position.character.checked_sub(prefix_len) else {
+        return Vec::new();
+    };
     let edit_range = Range {
         start: Position {
             line: position.line,
-            character: position.character - prefix_len,
+            character: start_character,
         },
         end: position,
     };
@@ -513,11 +512,16 @@ fn complete_include_paths(doc_uri: &Uri, prefix: &str, position: Position) -> Ve
     };
 
     // The text edit range covers the entire prefix (everything after `include::`)
-    let prefix_len = u32::try_from(prefix.len()).unwrap_or(0);
+    let Ok(prefix_len) = u32::try_from(prefix.encode_utf16().count()) else {
+        return Vec::new();
+    };
+    let Some(start_character) = position.character.checked_sub(prefix_len) else {
+        return Vec::new();
+    };
     let edit_range = Range {
         start: Position {
             line: position.line,
-            character: position.character - prefix_len,
+            character: start_character,
         },
         end: position,
     };
@@ -675,7 +679,7 @@ mod tests {
             "include::path/to",
             Position {
                 line: 0,
-                character: 17,
+                character: 16,
             },
         );
         assert_eq!(

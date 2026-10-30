@@ -8,7 +8,7 @@ use std::{
 use tower_lsp_server::ls_types::{FileRename, TextEdit, Uri, WorkspaceEdit};
 
 use crate::{
-    convert::{file_path_to_uri, location_to_range, resolve_relative_uri, source_uri},
+    convert::{file_path_to_uri, resolve_relative_uri, source_uri},
     state::{Workspace, XrefTarget},
 };
 
@@ -107,8 +107,13 @@ pub(crate) fn compute_file_rename_edits(
 
             let new_relative = compute_relative_path(doc_dir, &new_path);
 
+            let Some(range) =
+                super::rename_target::include_range(doc_state.text(), location, target)
+            else {
+                continue;
+            };
             changes.entry(doc_uri.clone()).or_default().push(TextEdit {
-                range: location_to_range(location),
+                range,
                 new_text: new_relative,
             });
         }
@@ -232,8 +237,11 @@ fn scan_workspace_files_for_renames(
                 continue;
             };
             let new_relative = compute_relative_path(doc_dir, &new_path);
+            let Some(range) = super::rename_target::include_range(&text, location, target) else {
+                continue;
+            };
             changes.entry(file_uri.clone()).or_default().push(TextEdit {
-                range: location_to_range(location),
+                range,
                 new_text: new_relative,
             });
         }

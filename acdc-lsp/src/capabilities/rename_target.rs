@@ -1,12 +1,22 @@
-//! Find editable target text inside anchor and cross-reference syntax.
+//! Find editable target text inside anchors, cross-references, and includes.
 
 use acdc_parser::Location;
 use tower_lsp_server::ls_types::Range;
 
 use crate::{
-    convert::{byte_range_to_utf16_range, to_lsp_u32},
+    convert::{byte_range_to_utf16_range, location_to_utf16_range, position_to_offset, to_lsp_u32},
     state::XrefTarget,
 };
+
+pub(super) fn include_range(text: &str, location: &Location, target: &str) -> Option<Range> {
+    let range = location_to_utf16_range(text, location)?;
+    let start = position_to_offset(text, range.start)?;
+    let end = position_to_offset(text, range.end)?;
+    (text.get(start..end)? == target
+        && text.get(..start)?.ends_with("include::")
+        && text.get(end..)?.starts_with('['))
+    .then_some(range)
+}
 
 pub(super) fn anchor_range(text: &str, location: &Location, id: &str) -> Option<Range> {
     let (target, range) = target_range(text, location, &["[[[", "[["], &[',', ']'])

@@ -12,7 +12,8 @@ use tower_lsp_server::ls_types::{
     Uri, WorkspaceEdit,
 };
 
-use crate::state::DocumentState;
+use super::formatting::line_ending;
+use crate::{convert::position_to_offset, state::DocumentState};
 
 /// Diagnostic message prefix for unresolved cross-references.
 const UNRESOLVED_XREF_PREFIX: &str = "Unresolved cross-reference: target '";
@@ -37,6 +38,9 @@ pub(crate) fn compute_code_actions(
     range: Range,
     ctx: &CodeActionContext,
 ) -> Vec<CodeActionOrCommand> {
+    if extract_text_for_range(doc.text(), &range).is_none() {
+        return Vec::new();
+    }
     let mut actions = Vec::new();
 
     actions.extend(
@@ -89,7 +93,7 @@ fn quickfix_actions(doc: &DocumentState, uri: &Uri, ctx: &CodeActionContext) -> 
                         start: insert_pos,
                         end: insert_pos,
                     },
-                    new_text: format!("[[{anchor_id}]]\n"),
+                    new_text: format!("[[{anchor_id}]]{}", line_ending(doc.text())),
                 }],
             );
 
@@ -146,7 +150,9 @@ fn wrap_in_block_actions(doc: &DocumentState, uri: &Uri, range: Range) -> Vec<Co
     BLOCK_WRAPS
         .iter()
         .map(|(name, delimiter)| {
-            let new_text = format!("{delimiter}\n{selected_text}\n{delimiter}\n");
+            let newline = line_ending(doc.text());
+            let new_text =
+                format!("{delimiter}{newline}{selected_text}{newline}{delimiter}{newline}");
 
             let mut changes = HashMap::new();
             changes.insert(uri.clone(), vec![TextEdit { range, new_text }]);
@@ -165,56 +171,10 @@ fn wrap_in_block_actions(doc: &DocumentState, uri: &Uri, range: Range) -> Vec<Co
         .collect()
 }
 
-/// Extract text from source corresponding to an LSP range.
-///
-/// Converts 0-indexed LSP line/character positions to source text offsets.
-#[allow(clippy::cast_possible_truncation)]
-fn extract_text_for_range(source: &str, range: &Range) -> Option<String> {
-    let lines: Vec<&str> = source.lines().collect();
-
-    let start_line = range.start.line as usize;
-    let end_line = range.end.line as usize;
-
-    if start_line >= lines.len() {
-        return None;
-    }
-
-    let end_line = end_line.min(lines.len().saturating_sub(1));
-
-    if start_line == end_line {
-        let line = lines.get(start_line)?;
-        let start_char = char_offset_to_byte(line, range.start.character as usize);
-        let end_char = char_offset_to_byte(line, range.end.character as usize);
-        Some(line.get(start_char..end_char)?.to_string())
-    } else {
-        let mut result = String::new();
-
-        // First line from start character
-        let first_line = lines.get(start_line)?;
-        let start_byte = char_offset_to_byte(first_line, range.start.character as usize);
-        result.push_str(first_line.get(start_byte..)?);
-
-        // Middle lines (full)
-        for line_idx in (start_line + 1)..end_line {
-            result.push('\n');
-            if let Some(line) = lines.get(line_idx) {
-                result.push_str(line);
-            }
-        }
-
-        // Last line up to end character
-        result.push('\n');
-        let last_line = lines.get(end_line)?;
-        let end_byte = char_offset_to_byte(last_line, range.end.character as usize);
-        result.push_str(last_line.get(..end_byte)?);
-
-        Some(result)
-    }
-}
-
-/// Convert a character offset (UTF-16 code units in LSP) to byte offset.
-fn char_offset_to_byte(line: &str, char_offset: usize) -> usize {
-    line.chars().take(char_offset).map(char::len_utf8).sum()
+fn extract_text_for_range<'a>(source: &'a str, range: &Range) -> Option<&'a str> {
+    let start = position_to_offset(source, range.start)?;
+    let end = position_to_offset(source, range.end)?;
+    source.get(start..end)
 }
 
 /// Generate TOC-related source actions.
@@ -251,7 +211,7 @@ fn toc_actions(doc: &DocumentState, uri: &Uri) -> Vec<CodeAction> {
                 start: insert_pos,
                 end: insert_pos,
             },
-            new_text: ":toc:\n".to_string(),
+            new_text: format!(":toc:{}", line_ending(doc.text())),
         }],
     );
 
@@ -687,7 +647,7 @@ mod tests {
             },
             end: Position {
                 line: 4,
-                character: 18,
+                character: 16,
             },
         };
 

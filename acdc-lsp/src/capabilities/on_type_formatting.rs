@@ -9,7 +9,8 @@
 use tower_lsp_server::ls_types::{Position, Range, TextEdit};
 
 use super::formatting::{
-    collect_protected_ranges, collect_protected_ranges_from_text, is_protected,
+    collect_protected_ranges, collect_protected_ranges_from_text, is_protected_after_opener,
+    line_ending,
 };
 use crate::state::DocumentState;
 
@@ -23,7 +24,7 @@ pub(crate) fn format_on_type(
     position: Position,
     ch: &str,
 ) -> Option<Vec<TextEdit>> {
-    if ch != "\n" {
+    if ch != "\n" || crate::convert::position_to_offset(doc.text(), position).is_none() {
         return None;
     }
 
@@ -44,8 +45,8 @@ pub(crate) fn format_on_type(
         collect_protected_ranges_from_text(doc.text())
     };
 
-    // Don't format inside protected (verbatim) ranges
-    if is_protected(prev_line_idx, &protected) {
+    // The opening delimiter can be auto-closed; its content must stay untouched.
+    if is_protected_after_opener(prev_line_idx, &protected) {
         return None;
     }
 
@@ -54,7 +55,13 @@ pub(crate) fn format_on_type(
         return Some(edits);
     }
 
-    if let Some(edits) = try_block_auto_close(&lines, prev_line, prev_line_idx, cursor_line) {
+    if let Some(edits) = try_block_auto_close(
+        &lines,
+        prev_line,
+        prev_line_idx,
+        cursor_line,
+        line_ending(doc.text()),
+    ) {
         return Some(edits);
     }
 
@@ -305,6 +312,7 @@ fn try_block_auto_close(
     prev_line: &str,
     prev_line_idx: usize,
     cursor_line: usize,
+    newline: &str,
 ) -> Option<Vec<TextEdit>> {
     let delimiter = detect_block_delimiter(prev_line)?;
 
@@ -319,7 +327,7 @@ fn try_block_auto_close(
     }
 
     // Insert: newline + closing delimiter + newline
-    let new_text = format!("\n{delimiter}\n");
+    let new_text = format!("{newline}{delimiter}{newline}");
     Some(vec![TextEdit {
         range: Range {
             start: Position {

@@ -1552,3 +1552,6 @@ mod annotation_ranges;
 
 #[cfg(test)]
 mod selection_highlighting;
+
+#[cfg(test)]
+mod source_edits;

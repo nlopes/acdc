@@ -408,11 +408,8 @@ struct MacroContext<'a> {
 /// Scans backwards from the cursor to find an unmatched `[`, then looks for
 /// a macro name pattern before it. Counts commas to determine active parameter.
 fn detect_macro_context(text: &str, position: Position) -> Option<MacroContext<'_>> {
-    let line_num = position.line as usize;
-    let char_num = position.character as usize;
-
-    let line = text.lines().nth(line_num)?;
-    let before_cursor: String = line.chars().take(char_num).collect();
+    let offset = crate::convert::position_to_offset(text, position)?;
+    let before_cursor = text.get(..offset)?.rsplit('\n').next()?;
     let before_bytes = before_cursor.as_bytes();
 
     // Find the unmatched '[' by scanning backwards
@@ -586,7 +583,7 @@ fn resolve_active_param(signature: &MacroSignature, inside_brackets: &str, comma
 
 /// Build the signature label string and collect parameter label offsets.
 ///
-/// Returns `(label, offsets)` where offsets are `(start, end)` byte positions
+/// Returns `(label, offsets)` where offsets are `(start, end)` UTF-16 positions
 /// for each parameter within the label.
 fn build_signature_label(signature: &MacroSignature, is_block: bool) -> (String, Vec<(u32, u32)>) {
     let colon_sep = if is_block { "::" } else { ":" };
@@ -594,9 +591,9 @@ fn build_signature_label(signature: &MacroSignature, is_block: bool) -> (String,
     let mut offsets = Vec::with_capacity(signature.params.len());
 
     for (i, param) in signature.params.iter().enumerate() {
-        let start = u32::try_from(label.len()).unwrap_or(u32::MAX);
+        let start = u32::try_from(label.encode_utf16().count()).unwrap_or(u32::MAX);
         label.push_str(param.label);
-        let end = u32::try_from(label.len()).unwrap_or(u32::MAX);
+        let end = u32::try_from(label.encode_utf16().count()).unwrap_or(u32::MAX);
         offsets.push((start, end));
 
         if i + 1 < signature.params.len() {
@@ -715,7 +712,7 @@ mod tests {
 
     #[test]
     fn include_match_named_param() {
-        assert_active_param("include::chapter.adoc[leveloffset=+1, lines=", 0, 45, 1);
+        assert_active_param("include::chapter.adoc[leveloffset=+1, lines=", 0, 44, 1);
     }
 
     #[test]
@@ -755,8 +752,8 @@ mod tests {
 
     #[test]
     fn video_block_form() {
-        assert_active_param("video::intro.mp4[", 0, 18, 0);
-        assert_label_starts_with("video::intro.mp4[", 0, 18, "video::target[");
+        assert_active_param("video::intro.mp4[", 0, 17, 0);
+        assert_label_starts_with("video::intro.mp4[", 0, 17, "video::target[");
     }
 
     #[test]

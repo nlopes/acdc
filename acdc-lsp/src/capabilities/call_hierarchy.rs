@@ -13,8 +13,8 @@ use tower_lsp_server::ls_types::{
 
 use crate::{
     convert::{
-        byte_range_to_utf16_range, file_path_to_uri, offset_in_location, position_to_offset,
-        resolve_relative_uri, uri_filename,
+        byte_range_to_utf16_range, file_path_to_uri, location_to_utf16_range, offset_in_location,
+        position_to_offset, resolve_relative_uri, uri_filename,
     },
     limits::read_bounded,
     state::{DocumentState, Workspace, extract_includes},
@@ -85,10 +85,7 @@ pub(crate) fn incoming_calls(
         for (include_target, location) in &doc_state.includes {
             if let Some(resolved) = resolve_relative_uri(doc_uri, include_target)
                 && &resolved == target_uri
-                && let Some(range) = byte_range_to_utf16_range(
-                    doc_state.text(),
-                    location.absolute_start..location.absolute_end,
-                )
+                && let Some(range) = location_to_utf16_range(doc_state.text(), location)
             {
                 ranges.push(range);
             }
@@ -114,8 +111,7 @@ pub(crate) fn incoming_calls(
         for (include_target, location) in &includes {
             if let Some(resolved) = resolve_relative_uri(&file_uri, include_target)
                 && &resolved == target_uri
-                && let Some(range) =
-                    byte_range_to_utf16_range(&text, location.absolute_start..location.absolute_end)
+                && let Some(range) = location_to_utf16_range(&text, location)
             {
                 ranges.push(range);
             }
@@ -152,10 +148,7 @@ pub(crate) fn outgoing_calls(
         extract_includes(text)
             .into_iter()
             .filter_map(|(target, location)| {
-                let range = byte_range_to_utf16_range(
-                    text,
-                    location.absolute_start..location.absolute_end,
-                )?;
+                let range = location_to_utf16_range(text, &location)?;
                 Some((target, range))
             })
             .collect::<Vec<_>>()
