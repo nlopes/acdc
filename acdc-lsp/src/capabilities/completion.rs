@@ -8,7 +8,7 @@ use tower_lsp_server::ls_types::{
 };
 
 use crate::{
-    convert::{position_to_offset, uri_filename},
+    convert::{normalize_position, position_to_offset, uri_filename},
     state::{DocumentState, Workspace},
 };
 
@@ -191,6 +191,7 @@ pub(crate) fn compute_completions(
     workspace: &Workspace,
     position: Position,
 ) -> Option<Vec<CompletionItem>> {
+    let position = normalize_position(doc.text(), position)?;
     let context = detect_context(doc.text(), position)?;
 
     match context {

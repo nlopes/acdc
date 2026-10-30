@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Editor requests with columns past a line's end now use the end of that line,
+  as required by LSP. Returned edit ranges use those normalized UTF-16 positions.
+  Batches of full document updates now use the last snapshot; ranged fragments
+  cannot replace the complete document when full synchronization is enabled.
+
 - Formatting, completion, signature help, and block wrapping now use UTF-16
   cursor positions after emoji and reject invalid selections. Formatting emits
   valid, non-overlapping edits at the end of a file, and inserted line breaks

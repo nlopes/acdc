@@ -13,7 +13,10 @@ use tower_lsp_server::ls_types::{
 };
 
 use super::formatting::line_ending;
-use crate::{convert::position_to_offset, state::DocumentState};
+use crate::{
+    convert::{normalize_range, position_to_offset},
+    state::DocumentState,
+};
 
 /// Diagnostic message prefix for unresolved cross-references.
 const UNRESOLVED_XREF_PREFIX: &str = "Unresolved cross-reference: target '";
@@ -38,9 +41,9 @@ pub(crate) fn compute_code_actions(
     range: Range,
     ctx: &CodeActionContext,
 ) -> Vec<CodeActionOrCommand> {
-    if extract_text_for_range(doc.text(), &range).is_none() {
+    let Some(range) = normalize_range(doc.text(), range) else {
         return Vec::new();
-    }
+    };
     let mut actions = Vec::new();
 
     actions.extend(

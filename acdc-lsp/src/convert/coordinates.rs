@@ -98,7 +98,7 @@ impl<'a> LineIndex<'a> {
 }
 
 /// Convert a UTF-16 cursor to an original-source scalar position.
-/// Reject positions inside a surrogate pair or outside the source.
+/// Reject unknown lines and surrogate interiors; columns past line end clamp to it.
 pub(crate) fn position_to_scalar_position(
     source: &str,
     position: Position,
@@ -167,13 +167,14 @@ mod tests {
             (Position::new(0, 2), acdc_parser::Position::new(1, 2)),
             (Position::new(1, 3), acdc_parser::Position::new(2, 3)),
             (Position::new(2, 0), acdc_parser::Position::new(3, 1)),
+            (Position::new(1, 99), acdc_parser::Position::new(2, 4)),
+            (Position::new(2, 99), acdc_parser::Position::new(3, 1)),
         ] {
             assert_eq!(position_to_scalar_position(text, wire), Some(scalar));
         }
         for invalid in [
             Position::new(0, 1),
             Position::new(1, 2),
-            Position::new(1, 5),
             Position::new(3, 0),
         ] {
             assert_eq!(position_to_scalar_position(text, invalid), None);

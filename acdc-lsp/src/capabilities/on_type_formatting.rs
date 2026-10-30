@@ -377,7 +377,7 @@ mod tests {
     use super::*;
 
     fn format_on_enter(text: &str, line: u32) -> Option<Vec<TextEdit>> {
-        let doc = DocumentState::new_failure(text.to_string(), 0, vec![]);
+        let doc = DocumentState::new_failure(text.to_string(), 0);
         format_on_type(&doc, Position { line, character: 0 }, "\n")
     }
 
@@ -568,7 +568,7 @@ mod tests {
 
     #[test]
     fn ignores_non_newline_trigger() {
-        let doc = DocumentState::new_failure("* item\n".to_string(), 0, vec![]);
+        let doc = DocumentState::new_failure("* item\n".to_string(), 0);
         assert!(
             format_on_type(
                 &doc,

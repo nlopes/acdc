@@ -23,7 +23,8 @@ pub(crate) fn to_lsp_u32(val: usize) -> u32 {
 
 /// Convert LSP position to byte offset in source text.
 ///
-/// Returns `None` if the position is out of bounds.
+/// Clamp columns past line end, as required by LSP. Reject unknown lines and
+/// positions inside a UTF-16 surrogate pair.
 #[must_use]
 pub(crate) fn position_to_offset(source: &str, position: Position) -> Option<usize> {
     let target_line = position.line as usize;
@@ -46,13 +47,23 @@ pub(crate) fn position_to_offset(source: &str, position: Position) -> Option<usi
                     return None;
                 }
             }
-            return (units == target_char).then_some(current_offset + line.len());
+            return Some(current_offset + line.len());
         }
         current_offset += line_with_ending.len();
     }
 
-    (position.character == 0 && target_line == source.bytes().filter(|&byte| byte == b'\n').count())
-        .then_some(source.len())
+    (target_line == source.bytes().filter(|&byte| byte == b'\n').count()).then_some(source.len())
+}
+
+pub(crate) fn normalize_position(source: &str, position: Position) -> Option<Position> {
+    let offset = position_to_offset(source, position)?;
+    byte_range_to_utf16_range(source, offset..offset).map(|range| range.start)
+}
+
+pub(crate) fn normalize_range(source: &str, range: Range) -> Option<Range> {
+    let start = normalize_position(source, range.start)?;
+    let end = normalize_position(source, range.end)?;
+    (start <= end).then_some(Range::new(start, end))
 }
 
 /// Check a cursor offset in the primary input against an AST location.
@@ -125,26 +136,6 @@ pub(crate) fn source_uri(document_uri: &Uri, source: &SourceLocation) -> Option<
     }
 }
 
-/// Convert acdc-parser Location to LSP Range
-///
-/// Note: acdc-parser uses 1-indexed lines/columns with inclusive end,
-/// while LSP uses 0-indexed lines/characters with exclusive end.
-/// We convert start by subtracting 1, and end by keeping the column as-is
-/// (subtract 1 for 1-indexed→0-indexed, then add 1 for inclusive→exclusive).
-#[must_use]
-pub(crate) fn location_to_range(loc: &Location) -> Range {
-    Range {
-        start: Position {
-            line: loc.start.line.saturating_sub(1),
-            character: loc.start.column.saturating_sub(1),
-        },
-        end: Position {
-            line: loc.end.line.saturating_sub(1),
-            character: loc.end.column,
-        },
-    }
-}
-
 /// Resolve a relative path against a document URI's directory.
 ///
 /// Uses RFC 3986 reference resolution via `fluent_uri`, which correctly
@@ -185,19 +176,6 @@ mod tests {
     }
 
     #[test]
-    fn test_location_to_range_default_is_zero() {
-        // Location::default() has all zeros
-        let loc = Location::default();
-        let range = location_to_range(&loc);
-
-        // 0-indexed: 0.saturating_sub(1) = 0
-        assert_eq!(range.start.line, 0);
-        assert_eq!(range.start.character, 0);
-        assert_eq!(range.end.line, 0);
-        assert_eq!(range.end.character, 0);
-    }
-
-    #[test]
     fn test_position_to_offset_simple() {
         let source = "line 1\nline 2\nline 3";
         let pos = Position {
@@ -226,12 +204,35 @@ mod tests {
         let text = "😀 first\r\nnext\r\n";
         assert_eq!(position_to_offset(text, Position::new(0, 1)), None);
         assert_eq!(position_to_offset(text, Position::new(0, 2)), Some(4));
-        assert_eq!(position_to_offset(text, Position::new(0, 99)), None);
+        assert_eq!(position_to_offset(text, Position::new(0, 99)), Some(10));
         assert_eq!(position_to_offset(text, Position::new(1, 0)), Some(12));
         assert_eq!(
             position_to_offset(text, Position::new(2, 0)),
             Some(text.len())
         );
+    }
+
+    #[test]
+    fn incoming_ranges_clamp_columns_without_accepting_invalid_boundaries() {
+        for (text, requested, expected) in [
+            ("", Position::new(0, 99), Position::new(0, 0)),
+            ("é😀", Position::new(0, 99), Position::new(0, 3)),
+            ("é😀\r\n", Position::new(1, 99), Position::new(1, 0)),
+            ("é😀\r\nnext", Position::new(0, 99), Position::new(0, 3)),
+        ] {
+            assert_eq!(normalize_position(text, requested), Some(expected));
+            assert_eq!(
+                normalize_range(text, Range::new(requested, requested)),
+                Some(Range::new(expected, expected))
+            );
+        }
+        for invalid in [
+            Range::new(Position::new(0, 1), Position::new(0, 2)),
+            Range::new(Position::new(1, 0), Position::new(1, 0)),
+            Range::new(Position::new(0, 3), Position::new(0, 0)),
+        ] {
+            assert_eq!(normalize_range("😀x", invalid), None);
+        }
     }
 
     #[test]

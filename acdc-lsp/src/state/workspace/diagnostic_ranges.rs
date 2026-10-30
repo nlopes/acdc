@@ -1,7 +1,7 @@
 use std::{error::Error, sync::Arc};
 
 use acdc_parser::{Location, SourceLocation};
-use tower_lsp_server::ls_types::{Diagnostic, Position, Range};
+use tower_lsp_server::ls_types::{DiagnosticSeverity, Position, Range};
 
 use super::{
     Workspace,
@@ -39,7 +39,7 @@ fn diagnostics_use_original_positions_and_cross_file_spans_mark_the_start()
 -> Result<(), Box<dyn Error>> {
     let workspace = Workspace::new();
     let uri = file_uri("diagnostic-points.adoc")?;
-    let mut state = DocumentState::new_failure("first\r\né😀x".into(), 1, vec![]);
+    let mut state = DocumentState::new_failure("first\r\né😀x".into(), 1);
     let mut location = Location::default();
     location.start = acdc_parser::Position::new(2, 3);
     location.end = acdc_parser::Position::new(2, 3);
@@ -54,7 +54,7 @@ fn diagnostics_use_original_positions_and_cross_file_spans_mark_the_start()
         &mut state,
         &uri,
         Some(source),
-        diagnostics::error_to_diagnostic(&error),
+        diagnostics::error_message(&error),
     );
     assert_eq!(
         state.diagnostics.first().ok_or("error diagnostic")?.range,
@@ -65,7 +65,7 @@ fn diagnostics_use_original_positions_and_cross_file_spans_mark_the_start()
         &mut state,
         &uri,
         Some(SourceLocation::at_location(None, location)),
-        Diagnostic::default(),
+        diagnostics::DiagnosticMessage::new("point".into(), DiagnosticSeverity::ERROR),
     );
     assert_eq!(
         state.diagnostics.get(1).ok_or("point diagnostic")?.range,
@@ -103,5 +103,79 @@ fn parser_warnings_use_unsaved_included_text() -> Result<(), Box<dyn Error>> {
 fn outlines_omit_ranges_that_cannot_be_read_from_original_source() -> Result<(), Box<dyn Error>> {
     let parsed = acdc_parser::parse("== Heading\n\nBody.\n", &acdc_parser::Options::default())?;
     assert_eq!(symbols::document_symbols(parsed.document(), ""), []);
+    Ok(())
+}
+
+#[test]
+fn retained_messages_resolve_ranges_each_time_they_are_published() -> Result<(), Box<dyn Error>> {
+    let workspace = Workspace::new();
+    let uri = file_uri("retained-diagnostics.adoc")?;
+    let mut state = DocumentState::new_failure("é😀\r\n".into(), 1);
+    let mut location = Location::default();
+    location.start = acdc_parser::Position::new(2, 1);
+    location.end = acdc_parser::Position::new(2, 0);
+    location.absolute_start = usize::MAX;
+    location.absolute_end = usize::MAX;
+    state.parse_diagnostics = vec![
+        (
+            None,
+            diagnostics::DiagnosticMessage::new("whole document".into(), DiagnosticSeverity::ERROR),
+        ),
+        (
+            Some(SourceLocation::at_location(None, location.clone())),
+            diagnostics::DiagnosticMessage::new("EOF".into(), DiagnosticSeverity::WARNING),
+        ),
+    ];
+    location.end = acdc_parser::Position::new(2, 9);
+    state.parse_diagnostics.push((
+        Some(SourceLocation::at_location(None, location)),
+        diagnostics::DiagnosticMessage::new("invalid span".into(), DiagnosticSeverity::ERROR),
+    ));
+    for _ in 0..2 {
+        workspace.compute_diagnostics(&uri, &mut state);
+        assert_eq!(state.diagnostics.len(), 2);
+        let whole = state
+            .diagnostics
+            .first()
+            .ok_or("whole-document diagnostic")?;
+        assert_eq!(whole.range, Range::default());
+        assert_eq!(whole.message, "whole document");
+        assert_eq!(whole.severity, Some(DiagnosticSeverity::ERROR));
+        assert_eq!(whole.source.as_deref(), Some("acdc"));
+        let eof = state.diagnostics.get(1).ok_or("EOF diagnostic")?;
+        assert_eq!(
+            eof.range,
+            Range::new(Position::new(1, 0), Position::new(1, 0))
+        );
+        assert_eq!(eof.message, "EOF");
+        assert_eq!(eof.severity, Some(DiagnosticSeverity::WARNING));
+        assert_eq!(state.parse_diagnostics.len(), 3);
+    }
+    Ok(())
+}
+
+#[test]
+fn anchor_identity_uses_original_coordinates_without_clamping() -> Result<(), Box<dyn Error>> {
+    let workspace = Workspace::new();
+    let uri = file_uri("identity-source.adoc")?;
+    let mut location = Location::default();
+    location.start = acdc_parser::Position::new(1, 1);
+    location.end = acdc_parser::Position::new(1, 4);
+    let first = SourceLocation::at_location(None, location.clone());
+    location.absolute_start = 999;
+    location.absolute_end = 1002;
+    let repeated = SourceLocation::at_location(None, location.clone());
+    location.start.line = 0;
+    location.start.column = 0;
+    let invalid = SourceLocation::at_location(None, location);
+    workspace.anchor_index.insert(
+        "target".into(),
+        vec![
+            (uri.clone(), first),
+            (uri.clone(), repeated),
+            (uri.clone(), invalid),
+        ],
+    );
+    assert_eq!(workspace.find_anchor_globally("target").len(), 2);
     Ok(())
 }

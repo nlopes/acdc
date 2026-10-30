@@ -548,8 +548,16 @@ impl LanguageServer for Backend {
         let uri = params.text_document.uri;
         let version = params.text_document.version;
 
-        // With FULL sync, we get the complete new text
-        if let Some(change) = params.content_changes.into_iter().next() {
+        // FULL sync supplies snapshots. A ranged fragment cannot replace the document.
+        if params
+            .content_changes
+            .iter()
+            .any(|change| change.range.is_some())
+        {
+            tracing::warn!("ignoring ranged changes: acdc-lsp uses full document sync");
+            return;
+        }
+        if let Some(change) = params.content_changes.into_iter().last() {
             let affected = self
                 .with_workspace(move |workspace| {
                     workspace.update_document(uri, change.text, version)

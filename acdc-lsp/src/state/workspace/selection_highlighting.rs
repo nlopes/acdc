@@ -99,11 +99,7 @@ fn invalid_selection_cursors_use_zero_width_fallbacks() -> TestResult {
     let uri = file_uri("selection-invalid.adoc")?;
     workspace.update_document(uri.clone(), "😀 *bold*\r\n".into(), 1);
     let doc = workspace.get_document(&uri).ok_or("document")?;
-    let positions = [
-        Position::new(0, 1),
-        Position::new(0, 10),
-        Position::new(2, 0),
-    ];
+    let positions = [Position::new(0, 1), Position::new(2, 0)];
     let selections = selection_range::compute_selection_ranges(&doc, &positions);
     for (selection, position) in selections.iter().zip(positions) {
         assert_eq!(selection.range, Range::new(position, position));

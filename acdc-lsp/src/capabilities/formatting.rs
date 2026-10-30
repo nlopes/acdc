@@ -12,7 +12,7 @@ use tower_lsp_server::ls_types::{FormattingOptions, Position, Range, TextEdit};
 
 use crate::{
     convert::{
-        LineIndex, byte_range_to_utf16_range, is_primary_location, position_to_offset, to_lsp_u32,
+        LineIndex, byte_range_to_utf16_range, is_primary_location, normalize_range, to_lsp_u32,
     },
     state::DocumentState,
 };
@@ -71,12 +71,9 @@ pub(crate) fn format_range(
     range: &Range,
     options: &FormattingOptions,
 ) -> Vec<TextEdit> {
-    if range.start > range.end
-        || position_to_offset(doc.text(), range.start).is_none()
-        || position_to_offset(doc.text(), range.end).is_none()
-    {
+    let Some(range) = normalize_range(doc.text(), *range) else {
         return Vec::new();
-    }
+    };
     let lines: Vec<&str> = doc.text().lines().collect();
     let line_count = lines.len();
 
@@ -549,7 +546,7 @@ mod tests {
     use tower_lsp_server::ls_types::Uri;
 
     use super::*;
-    use crate::state::Workspace;
+    use crate::{convert::position_to_offset, state::Workspace};
 
     fn make_options() -> FormattingOptions {
         FormattingOptions {
@@ -796,7 +793,7 @@ mod tests {
     #[test]
     fn test_parse_failed_document_still_formats() {
         let src = "Some text  \n\n\n\nMore text  \n";
-        let doc = DocumentState::new_failure(src.to_string(), 1, vec![]);
+        let doc = DocumentState::new_failure(src.to_string(), 1);
 
         let options = make_options();
         let edits = format_document(&doc, &options);

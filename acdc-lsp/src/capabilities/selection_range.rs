@@ -9,8 +9,8 @@ use tower_lsp_server::ls_types::{Position, Range, SelectionRange};
 
 use crate::{
     convert::{
-        LineIndex, byte_range_to_utf16_range, is_primary_location, position_in_location,
-        position_to_scalar_position,
+        LineIndex, byte_range_to_utf16_range, is_primary_location, normalize_position,
+        position_in_location, position_to_scalar_position,
     },
     state::DocumentState,
 };
@@ -26,12 +26,18 @@ pub(crate) fn compute_selection_ranges(
     positions: &[Position],
 ) -> Vec<SelectionRange> {
     let Some(ast) = doc.ast() else {
-        return positions.iter().map(|p| fallback_range(*p)).collect();
+        return positions
+            .iter()
+            .map(|p| fallback_range(normalize_position(doc.text(), *p).unwrap_or(*p)))
+            .collect();
     };
     let ast = ast.document();
 
     let Some(doc_range) = byte_range_to_utf16_range(doc.text(), 0..doc.text().len()) else {
-        return positions.iter().map(|p| fallback_range(*p)).collect();
+        return positions
+            .iter()
+            .map(|p| fallback_range(normalize_position(doc.text(), *p).unwrap_or(*p)))
+            .collect();
     };
     let source = LineIndex::new(doc.text());
 
@@ -369,7 +375,7 @@ mod tests {
 
     #[test]
     fn test_no_ast_fallback() {
-        let doc = DocumentState::new_failure(String::new(), 1, vec![]);
+        let doc = DocumentState::new_failure(String::new(), 1);
         let positions = vec![Position {
             line: 0,
             character: 0,

@@ -649,7 +649,7 @@ mod tests {
     use super::*;
 
     fn doc_with_text(text: &str) -> DocumentState {
-        DocumentState::new_failure(text.to_string(), 0, vec![])
+        DocumentState::new_failure(text.to_string(), 0)
     }
 
     fn sig_help(text: &str, line: u32, character: u32) -> Option<SignatureHelp> {

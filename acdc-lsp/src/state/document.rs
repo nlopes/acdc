@@ -155,7 +155,10 @@ pub(crate) struct DocumentState {
     /// Diagnostics from included files, owned by this document's analysis.
     pub(super) included_diagnostics: HashMap<Uri, Vec<Diagnostic>>,
     /// Retain parser diagnostics when workspace references are checked again.
-    pub(super) parse_diagnostics: Vec<(Option<SourceLocation>, Diagnostic)>,
+    pub(super) parse_diagnostics: Vec<(
+        Option<SourceLocation>,
+        crate::capabilities::diagnostics::DiagnosticMessage,
+    )>,
     pub(super) check_raw_includes: bool,
     /// Anchor definitions with their original source files and positions.
     pub(crate) anchors: HashMap<String, SourceLocation>,
@@ -201,7 +204,7 @@ impl DocumentState {
     /// where it shares the [`ParsedText`] cell with the success path.
     #[cfg(test)]
     #[must_use]
-    pub(crate) fn new_failure(text: String, version: i32, diagnostics: Vec<Diagnostic>) -> Self {
+    pub(crate) fn new_failure(text: String, version: i32) -> Self {
         let parsed = ParsedText::from_source(text.into_boxed_str());
         let raw_text = parsed.text();
         let definitions = extract_attribute_defs(raw_text);
@@ -212,13 +215,9 @@ impl DocumentState {
         Self {
             parsed,
             version,
-            parse_diagnostics: diagnostics
-                .iter()
-                .cloned()
-                .map(|item| (None, item))
-                .collect(),
+            parse_diagnostics: Vec::new(),
             check_raw_includes: true,
-            diagnostics,
+            diagnostics: Vec::new(),
             included_diagnostics: HashMap::new(),
             anchors: HashMap::new(),
             xrefs: vec![],

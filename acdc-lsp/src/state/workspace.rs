@@ -17,12 +17,19 @@ use crate::{
         workspace_symbols::{IndexedSymbol, extract_workspace_symbols},
     },
     config::{AnalysisBackend, AnalysisConfiguration, ParserProfiles},
-    convert::{file_path_to_uri, location_to_range, location_to_utf16_range, source_uri},
+    convert::{file_path_to_uri, location_to_utf16_range, source_uri},
     limits::{MAX_INDEXABLE_FILE_BYTES, read_bounded},
     state::{DocumentState, document::ParsedText},
 };
 
 mod includes;
+
+fn source_coordinates(location: &Location) -> ((u32, u32), (u32, u32)) {
+    (
+        (location.start.line, location.start.column),
+        (location.end.line, location.end.column),
+    )
+}
 
 /// Workspace-level state management
 pub(crate) struct Workspace {
@@ -257,9 +264,9 @@ impl Workspace {
         state: &mut DocumentState,
         document_uri: &Uri,
         source: Option<SourceLocation>,
-        mut diagnostic: Diagnostic,
+        message: diagnostics::DiagnosticMessage,
     ) {
-        let uri = if let Some(mut source) = source {
+        let (uri, range) = if let Some(mut source) = source {
             // A span across files can only mark its start in one document.
             let point = source.location.start.file != source.location.end.file;
             if point {
@@ -278,11 +285,14 @@ impl Workspace {
             let Some(range) = range else {
                 return;
             };
-            diagnostic.range = range;
-            uri
+            (uri, range)
         } else {
-            document_uri.clone()
+            (
+                document_uri.clone(),
+                tower_lsp_server::ls_types::Range::default(),
+            )
         };
+        let diagnostic = message.into_diagnostic(range);
         if &uri == document_uri {
             state.diagnostics.push(diagnostic);
         } else {
@@ -336,7 +346,7 @@ impl Workspace {
                 |parsed: &crate::state::XrefTarget| cross_file_resolver(&source_uri, parsed);
             for diagnostic in diagnostics::compute_warnings(
                 &state.anchors,
-                &[(target.clone(), source.location.clone())],
+                std::slice::from_ref(target),
                 Some(&resolver),
             ) {
                 source_diagnostics.push((source.clone(), diagnostic));
@@ -349,7 +359,7 @@ impl Workspace {
                 && let Some(directory) = path.parent()
             {
                 for diagnostic in diagnostics::compute_link_diagnostics(
-                    &[(media.clone(), source.location.clone())],
+                    std::slice::from_ref(media),
                     &[],
                     directory,
                     None,
@@ -368,7 +378,7 @@ impl Workspace {
             for (target, location) in &state.includes {
                 for diagnostic in diagnostics::compute_link_diagnostics(
                     &[],
-                    &[(target.clone(), location.clone())],
+                    std::slice::from_ref(target),
                     doc_dir,
                     None,
                 ) {
@@ -493,7 +503,7 @@ impl Workspace {
                 };
                 if !result.iter().any(|(existing_uri, location)| {
                     existing_uri == &uri
-                        && location_to_range(location) == location_to_range(&source.location)
+                        && source_coordinates(location) == source_coordinates(&source.location)
                 }) {
                     result.push((uri, source.location.clone()));
                 }
@@ -632,7 +642,7 @@ impl Workspace {
                 .entry((
                     uri.clone(),
                     symbol.name.clone(),
-                    location_to_range(&symbol.location),
+                    source_coordinates(&symbol.location),
                 ))
                 .or_default();
             if kinds.contains(&symbol.kind) {
@@ -720,32 +730,15 @@ impl Workspace {
         }
     }
 
-    /// Line-1 informational diagnostic explaining why AST-backed features
-    /// are disabled for oversized open documents.
-    fn oversized_document_diagnostic(bytes: usize) -> tower_lsp_server::ls_types::Diagnostic {
-        use tower_lsp_server::ls_types::{Diagnostic, DiagnosticSeverity, Position, Range};
-
-        let bytes_u64 = u64::try_from(bytes).unwrap_or(u64::MAX);
-        let mib = bytes_u64 / (1024 * 1024);
+    fn oversized_document_message(bytes: usize) -> diagnostics::DiagnosticMessage {
+        let mib = u64::try_from(bytes).unwrap_or(u64::MAX) / (1024 * 1024);
         let limit_mib = MAX_INDEXABLE_FILE_BYTES / (1024 * 1024);
-        Diagnostic {
-            range: Range {
-                start: Position {
-                    line: 0,
-                    character: 0,
-                },
-                end: Position {
-                    line: 0,
-                    character: 0,
-                },
-            },
-            severity: Some(DiagnosticSeverity::INFORMATION),
-            source: Some("acdc".to_string()),
-            message: format!(
+        diagnostics::DiagnosticMessage::new(
+            format!(
                 "Document is {mib} MiB (above the acdc-lsp indexing limit of {limit_mib} MiB); navigation and workspace features are disabled for this file."
             ),
-            ..Default::default()
-        }
+            tower_lsp_server::ls_types::DiagnosticSeverity::INFORMATION,
+        )
     }
 
     /// Parse document and extract all navigation data
@@ -769,7 +762,7 @@ impl Workspace {
                 limit = MAX_INDEXABLE_FILE_BYTES,
                 "document exceeds LSP indexing size limit; skipping parse"
             );
-            parse_diagnostics.push((None, Self::oversized_document_diagnostic(text.len())));
+            parse_diagnostics.push((None, Self::oversized_document_message(text.len())));
             ParsedText::from_source(text.into_boxed_str())
         } else {
             match parse(&text, options) {
@@ -798,7 +791,7 @@ impl Workspace {
                     for warning in parse_result.take_warnings() {
                         parse_diagnostics.push((
                             warning.source_location().cloned(),
-                            diagnostics::warning_to_diagnostic(&warning),
+                            diagnostics::warning_message(&warning),
                         ));
                     }
                     ParsedText::from_parsed(text.clone().into_boxed_str(), parse_result)
@@ -806,7 +799,7 @@ impl Workspace {
                 Err(error) => {
                     parse_diagnostics.push((
                         error.source_location().cloned(),
-                        diagnostics::error_to_diagnostic(&error),
+                        diagnostics::error_message(&error),
                     ));
                     ParsedText::from_source(text.into_boxed_str())
                 }
