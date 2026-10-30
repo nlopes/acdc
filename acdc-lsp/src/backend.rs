@@ -357,6 +357,7 @@ impl LanguageServer for Backend {
 
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
+                position_encoding: Some(tower_lsp_server::ls_types::PositionEncodingKind::UTF16),
                 #[cfg(feature = "preview")]
                 execute_command_provider: self.features().show_document.then(|| ExecuteCommandOptions {
                     commands: vec![crate::preview::COMMAND.into(), crate::preview::HTML_COMMAND.into()],
@@ -721,16 +722,15 @@ impl LanguageServer for Backend {
             let result =
                 definition::find_definition_at_position(&doc, &uri, &self.workspace, position);
             tracing::info!(found = result.is_some(), "goto_definition result");
-            result.map(|(target_uri, loc)| {
+            result.and_then(|(target_uri, loc)| {
                 tracing::info!(
                     target_uri = target_uri.as_str(),
                     ?loc,
                     "goto_definition resolved to"
                 );
-                GotoDefinitionResponse::Scalar(Location {
-                    uri: target_uri,
-                    range: crate::convert::location_to_range(&loc),
-                })
+                self.workspace
+                    .lsp_location(&target_uri, &loc)
+                    .map(GotoDefinitionResponse::Scalar)
             })
         } else {
             tracing::warn!(uri = uri.as_str(), "document not found in workspace");

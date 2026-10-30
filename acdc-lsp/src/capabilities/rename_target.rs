@@ -1,9 +1,12 @@
 //! Find editable target text inside anchor and cross-reference syntax.
 
 use acdc_parser::Location;
-use tower_lsp_server::ls_types::{Position, Range};
+use tower_lsp_server::ls_types::Range;
 
-use crate::{convert::to_lsp_u32, state::XrefTarget};
+use crate::{
+    convert::{byte_range_to_utf16_range, to_lsp_u32},
+    state::XrefTarget,
+};
 
 pub(super) fn anchor_range(text: &str, location: &Location, id: &str) -> Option<Range> {
     let (target, range) = target_range(text, location, &["[[[", "[["], &[',', ']'])
@@ -57,17 +60,8 @@ fn target_range(
     {
         return None;
     }
-    Some((
-        target.to_string(),
-        Range::new(
-            Position::new(
-                line_number,
-                to_lsp_u32(line.get(..start)?.encode_utf16().count()),
-            ),
-            Position::new(
-                line_number,
-                to_lsp_u32(line.get(..end)?.encode_utf16().count()),
-            ),
-        ),
-    ))
+    let mut range = byte_range_to_utf16_range(line, start..end)?;
+    range.start.line = line_number;
+    range.end.line = line_number;
+    Some((target.to_string(), range))
 }

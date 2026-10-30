@@ -339,3 +339,38 @@ fn rename_does_not_change_references_without_an_editable_definition() -> Result<
     }
     Ok(())
 }
+
+#[test]
+fn navigation_omits_unknown_and_cross_file_source_ranges() -> Result<(), Box<dyn Error>> {
+    let workspace = Workspace::new();
+    let uri = file_uri("unavailable-coordinates.adoc")?;
+    let mut location = acdc_parser::Location::default();
+    location.start = acdc_parser::Position::new(1, 1);
+    location.end = acdc_parser::Position::new(1, 2);
+    assert!(workspace.lsp_location(&uri, &location).is_none());
+    workspace.update_document(uri.clone(), "😀x".into(), 1);
+    let target = workspace
+        .lsp_location(&uri, &location)
+        .ok_or("known text")?;
+    assert_eq!(target.range.end, Position::new(0, 3));
+    location.end.file = Some(std::sync::Arc::new(vec!["unknown.adoc".into()]));
+    assert!(workspace.lsp_location(&uri, &location).is_none());
+    Ok(())
+}
+
+#[test]
+fn file_only_definitions_remain_zero_width_without_reading_a_target() -> Result<(), Box<dyn Error>>
+{
+    let workspace = Workspace::new();
+    let uri = file_uri("file-only-target.adoc")?;
+    let mut location = acdc_parser::Location::default();
+    location.start = acdc_parser::Position::new(1, 1);
+    assert_eq!(
+        workspace
+            .lsp_location(&uri, &location)
+            .ok_or("file target")?
+            .range,
+        tower_lsp_server::ls_types::Range::default()
+    );
+    Ok(())
+}

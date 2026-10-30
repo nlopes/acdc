@@ -114,6 +114,10 @@ the editor, the server requests file-change notifications when the client suppor
 them. These notifications cover file creation and deletion too. Without client
 file watching, an external change takes effect when the parent is parsed again.
 
+References and go-to-definition use UTF-16 character positions. Included targets
+use the original file's text, including unsaved editor buffers. A location without
+available source text is omitted instead of guessing columns.
+
 ## Editor setup
 
 ### Document preview

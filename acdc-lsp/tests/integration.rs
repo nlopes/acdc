@@ -3,6 +3,7 @@
 mod common;
 mod integration {
     mod backend_options;
+    mod coordinates;
     mod includes;
     mod inlay_hints;
     mod preview;

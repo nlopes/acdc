@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- References and go-to-definition now use UTF-16 character positions after emoji
+  and other non-BMP characters. Included targets use their original source text,
+  including selected and reindented includes and unsaved editor buffers.
+  The server explicitly advertises UTF-16; unavailable source text no longer
+  produces a guessed navigation range.
+
 - Media navigation preserves complete video targets and discovers images nested
   in alternative content, tooltips, and UI labels.
 

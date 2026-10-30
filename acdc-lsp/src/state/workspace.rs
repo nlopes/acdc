@@ -17,7 +17,7 @@ use crate::{
         workspace_symbols::{IndexedSymbol, extract_workspace_symbols},
     },
     config::{AnalysisBackend, AnalysisConfiguration, ParserProfiles},
-    convert::{file_path_to_uri, location_to_range, source_uri},
+    convert::{file_path_to_uri, location_to_range, location_to_utf16_range, source_uri},
     limits::{MAX_INDEXABLE_FILE_BYTES, read_bounded},
     state::{DocumentState, document::ParsedText},
 };
@@ -362,6 +362,32 @@ impl Workspace {
         let path = includes::file_path(uri)?;
         let text = read_bounded(&path)?;
         Some(read(&text))
+    }
+
+    /// Convert a resolved physical-file location using editor text or bounded disk text.
+    /// Spans need known text in one source file.
+    pub(crate) fn lsp_location(
+        &self,
+        uri: &Uri,
+        location: &Location,
+    ) -> Option<tower_lsp_server::ls_types::Location> {
+        if location.start.file != location.end.file {
+            return None;
+        }
+        // File-only link targets carry a start position but no end position.
+        let range = if location.start.line == 1
+            && location.start.column == 1
+            && location.end.line == 0
+            && location.end.column == 0
+        {
+            tower_lsp_server::ls_types::Range::default()
+        } else {
+            self.with_document_text(uri, |text| location_to_utf16_range(text, location))??
+        };
+        Some(tower_lsp_server::ls_types::Location {
+            uri: uri.clone(),
+            range,
+        })
     }
 
     /// Remove a document and return files whose diagnostics must be published again.

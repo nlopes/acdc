@@ -1,5 +1,9 @@
 //! Type conversions between acdc-parser and LSP types
 
+mod coordinates;
+
+pub(crate) use coordinates::{byte_range_to_utf16_range, location_to_utf16_range};
+
 use std::path::Path;
 
 use acdc_parser::{Location, SourceLocation};
