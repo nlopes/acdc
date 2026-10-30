@@ -110,6 +110,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Button, keyboard, and menu reads preserve formatted labels and ordered key/item
   sequences. Inline formulas expose protected text and resolved notation without
   rendering or further substitutions.
+  Text reads retain escape protection, ordered passthrough substitutions, and
+  verbatim whitespace. Standalone inline parsing exposes retained passthrough
+  content separately from the text produced by document parsing.
 
 - Parser fixtures support shared expectations or explicit Asciidoctor/Draft
   pairs, optional diagnostics, and stable test names. The runner rejects missing

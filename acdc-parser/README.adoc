@@ -116,6 +116,18 @@ distinguishes checked, unchecked, and ordinary items. Numbering controls such as
 `start` stay in the list attributes. Callout items expose their marker kind and
 number through `callout()`; that number belongs to its local callout sequence.
 
+Text reads keep ordinary, raw, and verbatim content distinct. `text()` returns
+parsed text without rendering; `PlainRef::is_escaped()` retains escape protection.
+`RawRef::substitutions()` gives the remaining substitutions in order, including
+repeated entries. These replace the enclosing block's rules. The reads do not
+decode character references; source locations still identify authored input.
+Curved quotes, standalone apostrophes, and line breaks retain their own kinds.
+
+Document parsing lowers inline passthroughs into raw text or structured inlines.
+`parse_inline()` can retain passthrough macros. Read them through `PassRef` for
+optional `text()`, `kind()`, and requested `substitutions()`. Reading a macro does
+not process it.
+
 Buttons expose `label()` as parsed content. Keyboard `keys()` and menu `items()`
 iterate separate content values in order; a menu's `target()` is its menu name.
 These labels are not attribute lists. Inline formulas expose protected `text()`

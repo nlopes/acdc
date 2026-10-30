@@ -8,6 +8,7 @@ mod index_terms;
 mod notes;
 mod spans;
 mod stem;
+mod text;
 mod ui;
 mod xrefs;
 
@@ -192,30 +193,6 @@ impl<'doc> InlineRef<'doc> {
             InlineKind::Stem(node) => node.location(),
             InlineKind::IndexTerm(node) => node.location(),
         }
-    }
-}
-
-impl<'doc> PlainRef<'doc> {
-    /// The parsed text, without rendering.
-    #[must_use]
-    pub fn text(self) -> &'doc str {
-        self.node.content
-    }
-}
-
-impl<'doc> RawRef<'doc> {
-    /// The passthrough text, without rendering.
-    #[must_use]
-    pub fn text(self) -> &'doc str {
-        self.node.content
-    }
-}
-
-impl<'doc> VerbatimRef<'doc> {
-    /// The literal or code text, without rendering.
-    #[must_use]
-    pub fn text(self) -> &'doc str {
-        self.node.content
     }
 }
 
