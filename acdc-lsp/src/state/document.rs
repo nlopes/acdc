@@ -174,36 +174,6 @@ pub(crate) struct DocumentState {
 }
 
 impl DocumentState {
-    pub(super) fn push_diagnostic(
-        &mut self,
-        document_uri: &Uri,
-        source: Option<SourceLocation>,
-        mut diagnostic: Diagnostic,
-    ) {
-        let uri = if let Some(mut source) = source {
-            // A diagnostic can mark the start of a span that crosses files.
-            // Its end cannot be used as a position in that same file.
-            if source.location.start.file != source.location.end.file {
-                diagnostic.range.end = diagnostic.range.start;
-                source.location.end = source.location.start.clone();
-            }
-            let Some(uri) = crate::convert::source_uri(document_uri, &source) else {
-                return;
-            };
-            uri
-        } else {
-            document_uri.clone()
-        };
-        if &uri == document_uri {
-            self.diagnostics.push(diagnostic);
-        } else {
-            self.included_diagnostics
-                .entry(uri)
-                .or_default()
-                .push(diagnostic);
-        }
-    }
-
     pub(super) fn diagnostic_uris(&self, document_uri: &Uri) -> Vec<Uri> {
         std::iter::once(document_uri.clone())
             .chain(self.included_diagnostics.keys().cloned())
@@ -529,9 +499,10 @@ pub(crate) fn extract_includes(text: &str) -> Vec<(String, Location)> {
     let mut includes = Vec::new();
     let mut line_start = 0usize;
 
-    for (line_idx, line) in text.lines().enumerate() {
+    for (line_idx, raw_line) in text.split_inclusive('\n').enumerate() {
+        let line = raw_line.trim_end_matches(['\r', '\n']);
         let this_line_start = line_start;
-        line_start += line.len() + 1;
+        line_start += raw_line.len();
 
         let trimmed = line.trim();
         if let Some(rest) = trimmed.strip_prefix("include::")
@@ -544,8 +515,10 @@ pub(crate) fn extract_includes(text: &str) -> Vec<(String, Location)> {
                 let target_end = target_start + target.len();
 
                 let mut location = Location::default();
-                location.start = Position::from_line_col(line_idx + 1, target_start + 1);
-                location.end = Position::from_line_col(line_idx + 1, target_end);
+                location.start =
+                    Position::from_line_col(line_idx + 1, line[..target_start].chars().count() + 1);
+                location.end =
+                    Position::from_line_col(line_idx + 1, line[..target_end].chars().count());
                 location.absolute_start = this_line_start + target_start;
                 location.absolute_end = this_line_start + target_end;
 

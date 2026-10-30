@@ -252,11 +252,53 @@ impl Workspace {
         affected
     }
 
+    fn push_diagnostic(
+        &self,
+        state: &mut DocumentState,
+        document_uri: &Uri,
+        source: Option<SourceLocation>,
+        mut diagnostic: Diagnostic,
+    ) {
+        let uri = if let Some(mut source) = source {
+            // A span across files can only mark its start in one document.
+            let point = source.location.start.file != source.location.end.file;
+            if point {
+                source.location.end = source.location.start.clone();
+                source.location.end.column = source.location.end.column.saturating_sub(1);
+            }
+            let Some(uri) = source_uri(document_uri, &source) else {
+                return;
+            };
+            let range = if &uri == document_uri {
+                location_to_utf16_range(state.text(), &source.location)
+            } else {
+                self.lsp_location(&uri, &source.location)
+                    .map(|location| location.range)
+            };
+            let Some(range) = range else {
+                return;
+            };
+            diagnostic.range = range;
+            uri
+        } else {
+            document_uri.clone()
+        };
+        if &uri == document_uri {
+            state.diagnostics.push(diagnostic);
+        } else {
+            state
+                .included_diagnostics
+                .entry(uri)
+                .or_default()
+                .push(diagnostic);
+        }
+    }
+
     fn compute_diagnostics(&self, uri: &Uri, state: &mut DocumentState) {
         state.diagnostics.clear();
         state.included_diagnostics.clear();
         for (source, diagnostic) in state.parse_diagnostics.clone() {
-            state.push_diagnostic(uri, source, diagnostic);
+            self.push_diagnostic(state, uri, source, diagnostic);
         }
         // Compute diagnostics with workspace context for cross-file xref validation
         let cross_file_resolver = |source_uri: &Uri, parsed: &crate::state::XrefTarget| -> bool {
@@ -323,12 +365,23 @@ impl Workspace {
             && let Some(doc_path) = uri.to_file_path()
             && let Some(doc_dir) = doc_path.parent()
         {
-            let link_diags =
-                diagnostics::compute_link_diagnostics(&[], &state.includes, doc_dir, None);
-            state.diagnostics.extend(link_diags);
+            for (target, location) in &state.includes {
+                for diagnostic in diagnostics::compute_link_diagnostics(
+                    &[],
+                    &[(target.clone(), location.clone())],
+                    doc_dir,
+                    None,
+                ) {
+                    source_diagnostics.push((
+                        SourceLocation::at_location(None, location.clone()),
+                        diagnostic,
+                    ));
+                }
+            }
         }
 
-        let conditional_diags = diagnostics::compute_conditional_diagnostics(&state.conditionals);
+        let conditional_diags =
+            diagnostics::compute_conditional_diagnostics(&state.conditionals, state.text());
         state.diagnostics.extend(conditional_diags);
 
         // Compute section level diagnostics (skipped heading levels)
@@ -340,7 +393,7 @@ impl Workspace {
             );
         }
         for (source, diagnostic) in source_diagnostics {
-            state.push_diagnostic(uri, Some(source), diagnostic);
+            self.push_diagnostic(state, uri, Some(source), diagnostic);
         }
     }
 
@@ -1490,3 +1543,6 @@ mod tests {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod diagnostic_ranges;

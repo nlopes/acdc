@@ -142,7 +142,7 @@ pub(crate) fn location_to_range(loc: &Location) -> Range {
 /// handles `..` and `.` segments, percent-encoding, and edge cases.
 #[must_use]
 pub(crate) fn resolve_relative_uri(doc_uri: &Uri, relative_path: &str) -> Option<Uri> {
-    let reference = fluent_uri::UriRef::parse(relative_path).ok()?;
+    let reference = fluent_uri::IriRef::parse(relative_path).ok()?.to_uri_ref();
     let resolved = reference.resolve_against(doc_uri).ok()?;
     resolved.as_str().parse().ok()
 }
@@ -287,6 +287,21 @@ mod tests {
             resolved.map(|u| u.as_str().to_string()),
             Some("file:///docs/chapter.adoc".to_string())
         );
+        Ok(())
+    }
+
+    #[test]
+    fn relative_uri_encodes_unicode_without_reencoding_existing_escapes()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let doc: Uri = "file:///docs/main.adoc".parse()?;
+        for target in ["😀.adoc", "%F0%9F%98%80.adoc"] {
+            assert_eq!(
+                resolve_relative_uri(&doc, target)
+                    .ok_or("Unicode URI")?
+                    .as_str(),
+                "file:///docs/%F0%9F%98%80.adoc"
+            );
+        }
         Ok(())
     }
 

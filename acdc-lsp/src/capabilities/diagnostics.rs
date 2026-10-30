@@ -254,6 +254,7 @@ pub(crate) fn compute_section_level_diagnostics(ast: &Document) -> Vec<(Location
 #[must_use]
 pub(crate) fn compute_conditional_diagnostics(
     conditionals: &[ConditionalBlock],
+    source: &str,
 ) -> Vec<Diagnostic> {
     let mut diagnostics = Vec::new();
 
@@ -276,20 +277,24 @@ pub(crate) fn compute_conditional_diagnostics(
         };
         let attrs = cond.attributes.join(separator);
 
-        let start_line: u32 = cond.start_line.try_into().unwrap_or(u32::MAX);
-        let end_line_u32: u32 = end_line.try_into().unwrap_or(u32::MAX);
+        let Some(last_line) = source.lines().nth(end_line) else {
+            continue;
+        };
+        let Ok(end_character) = u32::try_from(last_line.encode_utf16().count()) else {
+            continue;
+        };
+        let Ok(start_line) = u32::try_from(cond.start_line) else {
+            continue;
+        };
+        let Ok(end_line) = u32::try_from(end_line) else {
+            continue;
+        };
 
         diagnostics.push(Diagnostic {
-            range: Range {
-                start: tower_lsp_server::ls_types::Position {
-                    line: start_line,
-                    character: 0,
-                },
-                end: tower_lsp_server::ls_types::Position {
-                    line: end_line_u32,
-                    character: u32::MAX,
-                },
-            },
+            range: Range::new(
+                tower_lsp_server::ls_types::Position::new(start_line, 0),
+                tower_lsp_server::ls_types::Position::new(end_line, end_character),
+            ),
             severity: Some(DiagnosticSeverity::HINT),
             source: Some("acdc".to_string()),
             message: format!("Inactive conditional block ({directive}::{attrs})"),
@@ -650,7 +655,10 @@ mod tests {
             end_line: Some(4),
         }];
 
-        let diags = compute_conditional_diagnostics(&conditionals);
+        let diags = compute_conditional_diagnostics(
+            &conditionals,
+            "= Title\r\n\r\nifdef::missing-attr[]\r\n😀 body\r\nendif::[]",
+        );
         assert_eq!(diags.len(), 1);
         let d = diags.first().ok_or("expected one diagnostic")?;
         assert_eq!(d.severity, Some(DiagnosticSeverity::HINT));
@@ -672,7 +680,10 @@ mod tests {
             end_line: Some(2),
         }];
 
-        let diags = compute_conditional_diagnostics(&conditionals);
+        let diags = compute_conditional_diagnostics(
+            &conditionals,
+            "= Title\r\n\r\nifdef::missing-attr[]\r\n😀 body\r\nendif::[]",
+        );
         assert_eq!(diags, []);
     }
 }

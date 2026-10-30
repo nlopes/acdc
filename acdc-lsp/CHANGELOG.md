@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Diagnostics, document and workspace symbols, and include call hierarchy now
+  use UTF-16 positions from the original source, including unsaved buffers and
+  selected or reindented includes. Missing source text no longer produces guessed
+  ranges. Include ranges also remain accurate in CRLF files and Unicode paths.
+
 - References and go-to-definition now use UTF-16 character positions after emoji
   and other non-BMP characters. Included targets use their original source text,
   including selected and reindented includes and unsaved editor buffers.

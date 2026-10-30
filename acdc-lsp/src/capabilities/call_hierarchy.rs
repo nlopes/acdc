@@ -13,28 +13,16 @@ use tower_lsp_server::ls_types::{
 
 use crate::{
     convert::{
-        file_path_to_uri, location_to_range, offset_in_location, position_to_offset,
+        byte_range_to_utf16_range, file_path_to_uri, offset_in_location, position_to_offset,
         resolve_relative_uri, uri_filename,
     },
-    limits::{count_lines_bounded, read_bounded},
+    limits::read_bounded,
     state::{DocumentState, Workspace, extract_includes},
 };
 
 /// Build a `CallHierarchyItem` representing an `AsciiDoc` file.
-fn make_call_hierarchy_item(uri: Uri, line_count: usize) -> CallHierarchyItem {
+fn make_call_hierarchy_item(uri: Uri, range: Range) -> CallHierarchyItem {
     let name = uri_filename(&uri).to_string();
-
-    let end_line: u32 = line_count.saturating_sub(1).try_into().unwrap_or(u32::MAX);
-    let range = Range {
-        start: Position {
-            line: 0,
-            character: 0,
-        },
-        end: Position {
-            line: end_line,
-            character: 0,
-        },
-    };
 
     CallHierarchyItem {
         name,
@@ -43,18 +31,17 @@ fn make_call_hierarchy_item(uri: Uri, line_count: usize) -> CallHierarchyItem {
         detail: None,
         uri,
         range,
-        selection_range: range,
+        selection_range: Range::default(),
         data: None,
     }
 }
 
-/// Count lines in a file on disk, returning 0 if the file can't be read.
-///
-/// Uses a buffered reader so a multi-GB include still costs `O(buffer)` RSS
-/// instead of slurping the whole file.
-fn line_count_from_disk(uri: &Uri) -> usize {
-    uri.to_file_path()
-        .map_or(0, |p| count_lines_bounded(p.as_ref()))
+fn file_item(uri: Uri, workspace: &Workspace) -> CallHierarchyItem {
+    let range = workspace
+        .with_document_text(&uri, |text| byte_range_to_utf16_range(text, 0..text.len()))
+        .flatten()
+        .unwrap_or_default();
+    make_call_hierarchy_item(uri, range)
 }
 
 /// Prepare call hierarchy items at the given position.
@@ -66,6 +53,7 @@ pub(crate) fn prepare_call_hierarchy(
     doc: &DocumentState,
     doc_uri: &Uri,
     position: Position,
+    workspace: &Workspace,
 ) -> Option<Vec<CallHierarchyItem>> {
     let offset = position_to_offset(doc.text(), position)?;
 
@@ -73,14 +61,13 @@ pub(crate) fn prepare_call_hierarchy(
     for (target, location) in &doc.includes {
         if offset_in_location(offset, location) {
             let resolved_uri = resolve_relative_uri(doc_uri, target)?;
-            let line_count = line_count_from_disk(&resolved_uri);
-            return Some(vec![make_call_hierarchy_item(resolved_uri, line_count)]);
+            return Some(vec![file_item(resolved_uri, workspace)]);
         }
     }
 
     // Fallback: return an item for the current document
-    let line_count = doc.text().lines().count();
-    Some(vec![make_call_hierarchy_item(doc_uri.clone(), line_count)])
+    let range = byte_range_to_utf16_range(doc.text(), 0..doc.text().len())?;
+    Some(vec![make_call_hierarchy_item(doc_uri.clone(), range)])
 }
 
 /// Find all documents that include the given file (incoming calls).
@@ -98,8 +85,12 @@ pub(crate) fn incoming_calls(
         for (include_target, location) in &doc_state.includes {
             if let Some(resolved) = resolve_relative_uri(doc_uri, include_target)
                 && &resolved == target_uri
+                && let Some(range) = byte_range_to_utf16_range(
+                    doc_state.text(),
+                    location.absolute_start..location.absolute_end,
+                )
             {
-                ranges.push(location_to_range(location));
+                ranges.push(range);
             }
         }
         if !ranges.is_empty() {
@@ -123,8 +114,10 @@ pub(crate) fn incoming_calls(
         for (include_target, location) in &includes {
             if let Some(resolved) = resolve_relative_uri(&file_uri, include_target)
                 && &resolved == target_uri
+                && let Some(range) =
+                    byte_range_to_utf16_range(&text, location.absolute_start..location.absolute_end)
             {
-                ranges.push(location_to_range(location));
+                ranges.push(range);
             }
         }
         if !ranges.is_empty() {
@@ -138,16 +131,9 @@ pub(crate) fn incoming_calls(
 
     let calls = callers
         .into_iter()
-        .map(|(uri, from_ranges)| {
-            let line_count = if let Some(doc) = workspace.get_document(&uri) {
-                doc.text().lines().count()
-            } else {
-                line_count_from_disk(&uri)
-            };
-            CallHierarchyIncomingCall {
-                from: make_call_hierarchy_item(uri, line_count),
-                from_ranges,
-            }
+        .map(|(uri, from_ranges)| CallHierarchyIncomingCall {
+            from: file_item(uri, workspace),
+            from_ranges,
         })
         .collect();
 
@@ -162,14 +148,18 @@ pub(crate) fn outgoing_calls(
 ) -> Option<Vec<CallHierarchyOutgoingCall>> {
     let item_uri = &item.uri;
 
-    // Get includes — from open document or from disk
-    let includes = if let Some(doc) = workspace.get_document(item_uri) {
-        doc.includes.clone()
-    } else {
-        let path = item_uri.to_file_path()?;
-        let text = read_bounded(path.as_ref())?;
-        extract_includes(&text)
-    };
+    let includes = workspace.with_document_text(item_uri, |text| {
+        extract_includes(text)
+            .into_iter()
+            .filter_map(|(target, location)| {
+                let range = byte_range_to_utf16_range(
+                    text,
+                    location.absolute_start..location.absolute_end,
+                )?;
+                Some((target, range))
+            })
+            .collect::<Vec<_>>()
+    })?;
 
     if includes.is_empty() {
         return None;
@@ -177,16 +167,11 @@ pub(crate) fn outgoing_calls(
 
     let calls: Vec<CallHierarchyOutgoingCall> = includes
         .iter()
-        .filter_map(|(target, location)| {
+        .filter_map(|(target, range)| {
             let resolved_uri = resolve_relative_uri(item_uri, target)?;
-            let line_count = if let Some(doc) = workspace.get_document(&resolved_uri) {
-                doc.text().lines().count()
-            } else {
-                line_count_from_disk(&resolved_uri)
-            };
             Some(CallHierarchyOutgoingCall {
-                to: make_call_hierarchy_item(resolved_uri, line_count),
-                from_ranges: vec![location_to_range(location)],
+                to: file_item(resolved_uri, workspace),
+                from_ranges: vec![*range],
             })
         })
         .collect();
@@ -212,7 +197,7 @@ mod tests {
             line: 2,
             character: 9,
         };
-        let result = prepare_call_hierarchy(&doc, &uri, position);
+        let result = prepare_call_hierarchy(&doc, &uri, position, &workspace);
         assert!(result.is_some());
         let items = result.ok_or("expected items")?;
         assert_eq!(items.len(), 1);
@@ -238,7 +223,7 @@ mod tests {
             line: 0,
             character: 0,
         };
-        let result = prepare_call_hierarchy(&doc, &uri, position);
+        let result = prepare_call_hierarchy(&doc, &uri, position, &workspace);
         assert!(result.is_some());
         let items = result.ok_or("expected items")?;
         assert_eq!(items.len(), 1);
@@ -254,7 +239,7 @@ mod tests {
         let content = "= Main\n\ninclude::a.adoc[]\n\ninclude::b.adoc[]\n";
         workspace.update_document(uri.clone(), content.to_string(), 1);
 
-        let item = make_call_hierarchy_item(uri, 5);
+        let item = file_item(uri, &workspace);
         let result = outgoing_calls(&item, &workspace);
         assert!(result.is_some());
         let calls = result.ok_or("expected calls")?;
@@ -291,7 +276,7 @@ mod tests {
         );
         workspace.update_document(shared_uri.clone(), "= Shared\n\nContent.\n".to_string(), 1);
 
-        let item = make_call_hierarchy_item(shared_uri, 3);
+        let item = file_item(shared_uri, &workspace);
         let result = incoming_calls(&item, &workspace);
         assert!(result.is_some());
         let calls = result.ok_or("expected calls")?;
@@ -314,7 +299,7 @@ mod tests {
         );
         workspace.update_document(shared_uri.clone(), "= Shared\n".to_string(), 1);
 
-        let item = make_call_hierarchy_item(shared_uri, 1);
+        let item = file_item(shared_uri, &workspace);
         let result = incoming_calls(&item, &workspace);
         assert!(result.is_some());
         let calls = result.ok_or("expected calls")?;
@@ -330,7 +315,7 @@ mod tests {
         let uri = "file:///docs/main.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), "= Main\n\nNo includes here.\n".to_string(), 1);
 
-        let item = make_call_hierarchy_item(uri, 3);
+        let item = file_item(uri, &workspace);
         let result = outgoing_calls(&item, &workspace);
         assert!(result.is_none());
         Ok(())
@@ -346,7 +331,7 @@ mod tests {
             1,
         );
 
-        let item = make_call_hierarchy_item(uri, 3);
+        let item = file_item(uri, &workspace);
         let result = incoming_calls(&item, &workspace);
         assert!(result.is_none());
         Ok(())

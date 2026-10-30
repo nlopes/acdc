@@ -670,7 +670,10 @@ impl LanguageServer for Backend {
         // Get document and extract symbols while the guard is held
         let response = if let Some(doc) = self.workspace.get_document(&uri) {
             doc.ast().map(|ast| {
-                DocumentSymbolResponse::Nested(symbols::document_symbols(ast.document()))
+                DocumentSymbolResponse::Nested(symbols::document_symbols(
+                    ast.document(),
+                    doc.text(),
+                ))
             })
         } else {
             None
@@ -690,16 +693,16 @@ impl LanguageServer for Backend {
 
         let symbols: Vec<SymbolInformation> = results
             .into_iter()
-            .map(|(uri, symbol)| SymbolInformation {
-                name: symbol.name,
-                kind: symbol.kind,
-                location: Location {
-                    uri,
-                    range: crate::convert::location_to_range(&symbol.location),
-                },
-                tags: None,
-                deprecated: None,
-                container_name: symbol.detail,
+            .filter_map(|(uri, symbol)| {
+                let location = self.workspace.lsp_location(&uri, &symbol.location)?;
+                Some(SymbolInformation {
+                    name: symbol.name,
+                    kind: symbol.kind,
+                    location,
+                    tags: None,
+                    deprecated: None,
+                    container_name: symbol.detail,
+                })
             })
             .collect();
 
@@ -1091,7 +1094,7 @@ impl LanguageServer for Backend {
         let position = params.text_document_position_params.position;
 
         let response = if let Some(doc) = self.workspace.get_document(&uri) {
-            call_hierarchy::prepare_call_hierarchy(&doc, &uri, position)
+            call_hierarchy::prepare_call_hierarchy(&doc, &uri, position, &self.workspace)
         } else {
             None
         };
