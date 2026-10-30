@@ -18,7 +18,7 @@ use tower_lsp_server::ls_types::{
 };
 
 use crate::{
-    convert::{is_primary_location, to_lsp_u32},
+    convert::{LineIndex, byte_range_to_utf16_range, is_primary_location, to_lsp_u32},
     state::ConditionalBlock,
 };
 
@@ -62,7 +62,8 @@ pub(crate) fn create_options() -> SemanticTokensOptions {
     }
 }
 
-/// Token being collected before encoding
+/// A single-line UTF-16 token before delta encoding.
+#[derive(PartialEq, Eq)]
 struct RawToken {
     line: u32,
     start_char: u32,
@@ -79,13 +80,22 @@ pub(crate) fn compute_semantic_tokens(
     text: &str,
 ) -> SemanticTokens {
     let mut tokens: Vec<RawToken> = Vec::new();
+    let source = LineIndex::new(text);
 
-    collect_tokens_from_blocks(&doc.blocks, &mut tokens);
-    collect_conditional_tokens(conditionals, text, &mut tokens);
-    convert_token_columns(&mut tokens, text);
+    collect_tokens_from_blocks(&doc.blocks, &source, &mut tokens);
+    collect_conditional_tokens(conditionals, &source, &mut tokens);
 
     // Sort by position for delta encoding
-    tokens.sort_by(|a, b| a.line.cmp(&b.line).then(a.start_char.cmp(&b.start_char)));
+    tokens.sort_by_key(|token| {
+        (
+            token.line,
+            token.start_char,
+            token.length,
+            token.token_type,
+            token.token_modifiers,
+        )
+    });
+    tokens.dedup();
 
     // Delta encode
     let encoded = delta_encode(tokens);
@@ -96,53 +106,21 @@ pub(crate) fn compute_semantic_tokens(
     }
 }
 
-fn convert_token_columns(tokens: &mut Vec<RawToken>, text: &str) {
-    let lines: Vec<_> = text.lines().collect();
-    tokens.retain_mut(|token| {
-        let Some(line) = lines.get(token.line as usize) else {
-            return false;
-        };
-        let Some((start, _)) = line.char_indices().nth(token.start_char as usize) else {
-            return false;
-        };
-        // Parser columns count scalar values. LSP columns count UTF-16 units,
-        // and a token must not extend past the end of its physical line.
-        let Some(rest) = line.get(start..) else {
-            return false;
-        };
-        let end = rest
-            .char_indices()
-            .nth(token.length as usize)
-            .map_or(rest.len(), |(offset, _)| offset);
-        let Some(prefix) = line.get(..start) else {
-            return false;
-        };
-        let Some(content) = rest.get(..end) else {
-            return false;
-        };
-        token.start_char = to_lsp_u32(prefix.encode_utf16().count());
-        token.length = to_lsp_u32(content.encode_utf16().count());
-        token.length > 0
-    });
-}
-
 /// Emit semantic tokens for conditional directives and inactive content.
 fn collect_conditional_tokens(
     conditionals: &[ConditionalBlock],
-    text: &str,
+    source: &LineIndex<'_>,
     tokens: &mut Vec<RawToken>,
 ) {
-    let lines: Vec<&str> = text.lines().collect();
-
     for cond in conditionals {
         // Directive line as KEYWORD
-        if let Some(line_text) = lines.get(cond.start_line)
-            && !line_text.is_empty()
+        if let Some(length) = source.line_width(to_lsp_u32(cond.start_line))
+            && length > 0
         {
             tokens.push(RawToken {
                 line: to_lsp_u32(cond.start_line),
                 start_char: 0,
-                length: to_lsp_u32(line_text.chars().count()),
+                length,
                 token_type: 6, // KEYWORD
                 token_modifiers: 0,
             });
@@ -150,13 +128,13 @@ fn collect_conditional_tokens(
 
         // Endif line as KEYWORD
         if let Some(endif_line) = cond.end_line
-            && let Some(line_text) = lines.get(endif_line)
-            && !line_text.is_empty()
+            && let Some(length) = source.line_width(to_lsp_u32(endif_line))
+            && length > 0
         {
             tokens.push(RawToken {
                 line: to_lsp_u32(endif_line),
                 start_char: 0,
-                length: to_lsp_u32(line_text.chars().count()),
+                length,
                 token_type: 6, // KEYWORD
                 token_modifiers: 0,
             });
@@ -167,13 +145,13 @@ fn collect_conditional_tokens(
             && let Some(end_line) = cond.end_line
         {
             for line_idx in (cond.start_line + 1)..end_line {
-                if let Some(line_text) = lines.get(line_idx)
-                    && !line_text.is_empty()
+                if let Some(length) = source.line_width(to_lsp_u32(line_idx))
+                    && length > 0
                 {
                     tokens.push(RawToken {
                         line: to_lsp_u32(line_idx),
                         start_char: 0,
-                        length: to_lsp_u32(line_text.chars().count()),
+                        length,
                         token_type: 5,      // COMMENT
                         token_modifiers: 4, // bit 2 = disabled
                     });
@@ -183,67 +161,65 @@ fn collect_conditional_tokens(
     }
 }
 
-fn collect_tokens_from_blocks(blocks: &[Block], tokens: &mut Vec<RawToken>) {
+fn collect_tokens_from_blocks(
+    blocks: &[Block],
+    source: &LineIndex<'_>,
+    tokens: &mut Vec<RawToken>,
+) {
     for block in blocks {
-        collect_tokens_from_block(block, tokens);
+        collect_tokens_from_block(block, source, tokens);
     }
 }
 
-fn collect_tokens_from_block(block: &Block, tokens: &mut Vec<RawToken>) {
+fn collect_tokens_from_block(block: &Block, source: &LineIndex<'_>, tokens: &mut Vec<RawToken>) {
     match block {
         Block::Section(section) => {
             if let (Some(first), Some(last)) = (section.title.first(), section.title.last()) {
                 let mut title = first.location().clone();
                 title.end = last.location().end.clone();
                 title.absolute_end = last.location().absolute_end;
-                add_token_for_location(&title, 0, if section.metadata.id.is_some() { 2 } else { 0 }, tokens);
+                add_token_for_location(&title, 0, if section.metadata.id.is_some() { 2 } else { 0 }, source, tokens);
             }
 
             // Process section content
-            collect_tokens_from_blocks(&section.content, tokens);
+            collect_tokens_from_blocks(&section.content, source, tokens);
         }
         Block::Paragraph(para) => {
-            collect_tokens_from_inlines(&para.content, tokens);
+            collect_tokens_from_inlines(&para.content, source, tokens);
         }
         Block::DelimitedBlock(delimited) => {
-            collect_tokens_from_delimited(delimited, tokens);
+            collect_tokens_from_delimited(delimited, source, tokens);
         }
         Block::UnorderedList(list) => {
             for item in &list.items {
-                collect_tokens_from_inlines(&item.principal, tokens);
-                collect_tokens_from_blocks(&item.blocks, tokens);
+                collect_tokens_from_inlines(&item.principal, source, tokens);
+                collect_tokens_from_blocks(&item.blocks, source, tokens);
             }
         }
         Block::OrderedList(list) => {
             for item in &list.items {
-                collect_tokens_from_inlines(&item.principal, tokens);
-                collect_tokens_from_blocks(&item.blocks, tokens);
+                collect_tokens_from_inlines(&item.principal, source, tokens);
+                collect_tokens_from_blocks(&item.blocks, source, tokens);
             }
         }
         Block::DescriptionList(list) => {
             for item in &list.items {
-                collect_tokens_from_inlines(&item.principal_text, tokens);
-                collect_tokens_from_blocks(&item.description, tokens);
+                collect_tokens_from_inlines(&item.principal_text, source, tokens);
+                collect_tokens_from_blocks(&item.description, source, tokens);
             }
         }
         Block::Admonition(adm) => {
             // Admonition label as keyword
-            add_token_for_location(&adm.location, 6, 0, tokens); // KEYWORD
-            collect_tokens_from_blocks(&adm.blocks, tokens);
+            add_token_for_location(&adm.location, 6, 0, source, tokens); // KEYWORD
+            collect_tokens_from_blocks(&adm.blocks, source, tokens);
         }
         Block::Comment(comment) => {
-            add_token_for_location(&comment.location, 5, 0, tokens); // COMMENT
+            add_token_for_location(&comment.location, 5, 0, source, tokens); // COMMENT
         }
         Block::DocumentAttribute(attr) => {
-            if !is_primary_location(&attr.location) { return; }
-            // Attribute name as property
-            tokens.push(RawToken {
-                line: attr.location.start.line.saturating_sub(1),
-                start_char: 1, // Skip leading :
-                length: to_lsp_u32(attr.name.chars().count()),
-                token_type: 2, // PROPERTY
-                token_modifiers: 0,
-            });
+            if is_primary_location(&attr.location) && source.range(&attr.location).is_some() {
+                add_attribute_token(&attr.name, attr.location.start.line - 1, source, tokens);
+            }
         }
         Block::TableOfContents(_)
         | Block::DiscreteHeader(_)
@@ -258,21 +234,25 @@ fn collect_tokens_from_block(block: &Block, tokens: &mut Vec<RawToken>) {
     }
 }
 
-fn collect_tokens_from_delimited(delimited: &DelimitedBlock, tokens: &mut Vec<RawToken>) {
+fn collect_tokens_from_delimited(
+    delimited: &DelimitedBlock,
+    source: &LineIndex<'_>,
+    tokens: &mut Vec<RawToken>,
+) {
     match &delimited.inner {
         DelimitedBlockType::DelimitedComment(_) => {
-            add_token_for_location(&delimited.location, 5, 0, tokens); // COMMENT
+            add_token_for_location(&delimited.location, 5, 0, source, tokens); // COMMENT
         }
         DelimitedBlockType::DelimitedExample(blocks)
         | DelimitedBlockType::DelimitedOpen(blocks)
         | DelimitedBlockType::DelimitedSidebar(blocks)
         | DelimitedBlockType::DelimitedQuote(blocks) => {
-            collect_tokens_from_blocks(blocks, tokens);
+            collect_tokens_from_blocks(blocks, source, tokens);
         }
         DelimitedBlockType::DelimitedListing(inlines)
         | DelimitedBlockType::DelimitedLiteral(inlines)
         | DelimitedBlockType::DelimitedVerse(inlines) => {
-            collect_tokens_from_inlines(inlines, tokens);
+            collect_tokens_from_inlines(inlines, source, tokens);
         }
         DelimitedBlockType::DelimitedPass(_)
         | DelimitedBlockType::DelimitedTable(_)
@@ -282,61 +262,69 @@ fn collect_tokens_from_delimited(delimited: &DelimitedBlock, tokens: &mut Vec<Ra
     }
 }
 
-fn collect_tokens_from_inlines(inlines: &[InlineNode], tokens: &mut Vec<RawToken>) {
+fn collect_tokens_from_inlines(
+    inlines: &[InlineNode],
+    source: &LineIndex<'_>,
+    tokens: &mut Vec<RawToken>,
+) {
     for inline in inlines {
-        collect_tokens_from_inline(inline, tokens);
+        collect_tokens_from_inline(inline, source, tokens);
     }
 }
 
-fn collect_tokens_from_inline(inline: &InlineNode, tokens: &mut Vec<RawToken>) {
+fn collect_tokens_from_inline(
+    inline: &InlineNode,
+    source: &LineIndex<'_>,
+    tokens: &mut Vec<RawToken>,
+) {
     match inline {
         InlineNode::Macro(InlineMacro::CrossReference(xref)) => {
-            add_token_for_location(&xref.location, 1, 0, tokens); // FUNCTION (macro)
+            add_token_for_location(&xref.location, 1, 0, source, tokens); // FUNCTION (macro)
         }
         InlineNode::Macro(InlineMacro::Link(link)) => {
-            add_token_for_location(&link.location, 1, 0, tokens); // FUNCTION
+            add_token_for_location(&link.location, 1, 0, source, tokens); // FUNCTION
         }
         InlineNode::Macro(InlineMacro::Url(url)) => {
-            add_token_for_location(&url.location, 1, 0, tokens); // FUNCTION
+            add_token_for_location(&url.location, 1, 0, source, tokens); // FUNCTION
         }
         InlineNode::Macro(InlineMacro::Autolink(autolink)) => {
-            add_token_for_location(&autolink.location, 1, 0, tokens); // FUNCTION
+            add_token_for_location(&autolink.location, 1, 0, source, tokens); // FUNCTION
         }
         InlineNode::Macro(InlineMacro::Mailto(mailto)) => {
-            add_token_for_location(&mailto.location, 1, 0, tokens); // FUNCTION
+            add_token_for_location(&mailto.location, 1, 0, source, tokens); // FUNCTION
         }
         InlineNode::Macro(InlineMacro::Image(image)) => {
-            add_token_for_location(&image.location, 1, 0, tokens); // FUNCTION
+            add_token_for_location(&image.location, 1, 0, source, tokens); // FUNCTION
         }
         InlineNode::Macro(InlineMacro::Icon(icon)) => {
-            add_token_for_location(&icon.location, 1, 0, tokens); // FUNCTION
+            add_token_for_location(&icon.location, 1, 0, source, tokens); // FUNCTION
         }
         InlineNode::InlineAnchor(anchor) => {
-            add_token_for_location(&anchor.location, 7, 1, tokens); // DECORATOR + DECLARATION
+            add_token_for_location(&anchor.location, 7, 1, source, tokens); // DECORATOR + DECLARATION
         }
         InlineNode::BoldText(b) => {
-            add_token_for_location(&b.location, 4, 0, tokens); // VARIABLE
-            collect_tokens_from_inlines(&b.content, tokens);
+            add_token_for_location(&b.location, 4, 0, source, tokens); // VARIABLE
+            collect_tokens_from_inlines(&b.content, source, tokens);
         }
         InlineNode::ItalicText(i) => {
-            add_token_for_location(&i.location, 4, 0, tokens); // VARIABLE
-            collect_tokens_from_inlines(&i.content, tokens);
+            add_token_for_location(&i.location, 4, 0, source, tokens); // VARIABLE
+            collect_tokens_from_inlines(&i.content, source, tokens);
         }
         InlineNode::MonospaceText(m) => {
-            add_token_for_location(&m.location, 4, 0, tokens); // VARIABLE
-            collect_tokens_from_inlines(&m.content, tokens);
+            add_token_for_location(&m.location, 4, 0, source, tokens); // VARIABLE
+            collect_tokens_from_inlines(&m.content, source, tokens);
         }
         InlineNode::HighlightText(h) => {
-            add_token_for_location(&h.location, 4, 0, tokens); // VARIABLE
-            collect_tokens_from_inlines(&h.content, tokens);
+            add_token_for_location(&h.location, 4, 0, source, tokens); // VARIABLE
+            collect_tokens_from_inlines(&h.content, source, tokens);
         }
         InlineNode::SubscriptText(s) => {
-            add_token_for_location(&s.location, 4, 0, tokens); // VARIABLE
-            collect_tokens_from_inlines(&s.content, tokens);
+            add_token_for_location(&s.location, 4, 0, source, tokens); // VARIABLE
+            collect_tokens_from_inlines(&s.content, source, tokens);
         }
         InlineNode::SuperscriptText(s) => {
-            add_token_for_location(&s.location, 4, 0, tokens); // VARIABLE
-            collect_tokens_from_inlines(&s.content, tokens);
+            add_token_for_location(&s.location, 4, 0, source, tokens); // VARIABLE
+            collect_tokens_from_inlines(&s.content, source, tokens);
         }
         InlineNode::PlainText(_)
         | InlineNode::RawText(_)
@@ -352,32 +340,61 @@ fn collect_tokens_from_inline(inline: &InlineNode, tokens: &mut Vec<RawToken>) {
     }
 }
 
-/// Helper to add a token for a location
+fn add_attribute_token(name: &str, line: u32, source: &LineIndex<'_>, tokens: &mut Vec<RawToken>) {
+    let Some(text) = source.line(line) else {
+        return;
+    };
+    let Some(rest) = text.trim_start().strip_prefix(':') else {
+        return;
+    };
+    let rest = rest.strip_prefix('!').unwrap_or(rest);
+    let Some(suffix) = rest.strip_prefix(name) else {
+        return;
+    };
+    if !suffix.starts_with(':') && !suffix.starts_with("!:") {
+        return;
+    }
+    let start = text.len() - rest.len();
+    if let Some(range) = byte_range_to_utf16_range(text, start..start + name.len())
+        && range.end.character > range.start.character
+    {
+        tokens.push(RawToken {
+            line,
+            start_char: range.start.character,
+            length: range.end.character - range.start.character,
+            token_type: 2, // PROPERTY
+            token_modifiers: 0,
+        });
+    }
+}
+
 fn add_token_for_location(
     loc: &Location,
     token_type: u32,
     token_modifiers: u32,
+    source: &LineIndex<'_>,
     tokens: &mut Vec<RawToken>,
 ) {
     if !is_primary_location(loc) {
         return;
     }
-    // Calculate length from location. Parser locations have inclusive end positions.
-    let length = if loc.start.line == loc.end.line {
-        loc.end
-            .column
-            .saturating_sub(loc.start.column)
-            .saturating_add(1)
-    } else {
-        // The column conversion limits a multi-line span to its first line.
-        u32::MAX
+    let Some(range) = source.range(loc) else {
+        return;
     };
-
-    if length > 0 {
+    // Keep highlighting multiline nodes on their first physical line.
+    let end = if range.start.line == range.end.line {
+        range.end.character
+    } else {
+        let Some(width) = source.line_width(range.start.line) else {
+            return;
+        };
+        width
+    };
+    if end > range.start.character {
         tokens.push(RawToken {
-            line: loc.start.line.saturating_sub(1),
-            start_char: loc.start.column.saturating_sub(1),
-            length,
+            line: range.start.line,
+            start_char: range.start.character,
+            length: end - range.start.character,
             token_type,
             token_modifiers,
         });
@@ -458,9 +475,48 @@ mod tests {
         loc.absolute_end = 400;
 
         let mut tokens = Vec::new();
-        add_token_for_location(&loc, 0, 0, &mut tokens);
+        add_token_for_location(&loc, 0, 0, &LineIndex::new("a\nb\n"), &mut tokens);
 
         assert_eq!(tokens.len(), 0);
+    }
+
+    #[test]
+    fn invalid_token_spans_are_omitted_instead_of_clipped() {
+        let source = LineIndex::new("é😀\r\nnext\n");
+        for (start, end) in [
+            ((1, 1), (1, 20)),
+            ((1, 1), (9, 1)),
+            ((2, 1), (1, 1)),
+            ((0, 0), (1, 1)),
+        ] {
+            let mut span = Location::point(Position::new(start.0, start.1));
+            span.end = Position::new(end.0, end.1);
+            let mut tokens = Vec::new();
+            add_token_for_location(&span, 4, 0, &source, &mut tokens);
+            assert!(tokens.is_empty(), "invalid span: {span:?}");
+        }
+    }
+
+    #[test]
+    fn attribute_unsetting_highlights_only_the_authored_name()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let text = "Text.\r\n\r\n:!name:\r\n:name!:\r\n:other: value\r\n";
+        let parsed = acdc_parser::parse(text, &Options::default())?;
+        let tokens = compute_semantic_tokens(parsed.document(), &[], text);
+        let actual: Vec<_> = tokens
+            .data
+            .iter()
+            .map(|token| {
+                (
+                    token.delta_line,
+                    token.delta_start,
+                    token.length,
+                    token.token_type,
+                )
+            })
+            .collect();
+        assert_eq!(actual, [(2, 2, 4, 2), (1, 1, 4, 2), (1, 1, 5, 2)]);
+        Ok(())
     }
 
     #[test]

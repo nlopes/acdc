@@ -3,7 +3,7 @@
 mod coordinates;
 
 pub(crate) use coordinates::{
-    byte_range_to_utf16_range, location_to_utf16_range, position_to_scalar_position,
+    LineIndex, byte_range_to_utf16_range, location_to_utf16_range, position_to_scalar_position,
 };
 
 use std::path::Path;

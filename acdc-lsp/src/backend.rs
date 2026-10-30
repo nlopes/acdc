@@ -825,7 +825,7 @@ impl LanguageServer for Backend {
 
         let response = if let Some(doc) = self.workspace.get_document(&uri) {
             doc.ast()
-                .map(|ast| folding::compute_folding_ranges(ast.document()))
+                .map(|ast| folding::compute_folding_ranges(ast.document(), doc.text()))
         } else {
             None
         };

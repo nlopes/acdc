@@ -416,3 +416,69 @@ fn annotations_and_document_links_use_utf16_after_emoji() -> TestResult {
     client.shutdown();
     Ok(())
 }
+
+#[test]
+fn selection_highlighting_and_folding_use_original_utf16_source() -> TestResult {
+    use tower_lsp_server::ls_types::{
+        FoldingRange, Position, Range, SelectionRange, SemanticTokens,
+    };
+
+    let project = Project::new("utf16-selection-highlighting")?;
+    let uri = project.uri("book.adoc")?;
+    fs::write(
+        project.path().join("child.adoc"),
+        "// omitted\r\n// omitted\r\n    === Child\r\n\r\n    😀 *foreign*\r\n",
+    )?;
+    let mut client = LspTestClient::new()?;
+    client.initialize()?;
+    client.open_document(&uri, "= Book\r\n\r\n== Parent\r\n\r\ninclude::child.adoc[lines=3..5,indent=0]\r\n\r\né😀 *local*\r\n")?;
+    let selections: Vec<SelectionRange> = serde_json::from_value(client.send_request("textDocument/selectionRange", json!({"textDocument":{"uri":uri},"positions":[{"line":6,"character":6},{"line":7,"character":0}]}))?)?;
+    let mut selection = selections.first().ok_or("selection")?;
+    assert_eq!(
+        selection.range,
+        Range::new(Position::new(6, 5), Position::new(6, 10))
+    );
+    while let Some(parent) = &selection.parent {
+        assert!(
+            parent.range.start <= selection.range.start && selection.range.end <= parent.range.end
+        );
+        selection = parent;
+    }
+    assert_eq!(
+        selection.range,
+        Range::new(Position::new(0, 0), Position::new(7, 0))
+    );
+    assert_eq!(
+        selections.get(1).ok_or("EOF selection")?.range.end,
+        Position::new(7, 0)
+    );
+    let tokens: SemanticTokens = serde_json::from_value(client.send_request(
+        "textDocument/semanticTokens/full",
+        json!({"textDocument":{"uri":uri}}),
+    )?)?;
+    let mut line = 0;
+    let mut column = 0;
+    let mut actual = Vec::new();
+    for token in tokens.data {
+        line += token.delta_line;
+        column = if token.delta_line == 0 {
+            column + token.delta_start
+        } else {
+            token.delta_start
+        };
+        actual.push((line, column, token.length, token.token_type));
+    }
+    assert!(actual.iter().all(|token| token.0 == 2 || token.0 == 6));
+    assert!(actual.contains(&(6, 4, 7, 4)));
+    let folds: Vec<FoldingRange> = serde_json::from_value(client.send_request(
+        "textDocument/foldingRange",
+        json!({"textDocument":{"uri":uri}}),
+    )?)?;
+    assert_eq!(folds.len(), 1);
+    assert!(folds.iter().all(|fold| fold.start_line == 2
+        && fold.end_line == 6
+        && fold.start_character.is_none()
+        && fold.end_character.is_none()));
+    client.shutdown();
+    Ok(())
+}

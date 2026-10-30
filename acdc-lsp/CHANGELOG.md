@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Expand selection now follows the original source after includes and uses
+  correct UTF-16 positions after emoji, through CRLF endings, and at end of file.
+  Highlighting validates source spans and avoids duplicate tokens in nested
+  inactive conditionals. Attribute unsetting highlights the name without `!`.
+  Folding omits ranges that do not fit the original source.
+
 - Hover, reference-count code lenses, inlay hints, and document links now align
   correctly after emoji and in CRLF files. Navigation finds targets correctly
   after preprocessing. Hovering immediately after an attribute's closing brace
