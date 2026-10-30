@@ -73,6 +73,16 @@ roles, options, and effective `xrefstyle` through `attributes()`; edit them thro
 the owner fields and guarded scalar methods. As with other acdc inline macros,
 `roles` aliases `role`; Asciidoctor recognizes only `role` on xrefs.
 
+`document_ref().content_occurrences()` walks each retained inline-content field
+once, including titles, captions, alt text, tooltips, and nested labels. Each field
+provides `role()`, `owner()`, and `content()`. Use the content's inline locations
+with `resolve_location()` for source provenance. Present empty fields remain empty;
+scalar values and generated fallback text do not become synthetic inline nodes.
+The walk excludes derived catalogs. Call `skip_descendants()` to omit a field's
+nested content while keeping siblings, or use `StructuralRef::content_fields()`
+and `InlineRef::content_fields()` for direct, allocation-free reads. This leaves
+rendering and indexing policy with the caller.
+
 Formatting spans expose nested content, constrained/unconstrained form, IDs, and
 role tokens. Each span keeps its concrete type, such as `BoldRef` or `ItalicRef`.
 `HighlightRef::is_marked()` distinguishes an unadorned mark from a generic span

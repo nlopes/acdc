@@ -512,7 +512,7 @@ impl<'doc> AttributesRef<'doc> {
         }
     }
 
-    fn metadata(self) -> Option<&'doc BlockMetadata<'doc>> {
+    pub(super) fn metadata(self) -> Option<&'doc BlockMetadata<'doc>> {
         match self.owner {
             Owner::Header(node) => Some(&node.metadata),
             Owner::Paragraph(node) => Some(&node.metadata),

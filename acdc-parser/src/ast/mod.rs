@@ -40,8 +40,8 @@
 //! The owner API remains available for other reads and for construction and editing.
 //!
 //! Formatting spans keep distinct types, with `content()`, `form()`, `id()`,
-//! `roles()`, and `attributes()`. Span IDs use the span's recorded location;
-//! the parser does not retain a separate ID range.
+//! `roles()`, and `attributes()`. Span IDs retain the source range that supplied
+//! the ID, including the authored reference when an attribute was expanded.
 //!
 //! ```
 //! use acdc_parser::{Form, Options, parse, ast::{BlockKind, BoldRef, InlineKind}};
@@ -204,6 +204,8 @@ macro_rules! node_ref {
 mod attributes;
 mod blocks;
 mod content;
+mod content_fields;
+mod content_occurrences;
 mod identity;
 mod inlines;
 mod location;
@@ -216,6 +218,8 @@ mod values;
 pub use attributes::AttributesRef;
 pub use blocks::*;
 pub use content::{ContentListRef, ContentRef};
+pub use content_fields::{ContentFieldRef, ContentOwnerRef, ContentRole};
+pub use content_occurrences::ContentOccurrences;
 pub use inlines::*;
 pub use location::{LocationRef, PositionRef};
 pub use media::{ImageRef, InlineImageRef, SourceKind, SourceRef};

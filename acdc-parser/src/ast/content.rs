@@ -22,7 +22,7 @@ use super::InlineRef;
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ContentRef<'doc> {
-    nodes: &'doc [InlineNode<'doc>],
+    pub(super) nodes: &'doc [InlineNode<'doc>],
 }
 
 impl<'doc> ContentRef<'doc> {

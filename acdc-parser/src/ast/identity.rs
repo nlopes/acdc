@@ -54,7 +54,7 @@ impl<'doc> BlockRef<'doc> {
             .flat_map(AttributesRef::anchors)
     }
 
-    fn element_attributes(self) -> Option<AttributesRef<'doc>> {
+    pub(super) fn element_attributes(self) -> Option<AttributesRef<'doc>> {
         match self.kind() {
             BlockKind::Section(node) => Some(node.attributes()),
             BlockKind::Paragraph(node) => Some(node.attributes()),

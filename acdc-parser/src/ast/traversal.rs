@@ -62,7 +62,7 @@ impl<'doc> StructuralRef<'doc> {
         }
     }
 
-    fn child_iter(self) -> Children<'doc> {
+    pub(super) fn child_iter(self) -> Children<'doc> {
         match self {
             Self::Document(document) => Children::Document {
                 header: document.node.header.as_ref(),
@@ -153,7 +153,8 @@ macro_rules! traversal_roots {
 
 traversal_roots!(DocumentRef, BlockRef);
 
-enum Children<'doc> {
+#[derive(Debug)]
+pub(super) enum Children<'doc> {
     Empty,
     Document {
         header: Option<&'doc Header<'doc>>,

@@ -84,6 +84,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Library callers can walk owned inline content through
+  `DocumentRef::content_occurrences()` or read a node's direct `content_fields()`.
+  Each field identifies its purpose and typed owner, including titles, credits,
+  captions, alt/tooltips, labels, and list content. Callers can skip nested fields;
+  derived reference, footnote, TOC, and index copies are excluded.
+
 - `ParseResult::document_ref()` provides typed reads of documents, headers, authors,
   sections, paragraphs, delimited blocks, admonitions, lists, tables, media,
   discrete headings, TOC blocks, breaks, and comments, with lazy child and inline
