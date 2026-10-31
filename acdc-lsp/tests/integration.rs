@@ -7,6 +7,7 @@ mod integration {
     mod completion_state;
     mod coordinate_audit;
     mod coordinates;
+    mod hover_content;
     mod includes;
     mod inlay_hints;
     mod link_navigation;

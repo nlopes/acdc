@@ -22,7 +22,7 @@ pub(crate) fn find_references(
 ) -> Option<Vec<tower_lsp_server::ls_types::Location>> {
     let source_position = position_to_scalar_position(doc.text(), position)?;
     let ast_guard = doc.ast()?;
-    let ast = ast_guard.document();
+    let ast = ast_guard.document_ref();
 
     // Check if cursor is on an xref - find all references to its target
     if let Some((target_id, _xref_loc)) = super::hover::find_xref_at_position(ast, &source_position)

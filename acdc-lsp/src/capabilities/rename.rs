@@ -22,7 +22,7 @@ pub(crate) fn prepare_rename(
 ) -> Option<PrepareRenameResponse> {
     let source_position = position_to_scalar_position(doc.text(), position)?;
     let ast_guard = doc.ast()?;
-    let ast = ast_guard.document();
+    let ast = ast_guard.document_ref();
 
     // Check if cursor is on an xref
     if let Some((target, xref_loc)) = super::hover::find_xref_at_position(ast, &source_position)
@@ -64,7 +64,7 @@ pub(crate) fn compute_rename(
 ) -> Option<WorkspaceEdit> {
     let source_position = position_to_scalar_position(doc.text(), position)?;
     let ast_guard = doc.ast()?;
-    let ast = ast_guard.document();
+    let ast = ast_guard.document_ref();
 
     // Find the target ID (from either xref or anchor)
     let target_id =

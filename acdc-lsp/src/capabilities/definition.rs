@@ -274,7 +274,7 @@ pub(crate) fn find_definition_at_position(
 ) -> Option<(Uri, Location)> {
     let source_position = crate::convert::position_to_scalar_position(doc_state.text(), position)?;
     let ast_guard = doc_state.ast()?;
-    let ast = ast_guard.document();
+    let ast = ast_guard.document_ref();
     tracing::info!(
         ?position,
         ?source_position,
@@ -292,7 +292,7 @@ pub(crate) fn find_definition_at_position(
 
     // Check if cursor is on a link macro
     if let Some((target, _)) =
-        crate::capabilities::hover::find_link_at_position(ast.into(), &source_position)
+        crate::capabilities::hover::find_link_at_position(ast, &source_position)
     {
         return resolve_link_target(&target, doc_uri);
     }
@@ -479,7 +479,7 @@ Content.
         // Drop the AST guard before go-to-definition acquires it again.
         {
             let ast_guard = a_doc.ast().ok_or("a.adoc should have AST")?;
-            let ast = ast_guard.document();
+            let ast = ast_guard.document_ref();
             let source_position =
                 crate::convert::position_to_scalar_position(a_content, Position::new(4, 20))
                     .ok_or("source position")?;

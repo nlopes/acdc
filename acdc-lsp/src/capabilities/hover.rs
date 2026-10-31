@@ -2,10 +2,10 @@
 
 use std::ops::ControlFlow;
 
-use acdc_converters_core::inlines_to_string;
+use acdc_converters_core::InlineTextTransform;
 use acdc_parser::{
-    Block, Document, Location,
-    ast::{DocumentRef, HyperlinkRef, IdOrigin, SectionRef},
+    Location,
+    ast::{BlockKind, BlockRef, DocumentRef, HyperlinkRef, IdOrigin},
 };
 use tower_lsp_server::ls_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position, Uri};
 
@@ -26,7 +26,7 @@ pub(crate) fn compute_hover(
 ) -> Option<Hover> {
     let position = position_to_scalar_position(doc.text(), position)?;
     let ast_guard = doc.ast()?;
-    let ast = ast_guard.document();
+    let ast = ast_guard.document_ref();
 
     // Check for xref at this position
     if let Some((target, xref_loc)) = find_xref_at_position(ast, &position) {
@@ -67,7 +67,7 @@ pub(crate) fn compute_hover(
     // Check for attribute reference at this position
     if let Some((attr_name, attr_ref_loc)) = find_attribute_ref_at_position(doc, &position) {
         let mut value = String::new();
-        let content = if let Some(attribute) = ast.attributes.get(&attr_name) {
+        let content = if let Some(attribute) = ast.attributes().get(&attr_name) {
             attribute.write_text(&mut value).ok()?;
             format!("**Attribute**\n\n`:{attr_name}:` = `{value}`")
         } else {
@@ -84,7 +84,7 @@ pub(crate) fn compute_hover(
     }
 
     // Check for URL/link at this position
-    if let Some((url, link_loc)) = find_link_at_position(ast.into(), &position) {
+    if let Some((url, link_loc)) = find_link_at_position(ast, &position) {
         let content = format!("**Link**\n\nURL: {url}");
 
         return Some(Hover {
@@ -106,7 +106,7 @@ fn build_xref_hover_content(
     doc: &DocumentState,
     doc_uri: &Uri,
     workspace: &Workspace,
-    ast: &Document,
+    ast: DocumentRef<'_>,
 ) -> String {
     if let Some(file_path) = &parsed.file {
         // Cross-file xref
@@ -159,14 +159,14 @@ fn build_xref_hover_content(
 
 /// Find the innermost retained xref at a position in the editor's input.
 pub(crate) fn find_xref_at_position(
-    doc: &Document,
+    doc: DocumentRef<'_>,
     position: &acdc_parser::Position,
 ) -> Option<(String, Location)> {
     // An explicit ID belongs to this occurrence, not to its surrounding xref's target.
     if find_anchor_at_position(doc, position).is_some_and(|id| id.origin == IdOrigin::Explicit) {
         return None;
     }
-    super::definition::xref_occurrences(doc.into())
+    super::definition::xref_occurrences(doc)
         .filter(|xref| position_in_location(position, xref.location()))
         .min_by_key(|xref| {
             let location = xref.location();
@@ -179,10 +179,10 @@ pub(crate) fn find_xref_at_position(
 
 /// Find the smallest retained ID occurrence under the primary-file cursor.
 pub(crate) fn find_anchor_at_position<'doc>(
-    doc: &'doc Document<'doc>,
+    doc: DocumentRef<'doc>,
     position: &acdc_parser::Position,
 ) -> Option<super::identity::IdOccurrence<'doc>> {
-    super::identity::occurrences(doc.into())
+    super::identity::occurrences(doc)
         .filter(|id| position_in_location(position, &id.location))
         .min_by_key(|id| {
             id.location
@@ -229,58 +229,74 @@ fn find_attribute_ref_at_position(
     })
 }
 
-/// Find section title at a given location
-fn find_section_title_at_location(doc: &Document, loc: &Location) -> Option<String> {
-    for block in &doc.blocks {
-        if let Some(title) = find_section_title_in_block(block, loc) {
-            return Some(title);
-        }
-    }
-    None
+/// Find a section title by its source start or one of its retained anchors.
+fn find_section_title_at_location(doc: DocumentRef<'_>, loc: &Location) -> Option<String> {
+    doc.blocks()
+        .find_map(|block| find_section_title_in_block(block, loc))
 }
 
-fn find_section_title_in_block(block: &Block, target_loc: &Location) -> Option<String> {
-    match block {
-        Block::Section(section) => {
-            if section.location.start == target_loc.start
-                || SectionRef::from(section).anchors()
-                    .any(|anchor| Location::from(anchor.location()) == *target_loc)
-            {
-                return Some(inlines_to_string(&section.title));
-            }
-            // Recurse into children
-            for child in &section.content {
-                if let Some(title) = find_section_title_in_block(child, target_loc) {
-                    return Some(title);
-                }
-            }
-            None
-        }
-        Block::TableOfContents(_)
-        | Block::Admonition(_)
-        | Block::DiscreteHeader(_)
-        | Block::DocumentAttribute(_)
-        | Block::ThematicBreak(_)
-        | Block::PageBreak(_)
-        | Block::UnorderedList(_)
-        | Block::OrderedList(_)
-        | Block::CalloutList(_)
-        | Block::DescriptionList(_)
-        | Block::DelimitedBlock(_)
-        | Block::Paragraph(_)
-        | Block::Image(_)
-        | Block::Audio(_)
-        | Block::Video(_)
-        | Block::Comment(_)
-        // non_exhaustive
-        | _ => None,
+fn find_section_title_in_block(block: BlockRef<'_>, target_loc: &Location) -> Option<String> {
+    let BlockKind::Section(section) = block.kind() else {
+        return None;
+    };
+    let start = section.location().start();
+    let same_start = start.line() == target_loc.start.line
+        && start.column() == target_loc.start.column
+        && match (start.include_chain(), target_loc.start.file.as_deref()) {
+            (None, None) => true,
+            (Some(chain), Some(files)) => chain.eq(files.iter().map(String::as_str)),
+            _ => false,
+        };
+    if same_start
+        || section
+            .anchors()
+            .any(|anchor| Location::from(anchor.location()) == *target_loc)
+    {
+        return Some(section.title().map_or_else(String::new, |title| {
+            InlineTextTransform::default().content_to_string(title)
+        }));
     }
+    section
+        .blocks()
+        .find_map(|child| find_section_title_in_block(child, target_loc))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::error::Error;
+
+    #[test]
+    fn section_title_lookup_keeps_source_context_and_container_boundaries()
+    -> Result<(), Box<dyn Error>> {
+        let parsed = acdc_parser::parse(
+            "== Top\n\n=== Child\n\n[cols=a]\n|===\n|== Cell\n|===\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let doc = parsed.document_ref();
+        let sections = doc
+            .descendants()
+            .filter_map(|node| {
+                if let acdc_parser::ast::StructuralRef::Block(block) = node
+                    && let BlockKind::Section(section) = block.kind()
+                {
+                    return Some(section);
+                }
+                None
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(sections.len(), 3);
+        for (section, expected) in sections.iter().zip([Some("Top"), Some("Child"), None]) {
+            let mut location: Location = section.location().into();
+            assert_eq!(
+                find_section_title_at_location(doc, &location).as_deref(),
+                expected
+            );
+            location.start.file = Some(std::sync::Arc::new(vec!["other.adoc".to_string()]));
+            assert!(find_section_title_at_location(doc, &location).is_none());
+        }
+        Ok(())
+    }
 
     #[test]
     fn test_hover_on_xref() -> Result<(), Box<dyn Error>> {

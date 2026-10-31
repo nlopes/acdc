@@ -34,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Navigation, references, and rename now recognize retained named block IDs and
   inline IDs, including images and formatting spans in titles, tables, and includes.
+  Hover retains formatted section names, header attribute values, and cross-file
+  targets, including unsaved documents.
   Rename changes only source-validated literal spellings, preserves quoting and
   surrounding markup, and updates duplicate declarations together. Generated or
   expanded IDs remain navigable but cannot be renamed through guessed ranges.
