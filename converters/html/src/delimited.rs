@@ -212,7 +212,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         block: &'a DelimitedBlock<'a>,
     ) -> Result<(), Error> {
         let processor = self.processor.clone();
-        let caption_kind = CaptionKind::for_delimited(&block.inner, block.metadata.style);
+        let caption_kind = CaptionKind::for_block(BlockRef::from(block));
         match &block.inner {
             DelimitedBlockType::DelimitedQuote(blocks) => {
                 if processor.variant() == HtmlVariant::Semantic {
@@ -907,7 +907,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         let title = &block.title;
         let metadata = &block.metadata;
         let attributes = BlockRef::from(block).attributes();
-        let caption_kind = CaptionKind::for_delimited(inner, metadata.style);
+        let caption_kind = CaptionKind::for_block(BlockRef::from(block));
         match inner {
             DelimitedBlockType::DelimitedPass(inlines) => {
                 #[cfg(feature = "pre-spec-subs")]
@@ -1082,7 +1082,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         let title = &block.title;
         let metadata = &block.metadata;
         let attributes = BlockRef::from(block).attributes();
-        let caption_kind = CaptionKind::for_delimited(inner, metadata.style);
+        let caption_kind = CaptionKind::for_block(BlockRef::from(block));
         match inner {
             DelimitedBlockType::DelimitedVerse(inlines) => {
                 self.render_verse_block_semantic(traversal, inlines, title, metadata)?;

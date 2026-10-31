@@ -7,7 +7,7 @@
 
 use std::{borrow::Cow, num::NonZeroU32};
 
-use crate::ast::CaptionRef;
+use crate::ast::{BlockKind, BlockRef, CaptionRef};
 
 use super::{AttributeValue, Block, BlockMetadata, DelimitedBlockType, DocumentAttributes, Table};
 
@@ -63,33 +63,41 @@ impl CaptionKind {
         }
     }
 
-    /// The caption category for a parsed block, or `None` when the block takes no caption.
+    /// The caption category for the block's current form and style.
     ///
-    /// Classification follows the block's effective context rather than its AST variant alone,
-    /// matching asciidoctor: a delimiter that carries a caption context of its own keeps it, so
-    /// `[listing]` on `====` is still an example. A style only changes the context of the
-    /// verbatim delimiters and of the open block, which carry none.
-    pub(crate) fn for_block(block: &Block<'_>) -> Option<Self> {
-        match block {
-            Block::DelimitedBlock(delimited) => {
-                Self::for_delimited(&delimited.inner, delimited.metadata.style)
-            }
-            Block::Paragraph(paragraph) => Self::for_style(paragraph.metadata.style),
-            Block::Image(_) => Some(Self::Figure),
-            Block::Section(_)
-            | Block::Admonition(_)
-            | Block::DiscreteHeader(_)
-            | Block::PageBreak(_)
-            | Block::ThematicBreak(_)
-            | Block::TableOfContents(_)
-            | Block::UnorderedList(_)
-            | Block::OrderedList(_)
-            | Block::CalloutList(_)
-            | Block::DescriptionList(_)
-            | Block::Audio(_)
-            | Block::Video(_)
-            | Block::DocumentAttribute(_)
-            | Block::Comment(_) => None,
+    /// A delimiter with its own caption context keeps it: `[listing]` on `====`
+    /// still selects [`Self::Example`]. Read resolved labels and ordinals with
+    /// [`CaptionRef::resolve`].
+    #[must_use]
+    pub fn for_block(block: BlockRef<'_>) -> Option<Self> {
+        match block.kind() {
+            BlockKind::Paragraph(paragraph) => Self::for_style(paragraph.style()),
+            BlockKind::Image(_) => Some(Self::Figure),
+            BlockKind::Example(_) => Some(Self::Example),
+            BlockKind::Table(_) => Some(Self::Table),
+            BlockKind::Listing(listing) => Self::for_verbatim(listing.style(), Some(Self::Listing)),
+            BlockKind::Literal(literal) => Self::for_verbatim(literal.style(), None),
+            BlockKind::Open(open) => Self::for_style(open.style()),
+            BlockKind::Section(_)
+            | BlockKind::Admonition(_)
+            | BlockKind::DiscreteHeader(_)
+            | BlockKind::PageBreak(_)
+            | BlockKind::ThematicBreak(_)
+            | BlockKind::TableOfContents(_)
+            | BlockKind::UnorderedList(_)
+            | BlockKind::OrderedList(_)
+            | BlockKind::CalloutList(_)
+            | BlockKind::DescriptionList(_)
+            | BlockKind::Audio(_)
+            | BlockKind::Video(_)
+            | BlockKind::Comment(_)
+            | BlockKind::DocumentAttribute(_)
+            | BlockKind::DelimitedComment(_)
+            | BlockKind::Sidebar(_)
+            | BlockKind::Passthrough(_)
+            | BlockKind::Quote(_)
+            | BlockKind::Verse(_)
+            | BlockKind::Stem(_) => None,
         }
     }
 

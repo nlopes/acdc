@@ -3,6 +3,7 @@
 use crate::{
     Anchor, AttributeValue, Block, BlockMetadata, CompatibilityMode, ContentAttribute, Error,
     InlineNode, Location, Plain, Title, Warning, WarningKind,
+    ast::BlockRef,
     document_attribute::AttributeDeclaration,
     grammar::{
         ParserState,
@@ -231,7 +232,7 @@ pub(super) fn assign_block_caption<'input>(state: &ParserState<'input>, block: &
     if let Some(metadata) = block.metadata_mut() {
         metadata.alt_source = None;
     }
-    let Some(kind) = CaptionKind::for_block(block) else {
+    let Some(kind) = CaptionKind::for_block(BlockRef::from(&*block)) else {
         return;
     };
     if let Some(metadata) = block.metadata_mut() {

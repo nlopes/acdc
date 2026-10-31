@@ -275,6 +275,7 @@ fn caption_reads_are_shared_and_allocate_nothing() -> Result<(), Error> {
         }
     }
     for block in parsed.document_ref().blocks() {
+        black_box(CaptionKind::for_block(block));
         if let Some(attributes) = block.attributes() {
             black_box(CaptionRef::resolve(
                 attributes,

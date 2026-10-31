@@ -84,6 +84,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Library callers can classify caption categories from typed blocks without
+  inspecting the owner enums. Classification follows the current block form and
+  style; resolved labels and ordinals retain their stored values.
+
 - `CaptionRef::resolve` reads stored labels and ordinals, or borrows a caption
   fallback from element and document attributes without assigning an ordinal.
   Existing metadata-based caption resolution remains supported.
