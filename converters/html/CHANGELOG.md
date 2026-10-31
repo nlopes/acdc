@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Text escaping, typography, passthroughs, callout markers, and inline math retain
+  their existing HTML output.
+
 - HTML documents retain the same MathJax and icon stylesheet selection, including
   attribute changes inside lists and AsciiDoc table cells.
 - Document titles, author metadata, custom stylesheets, and font settings retain

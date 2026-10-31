@@ -663,7 +663,12 @@ pub fn apply_passthrough_replacements<'a>(
     apply_passthrough_replacements_iter(text, subs.iter().cloned(), replacements, text_boundaries)
 }
 
-pub(crate) fn apply_passthrough_replacements_iter<'a>(
+/// Apply [`apply_passthrough_replacements`] using an ordered substitution iterator.
+///
+/// Consumes the profile once. Without a replacement stage, returns the original
+/// text without copying it.
+#[must_use]
+pub fn apply_passthrough_replacements_iter<'a>(
     text: &'a str,
     subs: impl Iterator<Item = Substitution>,
     replacements: &Replacements<'_>,

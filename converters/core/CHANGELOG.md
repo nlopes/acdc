@@ -39,6 +39,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Library converters can apply passthrough replacements from lazy substitution
+  profiles without copying the profile, with the same ordered replacement rules.
+
 - Library converters can render typed inline content through `visitor::InlineVisitor`,
   including temporary text and parsed fragments whose lifetime is shorter than the
   document's. Callbacks keep content selection, sibling handling, and rendering

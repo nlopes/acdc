@@ -51,18 +51,19 @@ use acdc_converters_core::{
     InlineTextTransform, TraversalContext,
     link::{autolink_fallback, link_fallback, mailto_fallback, mailto_target},
     substitutions::{
-        Replacements, TextBoundaries, apply_passthrough_replacements, protect_replacement_escapes,
-        restore_escaped_patterns, strip_backslash_escapes,
+        Replacements, TextBoundaries, apply_passthrough_replacements_iter,
+        protect_replacement_escapes, restore_escaped_patterns, strip_backslash_escapes,
     },
     visitor::{Visitor, WritableVisitor},
     xref::{XrefDisplay, interdocument_xref, resolve_xref},
 };
 use acdc_parser::{
-    Anchor, AttributeValue, Autolink, Bold, Button, CalloutRef, CrossReference, CurvedApostrophe,
+    Anchor, AttributeValue, Autolink, Bold, Button, CrossReference, CurvedApostrophe,
     CurvedQuotation, ElementAttributes, Footnote, Highlight, Icon, IndexTerm,
     IndexTermRelationship, InlineImage, InlineMacro, InlineNode, Italic, Keyboard, Link, Mailto,
-    Menu, Monospace, Pass, Plain, Raw, Stem, StemNotation, Subscript, Substitution, Superscript,
-    Url, Verbatim, strip_quotes,
+    Menu, Monospace, StemNotation, Subscript, Substitution, Superscript, Url,
+    ast::{CalloutRef, PassRef, PlainRef, RawRef, StemRef, VerbatimRef},
+    strip_quotes,
 };
 
 use crate::{
@@ -70,6 +71,9 @@ use crate::{
     constants::{encode_html_entities, escape_ampersands},
     image::image_link_control_attributes,
 };
+
+#[cfg(test)]
+mod text_reads_tests;
 
 fn replacements() -> Replacements<'static> {
     let mut replacements = Replacements::unicode();
@@ -87,16 +91,11 @@ fn replacements() -> Replacements<'static> {
     replacements
 }
 
-fn passthrough_substitution_text(
-    text: &str,
-    subs: &[Substitution],
-    text_boundaries: TextBoundaries,
-) -> String {
-    let replacements = replacements();
-    let mut text = text.to_string();
+fn passthrough_substitution_text(raw: RawRef<'_>, text_boundaries: TextBoundaries) -> String {
+    let mut text = raw.text().to_owned();
     let mut applied_special_chars = false;
 
-    for substitution in subs {
+    for substitution in raw.substitutions() {
         match substitution {
             Substitution::SpecialChars => {
                 // Keep source arrow characters until replacements have run.
@@ -106,8 +105,13 @@ fn passthrough_substitution_text(
                 applied_special_chars = true;
             }
             Substitution::Replacements => {
-                text = apply_passthrough_replacements(&text, subs, &replacements, text_boundaries)
-                    .into_owned();
+                text = apply_passthrough_replacements_iter(
+                    &text,
+                    raw.substitutions(),
+                    &replacements(),
+                    text_boundaries,
+                )
+                .into_owned();
             }
             Substitution::Attributes
             | Substitution::Macros
@@ -390,10 +394,10 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         // The parser selects formatting, including explicit attribute profiles
         // in code. Block substitutions still govern text escaping and typography.
         match node {
-            InlineNode::PlainText(p) => self.render_plain(p, options, subs),
-            InlineNode::RawText(r) => self.render_raw(r),
-            InlineNode::VerbatimText(v) => self.render_verbatim(traversal, v, options, subs),
-            InlineNode::CalloutRef(c) => self.render_callout_ref(traversal, c),
+            InlineNode::PlainText(p) => self.render_plain(p.into(), options, subs),
+            InlineNode::RawText(r) => self.render_raw(r.into()),
+            InlineNode::VerbatimText(v) => self.render_verbatim(traversal, v.into(), options, subs),
+            InlineNode::CalloutRef(c) => self.render_callout_ref(traversal, c.into()),
             InlineNode::BoldText(b) => self.render_bold(traversal, b, options),
             InlineNode::ItalicText(i) => self.render_italic(traversal, i, options),
             InlineNode::HighlightText(h) => self.render_highlight(traversal, h, options),
@@ -518,17 +522,17 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
     fn render_plain(
         &mut self,
-        p: &Plain<'_>,
+        p: PlainRef<'_>,
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
-        if p.content.is_empty() {
+        if p.text().is_empty() {
             return Ok(());
         }
         // Attribute substitution already applied by the inline preprocessor during parsing.
-        let content = &p.content;
+        let content = p.text();
         // Escaped text must also bypass typography replacements.
-        let effective_subs: &[Substitution] = if p.escaped { &[] } else { subs };
+        let effective_subs: &[Substitution] = if p.is_escaped() { &[] } else { subs };
 
         // Formatting is already represented by inline nodes. Plain text can
         // contain literal delimiters introduced after quote substitution.
@@ -542,15 +546,10 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         Ok(())
     }
 
-    fn render_raw(&mut self, r: &Raw<'_>) -> Result<(), Error> {
+    fn render_raw(&mut self, r: RawRef<'_>) -> Result<(), Error> {
         // RawText comes from passthroughs — attribute expansion was already handled (or
         // explicitly skipped) by the preprocessor. Do NOT apply block subs.
-        let content = &r.content;
-        let text = if r.subs.is_empty() {
-            content.to_string()
-        } else {
-            passthrough_substitution_text(content, &r.subs, self.text_boundaries())
-        };
+        let text = passthrough_substitution_text(r, self.text_boundaries());
         if let Some(captured) = self.captured_raw_fragments.as_mut() {
             let index = captured.len();
             captured.push(text);
@@ -564,7 +563,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     fn render_verbatim(
         &mut self,
         _traversal: &mut TraversalContext<'a>,
-        v: &Verbatim<'_>,
+        v: VerbatimRef<'_>,
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
@@ -575,7 +574,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             ..options.clone()
         };
 
-        let text = substitution_text(v.content, subs, &verbatim_options, self.text_boundaries());
+        let text = substitution_text(v.text(), subs, &verbatim_options, self.text_boundaries());
         write!(self.writer_mut(), "{text}")?;
         Ok(())
     }
@@ -583,10 +582,10 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     fn render_callout_ref(
         &mut self,
         traversal: &TraversalContext<'_>,
-        callout: &CalloutRef,
+        callout: CalloutRef<'_>,
     ) -> Result<(), Error> {
         let html =
-            crate::callouts::marker_html(callout.number, crate::callouts::font_icons(traversal));
+            crate::callouts::marker_html(callout.number(), crate::callouts::font_icons(traversal));
         self.writer_mut().write_all(html.as_bytes())?;
         Ok(())
     }
@@ -780,13 +779,13 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             InlineMacro::Autolink(al) => self.render_autolink(al, options),
             InlineMacro::Link(l) => self.render_link(traversal, l, options, subs),
             InlineMacro::Image(i) => self.render_inline_image(traversal, i),
-            InlineMacro::Pass(p) => self.render_pass(p, options, subs),
+            InlineMacro::Pass(p) => self.render_pass(p.into(), options, subs),
             InlineMacro::Url(u) => self.render_url(traversal, u, options, subs),
             InlineMacro::Mailto(m) => self.render_mailto(traversal, m, options, subs),
             InlineMacro::Footnote(f) => self.render_footnote(f, options),
             InlineMacro::Button(b) => self.render_button(traversal, b),
             InlineMacro::CrossReference(xref) => self.render_xref(traversal, xref, options, subs),
-            InlineMacro::Stem(s) => self.render_stem(traversal, s),
+            InlineMacro::Stem(s) => self.render_stem(traversal, s.into()),
             InlineMacro::Icon(i) => self.render_icon(traversal, i),
             InlineMacro::Keyboard(k) => self.render_keyboard(traversal, k),
             InlineMacro::Menu(menu) => self.render_menu(traversal, menu),
@@ -927,14 +926,16 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
     fn render_pass(
         &mut self,
-        p: &Pass<'_>,
+        p: PassRef<'_>,
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
-        let Some(text) = p.text else { return Ok(()) };
+        let Some(text) = p.text() else { return Ok(()) };
         // Only escape when SpecialChars substitution is enabled (pass:c[]).
         // Otherwise output raw HTML (pass:[], +++...+++).
-        if p.substitutions.contains(&Substitution::SpecialChars) {
+        if p.substitutions()
+            .any(|sub| sub == Substitution::SpecialChars)
+        {
             let text = substitution_text(text, subs, options, self.text_boundaries());
             write!(self.writer_mut(), "{text}")?;
         } else {
@@ -1290,7 +1291,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     fn render_stem(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        s: &Stem<'_>,
+        s: StemRef<'_>,
     ) -> Result<(), Error> {
         let forced = if self.processor.variant() == HtmlVariant::Semantic {
             traversal
@@ -1300,9 +1301,9 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         } else {
             None
         };
-        let notation = forced.as_ref().unwrap_or(&s.notation);
+        let notation = forced.unwrap_or_else(|| s.notation());
         let w = self.writer_mut();
-        let content = escape_pcdata(s.content);
+        let content = escape_pcdata(s.text());
         match notation {
             StemNotation::Latexmath => writeln!(w, "\\({content}\\)")?,
             StemNotation::Asciimath => writeln!(w, "\\${content}\\$")?,
