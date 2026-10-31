@@ -29,6 +29,13 @@ macro_rules! span_reads {
                 self.attributes().id()
             }
 
+            /// Retained role text, including whitespace and an explicitly empty value.
+            /// Use [`Self::roles`] for token queries.
+            #[must_use]
+            pub fn role(self) -> Option<&'doc str> {
+                self.node.role
+            }
+
             /// Role tokens in retained order, including duplicates.
             #[must_use]
             pub fn roles(self) -> TokensRef<'doc> {

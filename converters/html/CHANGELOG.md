@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Formatting spans retain exact role text, empty-role wrappers, and deprecated
+  role warnings in both HTML variants.
+
 - Audio and video retain playback ranges, provider playlists, private hashes,
   and media URI controls.
 

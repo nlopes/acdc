@@ -1,11 +1,11 @@
 use std::{io, rc::Rc};
 
 use acdc_converters_core::{
-    Diagnostics, Options as ConverterOptions, TraversalContext, WarningSource,
+    Diagnostics, Options as ConverterOptions, TraversalContext, WarningSource, visitor::Visitor,
 };
 use acdc_parser::{
-    CalloutRef, Document, InlineMacro, InlineNode, Location, Options, Plain, Raw, Substitution,
-    Verbatim, parse_inline,
+    CalloutRef, Document, Form, Highlight, InlineMacro, InlineNode, Location, Options, Plain, Raw,
+    Substitution, Verbatim, parse_inline,
 };
 
 use crate::{Error, HtmlVariant, HtmlVisitor, Processor, RenderOptions};
@@ -157,5 +157,54 @@ fn retained_pass_skips_absent_and_empty_text_but_propagates_write_errors() -> Re
         visitor.render_pass(pass.into(), &RenderOptions::default(), &[]),
         Err(Error::Io(_))
     ));
+    Ok(())
+}
+
+#[test]
+fn span_warning_order_and_inline_state_survive_a_write_error() -> Result<(), TestError> {
+    let document = Document::default();
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        let processor = Rc::new(Processor::new_with_variant(
+            ConverterOptions::default(),
+            Options::builder(),
+            variant,
+        )?);
+        let source = WarningSource::new("html");
+        let mut warnings = Vec::new();
+        let mut visitor = HtmlVisitor::new(
+            RefusingWriter,
+            processor,
+            RenderOptions::default(),
+            Diagnostics::new(&source, &mut warnings),
+        );
+        let mut traversal = TraversalContext::new(&document.attributes);
+        {
+            let role = String::from("big \t small big");
+            let node = InlineNode::HighlightText(Highlight {
+                id: None,
+                role: Some(&role),
+                form: Form::Constrained,
+                content: Vec::new(),
+                location: Location::default(),
+            });
+            assert!(matches!(
+                visitor.visit_inline_node(&mut traversal, &node),
+                Err(Error::Io(_))
+            ));
+        }
+        assert!(!visitor.render_options.in_inline_span);
+        drop(visitor);
+        assert_eq!(
+            warnings
+                .iter()
+                .map(|warning| warning.message.as_ref())
+                .collect::<Vec<_>>(),
+            [
+                "deprecated role `big`",
+                "deprecated role `small`",
+                "deprecated role `big`"
+            ]
+        );
+    }
     Ok(())
 }

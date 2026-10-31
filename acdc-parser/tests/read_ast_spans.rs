@@ -58,6 +58,7 @@ fn concrete_spans_keep_content_form_identity_and_tokens(
                 node.roles().iter().collect::<Vec<_>>(),
                 ["one", "two", "one"]
             );
+            assert_eq!(node.role(), Some("one two one"));
             assert!(node.roles().contains("two"));
             assert!(!node.roles().contains("one two"));
             let attributes = node.attributes();

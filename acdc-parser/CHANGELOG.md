@@ -84,6 +84,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Formatting span reads expose complete role text, including whitespace and
+  explicit empty values, alongside role-token queries.
+
 - Typed media targets expose their filename without reparsing URLs, retaining
   parsed URL path semantics and non-UTF-8 path handling.
 

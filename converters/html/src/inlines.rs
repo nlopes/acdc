@@ -62,9 +62,11 @@ use acdc_parser::{
     IndexTerm, IndexTermRelationship, InlineImage, InlineMacro, InlineNode, Italic, Keyboard, Link,
     Mailto, Menu, Monospace, StemNotation, Subscript, Substitution, Superscript, Url,
     ast::{
-        AttributeValueRef, AttributesRef, AutolinkRef, CalloutRef, ContentRef, CrossReferenceRef,
-        ElementIdRef, FootnoteRef, InlineImageRef, InlineRef, LinkRef, MailtoRef, PassRef,
-        PlainRef, RawRef, StemRef, TokensRef, UrlRef, VerbatimRef,
+        AttributeValueRef, AttributesRef, AutolinkRef, BoldRef, CalloutRef, ContentRef,
+        CrossReferenceRef, CurvedApostropheRef, CurvedQuotationRef, ElementIdRef, FootnoteRef,
+        HighlightRef, InlineImageRef, InlineRef, ItalicRef, LinkRef, MailtoRef, MonospaceRef,
+        PassRef, PlainRef, RawRef, StemRef, SubscriptRef, SuperscriptRef, TokensRef, UrlRef,
+        VerbatimRef,
     },
     strip_quotes,
 };
@@ -600,11 +602,12 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         b: &Bold<'_>,
         options: &RenderOptions,
     ) -> Result<(), Error> {
+        let span = BoldRef::from(b);
         self.render_simple_quote(
             traversal,
             "strong",
-            b.id.as_ref().map(|id| id.id),
-            b.role,
+            span.id().map(ElementIdRef::as_str),
+            span.role(),
             &b.content,
             options.inlines_basic,
         )
@@ -616,11 +619,12 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         i: &Italic<'_>,
         options: &RenderOptions,
     ) -> Result<(), Error> {
+        let span = ItalicRef::from(i);
         self.render_simple_quote(
             traversal,
             "em",
-            i.id.as_ref().map(|id| id.id),
-            i.role,
+            span.id().map(ElementIdRef::as_str),
+            span.role(),
             &i.content,
             options.inlines_basic,
         )
@@ -632,11 +636,12 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         m: &Monospace<'_>,
         options: &RenderOptions,
     ) -> Result<(), Error> {
+        let span = MonospaceRef::from(m);
         self.render_simple_quote(
             traversal,
             "code",
-            m.id.as_ref().map(|id| id.id),
-            m.role,
+            span.id().map(ElementIdRef::as_str),
+            span.role(),
             &m.content,
             options.inlines_basic,
         )
@@ -648,8 +653,9 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         h: &Highlight<'_>,
         options: &RenderOptions,
     ) -> Result<(), Error> {
+        let span = HighlightRef::from(h);
         // Warn about deprecated built-in roles.
-        if let Some(role) = h.role {
+        if let Some(role) = span.role() {
             for r in role
                 .split_whitespace()
                 .filter(|r| matches!(*r, "big" | "small"))
@@ -662,23 +668,23 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         }
 
         let is_semantic = self.processor.variant() == HtmlVariant::Semantic;
-        let use_s_tag = is_semantic && h.role == Some("line-through");
+        let use_s_tag = is_semantic && span.role() == Some("line-through");
         // Asciidoctor treats an ID or role as an attributed span rather than a mark.
         let tag = if use_s_tag {
             "s"
-        } else if h.id.is_some() || h.role.is_some() {
+        } else if span.id().is_some() || span.role().is_some() {
             "span"
         } else {
             "mark"
         };
-        // <s> gets no role attribute (h.role is consumed by the tag choice itself).
-        let tag_role = if use_s_tag { None } else { h.role };
+        // The semantic <s> tag replaces the line-through role.
+        let tag_role = if use_s_tag { None } else { span.role() };
 
         if !options.inlines_basic {
             write_tag_with_attrs(
                 self.writer_mut(),
                 tag,
-                h.id.as_ref().map(|id| id.id),
+                span.id().map(ElementIdRef::as_str),
                 tag_role,
             )?;
         }
@@ -694,11 +700,12 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         c: &CurvedQuotation<'_>,
     ) -> Result<(), Error> {
+        let span = CurvedQuotationRef::from(c);
         self.render_curved(
             traversal,
             ("&ldquo;", "&rdquo;"),
-            c.id.as_ref().map(|id| id.id),
-            c.role,
+            span.id().map(ElementIdRef::as_str),
+            span.role(),
             &c.content,
         )
     }
@@ -708,11 +715,12 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         c: &CurvedApostrophe<'_>,
     ) -> Result<(), Error> {
+        let span = CurvedApostropheRef::from(c);
         self.render_curved(
             traversal,
             ("&lsquo;", "&rsquo;"),
-            c.id.as_ref().map(|id| id.id),
-            c.role,
+            span.id().map(ElementIdRef::as_str),
+            span.role(),
             &c.content,
         )
     }
@@ -727,12 +735,13 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         s: &Superscript<'_>,
     ) -> Result<(), Error> {
+        let span = SuperscriptRef::from(s);
         // Note: superscript doesn't check inlines_basic (pass false to preserve behavior).
         self.render_simple_quote(
             traversal,
             "sup",
-            s.id.as_ref().map(|id| id.id),
-            s.role,
+            span.id().map(ElementIdRef::as_str),
+            span.role(),
             &s.content,
             false,
         )
@@ -743,12 +752,13 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         s: &Subscript<'_>,
     ) -> Result<(), Error> {
+        let span = SubscriptRef::from(s);
         // Note: subscript doesn't check inlines_basic (pass false to preserve behavior).
         self.render_simple_quote(
             traversal,
             "sub",
-            s.id.as_ref().map(|id| id.id),
-            s.role,
+            span.id().map(ElementIdRef::as_str),
+            span.role(),
             &s.content,
             false,
         )
