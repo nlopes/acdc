@@ -2,9 +2,9 @@ use std::io::Write;
 
 use acdc_converters_core::{
     TraversalContext,
-    media::{resolve_target, with_time_range},
+    media::{resolve_target, with_time_range_from_attributes},
 };
-use acdc_parser::Audio;
+use acdc_parser::{Audio, ast::AudioRef};
 
 use crate::{Error, HtmlVariant, HtmlVisitor, build_class, inlines::escape_attribute, write_id};
 
@@ -60,9 +60,10 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 }
 
 fn audio_target(audio: &Audio<'_>, attributes: &TraversalContext<'_>) -> String {
-    with_time_range(
-        &resolve_target(&audio.source.to_string(), attributes),
-        &audio.metadata.attributes,
+    let audio = AudioRef::from(audio);
+    with_time_range_from_attributes(
+        &resolve_target(&audio.source().to_string(), attributes),
+        audio.attributes(),
     )
 }
 

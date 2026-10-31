@@ -45,6 +45,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Video URL generation and playback-range helpers accept typed reads. Existing
+  calls retain provider playlists, private hashes, empty times, and URL spelling.
+
 - Image and icon alternative-text helpers accept typed targets and content.
   Existing calls retain their fallback text, empty values, and return lifetimes.
 

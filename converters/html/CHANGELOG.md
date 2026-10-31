@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Audio and video retain playback ranges, provider playlists, private hashes,
+  and media URI controls.
+
 - Image and icon alternatives retain filename fallbacks, explicit empty values,
   escaped plain-text attributes, and formatted SVG fallback content.
 

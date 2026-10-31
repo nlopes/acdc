@@ -4,7 +4,8 @@ use std::{borrow::Cow, path::Path};
 
 use acdc_parser::{
     ContentAttribute, Source,
-    ast::{ContentRef, SourceRef},
+    ast::{AttributeValueRef, AttributesRef, ContentRef, SourceRef},
+    strip_quotes,
 };
 use relative_path::RelativePath;
 
@@ -125,7 +126,26 @@ pub fn image_alt_from_content(source: SourceRef<'_>, alt: Option<ContentRef<'_>>
 /// Append the authored start/end playback range to a media URI.
 #[must_use]
 pub fn with_time_range(target: &str, attributes: &acdc_parser::ElementAttributes<'_>) -> String {
-    match (attributes.get_string("start"), attributes.get_string("end")) {
+    let start = attributes.get_string("start");
+    let end = attributes.get_string("end");
+    append_time_range(target, start.as_deref(), end.as_deref())
+}
+
+/// Append a playback range from typed `start` and `end` attributes.
+///
+/// Text values lose their enclosing quotes; empty values remain present.
+/// Nontext values are ignored. The target and any existing fragment stay intact.
+#[must_use]
+pub fn with_time_range_from_attributes(target: &str, attributes: AttributesRef<'_>) -> String {
+    let time = |name| match attributes.get(name) {
+        Some(AttributeValueRef::Text(value)) => Some(strip_quotes(value)),
+        _ => None,
+    };
+    append_time_range(target, time("start"), time("end"))
+}
+
+fn append_time_range(target: &str, start: Option<&str>, end: Option<&str>) -> String {
+    match (start, end) {
         (Some(start), Some(end)) => format!("{target}#t={start},{end}"),
         (Some(start), None) => format!("{target}#t={start}"),
         (None, Some(end)) => format!("{target}#t=,{end}"),

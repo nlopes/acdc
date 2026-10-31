@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use acdc_converters_core::{TraversalContext, media::resolve_target, video::TryUrl};
-use acdc_parser::{AttributeValue, Video};
+use acdc_parser::{AttributeValue, Video, ast::VideoRef};
 
 use crate::{Error, HtmlVariant, HtmlVisitor, build_class, inlines::escape_attribute, write_id};
 
@@ -60,7 +60,7 @@ fn render_iframe_video<W: Write + ?Sized>(
     attributes: &TraversalContext<'_>,
     w: &mut W,
 ) -> Result<(), Error> {
-    let mut url = resolve_target(&video.try_url(true)?, attributes);
+    let mut url = resolve_target(&VideoRef::from(video).try_url(true)?, attributes);
     if let Some(scheme) = attributes
         .get("asset-uri-scheme")
         .and_then(|value| value.text())
@@ -103,7 +103,7 @@ fn render_local_video<W: Write + ?Sized>(
     attributes: &TraversalContext<'_>,
     w: &mut W,
 ) -> Result<(), Error> {
-    let src = resolve_target(&video.try_url(false)?, attributes);
+    let src = resolve_target(&VideoRef::from(video).try_url(false)?, attributes);
 
     write!(w, "<video src=\"{}\"", escape_attribute(&src))?;
 
