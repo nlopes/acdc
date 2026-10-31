@@ -39,6 +39,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Library converters can use `visitor::DocumentVisitor` with typed document and
+  header reads. Its default traversal preserves the existing document hook order,
+  preamble wrappers, attribute replay, and first-error stopping. Hooks select the
+  header and inline content to render; existing converter visitors remain supported.
+
 - Library visitors can handle typed blocks through `visitor::BlockVisitor`, with
   source-order attribute replay and the existing nested cell scopes. The before
   hook sees the previous value; the block callback sees the accepted assignment.

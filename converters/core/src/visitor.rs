@@ -32,8 +32,10 @@ use acdc_parser::{
 use crate::TraversalContext;
 
 mod block;
+mod document;
 
 pub use block::BlockVisitor;
+pub use document::DocumentVisitor;
 
 /// The Visitor trait defines methods for visiting each type of AST node.
 ///
@@ -172,87 +174,34 @@ pub trait Visitor<'doc> {
         Ok(())
     }
 
-    /// Visit a complete document.
+    /// Visit the document frame, header, top-level blocks, and supplements.
     ///
-    /// This is the main entry point for traversing an `AsciiDoc` document.
-    /// It orchestrates the document structure per `AsciiDoc` spec:
-    /// - Document start (setup)
-    /// - Header (optional)
-    /// - Preamble (blocks before first section)
-    /// - Sections and top-level blocks
-    /// - Document supplements (footnotes, etc.)
-    /// - Document end (cleanup)
-    ///
-    /// The default implementation calls visitor hooks at appropriate structural points,
-    /// allowing converters to handle document framing, metadata, and supplements.
+    /// A preamble is wrapped only when a header and section are present and a
+    /// preceding block is neither a comment nor a document attribute assignment.
+    /// Blocks pass through [`TraversalContext::visit_block`].
     ///
     /// # Errors
     ///
-    /// Returns an error if any visitor method fails during document traversal.
+    /// Returns the first callback error without running later hooks.
     fn visit_document(
         &mut self,
         traversal: &mut TraversalContext<'doc>,
         doc: &'doc Document<'doc>,
     ) -> Result<(), Self::Error> {
-        // 1. Document start - setup, document wrappers
-        self.visit_document_start(traversal, doc)?;
-
-        // 2. Header - title, authors, metadata (if present)
-        if let Some(header) = &doc.header {
-            self.visit_header(traversal, header)?;
-        }
-
-        // 3. Body content start - before any blocks
-        self.visit_body_content_start(traversal, doc)?;
-
-        // 4. Identify preamble (blocks before first section) per AsciiDoc spec
-        let first_section_idx = doc
-            .blocks
-            .iter()
-            .position(|b| matches!(b, Block::Section(_)));
-
-        let (preamble, remaining) = match first_section_idx {
-            Some(idx) => doc.blocks.split_at(idx),
-            None => (doc.blocks.as_slice(), &[][..]),
-        };
-
-        // Check if preamble has substantive content (not just comments/attributes)
-        let has_substantive_preamble = preamble
-            .iter()
-            .any(|b| !matches!(b, Block::Comment(_) | Block::DocumentAttribute(_)));
-
-        // Preamble wrapper is only emitted when ALL conditions are met:
-        // 1. Document has a header (title)
-        // 2. There is at least one section
-        // 3. There's substantive content before that section
-        let emit_preamble =
-            doc.header.is_some() && first_section_idx.is_some() && has_substantive_preamble;
-
-        // 5. Walk preamble blocks
-        if emit_preamble {
-            self.visit_preamble_start(traversal, doc)?;
-        }
-
-        for block in preamble {
-            traversal.visit_block(self, block)?;
-        }
-
-        if emit_preamble {
-            self.visit_preamble_end(traversal, doc)?;
-        }
-
-        // 6. Walk remaining blocks (sections and other top-level blocks)
-        for block in remaining {
-            traversal.visit_block(self, block)?;
-        }
-
-        // 7. Document supplements - footnotes, bibliography, etc.
-        self.visit_document_supplements(traversal, doc)?;
-
-        // 8. Document end - close wrappers, final cleanup
-        self.visit_document_end(traversal, doc)?;
-
-        Ok(())
+        document::walk(
+            doc.header.as_ref(),
+            || doc.blocks.iter(),
+            |event| match event {
+                document::Event::Start => self.visit_document_start(traversal, doc),
+                document::Event::Header(header) => self.visit_header(traversal, header),
+                document::Event::BodyStart => self.visit_body_content_start(traversal, doc),
+                document::Event::PreambleStart => self.visit_preamble_start(traversal, doc),
+                document::Event::PreambleEnd => self.visit_preamble_end(traversal, doc),
+                document::Event::Block(block) => traversal.visit_block(self, block),
+                document::Event::Supplements => self.visit_document_supplements(traversal, doc),
+                document::Event::End => self.visit_document_end(traversal, doc),
+            },
+        )
     }
 
     /// Called before a block is dispatched, including attribute and comment blocks.
