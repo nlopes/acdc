@@ -40,7 +40,7 @@ pub(crate) fn format_on_type(
     let prev_line = lines.get(prev_line_idx)?;
 
     let protected = if let Some(ast) = doc.ast() {
-        collect_protected_ranges(ast.document(), doc.text())
+        collect_protected_ranges(ast.document_ref(), doc.text())
     } else {
         collect_protected_ranges_from_text(doc.text())
     };

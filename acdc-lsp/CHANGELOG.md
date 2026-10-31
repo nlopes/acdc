@@ -38,7 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   targets, including unsaved documents. Inlay hints retain registered section
   labels, and reference-count lenses keep their existing heading and body coverage.
   Section warnings and folding ranges retain their source locations, ordering, and
-  include boundaries.
+  include boundaries. Formatting and on-type edits preserve verbatim source,
+  original line endings, and selected include boundaries.
   Rename changes only source-validated literal spellings, preserves quoting and
   surrounding markup, and updates duplicate declarations together. Generated or
   expanded IDs remain navigable but cannot be renamed through guessed ranges.

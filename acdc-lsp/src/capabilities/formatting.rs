@@ -7,7 +7,7 @@
 
 use std::ops;
 
-use acdc_parser::{Block, DelimitedBlockType, Document, Location};
+use acdc_parser::ast::{BlockKind, BlockRef, DocumentRef, StructuralRef};
 use tower_lsp_server::ls_types::{FormattingOptions, Position, Range, TextEdit};
 
 use crate::{
@@ -32,7 +32,7 @@ pub(crate) fn format_document(doc: &DocumentState, options: &FormattingOptions) 
     let line_count = lines.len();
 
     let protected = if let Some(ast) = doc.ast() {
-        collect_protected_ranges(ast.document(), doc.text())
+        collect_protected_ranges(ast.document_ref(), doc.text())
     } else {
         collect_protected_ranges_from_text(doc.text())
     };
@@ -51,7 +51,7 @@ pub(crate) fn format_document(doc: &DocumentState, options: &FormattingOptions) 
     if let Some(ast) = doc.ast() {
         edits.extend(ensure_block_separation(
             &lines,
-            ast.document(),
+            ast.document_ref(),
             doc.text(),
             &protected,
             range,
@@ -88,7 +88,7 @@ pub(crate) fn format_range(
     let line_range = start_line..end_line + 1;
 
     let protected = if let Some(ast) = doc.ast() {
-        collect_protected_ranges(ast.document(), doc.text())
+        collect_protected_ranges(ast.document_ref(), doc.text())
     } else {
         collect_protected_ranges_from_text(doc.text())
     };
@@ -110,7 +110,7 @@ pub(crate) fn format_range(
     if let Some(ast) = doc.ast() {
         edits.extend(ensure_block_separation(
             &lines,
-            ast.document(),
+            ast.document_ref(),
             doc.text(),
             &protected,
             line_range.clone(),
@@ -126,81 +126,59 @@ pub(crate) fn format_range(
 }
 
 /// Protect verbatim blocks in the original text and primary-source AST ranges.
-pub(crate) fn collect_protected_ranges(ast: &Document, text: &str) -> Vec<ProtectedRange> {
+pub(crate) fn collect_protected_ranges(ast: DocumentRef<'_>, text: &str) -> Vec<ProtectedRange> {
     let mut ranges = collect_protected_ranges_from_text(text);
-    collect_protected_ranges_from_blocks(&ast.blocks, &mut ranges);
+    for block in ast.blocks() {
+        collect_protected_ranges_from_block(block, &mut ranges);
+    }
     ranges
 }
 
-/// Recursively walk blocks to find verbatim delimited blocks.
-fn collect_protected_ranges_from_blocks(blocks: &[Block], ranges: &mut Vec<ProtectedRange>) {
-    for block in blocks {
-        match block {
-            Block::DelimitedBlock(db) => {
-                if is_verbatim_block_type(&db.inner) && is_primary_location(&db.location) {
-                    // Location is 1-indexed, convert to 0-indexed
-                    ranges.push(ProtectedRange {
-                        start_line: db.location.start.line.saturating_sub(1) as usize,
-                        end_line: db.location.end.line.saturating_sub(1) as usize,
-                    });
-                } else {
-                    // Non-verbatim delimited blocks can contain nested verbatim blocks
-                    match &db.inner {
-                        DelimitedBlockType::DelimitedExample(nested)
-                        | DelimitedBlockType::DelimitedOpen(nested)
-                        | DelimitedBlockType::DelimitedSidebar(nested)
-                        | DelimitedBlockType::DelimitedQuote(nested) => {
-                            collect_protected_ranges_from_blocks(nested, ranges);
-                        }
-                        DelimitedBlockType::DelimitedComment(_)
-                        | DelimitedBlockType::DelimitedListing(_)
-                        | DelimitedBlockType::DelimitedLiteral(_)
-                        | DelimitedBlockType::DelimitedTable(_)
-                        | DelimitedBlockType::DelimitedPass(_)
-                        | DelimitedBlockType::DelimitedVerse(_)
-                        | DelimitedBlockType::DelimitedStem(_)
-                        // non_exhaustive
-                        | _ => {}
-                    }
-                }
+fn collect_protected_ranges_from_block(block: BlockRef<'_>, ranges: &mut Vec<ProtectedRange>) {
+    match block.kind() {
+        BlockKind::Listing(_)
+        | BlockKind::Literal(_)
+        | BlockKind::Passthrough(_)
+        | BlockKind::DelimitedComment(_)
+        | BlockKind::Verse(_)
+        | BlockKind::Stem(_) => {
+            let location = block.location();
+            if is_primary_location(location) {
+                ranges.push(ProtectedRange {
+                    start_line: location.start().line().saturating_sub(1) as usize,
+                    end_line: location.end().line().saturating_sub(1) as usize,
+                });
             }
-            Block::Section(s) => {
-                collect_protected_ranges_from_blocks(&s.content, ranges);
-            }
-            Block::Admonition(a) => {
-                collect_protected_ranges_from_blocks(&a.blocks, ranges);
-            }
-            Block::TableOfContents(_)
-            | Block::DiscreteHeader(_)
-            | Block::DocumentAttribute(_)
-            | Block::ThematicBreak(_)
-            | Block::PageBreak(_)
-            | Block::UnorderedList(_)
-            | Block::OrderedList(_)
-            | Block::CalloutList(_)
-            | Block::DescriptionList(_)
-            | Block::Paragraph(_)
-            | Block::Image(_)
-            | Block::Audio(_)
-            | Block::Video(_)
-            | Block::Comment(_)
-            // non_exhaustive
-            | _ => {}
+            return;
+        }
+        BlockKind::Section(_)
+        | BlockKind::Admonition(_)
+        | BlockKind::Example(_)
+        | BlockKind::Open(_)
+        | BlockKind::Sidebar(_)
+        | BlockKind::Quote(_) => {}
+        BlockKind::TableOfContents(_)
+        | BlockKind::DiscreteHeader(_)
+        | BlockKind::DocumentAttribute(_)
+        | BlockKind::ThematicBreak(_)
+        | BlockKind::PageBreak(_)
+        | BlockKind::UnorderedList(_)
+        | BlockKind::OrderedList(_)
+        | BlockKind::CalloutList(_)
+        | BlockKind::DescriptionList(_)
+        | BlockKind::Paragraph(_)
+        | BlockKind::Image(_)
+        | BlockKind::Audio(_)
+        | BlockKind::Video(_)
+        | BlockKind::Comment(_)
+        | BlockKind::Table(_)
+        | _ => return,
+    }
+    for child in StructuralRef::from(block).children() {
+        if let StructuralRef::Block(block) = child {
+            collect_protected_ranges_from_block(block, ranges);
         }
     }
-}
-
-/// Check if a delimited block type is verbatim (content should not be formatted).
-fn is_verbatim_block_type(inner: &DelimitedBlockType) -> bool {
-    matches!(
-        inner,
-        DelimitedBlockType::DelimitedListing(_)
-            | DelimitedBlockType::DelimitedLiteral(_)
-            | DelimitedBlockType::DelimitedPass(_)
-            | DelimitedBlockType::DelimitedComment(_)
-            | DelimitedBlockType::DelimitedVerse(_)
-            | DelimitedBlockType::DelimitedStem(_)
-    )
 }
 
 /// Protect verbatim source through its closing delimiter or end of file.
@@ -368,64 +346,31 @@ fn collapse_blank_lines(
     edits
 }
 
-/// Get the location from a `Block` enum variant.
-fn block_location<'a>(block: &'a Block<'_>) -> &'a Location {
-    match block {
-        Block::Section(s) => &s.location,
-        Block::Paragraph(p) => &p.location,
-        Block::UnorderedList(l) => &l.location,
-        Block::OrderedList(l) => &l.location,
-        Block::DescriptionList(l) => &l.location,
-        Block::CalloutList(l) => &l.location,
-        Block::DelimitedBlock(d) => &d.location,
-        Block::Admonition(a) => &a.location,
-        Block::TableOfContents(t) => &t.location,
-        Block::DiscreteHeader(h) => &h.location,
-        Block::DocumentAttribute(a) => &a.location,
-        Block::ThematicBreak(tb) => &tb.location,
-        Block::PageBreak(pb) => &pb.location,
-        Block::Image(i) => &i.location,
-        Block::Audio(a) => &a.location,
-        Block::Video(v) => &v.location,
-        Block::Comment(c) => &c.location,
-        // non_exhaustive: default location for unknown variants
-        _ => {
-            static DEFAULT: std::sync::LazyLock<Location> =
-                std::sync::LazyLock::new(Location::default);
-            &DEFAULT
-        }
-    }
-}
-
 /// Generate edits to ensure a blank line between consecutive top-level blocks.
 #[allow(clippy::cast_possible_truncation)]
 fn ensure_block_separation(
     lines: &[&str],
-    ast: &Document,
+    ast: DocumentRef<'_>,
     text: &str,
     protected: &[ProtectedRange],
     range: ops::Range<usize>,
 ) -> Vec<TextEdit> {
     let mut edits = Vec::new();
-    let blocks = &ast.blocks;
     let source = LineIndex::new(text);
 
-    for pair in blocks.windows(2) {
-        let (Some(prev_block), Some(curr_block)) = (pair.first(), pair.get(1)) else {
-            continue;
-        };
-
-        if !is_primary_location(block_location(prev_block))
-            || !is_primary_location(block_location(curr_block))
-            || source.range(block_location(prev_block)).is_none()
-            || source.range(block_location(curr_block)).is_none()
+    for (prev_block, curr_block) in ast.blocks().zip(ast.blocks().skip(1)) {
+        let previous = prev_block.location();
+        let current = curr_block.location();
+        if !is_primary_location(previous)
+            || !is_primary_location(current)
+            || source.range(&previous.into()).is_none()
+            || source.range(&current.into()).is_none()
         {
             continue;
         }
 
-        // Convert 1-indexed AST locations to 0-indexed
-        let prev_end_line = block_location(prev_block).end.line.saturating_sub(1) as usize;
-        let curr_start_line = block_location(curr_block).start.line.saturating_sub(1) as usize;
+        let prev_end_line = previous.end().line().saturating_sub(1) as usize;
+        let curr_start_line = current.start().line().saturating_sub(1) as usize;
 
         // An include can close a parsed block before its closing delimiter in
         // the editor text. Do not add separators inside that original block.
@@ -444,8 +389,8 @@ fn ensure_block_separation(
         // If blocks are immediately adjacent (no blank line between them)
         if curr_start_line == prev_end_line + 1 {
             // Don't insert between consecutive document attributes
-            if matches!(prev_block, Block::DocumentAttribute(_))
-                && matches!(curr_block, Block::DocumentAttribute(_))
+            if matches!(prev_block.kind(), BlockKind::DocumentAttribute(_))
+                && matches!(curr_block.kind(), BlockKind::DocumentAttribute(_))
             {
                 continue;
             }
