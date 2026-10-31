@@ -4,6 +4,7 @@ use acdc_converters_core::{
 use acdc_parser::{
     Block, BlockMetadata, CaptionKind, ColumnFormat, ColumnStyle, HorizontalAlignment, InlineNode,
     Table, TableColumn, TableFrame, TableGrid, TablePresentation, TableStripes, VerticalAlignment,
+    ast::AttributesRef,
 };
 
 use crate::{Error, HtmlVariant, Processor, inlines::escape_pcdata};
@@ -240,13 +241,14 @@ fn render_table_caption<'a, V>(
     title: &acdc_parser::Title<'_>,
     processor: &Processor<'_>,
     metadata: &BlockMetadata,
+    attributes: Option<AttributesRef<'_>>,
 ) -> Result<(), Error>
 where
     V: WritableVisitor<'a, Error = Error>,
 {
     if title.is_present() {
         let prefix = processor
-            .caption_prefix(metadata, Some(CaptionKind::Table))
+            .caption_prefix(attributes, Some(CaptionKind::Table))
             .unwrap_or_default();
 
         write!(visitor.writer_mut(), "<caption class=\"title\">")?;
@@ -410,6 +412,7 @@ pub(crate) fn render_table<'a, V>(
     processor: &Processor<'_>,
     metadata: &BlockMetadata,
     title: &acdc_parser::Title<'_>,
+    attributes: Option<AttributesRef<'_>>,
 ) -> Result<(), Error>
 where
     V: WritableVisitor<'a, Error = Error>,
@@ -466,7 +469,7 @@ where
 
     // Render caption with table number if title exists
     let _ = writer;
-    render_table_caption(traversal, visitor, title, processor, metadata)?;
+    render_table_caption(traversal, visitor, title, processor, metadata, attributes)?;
 
     // Render colgroup with column widths
     render_colgroup(visitor.writer_mut(), table, metadata)?;

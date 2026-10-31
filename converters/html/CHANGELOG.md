@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Caption rendering retains authored rich and empty prefixes, source-order label
+  changes, and fallback numbering for library-built blocks in both HTML variants.
+
 - Listing and literal blocks retain source numbering, highlighted lines, custom
   indentation, callout guards, and `nowrap` in both HTML variants.
 

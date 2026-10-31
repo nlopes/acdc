@@ -2,9 +2,9 @@ use std::num::NonZeroU32;
 
 use crate::{Caption, CaptionKind};
 
-use super::ContentRef;
+use super::{AttributesRef, ContentRef, DocumentAttributesRef};
 
-/// A stored caption, without choosing how to display its prefix or title.
+/// A caption, without choosing how to display its prefix or title.
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[non_exhaustive]
 pub enum CaptionRef<'doc> {
@@ -41,5 +41,26 @@ impl<'doc> From<&'doc Caption<'doc>> for CaptionRef<'doc> {
             Caption::CustomContent(content) => Self::CustomContent(ContentRef::from(content)),
             Caption::Unnumbered => Self::Unnumbered,
         }
+    }
+}
+
+impl<'doc> CaptionRef<'doc> {
+    /// Read the stored caption, or resolve a fallback for an element without one.
+    ///
+    /// Stored labels and ordinals stay unchanged. Fallbacks follow
+    /// [`Caption::resolve_owned`] with the supplied document snapshot and no
+    /// ordinal. Elements that cannot retain captions, and elements without a
+    /// stored caption or fallback kind, return `None`.
+    #[must_use]
+    pub fn resolve(
+        attributes: AttributesRef<'doc>,
+        document_attributes: DocumentAttributesRef<'doc>,
+        fallback: Option<CaptionKind>,
+    ) -> Option<Self> {
+        Caption::resolve_ref(
+            attributes.metadata()?,
+            document_attributes.attributes,
+            fallback,
+        )
     }
 }

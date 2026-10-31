@@ -84,6 +84,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `CaptionRef::resolve` reads stored labels and ordinals, or borrows a caption
+  fallback from element and document attributes without assigning an ordinal.
+  Existing metadata-based caption resolution remains supported.
+
 - Block attributes can be read through `BlockRef::attributes()` without matching
   each block kind. Line comments and document attribute assignments return `None`.
 

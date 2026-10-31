@@ -27,7 +27,7 @@ pub struct AuthorRef<'doc> {
 /// attribute policy; element aliases such as `roles` and `options` do not apply.
 #[derive(Clone, Copy, Debug)]
 pub struct DocumentAttributesRef<'doc> {
-    attributes: &'doc DocumentAttributes<'doc>,
+    pub(in crate::ast) attributes: &'doc DocumentAttributes<'doc>,
 }
 
 impl<'doc> DocumentRef<'doc> {

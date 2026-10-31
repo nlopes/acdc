@@ -75,7 +75,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             self.render_captioned_title_with_wrapper(
                 traversal,
                 &block.title,
-                &block.metadata,
+                BlockRef::from(block).attributes(),
                 Some(CaptionKind::Example),
                 "<div class=\"title\">",
                 "</div>\n",
@@ -159,7 +159,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 self.render_captioned_title_with_wrapper(
                     traversal,
                     &block.title,
-                    &block.metadata,
+                    BlockRef::from(block).attributes(),
                     Some(CaptionKind::Example),
                     "<summary>",
                     "</summary>\n",
@@ -178,7 +178,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             self.render_captioned_title_with_wrapper(
                 traversal,
                 &block.title,
-                &block.metadata,
+                BlockRef::from(block).attributes(),
                 Some(CaptionKind::Example),
                 "<figcaption>",
                 "</figcaption>\n",
@@ -290,7 +290,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                             self.render_captioned_title_with_wrapper(
                                 traversal,
                                 &block.title,
-                                &block.metadata,
+                                BlockRef::from(block).attributes(),
                                 caption_kind,
                                 "<h6 class=\"block-title\">",
                                 "</h6>\n",
@@ -326,7 +326,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                             self.render_captioned_title_with_wrapper(
                                 traversal,
                                 &block.title,
-                                &block.metadata,
+                                BlockRef::from(block).attributes(),
                                 caption_kind,
                                 "<h6 class=\"block-title\">",
                                 "</h6>\n",
@@ -355,7 +355,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                     self.render_captioned_title_with_wrapper(
                         traversal,
                         &block.title,
-                        &block.metadata,
+                        BlockRef::from(block).attributes(),
                         caption_kind,
                         "<div class=\"title\">",
                         "</div>\n",
@@ -414,6 +414,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                     &processor,
                     &block.metadata,
                     &block.title,
+                    BlockRef::from(block).attributes(),
                 )?;
             }
             // Verse, literal, and stem blocks need semantic handling
@@ -515,6 +516,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 title,
                 metadata,
                 caption_kind,
+                attributes,
             );
         }
 
@@ -528,6 +530,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 title,
                 metadata,
                 caption_kind,
+                attributes,
             );
         }
 
@@ -536,7 +539,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         self.render_captioned_title_with_wrapper(
             traversal,
             title,
-            metadata,
+            attributes,
             caption_kind,
             "<div class=\"title\">",
             "</div>\n",
@@ -566,6 +569,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 title,
                 metadata,
                 caption_kind,
+                attributes,
             );
         }
 
@@ -579,6 +583,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 title,
                 metadata,
                 caption_kind,
+                attributes,
             );
         }
 
@@ -588,7 +593,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             self.render_captioned_title_with_wrapper(
                 traversal,
                 title,
-                metadata,
+                attributes,
                 caption_kind,
                 "<figcaption>",
                 "</figcaption>\n",
@@ -633,6 +638,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         title: &acdc_parser::Title<'_>,
         metadata: &BlockMetadata,
         caption_kind: Option<CaptionKind>,
+        attributes: Option<AttributesRef<'_>>,
     ) -> Result<(), Error> {
         let attrs = self.processor.document_attributes().clone();
         let options = self.processor.options.clone();
@@ -641,7 +647,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         self.render_captioned_title_with_wrapper(
             traversal,
             title,
-            metadata,
+            attributes,
             caption_kind,
             "<div class=\"title\">",
             "</div>\n",
@@ -671,6 +677,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         title: &acdc_parser::Title<'_>,
         metadata: &BlockMetadata,
         caption_kind: Option<CaptionKind>,
+        attributes: Option<AttributesRef<'_>>,
     ) -> Result<(), Error> {
         let attrs = self.processor.document_attributes().clone();
         let options = self.processor.options.clone();
@@ -681,7 +688,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             self.render_captioned_title_with_wrapper(
                 traversal,
                 title,
-                metadata,
+                attributes,
                 caption_kind,
                 "<figcaption>",
                 "</figcaption>\n",
@@ -718,6 +725,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         title: &acdc_parser::Title<'_>,
         metadata: &BlockMetadata,
         caption_kind: Option<CaptionKind>,
+        attributes: Option<AttributesRef<'_>>,
     ) -> Result<(), Error> {
         let attrs = self.processor.document_attributes().clone();
         let options = self.processor.options.clone();
@@ -726,7 +734,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         self.render_captioned_title_with_wrapper(
             traversal,
             title,
-            metadata,
+            attributes,
             caption_kind,
             "<div class=\"title\">",
             "</div>\n",
@@ -747,6 +755,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         title: &acdc_parser::Title<'_>,
         metadata: &BlockMetadata,
         caption_kind: Option<CaptionKind>,
+        attributes: Option<AttributesRef<'_>>,
     ) -> Result<(), Error> {
         let attrs = self.processor.document_attributes().clone();
         let options = self.processor.options.clone();
@@ -760,7 +769,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             self.render_captioned_title_with_wrapper(
                 traversal,
                 title,
-                metadata,
+                attributes,
                 caption_kind,
                 "<figcaption>",
                 "</figcaption>\n",
@@ -849,6 +858,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                     title,
                     metadata,
                     caption_kind,
+                    attributes,
                 )?;
             } else {
                 self.render_terminal_session_block(
@@ -857,6 +867,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                     title,
                     metadata,
                     caption_kind,
+                    attributes,
                 )?;
             }
             return Ok(());
@@ -873,7 +884,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         self.render_captioned_title_with_wrapper(
             traversal,
             title,
-            metadata,
+            attributes,
             caption_kind,
             "<div class=\"title\">",
             "</div>\n",
@@ -1088,7 +1099,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                     self.render_captioned_title_with_wrapper(
                         traversal,
                         title,
-                        metadata,
+                        attributes,
                         caption_kind,
                         "<h6 class=\"block-title\">",
                         "</h6>\n",

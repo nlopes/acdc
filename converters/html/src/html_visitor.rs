@@ -19,8 +19,8 @@ use acdc_parser::{
     InlineNode, ListItem, NORMAL, OrderedList, PageBreak, Paragraph, Section, Substitution,
     TableOfContents, ThematicBreak, UnorderedList, Video,
     ast::{
-        BlockKind, BlockRef, ColumnFormatRef, DocumentAttributesRef, DocumentRef, InlineRef,
-        StructuralRef, TableRef,
+        AttributeValueRef, AttributesRef, BlockKind, BlockRef, ColumnFormatRef,
+        DocumentAttributesRef, DocumentRef, InlineRef, StructuralRef, TableRef,
     },
 };
 
@@ -336,7 +336,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
         &mut self,
         traversal: &mut TraversalContext<'a>,
         title: &acdc_parser::Title<'_>,
-        metadata: &BlockMetadata<'_>,
+        attributes: Option<AttributesRef<'_>>,
         fallback: Option<CaptionKind>,
         prefix: &str,
         suffix: &str,
@@ -344,11 +344,11 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
         if !title.is_present() {
             return Ok(());
         }
-        let caption = match metadata.caption_content() {
-            Some(content) => self.content_html(traversal, content.into())?,
-            None => self
+        let caption = match attributes.and_then(|attributes| attributes.get("caption")) {
+            Some(AttributeValueRef::Content(content)) => self.content_html(traversal, content)?,
+            _ => self
                 .processor
-                .caption_prefix(metadata, fallback)
+                .caption_prefix(attributes, fallback)
                 .unwrap_or_default(),
         };
         self.render_title_with_wrapper(traversal, title, &format!("{prefix}{caption}"), suffix)

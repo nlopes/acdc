@@ -81,7 +81,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             self.render_captioned_title_with_wrapper(
                 traversal,
                 &img.title,
-                &img.metadata,
+                Some(image.attributes()),
                 Some(CaptionKind::Figure),
                 "<div class=\"title\">",
                 "</div>",
@@ -203,7 +203,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             self.render_captioned_title_with_wrapper(
                 traversal,
                 &img.title,
-                &img.metadata,
+                Some(image.attributes()),
                 Some(CaptionKind::Figure),
                 "<figcaption>",
                 "</figcaption>\n",

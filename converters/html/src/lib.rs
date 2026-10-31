@@ -15,9 +15,9 @@ use acdc_converters_core::{
 };
 
 use acdc_parser::{
-    AttributeValue, BlockMetadata, Caption, CaptionKind, Document, DocumentAttributes, InlineNode,
+    AttributeValue, BlockMetadata, CaptionKind, Document, DocumentAttributes, InlineNode,
     Options as ParserOptions, Reference, Substitution, TocEntry,
-    ast::{AttributeValueRef, AttributesRef},
+    ast::{AttributeValueRef, AttributesRef, CaptionRef},
 };
 
 mod admonition;
@@ -222,18 +222,16 @@ impl<'a> Processor<'a> {
     /// Return the caption prefix for a titled block.
     pub(crate) fn caption_prefix(
         &self,
-        metadata: &BlockMetadata<'_>,
+        attributes: Option<AttributesRef<'_>>,
         fallback: Option<CaptionKind>,
     ) -> Option<String> {
-        let resolved = match (&metadata.caption, fallback) {
-            (Some(caption), _) => caption.clone(),
-            (None, Some(kind)) => {
-                Caption::resolve_owned(metadata, self.parser_options.document_attributes(), kind)
-            }
-            (None, None) => return None,
-        };
+        let resolved = CaptionRef::resolve(
+            attributes?,
+            self.parser_options.document_attributes().into(),
+            fallback,
+        )?;
         match resolved {
-            Caption::Numbered {
+            CaptionRef::Numbered {
                 label,
                 number,
                 kind,
@@ -242,11 +240,11 @@ impl<'a> Processor<'a> {
                     .map_or_else(|| self.next_caption_number(kind), std::num::NonZeroU32::get);
                 Some(format!("{label} {number}. "))
             }
-            Caption::Custom(prefix) => Some(prefix.into_owned()),
-            Caption::CustomContent(content) => {
-                Some(acdc_converters_core::inlines_to_string(&content))
-            }
-            Caption::Unnumbered | _ => None,
+            CaptionRef::Custom(prefix) => Some(prefix.to_owned()),
+            CaptionRef::CustomContent(content) => Some(
+                acdc_converters_core::InlineTextTransform::default().content_to_string(content),
+            ),
+            CaptionRef::Unnumbered | _ => None,
         }
     }
 
@@ -1246,6 +1244,48 @@ mod tests {
     use std::error::Error as StdError;
 
     type TestResult = Result<(), Box<dyn StdError>>;
+
+    #[test]
+    fn caption_fallback_counters_skip_retained_ordinals_and_empty_prefixes() -> TestResult {
+        use acdc_parser::{Caption, Location, Paragraph, ast::ParagraphRef};
+        let processor = Processor::new(Options::default(), ParserOptions::builder())?;
+        let mut paragraph = Paragraph::new(Vec::new(), Location::default());
+        let prefix = |paragraph: &Paragraph<'_>, kind| {
+            processor.caption_prefix(Some(ParagraphRef::from(paragraph).attributes()), kind)
+        };
+        assert_eq!(prefix(&paragraph, None), None);
+        assert_eq!(processor.figure_counter.get(), 0);
+        for caption in [
+            Caption::Custom("".into()),
+            Caption::CustomContent(acdc_parser::ContentAttribute::default()),
+            Caption::Unnumbered,
+        ] {
+            paragraph.metadata.caption = Some(caption);
+            let _ = prefix(&paragraph, Some(CaptionKind::Figure));
+            assert_eq!(processor.figure_counter.get(), 0);
+        }
+        paragraph.metadata.caption = Some(Caption::Numbered {
+            kind: CaptionKind::Figure,
+            label: "Figure".into(),
+            number: std::num::NonZeroU32::new(7),
+        });
+        assert_eq!(prefix(&paragraph, None).as_deref(), Some("Figure 7. "));
+        assert_eq!(processor.figure_counter.get(), 0);
+        paragraph.metadata.caption = Some(Caption::Numbered {
+            kind: CaptionKind::Figure,
+            label: "Figure".into(),
+            number: None,
+        });
+        assert_eq!(prefix(&paragraph, None).as_deref(), Some("Figure 1. "));
+        assert_eq!(processor.figure_counter.get(), 1);
+        paragraph.metadata.caption = None;
+        assert_eq!(
+            prefix(&paragraph, Some(CaptionKind::Figure)).as_deref(),
+            Some("Figure 2. ")
+        );
+        assert_eq!(processor.figure_counter.get(), 2);
+        Ok(())
+    }
 
     #[test]
     fn new_defaults_to_standard() -> Result<(), Box<dyn StdError>> {

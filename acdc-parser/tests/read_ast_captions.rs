@@ -274,6 +274,15 @@ fn caption_reads_are_shared_and_allocate_nothing() -> Result<(), Error> {
             }
         }
     }
+    for block in parsed.document_ref().blocks() {
+        if let Some(attributes) = block.attributes() {
+            black_box(CaptionRef::resolve(
+                attributes,
+                parsed.document_ref().attributes(),
+                Some(CaptionKind::Figure),
+            ));
+        }
+    }
     let stats = region.change();
     assert_eq!(stats.allocations, 0);
     assert_eq!(stats.reallocations, 0);

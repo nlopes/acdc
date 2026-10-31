@@ -158,7 +158,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 self.render_captioned_title_with_wrapper(
                     traversal,
                     &para.title,
-                    &para.metadata,
+                    Some(ParagraphRef::from(para).attributes()),
                     CaptionKind::for_style(para.metadata.style),
                     "<h6 class=\"block-title\">",
                     "</h6>\n",
@@ -191,7 +191,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             self.render_captioned_title_with_wrapper(
                 traversal,
                 &para.title,
-                &para.metadata,
+                Some(ParagraphRef::from(para).attributes()),
                 CaptionKind::for_style(para.metadata.style),
                 "<div class=\"title\">",
                 "</div>\n",
@@ -273,7 +273,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             self.render_captioned_title_with_wrapper(
                 traversal,
                 &para.title,
-                &para.metadata,
+                Some(ParagraphRef::from(para).attributes()),
                 Some(CaptionKind::Example),
                 open,
                 close,
@@ -330,7 +330,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 self.render_captioned_title_with_wrapper(
                     traversal,
                     &para.title,
-                    &para.metadata,
+                    Some(ParagraphRef::from(para).attributes()),
                     Some(CaptionKind::Listing),
                     "<figcaption>",
                     "</figcaption>\n",
@@ -370,7 +370,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             self.render_captioned_title_with_wrapper(
                 traversal,
                 &para.title,
-                &para.metadata,
+                Some(ParagraphRef::from(para).attributes()),
                 Some(CaptionKind::Listing),
                 "<div class=\"title\">",
                 "</div>\n",

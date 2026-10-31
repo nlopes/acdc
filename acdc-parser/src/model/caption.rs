@@ -7,6 +7,8 @@
 
 use std::{borrow::Cow, num::NonZeroU32};
 
+use crate::ast::CaptionRef;
+
 use super::{AttributeValue, Block, BlockMetadata, DelimitedBlockType, DocumentAttributes, Table};
 
 /// The caption a titled block takes.
@@ -227,6 +229,26 @@ impl<'a> Caption<'a> {
 }
 
 impl Caption<'static> {
+    pub(crate) fn resolve_ref<'value>(
+        metadata: &'value BlockMetadata<'value>,
+        attributes: &'value DocumentAttributes<'value>,
+        fallback: Option<CaptionKind>,
+    ) -> Option<CaptionRef<'value>> {
+        if let Some(caption) = metadata.caption.as_ref() {
+            return Some(CaptionRef::from(caption));
+        }
+        let kind = fallback?;
+        Some(match caption_source(metadata, attributes, kind) {
+            CaptionSource::Custom(value) => CaptionRef::Custom(value.map_or("", AsRef::as_ref)),
+            CaptionSource::Numbered(value) => CaptionRef::Numbered {
+                kind,
+                label: value.map_or("", AsRef::as_ref),
+                number: None,
+            },
+            CaptionSource::None => CaptionRef::Unnumbered,
+        })
+    }
+
     /// [`Caption::resolve`] for metadata and attributes whose lifetimes are unrelated, as a
     /// converter's are: its stored attributes are independent of the borrowed document. Owns its
     /// strings, and sets no ordinal.
