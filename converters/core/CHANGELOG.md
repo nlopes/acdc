@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- `TraversalContext::visit_block` and `visit_blocks` accept typed blocks and
+  iterators alongside existing owner inputs. Calls that explicitly name generic
+  arguments must supply the inferred input type too: `visit_block::<V, _>` or
+  `visit_blocks::<V, _>`. Ordinary calls remain unchanged.
+
 - `TraversalContext::header()` now returns `DocumentAttributesRef`; callers with
   explicit header type annotations must update them. Contexts accept typed header
   snapshots, body assignments, and table-cell scopes alongside existing owner
@@ -33,6 +38,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   paragraph.
 
 ### Added
+
+- Library visitors can handle typed blocks through `visitor::BlockVisitor`, with
+  source-order attribute replay and the existing nested cell scopes. The before
+  hook sees the previous value; the block callback sees the accepted assignment.
+  Callbacks choose their own children and content coverage.
 
 - Typed caption reads preserve the existing cross-reference display policy,
   including formatted prefixes, empty-caption fallback, and reference styles.

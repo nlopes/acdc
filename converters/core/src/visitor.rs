@@ -31,6 +31,10 @@ use acdc_parser::{
 
 use crate::TraversalContext;
 
+mod block;
+
+pub use block::BlockVisitor;
+
 /// The Visitor trait defines methods for visiting each type of AST node.
 ///
 /// Converters implement this trait to define how to process each node type.

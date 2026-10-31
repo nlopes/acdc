@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 
 use acdc_parser::{
-    Block, DocumentAttributeAssignment, DocumentAttributeValue,
-    ast::{DocumentAttributeRef, DocumentAttributesRef, TableCellRef},
+    DocumentAttributeAssignment, DocumentAttributeValue,
+    ast::{BlockKind, BlockRef, DocumentAttributeRef, DocumentAttributesRef, TableCellRef},
 };
 use rustc_hash::FxHashMap;
 
@@ -54,57 +54,41 @@ pub struct TraversalContext<'doc> {
 }
 
 impl<'doc> TraversalContext<'doc> {
-    /// Visit blocks in source order, applying attribute events before their callbacks.
+    /// Visit blocks in source order through [`Self::visit_block`].
     ///
     /// # Errors
     ///
     /// Returns the first visitor error.
-    pub fn visit_blocks<V: crate::visitor::Visitor<'doc> + ?Sized>(
+    pub fn visit_blocks<V, B>(
         &mut self,
         visitor: &mut V,
-        blocks: &'doc [Block<'doc>],
-    ) -> Result<(), V::Error> {
+        blocks: impl IntoIterator<Item = B>,
+    ) -> Result<(), V::Error>
+    where
+        V: crate::visitor::BlockVisitor<'doc, B> + ?Sized,
+        B: Copy + Into<BlockRef<'doc>>,
+    {
         for block in blocks {
             self.visit_block(visitor, block)?;
         }
         Ok(())
     }
 
-    /// Dispatch a block, applying an attribute event before its attribute callback.
+    /// Dispatch a block, applying an attribute event after the before hook.
     ///
     /// # Errors
     ///
-    /// Returns errors from the visitor.
-    pub fn visit_block<V: crate::visitor::Visitor<'doc> + ?Sized>(
-        &mut self,
-        visitor: &mut V,
-        block: &'doc Block<'doc>,
-    ) -> Result<(), V::Error> {
-        use acdc_parser::Block;
+    /// Returns the first callback error.
+    pub fn visit_block<V, B>(&mut self, visitor: &mut V, block: B) -> Result<(), V::Error>
+    where
+        V: crate::visitor::BlockVisitor<'doc, B> + ?Sized,
+        B: Copy + Into<BlockRef<'doc>>,
+    {
         visitor.before_block(self, block)?;
-        match block {
-            Block::DocumentAttribute(event) => {
-                self.apply(event);
-                visitor.visit_document_attribute(self, event)
-            }
-            Block::Section(value) => visitor.visit_section(self, value),
-            Block::Paragraph(value) => visitor.visit_paragraph(self, value),
-            Block::DelimitedBlock(value) => visitor.visit_delimited_block(self, value),
-            Block::OrderedList(value) => visitor.visit_ordered_list(self, value),
-            Block::UnorderedList(value) => visitor.visit_unordered_list(self, value),
-            Block::DescriptionList(value) => visitor.visit_description_list(self, value),
-            Block::CalloutList(value) => visitor.visit_callout_list(self, value),
-            Block::Admonition(value) => visitor.visit_admonition(self, value),
-            Block::Image(value) => visitor.visit_image(self, value),
-            Block::Video(value) => visitor.visit_video(self, value),
-            Block::Audio(value) => visitor.visit_audio(self, value),
-            Block::ThematicBreak(value) => visitor.visit_thematic_break(self, value),
-            Block::PageBreak(value) => visitor.visit_page_break(self, value),
-            Block::TableOfContents(value) => visitor.visit_table_of_contents(self, value),
-            Block::DiscreteHeader(value) => visitor.visit_discrete_header(self, value),
-            Block::Comment(_) => Ok(()),
-            _ => visitor.visit_unhandled_block(self, block),
+        if let BlockKind::DocumentAttribute(event) = block.into().kind() {
+            self.apply(event);
         }
+        visitor.visit_block(self, block)
     }
 
     /// Run a nested document traversal and restore the parent attributes on return.
@@ -214,7 +198,7 @@ impl<'doc> TraversalContext<'doc> {
 mod tests {
     use std::{convert::Infallible, fmt, ptr::eq};
 
-    use acdc_parser::{DocumentAttribute, DocumentAttributes, Options, parse};
+    use acdc_parser::{Block, DocumentAttribute, DocumentAttributes, Options, parse};
 
     use super::*;
     use crate::{document_attribute_text, visitor::Visitor};

@@ -1,9 +1,11 @@
-use acdc_converters_core::TraversalContext;
+use std::convert::Infallible;
+
+use acdc_converters_core::{TraversalContext, visitor::BlockVisitor};
 use acdc_parser::{
     ColumnStyle, Location,
     ast::{
-        BlockKind, ColumnFormatRef, ContentRef, ContentRole, DocumentRef, InlineKind, SourceKind,
-        SourceRef, StructuralRef, TableCellRef, TableRef,
+        BlockKind, BlockRef, ColumnFormatRef, ContentRef, ContentRole, DocumentRef, InlineKind,
+        SourceKind, SourceRef, StructuralRef, TableCellRef, TableRef,
     },
 };
 
@@ -13,10 +15,23 @@ use crate::state::document::OwnedSource;
 pub(crate) fn collect_media_sources(document: DocumentRef<'_>) -> Vec<(OwnedSource, Location)> {
     let mut sources = Vec::new();
     let mut context = TraversalContext::new(document.attributes());
-    for block in document.blocks() {
-        collect_node(block.into(), &mut context, &mut sources);
-    }
+    let Ok(()) = context.visit_blocks(&mut MediaVisitor(&mut sources), document.blocks());
     sources
+}
+
+struct MediaVisitor<'out>(&'out mut Vec<(OwnedSource, Location)>);
+
+impl<'doc> BlockVisitor<'doc> for MediaVisitor<'_> {
+    type Error = Infallible;
+
+    fn visit_block(
+        &mut self,
+        context: &mut TraversalContext<'doc>,
+        block: BlockRef<'doc>,
+    ) -> Result<(), Self::Error> {
+        collect_node(block.into(), context, self.0);
+        Ok(())
+    }
 }
 
 fn collect_node<'doc>(
@@ -54,12 +69,12 @@ fn collect_node<'doc>(
             | BlockKind::DelimitedComment(_) => {
                 collect_field(node, ContentRole::Body, context, sources);
             }
-            BlockKind::DocumentAttribute(event) => context.apply(event),
             BlockKind::Table(table) => {
                 collect_table(table, context, sources);
                 return;
             }
-            BlockKind::Section(_)
+            BlockKind::DocumentAttribute(_)
+            | BlockKind::Section(_)
             | BlockKind::Admonition(_)
             | BlockKind::Example(_)
             | BlockKind::Open(_)
@@ -89,7 +104,11 @@ fn collect_node<'doc>(
         | _ => return,
     }
     for child in node.children() {
-        collect_node(child, context, sources);
+        if let StructuralRef::Block(block) = child {
+            let Ok(()) = context.visit_block(&mut MediaVisitor(sources), block);
+        } else {
+            collect_node(child, context, sources);
+        }
     }
 }
 
@@ -136,9 +155,7 @@ fn collect_cell<'doc>(
     context: &mut TraversalContext<'doc>,
     sources: &mut Vec<(OwnedSource, Location)>,
 ) {
-    for block in cell.blocks() {
-        collect_node(block.into(), context, sources);
-    }
+    let Ok(()) = context.visit_blocks(&mut MediaVisitor(sources), cell.blocks());
 }
 
 fn collect_inlines(
