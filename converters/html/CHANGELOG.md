@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   attribute changes inside lists and AsciiDoc table cells.
 - Document titles, author metadata, custom stylesheets, and font settings retain
   their existing HTML output and warnings.
+- Document language, body IDs and roles, TOC wrappers, and footer revisions keep
+  their existing behavior in standalone and embedded HTML.
 
 ### Documentation
 

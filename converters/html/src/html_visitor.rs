@@ -234,6 +234,8 @@ impl<'doc> BlockVisitor<'doc> for HeadResources {
 }
 
 #[cfg(test)]
+mod document_frame_tests;
+#[cfg(test)]
 mod head_resources_tests;
 #[cfg(test)]
 mod head_stylesheet_tests;
@@ -598,16 +600,10 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
     /// `vX.Y` revision line is already dropped by the parser; an explicit
     /// `:revnumber:` keeps whatever it was given.
     fn render_footer_version(&mut self) -> Result<(), Error> {
-        if let Some(revnumber) = self
-            .processor
-            .document_attributes()
-            .get("revnumber")
-            .and_then(|value| value.text())
-        {
-            let label = document_attribute_text(
-                (self.processor.document_attributes()).get("version-label"),
-            )
-            .unwrap_or("Version");
+        let attributes = DocumentAttributesRef::from(self.processor.document_attributes());
+        if let Some(revnumber) = attributes.get("revnumber").and_then(|value| value.text()) {
+            let label =
+                document_attribute_text(attributes.get("version-label")).unwrap_or("Version");
             writeln!(self.writer, "{label} {revnumber}<br>")?;
         }
         Ok(())
@@ -711,6 +707,8 @@ impl<'a, W: Write> Visitor<'a> for HtmlVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         doc: &'a Document<'a>,
     ) -> Result<(), Self::Error> {
+        let doc = DocumentRef::from(doc);
+        let attributes = doc.attributes();
         self.warn_deprecated_highlight_attributes(traversal);
         // In embedded mode, skip the document frame (DOCTYPE, html, head, body)
         if self.render_options.embedded {
@@ -720,13 +718,13 @@ impl<'a, W: Write> Visitor<'a> for HtmlVisitor<'a, '_, W> {
         writeln!(self.writer, "<!DOCTYPE html>")?;
 
         // Add lang attribute if not suppressed by :nolang:
-        if let Some(lang_value) = doc.attributes.get("lang").and_then(|value| value.text())
+        if let Some(lang_value) = attributes.get("lang").and_then(|value| value.text())
             && !lang_value.is_empty()
         {
             writeln!(self.writer, "<html lang=\"{lang_value}\">")?;
-        } else if doc.attributes.contains_key("lang") {
+        } else if attributes.contains("lang") {
             writeln!(self.writer, "<html>")?;
-        } else if doc.attributes.get("nolang").is_some() {
+        } else if attributes.contains("nolang") {
             // :nolang: attribute suppresses lang
             writeln!(self.writer, "<html>")?;
         } else {
@@ -734,25 +732,18 @@ impl<'a, W: Write> Visitor<'a> for HtmlVisitor<'a, '_, W> {
             writeln!(self.writer, "<html lang=\"en\">")?;
         }
 
-        let resources = HeadResources::collect(doc.into());
-        self.render_head(doc.into(), resources.stem, resources.font_icons)?;
+        let resources = HeadResources::collect(doc);
+        self.render_head(doc, resources.stem, resources.font_icons)?;
 
-        // Check for unsupported css-signature attribute
-        if self
-            .processor
-            .document_attributes()
-            .contains_key("css-signature")
-        {
+        let processor_attributes =
+            DocumentAttributesRef::from(self.processor.document_attributes());
+        if processor_attributes.contains("css-signature") {
             return Err(Error::UnsupportedCssSignature);
         }
 
-        // Build body class with doctype and optional TOC placement classes
-        // Prefer document attribute :doctype: over CLI option (inline attribute wins)
-        let doctype_str = self
-            .processor
-            .document_attributes()
+        let doctype_str = processor_attributes
             .get("doctype")
-            .and_then(|value| value.as_str().map(std::string::ToString::to_string))
+            .and_then(|value| value.as_str().map(str::to_owned))
             .unwrap_or_else(|| self.processor.options.doctype().to_string());
         let mut body_classes = vec![doctype_str];
 
@@ -763,9 +754,9 @@ impl<'a, W: Write> Visitor<'a> for HtmlVisitor<'a, '_, W> {
         // Add TOC-related classes to body based on placement and custom toc-class
         let toc_config = acdc_converters_core::toc::Config::from_attributes(
             None,
-            &TraversalContext::new(&doc.attributes),
+            &TraversalContext::new(attributes),
         );
-        let has_custom_toc_class = doc.attributes.get("toc-class").is_some();
+        let has_custom_toc_class = attributes.contains("toc-class");
 
         match toc_config.placement() {
             "left" | "right" | "top" | "bottom" => {
@@ -784,26 +775,14 @@ impl<'a, W: Write> Visitor<'a> for HtmlVisitor<'a, '_, W> {
         }
 
         // Add roles from document title metadata to body classes
-        if let Some(header) = &doc.header {
-            for role in &header.metadata.roles {
-                body_classes.push(role.to_string());
-            }
+        if let Some(header) = doc.header() {
+            body_classes.extend(header.roles().iter().map(str::to_owned));
         }
 
         let body_class = body_classes.join(" ");
 
-        // Get body ID from document title metadata (anchors or explicit id)
-        let body_id = doc.header.as_ref().and_then(|header| {
-            // Check explicit ID from attribute list first (e.g., [id=my-id])
-            if let Some(anchor) = &header.metadata.id {
-                return Some(anchor.id);
-            }
-            // Check anchors from [[id]] or [#id] syntax - use last one like asciidoctor
-            header.metadata.anchors.last().map(|anchor| anchor.id)
-        });
-
-        // Render body tag with optional id from title metadata
-        if let Some(id) = body_id {
+        if let Some(id) = doc.id() {
+            let id = id.as_str();
             writeln!(self.writer, "<body id=\"{id}\" class=\"{body_class}\">")?;
         } else {
             writeln!(self.writer, "<body class=\"{body_class}\">")?;
@@ -974,19 +953,22 @@ impl<'a, W: Write> Visitor<'a> for HtmlVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         doc: &'a Document<'a>,
     ) -> Result<(), Self::Error> {
+        let doc = DocumentRef::from(doc);
         if self.render_options.embedded {
             // When there's no header, the TOC hasn't been rendered yet
-            if doc.header.is_none() {
+            if doc.header().is_none() {
                 self.render_toc(traversal, None, "auto")?;
             }
             return Ok(());
         }
         // When there's no header, emit a header wrapper for the TOC
         // (matching asciidoctor which always emits <div id="header"> when TOC is enabled)
-        if doc.header.is_none() && !self.processor.toc_entries.is_empty() {
+        if doc.header().is_none() && !self.processor.toc_entries.is_empty() {
             let toc_config = acdc_converters_core::toc::Config::from_attributes(
                 None,
-                &TraversalContext::new(self.processor.document_attributes()),
+                &TraversalContext::new(DocumentAttributesRef::from(
+                    self.processor.document_attributes(),
+                )),
             );
             if matches!(
                 toc_config.placement(),
