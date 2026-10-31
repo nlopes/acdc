@@ -49,6 +49,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Library converters can read source languages from typed block attributes.
+  Unknown and empty names are preserved; document defaults stay separate.
+
 - Video URL generation and playback-range helpers accept typed reads. Existing
   calls retain provider playlists, private hashes, empty times, and URL spelling.
 

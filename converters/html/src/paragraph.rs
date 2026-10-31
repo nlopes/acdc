@@ -6,10 +6,10 @@ use acdc_converters_core::substitutions::baseline_subs;
 use acdc_converters_core::substitutions::effective_subs;
 use acdc_converters_core::{
     TraversalContext,
-    code::detect_language,
+    code::source_language,
     visitor::{Visitor, WritableVisitor},
 };
-use acdc_parser::{CaptionKind, Paragraph};
+use acdc_parser::{CaptionKind, Paragraph, ast::ParagraphRef};
 
 use crate::{
     Error, HtmlVariant, HtmlVisitor, build_class, render_pre_code, write_attribution, write_id,
@@ -287,7 +287,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         para: &Paragraph,
     ) -> Result<(), Error> {
-        let language = detect_language(&para.metadata)
+        let language = source_language(ParagraphRef::from(para).attributes())
             .map(str::to_owned)
             .or_else(|| {
                 (para.metadata.style == Some("source"))

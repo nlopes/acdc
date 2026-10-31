@@ -1,4 +1,7 @@
-use acdc_parser::{AttributeValue, BlockMetadata};
+use acdc_parser::{
+    AttributeValue, BlockMetadata,
+    ast::{AttributeValueRef, AttributesRef},
+};
 
 mod link;
 pub use link::{
@@ -143,18 +146,35 @@ fn update_highlighted_line(lines: &mut [bool], line: usize, exclude: bool) {
 /// `[source,text]` and other arbitrary languages get proper `<code>` wrappers.
 #[must_use]
 pub fn detect_language<'a, 'b: 'a>(metadata: &'a BlockMetadata<'b>) -> Option<&'a str> {
-    let is_source = metadata.style == Some("source");
-    if !is_source {
-        return None;
-    }
+    language_for_style(
+        metadata.style.map(AttributeValueRef::Text),
+        metadata
+            .attributes
+            .get("language")
+            .map(AttributeValueRef::from),
+    )
+}
 
-    metadata.attributes.get("language").and_then(|value| {
-        if let acdc_parser::AttributeValue::String(value) = value {
-            Some(value.as_ref())
-        } else {
-            None
-        }
-    })
+/// Read the language control on a source block.
+///
+/// Empty, unknown, and quoted strings remain unchanged. Other styles and
+/// non-text values have no source language. Document defaults are separate.
+#[must_use]
+pub fn source_language(attributes: AttributesRef<'_>) -> Option<&str> {
+    language_for_style(attributes.get("style"), attributes.get("language"))
+}
+
+fn language_for_style<'text>(
+    style: Option<AttributeValueRef<'_>>,
+    language: Option<AttributeValueRef<'text>>,
+) -> Option<&'text str> {
+    if matches!(style, Some(AttributeValueRef::Text("source")))
+        && let Some(AttributeValueRef::Text(language)) = language
+    {
+        Some(language)
+    } else {
+        None
+    }
 }
 
 /// Get the default line comment prefix for a programming language.

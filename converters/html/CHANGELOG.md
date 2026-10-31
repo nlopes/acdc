@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Source paragraphs retain explicit and default language labels, including
+  unknown and empty languages, with or without syntax highlighting.
+
 - Inline rendering accepts typed parser content, including temporary fragments,
   with unchanged HTML formatting, link handling, and diagnostics.
 
