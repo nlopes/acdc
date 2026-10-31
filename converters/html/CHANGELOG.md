@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Automatic links and footnote markers retain their labels, targets, and TOC
+  behavior in both HTML variants.
+
 - Text escaping, typography, passthroughs, callout markers, and inline math retain
   their existing HTML output.
 

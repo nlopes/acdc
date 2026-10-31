@@ -46,7 +46,9 @@ fn leaf_inputs_can_be_dropped_before_the_visitor() -> Result<(), TestError> {
             visitor.render_verbatim(&mut traversal, (&verbatim).into(), &options, &[])?;
             let callout = CalloutRef::explicit(3, Location::default());
             visitor.render_callout_ref(&traversal, (&callout).into())?;
-            let source = String::from("pass:[temporary-pass] latexmath:[x < y]");
+            let source = String::from(
+                "pass:[temporary-pass] latexmath:[x < y] https://example.test footnote:temporary[Note]",
+            );
             let fragment = parse_inline(&source, &Options::default())?;
             let mut macros = 0;
             for node in fragment.inlines() {
@@ -56,9 +58,15 @@ fn leaf_inputs_can_be_dropped_before_the_visitor() -> Result<(), TestError> {
                 } else if let InlineNode::Macro(InlineMacro::Stem(stem)) = node {
                     visitor.render_stem(&mut traversal, stem.into())?;
                     macros += 1;
+                } else if let InlineNode::Macro(InlineMacro::Autolink(link)) = node {
+                    visitor.render_autolink(link.into(), &options)?;
+                    macros += 1;
+                } else if let InlineNode::Macro(InlineMacro::Footnote(note)) = node {
+                    visitor.render_footnote(note.into(), &options)?;
+                    macros += 1;
                 }
             }
-            assert_eq!(macros, 2);
+            assert_eq!(macros, 4);
         }
         let output = String::from_utf8(visitor.into_writer())?;
         assert!(output.contains("temporary-pass"), "{output}");

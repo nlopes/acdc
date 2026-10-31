@@ -58,11 +58,11 @@ use acdc_converters_core::{
     xref::{XrefDisplay, interdocument_xref, resolve_xref},
 };
 use acdc_parser::{
-    Anchor, AttributeValue, Autolink, Bold, Button, CrossReference, CurvedApostrophe,
-    CurvedQuotation, ElementAttributes, Footnote, Highlight, Icon, IndexTerm,
-    IndexTermRelationship, InlineImage, InlineMacro, InlineNode, Italic, Keyboard, Link, Mailto,
-    Menu, Monospace, StemNotation, Subscript, Substitution, Superscript, Url,
-    ast::{CalloutRef, PassRef, PlainRef, RawRef, StemRef, VerbatimRef},
+    Anchor, AttributeValue, Bold, Button, CrossReference, CurvedApostrophe, CurvedQuotation,
+    ElementAttributes, Highlight, Icon, IndexTerm, IndexTermRelationship, InlineImage, InlineMacro,
+    InlineNode, Italic, Keyboard, Link, Mailto, Menu, Monospace, StemNotation, Subscript,
+    Substitution, Superscript, Url,
+    ast::{AutolinkRef, CalloutRef, FootnoteRef, PassRef, PlainRef, RawRef, StemRef, VerbatimRef},
     strip_quotes,
 };
 
@@ -776,13 +776,13 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             return Ok(());
         }
         match m {
-            InlineMacro::Autolink(al) => self.render_autolink(al, options),
+            InlineMacro::Autolink(al) => self.render_autolink(al.into(), options),
             InlineMacro::Link(l) => self.render_link(traversal, l, options, subs),
             InlineMacro::Image(i) => self.render_inline_image(traversal, i),
             InlineMacro::Pass(p) => self.render_pass(p.into(), options, subs),
             InlineMacro::Url(u) => self.render_url(traversal, u, options, subs),
             InlineMacro::Mailto(m) => self.render_mailto(traversal, m, options, subs),
-            InlineMacro::Footnote(f) => self.render_footnote(f, options),
+            InlineMacro::Footnote(f) => self.render_footnote(f.into(), options),
             InlineMacro::Button(b) => self.render_button(traversal, b),
             InlineMacro::CrossReference(xref) => self.render_xref(traversal, xref, options, subs),
             InlineMacro::Stem(s) => self.render_stem(traversal, s.into()),
@@ -798,11 +798,15 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         }
     }
 
-    fn render_autolink(&mut self, al: &Autolink<'_>, options: &RenderOptions) -> Result<(), Error> {
+    fn render_autolink(
+        &mut self,
+        al: AutolinkRef<'_>,
+        options: &RenderOptions,
+    ) -> Result<(), Error> {
         let w = self.writer_mut();
-        let href_str = al.url.to_string();
+        let href_str = al.target().to_string();
         let (display_text, angle_brackets) =
-            autolink_fallback(&href_str, al.bracketed, al.hides_uri_scheme());
+            autolink_fallback(&href_str, al.is_bracketed(), al.hides_uri_scheme());
         let display_text = escape_href(display_text);
 
         if options.inlines_basic || options.toc_mode {
@@ -1035,13 +1039,17 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         )
     }
 
-    fn render_footnote(&mut self, f: &Footnote<'_>, options: &RenderOptions) -> Result<(), Error> {
+    fn render_footnote(
+        &mut self,
+        f: FootnoteRef<'_>,
+        options: &RenderOptions,
+    ) -> Result<(), Error> {
         // Reused notes and copies in reference text must not repeat the original IDs.
-        let is_ref =
-            self.processor.xref_guard.is_resolving() || (f.id.is_some() && f.content.is_empty());
+        let is_ref = self.processor.xref_guard.is_resolving()
+            || (f.id().is_some() && f.content().is_empty());
         let is_semantic = self.processor.variant() == HtmlVariant::Semantic;
         let w = self.writer_mut();
-        let number = f.number;
+        let number = f.number();
 
         if options.inlines_basic {
             write!(w, "[{number}]")?;
@@ -1074,7 +1082,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         }
 
         write!(w, "<sup class=\"{sup_class}\"")?;
-        if !is_ref && let Some(id) = &f.id {
+        if !is_ref && let Some(id) = f.id() {
             write!(w, " id=\"_footnote_{id}\"")?;
         }
         if is_ref {
