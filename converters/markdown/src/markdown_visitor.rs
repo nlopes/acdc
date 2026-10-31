@@ -2417,7 +2417,7 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
             }
             InlineMacro::Mailto(mailto) => {
                 let target = mailto.target.to_string();
-                let destination = mailto_target(mailto);
+                let destination = mailto_target(mailto.as_ref());
                 self.write_macro_link(
                     traversal,
                     &destination,

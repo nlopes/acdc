@@ -62,7 +62,7 @@ pub fn resolve_code_link(
     } else if let InlineMacro::Mailto(link) = node {
         let target = link.target.to_string();
         let fallback = mailto_fallback(&target).to_string();
-        (mailto_target(link), &link.text, fallback)
+        (mailto_target(link.as_ref()), &link.text, fallback)
     } else if let InlineMacro::Autolink(link) = node {
         let target = link.url.to_string();
         let (label, brackets) = autolink_fallback(&target, link.bracketed, link.hides_uri_scheme());

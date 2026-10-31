@@ -4111,7 +4111,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 let fallback = mailto_fallback(&target);
                 self.write_link(
                     traversal,
-                    &mailto_target(mailto),
+                    &mailto_target(mailto.as_ref()),
                     &mailto.text,
                     Some(&mailto.metadata),
                     Some(&mailto.location),

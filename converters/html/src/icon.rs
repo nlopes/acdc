@@ -85,7 +85,7 @@ impl<'a, W: std::io::Write> HtmlVisitor<'a, '_, W> {
             }
             IconMode::Image => {
                 let target = attrs.get_string("icon").map_or_else(
-                    || image_source(traversal, &icon.target),
+                    || image_source(traversal, IconRef::from(icon).target()),
                     |value| acdc_converters_core::icon::custom_image_source(traversal, &value),
                 );
                 let source = self.image_uri(&target, traversal);

@@ -75,9 +75,13 @@ fn alt_text(content: ContentRef<'_>) -> String {
 /// `iconsdir` defaults to `./images/icons`. An explicit `icontype` takes
 /// precedence over an image format supplied through `icons`, and the default
 /// extension is `png`.
+/// Accepts typed sources and existing source references.
 #[must_use]
-pub fn image_source(attributes: &TraversalContext<'_>, target: &Source<'_>) -> String {
-    custom_image_source(attributes, &target.to_string())
+pub fn image_source<'doc>(
+    attributes: &TraversalContext<'_>,
+    target: impl Into<SourceRef<'doc>>,
+) -> String {
+    custom_image_source(attributes, &target.into().to_string())
 }
 
 /// Icon rendering mode.

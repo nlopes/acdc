@@ -2,7 +2,7 @@
 
 use std::fmt::Write as _;
 
-use acdc_parser::Mailto;
+use acdc_parser::ast::MailtoRef;
 use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, percent_decode_str, utf8_percent_encode};
 
 const MAILTO_COMPONENT: &AsciiSet = &NON_ALPHANUMERIC
@@ -13,17 +13,20 @@ const MAILTO_COMPONENT: &AsciiSet = &NON_ALPHANUMERIC
 
 /// Build a mailto destination from its address and positional subject/body.
 ///
+/// Accepts typed email links and existing references to email-link owners.
+///
 /// Keep the original target for the visible fallback. Encode query values here,
 /// after the parser has restored passthroughs, and leave output escaping to the
 /// converter. Unlike Asciidoctor, this preserves literal ampersands and extends
 /// an existing query without introducing a second question mark.
 #[must_use]
-pub fn mailto_target(mailto: &Mailto<'_>) -> String {
-    let mut target = mailto.target.to_string();
+pub fn mailto_target<'doc>(mailto: impl Into<MailtoRef<'doc>>) -> String {
+    let mailto = mailto.into();
+    let mut target = mailto.target().to_string();
     if !target.starts_with("mailto:") {
         target.insert_str(0, "mailto:");
     }
-    if let Some(subject) = mailto.subject {
+    if let Some(subject) = mailto.subject() {
         // Positional arguments override matching headers in an existing query;
         // other headers retain their original spelling and encoding.
         if let Some((address, query)) = target.split_once('?') {
@@ -34,7 +37,7 @@ pub fn mailto_target(mailto: &Mailto<'_>) -> String {
                     let name = percent_decode_str(name).decode_utf8_lossy();
                     !(field.is_empty()
                         || name.eq_ignore_ascii_case("subject")
-                        || mailto.body.is_some() && name.eq_ignore_ascii_case("body"))
+                        || mailto.body().is_some() && name.eq_ignore_ascii_case("body"))
                 })
                 .collect::<Vec<_>>()
                 .join("&");
@@ -50,7 +53,7 @@ pub fn mailto_target(mailto: &Mailto<'_>) -> String {
             "{separator}subject={}",
             utf8_percent_encode(subject, MAILTO_COMPONENT)
         );
-        if let Some(body) = mailto.body {
+        if let Some(body) = mailto.body() {
             // RFC 6068 requires CRLF for message-body line breaks.
             let body = body.replace("\r\n", "\n").replace(['\r', '\n'], "\r\n");
             let _ = write!(
@@ -162,7 +165,12 @@ mod tests {
             else {
                 return Err(format!("expected mailto: {source}").into());
             };
-            assert_eq!(mailto_target(mailto), expected, "{source}");
+            assert_eq!(mailto_target(mailto.as_ref()), expected, "{source}");
+            assert_eq!(
+                mailto_target(MailtoRef::from(mailto.as_ref())),
+                expected,
+                "{source}"
+            );
         }
         Ok(())
     }

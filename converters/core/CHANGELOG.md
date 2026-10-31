@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- Boxed mail macros passed to `mailto_target` now need `.as_ref()`. Direct
+  `&Mailto` references and typed `MailtoRef` handles are accepted.
+
 - `TraversalContext::visit_block` and `visit_blocks` accept typed blocks and
   iterators alongside existing owner inputs. Calls that explicitly name generic
   arguments must supply the inferred input type too: `visit_block::<V, _>` or
@@ -38,6 +41,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   paragraph.
 
 ### Added
+
+- Library converters can build email destinations and icon image sources from
+  typed parser handles. Existing owner calls keep their query and path handling.
 
 - Library converters can apply passthrough replacements from lazy substitution
   profiles without copying the profile, with the same ordered replacement rules.

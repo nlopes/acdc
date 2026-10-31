@@ -1029,7 +1029,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         let tooltip = tooltip_attribute(link.tooltip());
         self.with_inline_link(
             InlineLink::new(
-                escape_href(&mailto_target(m)),
+                escape_href(&mailto_target(link)),
                 id_attr,
                 format!("{class_attr}{target_attr}{tooltip}"),
             ),

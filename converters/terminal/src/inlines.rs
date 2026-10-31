@@ -705,7 +705,7 @@ fn render_inline_macro_to_writer<'a, W: Write + ?Sized>(
             } else {
                 render_inline_nodes_to_string(&m.text, processor, traversal)?
             };
-            maybe_render_osc8_link(&mailto_target(m), &text, w, processor)?;
+            maybe_render_osc8_link(&mailto_target(m.as_ref()), &text, w, processor)?;
         }
         InlineMacro::Autolink(a) => {
             let target = a.url.to_string();

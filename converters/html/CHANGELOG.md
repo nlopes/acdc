@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Email subjects and bodies keep their URI encoding. Image icons keep `iconsdir`
+  and `icontype` selection, including settings changed in the document body.
+
 - Link IDs, classes, window controls, and image/icon link options keep their
   existing behavior. Tooltips retain escaped plain text and present empty values.
 
