@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- HTML documents retain the same MathJax and icon stylesheet selection, including
+  attribute changes inside lists and AsciiDoc table cells.
+
 ### Documentation
 
 - Explain that safe modes do not sanitize HTML output, matching Asciidoctor.

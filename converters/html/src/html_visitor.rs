@@ -1,11 +1,11 @@
 //! Visitor implementation for HTML conversion.
 
-use std::{io::Write, path::Path, rc::Rc};
+use std::{convert::Infallible, io::Write, path::Path, rc::Rc};
 
 use acdc_converters_core::{
     Diagnostics, TraversalContext, document_attribute_text, inlines_to_string,
     substitutions::TextBoundaries,
-    visitor::{Visitor, WritableVisitor},
+    visitor::{BlockVisitor, Visitor, WritableVisitor},
 };
 
 #[cfg(not(feature = "pre-spec-subs"))]
@@ -14,10 +14,11 @@ use acdc_converters_core::substitutions::baseline_subs;
 use acdc_converters_core::substitutions::effective_subs;
 
 use acdc_parser::{
-    Admonition, Audio, Block, BlockMetadata, CalloutList, CaptionKind, DelimitedBlock,
+    Admonition, Audio, Block, BlockMetadata, CalloutList, CaptionKind, ColumnStyle, DelimitedBlock,
     DelimitedBlockType, DescriptionList, DiscreteHeader, Document, DocumentAttributes, Footnote,
     Header, Image, InlineNode, ListItem, NORMAL, OrderedList, PageBreak, Paragraph, Section,
     Substitution, TableOfContents, ThematicBreak, UnorderedList, Video,
+    ast::{BlockKind, BlockRef, ColumnFormatRef, DocumentRef, StructuralRef, TableRef},
 };
 
 use crate::{Error, HtmlVariant, Processor, RenderOptions, STYLESDIR_DEFAULT, docinfo::DocInfo};
@@ -139,7 +140,7 @@ fn add_mathjax<W: Write>(writer: &mut W) -> Result<(), Error> {
 /// `AsciiDoc` cell. Embedded consumers can use this to enable math rendering.
 #[must_use]
 pub fn uses_stem(document: &Document<'_>) -> bool {
-    let resources = HeadResources::collect(document);
+    let resources = HeadResources::collect(document.into());
     resources.stem || resources.nested_stem
 }
 
@@ -150,36 +151,88 @@ struct HeadResources {
 }
 
 impl HeadResources {
-    fn collect(document: &Document<'_>) -> Self {
-        let mut traversal = TraversalContext::new(&document.attributes);
+    fn collect(document: DocumentRef<'_>) -> Self {
+        let mut traversal = TraversalContext::new(document.attributes());
         let mut resources = Self {
             stem: traversal.contains_key("stem"),
             font_icons: traversal.get("icons").and_then(|value| value.as_str()) == Some("font"),
             nested_stem: false,
         };
-        let Ok(()) = traversal.visit_blocks(&mut resources, &document.blocks);
+        let Ok(()) = traversal.visit_blocks(&mut resources, document.blocks());
         resources
     }
-}
 
-impl<'doc> Visitor<'doc> for HeadResources {
-    type Error = std::convert::Infallible;
-
-    fn visit_document_attribute(
+    fn visit_children<'doc>(
         &mut self,
         traversal: &mut TraversalContext<'doc>,
-        _attribute: &'doc acdc_parser::DocumentAttribute<'doc>,
-    ) -> Result<(), Self::Error> {
-        if traversal.is_nested_document() {
-            self.nested_stem |= traversal.contains_key("stem");
-        } else {
-            self.stem |= traversal.contains_key("stem");
-            self.font_icons |=
-                traversal.get("icons").and_then(|value| value.as_str()) == Some("font");
+        node: StructuralRef<'doc>,
+    ) -> Result<(), Infallible> {
+        for child in node.children() {
+            if let StructuralRef::Block(block) = child {
+                traversal.visit_block(self, block)?;
+            } else {
+                self.visit_children(traversal, child)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn visit_table<'doc>(
+        &mut self,
+        traversal: &mut TraversalContext<'doc>,
+        table: TableRef<'doc>,
+    ) -> Result<(), Infallible> {
+        for row in table
+            .header()
+            .into_iter()
+            .chain(table.rows())
+            .chain(table.footer())
+        {
+            let mut formats = table.columns();
+            for cell in row.cells() {
+                let default_style = formats
+                    .next()
+                    .map_or(ColumnStyle::Default, ColumnFormatRef::style);
+                if cell.style().unwrap_or(default_style) == ColumnStyle::AsciiDoc {
+                    traversal.with_table_cell(cell, |context| {
+                        context.visit_blocks(self, cell.blocks())
+                    })?;
+                } else {
+                    traversal.visit_blocks(self, cell.blocks())?;
+                }
+            }
         }
         Ok(())
     }
 }
+
+impl<'doc> BlockVisitor<'doc> for HeadResources {
+    type Error = Infallible;
+
+    fn visit_block(
+        &mut self,
+        traversal: &mut TraversalContext<'doc>,
+        block: BlockRef<'doc>,
+    ) -> Result<(), Self::Error> {
+        if let BlockKind::DocumentAttribute(_) = block.kind() {
+            if traversal.is_nested_document() {
+                self.nested_stem |= traversal.contains_key("stem");
+            } else {
+                self.stem |= traversal.contains_key("stem");
+                self.font_icons |=
+                    traversal.get("icons").and_then(|value| value.as_str()) == Some("font");
+            }
+            Ok(())
+        } else if let BlockKind::Table(table) = block.kind() {
+            self.visit_table(traversal, table)
+        } else {
+            self.visit_children(traversal, block.into())
+        }
+    }
+}
+
+#[cfg(test)]
+mod head_resources_tests;
 
 /// HTML visitor that generates HTML from `AsciiDoc` AST
 pub struct HtmlVisitor<'a, 'd, W: Write> {
@@ -714,7 +767,7 @@ impl<'a, W: Write> Visitor<'a> for HtmlVisitor<'a, '_, W> {
             writeln!(self.writer, "<html lang=\"en\">")?;
         }
 
-        let resources = HeadResources::collect(doc);
+        let resources = HeadResources::collect(doc.into());
         self.render_head(doc, resources.stem, resources.font_icons)?;
 
         // Check for unsupported css-signature attribute
