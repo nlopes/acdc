@@ -84,6 +84,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Typed source spans can be compared directly, including their byte offsets,
+  endpoint positions, and include chains.
+
 - Library callers can classify caption categories from typed blocks without
   inspecting the owner enums. Classification follows the current block form and
   style; resolved labels and ordinals retain their stored values.

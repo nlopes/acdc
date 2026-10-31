@@ -2,7 +2,10 @@
 
 use std::{collections::HashMap, fmt::Write as _};
 
-use acdc_parser::{InlineMacro, InlineNode, Reference};
+use acdc_parser::{
+    InlineMacro, InlineNode, Reference,
+    ast::{InlineKind, InlineRef, LocationRef},
+};
 
 use crate::{
     InlineTextTransform,
@@ -33,39 +36,41 @@ pub struct CodeLink {
 }
 
 /// Resolve a link node without interpreting its label as programming language syntax.
+///
+/// Accepts typed inline handles and existing owner references. The result owns
+/// its text, destination, and ID, so it can outlive the inline input.
 #[must_use]
 #[expect(
     clippy::implicit_hasher,
     reason = "InlineTextTransform uses the parser reference catalog type"
 )]
-pub fn resolve_code_link(
-    node: &InlineNode<'_>,
+pub fn resolve_code_link<'inline>(
+    node: impl Into<InlineRef<'inline>>,
     references: &HashMap<&str, Reference<'_>>,
     output_extension: &str,
 ) -> Option<CodeLink> {
-    let location = node.location();
-    let InlineNode::Macro(node) = node else {
-        return None;
-    };
+    let node = node.into();
+    let kind = node.kind();
     let text = InlineTextTransform::default()
         .line_break("\n")
         .references(references);
-    let anchor = link_anchor(node, location, references);
-    let (target, label, fallback) = if let InlineMacro::Link(link) = node {
-        let target = link.target.to_string();
+    let anchor = link_anchor(node, references);
+    let (target, label, fallback) = if let InlineKind::Link(link) = kind {
+        let target = link.target().to_string();
         let fallback = link_fallback(&target, link.hides_uri_scheme()).to_string();
-        (target, &link.text, fallback)
-    } else if let InlineMacro::Url(link) = node {
-        let target = link.target.to_string();
+        (target, link.text(), fallback)
+    } else if let InlineKind::Url(link) = kind {
+        let target = link.target().to_string();
         let fallback = link_fallback(&target, link.hides_uri_scheme()).to_string();
-        (target, &link.text, fallback)
-    } else if let InlineMacro::Mailto(link) = node {
-        let target = link.target.to_string();
+        (target, link.text(), fallback)
+    } else if let InlineKind::Mailto(link) = kind {
+        let target = link.target().to_string();
         let fallback = mailto_fallback(&target).to_string();
-        (mailto_target(link.as_ref()), &link.text, fallback)
-    } else if let InlineMacro::Autolink(link) = node {
-        let target = link.url.to_string();
-        let (label, brackets) = autolink_fallback(&target, link.bracketed, link.hides_uri_scheme());
+        (mailto_target(link), link.text(), fallback)
+    } else if let InlineKind::Autolink(link) = kind {
+        let target = link.target().to_string();
+        let (label, brackets) =
+            autolink_fallback(&target, link.is_bracketed(), link.hides_uri_scheme());
         return Some(CodeLink {
             text: if brackets {
                 format!("<{label}>")
@@ -75,23 +80,23 @@ pub fn resolve_code_link(
             target: Some(CodeLinkTarget::External(target)),
             anchor,
         });
-    } else if let InlineMacro::CrossReference(xref) = node {
-        let external = (!xref.target_is_local)
-            .then(|| interdocument_xref(xref.target, output_extension))
+    } else if let InlineKind::CrossReference(xref) = kind {
+        let external = (!xref.target_is_local())
+            .then(|| interdocument_xref(xref.target(), output_extension))
             .flatten();
-        let target = if xref.target_is_local && xref.target.is_empty() {
+        let target = if xref.target_is_local() && xref.target().is_empty() {
             Some(CodeLinkTarget::DocumentTop)
         } else if let Some((target, _)) = &external {
             Some(CodeLinkTarget::External(target.clone()))
-        } else if references.contains_key(xref.target) {
-            Some(CodeLinkTarget::Internal(xref.target.to_string()))
+        } else if references.contains_key(xref.target()) {
+            Some(CodeLinkTarget::Internal(xref.target().to_string()))
         } else {
             None
         };
-        let label = if xref.text.is_empty() {
+        let label = if xref.text().is_empty() {
             let guard = XrefGuard::default();
             let text = text.in_reference();
-            match resolve_xref(references.get(xref.target), xref.as_ref(), &guard) {
+            match resolve_xref(references.get(xref.target()), xref, &guard) {
                 XrefDisplay::Title(nodes, _) | XrefDisplay::Label(nodes, _) => {
                     text.to_string(nodes)
                 }
@@ -109,7 +114,7 @@ pub fn resolve_code_link(
                 | XrefDisplay::Nested(label) => label,
             }
         } else {
-            text.to_string(&xref.text)
+            text.content_to_string(xref.text())
         };
         return Some(CodeLink {
             text: label,
@@ -123,53 +128,25 @@ pub fn resolve_code_link(
         text: if label.is_empty() {
             fallback
         } else {
-            text.to_string(label)
+            text.content_to_string(label)
         },
         target: Some(CodeLinkTarget::External(target)),
         anchor,
     })
 }
 
-fn link_anchor(
-    node: &InlineMacro<'_>,
-    location: &acdc_parser::Location,
-    references: &HashMap<&str, Reference<'_>>,
-) -> Option<String> {
-    let id = match node {
-        InlineMacro::Link(link) => link
-            .metadata
-            .id
-            .as_ref()
-            .map(|id| acdc_parser::strip_quotes(id.id)),
-        InlineMacro::Url(link) => link
-            .metadata
-            .id
-            .as_ref()
-            .map(|id| acdc_parser::strip_quotes(id.id)),
-        InlineMacro::Mailto(link) => link
-            .metadata
-            .id
-            .as_ref()
-            .map(|id| acdc_parser::strip_quotes(id.id)),
-        InlineMacro::Autolink(_)
-        | InlineMacro::CrossReference(_)
-        | InlineMacro::Footnote(_)
-        | InlineMacro::Icon(_)
-        | InlineMacro::Image(_)
-        | InlineMacro::Keyboard(_)
-        | InlineMacro::Button(_)
-        | InlineMacro::Menu(_)
-        | InlineMacro::Pass(_)
-        | InlineMacro::Stem(_)
-        | InlineMacro::IndexTerm(_)
-        | _ => None,
-    };
-    id.filter(|id| {
-        references
-            .get(*id)
-            .is_some_and(|reference| reference.location == *location)
-    })
-    .map(str::to_owned)
+fn link_anchor(node: InlineRef<'_>, references: &HashMap<&str, Reference<'_>>) -> Option<String> {
+    if !matches!(
+        node.kind(),
+        InlineKind::Link(_) | InlineKind::Url(_) | InlineKind::Mailto(_)
+    ) {
+        return None;
+    }
+    let id = acdc_parser::strip_quotes(node.id()?.as_str());
+    references
+        .get(id)
+        .filter(|reference| LocationRef::from(&reference.location) == node.location())
+        .map(|_| id.to_owned())
 }
 
 /// Inline content that keeps its place in a code block's text.

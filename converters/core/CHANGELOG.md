@@ -49,6 +49,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Source-code links can be resolved from typed inline handles. Existing owner
+  calls retain label formatting, fallback text, destinations, and registered IDs.
+
 - `SourceLineOptions::from_attributes` accepts typed element attributes for
   source numbering and highlights. The metadata-based `resolve` remains supported
   with the same selector rules.

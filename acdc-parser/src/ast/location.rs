@@ -2,9 +2,11 @@ use crate::{Location, Position};
 
 /// A source span with inclusive endpoints.
 ///
+/// Equality compares byte offsets, endpoint positions, and include chains.
+///
 /// Positions use the original source coordinates. Resolve the original
 /// file through [`crate::ParseResult::resolve_location`] for a parsed node.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct LocationRef<'doc> {
     location: &'doc Location,
 }
