@@ -326,3 +326,24 @@ fn owner_conversions_preserve_typed_content_and_locations() -> Result<(), Error>
     assert_eq!(PositionRef::from(&paragraph.location.start).column(), 1);
     Ok(())
 }
+
+#[test]
+fn copied_source_span_keeps_provenance_after_its_owner_is_dropped() {
+    let mut expected = Location::default();
+    expected.absolute_start = 41;
+    expected.absolute_end = 73;
+    expected.start.line = 7;
+    expected.start.column = 3;
+    expected.start.file = Some(std::sync::Arc::new(vec![
+        "part.adoc".into(),
+        "nested/é.adoc".into(),
+    ]));
+    expected.end.line = 8;
+    expected.end.column = 5;
+    expected.end.file = expected.start.file.clone();
+    let copied = {
+        let owner = expected.clone();
+        Location::from(LocationRef::from(&owner))
+    };
+    assert_eq!(copied, expected);
+}

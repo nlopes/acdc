@@ -84,6 +84,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Library callers can copy a typed source span into an owned `Location` for
+  indexes that outlive the parsed document, preserving include provenance.
+
 - Library callers can walk owned inline content through
   `DocumentRef::content_occurrences()` or read a node's direct `content_fields()`.
   Each field identifies its purpose and typed owner, including titles, credits,

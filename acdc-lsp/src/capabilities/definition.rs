@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use acdc_converters_core::{TraversalContext, visitor::Visitor};
 use acdc_parser::{
     Block, DelimitedBlockType, Document, InlineMacro, InlineNode, Location, Section,
+    ast::{CrossReferenceRef, DocumentRef, InlineKind},
 };
 use tower_lsp_server::ls_types::{Position, Uri};
 
@@ -202,141 +203,28 @@ fn collect_inline_anchors(inlines: &[InlineNode], anchors: &mut HashMap<String, 
     }
 }
 
-/// Collect all xref targets from document
+/// Cross-references in retained content, excluding derived catalog copies.
+pub(super) fn xref_occurrences<'doc>(
+    doc: &'doc Document<'doc>,
+) -> impl Iterator<Item = CrossReferenceRef<'doc>> {
+    DocumentRef::from(doc)
+        .content_occurrences()
+        .flat_map(|field| field.content().inlines())
+        .filter_map(|inline| {
+            if let InlineKind::CrossReference(xref) = inline.kind() {
+                Some(xref)
+            } else {
+                None
+            }
+        })
+}
+
+/// Collect cross-reference targets and source spans for the workspace index.
 #[must_use]
 pub(crate) fn collect_xrefs(doc: &Document) -> Vec<(String, Location)> {
-    let mut xrefs = vec![];
-
-    for block in &doc.blocks {
-        collect_block_xrefs(block, &mut xrefs);
-    }
-
-    xrefs
-}
-
-fn collect_block_xrefs(block: &Block, xrefs: &mut Vec<(String, Location)>) {
-    if let Some(content) = block
-        .metadata()
-        .and_then(acdc_parser::BlockMetadata::caption_content)
-    {
-        collect_inline_xrefs(content, xrefs);
-    }
-    if let Block::Image(image) = block
-        && let Some(alt) = &image.alt
-    {
-        collect_inline_xrefs(alt, xrefs);
-    }
-    match block {
-        Block::Section(section) => {
-            for child in &section.content {
-                collect_block_xrefs(child, xrefs);
-            }
-        }
-        Block::Paragraph(para) => {
-            collect_inline_xrefs(&para.content, xrefs);
-        }
-        Block::DelimitedBlock(delimited) => {
-            collect_delimited_block_xrefs(&delimited.inner, xrefs);
-        }
-        Block::UnorderedList(list) => {
-            for item in &list.items {
-                collect_inline_xrefs(&item.principal, xrefs);
-                for b in &item.blocks {
-                    collect_block_xrefs(b, xrefs);
-                }
-            }
-        }
-        Block::OrderedList(list) => {
-            for item in &list.items {
-                collect_inline_xrefs(&item.principal, xrefs);
-                for b in &item.blocks {
-                    collect_block_xrefs(b, xrefs);
-                }
-            }
-        }
-        Block::DescriptionList(list) => {
-            for item in &list.items {
-                collect_inline_xrefs(&item.principal_text, xrefs);
-                for b in &item.description {
-                    collect_block_xrefs(b, xrefs);
-                }
-            }
-        }
-        Block::Admonition(adm) => {
-            for b in &adm.blocks {
-                collect_block_xrefs(b, xrefs);
-            }
-        }
-        Block::TableOfContents(_)
-        | Block::DiscreteHeader(_)
-        | Block::DocumentAttribute(_)
-        | Block::ThematicBreak(_)
-        | Block::PageBreak(_)
-        | Block::CalloutList(_)
-        | Block::Image(_)
-        | Block::Audio(_)
-        | Block::Video(_)
-        | Block::Comment(_)
-        // non_exhaustive
-        | _ => {}
-    }
-}
-
-fn collect_delimited_block_xrefs(inner: &DelimitedBlockType, xrefs: &mut Vec<(String, Location)>) {
-    match inner {
-        DelimitedBlockType::DelimitedExample(blocks)
-        | DelimitedBlockType::DelimitedOpen(blocks)
-        | DelimitedBlockType::DelimitedSidebar(blocks)
-        | DelimitedBlockType::DelimitedQuote(blocks) => {
-            for block in blocks {
-                collect_block_xrefs(block, xrefs);
-            }
-        }
-        DelimitedBlockType::DelimitedListing(inlines)
-        | DelimitedBlockType::DelimitedLiteral(inlines)
-        | DelimitedBlockType::DelimitedPass(inlines)
-        | DelimitedBlockType::DelimitedVerse(inlines)
-        | DelimitedBlockType::DelimitedComment(inlines) => {
-            collect_inline_xrefs(inlines, xrefs);
-        }
-        DelimitedBlockType::DelimitedTable(_)
-        | DelimitedBlockType::DelimitedStem(_)
-        // non_exhaustive
-        | _ => {}
-    }
-}
-
-fn collect_inline_xrefs(inlines: &[InlineNode], xrefs: &mut Vec<(String, Location)>) {
-    for inline in inlines {
-        if let InlineNode::Macro(value) = inline {
-            value.for_each_content_attribute(|content| collect_inline_xrefs(content, xrefs));
-        }
-        // Explicit arms for compile-time check when variants added
-        match inline {
-            InlineNode::Macro(InlineMacro::CrossReference(xref)) => {
-                xrefs.push((xref.target.to_string(), xref.location.clone()));
-            }
-            // Recurse into formatted text to find nested xrefs
-            InlineNode::BoldText(b) => collect_inline_xrefs(&b.content, xrefs),
-            InlineNode::ItalicText(i) => collect_inline_xrefs(&i.content, xrefs),
-            InlineNode::MonospaceText(m) => collect_inline_xrefs(&m.content, xrefs),
-            InlineNode::HighlightText(h) => collect_inline_xrefs(&h.content, xrefs),
-            InlineNode::SubscriptText(s) => collect_inline_xrefs(&s.content, xrefs),
-            InlineNode::SuperscriptText(s) => collect_inline_xrefs(&s.content, xrefs),
-            InlineNode::PlainText(_)
-            | InlineNode::RawText(_)
-            | InlineNode::VerbatimText(_)
-            | InlineNode::CurvedQuotationText(_)
-            | InlineNode::CurvedApostropheText(_)
-            | InlineNode::StandaloneCurvedApostrophe(_)
-            | InlineNode::LineBreak(_)
-            | InlineNode::InlineAnchor(_)
-            | InlineNode::Macro(_)
-            | InlineNode::CalloutRef(_)
-            // non_exhaustive
-            | _ => {}
-        }
-    }
+    xref_occurrences(doc)
+        .map(|xref| (xref.target().to_owned(), xref.location().into()))
+        .collect()
 }
 
 /// Collect all media sources (images, audio, video) from document AST

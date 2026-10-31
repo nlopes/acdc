@@ -19,6 +19,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Definition, hover, references, and rename now find cross-references in titles,
+  captions, image alt text and tooltips, quote credits, footnotes, UI labels,
+  description terms, callouts, and table cells. Nested references select the
+  innermost target. Rename declines the operation if a retained reference has
+  no safely editable literal target, instead of leaving a broken reference.
+  File rename also finds these references in closed files under the configured backend.
+
 - Editor requests with columns past a line's end now use the end of that line,
   as required by LSP. Returned edit ranges use those normalized UTF-16 positions.
   Batches of full document updates now use the last snapshot; ranged fragments

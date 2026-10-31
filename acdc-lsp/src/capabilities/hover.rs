@@ -148,166 +148,20 @@ fn build_xref_hover_content(
     }
 }
 
-/// Find an xref at an original-source scalar position.
+/// Find the innermost retained xref at a position in the editor's input.
 pub(crate) fn find_xref_at_position(
     doc: &Document,
     position: &acdc_parser::Position,
 ) -> Option<(String, Location)> {
-    for block in &doc.blocks {
-        if let Some(result) = find_xref_in_block(block, position) {
-            return Some(result);
-        }
-    }
-    None
-}
-
-fn find_xref_in_block(
-    block: &Block,
-    position: &acdc_parser::Position,
-) -> Option<(String, Location)> {
-    match block {
-        Block::Section(section) => {
-            for child in &section.content {
-                if let Some(result) = find_xref_in_block(child, position) {
-                    return Some(result);
-                }
-            }
-            None
-        }
-        Block::Paragraph(para) => find_xref_in_inlines(&para.content, position),
-        Block::DelimitedBlock(delimited) => find_xref_in_delimited(&delimited.inner, position),
-        Block::UnorderedList(list) => {
-            for item in &list.items {
-                if let Some(result) = find_xref_in_inlines(&item.principal, position) {
-                    return Some(result);
-                }
-                for b in &item.blocks {
-                    if let Some(result) = find_xref_in_block(b, position) {
-                        return Some(result);
-                    }
-                }
-            }
-            None
-        }
-        Block::OrderedList(list) => {
-            for item in &list.items {
-                if let Some(result) = find_xref_in_inlines(&item.principal, position) {
-                    return Some(result);
-                }
-                for b in &item.blocks {
-                    if let Some(result) = find_xref_in_block(b, position) {
-                        return Some(result);
-                    }
-                }
-            }
-            None
-        }
-        Block::DescriptionList(list) => {
-            for item in &list.items {
-                if let Some(result) = find_xref_in_inlines(&item.principal_text, position) {
-                    return Some(result);
-                }
-                for b in &item.description {
-                    if let Some(result) = find_xref_in_block(b, position) {
-                        return Some(result);
-                    }
-                }
-            }
-            None
-        }
-        Block::Admonition(adm) => {
-            for b in &adm.blocks {
-                if let Some(result) = find_xref_in_block(b, position) {
-                    return Some(result);
-                }
-            }
-            None
-        }
-        Block::TableOfContents(_)
-        | Block::DiscreteHeader(_)
-        | Block::DocumentAttribute(_)
-        | Block::ThematicBreak(_)
-        | Block::PageBreak(_)
-        | Block::CalloutList(_)
-        | Block::Image(_)
-        | Block::Audio(_)
-        | Block::Video(_)
-        | Block::Comment(_)
-        // non_exhaustive
-        | _ => None,
-    }
-}
-
-fn find_xref_in_delimited(
-    inner: &DelimitedBlockType,
-    position: &acdc_parser::Position,
-) -> Option<(String, Location)> {
-    match inner {
-        DelimitedBlockType::DelimitedExample(blocks)
-        | DelimitedBlockType::DelimitedOpen(blocks)
-        | DelimitedBlockType::DelimitedSidebar(blocks)
-        | DelimitedBlockType::DelimitedQuote(blocks) => {
-            for block in blocks {
-                if let Some(result) = find_xref_in_block(block, position) {
-                    return Some(result);
-                }
-            }
-            None
-        }
-        DelimitedBlockType::DelimitedListing(inlines)
-        | DelimitedBlockType::DelimitedLiteral(inlines)
-        | DelimitedBlockType::DelimitedPass(inlines)
-        | DelimitedBlockType::DelimitedVerse(inlines)
-        | DelimitedBlockType::DelimitedComment(inlines) => find_xref_in_inlines(inlines, position),
-        DelimitedBlockType::DelimitedTable(_)
-        | DelimitedBlockType::DelimitedStem(_)
-        // non_exhaustive
-        | _ => None,
-    }
-}
-
-fn find_xref_in_inlines(
-    inlines: &[InlineNode],
-    position: &acdc_parser::Position,
-) -> Option<(String, Location)> {
-    for inline in inlines {
-        if let Some(result) = find_xref_in_inline(inline, position) {
-            return Some(result);
-        }
-    }
-    None
-}
-
-fn find_xref_in_inline(
-    inline: &InlineNode,
-    position: &acdc_parser::Position,
-) -> Option<(String, Location)> {
-    match inline {
-        InlineNode::Macro(InlineMacro::CrossReference(xref)) => {
-            if position_in_location(position, &xref.location) {
-                return Some((xref.target.to_string(), xref.location.clone()));
-            }
-            None
-        }
-        InlineNode::BoldText(b) => find_xref_in_inlines(&b.content, position),
-        InlineNode::ItalicText(i) => find_xref_in_inlines(&i.content, position),
-        InlineNode::MonospaceText(m) => find_xref_in_inlines(&m.content, position),
-        InlineNode::HighlightText(h) => find_xref_in_inlines(&h.content, position),
-        InlineNode::SubscriptText(s) => find_xref_in_inlines(&s.content, position),
-        InlineNode::SuperscriptText(s) => find_xref_in_inlines(&s.content, position),
-        InlineNode::PlainText(_)
-        | InlineNode::RawText(_)
-        | InlineNode::VerbatimText(_)
-        | InlineNode::CurvedQuotationText(_)
-        | InlineNode::CurvedApostropheText(_)
-        | InlineNode::StandaloneCurvedApostrophe(_)
-        | InlineNode::LineBreak(_)
-        | InlineNode::InlineAnchor(_)
-        | InlineNode::Macro(_)
-        | InlineNode::CalloutRef(_)
-        // non_exhaustive
-        | _ => None,
-    }
+    super::definition::xref_occurrences(doc)
+        .filter(|xref| position_in_location(position, xref.location()))
+        .min_by_key(|xref| {
+            let location = xref.location();
+            location
+                .absolute_end()
+                .saturating_sub(location.absolute_start())
+        })
+        .map(|xref| (xref.target().to_owned(), xref.location().into()))
 }
 
 /// Find an anchor at an original-source scalar position.

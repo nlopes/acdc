@@ -39,7 +39,7 @@ fn offset(text: &str, position: Position) -> Result<usize, Box<dyn Error>> {
     Err("invalid line".into())
 }
 
-fn apply(text: &str, edits: &[TextEdit]) -> Result<String, Box<dyn Error>> {
+pub(super) fn apply(text: &str, edits: &[TextEdit]) -> Result<String, Box<dyn Error>> {
     let mut edits = edits
         .iter()
         .map(|edit| {

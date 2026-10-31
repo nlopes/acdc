@@ -555,3 +555,55 @@ fn contains_symbol_named(value: &Value, expected: &str) -> bool {
         Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => false,
     }
 }
+
+#[test]
+fn closed_file_rename_finds_content_xrefs_in_the_selected_backend() -> TestResult {
+    let project = Project::new("closed-content-xrefs")?;
+    let reader = concat!(
+        "= Reader\r\n\r\n",
+        "ifdef::backend-pdf[]\r\n",
+        ".😀 PDF <<../old.adoc#intro>>\r\nPDF paragraph.\r\n",
+        "endif::[]\r\n\r\n",
+        "ifdef::backend-html5[]\r\n",
+        "footnote:[😀 HTML <<../old.adoc#intro>>.]\r\n",
+        "endif::[]\r\n",
+    );
+    for folder in ["source", "target"] {
+        fs::create_dir(project.path().join(folder))?;
+        fs::write(project.path().join(folder).join("index.adoc"), reader)?;
+    }
+    fs::write(project.path().join("old.adoc"), "[[intro]]\n== Intro\n")?;
+    let backend = Rc::new(Cell::new("pdf"));
+    let mut client = client_with_scoped_backend(Rc::clone(&backend), &project)?;
+    for selected in ["pdf", "html5"] {
+        if selected != backend.get() {
+            backend.set(selected);
+            client.send_notification("workspace/didChangeConfiguration", json!({"settings":{}}))?;
+            client.wait_for_server_request("workspace/inlayHint/refresh")?;
+        }
+        let edit: tower_lsp_server::ls_types::WorkspaceEdit = serde_json::from_value(client.send_request(
+            "workspace/willRenameFiles",
+            json!({"files":[{"oldUri":project.uri("old.adoc")?,"newUri":project.uri("new.adoc")?}]}),
+        )?)?;
+        let changes = edit.changes.ok_or("file edits")?;
+        assert_eq!(changes.len(), 2);
+        for folder in ["source", "target"] {
+            let edits = changes
+                .get(&project.uri(&format!("{folder}/index.adoc"))?.parse()?)
+                .ok_or("reader edits")?;
+            assert_eq!(edits.len(), 1);
+            let label = if folder == "target" && selected == "pdf" {
+                "PDF"
+            } else {
+                "HTML"
+            };
+            let expected = reader.replace(
+                &format!("{label} <<../old.adoc#intro>>"),
+                &format!("{label} <<../new.adoc#intro>>"),
+            );
+            assert_eq!(super::source_edits::apply(reader, edits)?, expected);
+        }
+    }
+    client.shutdown();
+    Ok(())
+}

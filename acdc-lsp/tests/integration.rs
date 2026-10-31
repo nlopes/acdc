@@ -10,4 +10,5 @@ mod integration {
     mod preview;
     mod selection_range;
     mod source_edits;
+    mod xref_content;
 }

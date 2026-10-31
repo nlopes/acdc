@@ -51,7 +51,8 @@ pub(crate) fn prepare_rename(
 /// Compute the workspace edit for renaming an anchor/xref.
 ///
 /// Edit literal anchor IDs and references in their original files.
-/// Return `None` when no declaration has an editable ID.
+/// Return `None` when no declaration is editable or any retained reference
+/// cannot be edited safely.
 #[must_use]
 pub(crate) fn compute_rename(
     doc: &DocumentState,
@@ -100,28 +101,39 @@ pub(crate) fn compute_rename(
         return None;
     }
 
+    let mut all_references_editable = true;
     workspace.for_each_document(|doc_uri, doc_state| {
         for (target, xref_loc) in &doc_state.xrefs {
             let parsed = XrefTarget::parse(target);
             let anchor = parsed.anchor.as_deref().unwrap_or(target.as_str());
-            if anchor == target_id
-                && let Some(source_uri) = source_uri(doc_uri, xref_loc)
-            {
-                let Some(range) = workspace
-                    .with_document_text(&source_uri, |text| {
+            if anchor != target_id {
+                continue;
+            }
+            let edit = source_uri(doc_uri, xref_loc).and_then(|uri| {
+                let range = workspace
+                    .with_document_text(&uri, |text| {
                         xref_anchor_range(text, &xref_loc.location, &target_id)
                     })
-                    .flatten()
-                else {
-                    continue;
-                };
-                changes.entry(source_uri).or_default().push(TextEdit {
-                    range,
-                    new_text: new_name.to_string(),
-                });
+                    .flatten()?;
+                Some((
+                    uri,
+                    TextEdit {
+                        range,
+                        new_text: new_name.to_owned(),
+                    },
+                ))
+            });
+            if let Some((uri, edit)) = edit {
+                changes.entry(uri).or_default().push(edit);
+            } else {
+                all_references_editable = false;
             }
         }
     });
+    // A partial rename would leave retained references pointing at the old ID.
+    if !all_references_editable {
+        return None;
+    }
 
     for edits in changes.values_mut() {
         edits.sort_by_key(|edit| (edit.range.start, edit.range.end));

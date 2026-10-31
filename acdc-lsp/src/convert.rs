@@ -8,7 +8,7 @@ pub(crate) use coordinates::{
 
 use std::path::Path;
 
-use acdc_parser::{Location, SourceLocation};
+use acdc_parser::{Location, SourceLocation, ast::LocationRef};
 use tower_lsp_server::ls_types::{Position, Range, Uri};
 
 /// Convert usize to u32 for LSP types, saturating at `u32::MAX`.
@@ -78,24 +78,26 @@ pub(crate) fn offset_in_location(offset: usize, location: &Location) -> bool {
 }
 
 /// Match an original-source scalar cursor against an inclusive primary-file span.
-pub(crate) fn position_in_location(position: &acdc_parser::Position, location: &Location) -> bool {
+pub(crate) fn position_in_location<'a>(
+    position: &acdc_parser::Position,
+    location: impl Into<LocationRef<'a>>,
+) -> bool {
+    let location = location.into();
     is_primary_location(location)
-        && (position.line, position.column) >= (location.start.line, location.start.column)
-        && (position.line, position.column) <= (location.end.line, location.end.column)
+        && (position.line, position.column) >= (location.start().line(), location.start().column())
+        && (position.line, position.column) <= (location.end().line(), location.end().column())
 }
 
 /// Whether both endpoints belong to the text supplied by the editor.
-pub(crate) fn is_primary_location(location: &Location) -> bool {
-    location
-        .start
-        .file
-        .as_ref()
-        .is_none_or(|chain| chain.is_empty())
-        && location
-            .end
-            .file
-            .as_ref()
-            .is_none_or(|chain| chain.is_empty())
+pub(crate) fn is_primary_location<'a>(location: impl Into<LocationRef<'a>>) -> bool {
+    let location = location.into();
+    [location.start(), location.end()]
+        .into_iter()
+        .all(|position| {
+            position
+                .include_chain()
+                .is_none_or(|mut chain| chain.next().is_none())
+        })
 }
 
 /// Convert a file path to a URI with normal Windows drive syntax.

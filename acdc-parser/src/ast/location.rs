@@ -90,3 +90,10 @@ impl<'doc> From<&'doc Position> for PositionRef<'doc> {
         Self::new(position)
     }
 }
+
+impl From<LocationRef<'_>> for Location {
+    /// Copy the source span, including both endpoints' include chains.
+    fn from(location: LocationRef<'_>) -> Self {
+        location.location.clone()
+    }
+}
