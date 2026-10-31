@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Link IDs, classes, window controls, and image/icon link options keep their
+  existing behavior. Tooltips retain escaped plain text and present empty values.
+
 - Automatic links and footnote markers retain their labels, targets, and TOC
   behavior in both HTML variants.
 

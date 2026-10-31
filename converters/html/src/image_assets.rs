@@ -6,7 +6,7 @@ use std::{
 };
 
 use acdc_converters_core::TraversalContext;
-use acdc_parser::{ContentAttribute, ElementAttributes, SafeMode, Source};
+use acdc_parser::{ContentAttribute, ElementAttributes, SafeMode, Source, ast::ContentRef};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use quick_xml::{
     Reader, Writer,
@@ -65,7 +65,11 @@ impl<'a, W: std::io::Write> HtmlVisitor<'a, '_, W> {
 
         let mut attrs = Vec::new();
         write_dimension_attributes(&mut attrs, attributes)?;
-        write!(attrs, "{}", crate::inlines::tooltip_attribute(tooltip))?;
+        write!(
+            attrs,
+            "{}",
+            crate::inlines::tooltip_attribute(tooltip.map(ContentRef::from))
+        )?;
         if self.processor.variant() == HtmlVariant::Semantic
             && let Some(loading) = attributes.get_string("loading")
         {

@@ -58,11 +58,14 @@ use acdc_converters_core::{
     xref::{XrefDisplay, interdocument_xref, resolve_xref},
 };
 use acdc_parser::{
-    Anchor, AttributeValue, Bold, Button, CrossReference, CurvedApostrophe, CurvedQuotation,
-    ElementAttributes, Highlight, Icon, IndexTerm, IndexTermRelationship, InlineImage, InlineMacro,
-    InlineNode, Italic, Keyboard, Link, Mailto, Menu, Monospace, StemNotation, Subscript,
-    Substitution, Superscript, Url,
-    ast::{AutolinkRef, CalloutRef, FootnoteRef, PassRef, PlainRef, RawRef, StemRef, VerbatimRef},
+    Anchor, Bold, Button, CrossReference, CurvedApostrophe, CurvedQuotation, Highlight, Icon,
+    IndexTerm, IndexTermRelationship, InlineImage, InlineMacro, InlineNode, Italic, Keyboard, Link,
+    Mailto, Menu, Monospace, StemNotation, Subscript, Substitution, Superscript, Url,
+    ast::{
+        AttributeValueRef, AttributesRef, AutolinkRef, CalloutRef, ContentRef, ElementIdRef,
+        FootnoteRef, InlineImageRef, LinkRef, MailtoRef, PassRef, PlainRef, RawRef, StemRef,
+        TokensRef, UrlRef, VerbatimRef,
+    },
     strip_quotes,
 };
 
@@ -72,6 +75,8 @@ use crate::{
     image::image_link_control_attributes,
 };
 
+#[cfg(test)]
+mod attribute_reads_tests;
 #[cfg(test)]
 mod text_reads_tests;
 
@@ -156,19 +161,22 @@ fn raw_fragment_placeholder(index: usize) -> String {
     format!("\0{index}\0")
 }
 
-fn role_from_metadata(metadata: &acdc_parser::InlineMetadata<'_>) -> Option<String> {
-    (!metadata.roles.is_empty())
-        .then(|| strip_quotes(&metadata.roles.join(" ")).to_owned())
-        .filter(|role| !role.is_empty())
-}
-
 /// Build the ` class="..."` attribute (with leading space) for link-like anchors.
 ///
 /// - `bare` adds the `bare` class when `true` (asciidoctor's convention for empty link text
 ///   on URL/link macros; `Mailto` passes `false` because it does not use `bare`).
-/// - `role` contributes additional class tokens.
+/// - `roles` contributes additional class tokens.
 /// - Returns an empty string when neither applies.
-fn link_class_attr(role: Option<String>, bare: bool) -> String {
+fn link_class_attr(roles: TokensRef<'_>, bare: bool) -> String {
+    let mut role = String::new();
+    for (index, token) in roles.iter().enumerate() {
+        if index > 0 {
+            role.push(' ');
+        }
+        role.push_str(token);
+    }
+    let role = strip_quotes(&role);
+    let role = (!role.is_empty()).then_some(role);
     match (bare, role) {
         (true, Some(role)) => format!(" class=\"bare {role}\""),
         (true, None) => " class=\"bare\"".to_string(),
@@ -177,11 +185,10 @@ fn link_class_attr(role: Option<String>, bare: bool) -> String {
     }
 }
 
-fn link_id_attr(metadata: &acdc_parser::InlineMetadata<'_>) -> String {
-    metadata
-        .id
-        .as_ref()
-        .map_or_else(String::new, |id| format!(" id=\"{}\"", strip_quotes(id.id)))
+fn link_id_attr(id: Option<ElementIdRef<'_>>) -> String {
+    id.map_or_else(String::new, |id| {
+        format!(" id=\"{}\"", strip_quotes(id.as_str()))
+    })
 }
 
 /// Extract `target` and `rel` attributes from `window` or `target` attribute values.
@@ -189,23 +196,20 @@ fn link_id_attr(metadata: &acdc_parser::InlineMetadata<'_>) -> String {
 /// Maps the `AsciiDoc` `window` (preferred) or `target` attribute to HTML:
 /// - `window=_blank` / `target=_blank` → `target="_blank" rel="noopener"`
 /// - `window=<other>` / `target=<other>` → `target="<other>"`
-fn window_attrs(attributes: &ElementAttributes) -> String {
+fn window_attrs(attributes: AttributesRef<'_>) -> String {
     let get_str = |key: &str| {
-        attributes.get(key).and_then(|v| match v {
-            AttributeValue::String(s) => {
+        attributes.get(key).and_then(|value| {
+            if let AttributeValueRef::Text(s) = value {
                 let s = strip_quotes(s);
-                if s.is_empty() {
-                    None
-                } else {
-                    Some(s.to_string())
-                }
+                (!s.is_empty()).then_some(s)
+            } else {
+                None
             }
-            AttributeValue::Bool(_) | AttributeValue::None | _ => None,
         })
     };
     let window = get_str("window").or_else(|| get_str("target"));
     match window {
-        Some(w) if w == "_blank" => " target=\"_blank\" rel=\"noopener\"".to_string(),
+        Some("_blank") => " target=\"_blank\" rel=\"noopener\"".to_string(),
         Some(w) => format!(" target=\"{w}\""),
         None => String::new(),
     }
@@ -854,10 +858,11 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             return Ok(());
         }
 
-        let id_attr = link_id_attr(&l.metadata);
-        let class_attr = link_class_attr(role_from_metadata(&l.metadata), l.text.is_empty());
-        let target_attr = window_attrs(l.attributes());
-        let tooltip = tooltip_attribute(l.tooltip.as_ref());
+        let link = LinkRef::from(l);
+        let id_attr = link_id_attr(link.id());
+        let class_attr = link_class_attr(link.roles(), l.text.is_empty());
+        let target_attr = window_attrs(link.attributes());
+        let tooltip = tooltip_attribute(link.tooltip());
         self.with_inline_link(
             InlineLink::new(
                 escape_href(&target_str),
@@ -908,7 +913,8 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         }
 
         let link = i.attributes().get("link");
-        let link_controls = image_link_control_attributes(i.attributes(), i.options());
+        let image = InlineImageRef::from(i);
+        let link_controls = image_link_control_attributes(image.attributes(), image.options());
         if let Some(link) = link {
             write!(
                 w,
@@ -969,10 +975,11 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             return Ok(());
         }
 
-        let id_attr = link_id_attr(&u.metadata);
-        let class_attr = link_class_attr(role_from_metadata(&u.metadata), u.text.is_empty());
-        let target_attr = window_attrs(u.attributes());
-        let tooltip = tooltip_attribute(u.tooltip.as_ref());
+        let link = UrlRef::from(u);
+        let id_attr = link_id_attr(link.id());
+        let class_attr = link_class_attr(link.roles(), u.text.is_empty());
+        let target_attr = window_attrs(link.attributes());
+        let tooltip = tooltip_attribute(link.tooltip());
         self.with_inline_link(
             InlineLink::new(
                 escape_href(&target_str),
@@ -1015,10 +1022,11 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             return Ok(());
         }
 
-        let id_attr = link_id_attr(&m.metadata);
-        let class_attr = link_class_attr(role_from_metadata(&m.metadata), false);
-        let target_attr = window_attrs(m.attributes());
-        let tooltip = tooltip_attribute(m.tooltip.as_ref());
+        let link = MailtoRef::from(m);
+        let id_attr = link_id_attr(link.id());
+        let class_attr = link_class_attr(link.roles(), false);
+        let target_attr = window_attrs(link.attributes());
+        let tooltip = tooltip_attribute(link.tooltip());
         self.with_inline_link(
             InlineLink::new(
                 escape_href(&mailto_target(m)),
@@ -1611,12 +1619,12 @@ fn substitution_text(
     encode_html_entities(&text)
 }
 
-pub(crate) fn tooltip_attribute(content: Option<&acdc_parser::ContentAttribute<'_>>) -> String {
+pub(crate) fn tooltip_attribute(content: Option<ContentRef<'_>>) -> String {
     content.map_or_else(String::new, |content| {
         let text = InlineTextTransform::default()
             .rendered_replacements(true)
             .decode_char_refs(true)
-            .to_string(content);
+            .content_to_string(content);
         format!(
             " title=\"{}\"",
             crate::image_helpers::escape_image_text(&text)

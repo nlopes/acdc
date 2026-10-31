@@ -4,7 +4,7 @@ use acdc_converters_core::{
     TraversalContext,
     icon::{IconMode, alt as icon_alt, image_source},
 };
-use acdc_parser::{ElementAttributes, Icon};
+use acdc_parser::{ElementAttributes, Icon, ast::IconRef};
 
 use crate::{
     Error, HtmlVisitor,
@@ -69,7 +69,7 @@ impl<'a, W: std::io::Write> HtmlVisitor<'a, '_, W> {
         for role in &icon.metadata.roles {
             write!(class, " {role}")?;
         }
-        let tooltip = tooltip_attribute(icon.tooltip.as_ref());
+        let tooltip = tooltip_attribute(IconRef::from(icon).tooltip());
         let mut inner = match IconMode::from_attributes(traversal) {
             IconMode::Font => {
                 let mut classes = format!("{} fa-{}", get_fa_family(attrs, traversal), icon.target);
@@ -111,7 +111,8 @@ impl<'a, W: std::io::Write> HtmlVisitor<'a, '_, W> {
             }
         };
         if let Some(link) = attrs.get_string("link") {
-            let controls = image_link_control_attributes(attrs, icon.options());
+            let icon = IconRef::from(icon);
+            let controls = image_link_control_attributes(icon.attributes(), icon.options());
             inner = format!(
                 "<a class=\"image\" href=\"{}\"{controls}>{inner}</a>",
                 escape_attribute(&link)

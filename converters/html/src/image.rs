@@ -1,7 +1,11 @@
 use std::{io::Write, string::ToString};
 
 use acdc_converters_core::{TraversalContext, media::resolve_target};
-use acdc_parser::{CaptionKind, ElementAttributes, Image};
+use acdc_parser::{
+    CaptionKind, Image,
+    ast::{AttributeValueRef, AttributesRef, ImageRef, TokensRef},
+    strip_quotes,
+};
 
 use crate::{Error, HtmlVariant, HtmlVisitor, inlines::escape_attribute};
 
@@ -46,8 +50,8 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
         // Wrap in link if link attribute exists
         let link = img.metadata.attributes.get("link");
-        let link_controls =
-            image_link_control_attributes(&img.metadata.attributes, &img.metadata.options);
+        let image = ImageRef::from(img);
+        let link_controls = image_link_control_attributes(image.attributes(), image.options());
         if let Some(link) = link {
             write!(
                 self.writer,
@@ -134,8 +138,8 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
         // Check for link=self, link=none, or html5s-image-default-link=self
         let link = img.metadata.attributes.get("link");
-        let link_controls =
-            image_link_control_attributes(&img.metadata.attributes, &img.metadata.options);
+        let image = ImageRef::from(img);
+        let link_controls = image_link_control_attributes(image.attributes(), image.options());
         let link_str = link.as_ref().map(ToString::to_string);
         let is_link_none = link_str.as_deref() == Some("none");
         let is_link_self = link_str.as_deref() == Some("self");
@@ -212,19 +216,24 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 }
 
 pub(crate) fn image_link_control_attributes(
-    attributes: &ElementAttributes<'_>,
-    options: &[&str],
+    attributes: AttributesRef<'_>,
+    options: TokensRef<'_>,
 ) -> String {
     let window = attributes
-        .get_string("window")
+        .get("window")
+        .and_then(|value| {
+            if let AttributeValueRef::Text(text) = value {
+                Some(strip_quotes(text))
+            } else {
+                None
+            }
+        })
         .filter(|window| !window.is_empty());
-    let nofollow = options.contains(&"nofollow");
-    let noopener = window
-        .as_deref()
-        .is_some_and(|window| window == "_blank" || options.contains(&"noopener"));
+    let nofollow = options.contains("nofollow");
+    let noopener = window.is_some_and(|window| window == "_blank" || options.contains("noopener"));
 
     let mut attributes = window.map_or_else(String::new, |window| {
-        format!(" target=\"{}\"", escape_attribute(&window))
+        format!(" target=\"{}\"", escape_attribute(window))
     });
     match (nofollow, noopener) {
         (true, true) => attributes.push_str(" rel=\"nofollow noopener\""),
