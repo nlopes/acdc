@@ -84,6 +84,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Library callers can resolve typed block substitution settings against their
+  own defaults. Groups, modifier order, and empty settings keep their behavior.
+
 - Formatting span reads expose complete role text, including whitespace and
   explicit empty values, alongside role-token queries.
 

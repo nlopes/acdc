@@ -177,10 +177,10 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     ) -> Result<String, Error> {
         // Link labels inherit the verbatim block's substitution settings.
         #[cfg(feature = "pre-spec-subs")]
-        let previous_subs = self
-            .processor
-            .current_subs
-            .replace(effective_subs_flags(metadata.substitutions.as_ref(), true));
+        let previous_subs = self.processor.current_subs.replace(effective_subs_flags(
+            metadata.substitutions.as_ref().map(Into::into),
+            true,
+        ));
         let mut output = Vec::new();
         let mut visitor = self.nested_visitor(&mut output);
         // Block callers already collected terms; rendering link labels must not add them again.

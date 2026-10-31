@@ -329,7 +329,7 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
 
         #[cfg(feature = "pre-spec-subs")]
         let previous_subs = self.processor.current_subs.replace(effective_subs_flags(
-            block.metadata.substitutions.as_ref(),
+            block.metadata.substitutions.as_ref().map(Into::into),
             matches!(
                 block.inner,
                 DelimitedBlockType::DelimitedListing(_)

@@ -468,7 +468,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         let source_indent =
             crate::source_indent::resolve(metadata, traversal, &mut self.diagnostics);
         #[cfg(feature = "pre-spec-subs")]
-        let subs = effective_subs(metadata.substitutions.as_ref(), true);
+        let subs = effective_subs(metadata.substitutions.as_ref().map(Into::into), true);
         #[cfg(not(feature = "pre-spec-subs"))]
         let subs = {
             let _ = metadata;
@@ -1022,10 +1022,14 @@ fn render_stem_content_semantic<W: Write + ?Sized>(
 
 fn stem_html<'a>(stem: &StemContent<'a>, metadata: &BlockMetadata<'_>) -> Cow<'a, str> {
     #[cfg(feature = "pre-spec-subs")]
-    let special_chars = metadata.substitutions.as_ref().is_none_or(|spec| {
-        spec.resolve(&[Substitution::SpecialChars])
-            .contains(&Substitution::SpecialChars)
-    });
+    let special_chars = metadata
+        .substitutions
+        .as_ref()
+        .map(acdc_parser::ast::SubstitutionSpecRef::from)
+        .is_none_or(|spec| {
+            spec.resolve(&[Substitution::SpecialChars])
+                .contains(&Substitution::SpecialChars)
+        });
     #[cfg(not(feature = "pre-spec-subs"))]
     let special_chars = true;
     let _ = metadata;

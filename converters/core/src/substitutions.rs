@@ -13,7 +13,7 @@ use acdc_parser::{
 use crate::TraversalContext;
 
 #[cfg(feature = "pre-spec-subs")]
-use acdc_parser::SubstitutionSpec;
+use acdc_parser::ast::SubstitutionSpecRef;
 
 #[cfg(feature = "pre-spec-subs")]
 use bitflags::bitflags;
@@ -44,12 +44,11 @@ bitflags! {
     /// share variant names. The parser only ever needs the parse-time
     /// subset, so its version stays crate-private.
     ///
-    /// Only available when the `pre-spec-subs` feature is enabled — when
-    /// it's off, `[subs="…"]` block attributes are silently ignored at the
-    /// parser layer, so this bitset would always be `all()` and is omitted.
+    /// Only available with `pre-spec-subs`. Disabling this converter feature
+    /// uses converter defaults; parser structural substitutions remain active.
     ///
-    /// The grouping variants `Normal` and `Verbatim` expand during
-    /// resolution and never appear in the bitset.
+    /// Groups have no flag of their own. Source settings and modifiers expand
+    /// them during resolution.
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub struct SubsFlags: u8 {
         /// Macros are recognized in the inline grammar.
@@ -96,7 +95,7 @@ impl SubsFlags {
     ];
 
     /// Project a resolved substitution list (as returned by
-    /// [`SubstitutionSpec::resolve`]) into a [`SubsFlags`] bitset.
+    /// [`SubstitutionSpecRef::resolve`]) into a [`SubsFlags`] bitset.
     #[must_use]
     pub(crate) fn from_resolved(subs: &[Substitution]) -> Self {
         let mut flags = Self::empty();
@@ -112,29 +111,19 @@ impl SubsFlags {
     }
 }
 
-/// Resolve a [`SubstitutionSpec`] against the baseline for the block kind.
+/// Resolve optional block settings against normal or verbatim defaults.
 ///
-/// Verbatim blocks (listing, literal) use [`VERBATIM`] as the baseline;
-/// every other block uses [`NORMAL`]. Returns the concrete list of
-/// substitutions a converter should apply to the block's text.
+/// Absence keeps the defaults. An empty explicit list disables substitutions;
+/// an empty modifier list keeps the defaults. Source entries retain the parser's
+/// group, ordering, and modifier rules.
 ///
-/// Converters call this once per block (typically right before walking the
-/// inlines) and then query the returned list with `subs.contains(...)`.
-///
-/// # Behavior
-///
-/// - `spec = None` — returns the baseline as-is (block has no `[subs="…"]`).
-/// - `spec = Some(Source(...))` — resolves the authored list against the baseline.
-/// - `spec = Some(Explicit(...))` — returns the explicit list verbatim.
-/// - `spec = Some(Modifiers(...))` — applies the `+`/`-` modifiers to the
-///   baseline.
-///
-/// Only available when the `pre-spec-subs` feature is enabled. When the
-/// feature is off, callers should use the baseline directly via
-/// [`baseline_subs`].
+/// Only available with `pre-spec-subs`. Otherwise use [`baseline_subs`].
 #[cfg(feature = "pre-spec-subs")]
 #[must_use]
-pub fn effective_subs(spec: Option<&SubstitutionSpec>, is_verbatim: bool) -> Vec<Substitution> {
+pub fn effective_subs(
+    spec: Option<SubstitutionSpecRef<'_>>,
+    is_verbatim: bool,
+) -> Vec<Substitution> {
     let baseline = if is_verbatim { VERBATIM } else { NORMAL };
     match spec {
         Some(s) => s.resolve(baseline),
@@ -153,14 +142,13 @@ pub fn baseline_subs(is_verbatim: bool) -> Vec<Substitution> {
 
 /// Like [`effective_subs`] but returns a compact [`SubsFlags`] bitset.
 ///
-/// Preferred over [`effective_subs`] when the converter only ever queries
-/// membership: the result is a single `u8`, contains-checks become a single
-/// AND, and there's no per-block heap allocation.
+/// Use this when the converter only queries membership. The returned bitset
+/// supports constant-time checks; resolution can still allocate.
 ///
 /// Only available when the `pre-spec-subs` feature is enabled.
 #[cfg(feature = "pre-spec-subs")]
 #[must_use]
-pub fn effective_subs_flags(spec: Option<&SubstitutionSpec>, is_verbatim: bool) -> SubsFlags {
+pub fn effective_subs_flags(spec: Option<SubstitutionSpecRef<'_>>, is_verbatim: bool) -> SubsFlags {
     SubsFlags::from_resolved(&effective_subs(spec, is_verbatim))
 }
 
@@ -1273,6 +1261,39 @@ fn replace_contextual_apostrophes(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "pre-spec-subs")]
+    #[test]
+    fn typed_block_settings_keep_defaults_empty_values_and_flags() {
+        use acdc_parser::SubstitutionSpec;
+
+        for is_verbatim in [false, true] {
+            let defaults = if is_verbatim { VERBATIM } else { NORMAL };
+            assert_eq!(effective_subs(None, is_verbatim), defaults);
+            assert_eq!(
+                effective_subs_flags(None, is_verbatim),
+                SubsFlags::from_resolved(defaults)
+            );
+            for (spec, expected) in [
+                (SubstitutionSpec::Explicit(Vec::new()), Vec::new()),
+                (SubstitutionSpec::Modifiers(Vec::new()), defaults.to_vec()),
+                (
+                    SubstitutionSpec::Source(vec!["verbatim".into(), "+quotes".into()]),
+                    vec![
+                        Substitution::SpecialChars,
+                        Substitution::Callouts,
+                        Substitution::Quotes,
+                    ],
+                ),
+            ] {
+                assert_eq!(effective_subs(Some((&spec).into()), is_verbatim), expected);
+                assert_eq!(
+                    effective_subs_flags(Some((&spec).into()), is_verbatim),
+                    SubsFlags::from_resolved(&expected)
+                );
+            }
+        }
+    }
 
     #[test]
     fn passthrough_arrows_follow_character_escaping_order() {

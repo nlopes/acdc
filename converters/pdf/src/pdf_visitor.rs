@@ -1303,7 +1303,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     ) -> Result<(), Error> {
         #[cfg(feature = "pre-spec-subs")]
         let previous_subs = self.processor.current_subs.replace(effective_subs_flags(
-            para.metadata.substitutions.as_ref(),
+            para.metadata.substitutions.as_ref().map(Into::into),
             matches!(para.metadata.style, Some("literal" | "listing" | "source")),
         ));
 

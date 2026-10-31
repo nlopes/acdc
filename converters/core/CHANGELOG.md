@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- `effective_subs` and `effective_subs_flags` now accept
+  `Option<SubstitutionSpecRef>`; convert existing optional owner references with
+  `.map(Into::into)`. Block defaults, ordering, and feature behavior are unchanged.
+
 - Boxed cross-reference macros passed to `resolve_xref` now need `.as_ref()`.
   Direct `&CrossReference` references and typed `CrossReferenceRef` handles are accepted.
 

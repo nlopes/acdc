@@ -66,6 +66,15 @@ impl<'doc> SubstitutionSpecRef<'doc> {
             )
     }
 
+    /// Resolve these settings against the supplied block defaults.
+    ///
+    /// Source entries and modifiers expand groups; explicit lists remain unchanged.
+    /// The returned list is independent of this specification.
+    #[must_use]
+    pub fn resolve(self, defaults: &[Substitution]) -> Vec<Substitution> {
+        self.spec.resolve(defaults)
+    }
+
     /// Whether the specification has no retained entries. An empty modifier list
     /// keeps block defaults; an empty explicit list disables all substitutions.
     #[must_use]

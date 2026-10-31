@@ -302,7 +302,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         let source_indent =
             crate::source_indent::resolve(&para.metadata, traversal, &mut self.diagnostics);
         #[cfg(feature = "pre-spec-subs")]
-        let subs = effective_subs(para.metadata.substitutions.as_ref(), true);
+        let subs = effective_subs(para.metadata.substitutions.as_ref().map(Into::into), true);
         #[cfg(not(feature = "pre-spec-subs"))]
         let subs = baseline_subs(true);
 

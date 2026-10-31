@@ -1047,7 +1047,10 @@ impl<'a, W: Write> Visitor<'a> for HtmlVisitor<'a, '_, W> {
 
         // Compute effective substitutions for this paragraph
         #[cfg(feature = "pre-spec-subs")]
-        let new_subs = effective_subs(para.metadata.substitutions.as_ref(), is_verbatim);
+        let new_subs = effective_subs(
+            para.metadata.substitutions.as_ref().map(Into::into),
+            is_verbatim,
+        );
         #[cfg(not(feature = "pre-spec-subs"))]
         let new_subs = baseline_subs(is_verbatim);
         let original_subs = std::mem::replace(&mut self.current_subs, new_subs);
@@ -1071,7 +1074,10 @@ impl<'a, W: Write> Visitor<'a> for HtmlVisitor<'a, '_, W> {
 
         // Compute effective substitutions for this block
         #[cfg(feature = "pre-spec-subs")]
-        let new_subs = effective_subs(block.metadata.substitutions.as_ref(), is_verbatim);
+        let new_subs = effective_subs(
+            block.metadata.substitutions.as_ref().map(Into::into),
+            is_verbatim,
+        );
         #[cfg(not(feature = "pre-spec-subs"))]
         let new_subs = baseline_subs(is_verbatim);
         let original_subs = std::mem::replace(&mut self.current_subs, new_subs);

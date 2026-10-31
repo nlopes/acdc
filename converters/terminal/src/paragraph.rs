@@ -37,7 +37,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
                 Some("verse" | "literal" | "listing" | "source")
             );
             let previous_subs = self.processor.current_subs.replace(effective_subs_flags(
-                para.metadata.substitutions.as_ref(),
+                para.metadata.substitutions.as_ref().map(Into::into),
                 is_verbatim,
             ));
 

@@ -30,7 +30,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             // (and sub-visitors that clone the processor) don't leak state.
             let is_verbatim = matches!(para.metadata.style, Some("literal" | "listing" | "source"));
             let previous_subs = self.processor.current_subs.replace(effective_subs_flags(
-                para.metadata.substitutions.as_ref(),
+                para.metadata.substitutions.as_ref().map(Into::into),
                 is_verbatim,
             ));
 
@@ -193,10 +193,10 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         metadata: &BlockMetadata<'_>,
     ) -> Result<(), Error> {
         #[cfg(feature = "pre-spec-subs")]
-        let previous_subs = self
-            .processor
-            .current_subs
-            .replace(effective_subs_flags(metadata.substitutions.as_ref(), false));
+        let previous_subs = self.processor.current_subs.replace(effective_subs_flags(
+            metadata.substitutions.as_ref().map(Into::into),
+            false,
+        ));
         #[cfg(not(feature = "pre-spec-subs"))]
         let _ = metadata;
         let mut output = Vec::new();
