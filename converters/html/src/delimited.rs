@@ -814,7 +814,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             let parsed = acdc_parser::parse_text_for_quotes(&content);
             let options = self.render_options.clone();
             for node in parsed.inlines() {
-                self.render_inline_node(traversal, node, &options, &effective)?;
+                self.render_inline_node(traversal, node.into(), &options, &effective)?;
             }
         } else {
             let plain = InlineNode::PlainText(Plain {
@@ -823,7 +823,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 escaped: false,
             });
             let options = self.render_options.clone();
-            self.render_inline_node(traversal, &plain, &options, &effective)?;
+            self.render_inline_node(traversal, (&plain).into(), &options, &effective)?;
         }
         Ok(())
     }

@@ -7,8 +7,8 @@ use std::{
 
 use acdc_converters_core::TraversalContext;
 use acdc_parser::{
-    ContentAttribute, ElementAttributes, SafeMode,
-    ast::{ContentRef, SourceRef},
+    SafeMode,
+    ast::{AttributesRef, ContentRef, SourceRef, TokensRef},
 };
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use quick_xml::{
@@ -18,7 +18,7 @@ use quick_xml::{
 
 use crate::{
     Error, HtmlVariant, HtmlVisitor,
-    image_helpers::{escape_image_text, write_dimension_attributes},
+    image_helpers::{attribute_text, escape_image_text, write_dimension_attributes},
     inlines::escape_attribute,
 };
 
@@ -35,19 +35,17 @@ impl<'a, W: std::io::Write> HtmlVisitor<'a, '_, W> {
         &mut self,
         traversal: &mut TraversalContext<'a>,
         source: SourceRef<'_>,
-        attributes: &ElementAttributes<'_>,
-        options: &[&str],
-        alt: Option<&ContentAttribute<'_>>,
-        tooltip: Option<&ContentAttribute<'_>>,
+        attributes: AttributesRef<'_>,
+        options: TokensRef<'_>,
+        alt: Option<ContentRef<'_>>,
+        tooltip: Option<ContentRef<'_>>,
     ) -> Result<String, Error> {
         let alt_content = alt;
-        let alt =
-            acdc_converters_core::media::image_alt_from_content(source, alt.map(ContentRef::from));
+        let alt = acdc_converters_core::media::image_alt_from_content(source, alt);
         let target = acdc_converters_core::media::resolve_target(&source.to_string(), traversal);
-        let svg =
-            attributes.get_string("format").as_deref() == Some("svg") || target.contains(".svg");
+        let svg = attribute_text(attributes, "format") == Some("svg") || target.contains(".svg");
         let embedding_allowed = self.processor.options.safe_mode() < SafeMode::Secure;
-        if svg && embedding_allowed && options.contains(&"inline") {
+        if svg && embedding_allowed && options.contains("inline") {
             let result = self
                 .read_image(&target, traversal)
                 .and_then(|data| inline_svg(&data.bytes, attributes));
@@ -69,22 +67,18 @@ impl<'a, W: std::io::Write> HtmlVisitor<'a, '_, W> {
 
         let mut attrs = Vec::new();
         write_dimension_attributes(&mut attrs, attributes)?;
-        write!(
-            attrs,
-            "{}",
-            crate::inlines::tooltip_attribute(tooltip.map(ContentRef::from))
-        )?;
+        write!(attrs, "{}", crate::inlines::tooltip_attribute(tooltip))?;
         if self.processor.variant() == HtmlVariant::Semantic
-            && let Some(loading) = attributes.get_string("loading")
+            && let Some(loading) = attribute_text(attributes, "loading")
         {
-            write!(attrs, " loading=\"{}\"", escape_attribute(&loading))?;
+            write!(attrs, " loading=\"{}\"", escape_attribute(loading))?;
         }
         let attrs = String::from_utf8(attrs)?;
         let source = escape_attribute(&self.image_uri(&target, traversal));
         let alt = escape_image_text(&alt);
-        if svg && embedding_allowed && options.contains(&"interactive") {
-            let fallback = if let Some(fallback) = attributes.get_string("fallback") {
-                let fallback = acdc_converters_core::media::resolve_target(&fallback, traversal);
+        if svg && embedding_allowed && options.contains("interactive") {
+            let fallback = if let Some(fallback) = attribute_text(attributes, "fallback") {
+                let fallback = acdc_converters_core::media::resolve_target(fallback, traversal);
                 let fallback = escape_attribute(&self.image_uri(&fallback, traversal));
                 format!("<img src=\"{fallback}\" alt=\"{alt}\"{attrs}>")
             } else {
@@ -252,7 +246,7 @@ fn read_remote_image(_target: &str) -> Result<ImageData, String> {
     Err("remote image embedding requires the network feature".into())
 }
 
-fn inline_svg(bytes: &[u8], attributes: &ElementAttributes<'_>) -> Result<String, String> {
+fn inline_svg(bytes: &[u8], attributes: AttributesRef<'_>) -> Result<String, String> {
     let source = std::str::from_utf8(bytes).map_err(|error| error.to_string())?;
     let mut reader = Reader::from_str(source);
     loop {
@@ -274,8 +268,8 @@ fn inline_svg(bytes: &[u8], attributes: &ElementAttributes<'_>) -> Result<String
         if tag.name().as_ref() != b"svg" {
             return Err("image root element is not svg".into());
         }
-        let width = attributes.get_string("width");
-        let height = attributes.get_string("height");
+        let width = attribute_text(attributes, "width");
+        let height = attribute_text(attributes, "height");
         if width.is_none() && height.is_none() {
             return Ok(source
                 .get(start..)
@@ -293,7 +287,7 @@ fn inline_svg(bytes: &[u8], attributes: &ElementAttributes<'_>) -> Result<String
         }
         for (name, value) in [("width", width), ("height", height)] {
             if let Some(value) = value {
-                replacement.push_attribute((name, value.as_ref()));
+                replacement.push_attribute((name, value));
             }
         }
         let mut writer = Writer::new(Vec::new());

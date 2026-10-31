@@ -4,11 +4,12 @@ use acdc_converters_core::{
     TraversalContext,
     icon::{IconMode, alt_from_content as icon_alt, image_source},
 };
-use acdc_parser::{ElementAttributes, Icon, ast::IconRef};
+use acdc_parser::ast::{AttributesRef, IconRef};
 
 use crate::{
     Error, HtmlVisitor,
     image::image_link_control_attributes,
+    image_helpers::attribute_text,
     inlines::{escape_attribute, tooltip_attribute},
 };
 
@@ -31,11 +32,11 @@ fn resolve_fa_family(value: &str) -> Option<&'static str> {
 }
 
 /// Get the FA family CSS class for an icon, checking macro attributes then document defaults.
-fn get_fa_family(attrs: &ElementAttributes, doc_attrs: &TraversalContext<'_>) -> String {
+fn get_fa_family(attrs: AttributesRef<'_>, doc_attrs: &TraversalContext<'_>) -> String {
     // 1. Icon macro attribute: set= or pack= (aliases)
-    let macro_value = attrs.get_string("set").or_else(|| attrs.get_string("pack"));
+    let macro_value = attribute_text(attrs, "set").or_else(|| attribute_text(attrs, "pack"));
 
-    if let Some(ref val) = macro_value
+    if let Some(val) = macro_value
         && let Some(css_class) = resolve_fa_family(val)
     {
         return css_class.to_string();
@@ -59,41 +60,42 @@ impl<'a, W: std::io::Write> HtmlVisitor<'a, '_, W> {
     pub(crate) fn icon_markup(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        icon: &Icon<'_>,
+        icon: IconRef<'_>,
     ) -> Result<String, Error> {
         let attrs = icon.attributes();
         let mut class = String::from("icon");
-        if let Some(value) = attrs.get_string("float") {
+        if let Some(value) = attribute_text(attrs, "float") {
             write!(class, " {value}")?;
         }
-        for role in &icon.metadata.roles {
+        for role in icon.roles().iter() {
             write!(class, " {role}")?;
         }
-        let tooltip = tooltip_attribute(IconRef::from(icon).tooltip());
+        let tooltip = tooltip_attribute(icon.tooltip());
         let mut inner = match IconMode::from_attributes(traversal) {
             IconMode::Font => {
-                let mut classes = format!("{} fa-{}", get_fa_family(attrs, traversal), icon.target);
-                if let Some(size) = attrs.get_string("size") {
+                let mut classes =
+                    format!("{} fa-{}", get_fa_family(attrs, traversal), icon.target());
+                if let Some(size) = attribute_text(attrs, "size") {
                     write!(classes, " fa-{size}")?;
                 }
-                if let Some(flip) = attrs.get_string("flip") {
+                if let Some(flip) = attribute_text(attrs, "flip") {
                     write!(classes, " fa-flip-{flip}")?;
-                } else if let Some(rotate) = attrs.get_string("rotate") {
+                } else if let Some(rotate) = attribute_text(attrs, "rotate") {
                     write!(classes, " fa-rotate-{rotate}")?;
                 }
                 format!("<i class=\"{}\"{tooltip}></i>", escape_attribute(&classes))
             }
             IconMode::Image => {
-                let target = attrs.get_string("icon").map_or_else(
-                    || image_source(traversal, IconRef::from(icon).target()),
-                    |value| acdc_converters_core::icon::custom_image_source(traversal, &value),
+                let target = attribute_text(attrs, "icon").map_or_else(
+                    || image_source(traversal, icon.target()),
+                    |value| acdc_converters_core::icon::custom_image_source(traversal, value),
                 );
                 let source = self.image_uri(&target, traversal);
-                let alt = icon_alt(IconRef::from(icon).target(), IconRef::from(icon).alt());
+                let alt = icon_alt(icon.target(), icon.alt());
                 let mut dimensions = String::new();
                 for name in ["width", "height"] {
-                    if let Some(value) = attrs.get_string(name) {
-                        write!(dimensions, " {name}=\"{}\"", escape_attribute(&value))?;
+                    if let Some(value) = attribute_text(attrs, name) {
+                        write!(dimensions, " {name}=\"{}\"", escape_attribute(value))?;
                     }
                 }
                 format!(
@@ -103,19 +105,18 @@ impl<'a, W: std::io::Write> HtmlVisitor<'a, '_, W> {
                 )
             }
             IconMode::Text | _ => {
-                let alt = match &icon.alt {
+                let alt = match icon.alt() {
                     Some(content) => self.content_html(traversal, content)?,
-                    None => escape_attribute(&icon_alt(IconRef::from(icon).target(), None)),
+                    None => escape_attribute(&icon_alt(icon.target(), None)),
                 };
                 format!("[{alt}]")
             }
         };
-        if let Some(link) = attrs.get_string("link") {
-            let icon = IconRef::from(icon);
+        if let Some(link) = attribute_text(attrs, "link") {
             let controls = image_link_control_attributes(icon.attributes(), icon.options());
             inner = format!(
                 "<a class=\"image\" href=\"{}\"{controls}>{inner}</a>",
-                escape_attribute(&link)
+                escape_attribute(link)
             );
         }
         Ok(format!(

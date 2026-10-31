@@ -938,7 +938,7 @@ fn capture_code_inlines<'a, W: std::io::Write>(
                 &mut |term, term_offset| {
                     if let Some(id) = visitor.register_indexterm(
                         traversal,
-                        term,
+                        term.into(),
                         &RenderOptions::default(),
                         subs,
                     )? {

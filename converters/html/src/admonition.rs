@@ -40,7 +40,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             },
         );
         let caption = match admon.metadata.caption_content() {
-            Some(content) => self.content_html(traversal, content)?,
+            Some(content) => self.content_html(traversal, content.into())?,
             None => crate::inlines::escape_attribute(&caption),
         };
         let icon = self.admonition_icon(traversal, admon, &plain_caption);

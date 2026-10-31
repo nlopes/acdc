@@ -208,3 +208,124 @@ fn span_warning_order_and_inline_state_survive_a_write_error() -> Result<(), Tes
     }
     Ok(())
 }
+
+#[test]
+fn rich_inline_sequences_restore_context_after_write_errors() -> Result<(), TestError> {
+    let document = Document::default();
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        let processor = Rc::new(Processor::new_with_variant(
+            ConverterOptions::default(),
+            Options::builder(),
+            variant,
+        )?);
+        let source = WarningSource::new("html");
+        let mut warnings = Vec::new();
+        let mut visitor = HtmlVisitor::new(
+            RefusingWriter,
+            processor,
+            RenderOptions::default(),
+            Diagnostics::new(&source, &mut warnings),
+        );
+        let mut traversal = TraversalContext::new(&document.attributes);
+        let boundaries = acdc_converters_core::substitutions::TextBoundaries::NONE;
+        visitor.text_boundaries = boundaries;
+        {
+            let source = String::from("*bold _nested_* link:https://example.test[label]");
+            let parsed = parse_inline(&source, &Options::default())?;
+            assert!(
+                acdc_converters_core::visitor::InlineVisitor::visit_inline_nodes(
+                    &mut visitor,
+                    &mut traversal,
+                    parsed.content()
+                )
+                .is_err()
+            );
+        }
+        assert_eq!(visitor.text_boundaries, boundaries);
+        assert!(!visitor.render_options.in_inline_span);
+        assert!(visitor.inline_link.is_none());
+        drop(visitor);
+        assert!(warnings.is_empty(), "{warnings:?}");
+    }
+    Ok(())
+}
+
+#[test]
+fn typed_content_can_be_dropped_before_the_visitor_in_each_render_mode() -> Result<(), TestError> {
+    let document = Document::default();
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        for (basic, toc) in [(false, false), (true, false), (false, true)] {
+            let processor = Rc::new(Processor::new_with_variant(
+                ConverterOptions::default(),
+                Options::builder(),
+                variant,
+            )?);
+            let source = WarningSource::new("html");
+            let mut warnings = Vec::new();
+            let mut visitor = HtmlVisitor::new(
+                Vec::new(),
+                processor,
+                RenderOptions {
+                    inlines_basic: basic,
+                    toc_mode: toc,
+                    ..RenderOptions::default()
+                },
+                Diagnostics::new(&source, &mut warnings),
+            );
+            let mut traversal = TraversalContext::new(&document.attributes);
+            let boundaries = visitor.text_boundaries;
+            {
+                let source = String::from(
+                    "*bold _nested_* link:https://example.test[*label*] image:photo.png[Alt] \
+                     btn:[Save] kbd:[Ctrl+X] menu:File[Open > Recent] icon:heart[alt=Heart] \
+                     ((index label)) pass:[<i>raw</i>] latexmath:[x < y]",
+                );
+                let options = Options::builder()
+                    .with_attribute("experimental", "")
+                    .build()?;
+                let parsed = parse_inline(&source, &options)?;
+                acdc_converters_core::visitor::InlineVisitor::visit_inline_nodes(
+                    &mut visitor,
+                    &mut traversal,
+                    parsed.content(),
+                )?;
+            }
+            assert_eq!(visitor.text_boundaries, boundaries);
+            assert!(!visitor.render_options.in_inline_span);
+            {
+                let source = String::from(" trailing fragment");
+                let parsed = parse_inline(&source, &Options::default())?;
+                for node in parsed.content().inlines() {
+                    acdc_converters_core::visitor::InlineVisitor::visit_inline_node(
+                        &mut visitor,
+                        &mut traversal,
+                        node,
+                    )?;
+                }
+            }
+            let output = String::from_utf8(visitor.into_writer())?;
+            for text in [
+                "bold",
+                "nested",
+                "label",
+                "photo.png",
+                "Save",
+                "Ctrl",
+                "Open",
+                "index label",
+                "trailing fragment",
+            ] {
+                assert!(
+                    output.contains(text),
+                    "{variant:?}, basic={basic}, toc={toc}: {output}"
+                );
+            }
+            assert!(
+                !output.contains("<a href=\"https://example.test\"><a"),
+                "{output}"
+            );
+            assert!(warnings.is_empty(), "{warnings:?}");
+        }
+    }
+    Ok(())
+}

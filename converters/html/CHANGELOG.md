@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Inline rendering accepts typed parser content, including temporary fragments,
+  with unchanged HTML formatting, link handling, and diagnostics.
+
 - Formatting spans retain exact role text, empty-role wrappers, and deprecated
   role warnings in both HTML variants.
 

@@ -345,7 +345,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
             return Ok(());
         }
         let caption = match metadata.caption_content() {
-            Some(content) => self.content_html(traversal, content)?,
+            Some(content) => self.content_html(traversal, content.into())?,
             None => self
                 .processor
                 .caption_prefix(metadata, fallback)
@@ -1211,17 +1211,7 @@ impl<'a, W: Write> Visitor<'a> for HtmlVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         node: &InlineNode,
     ) -> Result<(), Self::Error> {
-        let saved = self.render_options.in_inline_span;
-        if acdc_converters_core::visitor::is_formatting_span(node) {
-            self.render_options.in_inline_span = true;
-        }
-
-        let options = self.render_options.clone();
-        let subs = self.current_subs.clone();
-        let result = self.render_inline_node(traversal, node, &options, &subs);
-
-        self.render_options.in_inline_span = saved;
-        result
+        self.visit_inline_ref(traversal, node.into())
     }
 
     fn visit_inline_nodes(
@@ -1229,30 +1219,7 @@ impl<'a, W: Write> Visitor<'a> for HtmlVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         nodes: &[InlineNode],
     ) -> Result<(), Self::Error> {
-        let previous_boundaries = self.text_boundaries;
-        let siblings = nodes.iter().map(InlineRef::from);
-        let result = (|| {
-            for (index, node) in nodes.iter().enumerate() {
-                let boundaries = if self.render_options.in_inline_span {
-                    TextBoundaries::NONE
-                } else {
-                    previous_boundaries
-                };
-                self.text_boundaries = boundaries
-                    .with_ordinary_replacements(
-                        self.current_subs.contains(&Substitution::Replacements),
-                    )
-                    .for_inline_refs(
-                        Some(node.into()),
-                        siblings.clone().take(index).rev(),
-                        siblings.clone().skip(index + 1),
-                    );
-                self.visit_inline_node(traversal, node)?;
-            }
-            self.close_inline_link()
-        })();
-        self.text_boundaries = previous_boundaries;
-        result
+        self.visit_inline_refs(traversal, nodes.iter().map(InlineRef::from))
     }
 
     fn visit_text(
