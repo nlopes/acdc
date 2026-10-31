@@ -4,8 +4,8 @@ use std::collections::HashMap;
 
 use acdc_converters_core::{TraversalContext, visitor::Visitor};
 use acdc_parser::{
-    Block, DelimitedBlockType, Document, InlineMacro, InlineNode, Location, Section,
-    ast::{CrossReferenceRef, DocumentRef, InlineKind, SectionRef},
+    Block, DelimitedBlockType, Document, InlineMacro, InlineNode, Location,
+    ast::{CrossReferenceRef, DocumentRef, InlineKind},
 };
 use tower_lsp_server::ls_types::{Position, Uri};
 
@@ -17,11 +17,6 @@ pub(crate) fn collect_anchors(doc: DocumentRef<'_>) -> HashMap<String, Location>
     super::identity::occurrences(doc)
         .map(|occurrence| (occurrence.id.to_owned(), occurrence.location))
         .collect()
-}
-
-/// The section's heading line, without its body.
-pub(super) fn heading_line_location(section: &Section) -> Location {
-    super::identity::heading_location(SectionRef::from(section))
 }
 
 /// Cross-references in retained content, excluding derived catalog copies.

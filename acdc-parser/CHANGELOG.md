@@ -84,6 +84,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Library callers can read registered cross-reference targets and TOC entries
+  through `DocumentRef::references()` and `toc_entries()`, without copying their
+  content. Reads preserve labels, empty values, section numbers, and catalog
+  snapshots without changing registrations or native JSON.
+
 - Inline content iterators support independent cloned cursors, reverse traversal,
   and exact remaining lengths without copying the content.
 

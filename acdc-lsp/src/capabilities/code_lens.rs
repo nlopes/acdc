@@ -1,6 +1,10 @@
 //! `CodeLens`: show reference counts above headings, anchors, and attribute definitions
 
-use acdc_parser::{Block, Document, InlineNode, Section};
+use std::ops::ControlFlow;
+
+use acdc_parser::ast::{DocumentRef, InlineKind, SectionRef};
+
+use super::body_occurrences::{BodyOccurrence, visit_body};
 use tower_lsp_server::ls_types::{CodeLens, Command, Uri};
 
 use crate::{
@@ -24,7 +28,7 @@ pub(crate) fn compute_code_lenses(
     let mut lenses = Vec::new();
 
     if let Some(ast) = doc.ast() {
-        collect_section_lenses(ast.document(), source, doc_uri, workspace, &mut lenses);
+        collect_section_lenses(ast.document_ref(), source, doc_uri, workspace, &mut lenses);
     }
     collect_attribute_def_lenses(doc, doc_uri, workspace, &mut lenses);
 
@@ -33,124 +37,52 @@ pub(crate) fn compute_code_lenses(
 
 /// Collect code lenses for section headings and inline anchors.
 fn collect_section_lenses(
-    ast: &Document,
+    ast: DocumentRef<'_>,
     source: &str,
     doc_uri: &Uri,
     workspace: &Workspace,
     lenses: &mut Vec<CodeLens>,
 ) {
-    for block in &ast.blocks {
-        collect_block_lenses(block, source, doc_uri, workspace, lenses);
-    }
-}
-
-fn collect_block_lenses(
-    block: &Block,
-    source: &str,
-    doc_uri: &Uri,
-    workspace: &Workspace,
-    lenses: &mut Vec<CodeLens>,
-) {
-    match block {
-        Block::Section(section) => {
-            add_section_lens(section, source, doc_uri, workspace, lenses);
-            for child in &section.content {
-                collect_block_lenses(child, source, doc_uri, workspace, lenses);
+    let _ = visit_body(ast, |node| {
+        match node {
+            BodyOccurrence::Section(section) => {
+                add_section_lens(section, source, doc_uri, workspace, lenses);
             }
-        }
-        Block::Paragraph(para) => {
-            collect_inline_anchor_lenses(&para.content, source, doc_uri, workspace, lenses);
-        }
-        Block::DelimitedBlock(delimited) => {
-            collect_delimited_lenses(&delimited.inner, source, doc_uri, workspace, lenses);
-        }
-        Block::UnorderedList(list) => {
-            for item in &list.items {
-                collect_inline_anchor_lenses(&item.principal, source, doc_uri, workspace, lenses);
-                for b in &item.blocks {
-                    collect_block_lenses(b, source, doc_uri, workspace, lenses);
+            BodyOccurrence::Inline(inline) => {
+                if let InlineKind::Anchor(anchor) = inline.kind()
+                    && is_primary_location(anchor.location())
+                    && let Some(range) = location_to_utf16_range(source, &anchor.location().into())
+                {
+                    let count = count_xrefs_to_anchor(anchor.id(), workspace);
+                    let range = tower_lsp_server::ls_types::Range::new(range.start, range.start);
+                    lenses.push(CodeLens {
+                        range,
+                        command: Some(make_references_command(count, doc_uri, range.start)),
+                        data: None,
+                    });
                 }
             }
+            BodyOccurrence::Image(_) => {}
         }
-        Block::OrderedList(list) => {
-            for item in &list.items {
-                collect_inline_anchor_lenses(&item.principal, source, doc_uri, workspace, lenses);
-                for b in &item.blocks {
-                    collect_block_lenses(b, source, doc_uri, workspace, lenses);
-                }
-            }
-        }
-        Block::DescriptionList(list) => {
-            for item in &list.items {
-                collect_inline_anchor_lenses(&item.principal_text, source, doc_uri, workspace, lenses);
-                for b in &item.description {
-                    collect_block_lenses(b, source, doc_uri, workspace, lenses);
-                }
-            }
-        }
-        Block::Admonition(adm) => {
-            for b in &adm.blocks {
-                collect_block_lenses(b, source, doc_uri, workspace, lenses);
-            }
-        }
-        Block::TableOfContents(_)
-        | Block::DiscreteHeader(_)
-        | Block::DocumentAttribute(_)
-        | Block::ThematicBreak(_)
-        | Block::PageBreak(_)
-        | Block::CalloutList(_)
-        | Block::Image(_)
-        | Block::Audio(_)
-        | Block::Video(_)
-        | Block::Comment(_)
-        // non_exhaustive
-        | _ => {}
-    }
-}
-
-fn collect_delimited_lenses(
-    inner: &acdc_parser::DelimitedBlockType,
-    source: &str,
-    doc_uri: &Uri,
-    workspace: &Workspace,
-    lenses: &mut Vec<CodeLens>,
-) {
-    match inner {
-        acdc_parser::DelimitedBlockType::DelimitedExample(blocks)
-        | acdc_parser::DelimitedBlockType::DelimitedOpen(blocks)
-        | acdc_parser::DelimitedBlockType::DelimitedSidebar(blocks)
-        | acdc_parser::DelimitedBlockType::DelimitedQuote(blocks) => {
-            for block in blocks {
-                collect_block_lenses(block, source, doc_uri, workspace, lenses);
-            }
-        }
-        acdc_parser::DelimitedBlockType::DelimitedListing(inlines)
-        | acdc_parser::DelimitedBlockType::DelimitedLiteral(inlines)
-        | acdc_parser::DelimitedBlockType::DelimitedPass(inlines)
-        | acdc_parser::DelimitedBlockType::DelimitedVerse(inlines)
-        | acdc_parser::DelimitedBlockType::DelimitedComment(inlines) => {
-            collect_inline_anchor_lenses(inlines, source, doc_uri, workspace, lenses);
-        }
-        acdc_parser::DelimitedBlockType::DelimitedTable(_)
-        | acdc_parser::DelimitedBlockType::DelimitedStem(_)
-        // non_exhaustive
-        | _ => {}
-    }
+        ControlFlow::<()>::Continue(())
+    });
 }
 
 fn add_section_lens(
-    section: &Section,
+    section: SectionRef<'_>,
     source: &str,
     doc_uri: &Uri,
     workspace: &Workspace,
     lenses: &mut Vec<CodeLens>,
 ) {
-    let heading = super::definition::heading_line_location(section);
+    let heading = super::identity::heading_location(section);
     if !is_primary_location(&heading) {
         return;
     }
-    let id = section.id().into_owned();
-    let count = count_xrefs_to_anchor(&id, workspace);
+    let Some(id) = section.id() else {
+        return;
+    };
+    let count = count_xrefs_to_anchor(id.as_str(), workspace);
 
     let Some(range) = location_to_utf16_range(source, &heading) else {
         return;
@@ -166,63 +98,6 @@ fn add_section_lens(
         command: Some(make_references_command(count, doc_uri, range.start)),
         data: None,
     });
-}
-
-fn collect_inline_anchor_lenses(
-    inlines: &[InlineNode],
-    source: &str,
-    doc_uri: &Uri,
-    workspace: &Workspace,
-    lenses: &mut Vec<CodeLens>,
-) {
-    for inline in inlines {
-        match inline {
-            InlineNode::InlineAnchor(anchor) => {
-                if !is_primary_location(&anchor.location) { continue; }
-                let count = count_xrefs_to_anchor(anchor.id, workspace);
-                let Some(range) = location_to_utf16_range(source, &anchor.location) else { continue; };
-                let range = tower_lsp_server::ls_types::Range {
-                    start: range.start,
-                    end: range.start,
-                };
-
-                lenses.push(CodeLens {
-                    range,
-                    command: Some(make_references_command(count, doc_uri, range.start)),
-                    data: None,
-                });
-            }
-            InlineNode::BoldText(b) => {
-                collect_inline_anchor_lenses(&b.content, source, doc_uri, workspace, lenses);
-            }
-            InlineNode::ItalicText(i) => {
-                collect_inline_anchor_lenses(&i.content, source, doc_uri, workspace, lenses);
-            }
-            InlineNode::MonospaceText(m) => {
-                collect_inline_anchor_lenses(&m.content, source, doc_uri, workspace, lenses);
-            }
-            InlineNode::HighlightText(h) => {
-                collect_inline_anchor_lenses(&h.content, source, doc_uri, workspace, lenses);
-            }
-            InlineNode::SubscriptText(s) => {
-                collect_inline_anchor_lenses(&s.content, source, doc_uri, workspace, lenses);
-            }
-            InlineNode::SuperscriptText(s) => {
-                collect_inline_anchor_lenses(&s.content, source, doc_uri, workspace, lenses);
-            }
-            InlineNode::PlainText(_)
-            | InlineNode::RawText(_)
-            | InlineNode::VerbatimText(_)
-            | InlineNode::CurvedQuotationText(_)
-            | InlineNode::CurvedApostropheText(_)
-            | InlineNode::StandaloneCurvedApostrophe(_)
-            | InlineNode::LineBreak(_)
-            | InlineNode::Macro(_)
-            | InlineNode::CalloutRef(_)
-            // non_exhaustive
-            | _ => {}
-        }
-    }
 }
 
 /// Collect code lenses for document attribute definitions.

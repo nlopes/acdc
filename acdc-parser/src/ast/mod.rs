@@ -203,6 +203,7 @@ macro_rules! node_ref {
 
 mod attributes;
 mod blocks;
+mod catalogs;
 mod content;
 mod content_fields;
 mod content_occurrences;
@@ -217,6 +218,7 @@ mod values;
 
 pub use attributes::AttributesRef;
 pub use blocks::*;
+pub use catalogs::{ReferenceRef, ReferencesRef, TocEntryRef};
 pub use content::{ContentListRef, ContentRef};
 pub use content_fields::{ContentFieldRef, ContentOwnerRef, ContentRole};
 pub use content_occurrences::ContentOccurrences;

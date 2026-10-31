@@ -1,5 +1,6 @@
 //! LSP capability implementations
 
+mod body_occurrences;
 pub(crate) mod call_hierarchy;
 pub(crate) mod code_actions;
 pub(crate) mod code_lens;

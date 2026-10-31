@@ -12,6 +12,7 @@ mod integration {
     mod inlay_hints;
     mod link_navigation;
     mod preview;
+    mod reference_displays;
     mod selection_range;
     mod source_edits;
     mod symbol_text;

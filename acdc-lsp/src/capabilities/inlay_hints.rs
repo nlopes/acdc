@@ -1,7 +1,11 @@
 //! Inlay hints show header attribute values and cross-reference text inline.
 
-use acdc_converters_core::{inlines_to_string, xref::reference_text};
-use acdc_parser::{Block, DelimitedBlockType, Document, InlineMacro, InlineNode};
+use std::ops::ControlFlow;
+
+use acdc_converters_core::InlineTextTransform;
+use acdc_parser::ast::{DocumentRef, InlineKind};
+
+use super::body_occurrences::{BodyOccurrence, visit_body};
 use tower_lsp_server::ls_types::{InlayHint, InlayHintLabel, Position, Range};
 
 use crate::{
@@ -20,7 +24,7 @@ pub(crate) fn compute_inlay_hints(doc: &DocumentState, range: &Range) -> Vec<Inl
     collect_attribute_hints(doc, range, &mut hints);
 
     if let Some(ast) = doc.ast() {
-        collect_xref_hints(ast.document(), doc.text(), range, &mut hints);
+        collect_xref_hints(ast.document_ref(), doc.text(), range, &mut hints);
     }
 
     hints
@@ -33,7 +37,7 @@ fn collect_attribute_hints(doc: &DocumentState, range: &Range, hints: &mut Vec<I
     let Some(ast) = doc.ast() else {
         return;
     };
-    let ast = ast.document();
+    let ast = ast.document_ref();
 
     for (name, loc) in &doc.attribute_refs {
         let Some(reference_range) = location_to_utf16_range(doc.text(), loc) else {
@@ -45,7 +49,7 @@ fn collect_attribute_hints(doc: &DocumentState, range: &Range, hints: &mut Vec<I
         }
 
         let mut value = String::new();
-        if let Some(attribute) = ast.attributes.get(name) {
+        if let Some(attribute) = ast.attributes().get(name) {
             let _ = attribute.write_text(&mut value);
             if value.is_empty() {
                 continue;
@@ -65,202 +69,55 @@ fn collect_attribute_hints(doc: &DocumentState, range: &Range, hints: &mut Vec<I
     }
 }
 
-/// Collect inlay hints for cross-references without explicit display text.
-///
-/// For each `<<id>>` or `xref:file#id[]` that has no display text,
-/// shows the resolved section reference text as a hint after the xref.
-fn collect_xref_hints(ast: &Document, source: &str, range: &Range, hints: &mut Vec<InlayHint>) {
-    for block in &ast.blocks {
-        collect_xref_hints_in_block(block, ast, source, range, hints);
-    }
-}
-
-fn collect_xref_hints_in_block(
-    block: &Block,
-    ast: &Document,
+/// Show registered local section text after body references without explicit labels.
+fn collect_xref_hints(
+    ast: DocumentRef<'_>,
     source: &str,
     range: &Range,
     hints: &mut Vec<InlayHint>,
 ) {
-    match block {
-        Block::Section(section) => {
-            for child in &section.content {
-                collect_xref_hints_in_block(child, ast, source, range, hints);
-            }
+    let _ = visit_body(ast, |node| {
+        if let BodyOccurrence::Inline(inline) = node
+            && let InlineKind::CrossReference(xref) = inline.kind()
+            && is_primary_location(xref.location())
+            && xref.text().is_empty()
+            && let Some(xref_range) = location_to_utf16_range(source, &xref.location().into())
+            && position_in_range(xref_range.end, range)
+            && let Some(hint_text) = resolve_xref_hint_text(xref.target(), ast)
+        {
+            hints.push(InlayHint {
+                position: xref_range.end,
+                label: InlayHintLabel::String(format!("→ {hint_text}")),
+                kind: None,
+                text_edits: None,
+                tooltip: None,
+                padding_left: Some(true),
+                padding_right: None,
+                data: None,
+            });
         }
-        Block::Paragraph(para) => {
-            collect_xref_hints_in_inlines(&para.content, ast, source, range, hints);
-        }
-        Block::DelimitedBlock(delimited) => {
-            collect_xref_hints_in_delimited(&delimited.inner, ast, source, range, hints);
-        }
-        Block::UnorderedList(list) => {
-            for item in &list.items {
-                collect_xref_hints_in_inlines(&item.principal, ast, source, range, hints);
-                for b in &item.blocks {
-                    collect_xref_hints_in_block(b, ast, source, range, hints);
-                }
-            }
-        }
-        Block::OrderedList(list) => {
-            for item in &list.items {
-                collect_xref_hints_in_inlines(&item.principal, ast, source, range, hints);
-                for b in &item.blocks {
-                    collect_xref_hints_in_block(b, ast, source, range, hints);
-                }
-            }
-        }
-        Block::DescriptionList(list) => {
-            for item in &list.items {
-                collect_xref_hints_in_inlines(&item.principal_text, ast, source, range, hints);
-                for b in &item.description {
-                    collect_xref_hints_in_block(b, ast, source, range, hints);
-                }
-            }
-        }
-        Block::Admonition(adm) => {
-            for b in &adm.blocks {
-                collect_xref_hints_in_block(b, ast, source, range, hints);
-            }
-        }
-        Block::TableOfContents(_)
-        | Block::DiscreteHeader(_)
-        | Block::DocumentAttribute(_)
-        | Block::ThematicBreak(_)
-        | Block::PageBreak(_)
-        | Block::CalloutList(_)
-        | Block::Image(_)
-        | Block::Audio(_)
-        | Block::Video(_)
-        | Block::Comment(_)
-        // non_exhaustive
-        | _ => {}
-    }
-}
-
-fn collect_xref_hints_in_delimited(
-    inner: &DelimitedBlockType,
-    ast: &Document,
-    source: &str,
-    range: &Range,
-    hints: &mut Vec<InlayHint>,
-) {
-    match inner {
-        DelimitedBlockType::DelimitedExample(blocks)
-        | DelimitedBlockType::DelimitedOpen(blocks)
-        | DelimitedBlockType::DelimitedSidebar(blocks)
-        | DelimitedBlockType::DelimitedQuote(blocks) => {
-            for block in blocks {
-                collect_xref_hints_in_block(block, ast, source, range, hints);
-            }
-        }
-        DelimitedBlockType::DelimitedListing(inlines)
-        | DelimitedBlockType::DelimitedLiteral(inlines)
-        | DelimitedBlockType::DelimitedPass(inlines)
-        | DelimitedBlockType::DelimitedVerse(inlines)
-        | DelimitedBlockType::DelimitedComment(inlines) => {
-            collect_xref_hints_in_inlines(inlines, ast, source, range, hints);
-        }
-        DelimitedBlockType::DelimitedTable(_)
-        | DelimitedBlockType::DelimitedStem(_)
-        // non_exhaustive
-        | _ => {}
-    }
-}
-
-fn collect_xref_hints_in_inlines(
-    inlines: &[InlineNode],
-    ast: &Document,
-    source: &str,
-    range: &Range,
-    hints: &mut Vec<InlayHint>,
-) {
-    for inline in inlines {
-        collect_xref_hint_in_inline(inline, ast, source, range, hints);
-    }
-}
-
-fn collect_xref_hint_in_inline(
-    inline: &InlineNode,
-    ast: &Document,
-    source: &str,
-    range: &Range,
-    hints: &mut Vec<InlayHint>,
-) {
-    match inline {
-        InlineNode::Macro(InlineMacro::CrossReference(xref)) => {
-            if !is_primary_location(&xref.location) || !xref.text.is_empty() {
-                return;
-            }
-
-            let Some(xref_range) = location_to_utf16_range(source, &xref.location) else { return; };
-            let hint_pos = xref_range.end;
-            if !position_in_range(hint_pos, range) {
-                return;
-            }
-
-            if let Some(hint_text) = resolve_xref_hint_text(xref.target, ast) {
-                hints.push(InlayHint {
-                    position: hint_pos,
-                    label: InlayHintLabel::String(format!("\u{2192} {hint_text}")),
-                    kind: None,
-                    text_edits: None,
-                    tooltip: None,
-                    padding_left: Some(true),
-                    padding_right: None,
-                    data: None,
-                });
-            }
-        }
-        InlineNode::BoldText(b) => {
-            collect_xref_hints_in_inlines(&b.content, ast, source, range, hints);
-        }
-        InlineNode::ItalicText(i) => {
-            collect_xref_hints_in_inlines(&i.content, ast, source, range, hints);
-        }
-        InlineNode::MonospaceText(m) => {
-            collect_xref_hints_in_inlines(&m.content, ast, source, range, hints);
-        }
-        InlineNode::HighlightText(h) => {
-            collect_xref_hints_in_inlines(&h.content, ast, source, range, hints);
-        }
-        InlineNode::SubscriptText(s) => {
-            collect_xref_hints_in_inlines(&s.content, ast, source, range, hints);
-        }
-        InlineNode::SuperscriptText(s) => {
-            collect_xref_hints_in_inlines(&s.content, ast, source, range, hints);
-        }
-        InlineNode::PlainText(_)
-        | InlineNode::RawText(_)
-        | InlineNode::VerbatimText(_)
-        | InlineNode::CurvedQuotationText(_)
-        | InlineNode::CurvedApostropheText(_)
-        | InlineNode::StandaloneCurvedApostrophe(_)
-        | InlineNode::LineBreak(_)
-        | InlineNode::InlineAnchor(_)
-        | InlineNode::Macro(_)
-        | InlineNode::CalloutRef(_)
-        // non_exhaustive
-        | _ => {}
-    }
+        ControlFlow::<()>::Continue(())
+    });
 }
 
 /// Resolve a local cross-reference target to its section reference text.
-fn resolve_xref_hint_text(target: &str, ast: &Document) -> Option<String> {
+fn resolve_xref_hint_text(target: &str, ast: DocumentRef<'_>) -> Option<String> {
     let parsed = crate::state::XrefTarget::parse(target);
 
-    // Only resolve local (same-document) xrefs for now
     if parsed.is_cross_file() {
         return None;
     }
 
     let anchor_id = parsed.anchor.as_deref()?;
 
-    ast.toc_entries.iter().find(|entry| entry.id == anchor_id)?;
-    ast.references
-        .get(anchor_id)
-        .and_then(reference_text)
-        .map(inlines_to_string)
+    if !ast.toc_entries().any(|entry| entry.id() == anchor_id) {
+        return None;
+    }
+    let reference = ast.references().get(anchor_id)?;
+    reference
+        .xreflabel()
+        .or_else(|| reference.title())
+        .map(|content| InlineTextTransform::default().content_to_string(content))
 }
 
 /// Check if a position falls within a range.

@@ -66,6 +66,12 @@ text. IDs retain their own source ranges. Mail `subject()` and `body()` read the
 second and third positional values before URI encoding; named attributes with
 those names remain extensions and do not populate the query.
 
+`document_ref().references()` reads registered targets by ID through `get()` or
+`iter()`. Titles and reference labels stay separate, including present empty
+content. `toc_entries()` reads the stored TOC order and section numbers. These
+catalogs are snapshots; reads do not repair them after tree edits or register
+new occurrences. Their content remains outside `content_occurrences()`.
+
 `CrossReferenceRef` keeps the resolved target, explicit label, and automatic-label
 policy separate. Target `reftext` belongs to the referenced element. Named
 `title` and `reftext` on the xref itself remain scalar extensions. Read identity,
