@@ -42,6 +42,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Library converters can derive typography context from typed inline iterators,
+  retaining word boundaries across anchors and index labels.
+
 - Library converters can build email destinations and icon image sources from
   typed parser handles. Existing owner calls keep their query and path handling.
 

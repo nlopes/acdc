@@ -19,8 +19,8 @@ use acdc_parser::{
     InlineNode, ListItem, NORMAL, OrderedList, PageBreak, Paragraph, Section, Substitution,
     TableOfContents, ThematicBreak, UnorderedList, Video,
     ast::{
-        BlockKind, BlockRef, ColumnFormatRef, DocumentAttributesRef, DocumentRef, StructuralRef,
-        TableRef,
+        BlockKind, BlockRef, ColumnFormatRef, DocumentAttributesRef, DocumentRef, InlineRef,
+        StructuralRef, TableRef,
     },
 };
 
@@ -1230,6 +1230,7 @@ impl<'a, W: Write> Visitor<'a> for HtmlVisitor<'a, '_, W> {
         nodes: &[InlineNode],
     ) -> Result<(), Self::Error> {
         let previous_boundaries = self.text_boundaries;
+        let siblings = nodes.iter().map(InlineRef::from);
         let result = (|| {
             for (index, node) in nodes.iter().enumerate() {
                 let boundaries = if self.render_options.in_inline_span {
@@ -1241,7 +1242,11 @@ impl<'a, W: Write> Visitor<'a> for HtmlVisitor<'a, '_, W> {
                     .with_ordinary_replacements(
                         self.current_subs.contains(&Substitution::Replacements),
                     )
-                    .for_inline(nodes, index);
+                    .for_inline_refs(
+                        Some(node.into()),
+                        siblings.clone().take(index).rev(),
+                        siblings.clone().skip(index + 1),
+                    );
                 self.visit_inline_node(traversal, node)?;
             }
             self.close_inline_link()

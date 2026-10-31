@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Dashes and apostrophes retain their surrounding word context across anchors
+  and index labels, including visible index terms and nested formatting.
+
 - Email subjects and bodies keep their URI encoding. Image icons keep `iconsdir`
   and `icontype` selection, including settings changed in the document body.
 

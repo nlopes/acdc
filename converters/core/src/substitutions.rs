@@ -254,7 +254,14 @@ impl TextBoundaries {
         )
     }
 
-    pub(crate) fn for_inline_refs<'doc>(
+    /// Retain word context around a typed inline fragment.
+    ///
+    /// `before` starts with the preceding sibling and runs backward; `after`
+    /// starts with the following sibling and runs forward. Each iterator is
+    /// read only as far as needed, using the same text and barrier rules as
+    /// [`Self::for_inline`].
+    #[must_use]
+    pub fn for_inline_refs<'doc>(
         self,
         node: Option<InlineRef<'doc>>,
         before: impl Iterator<Item = InlineRef<'doc>>,

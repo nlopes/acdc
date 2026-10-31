@@ -63,8 +63,8 @@ use acdc_parser::{
     Mailto, Menu, Monospace, StemNotation, Subscript, Substitution, Superscript, Url,
     ast::{
         AttributeValueRef, AttributesRef, AutolinkRef, CalloutRef, ContentRef, ElementIdRef,
-        FootnoteRef, InlineImageRef, LinkRef, MailtoRef, PassRef, PlainRef, RawRef, StemRef,
-        TokensRef, UrlRef, VerbatimRef,
+        FootnoteRef, InlineImageRef, InlineRef, LinkRef, MailtoRef, PassRef, PlainRef, RawRef,
+        StemRef, TokensRef, UrlRef, VerbatimRef,
     },
     strip_quotes,
 };
@@ -1504,6 +1504,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         // Concealed terms: no visible text.
         if it.is_visible() {
             let boundaries = self.text_boundaries();
+            let siblings = it.term().iter().map(InlineRef::from);
             let result = it
                 .term()
                 .iter()
@@ -1511,7 +1512,11 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 .try_for_each(|(index, inline)| {
                     self.text_boundaries = boundaries
                         .with_ordinary_replacements(subs.contains(&Substitution::Replacements))
-                        .for_inline(it.term(), index);
+                        .for_inline_refs(
+                            Some(inline.into()),
+                            siblings.clone().take(index).rev(),
+                            siblings.clone().skip(index + 1),
+                        );
                     self.render_inline_node(traversal, inline, options, subs)
                 });
             self.text_boundaries = boundaries;
