@@ -91,7 +91,7 @@ pub fn resolve_code_link(
         let label = if xref.text.is_empty() {
             let guard = XrefGuard::default();
             let text = text.in_reference();
-            match resolve_xref(references.get(xref.target), xref, &guard) {
+            match resolve_xref(references.get(xref.target), xref.as_ref(), &guard) {
                 XrefDisplay::Title(nodes, _) | XrefDisplay::Label(nodes, _) => {
                     text.to_string(nodes)
                 }

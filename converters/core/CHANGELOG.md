@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- Boxed cross-reference macros passed to `resolve_xref` now need `.as_ref()`.
+  Direct `&CrossReference` references and typed `CrossReferenceRef` handles are accepted.
+
 - Boxed mail macros passed to `mailto_target` now need `.as_ref()`. Direct
   `&Mailto` references and typed `MailtoRef` handles are accepted.
 
@@ -41,6 +44,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   paragraph.
 
 ### Added
+
+- Library converters can resolve automatic references from typed parser handles,
+  with the same label precedence, caption styles, and recursion protection.
 
 - Library converters can derive typography context from typed inline iterators,
   retaining word boundaries across anchors and index labels.

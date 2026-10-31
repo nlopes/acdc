@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Automatic cross-references retain their reference labels, caption styles,
+  signifiers, and fallback text.
+
 - Dashes and apostrophes retain their surrounding word context across anchors
   and index labels, including visible index terms and nested formatting.
 

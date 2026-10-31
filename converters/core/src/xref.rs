@@ -3,8 +3,8 @@
 use std::{cell::Cell, rc::Rc};
 
 use acdc_parser::{
-    CrossReference, InlineNode, Reference, XrefCaptionLabel, XrefSignifier, XrefStyle,
-    ast::{CaptionRef, ReferenceRef},
+    InlineNode, Reference, XrefCaptionLabel, XrefSignifier, XrefStyle,
+    ast::{CaptionRef, CrossReferenceRef, ReferenceRef},
 };
 
 /// Display content for an automatic cross-reference.
@@ -100,6 +100,10 @@ pub fn reference_text<'r, 'a>(reference: &'r Reference<'a>) -> Option<&'r [Inlin
 
 /// Resolve an empty cross-reference's display content.
 ///
+/// Accepts typed handles and references to cross-reference owners. The result
+/// borrows only the catalog and guard; occurrence controls may be dropped after
+/// resolution.
+///
 /// Explicit reference labels take precedence over caption styles and target
 /// titles. Numbered sections honor the style with their word and number, as
 /// in `Section 1.1`; an unnumbered one is referenced by its title under every
@@ -113,13 +117,14 @@ pub fn reference_text<'r, 'a>(reference: &'r Reference<'a>) -> Option<&'r [Inlin
 /// inside another one's text. Inter-document targets are returned separately
 /// for backend-specific links, even if the local catalog contains the same ID.
 #[must_use]
-pub fn resolve_xref<'r, 'a>(
+pub fn resolve_xref<'r, 'a, 'xref>(
     reference: Option<&'r Reference<'a>>,
-    xref: &CrossReference<'_>,
+    xref: impl Into<CrossReferenceRef<'xref>>,
     guard: &'r XrefGuard,
 ) -> XrefDisplay<'r, 'a> {
-    let target = xref.target;
-    if !xref.target_is_local {
+    let xref = xref.into();
+    let target = xref.target();
+    if !xref.target_is_local() {
         return XrefDisplay::External(target.to_string());
     }
     let fallback = if target.is_empty() { "^top" } else { target };
@@ -135,10 +140,10 @@ pub fn resolve_xref<'r, 'a>(
         &reference.title,
         reference.section_name(),
         reference.section_number(),
-    ) && matches!(xref.xrefstyle, XrefStyle::Short | XrefStyle::Full)
+    ) && matches!(xref.xrefstyle(), XrefStyle::Short | XrefStyle::Full)
     {
         let prefix = section_prefix(name, number, xref.signifier());
-        if xref.xrefstyle == XrefStyle::Short {
+        if xref.xrefstyle() == XrefStyle::Short {
             XrefDisplay::ShortCaption(prefix)
         } else if matches!(name, "chapter" | "appendix") {
             XrefDisplay::Emphasized(Some(prefix), title.as_ref(), guard.enter())
@@ -146,7 +151,7 @@ pub fn resolve_xref<'r, 'a>(
             XrefDisplay::FullCaption(prefix, title.as_ref(), guard.enter())
         }
     } else if let Some(title) = &reference.title
-        && xref.xrefstyle != XrefStyle::Default
+        && xref.xrefstyle() != XrefStyle::Default
         && matches!(reference.section_name(), Some("chapter" | "appendix"))
     {
         XrefDisplay::Emphasized(None, title.as_ref(), guard.enter())
@@ -156,9 +161,9 @@ pub fn resolve_xref<'r, 'a>(
             .caption()
             .and_then(|caption| caption_prefix(caption, xref)),
     ) {
-        if xref.xrefstyle == XrefStyle::Short {
+        if xref.xrefstyle() == XrefStyle::Short {
             XrefDisplay::ShortCaption(prefix)
-        } else if xref.xrefstyle == XrefStyle::Full {
+        } else if xref.xrefstyle() == XrefStyle::Full {
             XrefDisplay::FullCaption(prefix, title.as_ref(), guard.enter())
         } else {
             XrefDisplay::Title(title.as_ref(), guard.enter())
@@ -193,16 +198,16 @@ fn section_prefix(name: &str, number: &str, signifier: XrefSignifier<'_>) -> Str
     }
 }
 
-fn caption_prefix(caption: CaptionRef<'_>, xref: &CrossReference<'_>) -> Option<String> {
+fn caption_prefix(caption: CaptionRef<'_>, xref: CrossReferenceRef<'_>) -> Option<String> {
     match caption {
         CaptionRef::Numbered {
             label,
             number: Some(number),
             ..
         } => {
-            let label = if let XrefCaptionLabel::AtReference(label) = xref.caption_label {
+            let label = if let XrefCaptionLabel::AtReference(label) = xref.caption_label() {
                 label
-            } else if xref.caption_label == XrefCaptionLabel::NumberOnly {
+            } else if xref.caption_label() == XrefCaptionLabel::NumberOnly {
                 ""
             } else {
                 label
@@ -690,7 +695,7 @@ mod tests {
                     return None;
                 };
                 let XrefDisplay::ShortCaption(prefix) =
-                    resolve_xref(references.get(xref.target), xref, &guard)
+                    resolve_xref(references.get(xref.target), xref.as_ref(), &guard)
                 else {
                     return None;
                 };

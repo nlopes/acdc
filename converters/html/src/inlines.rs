@@ -62,9 +62,9 @@ use acdc_parser::{
     IndexTerm, IndexTermRelationship, InlineImage, InlineMacro, InlineNode, Italic, Keyboard, Link,
     Mailto, Menu, Monospace, StemNotation, Subscript, Substitution, Superscript, Url,
     ast::{
-        AttributeValueRef, AttributesRef, AutolinkRef, CalloutRef, ContentRef, ElementIdRef,
-        FootnoteRef, InlineImageRef, InlineRef, LinkRef, MailtoRef, PassRef, PlainRef, RawRef,
-        StemRef, TokensRef, UrlRef, VerbatimRef,
+        AttributeValueRef, AttributesRef, AutolinkRef, CalloutRef, ContentRef, CrossReferenceRef,
+        ElementIdRef, FootnoteRef, InlineImageRef, InlineRef, LinkRef, MailtoRef, PassRef,
+        PlainRef, RawRef, StemRef, TokensRef, UrlRef, VerbatimRef,
     },
     strip_quotes,
 };
@@ -1159,7 +1159,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             let processor = Rc::clone(&self.processor);
             let display = resolve_xref(
                 processor.references.get(target),
-                xref,
+                CrossReferenceRef::from(xref),
                 &processor.xref_guard,
             );
 
