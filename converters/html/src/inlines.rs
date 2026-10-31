@@ -889,9 +889,10 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         i: &InlineImage<'_>,
     ) -> Result<(), Error> {
         let is_semantic = self.processor.variant() == HtmlVariant::Semantic;
+        let image = InlineImageRef::from(i);
         let markup = self.image_markup(
             traversal,
-            &i.source,
+            image.source(),
             i.attributes(),
             i.options(),
             i.alt.as_ref(),
@@ -913,7 +914,6 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         }
 
         let link = i.attributes().get("link");
-        let image = InlineImageRef::from(i);
         let link_controls = image_link_control_attributes(image.attributes(), image.options());
         if let Some(link) = link {
             write!(

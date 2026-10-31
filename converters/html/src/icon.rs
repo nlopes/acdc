@@ -2,7 +2,7 @@ use std::fmt::Write as _;
 
 use acdc_converters_core::{
     TraversalContext,
-    icon::{IconMode, alt as icon_alt, image_source},
+    icon::{IconMode, alt_from_content as icon_alt, image_source},
 };
 use acdc_parser::{ElementAttributes, Icon, ast::IconRef};
 
@@ -89,7 +89,7 @@ impl<'a, W: std::io::Write> HtmlVisitor<'a, '_, W> {
                     |value| acdc_converters_core::icon::custom_image_source(traversal, &value),
                 );
                 let source = self.image_uri(&target, traversal);
-                let alt = icon_alt(&icon.target, icon.alt.as_ref());
+                let alt = icon_alt(IconRef::from(icon).target(), IconRef::from(icon).alt());
                 let mut dimensions = String::new();
                 for name in ["width", "height"] {
                     if let Some(value) = attrs.get_string(name) {
@@ -105,7 +105,7 @@ impl<'a, W: std::io::Write> HtmlVisitor<'a, '_, W> {
             IconMode::Text | _ => {
                 let alt = match &icon.alt {
                     Some(content) => self.content_html(traversal, content)?,
-                    None => escape_attribute(&icon_alt(&icon.target, None)),
+                    None => escape_attribute(&icon_alt(IconRef::from(icon).target(), None)),
                 };
                 format!("[{alt}]")
             }

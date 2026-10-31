@@ -37,37 +37,52 @@ use crate::TraversalContext;
 /// underscores in the icon target become spaces.
 #[must_use]
 pub fn alt<'a>(target: &Source<'a>, content: Option<&ContentAttribute<'_>>) -> Cow<'a, str> {
-    if let Some(content) = content {
-        return Cow::Owned(alt_text(ContentRef::from(content)));
-    }
-    match target {
-        Source::Name(name) if !name.contains(['-', '_']) => Cow::Borrowed(*name),
-        Source::Name(name) => Cow::Owned(name.replace(['-', '_'], " ")),
-        Source::Path(_) | Source::Url(_) => Cow::Owned(target.to_string().replace(['-', '_'], " ")),
-    }
+    resolve_alt(
+        || match target {
+            Source::Name(name) => Cow::Borrowed(*name),
+            Source::Path(_) | Source::Url(_) => Cow::Owned(target.to_string()),
+        },
+        content.map(ContentRef::from),
+    )
 }
 
-pub(crate) fn alt_from_content<'a>(
+/// Resolve an icon alternative from a typed target and optional content.
+///
+/// Explicit content, including an empty value, produces owned plain text.
+/// Otherwise, a symbolic name without hyphens or underscores is borrowed;
+/// other targets produce owned text with those characters replaced by spaces.
+#[must_use]
+pub fn alt_from_content<'a>(
     target: SourceRef<'a>,
     content: Option<ContentRef<'_>>,
 ) -> Cow<'a, str> {
-    if let Some(content) = content {
-        return Cow::Owned(alt_text(content));
-    }
-    match target.kind() {
-        SourceKind::Name(name) if !name.contains(['-', '_']) => Cow::Borrowed(name),
-        SourceKind::Name(name) => Cow::Owned(name.replace(['-', '_'], " ")),
-        SourceKind::Path(_) | SourceKind::Url(_) | _ => {
-            Cow::Owned(target.to_string().replace(['-', '_'], " "))
-        }
-    }
+    resolve_alt(
+        || match target.kind() {
+            SourceKind::Name(name) => Cow::Borrowed(name),
+            SourceKind::Path(_) | SourceKind::Url(_) | _ => Cow::Owned(target.to_string()),
+        },
+        content,
+    )
 }
 
-fn alt_text(content: ContentRef<'_>) -> String {
-    crate::inline_text::InlineTextTransform::default()
-        .rendered_replacements(true)
-        .decode_char_refs(true)
-        .content_to_string(content)
+fn resolve_alt<'a>(
+    target: impl FnOnce() -> Cow<'a, str>,
+    content: Option<ContentRef<'_>>,
+) -> Cow<'a, str> {
+    if let Some(content) = content {
+        return Cow::Owned(
+            crate::inline_text::InlineTextTransform::default()
+                .rendered_replacements(true)
+                .decode_char_refs(true)
+                .content_to_string(content),
+        );
+    }
+    let target = target();
+    if target.contains(['-', '_']) {
+        Cow::Owned(target.replace(['-', '_'], " "))
+    } else {
+        target
+    }
 }
 
 /// Build the logical image source for an icon.

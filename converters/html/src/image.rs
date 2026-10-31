@@ -62,7 +62,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
         let markup = self.image_markup(
             traversal,
-            &img.source,
+            image.source(),
             &img.metadata.attributes,
             &img.metadata.options,
             img.alt.as_ref(),
@@ -184,7 +184,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
         let markup = self.image_markup(
             traversal,
-            &img.source,
+            image.source(),
             &img.metadata.attributes,
             &img.metadata.options,
             img.alt.as_ref(),

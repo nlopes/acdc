@@ -132,6 +132,15 @@ pub enum SourceKind<'doc> {
 }
 
 impl<'doc> SourceRef<'doc> {
+    /// The UTF-8 filename, or the complete symbolic name.
+    ///
+    /// URLs use the final parsed path segment, excluding query and fragment.
+    /// A trailing URL slash or a non-UTF-8 filename returns `None`.
+    #[must_use]
+    pub fn file_name(self) -> Option<&'doc str> {
+        self.source.get_filename()
+    }
+
     /// The target's semantic kind and value.
     #[must_use]
     pub fn kind(self) -> SourceKind<'doc> {

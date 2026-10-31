@@ -6,7 +6,10 @@ use std::{
 };
 
 use acdc_converters_core::TraversalContext;
-use acdc_parser::{ContentAttribute, ElementAttributes, SafeMode, Source, ast::ContentRef};
+use acdc_parser::{
+    ContentAttribute, ElementAttributes, SafeMode,
+    ast::{ContentRef, SourceRef},
+};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use quick_xml::{
     Reader, Writer,
@@ -31,14 +34,15 @@ impl<'a, W: std::io::Write> HtmlVisitor<'a, '_, W> {
     pub(crate) fn image_markup(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        source: &Source<'_>,
+        source: SourceRef<'_>,
         attributes: &ElementAttributes<'_>,
         options: &[&str],
         alt: Option<&ContentAttribute<'_>>,
         tooltip: Option<&ContentAttribute<'_>>,
     ) -> Result<String, Error> {
         let alt_content = alt;
-        let alt = acdc_converters_core::media::image_alt(source, alt);
+        let alt =
+            acdc_converters_core::media::image_alt_from_content(source, alt.map(ContentRef::from));
         let target = acdc_converters_core::media::resolve_target(&source.to_string(), traversal);
         let svg =
             attributes.get_string("format").as_deref() == Some("svg") || target.contains(".svg");

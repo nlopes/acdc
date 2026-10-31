@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Image and icon alternatives retain filename fallbacks, explicit empty values,
+  escaped plain-text attributes, and formatted SVG fallback content.
+
 - Automatic cross-references retain their reference labels, caption styles,
   signifiers, and fallback text.
 

@@ -45,6 +45,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Image and icon alternative-text helpers accept typed targets and content.
+  Existing calls retain their fallback text, empty values, and return lifetimes.
+
 - Library converters can resolve automatic references from typed parser handles,
   with the same label precedence, caption styles, and recursion protection.
 

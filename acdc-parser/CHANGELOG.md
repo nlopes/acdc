@@ -84,6 +84,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Typed media targets expose their filename without reparsing URLs, retaining
+  parsed URL path semantics and non-UTF-8 path handling.
+
 - Standalone inline parses expose typed content through `ParseInlineResult::content()`
   without copying nodes or changing their source locations. Existing slice reads
   and native JSON remain unchanged.

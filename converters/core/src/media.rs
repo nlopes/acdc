@@ -2,7 +2,10 @@
 
 use std::{borrow::Cow, path::Path};
 
-use acdc_parser::{ContentAttribute, Source};
+use acdc_parser::{
+    ContentAttribute, Source,
+    ast::{ContentRef, SourceRef},
+};
 use relative_path::RelativePath;
 
 use crate::TraversalContext;
@@ -93,22 +96,30 @@ pub fn resolve_target(target: &str, attributes: &TraversalContext<'_>) -> String
 /// Use explicit alternative text, including an empty value, or the filename.
 #[must_use]
 pub fn image_alt<'a>(source: &Source<'_>, alt: Option<&ContentAttribute<'_>>) -> Cow<'a, str> {
+    Cow::Owned(image_alt_from_content(
+        source.into(),
+        alt.map(ContentRef::from),
+    ))
+}
+
+/// Use typed alternative content, including an empty value, or the filename.
+///
+/// Explicit content becomes plain text. Otherwise, the filename stem is used,
+/// with hyphens and underscores replaced by spaces. The result is always owned.
+#[must_use]
+pub fn image_alt_from_content(source: SourceRef<'_>, alt: Option<ContentRef<'_>>) -> String {
     if let Some(alt) = alt {
-        return Cow::Owned(
-            crate::inline_text::InlineTextTransform::default()
-                .rendered_replacements(true)
-                .decode_char_refs(true)
-                .to_string(alt),
-        );
+        return crate::inline_text::InlineTextTransform::default()
+            .rendered_replacements(true)
+            .decode_char_refs(true)
+            .content_to_string(alt);
     }
-    Cow::Owned(
-        source
-            .get_filename()
-            .and_then(|filename| Path::new(filename).file_stem())
-            .and_then(std::ffi::OsStr::to_str)
-            .unwrap_or_default()
-            .replace(['-', '_'], " "),
-    )
+    source
+        .file_name()
+        .and_then(|filename| Path::new(filename).file_stem())
+        .and_then(std::ffi::OsStr::to_str)
+        .unwrap_or_default()
+        .replace(['-', '_'], " ")
 }
 
 /// Append the authored start/end playback range to a media URI.
