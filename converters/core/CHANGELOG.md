@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- `TraversalContext::header()` now returns `DocumentAttributesRef`; callers with
+  explicit header type annotations must update them. Contexts accept typed header
+  snapshots, body assignments, and table-cell scopes alongside existing owner
+  inputs, with unchanged source-order values and parent-scope restoration.
+
 - Image and icon alternative-text helpers accept optional `ContentAttribute`
   values. Plain-text extraction supports rich media and UI labels. Video helpers
   preserve the complete local target and interpret provider playlists separately.

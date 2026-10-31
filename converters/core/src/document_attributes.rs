@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 
 use acdc_parser::{
-    Block, DocumentAttribute, DocumentAttributeAssignment, DocumentAttributeValue,
-    DocumentAttributes,
+    Block, DocumentAttributeAssignment, DocumentAttributeValue,
+    ast::{DocumentAttributeRef, DocumentAttributesRef, TableCellRef},
 };
 use rustc_hash::FxHashMap;
 
@@ -48,7 +48,7 @@ type Overlay<'doc> = FxHashMap<&'doc str, &'doc DocumentAttributeAssignment<'doc
 /// ```
 #[derive(Debug)]
 pub struct TraversalContext<'doc> {
-    header: &'doc DocumentAttributes<'doc>,
+    header: DocumentAttributesRef<'doc>,
     overlay: Overlay<'doc>,
     scopes: Vec<Overlay<'doc>>,
 }
@@ -120,9 +120,10 @@ impl<'doc> TraversalContext<'doc> {
     /// Initialize an `AsciiDoc` cell's attributes and restore the parent on return.
     pub fn with_table_cell<R>(
         &mut self,
-        column: &'doc acdc_parser::TableColumn<'doc>,
+        column: impl Into<TableCellRef<'doc>>,
         operation: impl FnOnce(&mut Self) -> R,
     ) -> R {
+        let column = column.into();
         self.with_scope(|context| {
             for (name, assignment) in column.initial_attributes() {
                 context.overlay.insert(name, assignment);
@@ -133,16 +134,18 @@ impl<'doc> TraversalContext<'doc> {
 
     /// Start at the end of the document header.
     #[must_use]
-    pub fn new(header: &'doc DocumentAttributes<'doc>) -> Self {
+    pub fn new(header: impl Into<DocumentAttributesRef<'doc>>) -> Self {
         Self {
-            header,
+            header: header.into(),
             overlay: Overlay::default(),
             scopes: Vec::new(),
         }
     }
 
-    fn apply(&mut self, event: &'doc DocumentAttribute<'doc>) {
-        self.overlay.insert(event.name.as_ref(), event.assignment());
+    /// Apply an accepted body assignment at the current traversal position.
+    pub fn apply(&mut self, event: impl Into<DocumentAttributeRef<'doc>>) {
+        let event = event.into();
+        self.overlay.insert(event.name(), event.assignment());
     }
 
     fn enter_scope(&mut self) {
@@ -155,9 +158,9 @@ impl<'doc> TraversalContext<'doc> {
         }
     }
 
-    /// Borrow the immutable header attributes, independent of traversal position.
+    /// The immutable header snapshot, independent of traversal position.
     #[must_use]
-    pub const fn header(&self) -> &'doc DocumentAttributes<'doc> {
+    pub const fn header(&self) -> DocumentAttributesRef<'doc> {
         self.header
     }
 
@@ -211,7 +214,7 @@ impl<'doc> TraversalContext<'doc> {
 mod tests {
     use std::{convert::Infallible, fmt, ptr::eq};
 
-    use acdc_parser::{Options, parse};
+    use acdc_parser::{DocumentAttribute, DocumentAttributes, Options, parse};
 
     use super::*;
     use crate::{document_attribute_text, visitor::Visitor};
