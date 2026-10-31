@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Document outlines preserve source typography, media alternatives, and
+  empty-title fallbacks in block titles.
+
 - Preview code actions render the current unsaved buffer as PDF, HTML5, or
   semantic HTML according to its configured backend, then open it with the
   system's URL handler. An explicit HTML5 preview is also available. Local includes

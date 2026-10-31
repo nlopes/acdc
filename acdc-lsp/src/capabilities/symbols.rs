@@ -1,6 +1,6 @@
 //! Document symbols: extract full block tree from AST
 
-use acdc_converters_core::inlines_to_string;
+use acdc_converters_core::{InlineTextTransform, inlines_to_string};
 use acdc_parser::{Block, DelimitedBlock, DelimitedBlockType, Document, Section, Title};
 use tower_lsp_server::ls_types::{DocumentSymbol, Range, SymbolKind};
 
@@ -85,7 +85,9 @@ fn truncate(text: &str, max_len: usize) -> String {
 
 /// Get a display name from a title, falling back to `default`.
 fn title_or_default(title: &Title, default: &str) -> String {
-    let text = inlines_to_string(title);
+    let text = title.content().map_or_else(String::new, |content| {
+        InlineTextTransform::default().content_to_string(content)
+    });
     if text.is_empty() {
         default.to_string()
     } else {
@@ -105,11 +107,13 @@ fn document_attribute_name(attribute: &acdc_parser::DocumentAttribute<'_>) -> St
 
 /// Get a display name from a title, falling back to a source string.
 fn title_or_source(title: &Title, source: &str) -> String {
-    if title.is_empty() {
-        source.to_string()
-    } else {
-        inlines_to_string(title)
-    }
+    title
+        .content()
+        .filter(|content| !content.is_empty())
+        .map_or_else(
+            || source.to_string(),
+            |content| InlineTextTransform::default().content_to_string(content),
+        )
 }
 
 fn collect_block_symbols(block: &Block, source: &str, symbols: &mut Vec<DocumentSymbol>) {

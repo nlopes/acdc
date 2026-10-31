@@ -84,6 +84,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Inline content iterators support independent cloned cursors, reverse traversal,
+  and exact remaining lengths without copying the content.
+
 - Library callers can copy a typed source span into an owned `Location` for
   indexes that outlive the parsed document, preserving include provenance.
 

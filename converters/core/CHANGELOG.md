@@ -29,6 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Plain-text extraction accepts typed parser content while preserving source
+  text, rendered typography, reference fallbacks, and media alternatives.
+  Existing slice-based calls remain supported.
+
 - Rendered text extraction retains dash and apostrophe context across index labels
   and invisible targets without changing source labels. Spaced dashes consume one
   source space on each side, and split dash pairs render once. Passthrough profiles

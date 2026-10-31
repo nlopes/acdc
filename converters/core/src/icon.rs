@@ -24,7 +24,10 @@
 
 use std::borrow::Cow;
 
-use acdc_parser::{ContentAttribute, DocumentAttributes, Source};
+use acdc_parser::{
+    ContentAttribute, DocumentAttributes, Source,
+    ast::{ContentRef, SourceKind, SourceRef},
+};
 
 use crate::TraversalContext;
 
@@ -35,18 +38,36 @@ use crate::TraversalContext;
 #[must_use]
 pub fn alt<'a>(target: &Source<'a>, content: Option<&ContentAttribute<'_>>) -> Cow<'a, str> {
     if let Some(content) = content {
-        return Cow::Owned(
-            crate::inline_text::InlineTextTransform::default()
-                .rendered_replacements(true)
-                .decode_char_refs(true)
-                .to_string(content),
-        );
+        return Cow::Owned(alt_text(ContentRef::from(content)));
     }
     match target {
         Source::Name(name) if !name.contains(['-', '_']) => Cow::Borrowed(*name),
         Source::Name(name) => Cow::Owned(name.replace(['-', '_'], " ")),
         Source::Path(_) | Source::Url(_) => Cow::Owned(target.to_string().replace(['-', '_'], " ")),
     }
+}
+
+pub(crate) fn alt_from_content<'a>(
+    target: SourceRef<'a>,
+    content: Option<ContentRef<'_>>,
+) -> Cow<'a, str> {
+    if let Some(content) = content {
+        return Cow::Owned(alt_text(content));
+    }
+    match target.kind() {
+        SourceKind::Name(name) if !name.contains(['-', '_']) => Cow::Borrowed(name),
+        SourceKind::Name(name) => Cow::Owned(name.replace(['-', '_'], " ")),
+        SourceKind::Path(_) | SourceKind::Url(_) | _ => {
+            Cow::Owned(target.to_string().replace(['-', '_'], " "))
+        }
+    }
+}
+
+fn alt_text(content: ContentRef<'_>) -> String {
+    crate::inline_text::InlineTextTransform::default()
+        .rendered_replacements(true)
+        .decode_char_refs(true)
+        .content_to_string(content)
 }
 
 /// Build the logical image source for an icon.
@@ -141,6 +162,15 @@ mod tests {
     use acdc_parser::{AttributeValue, Options};
 
     use super::*;
+
+    #[test]
+    fn default_alt_can_outlive_the_source_wrapper() {
+        let text = {
+            let target = Source::Name("arrow");
+            alt(&target, None)
+        };
+        assert!(matches!(text, Cow::Borrowed("arrow")));
+    }
 
     #[test]
     fn mode_matches_asciidoctor_attribute_semantics() -> Result<(), Box<dyn std::error::Error>> {

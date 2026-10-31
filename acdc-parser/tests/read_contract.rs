@@ -3,7 +3,9 @@ use std::borrow::Cow;
 use acdc_parser::{
     AttributeValue, Block, Bold, CompatibilityMode, DelimitedBlockType, Document,
     ElementAttributes, InlineImage, InlineMacro, InlineNode, Options, ParseResult, TableFrame,
-    TableGrid, parse,
+    TableGrid,
+    ast::{BlockKind, InlineKind, InlineRef},
+    parse,
 };
 
 type Error = Box<dyn std::error::Error>;
@@ -120,5 +122,35 @@ fn callers_can_share_immutable_document_reads() -> Result<(), Error> {
         scope.spawn(move || assert_eq!(document.blocks.len(), 1));
         assert_eq!(document.blocks.len(), 1);
     });
+    Ok(())
+}
+
+#[test]
+fn content_iteration_keeps_independent_front_and_back_cursors() -> Result<(), Error> {
+    let parsed = parse("First *bold* last.", &Options::default())?;
+    let paragraph = parsed.document_ref().blocks().next().ok_or("paragraph")?;
+    let BlockKind::Paragraph(paragraph) = paragraph.kind() else {
+        return Err("expected paragraph".into());
+    };
+    let mut inlines = paragraph.content().inlines();
+    assert_eq!(inlines.len(), 3);
+    let mut copy = inlines.clone();
+    assert!(
+        matches!(inlines.next().map(InlineRef::kind), Some(InlineKind::Plain(text)) if text.text() == "First ")
+    );
+    assert!(
+        matches!(inlines.next_back().map(InlineRef::kind), Some(InlineKind::Plain(text)) if text.text() == " last.")
+    );
+    assert_eq!(inlines.len(), 1);
+    assert!(matches!(
+        inlines.next().map(InlineRef::kind),
+        Some(InlineKind::Bold(_))
+    ));
+    assert_eq!(inlines.len(), 0);
+    assert!(inlines.next_back().is_none());
+    assert_eq!(copy.len(), 3);
+    assert!(
+        matches!(copy.next_back().map(InlineRef::kind), Some(InlineKind::Plain(text)) if text.text() == " last.")
+    );
     Ok(())
 }

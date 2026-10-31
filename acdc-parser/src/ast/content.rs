@@ -31,7 +31,10 @@ impl<'doc> ContentRef<'doc> {
     }
 
     /// Read direct inline children in content order.
-    pub fn inlines(self) -> impl Iterator<Item = InlineRef<'doc>> + Send + Sync + 'doc {
+    pub fn inlines(
+        self,
+    ) -> impl DoubleEndedIterator<Item = InlineRef<'doc>> + ExactSizeIterator + Clone + Send + Sync + 'doc
+    {
         self.nodes.iter().map(InlineRef::from)
     }
 

@@ -11,11 +11,14 @@ use std::{
     fmt::{self, Write},
 };
 
-use acdc_parser::{InlineMacro, InlineNode, Reference, Substitution};
+use acdc_parser::{
+    InlineNode, Reference, Substitution,
+    ast::{ContentRef, CrossReferenceRef, InlineKind, InlineRef},
+};
 
 use crate::{
     decode_numeric_char_refs,
-    substitutions::{Replacements, TextBoundaries, apply_passthrough_replacements},
+    substitutions::{Replacements, TextBoundaries, apply_passthrough_replacements_iter},
     xref::reference_text,
 };
 
@@ -123,55 +126,120 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
     ///
     /// Returns any error produced by the underlying writer.
     pub fn write<W: Write + ?Sized>(self, w: &mut W, inlines: &[InlineNode<'_>]) -> fmt::Result {
-        for (index, node) in inlines.iter().enumerate() {
+        self.write_inlines(w, inlines.iter().map(InlineRef::from))
+    }
+
+    /// Write plain text from typed content using this extraction policy.
+    ///
+    /// # Errors
+    ///
+    /// Returns any error produced by the underlying writer.
+    pub fn write_content<W: Write + ?Sized>(
+        self,
+        w: &mut W,
+        content: ContentRef<'_>,
+    ) -> fmt::Result {
+        self.write_inlines(w, content.inlines())
+    }
+
+    fn write_inlines<'doc, W: Write + ?Sized>(
+        self,
+        w: &mut W,
+        inlines: impl DoubleEndedIterator<Item = InlineRef<'doc>> + ExactSizeIterator + Clone,
+    ) -> fmt::Result {
+        let siblings = inlines.clone();
+        for (index, node) in inlines.enumerate() {
             let context = Self {
-                text_boundaries: self.text_boundaries.for_inline(inlines, index),
+                text_boundaries: self.text_boundaries.for_inline_refs(
+                    Some(node),
+                    siblings.clone().take(index).rev(),
+                    siblings.clone().skip(index + 1),
+                ),
                 ..self
             };
-            context.write_inline_node(w, node)?;
+            context.write_inline(w, node)?;
         }
         Ok(())
     }
 
-    fn write_inline_node<W: Write + ?Sized>(self, w: &mut W, node: &InlineNode<'_>) -> fmt::Result {
-        #[expect(
-            clippy::match_same_arms,
-            reason = "plain-text extraction intentionally ignores unknown non-exhaustive inline nodes"
-        )]
-        match node {
-            InlineNode::PlainText(text) => self.write_text(w, text.content),
-            InlineNode::RawText(text) => {
+    fn write_inline<W: Write + ?Sized>(self, w: &mut W, node: InlineRef<'_>) -> fmt::Result {
+        match node.kind() {
+            InlineKind::Plain(text) => self.write_text(w, text.text()),
+            InlineKind::Raw(text) => {
                 let content = if self.typography == Typography::Source {
-                    Cow::Borrowed(text.content)
+                    Cow::Borrowed(text.text())
                 } else {
-                    apply_passthrough_replacements(
-                        text.content,
-                        &text.subs,
+                    apply_passthrough_replacements_iter(
+                        text.text(),
+                        text.substitutions(),
                         &Replacements::unicode(),
                         self.text_boundaries,
                     )
                 };
-                if self.decode_char_refs && text.subs.last() != Some(&Substitution::SpecialChars) {
+                if self.decode_char_refs
+                    && text.substitutions().last() != Some(Substitution::SpecialChars)
+                {
                     w.write_str(&decode_numeric_char_refs(&content))
                 } else {
                     w.write_str(&content)
                 }
             }
-            InlineNode::VerbatimText(text) => self.write_text(w, text.content),
-            InlineNode::BoldText(bold) => self.write(w, &bold.content),
-            InlineNode::ItalicText(italic) => self.write(w, &italic.content),
-            InlineNode::MonospaceText(mono) => self.write(w, &mono.content),
-            InlineNode::HighlightText(highlight) => self.write(w, &highlight.content),
-            InlineNode::SubscriptText(sub) => self.write(w, &sub.content),
-            InlineNode::SuperscriptText(sup) => self.write(w, &sup.content),
-            InlineNode::CurvedQuotationText(quote) => self.write(w, &quote.content),
-            InlineNode::CurvedApostropheText(apos) => self.write(w, &apos.content),
-            InlineNode::StandaloneCurvedApostrophe(_) => w.write_char('\u{2019}'),
-            InlineNode::LineBreak(_) => w.write_str(self.line_break),
-            InlineNode::InlineAnchor(_) => Ok(()),
-            InlineNode::Macro(macro_node) => self.write_inline_macro(w, macro_node),
-            InlineNode::CalloutRef(callout) => write!(w, "<{}>", callout.number),
-            _ => Ok(()),
+            InlineKind::Verbatim(text) => self.write_text(w, text.text()),
+            InlineKind::Bold(span) => self.write_content(w, span.content()),
+            InlineKind::Italic(span) => self.write_content(w, span.content()),
+            InlineKind::Monospace(span) => self.write_content(w, span.content()),
+            InlineKind::Highlight(span) => self.write_content(w, span.content()),
+            InlineKind::Subscript(span) => self.write_content(w, span.content()),
+            InlineKind::Superscript(span) => self.write_content(w, span.content()),
+            InlineKind::CurvedQuotation(span) => self.write_content(w, span.content()),
+            InlineKind::CurvedApostrophe(span) => self.write_content(w, span.content()),
+            InlineKind::StandaloneCurvedApostrophe(_) => w.write_char('\u{2019}'),
+            InlineKind::LineBreak(_) => w.write_str(self.line_break),
+            InlineKind::Callout(callout) => write!(w, "<{}>", callout.number()),
+            InlineKind::Link(link) => self.write_link_text(w, link.text(), &link.target()),
+            InlineKind::Url(url) => self.write_link_text(w, url.text(), &url.target()),
+            InlineKind::Mailto(mailto) => self.write_link_text(w, mailto.text(), &mailto.target()),
+            InlineKind::Autolink(autolink) => write!(w, "{}", autolink.target()),
+            InlineKind::CrossReference(xref) => self.write_xref_text(w, xref),
+            InlineKind::IndexTerm(term) if term.is_visible() => self.write_content(w, term.term()),
+            InlineKind::Pass(pass) => w.write_str(pass.text().unwrap_or_default()),
+            InlineKind::Keyboard(keyboard) => {
+                for (index, key) in keyboard.keys().enumerate() {
+                    if index > 0 {
+                        w.write_char('+')?;
+                    }
+                    self.write_content(w, key)?;
+                }
+                Ok(())
+            }
+            InlineKind::Button(button) => self.write_content(w, button.label()),
+            InlineKind::Menu(menu) => {
+                self.write_content(w, menu.target())?;
+                for item in menu.items() {
+                    w.write_str(" > ")?;
+                    self.write_content(w, item)?;
+                }
+                Ok(())
+            }
+            InlineKind::Image(image) => {
+                w.write_char('[')?;
+                if let Some(alt) = image.alt() {
+                    self.write_content(w, alt)?;
+                } else {
+                    write!(w, "{}", image.source())?;
+                }
+                w.write_char(']')
+            }
+            InlineKind::Icon(icon) => {
+                write!(
+                    w,
+                    "[{}]",
+                    crate::icon::alt_from_content(icon.target(), icon.alt())
+                )
+            }
+            InlineKind::Footnote(footnote) => write!(w, "[{}]", footnote.number()),
+            InlineKind::Stem(stem) => w.write_str(stem.text()),
+            InlineKind::Anchor(_) | InlineKind::IndexTerm(_) | _ => Ok(()),
         }
     }
 
@@ -183,71 +251,17 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
         }
     }
 
-    fn write_inline_macro<W: Write + ?Sized>(
-        self,
-        w: &mut W,
-        macro_node: &InlineMacro<'_>,
-    ) -> fmt::Result {
-        match macro_node {
-            InlineMacro::Link(link) => self.write_link_text(w, &link.text, &link.target),
-            InlineMacro::Url(url) => self.write_link_text(w, &url.text, &url.target),
-            InlineMacro::Mailto(mailto) => self.write_link_text(w, &mailto.text, &mailto.target),
-            InlineMacro::Autolink(autolink) => write!(w, "{}", autolink.url),
-            InlineMacro::CrossReference(xref) => self.write_xref_text(w, xref),
-            InlineMacro::IndexTerm(index_term) if index_term.is_visible() => {
-                self.write(w, index_term.term())
-            }
-            InlineMacro::Pass(pass) => w.write_str(pass.text.unwrap_or_default()),
-            InlineMacro::Keyboard(keyboard) => {
-                for (index, key) in keyboard.keys.iter().enumerate() {
-                    if index > 0 {
-                        w.write_char('+')?;
-                    }
-                    self.write(w, key)?;
-                }
-                Ok(())
-            }
-            InlineMacro::Button(button) => self.write(w, &button.label),
-            InlineMacro::Menu(menu) => {
-                self.write(w, &menu.target)?;
-                for item in &menu.items {
-                    w.write_str(" > ")?;
-                    self.write(w, item)?;
-                }
-                Ok(())
-            }
-            // These carry no prose, but they do carry an identifier or a marker
-            // that a heading or caption would otherwise lose. Asciidoctor
-            // brackets them, as acdc does when it renders them inline.
-            InlineMacro::Image(image) => {
-                w.write_char('[')?;
-                if let Some(alt) = &image.alt {
-                    self.write(w, alt)?;
-                } else {
-                    write!(w, "{}", image.source)?;
-                }
-                w.write_char(']')
-            }
-            InlineMacro::Icon(icon) => {
-                write!(w, "[{}]", crate::icon::alt(&icon.target, icon.alt.as_ref()))
-            }
-            InlineMacro::Footnote(footnote) => write!(w, "[{}]", footnote.number),
-            InlineMacro::Stem(stem) => w.write_str(stem.content),
-            InlineMacro::IndexTerm(_) | _ => Ok(()),
-        }
-    }
-
     /// Write what a cross-reference reads as: its own text, else the target's
     /// reference text, else the `[id]` fallback asciidoctor uses.
     fn write_xref_text<W: Write + ?Sized>(
         self,
         w: &mut W,
-        xref: &acdc_parser::CrossReference<'_>,
+        xref: CrossReferenceRef<'_>,
     ) -> fmt::Result {
-        if !xref.text.is_empty() {
-            return self.write(w, &xref.text);
+        if !xref.text().is_empty() {
+            return self.write_content(w, xref.text());
         }
-        let target = xref.target;
+        let target = xref.target();
         let Some(references) = self.references else {
             return write!(w, "{target}");
         };
@@ -267,14 +281,23 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
     fn write_link_text<W: Write + ?Sized>(
         self,
         w: &mut W,
-        text: &[InlineNode<'_>],
+        text: ContentRef<'_>,
         target: &impl fmt::Display,
     ) -> fmt::Result {
         if text.is_empty() {
             write!(w, "{target}")
         } else {
-            self.write(w, text)
+            self.write_content(w, text)
         }
+    }
+
+    /// Extract plain text from typed content using this extraction policy.
+    #[must_use]
+    pub fn content_to_string(self, content: ContentRef<'_>) -> String {
+        let mut text = String::new();
+        // Writing into a `String` is infallible.
+        let _ = self.write_content(&mut text, content);
+        text
     }
 
     /// Extract plain text from `inlines` as a `String`.
@@ -317,6 +340,58 @@ pub fn inlines_to_string(inlines: &[InlineNode<'_>]) -> String {
 #[cfg(test)]
 mod tests {
     use acdc_parser::{Block, InlineNode, LineBreak, Location, Options, Plain, parse};
+
+    #[test]
+    fn typed_content_preserves_source_and_rendered_text() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let parsed = parse(
+            "A *bold* image:bird.png[alt='Bird',title='Tooltip'] indexterm2:[--] end.",
+            &Options::default(),
+        )?;
+        let paragraph = parsed.document_ref().blocks().next().ok_or("paragraph")?;
+        let acdc_parser::ast::BlockKind::Paragraph(paragraph) = paragraph.kind() else {
+            return Err("expected paragraph".into());
+        };
+        let content = paragraph.content();
+        let transform = super::InlineTextTransform::default();
+        assert_eq!(
+            transform.content_to_string(content),
+            "A bold [Bird] -- end."
+        );
+        assert_eq!(
+            transform
+                .rendered_replacements(true)
+                .content_to_string(content),
+            "A bold [Bird]\u{2009}—\u{2009}end.",
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn typed_content_stops_at_the_first_writer_error() -> Result<(), Box<dyn std::error::Error>> {
+        struct RejectText {
+            calls: usize,
+        }
+        impl std::fmt::Write for RejectText {
+            fn write_str(&mut self, _: &str) -> std::fmt::Result {
+                self.calls += 1;
+                Err(std::fmt::Error)
+            }
+        }
+        let parsed = parse("First *nested* last.", &Options::default())?;
+        let paragraph = parsed.document_ref().blocks().next().ok_or("paragraph")?;
+        let acdc_parser::ast::BlockKind::Paragraph(paragraph) = paragraph.kind() else {
+            return Err("expected paragraph".into());
+        };
+        let mut writer = RejectText { calls: 0 };
+        assert!(
+            super::InlineTextTransform::default()
+                .write_content(&mut writer, paragraph.content())
+                .is_err()
+        );
+        assert_eq!(writer.calls, 1);
+        Ok(())
+    }
 
     #[test]
     fn isolated_index_labels_retain_their_enclosing_text_boundaries()
