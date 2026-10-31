@@ -31,7 +31,7 @@ use acdc_converters_core::{
     substitutions::TextBoundaries,
 };
 #[cfg(feature = "highlighting")]
-use acdc_parser::{BlockMetadata, InlineNode};
+use acdc_parser::{InlineNode, ast::AttributesRef};
 
 #[cfg(feature = "highlighting")]
 use crate::Error;
@@ -80,7 +80,7 @@ const SYNTAX_CLASS_STYLE: syntect::html::ClassStyle =
 pub(crate) fn highlight_code<W: Write + ?Sized>(
     writer: &mut W,
     inlines: &[InlineNode],
-    metadata: &BlockMetadata<'_>,
+    attributes: Option<AttributesRef<'_>>,
     options: HighlightOptions<'_>,
     links: &[HighlightedLink],
     replacements: bool,
@@ -107,7 +107,9 @@ pub(crate) fn highlight_code<W: Write + ?Sized>(
         .or_else(|| syntax_set.find_syntax_by_extension(language))
         .unwrap_or_else(|| syntax_set.find_syntax_plain_text());
 
-    let options = SourceLineOptions::resolve(metadata, &code);
+    let options = attributes
+        .map(|attributes| SourceLineOptions::from_attributes(attributes, &code))
+        .unwrap_or_default();
     if options.is_empty() && links.is_empty() && callouts.is_empty() {
         return match mode {
             HighlightMode::Inline => {
@@ -525,7 +527,7 @@ mod tests {
         highlight_code(
             &mut buffer,
             &inlines,
-            &BlockMetadata::new(),
+            None,
             HighlightOptions {
                 language: "rust",
                 theme_name: DEFAULT_THEME_LIGHT,
@@ -565,7 +567,7 @@ mod tests {
         highlight_code(
             &mut buffer,
             &inlines,
-            &BlockMetadata::new(),
+            None,
             HighlightOptions {
                 language: "rust",
                 theme_name: DEFAULT_THEME_LIGHT,
@@ -597,7 +599,7 @@ mod tests {
         highlight_code(
             &mut buffer,
             &inlines,
-            &BlockMetadata::new(),
+            None,
             HighlightOptions {
                 language: "unknown_lang_xyz",
                 theme_name: DEFAULT_THEME_LIGHT,
@@ -631,7 +633,7 @@ mod tests {
         highlight_code(
             &mut buffer,
             &inlines,
-            &BlockMetadata::new(),
+            None,
             HighlightOptions {
                 language: "rust",
                 theme_name: DEFAULT_THEME_LIGHT,
@@ -676,7 +678,7 @@ mod tests {
         highlight_code(
             &mut buffer,
             &inlines,
-            &BlockMetadata::new(),
+            None,
             HighlightOptions {
                 language: "rust",
                 theme_name: DEFAULT_THEME_LIGHT,

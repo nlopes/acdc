@@ -17,6 +17,7 @@ use acdc_converters_core::{
 use acdc_parser::{
     AttributeValue, BlockMetadata, Caption, CaptionKind, Document, DocumentAttributes, InlineNode,
     Options as ParserOptions, Reference, Substitution, TocEntry,
+    ast::{AttributeValueRef, AttributesRef},
 };
 
 mod admonition;
@@ -984,7 +985,7 @@ fn code_nodes_with_text<'a>(
 fn render_highlighted_code<'a, W: std::io::Write>(
     traversal: &mut TraversalContext<'a>,
     highlight_inlines: &[InlineNode<'_>],
-    metadata: &BlockMetadata<'_>,
+    attributes: Option<AttributesRef<'_>>,
     visitor: &mut HtmlVisitor<'a, '_, W>,
     subs: &[Substitution],
     options: syntax::HighlightOptions<'_>,
@@ -1039,7 +1040,7 @@ fn render_highlighted_code<'a, W: std::io::Write>(
     syntax::highlight_code(
         &mut visitor.writer,
         highlight_inlines,
-        metadata,
+        attributes,
         syntax::HighlightOptions {
             text_context: Some(text_context),
             ..options
@@ -1057,13 +1058,13 @@ fn render_highlighted_code<'a, W: std::io::Write>(
 pub(crate) fn render_pre_code<'a, W: std::io::Write>(
     traversal: &mut TraversalContext<'a>,
     inlines: &[InlineNode<'_>],
-    metadata: &BlockMetadata<'_>,
+    attributes: Option<AttributesRef<'_>>,
     language: Option<&str>,
     visitor: &mut HtmlVisitor<'a, '_, W>,
     subs: &[Substitution],
     source_indent: Option<u16>,
 ) -> Result<(), Error> {
-    let guarded = callouts::strip_guards(inlines, metadata, callouts::font_icons(traversal));
+    let guarded = callouts::strip_guards(inlines, attributes, callouts::font_icons(traversal));
     let inlines = guarded.as_ref();
     let indentation = source_indent::IndentedSource::new(inlines, source_indent);
     let indented = indentation.as_ref().map(|source| source.inlines(inlines));
@@ -1074,7 +1075,7 @@ pub(crate) fn render_pre_code<'a, W: std::io::Write>(
         .document_attributes()
         .get("source-highlighter")
         .is_some();
-    let nowrap = metadata.options.contains(&"nowrap");
+    let nowrap = matches!(attributes.and_then(|attributes| attributes.get("options")), Some(AttributeValueRef::Tokens(tokens)) if tokens.contains("nowrap"));
     let nowrap_class = if nowrap { " nowrap" } else { "" };
 
     #[cfg(feature = "highlighting")]
@@ -1097,7 +1098,7 @@ pub(crate) fn render_pre_code<'a, W: std::io::Write>(
         render_highlighted_code(
             traversal,
             highlight_inlines,
-            metadata,
+            attributes,
             visitor,
             subs,
             syntax::HighlightOptions {

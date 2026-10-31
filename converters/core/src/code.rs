@@ -25,22 +25,53 @@ impl SourceLineOptions {
     /// with a custom `start`; otherwise they use physical one-based lines.
     #[must_use]
     pub fn resolve(metadata: &BlockMetadata<'_>, source: &str) -> Self {
-        if metadata.style != Some("source") {
+        Self::resolve_values(
+            metadata.style == Some("source"),
+            metadata.attributes.contains_key("linenums") || metadata.options.contains(&"linenums"),
+            string_attribute(metadata, "start"),
+            string_attribute(metadata, "highlight"),
+            source,
+        )
+    }
+
+    /// Resolve source-line decoration from element attributes.
+    ///
+    /// Uses the same selector and numbering rules as [`Self::resolve`].
+    #[must_use]
+    pub fn from_attributes(attributes: AttributesRef<'_>, source: &str) -> Self {
+        let text = |name| match attributes.get(name) {
+            Some(AttributeValueRef::Text(value)) => Some(value),
+            _ => None,
+        };
+        Self::resolve_values(
+            text("style") == Some("source"),
+            attributes.contains("linenums")
+                || matches!(attributes.get("options"), Some(AttributeValueRef::Tokens(tokens)) if tokens.contains("linenums")),
+            text("start"),
+            text("highlight"),
+            source,
+        )
+    }
+
+    fn resolve_values(
+        source_style: bool,
+        numbered: bool,
+        start: Option<&str>,
+        highlight: Option<&str>,
+        source: &str,
+    ) -> Self {
+        if !source_style {
             return Self::default();
         }
-        let numbered =
-            metadata.attributes.contains_key("linenums") || metadata.options.contains(&"linenums");
         let line_number_start = numbered.then(|| {
-            string_attribute(metadata, "start")
+            start
                 .and_then(|value| value.parse::<usize>().ok())
                 .filter(|value| *value > 0)
                 .unwrap_or(1)
         });
-        let highlighted_lines = string_attribute(metadata, "highlight")
-            .map_or_else(Vec::new, |spec| {
-                resolve_highlighted_lines(source, spec, line_number_start.unwrap_or(1))
-            });
-
+        let highlighted_lines = highlight.map_or_else(Vec::new, |spec| {
+            resolve_highlighted_lines(source, spec, line_number_start.unwrap_or(1))
+        });
         Self {
             line_number_start,
             highlighted_lines,

@@ -9,7 +9,10 @@ use acdc_converters_core::{
     code::source_language,
     visitor::{Visitor, WritableVisitor},
 };
-use acdc_parser::{CaptionKind, Paragraph, ast::ParagraphRef};
+use acdc_parser::{
+    CaptionKind, Paragraph,
+    ast::{AttributeValueRef, ParagraphRef},
+};
 
 use crate::{
     Error, HtmlVariant, HtmlVisitor, build_class, render_pre_code, write_attribution, write_id,
@@ -41,7 +44,11 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             )?;
             writeln!(self.writer, "<div class=\"content\">")?;
             write!(self.writer, "<pre>")?;
-            self.visit_indented_inlines(traversal, &para.content, &para.metadata)?;
+            self.visit_indented_inlines(
+                traversal,
+                &para.content,
+                Some(ParagraphRef::from(para).attributes()),
+            )?;
             writeln!(self.writer, "</pre>")?;
             writeln!(self.writer, "</div>")?;
             writeln!(self.writer, "</div>")?;
@@ -287,22 +294,30 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         para: &Paragraph,
     ) -> Result<(), Error> {
-        let language = source_language(ParagraphRef::from(para).attributes())
+        let attributes = ParagraphRef::from(para).attributes();
+        let language = source_language(attributes).map(str::to_owned).or_else(|| {
+            matches!(
+                attributes.get("style"),
+                Some(AttributeValueRef::Text("source"))
+            )
+            .then(|| {
+                traversal
+                    .get("source-language")
+                    .and_then(|value| value.text())
+            })
+            .flatten()
             .map(str::to_owned)
-            .or_else(|| {
-                (para.metadata.style == Some("source"))
-                    .then(|| {
-                        traversal
-                            .get("source-language")
-                            .and_then(|value| value.text())
-                    })
-                    .flatten()
-                    .map(str::to_owned)
-            });
+        });
         let source_indent =
-            crate::source_indent::resolve(&para.metadata, traversal, &mut self.diagnostics);
+            crate::source_indent::resolve(Some(attributes), traversal, &mut self.diagnostics);
         #[cfg(feature = "pre-spec-subs")]
-        let subs = effective_subs(para.metadata.substitutions.as_ref().map(Into::into), true);
+        let subs = effective_subs(
+            match attributes.get("subs") {
+                Some(AttributeValueRef::Substitutions(spec)) => Some(spec),
+                _ => None,
+            },
+            true,
+        );
         #[cfg(not(feature = "pre-spec-subs"))]
         let subs = baseline_subs(true);
 
@@ -323,7 +338,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 render_pre_code(
                     traversal,
                     &para.content,
-                    &para.metadata,
+                    Some(attributes),
                     language.as_deref(),
                     self,
                     &subs,
@@ -338,7 +353,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 render_pre_code(
                     traversal,
                     &para.content,
-                    &para.metadata,
+                    Some(attributes),
                     language.as_deref(),
                     self,
                     &subs,
@@ -365,7 +380,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             render_pre_code(
                 traversal,
                 &para.content,
-                &para.metadata,
+                Some(attributes),
                 language.as_deref(),
                 self,
                 &subs,

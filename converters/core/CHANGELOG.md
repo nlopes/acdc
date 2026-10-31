@@ -49,6 +49,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `SourceLineOptions::from_attributes` accepts typed element attributes for
+  source numbering and highlights. The metadata-based `resolve` remains supported
+  with the same selector rules.
+
 - Library converters can read source languages from typed block attributes.
   Unknown and empty names are preserved; document defaults stay separate.
 

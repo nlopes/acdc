@@ -84,6 +84,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Block attributes can be read through `BlockRef::attributes()` without matching
+  each block kind. Line comments and document attribute assignments return `None`.
+
 - Library callers can resolve typed block substitution settings against their
   own defaults. Groups, modifier order, and empty settings keep their behavior.
 

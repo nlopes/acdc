@@ -1,7 +1,11 @@
 use std::io::Write;
 
 use acdc_converters_core::{Diagnostics, TraversalContext, visitor::Visitor};
-use acdc_parser::{BlockMetadata, InlineNode, Verbatim};
+use acdc_parser::{
+    InlineNode, Verbatim,
+    ast::{AttributeValueRef, AttributesRef},
+    strip_quotes,
+};
 
 const MAX_INDENT: u16 = 1024;
 
@@ -10,12 +14,12 @@ impl<'a, W: Write> crate::HtmlVisitor<'a, '_, W> {
         &mut self,
         traversal: &mut TraversalContext<'a>,
         inlines: &[InlineNode<'_>],
-        metadata: &BlockMetadata<'_>,
+        element_attributes: Option<AttributesRef<'_>>,
     ) -> Result<(), crate::Error> {
-        let width = resolve(metadata, traversal, &mut self.diagnostics);
+        let width = resolve(element_attributes, traversal, &mut self.diagnostics);
         let guarded = crate::callouts::strip_guards(
             inlines,
-            metadata,
+            element_attributes,
             crate::callouts::font_icons(traversal),
         );
         let inlines = guarded.as_ref();
@@ -26,19 +30,25 @@ impl<'a, W: Write> crate::HtmlVisitor<'a, '_, W> {
 }
 
 pub(crate) fn resolve(
-    metadata: &BlockMetadata<'_>,
+    element_attributes: Option<AttributesRef<'_>>,
     attributes: &TraversalContext<'_>,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Option<u16> {
-    let local = metadata.attributes.get_string("indent");
-    let value = local.as_deref().or_else(|| {
-        (metadata.style == Some("source"))
-            .then(|| {
-                attributes
-                    .get("source-indent")
-                    .and_then(|value| value.text())
-            })
-            .flatten()
+    let local = match element_attributes.and_then(|attributes| attributes.get("indent")) {
+        Some(AttributeValueRef::Text(value)) => Some(strip_quotes(value)),
+        _ => None,
+    };
+    let value = local.or_else(|| {
+        matches!(
+            element_attributes.and_then(|attributes| attributes.get("style")),
+            Some(AttributeValueRef::Text("source"))
+        )
+        .then(|| {
+            attributes
+                .get("source-indent")
+                .and_then(|value| value.text())
+        })
+        .flatten()
     })?;
     match value.trim().parse::<i128>() {
         Ok(value) if value < 0 => None,
@@ -201,6 +211,74 @@ impl IndentedSource {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn local_indent_preserves_quoting_presence_limits_and_source_default()
+    -> Result<(), Box<dyn std::error::Error>> {
+        use acdc_converters_core::WarningSource;
+        use acdc_parser::{AttributeValue, Location, Options, Paragraph, ast::ParagraphRef, parse};
+        let parsed = parse(":source-indent: 4\n\nText.", &Options::default())?;
+        let traversal = TraversalContext::new(parsed.document_ref().attributes());
+        let source = WarningSource::new("html");
+        for style in [None, Some("source"), Some("literal")] {
+            for (local, expected, warning) in [
+                (None, None, false),
+                (Some(AttributeValue::None), None, false),
+                (Some(AttributeValue::Bool(false)), None, false),
+                (Some(AttributeValue::from("\"2\"")), Some(2), false),
+                (
+                    Some(AttributeValue::from(String::from("' 2 '"))),
+                    Some(2),
+                    false,
+                ),
+                (Some(AttributeValue::from("0")), Some(0), false),
+                (Some(AttributeValue::from("-1")), None, false),
+                (Some(AttributeValue::from("1024")), Some(1024), false),
+                (Some(AttributeValue::from("1025")), None, true),
+                (Some(AttributeValue::from("")), None, true),
+            ] {
+                let mut paragraph = Paragraph::new(Vec::new(), Location::default());
+                paragraph.metadata.style = style;
+                paragraph
+                    .metadata
+                    .attributes
+                    .set("style".into(), "source".into());
+                let fallback = matches!(
+                    local,
+                    None | Some(AttributeValue::None | AttributeValue::Bool(_))
+                );
+                if let Some(local) = local {
+                    paragraph.metadata.attributes.set("indent".into(), local);
+                }
+                let expected = if fallback && style == Some("source") {
+                    Some(4)
+                } else {
+                    expected
+                };
+                let mut warnings = Vec::new();
+                assert_eq!(
+                    resolve(
+                        Some(ParagraphRef::from(&paragraph).attributes()),
+                        &traversal,
+                        &mut Diagnostics::new(&source, &mut warnings)
+                    ),
+                    expected
+                );
+                assert_eq!(warnings.len(), usize::from(warning));
+            }
+        }
+        let mut warnings = Vec::new();
+        assert_eq!(
+            resolve(
+                None,
+                &traversal,
+                &mut Diagnostics::new(&source, &mut warnings)
+            ),
+            None
+        );
+        assert_eq!(warnings.len(), 0);
+        Ok(())
+    }
 
     #[test]
     fn normalization_retains_relative_indent_across_node_boundaries()

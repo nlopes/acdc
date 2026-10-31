@@ -12,7 +12,7 @@ impl<'doc> BlockRef<'doc> {
     /// return `None`; captions and inline tooltips are separate.
     #[must_use]
     pub fn title(self) -> Option<ContentRef<'doc>> {
-        self.element_attributes().and_then(AttributesRef::title)
+        self.attributes().and_then(AttributesRef::title)
     }
 
     /// The primary ID, including a parser-assigned section ID.
@@ -34,27 +34,29 @@ impl<'doc> BlockRef<'doc> {
     /// ```
     #[must_use]
     pub fn id(self) -> Option<ElementIdRef<'doc>> {
-        self.element_attributes().and_then(AttributesRef::id)
+        self.attributes().and_then(AttributesRef::id)
     }
 
     /// The retained anchor selected as primary. A generated section ID has no
     /// authored anchor; read it through [`Self::id`].
     #[must_use]
     pub fn primary_anchor(self) -> Option<AnchorRef<'doc>> {
-        self.element_attributes()
-            .and_then(AttributesRef::primary_anchor)
+        self.attributes().and_then(AttributesRef::primary_anchor)
     }
 
     /// The dedicated ID anchor followed by all retained anchors in stored order.
     /// Duplicates remain visible. These are not necessarily registered targets;
     /// generated section IDs and anchors inside inline content are separate.
     pub fn anchors(self) -> impl Iterator<Item = AnchorRef<'doc>> + Send + Sync + 'doc {
-        self.element_attributes()
+        self.attributes()
             .into_iter()
             .flat_map(AttributesRef::anchors)
     }
 
-    pub(super) fn element_attributes(self) -> Option<AttributesRef<'doc>> {
+    /// Named element attributes. Line comments and document attribute
+    /// assignments have no element attributes and return `None`.
+    #[must_use]
+    pub fn attributes(self) -> Option<AttributesRef<'doc>> {
         match self.kind() {
             BlockKind::Section(node) => Some(node.attributes()),
             BlockKind::Paragraph(node) => Some(node.attributes()),

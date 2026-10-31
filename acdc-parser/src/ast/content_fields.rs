@@ -141,9 +141,7 @@ impl<'doc> StructuralRef<'doc> {
                     | BlockKind::Comment(_)
                     | BlockKind::Stem(_) => (Body, None),
                 };
-                let metadata = block
-                    .element_attributes()
-                    .and_then(super::AttributesRef::metadata);
+                let metadata = block.attributes().and_then(super::AttributesRef::metadata);
                 let mut fields =
                     Fields::with_metadata(owner, (Title, block.title()), body, metadata);
                 if let BlockKind::ThematicBreak(node) = block.kind() {

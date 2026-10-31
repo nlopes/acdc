@@ -43,45 +43,6 @@ fn header_metadata_and_document_assignments_stay_distinct() -> Result<(), Error>
     Ok(())
 }
 
-fn attributes(block: BlockRef<'_>) -> Option<AttributesRef<'_>> {
-    macro_rules! read {
-        ($($kind:ident),+) => {
-            match block.kind() {
-                $(BlockKind::$kind(node) => Some(node.attributes()),)+
-                BlockKind::Comment(_) | BlockKind::DocumentAttribute(_) => None,
-                _ => None,
-            }
-        };
-    }
-    read!(
-        TableOfContents,
-        Admonition,
-        DiscreteHeader,
-        ThematicBreak,
-        PageBreak,
-        UnorderedList,
-        OrderedList,
-        CalloutList,
-        DescriptionList,
-        Section,
-        Paragraph,
-        Image,
-        Audio,
-        Video,
-        DelimitedComment,
-        Example,
-        Listing,
-        Literal,
-        Open,
-        Sidebar,
-        Table,
-        Passthrough,
-        Quote,
-        Verse,
-        Stem
-    )
-}
-
 fn inventory(attributes: AttributesRef<'_>) {
     let entries = attributes.iter().collect::<Vec<_>>();
     for (name, value) in &entries {
@@ -134,7 +95,9 @@ fn block_inventories_project_the_retained_content_owners(
     let before = serde_json::to_value(parsed.document())?;
     let owner = parsed.document().blocks.first().ok_or("block")?;
     let metadata = owner.metadata().ok_or("block metadata")?;
-    let attributes = attributes(BlockRef::from(owner)).ok_or("attribute reads")?;
+    let attributes = BlockRef::from(owner)
+        .attributes()
+        .ok_or("attribute reads")?;
     inventory(attributes);
     for (name, content) in [
         ("attribution", metadata.attribution.as_ref()),
@@ -279,7 +242,8 @@ fn captions_and_anchor_labels_do_not_fabricate_named_attributes(
     assert!(caption.is_empty());
     let paragraph = parsed.document().blocks.last().ok_or("paragraph")?;
     assert!(
-        !attributes(BlockRef::from(paragraph))
+        !BlockRef::from(paragraph)
+            .attributes()
             .ok_or("attributes")?
             .contains("reftext")
     );
@@ -311,7 +275,12 @@ fn parsed_substitution_reads_keep_authored_entries(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let attrs = attributes(parsed.document_ref().blocks().next().ok_or("paragraph")?)
+    let attrs = parsed
+        .document_ref()
+        .blocks()
+        .next()
+        .ok_or("paragraph")?
+        .attributes()
         .ok_or("attributes")?;
     inventory(attrs);
     let Some(AttributeValueRef::Substitutions(spec)) = attrs.get("subs") else {
@@ -406,7 +375,11 @@ fn content_locations_survive_includes_and_nested_cells(
             .build()?,
     )?;
     let mut blocks = parsed.document_ref().blocks();
-    let attrs = attributes(blocks.next().ok_or("quote")?).ok_or("attributes")?;
+    let attrs = blocks
+        .next()
+        .ok_or("quote")?
+        .attributes()
+        .ok_or("attributes")?;
     let Some(AttributeValueRef::Content(author)) = attrs.get("attribution") else {
         return Err("author".into());
     };
@@ -426,13 +399,73 @@ fn content_locations_survive_includes_and_nested_cells(
         .cells()
         .next()
         .ok_or("cell")?;
-    let attrs =
-        attributes(cell.blocks().next().ok_or("cell paragraph")?).ok_or("cell attributes")?;
+    let attrs = cell
+        .blocks()
+        .next()
+        .ok_or("cell paragraph")?
+        .attributes()
+        .ok_or("cell attributes")?;
     let Some(AttributeValueRef::Content(label)) = attrs.get("reftext") else {
         return Err("reference text".into());
     };
     let label = label.inlines().next().ok_or("reference span")?;
     assert!(matches!(label.kind(), InlineKind::Bold(_)));
     assert_eq!(parsed.resolve_location(label.location()).file, Some(main));
+    Ok(())
+}
+
+#[test]
+fn blocks_without_element_attributes_stay_distinct_from_empty_attributes() -> Result<(), Error> {
+    let parsed = parse(
+        "Before.\n\n// Comment\n\n:setting: value\n\nText.\n",
+        &Options::default(),
+    )?;
+    let mut blocks = parsed.document_ref().blocks();
+    assert!(
+        blocks
+            .next()
+            .ok_or("initial paragraph")?
+            .attributes()
+            .is_some()
+    );
+    for _ in 0..2 {
+        assert!(
+            blocks
+                .next()
+                .ok_or("comment or assignment")?
+                .attributes()
+                .is_none()
+        );
+    }
+    assert!(
+        blocks
+            .next()
+            .ok_or("paragraph")?
+            .attributes()
+            .ok_or("attributes")?
+            .is_empty()
+    );
+    Ok(())
+}
+
+#[test]
+fn block_attributes_borrow_the_current_owner_beyond_temporary_handles() -> Result<(), Error> {
+    let mut owner = Paragraph::new(Vec::new(), Location::default());
+    owner.metadata.attributes.set("indent".into(), "2".into());
+    let block = acdc_parser::Block::Paragraph(owner);
+    let attributes = { BlockRef::from(&block).attributes().ok_or("attributes")? };
+    assert_eq!(attributes.get("indent"), Some(AttributeValueRef::Text("2")));
+    let acdc_parser::Block::Paragraph(mut owner) = block else {
+        return Err("paragraph".into());
+    };
+    owner.metadata.attributes.set("indent".into(), "4".into());
+    let block = acdc_parser::Block::Paragraph(owner);
+    assert_eq!(
+        BlockRef::from(&block)
+            .attributes()
+            .ok_or("attributes")?
+            .get("indent"),
+        Some(AttributeValueRef::Text("4"))
+    );
     Ok(())
 }

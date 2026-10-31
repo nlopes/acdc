@@ -1,7 +1,11 @@
 use std::borrow::Cow;
 
 use acdc_converters_core::TraversalContext;
-use acdc_parser::{BlockMetadata, InlineNode};
+use acdc_parser::{
+    InlineNode,
+    ast::{AttributeValueRef, AttributesRef},
+    strip_quotes,
+};
 
 pub(crate) fn font_icons(attributes: &TraversalContext<'_>) -> bool {
     attributes.get("icons").and_then(|value| value.text()) == Some("font")
@@ -18,13 +22,16 @@ pub(crate) fn marker_html(number: usize, font_icons: bool) -> String {
 /// Remove guards only beside parsed callouts, borrowing the remaining source.
 pub(crate) fn strip_guards<'nodes, 'input>(
     inlines: &'nodes [InlineNode<'input>],
-    metadata: &BlockMetadata<'_>,
+    attributes: Option<AttributesRef<'_>>,
     font_icons: bool,
 ) -> Cow<'nodes, [InlineNode<'input>]> {
     if !font_icons {
         return Cow::Borrowed(inlines);
     }
-    let prefix = metadata.attributes.get_string("line-comment");
+    let prefix = match attributes.and_then(|attributes| attributes.get("line-comment")) {
+        Some(AttributeValueRef::Text(value)) => Some(strip_quotes(value)),
+        _ => None,
+    };
     let mut result = Cow::Borrowed(inlines);
     for (index, node) in inlines.iter().enumerate() {
         let Some(original) = text(Some(node)) else {
@@ -44,7 +51,7 @@ pub(crate) fn strip_guards<'nodes, 'input>(
             if is_xml_callout(inlines, index + 1) {
                 content = content.strip_suffix("<!--").unwrap_or(content);
             }
-            content = strip_line_guard(content, prefix.as_deref());
+            content = strip_line_guard(content, prefix);
         }
         if content.len() != original.len() {
             match result.to_mut().get_mut(index) {
@@ -96,5 +103,57 @@ fn strip_line_guard<'text>(text: &'text str, prefix: Option<&str>) -> &'text str
             .into_iter()
             .find_map(|prefix| candidate.strip_suffix(prefix))
             .unwrap_or(text)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use acdc_parser::{
+        AttributeValue, CalloutRef, CalloutRefKind, Location, Paragraph, Verbatim,
+        ast::ParagraphRef,
+    };
+
+    #[test]
+    fn callout_guards_preserve_nontext_empty_quoted_and_disabled_controls() {
+        let inlines = [
+            InlineNode::VerbatimText(Verbatim {
+                content: "value # ",
+                location: Location::default(),
+            }),
+            InlineNode::CalloutRef(CalloutRef {
+                kind: CalloutRefKind::Explicit,
+                number: 1,
+                location: Location::default(),
+            }),
+        ];
+        for (prefix, expected) in [
+            (None, "value "),
+            (Some(AttributeValue::None), "value "),
+            (Some(AttributeValue::Bool(false)), "value "),
+            (Some(AttributeValue::from("'#'")), "value "),
+            (Some(AttributeValue::from(String::from("\"#\""))), "value "),
+            (Some(AttributeValue::from("")), "value # "),
+            (Some(AttributeValue::from("?")), "value # "),
+        ] {
+            let mut paragraph = Paragraph::new(Vec::new(), Location::default());
+            if let Some(prefix) = prefix {
+                paragraph
+                    .metadata
+                    .attributes
+                    .set("line-comment".into(), prefix);
+            }
+            let attributes = Some(ParagraphRef::from(&paragraph).attributes());
+            let output = strip_guards(&inlines, attributes, true);
+            assert_eq!(text(output.first()), Some(expected));
+            assert_eq!(matches!(output, Cow::Borrowed(_)), expected == "value # ");
+            assert!(matches!(
+                strip_guards(&inlines, attributes, false),
+                Cow::Borrowed(_)
+            ));
+            for (original, rendered) in inlines.iter().zip(output.iter()) {
+                assert_eq!(original.location(), rendered.location());
+            }
+        }
     }
 }

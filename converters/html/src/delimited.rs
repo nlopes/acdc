@@ -2,7 +2,7 @@ use std::{borrow::Cow, io::Write};
 
 use acdc_converters_core::{
     TraversalContext,
-    code::detect_language,
+    code::source_language,
     visitor::{Visitor, WritableVisitor},
 };
 
@@ -14,6 +14,7 @@ use acdc_converters_core::substitutions::{effective_subs, substitute_attributes}
 use acdc_parser::{
     Block, BlockMetadata, CaptionKind, DelimitedBlock, DelimitedBlockType, InlineNode, StemContent,
     StemNotation,
+    ast::{AttributeValueRef, AttributesRef, BlockRef},
 };
 
 #[cfg(feature = "pre-spec-subs")]
@@ -421,12 +422,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             | DelimitedBlockType::DelimitedStem(_)
                 if processor.variant() == HtmlVariant::Semantic =>
             {
-                self.render_delimited_block_inner_semantic(
-                    traversal,
-                    &block.inner,
-                    &block.title,
-                    &block.metadata,
-                )?;
+                self.render_delimited_block_inner_semantic(traversal, block)?;
             }
             // For other block types, use the regular rendering
             DelimitedBlockType::DelimitedPass(_)
@@ -436,12 +432,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             | DelimitedBlockType::DelimitedComment(_)
             | DelimitedBlockType::DelimitedVerse(_)
             | _ => {
-                self.render_delimited_block_inner(
-                    traversal,
-                    &block.inner,
-                    &block.title,
-                    &block.metadata,
-                )?;
+                self.render_delimited_block_inner(traversal, block)?;
             }
         }
         Ok(())
@@ -453,10 +444,16 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         &mut self,
         traversal: &mut TraversalContext<'a>,
         inlines: &[InlineNode],
-        metadata: &BlockMetadata,
+        attributes: Option<AttributesRef<'_>>,
     ) -> Result<(), Error> {
-        let language = detect_language(metadata).map(str::to_owned).or_else(|| {
-            (metadata.style == Some("source"))
+        let language = attributes
+            .and_then(source_language)
+            .map(str::to_owned)
+            .or_else(|| {
+                matches!(
+                    attributes.and_then(|attributes| attributes.get("style")),
+                    Some(AttributeValueRef::Text("source"))
+                )
                 .then(|| {
                     traversal
                         .get("source-language")
@@ -464,21 +461,24 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 })
                 .flatten()
                 .map(str::to_owned)
-        });
+            });
         let source_indent =
-            crate::source_indent::resolve(metadata, traversal, &mut self.diagnostics);
+            crate::source_indent::resolve(attributes, traversal, &mut self.diagnostics);
         #[cfg(feature = "pre-spec-subs")]
-        let subs = effective_subs(metadata.substitutions.as_ref().map(Into::into), true);
+        let subs = effective_subs(
+            match attributes.and_then(|attributes| attributes.get("subs")) {
+                Some(AttributeValueRef::Substitutions(spec)) => Some(spec),
+                _ => None,
+            },
+            true,
+        );
         #[cfg(not(feature = "pre-spec-subs"))]
-        let subs = {
-            let _ = metadata;
-            baseline_subs(true)
-        };
+        let subs = baseline_subs(true);
 
         crate::render_pre_code(
             traversal,
             inlines,
-            metadata,
+            attributes,
             language.as_deref(),
             self,
             &subs,
@@ -493,6 +493,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         title: &acdc_parser::Title<'_>,
         metadata: &BlockMetadata,
         caption_kind: Option<CaptionKind>,
+        attributes: Option<AttributesRef<'_>>,
     ) -> Result<(), Error> {
         let processor = self.processor.clone();
         if processor.variant() == HtmlVariant::Semantic {
@@ -502,6 +503,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 title,
                 metadata,
                 caption_kind,
+                attributes,
             );
         }
 
@@ -541,7 +543,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         )?;
 
         writeln!(self.writer, "<div class=\"content\">")?;
-        self.render_listing_code(traversal, inlines, metadata)?;
+        self.render_listing_code(traversal, inlines, attributes)?;
         writeln!(self.writer, "</div>")?;
         writeln!(self.writer, "</div>")?;
         Ok(())
@@ -554,6 +556,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         title: &acdc_parser::Title<'_>,
         metadata: &BlockMetadata,
         caption_kind: Option<CaptionKind>,
+        attributes: Option<AttributesRef<'_>>,
     ) -> Result<(), Error> {
         #[cfg(feature = "terminal")]
         if is_terminal_session(metadata) && self.terminal_emulator_allowed() {
@@ -590,12 +593,12 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 "<figcaption>",
                 "</figcaption>\n",
             )?;
-            self.render_listing_code(traversal, inlines, metadata)?;
+            self.render_listing_code(traversal, inlines, attributes)?;
             writeln!(self.writer, "</figure>")?;
         } else {
             // Untitled: use div
             write_semantic_tag_open(&mut self.writer, "div", metadata, "listing-block")?;
-            self.render_listing_code(traversal, inlines, metadata)?;
+            self.render_listing_code(traversal, inlines, attributes)?;
             writeln!(self.writer, "</div>")?;
         }
         Ok(())
@@ -835,6 +838,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         title: &acdc_parser::Title<'_>,
         metadata: &BlockMetadata<'_>,
         caption_kind: Option<CaptionKind>,
+        attributes: Option<AttributesRef<'_>>,
     ) -> Result<(), Error> {
         #[cfg(feature = "terminal")]
         if is_terminal_session(metadata) && self.terminal_emulator_allowed() {
@@ -876,7 +880,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         )?;
         writeln!(self.writer, "<div class=\"content\">")?;
         write!(self.writer, "<pre>")?;
-        self.visit_indented_inlines(traversal, inlines, metadata)?;
+        self.visit_indented_inlines(traversal, inlines, attributes)?;
         writeln!(self.writer, "</pre>")?;
         writeln!(self.writer, "</div>")?;
         writeln!(self.writer, "</div>")?;
@@ -886,10 +890,12 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     fn render_delimited_block_inner(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        inner: &DelimitedBlockType,
-        title: &acdc_parser::Title<'_>,
-        metadata: &BlockMetadata,
+        block: &DelimitedBlock,
     ) -> Result<(), Error> {
+        let inner = &block.inner;
+        let title = &block.title;
+        let metadata = &block.metadata;
+        let attributes = BlockRef::from(block).attributes();
         let caption_kind = CaptionKind::for_delimited(inner, metadata.style);
         match inner {
             DelimitedBlockType::DelimitedPass(inlines) => {
@@ -903,10 +909,24 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 self.visit_inline_nodes(traversal, inlines)?;
             }
             DelimitedBlockType::DelimitedListing(inlines) => {
-                self.render_listing_block(traversal, inlines, title, metadata, caption_kind)?;
+                self.render_listing_block(
+                    traversal,
+                    inlines,
+                    title,
+                    metadata,
+                    caption_kind,
+                    attributes,
+                )?;
             }
             DelimitedBlockType::DelimitedLiteral(inlines) => {
-                self.render_literal_block(traversal, inlines, title, metadata, caption_kind)?;
+                self.render_literal_block(
+                    traversal,
+                    inlines,
+                    title,
+                    metadata,
+                    caption_kind,
+                    attributes,
+                )?;
             }
             DelimitedBlockType::DelimitedStem(stem) => {
                 write_block_div_open(&mut self.writer, metadata, "stemblock")?;
@@ -1045,10 +1065,12 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     fn render_delimited_block_inner_semantic(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        inner: &DelimitedBlockType,
-        title: &acdc_parser::Title<'_>,
-        metadata: &BlockMetadata,
+        block: &DelimitedBlock,
     ) -> Result<(), Error> {
+        let inner = &block.inner;
+        let title = &block.title;
+        let metadata = &block.metadata;
+        let attributes = BlockRef::from(block).attributes();
         let caption_kind = CaptionKind::for_delimited(inner, metadata.style);
         match inner {
             DelimitedBlockType::DelimitedVerse(inlines) => {
@@ -1075,7 +1097,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                     write_semantic_tag_open(&mut self.writer, "div", metadata, "literal-block")?;
                 }
                 write!(self.writer, "<pre>")?;
-                self.visit_indented_inlines(traversal, inlines, metadata)?;
+                self.visit_indented_inlines(traversal, inlines, attributes)?;
                 writeln!(self.writer, "</pre>")?;
                 if has_title {
                     writeln!(self.writer, "</section>")?;

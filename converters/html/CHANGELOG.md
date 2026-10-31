@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Listing and literal blocks retain source numbering, highlighted lines, custom
+  indentation, callout guards, and `nowrap` in both HTML variants.
+
 - Source paragraphs retain explicit and default language labels, including
   unknown and empty languages, with or without syntax highlighting.
 
