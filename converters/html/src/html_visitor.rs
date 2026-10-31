@@ -15,10 +15,13 @@ use acdc_converters_core::substitutions::effective_subs;
 
 use acdc_parser::{
     Admonition, Audio, Block, BlockMetadata, CalloutList, CaptionKind, ColumnStyle, DelimitedBlock,
-    DelimitedBlockType, DescriptionList, DiscreteHeader, Document, DocumentAttributes, Footnote,
-    Header, Image, InlineNode, ListItem, NORMAL, OrderedList, PageBreak, Paragraph, Section,
-    Substitution, TableOfContents, ThematicBreak, UnorderedList, Video,
-    ast::{BlockKind, BlockRef, ColumnFormatRef, DocumentRef, StructuralRef, TableRef},
+    DelimitedBlockType, DescriptionList, DiscreteHeader, Document, Footnote, Header, Image,
+    InlineNode, ListItem, NORMAL, OrderedList, PageBreak, Paragraph, Section, Substitution,
+    TableOfContents, ThematicBreak, UnorderedList, Video,
+    ast::{
+        BlockKind, BlockRef, ColumnFormatRef, DocumentAttributesRef, DocumentRef, StructuralRef,
+        TableRef,
+    },
 };
 
 use crate::{Error, HtmlVariant, Processor, RenderOptions, STYLESDIR_DEFAULT, docinfo::DocInfo};
@@ -30,20 +33,20 @@ const DEPRECATED_HIGHLIGHT_ATTRIBUTES: [(&str, &str); 2] = [
 
 fn link_css<W: Write>(
     writer: &mut W,
-    attributes: &DocumentAttributes,
+    attributes: DocumentAttributesRef<'_>,
     default_filename: &str,
 ) -> Result<(), Error> {
     // Link to external stylesheet
     let stylesdir = attributes
         .get("stylesdir")
         .and_then(|value| value.text())
-        .map_or_else(|| STYLESDIR_DEFAULT.to_string(), str::to_string);
+        .unwrap_or(STYLESDIR_DEFAULT);
 
     let stylesheet = attributes
         .get("stylesheet")
         .and_then(|value| value.text())
         .filter(|value| !value.is_empty())
-        .map_or_else(|| default_filename.to_string(), str::to_string);
+        .unwrap_or(default_filename);
 
     writeln!(
         writer,
@@ -69,26 +72,25 @@ fn link_css<W: Write>(
 /// Returns `Some(contents)` if a custom stylesheet is specified and readable,
 /// `None` otherwise (falls back to default CSS).
 fn resolve_custom_css(
-    attributes: &DocumentAttributes,
+    attributes: DocumentAttributesRef<'_>,
     source_dir: Option<&Path>,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Option<String> {
     let stylesheet = attributes
         .get("stylesheet")
         .and_then(|value| value.text())
-        .filter(|value| !value.is_empty())?
-        .to_string();
+        .filter(|value| !value.is_empty())?;
 
     let stylesdir = attributes
         .get("stylesdir")
         .and_then(|value| value.text())
-        .map_or_else(|| STYLESDIR_DEFAULT.to_string(), str::to_string);
+        .unwrap_or(STYLESDIR_DEFAULT);
 
-    let path = if Path::new(&stylesdir).is_absolute() {
-        std::path::PathBuf::from(&stylesdir).join(&stylesheet)
+    let path = if Path::new(stylesdir).is_absolute() {
+        std::path::PathBuf::from(stylesdir).join(stylesheet)
     } else {
         let base = source_dir.unwrap_or_else(|| Path::new("."));
-        base.join(&stylesdir).join(&stylesheet)
+        base.join(stylesdir).join(stylesheet)
     };
 
     match std::fs::read_to_string(&path) {
@@ -233,6 +235,8 @@ impl<'doc> BlockVisitor<'doc> for HeadResources {
 
 #[cfg(test)]
 mod head_resources_tests;
+#[cfg(test)]
+mod head_stylesheet_tests;
 
 /// HTML visitor that generates HTML from `AsciiDoc` AST
 pub struct HtmlVisitor<'a, 'd, W: Write> {
@@ -359,10 +363,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
 
     /// Check if dark mode is enabled via the `:dark-mode:` document attribute.
     fn is_dark_mode(&self) -> bool {
-        self.processor
-            .document_attributes()
-            .get("dark-mode")
-            .is_some()
+        DocumentAttributesRef::from(self.processor.document_attributes()).contains("dark-mode")
     }
 
     /// Emit syntax highlighting CSS in `<head>` when class-based mode is active.
@@ -371,28 +372,17 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
     /// - With `linkcss`: emits a `<link>` to `{stylesdir}/acdc-highlight.css`.
     #[cfg(feature = "highlighting")]
     fn maybe_emit_syntax_css(&mut self) -> Result<(), Error> {
-        if self
-            .processor
-            .document_attributes()
-            .get("source-highlighter")
-            .is_some()
-        {
-            let (theme_name, mode) =
-                crate::resolve_highlight_settings(self.processor.document_attributes());
+        let attributes = DocumentAttributesRef::from(self.processor.document_attributes());
+        if attributes.contains("source-highlighter") {
+            let (theme_name, mode) = crate::resolve_highlight_settings(attributes);
             if mode == crate::syntax::HighlightMode::Class {
-                let linkcss = self
-                    .processor
-                    .document_attributes()
-                    .get("linkcss")
-                    .is_some();
+                let linkcss = attributes.contains("linkcss");
 
                 if linkcss {
-                    let stylesdir = self
-                        .processor
-                        .document_attributes()
+                    let stylesdir = attributes
                         .get("stylesdir")
                         .and_then(|value| value.text())
-                        .map_or_else(|| STYLESDIR_DEFAULT.to_string(), str::to_string);
+                        .unwrap_or(STYLESDIR_DEFAULT);
                     writeln!(
                         self.writer,
                         r#"<link rel="stylesheet" href="{}/{}">"#,
@@ -411,27 +401,17 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
     ///
     /// Skipped entirely when `:!stylesheet:` is set (no-stylesheet mode).
     fn render_stylesheet(&mut self, dark_mode: bool) -> Result<(), Error> {
-        let stylesheet_disabled = !self
-            .processor
-            .document_attributes()
-            .contains_key("stylesheet")
-            && self
-                .processor
-                .document_attributes()
-                .is_explicit("stylesheet");
+        let attributes = DocumentAttributesRef::from(self.processor.document_attributes());
+        let stylesheet_disabled =
+            !attributes.contains("stylesheet") && attributes.is_explicit("stylesheet");
 
         if stylesheet_disabled {
             return Ok(());
         }
 
         // Render Google Fonts link (controlled by :webfonts: attribute)
-        match self
-            .processor
-            .document_attributes()
-            .get("webfonts")
-            .and_then(|value| value.text())
-        {
-            None if self.processor.document_attributes().is_explicit("webfonts") => {
+        match attributes.get("webfonts").and_then(|value| value.text()) {
+            None if attributes.is_explicit("webfonts") => {
                 // :!webfonts: — skip font link entirely
             }
             Some(custom) if !custom.is_empty() => {
@@ -449,11 +429,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
         }
 
         // Handle stylesheet rendering based on linkcss attribute
-        let linkcss = self
-            .processor
-            .document_attributes()
-            .get("linkcss")
-            .is_some();
+        let linkcss = attributes.contains("linkcss");
         let variant = self.processor.variant();
         let default_filename = match (variant, dark_mode) {
             (HtmlVariant::Semantic, true) => crate::STYLESHEET_HTML5S_DARK_MODE,
@@ -463,14 +439,10 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
         };
 
         if linkcss {
-            link_css(
-                &mut self.writer,
-                self.processor.document_attributes(),
-                default_filename,
-            )?;
+            link_css(&mut self.writer, attributes, default_filename)?;
         } else {
             let custom_css = resolve_custom_css(
-                self.processor.document_attributes(),
+                attributes,
                 self.render_options.source_dir.as_deref(),
                 &mut self.diagnostics,
             );
@@ -484,11 +456,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
         }
 
         // Add max-width constraint if specified
-        if let Some(max_width) = self
-            .processor
-            .document_attributes()
-            .get("max-width")
-            .and_then(|value| value.text())
+        if let Some(max_width) = attributes.get("max-width").and_then(|value| value.text())
             && !max_width.is_empty()
         {
             self.diagnostics.warn_with_advice(
@@ -511,19 +479,18 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
     /// Whether the `:csp:` attribute opts this document into a `<meta>` Content
     /// Security Policy (standalone output only).
     fn is_csp_enabled(&self) -> bool {
-        self.processor.document_attributes().get("csp").is_some()
+        DocumentAttributesRef::from(self.processor.document_attributes()).contains("csp")
     }
 
     /// The acdc features this document uses, for building its CSP. Mirrors the
     /// gating the head uses to decide which scripts, fonts, and CDNs it emits.
     fn csp_features(&self, stem: bool, font_icons: bool) -> crate::CspFeatures {
-        let attrs = &self.processor.document_attributes();
-        let stylesheet_disabled =
-            !attrs.contains_key("stylesheet") && attrs.is_explicit("stylesheet");
+        let attrs = DocumentAttributesRef::from(self.processor.document_attributes());
+        let stylesheet_disabled = !attrs.contains("stylesheet") && attrs.is_explicit("stylesheet");
         crate::CspFeatures {
             stem,
             webfonts: !(stylesheet_disabled
-                || !attrs.contains_key("webfonts") && attrs.is_explicit("webfonts")),
+                || !attrs.contains("webfonts") && attrs.is_explicit("webfonts")),
             icons_font: font_icons,
             replay: cfg!(feature = "terminal"),
         }
@@ -531,7 +498,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
 
     fn render_head(
         &mut self,
-        document: &'a Document<'a>,
+        document: DocumentRef<'a>,
         stem: bool,
         font_icons: bool,
     ) -> Result<(), Error> {
@@ -564,7 +531,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
         }
 
         self.render_document_metadata()?;
-        if let Some(header) = &document.header {
+        if let Some(header) = document.header() {
             self.render_header_metadata(header)?;
         }
 
@@ -768,7 +735,7 @@ impl<'a, W: Write> Visitor<'a> for HtmlVisitor<'a, '_, W> {
         }
 
         let resources = HeadResources::collect(doc.into());
-        self.render_head(doc, resources.stem, resources.font_icons)?;
+        self.render_head(doc.into(), resources.stem, resources.font_icons)?;
 
         // Check for unsupported css-signature attribute
         if self

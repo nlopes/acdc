@@ -429,9 +429,9 @@ pub(crate) fn load_css(dark_mode: bool, variant: HtmlVariant) -> &'static str {
 ///   An explicit primary assignment, including an unset, takes precedence.
 #[cfg(feature = "highlighting")]
 pub(crate) fn resolve_highlight_settings(
-    document_attributes: &DocumentAttributes<'_>,
+    document_attributes: acdc_parser::ast::DocumentAttributesRef<'_>,
 ) -> (String, syntax::HighlightMode) {
-    let dark_mode = document_attributes.get("dark-mode").is_some();
+    let dark_mode = document_attributes.contains("dark-mode");
 
     let setting = |primary, alias| {
         let value = document_attributes.get(primary);
@@ -755,7 +755,7 @@ impl<'a> Processor<'a> {
             return;
         }
 
-        let (theme_name, mode) = crate::resolve_highlight_settings(&doc.attributes);
+        let (theme_name, mode) = crate::resolve_highlight_settings((&doc.attributes).into());
 
         if mode != syntax::HighlightMode::Class {
             return;
@@ -1092,7 +1092,7 @@ pub(crate) fn render_pre_code<'a, W: std::io::Write>(
             )?;
         }
         let processor = visitor.processor.clone();
-        let (theme_name, mode) = resolve_highlight_settings(processor.document_attributes());
+        let (theme_name, mode) = resolve_highlight_settings(processor.document_attributes().into());
         let highlight_inlines = inlines;
         render_highlighted_code(
             traversal,
