@@ -34,6 +34,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Typed caption reads preserve the existing cross-reference display policy,
+  including formatted prefixes, empty-caption fallback, and reference styles.
+
 - Plain-text extraction accepts typed parser content while preserving source
   text, rendered typography, reference fallbacks, and media alternatives.
   Existing slice-based calls remain supported.

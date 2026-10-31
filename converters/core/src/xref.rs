@@ -3,7 +3,8 @@
 use std::{cell::Cell, rc::Rc};
 
 use acdc_parser::{
-    Caption, CrossReference, InlineNode, Reference, XrefCaptionLabel, XrefSignifier, XrefStyle,
+    CrossReference, InlineNode, Reference, XrefCaptionLabel, XrefSignifier, XrefStyle,
+    ast::{CaptionRef, ReferenceRef},
 };
 
 /// Display content for an automatic cross-reference.
@@ -151,9 +152,8 @@ pub fn resolve_xref<'r, 'a>(
         XrefDisplay::Emphasized(None, title.as_ref(), guard.enter())
     } else if let (Some(title), Some(prefix)) = (
         &reference.title,
-        reference
-            .caption
-            .as_ref()
+        ReferenceRef::from(reference)
+            .caption()
             .and_then(|caption| caption_prefix(caption, xref)),
     ) {
         if xref.xrefstyle == XrefStyle::Short {
@@ -193,9 +193,9 @@ fn section_prefix(name: &str, number: &str, signifier: XrefSignifier<'_>) -> Str
     }
 }
 
-fn caption_prefix(caption: &Caption<'_>, xref: &CrossReference<'_>) -> Option<String> {
+fn caption_prefix(caption: CaptionRef<'_>, xref: &CrossReference<'_>) -> Option<String> {
     match caption {
-        Caption::Numbered {
+        CaptionRef::Numbered {
             label,
             number: Some(number),
             ..
@@ -205,7 +205,7 @@ fn caption_prefix(caption: &Caption<'_>, xref: &CrossReference<'_>) -> Option<St
             } else if xref.caption_label == XrefCaptionLabel::NumberOnly {
                 ""
             } else {
-                label.as_ref()
+                label
             };
             if label.is_empty() {
                 Some(number.to_string())
@@ -213,16 +213,16 @@ fn caption_prefix(caption: &Caption<'_>, xref: &CrossReference<'_>) -> Option<St
                 Some(format!("{label} {number}"))
             }
         }
-        Caption::Custom(prefix) => {
+        CaptionRef::Custom(prefix) => {
             (!prefix.is_empty()).then(|| prefix.strip_suffix(". ").unwrap_or(prefix).to_string())
         }
-        Caption::CustomContent(content) => {
+        CaptionRef::CustomContent(content) => {
             let prefix = crate::inline_text::InlineTextTransform::default()
                 .rendered_replacements(true)
-                .to_string(content);
+                .content_to_string(content);
             (!prefix.is_empty()).then(|| prefix.strip_suffix(". ").unwrap_or(&prefix).to_string())
         }
-        Caption::Numbered { .. } | Caption::Unnumbered | _ => None,
+        CaptionRef::Numbered { .. } | CaptionRef::Unnumbered | _ => None,
     }
 }
 

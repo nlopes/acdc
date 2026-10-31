@@ -2,7 +2,7 @@ use std::{collections::HashMap, iter::FusedIterator};
 
 use crate::{Reference, SectionKind, TocEntry};
 
-use super::{ContentRef, DocumentRef};
+use super::{CaptionRef, ContentRef, DocumentRef};
 
 node_ref!(
     ReferenceRef<'doc>,
@@ -88,6 +88,22 @@ impl<'doc> ReferencesRef<'doc> {
 }
 
 impl<'doc> ReferenceRef<'doc> {
+    /// The registered resolved caption, including empty prefixes and unset ordinals.
+    /// Reads keep the catalog snapshot even if the target block has since changed.
+    ///
+    /// ```
+    /// use acdc_parser::{Options, ast::CaptionRef, parse};
+    ///
+    /// let parsed = parse("[#picture]\n.A bird\nimage::bird.svg[]\n", &Options::default())?;
+    /// let reference = parsed.document_ref().references().get("picture").ok_or("picture")?;
+    /// assert!(matches!(reference.caption(), Some(CaptionRef::Numbered { label: "Figure", .. })));
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    #[must_use]
+    pub fn caption(self) -> Option<CaptionRef<'doc>> {
+        self.node.caption.as_ref().map(CaptionRef::from)
+    }
+
     /// The registered title, including present empty content.
     #[must_use]
     pub fn title(self) -> Option<ContentRef<'doc>> {

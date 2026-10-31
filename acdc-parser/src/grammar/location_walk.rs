@@ -162,6 +162,9 @@ where
             if let Some(title) = &mut reference.title {
                 self.inlines(title.inlines_mut())?;
             }
+            if let Some(crate::Caption::CustomContent(caption)) = &mut reference.caption {
+                self.inlines(caption.inlines_mut())?;
+            }
         }
         Ok(())
     }
