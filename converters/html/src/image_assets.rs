@@ -2,7 +2,7 @@
 
 use std::{
     io::{Read as _, Write as _},
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 use acdc_converters_core::TraversalContext;
@@ -148,10 +148,7 @@ impl<'a, W: std::io::Write> HtmlVisitor<'a, '_, W> {
             .as_deref()
             .unwrap_or_else(|| Path::new("."));
         let path = if target.starts_with("file:") {
-            url::Url::parse(target)
-                .map_err(|error| error.to_string())?
-                .to_file_path()
-                .map_err(|()| "not a local file URL")?
+            file_url_path(target)?
         } else if target.contains("://") || target.starts_with("//") || target.starts_with("data:")
         {
             return Err("unsupported image source".into());
@@ -178,6 +175,32 @@ impl<'a, W: std::io::Write> HtmlVisitor<'a, '_, W> {
         let bytes = read_capped(std::fs::File::open(path).map_err(|error| error.to_string())?)?;
         Ok(ImageData { mime: None, bytes })
     }
+}
+
+// Match the targets where url exposes Url::to_file_path.
+#[cfg(any(
+    unix,
+    windows,
+    target_os = "redox",
+    target_os = "wasi",
+    target_os = "hermit"
+))]
+fn file_url_path(target: &str) -> Result<PathBuf, String> {
+    url::Url::parse(target)
+        .map_err(|error| error.to_string())?
+        .to_file_path()
+        .map_err(|()| "not a local file URL".into())
+}
+
+#[cfg(not(any(
+    unix,
+    windows,
+    target_os = "redox",
+    target_os = "wasi",
+    target_os = "hermit"
+)))]
+fn file_url_path(_target: &str) -> Result<PathBuf, String> {
+    Err("local file URLs are not supported on this platform".into())
 }
 
 fn read_capped(reader: impl std::io::Read) -> Result<Vec<u8>, String> {

@@ -67,6 +67,46 @@ fn embedded_image_bytes_and_secure_mode() -> Result<(), Error> {
     Ok(())
 }
 
+#[cfg(any(
+    unix,
+    windows,
+    target_os = "redox",
+    target_os = "wasi",
+    target_os = "hermit"
+))]
+#[test]
+fn file_url_images_decode_paths_and_enforce_safe_mode() -> Result<(), Error> {
+    let directory = tempfile::tempdir()?;
+    let base = directory.path().join("document");
+    fs::create_dir(&base)?;
+    fs::write(base.join("my ü image.svg"), SVG)?;
+    fs::write(directory.path().join("private.svg"), SVG)?;
+    let imagesdir = url::Url::from_directory_path(&base).map_err(|()| "invalid directory")?;
+    let encoded = format!("data:image/svg+xml;base64,{}", STANDARD.encode(SVG));
+    for (target, mode, embedded, warning) in [
+        ("my%20%C3%BC%20image.svg", SafeMode::Safe, true, false),
+        ("../private.svg", SafeMode::Safe, false, true),
+        ("../private.svg", SafeMode::Unsafe, true, false),
+        ("my%20%C3%BC%20image.svg", SafeMode::Secure, false, false),
+    ] {
+        let document = format!(":data-uri:\n:imagesdir: {imagesdir}\n\nimage::{target}[Alt]\n");
+        let (html, warnings) = convert(&document, &base, mode, false)?;
+        assert_eq!(html.contains(&encoded), embedded, "{mode:?}: {html}");
+        assert_eq!(warnings.len(), usize::from(warning), "{warnings:?}");
+        if warning {
+            assert!(
+                warnings
+                    .iter()
+                    .any(|warning| warning.message.contains("outside"))
+            );
+        }
+        if mode == SafeMode::Secure {
+            assert!(html.contains("src=\"file:"), "{html}");
+        }
+    }
+    Ok(())
+}
+
 #[test]
 fn image_embedding_denies_parent_paths_and_reports_missing_or_oversized_files() -> Result<(), Error>
 {

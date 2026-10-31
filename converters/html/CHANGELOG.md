@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The HTML converter and live editor build for browser WASM again. File-URL
+  image embedding reports a warning on platforms without local file paths.
+
 - Explicitly empty quote attributions keep their attribution mark, and empty
   citations keep their `<cite></cite>` element. Absent values stay omitted.
 
