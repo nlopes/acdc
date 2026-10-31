@@ -19,8 +19,17 @@ pub(super) fn include_range(text: &str, location: &Location, target: &str) -> Op
 }
 
 pub(super) fn anchor_range(text: &str, location: &Location, id: &str) -> Option<Range> {
+    if !id.is_empty() && location.start.file == location.end.file {
+        let range = location_to_utf16_range(text, location)?;
+        let start = position_to_offset(text, range.start)?;
+        let end = position_to_offset(text, range.end)?;
+        if text.get(start..end)? == id {
+            return Some(range);
+        }
+    }
     let (target, range) = target_range(text, location, &["[[[", "[["], &[',', ']'])
-        .or_else(|| target_range(text, location, &["[#"], &[',', ']', '.', '%']))?;
+        .or_else(|| target_range(text, location, &["[#"], &[',', ']', '.', '%']))
+        .or_else(|| target_range(text, location, &["anchor:"], &['[']))?;
     (target == id).then_some(range)
 }
 

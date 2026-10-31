@@ -231,12 +231,14 @@ impl Workspace {
 
         let state = Self::parse_and_index(text, version, options);
 
-        // Insert new anchors into the global index
-        for (id, loc) in &state.anchors {
-            self.anchor_index
-                .entry(id.clone())
-                .or_default()
-                .push((uri.clone(), loc.clone()));
+        // Keep all declarations; the per-document lookup selects one per ID.
+        if let Some(ast) = state.ast() {
+            for id in crate::capabilities::identity::occurrences(ast.document()) {
+                self.anchor_index
+                    .entry(id.id.to_owned())
+                    .or_default()
+                    .push((uri.clone(), ast.source_location(&id.location)));
+            }
         }
 
         affected.extend(state.diagnostic_uris(&uri));

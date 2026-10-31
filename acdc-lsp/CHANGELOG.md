@@ -19,6 +19,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Navigation, references, and rename now recognize retained named block IDs and
+  inline IDs, including images and formatting spans in titles, tables, and includes.
+  Rename changes only source-validated literal spellings, preserves quoting and
+  surrounding markup, and updates duplicate declarations together. Generated or
+  expanded IDs remain navigable but cannot be renamed through guessed ranges.
+  An ID on an xref macro takes precedence over that macro's target at the cursor.
+
 - Definition, hover, references, and rename now find cross-references in titles,
   captions, image alt text and tooltips, quote credits, footnotes, UI labels,
   description terms, callouts, and table cells. Nested references select the

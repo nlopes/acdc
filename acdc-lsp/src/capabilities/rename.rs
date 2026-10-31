@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 
+use acdc_parser::ast::IdOrigin;
 use tower_lsp_server::ls_types::{Position, PrepareRenameResponse, TextEdit, Uri, WorkspaceEdit};
 
 use crate::{
@@ -35,13 +36,13 @@ pub(crate) fn prepare_rename(
     }
 
     // Check if cursor is on an anchor
-    if let Some((anchor_id, anchor_loc)) =
-        super::hover::find_anchor_at_position(ast, &source_position, doc)
-        && let Some(range) = anchor_range(doc.text(), &anchor_loc, &anchor_id)
+    if let Some(anchor) = super::hover::find_anchor_at_position(ast, &source_position)
+        && anchor.origin == IdOrigin::Explicit
+        && let Some(range) = anchor_range(doc.text(), &anchor.location, anchor.id)
     {
         return Some(PrepareRenameResponse::RangeWithPlaceholder {
             range,
-            placeholder: anchor_id,
+            placeholder: anchor.id.to_owned(),
         });
     }
 
@@ -51,8 +52,8 @@ pub(crate) fn prepare_rename(
 /// Compute the workspace edit for renaming an anchor/xref.
 ///
 /// Edit literal anchor IDs and references in their original files.
-/// Return `None` when no declaration is editable or any retained reference
-/// cannot be edited safely.
+/// Return `None` if a declaration or retained reference has no safe literal edit,
+/// or if no declaration is available.
 #[must_use]
 pub(crate) fn compute_rename(
     doc: &DocumentState,
@@ -71,7 +72,9 @@ pub(crate) fn compute_rename(
             let parsed = XrefTarget::parse(&id);
             parsed.anchor.unwrap_or(id)
         } else {
-            super::hover::find_anchor_at_position(ast, &source_position, doc).map(|(id, _)| id)?
+            super::hover::find_anchor_at_position(ast, &source_position)?
+                .id
+                .to_owned()
         };
     drop(ast_guard);
 
@@ -88,7 +91,7 @@ pub(crate) fn compute_rename(
                 })
                 .flatten()
         };
-        let Some(range) = range else { continue };
+        let range = range?;
         changes.entry(anchor_uri).or_default().push(TextEdit {
             range,
             new_text: new_name.to_string(),

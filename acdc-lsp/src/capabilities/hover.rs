@@ -1,7 +1,10 @@
 //! Hover: show information about elements at cursor position
 
 use acdc_converters_core::inlines_to_string;
-use acdc_parser::{Block, DelimitedBlockType, Document, InlineMacro, InlineNode, Location};
+use acdc_parser::{
+    Block, DelimitedBlockType, Document, InlineMacro, InlineNode, Location,
+    ast::{IdOrigin, SectionRef},
+};
 use tower_lsp_server::ls_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position, Uri};
 
 use crate::{
@@ -36,8 +39,10 @@ pub(crate) fn compute_hover(
     }
 
     // Check for anchor at this position
-    if let Some((id, anchor_loc)) = find_anchor_at_position(ast, &position, doc) {
-        let total_refs = super::references::collect_xref_locations(workspace, &id).len();
+    if let Some(anchor) = find_anchor_at_position(ast, &position) {
+        let id = anchor.id;
+        let anchor_loc = anchor.location;
+        let total_refs = super::references::collect_xref_locations(workspace, id).len();
         let refs_text = match total_refs {
             0 => "No references".to_string(),
             1 => "1 reference".to_string(),
@@ -153,6 +158,10 @@ pub(crate) fn find_xref_at_position(
     doc: &Document,
     position: &acdc_parser::Position,
 ) -> Option<(String, Location)> {
+    // An explicit ID belongs to this occurrence, not to its surrounding xref's target.
+    if find_anchor_at_position(doc, position).is_some_and(|id| id.origin == IdOrigin::Explicit) {
+        return None;
+    }
     super::definition::xref_occurrences(doc)
         .filter(|xref| position_in_location(position, xref.location()))
         .min_by_key(|xref| {
@@ -164,177 +173,18 @@ pub(crate) fn find_xref_at_position(
         .map(|xref| (xref.target().to_owned(), xref.location().into()))
 }
 
-/// Find an anchor at an original-source scalar position.
-pub(crate) fn find_anchor_at_position(
-    doc: &Document,
+/// Find the smallest retained ID occurrence under the primary-file cursor.
+pub(crate) fn find_anchor_at_position<'doc>(
+    doc: &'doc Document<'doc>,
     position: &acdc_parser::Position,
-    doc_state: &DocumentState,
-) -> Option<(String, Location)> {
-    for (id, loc) in &doc_state.anchors {
-        if position_in_location(position, &loc.location) {
-            return Some((id.clone(), loc.location.clone()));
-        }
-    }
-
-    // Also check inline anchors in the AST
-    for block in &doc.blocks {
-        if let Some(result) = find_inline_anchor_in_block(block, position) {
-            return Some(result);
-        }
-    }
-    None
-}
-
-fn find_inline_anchor_in_block(
-    block: &Block,
-    position: &acdc_parser::Position,
-) -> Option<(String, Location)> {
-    match block {
-        Block::Section(section) => {
-            for child in &section.content {
-                if let Some(result) = find_inline_anchor_in_block(child, position) {
-                    return Some(result);
-                }
-            }
-            None
-        }
-        Block::Paragraph(para) => find_inline_anchor_in_inlines(&para.content, position),
-        Block::DelimitedBlock(delimited) => {
-            find_inline_anchor_in_delimited(&delimited.inner, position)
-        }
-        Block::UnorderedList(list) => {
-            for item in &list.items {
-                if let Some(result) = find_inline_anchor_in_inlines(&item.principal, position) {
-                    return Some(result);
-                }
-                for b in &item.blocks {
-                    if let Some(result) = find_inline_anchor_in_block(b, position) {
-                        return Some(result);
-                    }
-                }
-            }
-            None
-        }
-        Block::OrderedList(list) => {
-            for item in &list.items {
-                if let Some(result) = find_inline_anchor_in_inlines(&item.principal, position) {
-                    return Some(result);
-                }
-                for b in &item.blocks {
-                    if let Some(result) = find_inline_anchor_in_block(b, position) {
-                        return Some(result);
-                    }
-                }
-            }
-            None
-        }
-        Block::DescriptionList(list) => {
-            for item in &list.items {
-                if let Some(result) = find_inline_anchor_in_inlines(&item.principal_text, position) {
-                    return Some(result);
-                }
-                for b in &item.description {
-                    if let Some(result) = find_inline_anchor_in_block(b, position) {
-                        return Some(result);
-                    }
-                }
-            }
-            None
-        }
-        Block::Admonition(adm) => {
-            for b in &adm.blocks {
-                if let Some(result) = find_inline_anchor_in_block(b, position) {
-                    return Some(result);
-                }
-            }
-            None
-        }
-        Block::TableOfContents(_)
-        | Block::DiscreteHeader(_)
-        | Block::DocumentAttribute(_)
-        | Block::ThematicBreak(_)
-        | Block::PageBreak(_)
-        | Block::CalloutList(_)
-        | Block::Image(_)
-        | Block::Audio(_)
-        | Block::Video(_)
-        | Block::Comment(_)
-        // non_exhaustive
-        | _ => None,
-    }
-}
-
-fn find_inline_anchor_in_delimited(
-    inner: &DelimitedBlockType,
-    position: &acdc_parser::Position,
-) -> Option<(String, Location)> {
-    match inner {
-        DelimitedBlockType::DelimitedExample(blocks)
-        | DelimitedBlockType::DelimitedOpen(blocks)
-        | DelimitedBlockType::DelimitedSidebar(blocks)
-        | DelimitedBlockType::DelimitedQuote(blocks) => {
-            for block in blocks {
-                if let Some(result) = find_inline_anchor_in_block(block, position) {
-                    return Some(result);
-                }
-            }
-            None
-        }
-        DelimitedBlockType::DelimitedListing(inlines)
-        | DelimitedBlockType::DelimitedLiteral(inlines)
-        | DelimitedBlockType::DelimitedPass(inlines)
-        | DelimitedBlockType::DelimitedVerse(inlines)
-        | DelimitedBlockType::DelimitedComment(inlines) => {
-            find_inline_anchor_in_inlines(inlines, position)
-        }
-        DelimitedBlockType::DelimitedTable(_)
-        | DelimitedBlockType::DelimitedStem(_)
-        // non_exhaustive
-        | _ => None,
-    }
-}
-
-fn find_inline_anchor_in_inlines(
-    inlines: &[InlineNode],
-    position: &acdc_parser::Position,
-) -> Option<(String, Location)> {
-    for inline in inlines {
-        if let Some(result) = find_inline_anchor_in_inline(inline, position) {
-            return Some(result);
-        }
-    }
-    None
-}
-
-fn find_inline_anchor_in_inline(
-    inline: &InlineNode,
-    position: &acdc_parser::Position,
-) -> Option<(String, Location)> {
-    match inline {
-        InlineNode::InlineAnchor(anchor) => {
-            if position_in_location(position, &anchor.location) {
-                return Some((anchor.id.to_string(), anchor.location.clone()));
-            }
-            None
-        }
-        InlineNode::BoldText(b) => find_inline_anchor_in_inlines(&b.content, position),
-        InlineNode::ItalicText(i) => find_inline_anchor_in_inlines(&i.content, position),
-        InlineNode::MonospaceText(m) => find_inline_anchor_in_inlines(&m.content, position),
-        InlineNode::HighlightText(h) => find_inline_anchor_in_inlines(&h.content, position),
-        InlineNode::SubscriptText(s) => find_inline_anchor_in_inlines(&s.content, position),
-        InlineNode::SuperscriptText(s) => find_inline_anchor_in_inlines(&s.content, position),
-        InlineNode::PlainText(_)
-        | InlineNode::RawText(_)
-        | InlineNode::VerbatimText(_)
-        | InlineNode::CurvedQuotationText(_)
-        | InlineNode::CurvedApostropheText(_)
-        | InlineNode::StandaloneCurvedApostrophe(_)
-        | InlineNode::LineBreak(_)
-        | InlineNode::Macro(_)
-        | InlineNode::CalloutRef(_)
-        // non_exhaustive
-        | _ => None,
-    }
+) -> Option<super::identity::IdOccurrence<'doc>> {
+    super::identity::occurrences(doc)
+        .filter(|id| position_in_location(position, &id.location))
+        .min_by_key(|id| {
+            id.location
+                .absolute_end
+                .saturating_sub(id.location.absolute_start)
+        })
 }
 
 /// Find a link or URL at an original-source scalar position.
@@ -538,8 +388,10 @@ fn find_section_title_at_location(doc: &Document, loc: &Location) -> Option<Stri
 fn find_section_title_in_block(block: &Block, target_loc: &Location) -> Option<String> {
     match block {
         Block::Section(section) => {
-            // Check if this section's location matches
-            if section.location.start == target_loc.start {
+            if section.location.start == target_loc.start
+                || SectionRef::from(section).anchors()
+                    .any(|anchor| Location::from(anchor.location()) == *target_loc)
+            {
                 return Some(inlines_to_string(&section.title));
             }
             // Recurse into children

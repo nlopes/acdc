@@ -5,202 +5,23 @@ use std::collections::HashMap;
 use acdc_converters_core::{TraversalContext, visitor::Visitor};
 use acdc_parser::{
     Block, DelimitedBlockType, Document, InlineMacro, InlineNode, Location, Section,
-    ast::{CrossReferenceRef, DocumentRef, InlineKind},
+    ast::{CrossReferenceRef, DocumentRef, InlineKind, SectionRef},
 };
 use tower_lsp_server::ls_types::{Position, Uri};
 
 use crate::state::{DocumentState, Workspace, XrefTarget, document::OwnedSource};
 
-/// Collect all anchor definitions from document AST
+/// Index retained IDs for navigation, including IDs outside the reference catalog.
 #[must_use]
 pub(crate) fn collect_anchors(doc: &Document) -> HashMap<String, Location> {
-    let mut anchors = HashMap::new();
-
-    // Collect from all blocks
-    for block in &doc.blocks {
-        collect_block_anchors(block, &mut anchors);
-    }
-
-    anchors
+    super::identity::occurrences(doc)
+        .map(|occurrence| (occurrence.id.to_owned(), occurrence.location))
+        .collect()
 }
 
-fn collect_block_anchors(block: &Block, anchors: &mut HashMap<String, Location>) {
-    if let Some(content) = block
-        .metadata()
-        .and_then(acdc_parser::BlockMetadata::caption_content)
-    {
-        collect_inline_anchors(content, anchors);
-    }
-    if let Block::Image(image) = block
-        && let Some(alt) = &image.alt
-    {
-        collect_inline_anchors(alt, anchors);
-    }
-    match block {
-        Block::Section(section) => {
-            collect_section_anchors(section, anchors);
-        }
-        Block::Paragraph(para) => {
-            // Collect from paragraph metadata
-            collect_metadata_anchors(&para.metadata, &para.location, anchors);
-            // Collect inline anchors
-            collect_inline_anchors(&para.content, anchors);
-        }
-        Block::DelimitedBlock(delimited) => {
-            // Collect from block metadata
-            collect_metadata_anchors(&delimited.metadata, &delimited.location, anchors);
-            // Recurse into block content
-            collect_delimited_block_anchors(&delimited.inner, anchors);
-        }
-        Block::UnorderedList(list) => {
-            for item in &list.items {
-                collect_inline_anchors(&item.principal, anchors);
-                for b in &item.blocks {
-                    collect_block_anchors(b, anchors);
-                }
-            }
-        }
-        Block::OrderedList(list) => {
-            for item in &list.items {
-                collect_inline_anchors(&item.principal, anchors);
-                for b in &item.blocks {
-                    collect_block_anchors(b, anchors);
-                }
-            }
-        }
-        Block::DescriptionList(list) => {
-            for item in &list.items {
-                collect_inline_anchors(&item.principal_text, anchors);
-                for b in &item.description {
-                    collect_block_anchors(b, anchors);
-                }
-            }
-        }
-        Block::Admonition(adm) => {
-            for b in &adm.blocks {
-                collect_block_anchors(b, anchors);
-            }
-        }
-        Block::TableOfContents(_)
-        | Block::DiscreteHeader(_)
-        | Block::DocumentAttribute(_)
-        | Block::ThematicBreak(_)
-        | Block::PageBreak(_)
-        | Block::CalloutList(_)
-        | Block::Image(_)
-        | Block::Audio(_)
-        | Block::Video(_)
-        | Block::Comment(_)
-        // non_exhaustive: silently ignore future variants
-        | _ => {}
-    }
-}
-
-/// Build a location covering just the section heading line (from section start
-/// to the end of the title text), rather than the full section span.
+/// The section's heading line, without its body.
 pub(super) fn heading_line_location(section: &Section) -> Location {
-    let mut loc = section.location.clone();
-    if let Some(last_inline) = section.title.last() {
-        let title_loc = last_inline.location();
-        loc.absolute_end = title_loc.absolute_end;
-        loc.end = title_loc.end.clone();
-    }
-    loc
-}
-
-fn collect_section_anchors(section: &Section, anchors: &mut HashMap<String, Location>) {
-    // Get the section ID (explicit or generated)
-    // Title implements Deref<Target = [InlineNode]>
-    let id = section.id().into_owned();
-    // Use heading-line location (section start to title end), not the full
-    // section span. The full span covers all content blocks, which would make
-    // the anchor match on hover anywhere inside the section body.
-    let heading_loc = heading_line_location(section);
-    anchors.insert(id, heading_loc);
-
-    // Also collect any explicit anchors from metadata
-    for anchor in &section.metadata.anchors {
-        anchors.insert(anchor.id.to_string(), anchor.location.clone());
-    }
-
-    // Recurse into section content
-    for child in &section.content {
-        collect_block_anchors(child, anchors);
-    }
-}
-
-fn collect_metadata_anchors(
-    metadata: &acdc_parser::BlockMetadata,
-    block_location: &Location,
-    anchors: &mut HashMap<String, Location>,
-) {
-    // Collect anchors from metadata (from [[id]] or [#id] syntax)
-    for anchor in &metadata.anchors {
-        anchors.insert(anchor.id.to_string(), anchor.location.clone());
-    }
-    // Also check explicit id attribute
-    if let Some(id_anchor) = &metadata.id {
-        anchors.insert(id_anchor.id.to_string(), block_location.clone());
-    }
-}
-
-fn collect_delimited_block_anchors(
-    inner: &DelimitedBlockType,
-    anchors: &mut HashMap<String, Location>,
-) {
-    match inner {
-        DelimitedBlockType::DelimitedExample(blocks)
-        | DelimitedBlockType::DelimitedOpen(blocks)
-        | DelimitedBlockType::DelimitedSidebar(blocks)
-        | DelimitedBlockType::DelimitedQuote(blocks) => {
-            for block in blocks {
-                collect_block_anchors(block, anchors);
-            }
-        }
-        DelimitedBlockType::DelimitedListing(inlines)
-        | DelimitedBlockType::DelimitedLiteral(inlines)
-        | DelimitedBlockType::DelimitedPass(inlines)
-        | DelimitedBlockType::DelimitedVerse(inlines)
-        | DelimitedBlockType::DelimitedComment(inlines) => {
-            collect_inline_anchors(inlines, anchors);
-        }
-        DelimitedBlockType::DelimitedTable(_)
-        | DelimitedBlockType::DelimitedStem(_)
-        // non_exhaustive
-        | _ => {}
-    }
-}
-
-fn collect_inline_anchors(inlines: &[InlineNode], anchors: &mut HashMap<String, Location>) {
-    for inline in inlines {
-        if let InlineNode::Macro(value) = inline {
-            value.for_each_content_attribute(|content| collect_inline_anchors(content, anchors));
-        }
-        // Explicit arms for compile-time check when variants added
-        match inline {
-            InlineNode::InlineAnchor(anchor) => {
-                anchors.insert(anchor.id.to_string(), anchor.location.clone());
-            }
-            // Recurse into formatted text to find nested anchors
-            InlineNode::BoldText(b) => collect_inline_anchors(&b.content, anchors),
-            InlineNode::ItalicText(i) => collect_inline_anchors(&i.content, anchors),
-            InlineNode::MonospaceText(m) => collect_inline_anchors(&m.content, anchors),
-            InlineNode::HighlightText(h) => collect_inline_anchors(&h.content, anchors),
-            InlineNode::SubscriptText(s) => collect_inline_anchors(&s.content, anchors),
-            InlineNode::SuperscriptText(s) => collect_inline_anchors(&s.content, anchors),
-            InlineNode::PlainText(_)
-            | InlineNode::RawText(_)
-            | InlineNode::VerbatimText(_)
-            | InlineNode::CurvedQuotationText(_)
-            | InlineNode::CurvedApostropheText(_)
-            | InlineNode::StandaloneCurvedApostrophe(_)
-            | InlineNode::LineBreak(_)
-            | InlineNode::Macro(_)
-            | InlineNode::CalloutRef(_)
-            // non_exhaustive
-            | _ => {}
-        }
-    }
+    super::identity::heading_location(SectionRef::from(section))
 }
 
 /// Cross-references in retained content, excluding derived catalog copies.

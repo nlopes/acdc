@@ -39,13 +39,11 @@ pub(crate) fn find_references(
     }
 
     // Check if cursor is on an anchor - find all xrefs pointing to it
-    if let Some((anchor_id, _anchor_loc)) =
-        super::hover::find_anchor_at_position(ast, &source_position, doc)
-    {
+    if let Some(anchor) = super::hover::find_anchor_at_position(ast, &source_position) {
         return Some(collect_cross_file_references(
             workspace,
             doc_uri,
-            &anchor_id,
+            anchor.id,
             include_declaration,
             None,
         ));
