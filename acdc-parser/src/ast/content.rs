@@ -51,6 +51,26 @@ impl<'doc> From<&'doc ContentAttribute<'doc>> for ContentRef<'doc> {
     }
 }
 
+impl crate::ParseInlineResult {
+    /// Read parsed inline content through the typed AST API without copying it.
+    ///
+    /// The content cannot outlive its parse result:
+    ///
+    /// ```compile_fail,E0597
+    /// use acdc_parser::{Options, parse_inline};
+    ///
+    /// let content = {
+    ///     let parsed = parse_inline("*Bold* text", &Options::default()).unwrap();
+    ///     parsed.content()
+    /// };
+    /// println!("{}", content.inlines().count());
+    /// ```
+    #[must_use]
+    pub fn content(&self) -> ContentRef<'_> {
+        ContentRef::new(self.inlines())
+    }
+}
+
 /// An ordered collection of separate inline-content values.
 #[derive(Clone, Copy, Debug)]
 pub struct ContentListRef<'doc> {

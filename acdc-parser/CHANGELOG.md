@@ -84,6 +84,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Standalone inline parses expose typed content through `ParseInlineResult::content()`
+  without copying nodes or changing their source locations. Existing slice reads
+  and native JSON remain unchanged.
+
 - Library callers can read registered cross-reference targets and TOC entries
   through `DocumentRef::references()` and `toc_entries()`, without copying their
   content. Reads preserve labels, empty values, section numbers, resolved

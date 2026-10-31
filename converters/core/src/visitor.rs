@@ -27,15 +27,18 @@ use acdc_parser::{
     DelimitedBlockType, DescriptionList, DiscreteHeader, Document, DocumentAttribute, Header,
     Image, InlineNode, ListItem, OrderedList, PageBreak, Paragraph, Section, TableOfContents,
     ThematicBreak, UnorderedList, Video,
+    ast::{InlineKind, InlineRef},
 };
 
 use crate::TraversalContext;
 
 mod block;
 mod document;
+mod inline;
 
 pub use block::BlockVisitor;
 pub use document::DocumentVisitor;
+pub use inline::InlineVisitor;
 
 /// The Visitor trait defines methods for visiting each type of AST node.
 ///
@@ -532,10 +535,9 @@ pub trait Visitor<'doc> {
         traversal: &mut TraversalContext<'doc>,
         nodes: &[InlineNode],
     ) -> Result<(), Self::Error> {
-        for node in nodes {
-            self.visit_inline_node(traversal, node)?;
-        }
-        Ok(())
+        nodes
+            .iter()
+            .try_for_each(|node| self.visit_inline_node(traversal, node))
     }
 
     /// Visit a single inline node
@@ -599,17 +601,17 @@ pub trait Visitor<'doc> {
 /// Returns true if the inline node is a formatting span whose children
 /// should suppress em-dash boundary replacement at string start/end.
 #[must_use]
-pub fn is_formatting_span(node: &InlineNode) -> bool {
+pub fn is_formatting_span<'inline>(node: impl Into<InlineRef<'inline>>) -> bool {
     matches!(
-        node,
-        InlineNode::BoldText(_)
-            | InlineNode::ItalicText(_)
-            | InlineNode::MonospaceText(_)
-            | InlineNode::HighlightText(_)
-            | InlineNode::SuperscriptText(_)
-            | InlineNode::SubscriptText(_)
-            | InlineNode::CurvedQuotationText(_)
-            | InlineNode::CurvedApostropheText(_)
+        node.into().kind(),
+        InlineKind::Bold(_)
+            | InlineKind::Italic(_)
+            | InlineKind::Monospace(_)
+            | InlineKind::Highlight(_)
+            | InlineKind::Superscript(_)
+            | InlineKind::Subscript(_)
+            | InlineKind::CurvedQuotation(_)
+            | InlineKind::CurvedApostrophe(_)
     )
 }
 

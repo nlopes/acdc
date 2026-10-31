@@ -39,6 +39,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Library converters can render typed inline content through `visitor::InlineVisitor`,
+  including temporary text and parsed fragments whose lifetime is shorter than the
+  document's. Callbacks keep content selection, sibling handling, and rendering
+  policy under converter control. Existing inline visitor overrides stay supported.
+  Formatting-span checks accept typed reads alongside existing owner inputs.
+
 - Library converters can use `visitor::DocumentVisitor` with typed document and
   header reads. Its default traversal preserves the existing document hook order,
   preamble wrappers, attribute replay, and first-error stopping. Hooks select the
