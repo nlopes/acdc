@@ -13,7 +13,7 @@ use tower_lsp_server::ls_types::{Diagnostic, Uri};
 
 use crate::{
     capabilities::{
-        definition, diagnostics,
+        definition, diagnostics, media,
         workspace_symbols::{IndexedSymbol, extract_workspace_symbols},
     },
     config::{AnalysisBackend, AnalysisConfiguration, ParserProfiles},
@@ -779,7 +779,7 @@ impl Workspace {
                             .into_iter()
                             .map(|(id, location)| (id, parse_result.source_location(&location)))
                             .collect();
-                        media_sources = definition::collect_media_sources(parse_result.document())
+                        media_sources = media::collect_media_sources(doc)
                             .into_iter()
                             .map(|(source, location)| {
                                 (source, parse_result.source_location(&location))

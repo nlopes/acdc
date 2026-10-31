@@ -7,7 +7,7 @@ use std::{
 };
 
 use acdc_parser::{
-    Document, Location, ParseResult, Position, Source, SourceLocation,
+    Document, Location, ParseResult, Position, SourceLocation,
     ast::{DocumentAttributesRef, DocumentRef},
 };
 use tower_lsp_server::ls_types::{Diagnostic, Uri};
@@ -19,16 +19,6 @@ pub(crate) enum OwnedSource {
     Path(PathBuf),
     Url(String),
     Name(String),
-}
-
-impl OwnedSource {
-    pub(crate) fn from_borrowed(source: &Source<'_>) -> Self {
-        match source {
-            Source::Path(p) => Self::Path(p.clone()),
-            Source::Url(u) => Self::Url(u.to_string()),
-            Source::Name(n) => Self::Name((*n).to_string()),
-        }
-    }
 }
 
 /// Editor text and the optional parser result.

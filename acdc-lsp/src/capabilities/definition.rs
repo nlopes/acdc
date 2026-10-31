@@ -2,14 +2,13 @@
 
 use std::collections::HashMap;
 
-use acdc_converters_core::{TraversalContext, visitor::Visitor};
 use acdc_parser::{
-    Block, DelimitedBlockType, Document, InlineMacro, InlineNode, Location,
+    Location,
     ast::{CrossReferenceRef, DocumentRef, InlineKind},
 };
 use tower_lsp_server::ls_types::{Position, Uri};
 
-use crate::state::{DocumentState, Workspace, XrefTarget, document::OwnedSource};
+use crate::state::{DocumentState, Workspace, XrefTarget};
 
 /// Index retained IDs for navigation, including IDs outside the reference catalog.
 #[must_use]
@@ -40,223 +39,6 @@ pub(crate) fn collect_xrefs(doc: DocumentRef<'_>) -> Vec<(String, Location)> {
     xref_occurrences(doc)
         .map(|xref| (xref.target().to_owned(), xref.location().into()))
         .collect()
-}
-
-/// Collect all media sources (images, audio, video) from document AST
-#[must_use]
-pub(crate) fn collect_media_sources(doc: &Document) -> Vec<(OwnedSource, Location)> {
-    let mut visitor = MediaVisitor {
-        sources: Vec::new(),
-    };
-    let mut traversal = TraversalContext::new(&doc.attributes);
-    let Ok(()) = traversal.visit_blocks(&mut visitor, &doc.blocks);
-    visitor.sources
-}
-
-struct MediaVisitor {
-    sources: Vec<(OwnedSource, Location)>,
-}
-
-impl<'doc> Visitor<'doc> for MediaVisitor {
-    type Error = std::convert::Infallible;
-
-    fn before_block(
-        &mut self,
-        traversal: &mut TraversalContext<'doc>,
-        block: &'doc Block<'doc>,
-    ) -> Result<(), Self::Error> {
-        if let Some(content) = block
-            .metadata()
-            .and_then(acdc_parser::BlockMetadata::caption_content)
-        {
-            collect_inline_media(content, &mut self.sources, traversal);
-        }
-        if let Block::Image(image) = block
-            && let Some(alt) = &image.alt
-        {
-            collect_inline_media(alt, &mut self.sources, traversal);
-        }
-        match block {
-            Block::Image(image) => self.sources.push((
-                resolve_media_source(&image.source, traversal),
-                image.location.clone(),
-            )),
-            Block::Audio(audio) => self.sources.push((
-                resolve_media_source(&audio.source, traversal),
-                audio.location.clone(),
-            )),
-            Block::Video(video) => self.sources.push((
-                resolve_media_source(&video.source, traversal),
-                video.location.clone(),
-            )),
-            Block::DelimitedBlock(block) => match &block.inner {
-                DelimitedBlockType::DelimitedListing(inlines)
-                | DelimitedBlockType::DelimitedLiteral(inlines)
-                | DelimitedBlockType::DelimitedPass(inlines)
-                | DelimitedBlockType::DelimitedVerse(inlines)
-                | DelimitedBlockType::DelimitedComment(inlines) => {
-                    collect_inline_media(inlines, &mut self.sources, traversal);
-                }
-                DelimitedBlockType::DelimitedExample(_)
-                | DelimitedBlockType::DelimitedOpen(_)
-                | DelimitedBlockType::DelimitedQuote(_)
-                | DelimitedBlockType::DelimitedSidebar(_)
-                | DelimitedBlockType::DelimitedStem(_)
-                | DelimitedBlockType::DelimitedTable(_)
-                | _ => {}
-            },
-            Block::Section(_)
-            | Block::Paragraph(_)
-            | Block::OrderedList(_)
-            | Block::UnorderedList(_)
-            | Block::DescriptionList(_)
-            | Block::CalloutList(_)
-            | Block::Admonition(_)
-            | Block::DiscreteHeader(_)
-            | Block::DocumentAttribute(_)
-            | Block::TableOfContents(_)
-            | Block::ThematicBreak(_)
-            | Block::PageBreak(_)
-            | Block::Comment(_)
-            | _ => {}
-        }
-        Ok(())
-    }
-
-    fn visit_section(
-        &mut self,
-        traversal: &mut TraversalContext<'doc>,
-        section: &'doc acdc_parser::Section<'doc>,
-    ) -> Result<(), Self::Error> {
-        traversal.visit_blocks(self, &section.content)
-    }
-
-    fn visit_paragraph(
-        &mut self,
-        traversal: &mut TraversalContext<'doc>,
-        paragraph: &acdc_parser::Paragraph<'_>,
-    ) -> Result<(), Self::Error> {
-        self.visit_inline_nodes(traversal, &paragraph.content)
-    }
-
-    fn visit_description_list(
-        &mut self,
-        traversal: &mut TraversalContext<'doc>,
-        list: &'doc acdc_parser::DescriptionList<'doc>,
-    ) -> Result<(), Self::Error> {
-        for item in &list.items {
-            self.visit_inline_nodes(traversal, &item.principal_text)?;
-            traversal.visit_blocks(self, &item.description)?;
-        }
-        Ok(())
-    }
-
-    fn visit_ordered_list(
-        &mut self,
-        traversal: &mut TraversalContext<'doc>,
-        list: &'doc acdc_parser::OrderedList<'doc>,
-    ) -> Result<(), Self::Error> {
-        for item in &list.items {
-            self.visit_list_item(traversal, item)?;
-        }
-        Ok(())
-    }
-
-    fn visit_unordered_list(
-        &mut self,
-        traversal: &mut TraversalContext<'doc>,
-        list: &'doc acdc_parser::UnorderedList<'doc>,
-    ) -> Result<(), Self::Error> {
-        for item in &list.items {
-            self.visit_list_item(traversal, item)?;
-        }
-        Ok(())
-    }
-
-    fn visit_discrete_header(
-        &mut self,
-        _traversal: &mut TraversalContext<'doc>,
-        _header: &acdc_parser::DiscreteHeader<'_>,
-    ) -> Result<(), Self::Error> {
-        Ok(())
-    }
-
-    fn visit_inline_nodes(
-        &mut self,
-        traversal: &mut TraversalContext<'doc>,
-        nodes: &[InlineNode<'_>],
-    ) -> Result<(), Self::Error> {
-        collect_inline_media(nodes, &mut self.sources, traversal);
-        Ok(())
-    }
-}
-
-fn collect_inline_media(
-    inlines: &[InlineNode],
-    sources: &mut Vec<(OwnedSource, Location)>,
-    attributes: &mut TraversalContext<'_>,
-) {
-    for inline in inlines {
-        if let InlineNode::Macro(value) = inline {
-            value.for_each_content_attribute(|content| {
-                collect_inline_media(content, sources, attributes);
-            });
-        }
-        match inline {
-            InlineNode::Macro(InlineMacro::Image(img)) => {
-                sources.push((resolve_media_source(&img.source, attributes), img.location.clone()));
-            }
-            // Recurse into formatted text to find nested images
-            InlineNode::BoldText(b) => collect_inline_media(&b.content, sources, attributes),
-            InlineNode::ItalicText(i) => collect_inline_media(&i.content, sources, attributes),
-            InlineNode::MonospaceText(m) => collect_inline_media(&m.content, sources, attributes),
-            InlineNode::HighlightText(h) => collect_inline_media(&h.content, sources, attributes),
-            InlineNode::SubscriptText(s) => collect_inline_media(&s.content, sources, attributes),
-            InlineNode::SuperscriptText(s) => collect_inline_media(&s.content, sources, attributes),
-            InlineNode::PlainText(_)
-            | InlineNode::RawText(_)
-            | InlineNode::VerbatimText(_)
-            | InlineNode::CurvedQuotationText(_)
-            | InlineNode::CurvedApostropheText(_)
-            | InlineNode::StandaloneCurvedApostrophe(_)
-            | InlineNode::LineBreak(_)
-            | InlineNode::InlineAnchor(_)
-            | InlineNode::Macro(_)
-            | InlineNode::CalloutRef(_)
-            // non_exhaustive
-            | _ => {}
-        }
-    }
-}
-
-fn resolve_media_source(
-    source: &acdc_parser::Source<'_>,
-    attributes: &TraversalContext<'_>,
-) -> OwnedSource {
-    let source = OwnedSource::from_borrowed(source);
-    let OwnedSource::Path(path) = &source else {
-        return source;
-    };
-    if path.is_absolute() {
-        return source;
-    }
-    let Some(directory) = attributes
-        .get("imagesdir")
-        .and_then(|value| value.text())
-        .map(acdc_parser::strip_quotes)
-        .filter(|directory| !directory.is_empty())
-    else {
-        return source;
-    };
-    if directory.contains("://") || directory.starts_with("//") {
-        OwnedSource::Url(format!(
-            "{}/{}",
-            directory.trim_end_matches('/'),
-            path.display()
-        ))
-    } else {
-        OwnedSource::Path(std::path::Path::new(directory).join(path))
-    }
 }
 
 /// Find definition at cursor position, with cross-file resolution
@@ -391,7 +173,10 @@ fn resolve_link_target(target: &str, doc_uri: &Uri) -> Option<(Uri, Location)> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::Workspace;
+    use crate::{
+        capabilities::media::collect_media_sources,
+        state::{Workspace, document::OwnedSource},
+    };
     use acdc_parser::{Error, Options, parse};
     use std::error::Error as StdError;
 
@@ -630,7 +415,7 @@ Content.
     fn test_collect_media_sources_block_image() -> Result<(), Error> {
         let content = "= Document\n\nimage::photo.png[Alt text]\n";
         let parsed = parse(content, &Options::default())?;
-        let sources = collect_media_sources(parsed.document());
+        let sources = collect_media_sources(parsed.document_ref());
 
         assert_eq!(sources.len(), 1);
         assert!(sources.first().is_some_and(|(s, _)| {
@@ -643,7 +428,7 @@ Content.
     fn test_collect_media_sources_inline_image() -> Result<(), Error> {
         let content = "= Document\n\n== Section\n\nSee image:icon.png[] here.\n";
         let parsed = parse(content, &Options::default())?;
-        let sources = collect_media_sources(parsed.document());
+        let sources = collect_media_sources(parsed.document_ref());
 
         assert_eq!(sources.len(), 1);
         assert!(sources.first().is_some_and(|(s, _)| {
@@ -664,7 +449,7 @@ Content.
                 .map(|reference| reference.0.as_str()),
             Some("target")
         );
-        let sources = collect_media_sources(document);
+        let sources = collect_media_sources(document.into());
         assert_eq!(sources.len(), 3);
         assert!(sources.iter().any(|(_, location)| {
             source.get(location.absolute_start..=location.absolute_end)
@@ -677,7 +462,7 @@ Content.
     fn test_collect_media_sources_multiple() -> Result<(), Error> {
         let content = "= Document\n\nimage::a.png[]\n\n== Section\n\nimage::b.jpg[]\n\nText with image:c.svg[] inline.\n";
         let parsed = parse(content, &Options::default())?;
-        let sources = collect_media_sources(parsed.document());
+        let sources = collect_media_sources(parsed.document_ref());
 
         assert_eq!(sources.len(), 3);
         Ok(())
@@ -696,7 +481,7 @@ Content.
             ),
         ] {
             let parsed = parse(source, &Options::default())?;
-            let actual = collect_media_sources(parsed.document())
+            let actual = collect_media_sources(parsed.document_ref())
                 .into_iter()
                 .filter_map(|(source, _)| {
                     if let OwnedSource::Path(path) = source {
@@ -708,6 +493,65 @@ Content.
                 .collect::<Vec<_>>();
             assert_eq!(actual, expected.map(std::path::PathBuf::from));
         }
+        Ok(())
+    }
+    #[test]
+    fn media_sources_preserve_selected_field_order() -> Result<(), Box<dyn StdError>> {
+        let source = "[caption='image:caption.svg[]',alt='image:alt.svg[]']\n.Image title image:title.svg[]\nimage::outer.svg[]\n\nimage:host.svg[alt='image:inline-alt.svg[]',title='image:tooltip.svg[]']\n\nfootnote:[image:footnote.svg[]]\n\n\"`image:curved.svg[]`\"\n";
+        let parsed = parse(source, &Options::default())?;
+        let media = collect_media_sources(parsed.document_ref());
+        let paths = media
+            .iter()
+            .filter_map(|(source, _)| {
+                if let OwnedSource::Path(path) = source {
+                    Some(path.clone())
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            paths,
+            [
+                "caption.svg",
+                "alt.svg",
+                "outer.svg",
+                "inline-alt.svg",
+                "tooltip.svg",
+                "host.svg"
+            ]
+            .map(std::path::PathBuf::from)
+        );
+        for (target, location) in media {
+            let spelling = source
+                .get(location.absolute_start..=location.absolute_end)
+                .ok_or("media span")?;
+            if let OwnedSource::Path(path) = target {
+                assert!(spelling.contains(&path.display().to_string()), "{spelling}");
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn media_sources_keep_cell_assignments_local_and_replay_later_directories() -> Result<(), Error>
+    {
+        let source = "= Doc\n\n[cols=\"a,a\"]\n|===\n|\n:imagesdir: one\n\nimage::first.svg[]\n|\n:imagesdir: two\n\nimage::second.svg[]\n|===\n\nimage::after.svg[]\n\n:imagesdir: https://cdn.example.org/assets\n\nimage::remote.svg[]\n\n:imagesdir!:\n\nimage::last.svg[]\n";
+        let parsed = parse(source, &Options::default())?;
+        let sources = collect_media_sources(parsed.document_ref())
+            .into_iter()
+            .map(|(source, _)| source)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            sources,
+            [
+                OwnedSource::Path("one/first.svg".into()),
+                OwnedSource::Path("two/second.svg".into()),
+                OwnedSource::Path("after.svg".into()),
+                OwnedSource::Url("https://cdn.example.org/assets/remote.svg".into()),
+                OwnedSource::Path("last.svg".into()),
+            ]
+        );
         Ok(())
     }
 }

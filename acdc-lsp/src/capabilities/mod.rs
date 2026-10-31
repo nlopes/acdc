@@ -15,6 +15,7 @@ pub(crate) mod hover;
 pub(crate) mod identity;
 pub(crate) mod inlay_hints;
 mod link_occurrences;
+pub(crate) mod media;
 pub(crate) mod on_type_formatting;
 pub(crate) mod references;
 pub(crate) mod rename;
