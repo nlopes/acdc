@@ -13,7 +13,7 @@ use crate::state::{DocumentState, Workspace, XrefTarget, document::OwnedSource};
 
 /// Index retained IDs for navigation, including IDs outside the reference catalog.
 #[must_use]
-pub(crate) fn collect_anchors(doc: &Document) -> HashMap<String, Location> {
+pub(crate) fn collect_anchors(doc: DocumentRef<'_>) -> HashMap<String, Location> {
     super::identity::occurrences(doc)
         .map(|occurrence| (occurrence.id.to_owned(), occurrence.location))
         .collect()
@@ -25,11 +25,10 @@ pub(super) fn heading_line_location(section: &Section) -> Location {
 }
 
 /// Cross-references in retained content, excluding derived catalog copies.
-pub(super) fn xref_occurrences<'doc>(
-    doc: &'doc Document<'doc>,
-) -> impl Iterator<Item = CrossReferenceRef<'doc>> {
-    DocumentRef::from(doc)
-        .content_occurrences()
+pub(super) fn xref_occurrences(
+    doc: DocumentRef<'_>,
+) -> impl Iterator<Item = CrossReferenceRef<'_>> {
+    doc.content_occurrences()
         .flat_map(|field| field.content().inlines())
         .filter_map(|inline| {
             if let InlineKind::CrossReference(xref) = inline.kind() {
@@ -42,7 +41,7 @@ pub(super) fn xref_occurrences<'doc>(
 
 /// Collect cross-reference targets and source spans for the workspace index.
 #[must_use]
-pub(crate) fn collect_xrefs(doc: &Document) -> Vec<(String, Location)> {
+pub(crate) fn collect_xrefs(doc: DocumentRef<'_>) -> Vec<(String, Location)> {
     xref_occurrences(doc)
         .map(|xref| (xref.target().to_owned(), xref.location().into()))
         .collect()
@@ -415,7 +414,7 @@ Some content.
 More content.
 ";
         let parsed = parse(content, &Options::default())?;
-        let anchors = collect_anchors(parsed.document());
+        let anchors = collect_anchors(parsed.document_ref());
 
         // Should have both explicit and generated IDs
         assert!(anchors.contains_key("explicit-id"));
@@ -437,7 +436,7 @@ See xref:section-two[Section Two].
 Content.
 ";
         let parsed = parse(content, &Options::default())?;
-        let xrefs = collect_xrefs(parsed.document());
+        let xrefs = collect_xrefs(parsed.document_ref());
 
         assert_eq!(xrefs.len(), 1);
         let xref = xrefs.first();
@@ -663,9 +662,9 @@ Content.
         let source = "[alt='image:nested.svg[] <<target>>']\nimage::outer.svg[]\n\nimage:other.svg[title=\"anchor:target[Target]\"]";
         let parsed = parse(source, &Options::default())?;
         let document = parsed.document();
-        assert!(collect_anchors(document).contains_key("target"));
+        assert!(collect_anchors(document.into()).contains_key("target"));
         assert_eq!(
-            collect_xrefs(document)
+            collect_xrefs(document.into())
                 .first()
                 .map(|reference| reference.0.as_str()),
             Some("target")

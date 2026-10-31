@@ -427,8 +427,7 @@ fn complete_attribute_references(doc: &DocumentState, prefix: &str) -> Vec<Compl
 
     // Add document-defined attributes
     if let Some(ast) = doc.ast() {
-        let ast = ast.document();
-        for (name, _value) in ast.attributes.iter() {
+        for (name, _value) in ast.document_ref().attributes().iter() {
             if name.starts_with(prefix) {
                 items.push(CompletionItem {
                     label: name.to_string(),
@@ -756,6 +755,41 @@ mod tests {
             1
         );
         Ok(())
+    }
+
+    #[test]
+    fn completions_and_conditionals_use_the_header_snapshot() -> Result<(), Box<dyn Error>> {
+        let workspace = Workspace::new();
+        let uri = "file:///completion-snapshot.adoc".parse::<Uri>()?;
+        let source = "= Document\n:custom-kept: header\n:custom-empty:\n:custom-removed: value\n:custom-removed!:\n\n:custom-body: body\n:custom-kept!:\n\nifdef::custom-kept[]\nKept.\nendif::[]\n\nifdef::custom-body[]\nBody.\nendif::[]\n";
+        workspace.update_document(uri.clone(), source.into(), 1);
+        let doc = workspace.get_document(&uri).ok_or("document")?;
+        let mut names = complete_attribute_references(&doc, "custom-")
+            .into_iter()
+            .map(|item| item.label)
+            .collect::<Vec<_>>();
+        names.sort_unstable();
+        assert_eq!(names, ["custom-empty", "custom-kept"]);
+        assert_eq!(
+            doc.conditionals
+                .iter()
+                .map(|condition| condition.is_active)
+                .collect::<Vec<_>>(),
+            [true, false]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn attribute_completion_without_an_ast_keeps_builtin_fallbacks() {
+        let doc = DocumentState::new_failure(":custom: value\n\n{custom".into(), 1);
+        assert_eq!(complete_attribute_references(&doc, "custom"), []);
+        assert!(
+            complete_attribute_references(&doc, "sectnums")
+                .iter()
+                .any(|item| item.label == "sectnums"
+                    && item.kind == Some(CompletionItemKind::CONSTANT))
+        );
     }
 
     fn setup_include_test_dir(suffix: &str) -> Result<(std::path::PathBuf, Uri), Box<dyn Error>> {

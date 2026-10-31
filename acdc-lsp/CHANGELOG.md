@@ -21,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with `window/showDocument` support; the `preview` and `preview-pdf` features
   are enabled by default.
 
+### Performance
+
+- Conditional highlighting uses less temporary memory on documents with many
+  attributes. Attribute suggestions retain included header values, empty values,
+  and backend-specific defaults.
+
 ### Fixed
 
 - Navigation, references, and rename now recognize retained named block IDs and

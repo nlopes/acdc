@@ -1,5 +1,5 @@
 use acdc_parser::{
-    Document, Location,
+    Location,
     ast::{
         BlockKind, DescriptionListItemRef, DocumentRef, IdOrigin, InlineRef, SectionRef,
         StructuralRef,
@@ -14,10 +14,7 @@ pub(crate) struct IdOccurrence<'doc> {
 }
 
 /// Visit every retained ID, including duplicate declarations.
-pub(crate) fn occurrences<'doc>(
-    doc: &'doc Document<'doc>,
-) -> impl Iterator<Item = IdOccurrence<'doc>> {
-    let doc = DocumentRef::from(doc);
+pub(crate) fn occurrences(doc: DocumentRef<'_>) -> impl Iterator<Item = IdOccurrence<'_>> {
     let header = doc.anchors().map(|anchor| (anchor.element_id(), None));
     let blocks = doc
         .descendants()

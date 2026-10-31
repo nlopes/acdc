@@ -195,7 +195,7 @@ fn scan_workspace_files_for_renames(
             continue;
         };
 
-        let xrefs = super::definition::collect_xrefs(parsed.document());
+        let xrefs = super::definition::collect_xrefs(parsed.document_ref());
         for (_, location) in &xrefs {
             let Some((target, range)) = super::rename_target::xref_target(&text, location) else {
                 continue;

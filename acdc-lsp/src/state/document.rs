@@ -7,8 +7,8 @@ use std::{
 };
 
 use acdc_parser::{
-    Document, DocumentAttributes, Location, ParseResult, Position, Source, SourceLocation,
-    ast::DocumentRef,
+    Document, Location, ParseResult, Position, Source, SourceLocation,
+    ast::{DocumentAttributesRef, DocumentRef},
 };
 use tower_lsp_server::ls_types::{Diagnostic, Uri};
 
@@ -211,7 +211,10 @@ impl DocumentState {
         let definitions = extract_attribute_defs(raw_text);
         let references = extract_attribute_refs(raw_text);
         let raw_includes = extract_includes(raw_text);
-        let raw_conditionals = extract_conditionals(raw_text, &DocumentAttributes::default());
+        let raw_conditionals = extract_conditionals(
+            raw_text,
+            (&acdc_parser::DocumentAttributes::default()).into(),
+        );
 
         Self {
             parsed,
@@ -389,7 +392,7 @@ fn evaluate_condition(
     attributes: &[String],
     operation: Option<&ConditionalOperation>,
     is_ifndef: bool,
-    doc_attrs: &DocumentAttributes,
+    doc_attrs: DocumentAttributesRef<'_>,
 ) -> bool {
     let result = match operation {
         Some(ConditionalOperation::Or) => {
@@ -406,7 +409,7 @@ fn evaluate_condition(
 /// to recover them for graying out inactive branches in the editor.
 pub(crate) fn extract_conditionals(
     text: &str,
-    attrs: &DocumentAttributes,
+    attrs: DocumentAttributesRef<'_>,
 ) -> Vec<ConditionalBlock> {
     let mut blocks = Vec::new();
     let mut pending: Vec<PendingConditional> = Vec::new();
@@ -536,7 +539,7 @@ pub(crate) fn extract_includes(text: &str) -> Vec<(String, Location)> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use acdc_parser::{AttributeValue, Options};
+    use acdc_parser::{AttributeValue, DocumentAttributes, Options};
     use std::{borrow::Cow, error::Error};
 
     #[test]
@@ -678,7 +681,7 @@ mod tests {
             .build()?
             .into_document_attributes();
         let text = ":backend-html:\n\nifdef::backend-html[]\nHTML content\nendif::[]";
-        let conds = extract_conditionals(text, &attrs);
+        let conds = extract_conditionals(text, (&attrs).into());
         assert_eq!(conds.len(), 1);
         assert_eq!(
             conds.first().map(|c| &c.kind),
@@ -698,7 +701,7 @@ mod tests {
     fn test_extract_conditionals_ifdef_inactive() {
         let attrs = DocumentAttributes::default();
         let text = "ifdef::backend-html[]\nHTML content\nendif::[]";
-        let conds = extract_conditionals(text, &attrs);
+        let conds = extract_conditionals(text, (&attrs).into());
         assert_eq!(conds.len(), 1);
         assert_eq!(conds.first().map(|c| c.is_active), Some(false));
         assert_eq!(conds.first().map(|c| c.start_line), Some(0));
@@ -709,7 +712,7 @@ mod tests {
     fn test_extract_conditionals_ifndef() {
         let attrs = DocumentAttributes::default();
         let text = "ifndef::draft[]\nPublished content\nendif::[]";
-        let conds = extract_conditionals(text, &attrs);
+        let conds = extract_conditionals(text, (&attrs).into());
         assert_eq!(conds.len(), 1);
         assert_eq!(
             conds.first().map(|c| &c.kind),
@@ -729,7 +732,7 @@ mod tests {
             .build()?
             .into_document_attributes();
         let text = "ifndef::draft[]\nDraft content\nendif::[]";
-        let conds = extract_conditionals(text, &attrs);
+        let conds = extract_conditionals(text, (&attrs).into());
         assert_eq!(conds.len(), 1);
         // draft IS defined, so ifndef is inactive
         assert_eq!(conds.first().map(|c| c.is_active), Some(false));
@@ -746,7 +749,7 @@ mod tests {
             .build()?
             .into_document_attributes();
         let text = "ifdef::a,b[]\ncontent\nendif::[]";
-        let conds = extract_conditionals(text, &attrs);
+        let conds = extract_conditionals(text, (&attrs).into());
         assert_eq!(conds.len(), 1);
         assert_eq!(
             conds.first().map(|c| &c.operation),
@@ -767,7 +770,7 @@ mod tests {
             .build()?
             .into_document_attributes();
         let text = "ifdef::a+b[]\ncontent\nendif::[]";
-        let conds = extract_conditionals(text, &attrs);
+        let conds = extract_conditionals(text, (&attrs).into());
         assert_eq!(conds.len(), 1);
         assert_eq!(
             conds.first().map(|c| &c.operation),
@@ -782,7 +785,7 @@ mod tests {
     fn test_extract_conditionals_single_line() {
         let attrs = DocumentAttributes::default();
         let text = "ifdef::attr[inline content]";
-        let conds = extract_conditionals(text, &attrs);
+        let conds = extract_conditionals(text, (&attrs).into());
         assert_eq!(conds.len(), 1);
         assert_eq!(conds.first().map(|c| c.is_active), Some(false));
         assert_eq!(conds.first().map(|c| c.start_line), Some(0));
@@ -793,7 +796,7 @@ mod tests {
     fn test_extract_conditionals_escaped() {
         let attrs = DocumentAttributes::default();
         let text = "\\ifdef::attr[]\ncontent\nendif::[]";
-        let conds = extract_conditionals(text, &attrs);
+        let conds = extract_conditionals(text, (&attrs).into());
         assert!(conds.is_empty());
     }
 
@@ -807,7 +810,7 @@ mod tests {
             .build()?
             .into_document_attributes();
         let text = "ifdef::html[]\nHTML\nendif::[]\nifdef::pdf[]\nPDF\nendif::[]";
-        let conds = extract_conditionals(text, &attrs);
+        let conds = extract_conditionals(text, (&attrs).into());
         assert_eq!(conds.len(), 2);
         assert_eq!(conds.first().map(|c| c.is_active), Some(true)); // html defined
         assert_eq!(conds.get(1).map(|c| c.is_active), Some(false)); // pdf not defined

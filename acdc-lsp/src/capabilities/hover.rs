@@ -162,7 +162,7 @@ pub(crate) fn find_xref_at_position(
     if find_anchor_at_position(doc, position).is_some_and(|id| id.origin == IdOrigin::Explicit) {
         return None;
     }
-    super::definition::xref_occurrences(doc)
+    super::definition::xref_occurrences(doc.into())
         .filter(|xref| position_in_location(position, xref.location()))
         .min_by_key(|xref| {
             let location = xref.location();
@@ -178,7 +178,7 @@ pub(crate) fn find_anchor_at_position<'doc>(
     doc: &'doc Document<'doc>,
     position: &acdc_parser::Position,
 ) -> Option<super::identity::IdOccurrence<'doc>> {
-    super::identity::occurrences(doc)
+    super::identity::occurrences(doc.into())
         .filter(|id| position_in_location(position, &id.location))
         .min_by_key(|id| {
             id.location

@@ -233,7 +233,7 @@ impl Workspace {
 
         // Keep all declarations; the per-document lookup selects one per ID.
         if let Some(ast) = state.ast() {
-            for id in crate::capabilities::identity::occurrences(ast.document()) {
+            for id in crate::capabilities::identity::occurrences(ast.document_ref()) {
                 self.anchor_index
                     .entry(id.id.to_owned())
                     .or_default()
@@ -542,7 +542,7 @@ impl Workspace {
         let text = read_bounded(path.as_ref())?;
         let backend = self.backend_for(uri);
         let parsed = parse(&text, self.parser_profiles.get(backend)).ok()?;
-        let anchors = definition::collect_anchors(parsed.document());
+        let anchors = definition::collect_anchors(parsed.document_ref());
         let result = anchors.get(anchor_id).cloned();
         tracing::info!(
             ?path,
@@ -753,7 +753,7 @@ impl Workspace {
         let mut xrefs: Vec<(String, SourceLocation)> = Vec::new();
         let mut media_sources = Vec::new();
         let mut parse_diagnostics = Vec::new();
-        let mut ast_attributes: Option<acdc_parser::DocumentAttributes<'static>> = None;
+        let mut conditionals = None;
 
         // Skip parsing oversized open documents: the parser arena pre-sizes
         // to input length, so a 1 GB file would balloon RSS. Raw-text scans
@@ -770,7 +770,7 @@ impl Workspace {
             match parse(&text, options) {
                 Ok(mut parse_result) => {
                     {
-                        let doc = parse_result.document();
+                        let doc = parse_result.document_ref();
                         anchors = definition::collect_anchors(doc)
                             .into_iter()
                             .map(|(id, location)| (id, parse_result.source_location(&location)))
@@ -779,13 +779,16 @@ impl Workspace {
                             .into_iter()
                             .map(|(id, location)| (id, parse_result.source_location(&location)))
                             .collect();
-                        media_sources = definition::collect_media_sources(doc)
+                        media_sources = definition::collect_media_sources(parse_result.document())
                             .into_iter()
                             .map(|(source, location)| {
                                 (source, parse_result.source_location(&location))
                             })
                             .collect();
-                        ast_attributes = Some(doc.attributes.to_static());
+                        conditionals = Some(crate::state::document::extract_conditionals(
+                            &text,
+                            doc.attributes(),
+                        ));
                     }
                     // Drain warnings into LSP diagnostics before handing the
                     // (warning-free) `ParseResult` to `ParsedText`, which will
@@ -812,11 +815,12 @@ impl Workspace {
         let definitions = crate::state::document::extract_attribute_defs(raw_text);
         let references = crate::state::document::extract_attribute_refs(raw_text);
         let raw_includes = crate::state::document::extract_includes(raw_text);
-        let raw_conditionals = if let Some(attrs) = &ast_attributes {
-            crate::state::document::extract_conditionals(raw_text, attrs)
-        } else {
-            crate::state::document::extract_conditionals(raw_text, options.document_attributes())
-        };
+        let raw_conditionals = conditionals.unwrap_or_else(|| {
+            crate::state::document::extract_conditionals(
+                raw_text,
+                options.document_attributes().into(),
+            )
+        });
 
         DocumentState {
             parsed,
@@ -1016,8 +1020,8 @@ mod tests {
             .ok_or("document should be indexed")?;
         let ast = document.ast().ok_or("document should parse")?;
         assert_eq!(
-            ast.document()
-                .attributes
+            ast.document_ref()
+                .attributes()
                 .get("backend")
                 .and_then(|value| value.text()),
             Some("html5")
@@ -1050,13 +1054,13 @@ mod tests {
             .ok_or("document should be indexed")?;
         let ast = document.ast().ok_or("document should parse")?;
         assert_eq!(
-            ast.document()
-                .attributes
+            ast.document_ref()
+                .attributes()
                 .get("backend")
                 .and_then(|value| value.text()),
             Some("pdf")
         );
-        assert!(ast.document().attributes.contains_key("title-page"));
+        assert!(ast.document_ref().attributes().contains("title-page"));
         drop(ast);
         assert!(document.anchors.contains_key("pdf-or-docbook"));
         assert!(
@@ -1516,11 +1520,12 @@ mod tests {
     #[test]
     fn oversized_open_document_is_gated() -> Result<(), Box<dyn Error>> {
         let workspace = Workspace::new();
+        workspace.initialize_analysis(AnalysisBackend::Pdf, Vec::new());
         let uri = "file:///huge.adoc".parse::<Uri>()?;
 
         let size = usize::try_from(MAX_INDEXABLE_FILE_BYTES).unwrap_or(usize::MAX) + 1;
         let mut content = String::with_capacity(size);
-        content.push_str("= Huge document\n\n");
+        content.push_str("= Huge document\n\nifdef::backend-pdf[]\nPDF.\nendif::[]\n\nifdef::backend-html5[]\nHTML.\nendif::[]\n\n");
         content.push_str(&"a".repeat(size - content.len()));
 
         workspace.update_document(uri.clone(), content, 1);
@@ -1531,6 +1536,14 @@ mod tests {
                 .iter()
                 .any(|d| d.message.contains("indexing limit")),
             "expected an 'indexing limit' informational diagnostic"
+        );
+        assert!(doc.ast().is_none());
+        assert_eq!(
+            doc.conditionals
+                .iter()
+                .map(|condition| condition.is_active)
+                .collect::<Vec<_>>(),
+            [true, false]
         );
         assert!(doc.anchors.is_empty());
         assert_eq!(doc.xrefs, []);

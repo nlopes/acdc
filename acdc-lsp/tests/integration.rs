@@ -4,6 +4,7 @@ mod common;
 mod integration {
     mod authored_ids;
     mod backend_options;
+    mod completion_state;
     mod coordinate_audit;
     mod coordinates;
     mod includes;
