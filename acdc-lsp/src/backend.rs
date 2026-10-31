@@ -679,7 +679,7 @@ impl LanguageServer for Backend {
         let response = if let Some(doc) = self.workspace.get_document(&uri) {
             doc.ast().map(|ast| {
                 DocumentSymbolResponse::Nested(symbols::document_symbols(
-                    ast.document(),
+                    ast.document_ref(),
                     doc.text(),
                 ))
             })

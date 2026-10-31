@@ -102,7 +102,7 @@ fn parser_warnings_use_unsaved_included_text() -> Result<(), Box<dyn Error>> {
 #[test]
 fn outlines_omit_ranges_that_cannot_be_read_from_original_source() -> Result<(), Box<dyn Error>> {
     let parsed = acdc_parser::parse("== Heading\n\nBody.\n", &acdc_parser::Options::default())?;
-    assert_eq!(symbols::document_symbols(parsed.document(), ""), []);
+    assert_eq!(symbols::document_symbols(parsed.document_ref(), ""), []);
     Ok(())
 }
 

@@ -9,8 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Document outlines preserve source typography, media alternatives, and
-  empty-title fallbacks in block titles.
+- Document outlines and workspace search retain formatted titles, media
+  alternatives, anchor aliases, and source locations across includes. Outlines
+  keep their existing hierarchy and empty-title fallbacks.
 
 - Preview code actions render the current unsaved buffer as PDF, HTML5, or
   semantic HTML according to its configured backend, then open it with the

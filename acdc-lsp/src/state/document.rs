@@ -8,6 +8,7 @@ use std::{
 
 use acdc_parser::{
     Document, DocumentAttributes, Location, ParseResult, Position, Source, SourceLocation,
+    ast::DocumentRef,
 };
 use tower_lsp_server::ls_types::{Diagnostic, Uri};
 
@@ -46,8 +47,7 @@ pub(crate) struct ParsedText {
     parsed: Option<Mutex<ParseResult>>,
 }
 
-/// RAII guard that keeps a parsed document locked for the duration of read
-/// access. Use [`Self::document`] to obtain a reference to the AST.
+/// Keeps the parsed result locked while its document is read.
 pub(crate) struct AstGuard<'a> {
     guard: MutexGuard<'a, ParseResult>,
 }
@@ -57,6 +57,10 @@ impl AstGuard<'_> {
     /// this guard is dropped.
     pub(crate) fn document(&self) -> &Document<'_> {
         self.guard.document()
+    }
+
+    pub(crate) fn document_ref(&self) -> DocumentRef<'_> {
+        self.guard.document_ref()
     }
 
     pub(super) fn source_location(&self, location: &Location) -> SourceLocation {
@@ -97,10 +101,7 @@ impl ParsedText {
         Arc::clone(&self.source)
     }
 
-    /// Obtain a locked handle to the parsed AST if parsing succeeded.
-    ///
-    /// Dereference the returned guard to get `&Document<'_>`. Drops the
-    /// underlying mutex when the guard is dropped.
+    /// Obtain a guard for a successful parse. The guard holds the mutex until dropped.
     pub(crate) fn ast(&self) -> Option<AstGuard<'_>> {
         let parsed = self.parsed.as_ref()?;
         let guard = parsed

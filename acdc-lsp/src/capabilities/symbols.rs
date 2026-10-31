@@ -1,60 +1,36 @@
-//! Document symbols: extract full block tree from AST
+//! Document outlines retain block hierarchy and primary-file source ranges.
 
-use acdc_converters_core::{InlineTextTransform, inlines_to_string};
-use acdc_parser::{Block, DelimitedBlock, DelimitedBlockType, Document, Section, Title};
+use acdc_converters_core::InlineTextTransform;
+use acdc_parser::ast::{
+    AdmonitionRef, BlockKind, BlockRef, ContentRef, DocumentAttributeRef, DocumentRef,
+    ParagraphRef, SectionRef, SourceRef, StructuralRef,
+};
 use tower_lsp_server::ls_types::{DocumentSymbol, Range, SymbolKind};
 
 use crate::convert::{is_primary_location, location_to_utf16_range};
 
-/// Maximum length for paragraph preview text in symbol names
 const PARAGRAPH_PREVIEW_LEN: usize = 50;
 
-/// Extract document outline as nested symbols
 #[must_use]
-pub(crate) fn document_symbols(doc: &Document, source: &str) -> Vec<DocumentSymbol> {
-    let mut symbols = vec![];
-
-    // Add header as top-level symbol if present
-    if let Some(header) = &doc.header
-        && is_primary_location(&header.location)
-        && let Some(range) = location_to_utf16_range(source, &header.location)
+pub(crate) fn document_symbols(doc: DocumentRef<'_>, source: &str) -> Vec<DocumentSymbol> {
+    let mut symbols = Vec::new();
+    if let Some(header) = doc.header()
+        && is_primary_location(header.location())
+        && let Some(range) = location_to_utf16_range(source, &header.location().into())
     {
-        let title_text = inlines_to_string(&header.title);
-
-        symbols.push(DocumentSymbol {
-            name: title_text,
-            kind: SymbolKind::FILE,
+        symbols.push(make_symbol(
+            title_text(header.title()),
+            SymbolKind::FILE,
             range,
-            selection_range: range,
-            children: None,
-            detail: Some("Document title".to_string()),
-            tags: Some(vec![]),
-            deprecated: None,
-        });
+            Some("Document title".to_string()),
+        ));
     }
-
-    // Process blocks recursively
-    for block in &doc.blocks {
+    for block in doc.blocks() {
         collect_block_symbols(block, source, &mut symbols);
     }
-
     symbols
 }
 
-/// Convert children blocks to nested symbols, returning `None` if empty.
-fn children_from_blocks(blocks: &[Block], source: &str) -> Option<Vec<DocumentSymbol>> {
-    let mut children = Vec::new();
-    for block in blocks {
-        collect_block_symbols(block, source, &mut children);
-    }
-    if children.is_empty() {
-        None
-    } else {
-        Some(children)
-    }
-}
-
-/// Build a `DocumentSymbol` with common defaults.
 fn make_symbol(
     name: String,
     kind: SymbolKind,
@@ -73,7 +49,6 @@ fn make_symbol(
     }
 }
 
-/// Truncate text to `max_len` chars, appending "..." if truncated.
 fn truncate(text: &str, max_len: usize) -> String {
     if text.len() <= max_len {
         text.to_string()
@@ -83,11 +58,14 @@ fn truncate(text: &str, max_len: usize) -> String {
     }
 }
 
-/// Get a display name from a title, falling back to `default`.
-fn title_or_default(title: &Title, default: &str) -> String {
-    let text = title.content().map_or_else(String::new, |content| {
+pub(super) fn title_text(title: Option<ContentRef<'_>>) -> String {
+    title.map_or_else(String::new, |content| {
         InlineTextTransform::default().content_to_string(content)
-    });
+    })
+}
+
+fn title_or_default(title: Option<ContentRef<'_>>, default: &str) -> String {
+    let text = title_text(title);
     if text.is_empty() {
         default.to_string()
     } else {
@@ -95,34 +73,33 @@ fn title_or_default(title: &Title, default: &str) -> String {
     }
 }
 
-fn document_attribute_name(attribute: &acdc_parser::DocumentAttribute<'_>) -> String {
+fn title_or_source(title: Option<ContentRef<'_>>, source: SourceRef<'_>) -> String {
+    title.filter(|content| !content.is_empty()).map_or_else(
+        || source.to_string(),
+        |content| InlineTextTransform::default().content_to_string(content),
+    )
+}
+
+fn document_attribute_name(attribute: DocumentAttributeRef<'_>) -> String {
     let mut value = String::new();
     if let Some(assigned) = attribute.assignment().value() {
         let _ = assigned.write_text(&mut value);
-        format!(":{}: {value}", attribute.name)
+        format!(":{}: {value}", attribute.name())
     } else {
-        format!(":{}!:", attribute.name)
+        format!(":{}!:", attribute.name())
     }
 }
 
-/// Get a display name from a title, falling back to a source string.
-fn title_or_source(title: &Title, source: &str) -> String {
-    title
-        .content()
-        .filter(|content| !content.is_empty())
-        .map_or_else(
-            || source.to_string(),
-            |content| InlineTextTransform::default().content_to_string(content),
-        )
-}
-
-fn collect_block_symbols(block: &Block, source: &str, symbols: &mut Vec<DocumentSymbol>) {
-    let children = block_children(block, source);
+fn collect_block_symbols(block: BlockRef<'_>, source: &str, symbols: &mut Vec<DocumentSymbol>) {
+    let mut children = Vec::new();
+    for_each_symbol_child(block, |child| {
+        collect_block_symbols(child, source, &mut children);
+    });
     let location = if is_primary_location(block.location()) {
-        Some(block.location().clone())
-    } else if let Block::Section(section) = block {
+        Some(block.location().into())
+    } else if let BlockKind::Section(section) = block.kind() {
         // A section can start here and end in an include. Keep its local heading.
-        let heading = super::definition::heading_line_location(section);
+        let heading = super::identity::heading_location(section);
         is_primary_location(&heading).then_some(heading)
     } else {
         None
@@ -130,163 +107,146 @@ fn collect_block_symbols(block: &Block, source: &str, symbols: &mut Vec<Document
     if let Some(range) = location.and_then(|location| location_to_utf16_range(source, &location))
         && let Some(mut symbol) = block_to_symbol(block, range)
     {
-        for child in children.iter().flatten() {
+        for child in &children {
             symbol.range.start = symbol.range.start.min(child.range.start);
             symbol.range.end = symbol.range.end.max(child.range.end);
         }
-        symbol.children = children;
+        symbol.children = (!children.is_empty()).then_some(children);
         symbols.push(symbol);
     } else {
         // Included containers can hold text that resumes in the primary file.
-        symbols.extend(children.into_iter().flatten());
+        symbols.extend(children);
     }
 }
 
-fn block_children(block: &Block, source: &str) -> Option<Vec<DocumentSymbol>> {
-    let mut children = Vec::new();
-    match block {
-        Block::Section(section) => return children_from_blocks(&section.content, source),
-        Block::Admonition(adm) => return children_from_blocks(&adm.blocks, source),
-        Block::DelimitedBlock(block) => match &block.inner {
-            DelimitedBlockType::DelimitedExample(blocks)
-            | DelimitedBlockType::DelimitedSidebar(blocks)
-            | DelimitedBlockType::DelimitedOpen(blocks)
-            | DelimitedBlockType::DelimitedQuote(blocks) => {
-                return children_from_blocks(blocks, source);
-            }
-            DelimitedBlockType::DelimitedComment(_)
-            | DelimitedBlockType::DelimitedListing(_)
-            | DelimitedBlockType::DelimitedLiteral(_)
-            | DelimitedBlockType::DelimitedTable(_)
-            | DelimitedBlockType::DelimitedPass(_)
-            | DelimitedBlockType::DelimitedVerse(_)
-            | DelimitedBlockType::DelimitedStem(_)
-            // non_exhaustive
+/// Symbols include ordinary list attachments, but not table cells or callout bodies.
+pub(super) fn for_each_symbol_child<'doc>(
+    block: BlockRef<'doc>,
+    mut visit: impl FnMut(BlockRef<'doc>),
+) {
+    if matches!(
+        block.kind(),
+        BlockKind::Table(_) | BlockKind::CalloutList(_)
+    ) {
+        return;
+    }
+    for child in block.children() {
+        match child {
+            StructuralRef::Block(block) => visit(block),
+            StructuralRef::ListItem(item) => item.blocks().for_each(&mut visit),
+            StructuralRef::DescriptionListItem(item) => item.blocks().for_each(&mut visit),
+            StructuralRef::Document(_)
+            | StructuralRef::Header(_)
+            | StructuralRef::CalloutListItem(_)
+            | StructuralRef::TableRow(_)
+            | StructuralRef::TableCell(_)
             | _ => {}
-        },
-        Block::UnorderedList(list) => {
-            for item in &list.items {
-                for block in &item.blocks {
-                    collect_block_symbols(block, source, &mut children);
-                }
-            }
         }
-        Block::OrderedList(list) => {
-            for item in &list.items {
-                for block in &item.blocks {
-                    collect_block_symbols(block, source, &mut children);
-                }
-            }
-        }
-        Block::DescriptionList(list) => {
-            for item in &list.items {
-                for block in &item.description {
-                    collect_block_symbols(block, source, &mut children);
-                }
-            }
-        }
-        Block::TableOfContents(_)
-        | Block::DiscreteHeader(_)
-        | Block::DocumentAttribute(_)
-        | Block::ThematicBreak(_)
-        | Block::PageBreak(_)
-        | Block::CalloutList(_)
-        | Block::Paragraph(_)
-        | Block::Image(_)
-        | Block::Audio(_)
-        | Block::Video(_)
-        | Block::Comment(_)
-        // non_exhaustive
-        | _ => {}
     }
-    (!children.is_empty()).then_some(children)
 }
 
-fn block_to_symbol(block: &Block, range: Range) -> Option<DocumentSymbol> {
-    match block {
-        Block::Section(section) => Some(section_to_symbol(section, range)),
-        Block::Paragraph(para) => Some(paragraph_to_symbol(para, range)),
-        Block::Admonition(adm) => Some(admonition_to_symbol(adm, range)),
-        Block::DelimitedBlock(delimited) => Some(delimited_block_to_symbol(delimited, range)),
-        Block::UnorderedList(list) => Some(list_to_symbol(
-            &list.title,
+fn block_to_symbol(block: BlockRef<'_>, range: Range) -> Option<DocumentSymbol> {
+    match block.kind() {
+        BlockKind::Section(section) => Some(section_to_symbol(section, range)),
+        BlockKind::Paragraph(para) => Some(paragraph_to_symbol(para, range)),
+        BlockKind::Admonition(adm) => Some(admonition_to_symbol(adm, range)),
+        BlockKind::UnorderedList(list) => Some(list_to_symbol(
+            list.title(),
             "Unordered list",
-            list.items.len(),
+            list.items().count(),
             range,
         )),
-        Block::OrderedList(list) => Some(list_to_symbol(
-            &list.title,
+        BlockKind::OrderedList(list) => Some(list_to_symbol(
+            list.title(),
             "Ordered list",
-            list.items.len(),
+            list.items().count(),
             range,
         )),
-        Block::DescriptionList(list) => Some(list_to_symbol(
-            &list.title,
+        BlockKind::DescriptionList(list) => Some(list_to_symbol(
+            list.title(),
             "Description list",
-            list.items.len(),
+            list.items().count(),
             range,
         )),
-        Block::CalloutList(list) => Some(make_symbol(
-            title_or_default(&list.title, "Callout list"),
-            SymbolKind::ARRAY,
+        BlockKind::CalloutList(list) => Some(list_to_symbol(
+            list.title(),
+            "Callout list",
+            list.items().count(),
             range,
-            Some(format!("{} items", list.items.len())),
         )),
-        Block::Image(img) => Some(make_symbol(
-            title_or_source(&img.title, &img.source.to_string()),
+        BlockKind::Image(image) => Some(make_symbol(
+            title_or_source(image.title(), image.source()),
             SymbolKind::FILE,
             range,
             Some("Image".to_string()),
         )),
-        Block::Audio(audio) => Some(make_symbol(
-            title_or_source(&audio.title, &audio.source.to_string()),
+        BlockKind::Audio(audio) => Some(make_symbol(
+            title_or_source(audio.title(), audio.source()),
             SymbolKind::FILE,
             range,
             Some("Audio".to_string()),
         )),
-        Block::Video(video) => Some(video_to_symbol(video, range)),
-        Block::DiscreteHeader(header) => Some(make_symbol(
-            inlines_to_string(&header.title),
+        BlockKind::Video(video) => Some(make_symbol(
+            title_or_source(video.title(), video.source()),
+            SymbolKind::FILE,
+            range,
+            Some("Video".to_string()),
+        )),
+        BlockKind::DiscreteHeader(header) => Some(make_symbol(
+            title_text(header.title()),
             SymbolKind::KEY,
             range,
-            Some(format!("Discrete heading (level {})", header.level)),
+            Some(format!("Discrete heading (level {})", header.level())),
         )),
-        Block::DocumentAttribute(attr) => Some(make_symbol(
+        BlockKind::DocumentAttribute(attr) => Some(make_symbol(
             document_attribute_name(attr),
             SymbolKind::PROPERTY,
             range,
             Some("Attribute".to_string()),
         )),
-        Block::TableOfContents(_) => Some(make_symbol(
+        BlockKind::TableOfContents(_) => Some(make_symbol(
             "Table of contents".to_string(),
             SymbolKind::STRUCT,
             range,
             None,
         )),
-        Block::ThematicBreak(_) => Some(make_symbol(
+        BlockKind::ThematicBreak(_) => Some(make_symbol(
             "---".to_string(),
             SymbolKind::NULL,
             range,
             Some("Thematic break".to_string()),
         )),
-        Block::PageBreak(_) => Some(make_symbol(
+        BlockKind::PageBreak(_) => Some(make_symbol(
             "<<<".to_string(),
             SymbolKind::NULL,
             range,
             Some("Page break".to_string()),
         )),
-        Block::Comment(_)
-        // non_exhaustive
-        | _ => None,
+        BlockKind::Example(_)
+        | BlockKind::Sidebar(_)
+        | BlockKind::Open(_)
+        | BlockKind::Quote(_)
+        | BlockKind::Listing(_)
+        | BlockKind::Literal(_)
+        | BlockKind::Table(_)
+        | BlockKind::Passthrough(_)
+        | BlockKind::Verse(_)
+        | BlockKind::Stem(_)
+        | BlockKind::DelimitedComment(_) => Some(delimited_block_to_symbol(block, range)),
+        BlockKind::Comment(_) | _ => None,
     }
 }
 
-fn paragraph_to_symbol(para: &acdc_parser::Paragraph, range: Range) -> DocumentSymbol {
-    let name = if para.title.is_empty() {
-        truncate(&inlines_to_string(&para.content), PARAGRAPH_PREVIEW_LEN)
-    } else {
-        inlines_to_string(&para.title)
-    };
+fn paragraph_to_symbol(para: ParagraphRef<'_>, range: Range) -> DocumentSymbol {
+    let name = para.title().filter(|title| !title.is_empty()).map_or_else(
+        || {
+            truncate(
+                &InlineTextTransform::default().content_to_string(para.content()),
+                PARAGRAPH_PREVIEW_LEN,
+            )
+        },
+        |title| InlineTextTransform::default().content_to_string(title),
+    );
     make_symbol(
         name,
         SymbolKind::STRING,
@@ -295,13 +255,17 @@ fn paragraph_to_symbol(para: &acdc_parser::Paragraph, range: Range) -> DocumentS
     )
 }
 
-fn admonition_to_symbol(adm: &acdc_parser::Admonition, range: Range) -> DocumentSymbol {
-    let label = format!("{}", adm.variant).to_uppercase();
-    let name = if adm.title.is_empty() {
-        label
-    } else {
-        format!("{label}: {}", inlines_to_string(&adm.title))
-    };
+fn admonition_to_symbol(adm: AdmonitionRef<'_>, range: Range) -> DocumentSymbol {
+    let label = adm.variant().to_string().to_uppercase();
+    let name = adm.title().filter(|title| !title.is_empty()).map_or_else(
+        || label.clone(),
+        |title| {
+            format!(
+                "{label}: {}",
+                InlineTextTransform::default().content_to_string(title)
+            )
+        },
+    );
     make_symbol(
         name,
         SymbolKind::EVENT,
@@ -311,73 +275,75 @@ fn admonition_to_symbol(adm: &acdc_parser::Admonition, range: Range) -> Document
 }
 
 fn list_to_symbol(
-    title: &Title,
-    default_name: &str,
-    item_count: usize,
+    title: Option<ContentRef<'_>>,
+    default: &str,
+    count: usize,
     range: Range,
 ) -> DocumentSymbol {
     make_symbol(
-        title_or_default(title, default_name),
+        title_or_default(title, default),
         SymbolKind::ARRAY,
         range,
-        Some(format!("{item_count} items")),
+        Some(format!("{count} items")),
     )
 }
 
-fn video_to_symbol(video: &acdc_parser::Video, range: Range) -> DocumentSymbol {
-    let name = if video.title.is_empty() {
-        video.source.to_string()
-    } else {
-        inlines_to_string(&video.title)
-    };
-    make_symbol(name, SymbolKind::FILE, range, Some("Video".to_string()))
-}
-
-fn delimited_block_to_symbol(block: &DelimitedBlock, range: Range) -> DocumentSymbol {
-    let (default_name, kind) = match &block.inner {
-        DelimitedBlockType::DelimitedExample(_) => ("Example", SymbolKind::STRUCT),
-        DelimitedBlockType::DelimitedSidebar(_) => ("Sidebar", SymbolKind::STRUCT),
-        DelimitedBlockType::DelimitedOpen(_) => ("Open block", SymbolKind::STRUCT),
-        DelimitedBlockType::DelimitedQuote(_) => ("Quote", SymbolKind::STRUCT),
-        DelimitedBlockType::DelimitedListing(_) => ("Listing", SymbolKind::STRING),
-        DelimitedBlockType::DelimitedLiteral(_) => ("Literal", SymbolKind::STRING),
-        DelimitedBlockType::DelimitedTable(_) => ("Table", SymbolKind::STRUCT),
-        DelimitedBlockType::DelimitedPass(_) => ("Passthrough", SymbolKind::STRING),
-        DelimitedBlockType::DelimitedVerse(_) => ("Verse", SymbolKind::STRING),
-        DelimitedBlockType::DelimitedStem(_) => ("Stem", SymbolKind::STRING),
-        DelimitedBlockType::DelimitedComment(_)
-        // non_exhaustive
+fn delimited_block_to_symbol(block: BlockRef<'_>, range: Range) -> DocumentSymbol {
+    let (default_name, kind) = match block.kind() {
+        BlockKind::Example(_) => ("Example", SymbolKind::STRUCT),
+        BlockKind::Sidebar(_) => ("Sidebar", SymbolKind::STRUCT),
+        BlockKind::Open(_) => ("Open block", SymbolKind::STRUCT),
+        BlockKind::Quote(_) => ("Quote", SymbolKind::STRUCT),
+        BlockKind::Listing(_) => ("Listing", SymbolKind::STRING),
+        BlockKind::Literal(_) => ("Literal", SymbolKind::STRING),
+        BlockKind::Table(_) => ("Table", SymbolKind::STRUCT),
+        BlockKind::Passthrough(_) => ("Passthrough", SymbolKind::STRING),
+        BlockKind::Verse(_) => ("Verse", SymbolKind::STRING),
+        BlockKind::Stem(_) => ("Stem", SymbolKind::STRING),
+        BlockKind::DelimitedComment(_)
+        | BlockKind::TableOfContents(_)
+        | BlockKind::Admonition(_)
+        | BlockKind::DiscreteHeader(_)
+        | BlockKind::DocumentAttribute(_)
+        | BlockKind::ThematicBreak(_)
+        | BlockKind::PageBreak(_)
+        | BlockKind::UnorderedList(_)
+        | BlockKind::OrderedList(_)
+        | BlockKind::CalloutList(_)
+        | BlockKind::DescriptionList(_)
+        | BlockKind::Section(_)
+        | BlockKind::Paragraph(_)
+        | BlockKind::Image(_)
+        | BlockKind::Audio(_)
+        | BlockKind::Video(_)
+        | BlockKind::Comment(_)
         | _ => ("Block", SymbolKind::STRING),
     };
-
-    let name = title_or_default(&block.title, default_name);
-    make_symbol(name, kind, range, Some(default_name.to_string()))
-}
-
-fn section_to_symbol(section: &Section, range: Range) -> DocumentSymbol {
-    let title_text = inlines_to_string(&section.title);
-
-    DocumentSymbol {
-        name: title_text,
-        kind: section_level_to_symbol_kind(section.level),
+    make_symbol(
+        title_or_default(block.title(), default_name),
+        kind,
         range,
-        selection_range: range,
-        children: None,
-        detail: Some(format!("Level {}", section.level)),
-        tags: Some(vec![]),
-        deprecated: None,
-    }
+        Some(default_name.to_string()),
+    )
 }
 
-/// Map section levels to appropriate symbol kinds for visual hierarchy
-const fn section_level_to_symbol_kind(level: u8) -> SymbolKind {
+fn section_to_symbol(section: SectionRef<'_>, range: Range) -> DocumentSymbol {
+    make_symbol(
+        title_text(section.title()),
+        section_level_to_symbol_kind(section.level()),
+        range,
+        Some(format!("Level {}", section.level())),
+    )
+}
+
+pub(super) const fn section_level_to_symbol_kind(level: u8) -> SymbolKind {
     match level {
-        0 => SymbolKind::NAMESPACE, // Part (rare)
-        1 => SymbolKind::MODULE,    // == Section (h2)
-        2 => SymbolKind::CLASS,     // === Subsection (h3)
-        3 => SymbolKind::METHOD,    // ==== Sub-subsection (h4)
-        4 => SymbolKind::FUNCTION,  // ===== (h5)
-        _ => SymbolKind::VARIABLE,  // Deeper levels
+        0 => SymbolKind::NAMESPACE,
+        1 => SymbolKind::MODULE,
+        2 => SymbolKind::CLASS,
+        3 => SymbolKind::METHOD,
+        4 => SymbolKind::FUNCTION,
+        _ => SymbolKind::VARIABLE,
     }
 }
 
@@ -385,6 +351,49 @@ const fn section_level_to_symbol_kind(level: u8) -> SymbolKind {
 mod tests {
     use super::*;
     use acdc_parser::{Error, Options, parse};
+
+    #[test]
+    fn symbol_kinds_cover_every_block_family() -> Result<(), Error> {
+        for (source, name, kind) in [
+            ("toc::[]", "Table of contents", SymbolKind::STRUCT),
+            ("NOTE: Body.", "NOTE", SymbolKind::EVENT),
+            ("[discrete]\n== Heading", "Heading", SymbolKind::KEY),
+            (":custom: value", ":custom: value", SymbolKind::PROPERTY),
+            ("'''", "---", SymbolKind::NULL),
+            ("<<<", "<<<", SymbolKind::NULL),
+            ("* Item", "Unordered list", SymbolKind::ARRAY),
+            (". Item", "Ordered list", SymbolKind::ARRAY),
+            ("Term:: Description", "Description list", SymbolKind::ARRAY),
+            ("<1> Explanation", "Callout list", SymbolKind::ARRAY),
+            ("== Section", "Section", SymbolKind::MODULE),
+            ("Paragraph.", "Paragraph.", SymbolKind::STRING),
+            ("image::bird.png[]", "bird.png", SymbolKind::FILE),
+            ("audio::song.ogg[]", "song.ogg", SymbolKind::FILE),
+            ("video::one,two[youtube]", "one,two", SymbolKind::FILE),
+            ("====\nBody.\n====", "Example", SymbolKind::STRUCT),
+            ("****\nBody.\n****", "Sidebar", SymbolKind::STRUCT),
+            ("--\nBody.\n--", "Open block", SymbolKind::STRUCT),
+            ("____\nBody.\n____", "Quote", SymbolKind::STRUCT),
+            ("----\nBody.\n----", "Listing", SymbolKind::STRING),
+            ("....\nBody.\n....", "Literal", SymbolKind::STRING),
+            ("|===\n|Cell\n|===", "Table", SymbolKind::STRUCT),
+            ("++++\nBody.\n++++", "Passthrough", SymbolKind::STRING),
+            ("[verse]\n____\nBody.\n____", "Verse", SymbolKind::STRING),
+            ("[stem]\n++++\nx\n++++", "Stem", SymbolKind::STRING),
+            ("////\nComment.\n////", "Block", SymbolKind::STRING),
+        ] {
+            let source = format!("= Document\n\n{source}\n\n");
+            let parsed = parse(&source, &Options::default())?;
+            let symbols = document_symbols(parsed.document_ref(), &source);
+            let symbol = symbols.get(1);
+            assert_eq!(
+                symbol.map(|symbol| (symbol.name.as_str(), symbol.kind)),
+                Some((name, kind)),
+                "{source}"
+            );
+        }
+        Ok(())
+    }
 
     #[test]
     fn test_document_symbols_extraction() -> Result<(), Error> {
@@ -401,7 +410,7 @@ Some content.
 More content.
 ";
         let parsed = parse(content, &Options::default())?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
         let symbols = document_symbols(doc, content);
 
         // Header + 2 top-level sections
@@ -444,7 +453,7 @@ More content.
     fn test_paragraph_symbols() -> Result<(), Error> {
         let content = "= Doc\n\n== Section\n\nA simple paragraph.\n";
         let parsed = parse(content, &Options::default())?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
         let symbols = document_symbols(doc, content);
 
         // Find the paragraph inside Section
@@ -462,7 +471,7 @@ More content.
     fn test_admonition_symbols() -> Result<(), Error> {
         let content = "= Doc\n\n== Section\n\nNOTE: This is a note.\n";
         let parsed = parse(content, &Options::default())?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
         let symbols = document_symbols(doc, content);
 
         let section = symbols.get(1);
@@ -482,7 +491,7 @@ More content.
     fn test_delimited_block_symbols() -> Result<(), Error> {
         let content = "= Doc\n\n== Section\n\n.My sidebar\n****\nSidebar content.\n****\n";
         let parsed = parse(content, &Options::default())?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
         let symbols = document_symbols(doc, content);
 
         let section = symbols.get(1);
@@ -508,7 +517,7 @@ More content.
     fn test_list_symbols() -> Result<(), Error> {
         let content = "= Doc\n\n== Section\n\n* Item one\n* Item two\n* Item three\n";
         let parsed = parse(content, &Options::default())?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
         let symbols = document_symbols(doc, content);
 
         let section = symbols.get(1);
@@ -527,7 +536,7 @@ More content.
     fn test_image_symbols() -> Result<(), Error> {
         let content = "= Doc\n\n== Section\n\nimage::photo.png[]\n";
         let parsed = parse(content, &Options::default())?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
         let symbols = document_symbols(doc, content);
 
         let section = symbols.get(1);
@@ -546,7 +555,7 @@ More content.
     fn test_comment_excluded() -> Result<(), Error> {
         let content = "= Doc\n\n// This is a comment\n\n== Section\n\nContent.\n";
         let parsed = parse(content, &Options::default())?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
         let symbols = document_symbols(doc, content);
 
         // Comments should not appear in symbols

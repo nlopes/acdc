@@ -1,10 +1,13 @@
-//! Workspace symbols: extract navigable symbols from documents for cross-file search
+//! Workspace search keeps owned names and source spans after parsing.
 
-use acdc_converters_core::inlines_to_string;
-use acdc_parser::{Block, DelimitedBlockType, Document, Location, Section};
+use acdc_parser::{
+    Location,
+    ast::{BlockKind, BlockRef, DocumentRef, LocationRef, SectionRef},
+};
 use tower_lsp_server::ls_types::SymbolKind;
 
-/// A symbol extracted from a document for workspace-wide search
+use super::symbols::{for_each_symbol_child, section_level_to_symbol_kind, title_text};
+
 #[derive(Debug, Clone)]
 pub(crate) struct IndexedSymbol {
     pub(crate) name: String,
@@ -13,228 +16,138 @@ pub(crate) struct IndexedSymbol {
     pub(crate) detail: Option<String>,
 }
 
-/// Extract all navigable symbols from a parsed document
 #[must_use]
-pub(crate) fn extract_workspace_symbols(doc: &Document) -> Vec<IndexedSymbol> {
+pub(crate) fn extract_workspace_symbols(doc: DocumentRef<'_>) -> Vec<IndexedSymbol> {
     let mut symbols = Vec::new();
-
-    // Document title
-    if let Some(header) = &doc.header {
-        let title_text = inlines_to_string(&header.title);
-        if !title_text.is_empty() {
+    if let Some(header) = doc.header() {
+        let title = title_text(header.title());
+        if !title.is_empty() {
             symbols.push(IndexedSymbol {
-                name: title_text,
+                name: title,
                 kind: SymbolKind::FILE,
-                location: header.location.clone(),
+                location: header.location().into(),
                 detail: Some("Document title".to_string()),
             });
         }
     }
-
-    // Walk all blocks
-    for block in &doc.blocks {
+    for block in doc.blocks() {
         extract_block_symbols(block, &mut symbols);
     }
-
     symbols
 }
 
-fn extract_block_symbols(block: &Block, symbols: &mut Vec<IndexedSymbol>) {
-    match block {
-        Block::Section(section) => extract_section_symbols(section, symbols),
-        Block::DiscreteHeader(header) => {
-            let title_text = inlines_to_string(&header.title);
-            if !title_text.is_empty() {
+fn extract_block_symbols(block: BlockRef<'_>, symbols: &mut Vec<IndexedSymbol>) {
+    match block.kind() {
+        BlockKind::Section(section) => extract_section_symbols(block, section, symbols),
+        BlockKind::DiscreteHeader(header) => {
+            let title = title_text(header.title());
+            if !title.is_empty() {
                 symbols.push(IndexedSymbol {
-                    name: title_text,
+                    name: title,
                     kind: SymbolKind::STRING,
-                    location: header.location.clone(),
+                    location: header.location().into(),
                     detail: Some("Discrete header".to_string()),
                 });
             }
-            extract_metadata_anchors(&header.metadata, &header.location, symbols);
+            extract_anchors(block, block.location(), symbols);
         }
-        Block::DocumentAttribute(attr) => {
-            let assigned = attr.assignment().value();
+        BlockKind::DocumentAttribute(attribute) => {
+            let assigned = attribute.assignment().value();
             let mut value = String::new();
             if let Some(assigned) = assigned {
                 let _ = assigned.write_text(&mut value);
             }
             symbols.push(IndexedSymbol {
-                name: attr.name.to_string(),
+                name: attribute.name().to_string(),
                 kind: SymbolKind::CONSTANT,
-                location: attr.location.clone(),
-                detail: Some(if assigned.is_some() { value } else { "unset".to_string() }),
+                location: attribute.location().into(),
+                detail: Some(if assigned.is_some() {
+                    value
+                } else {
+                    "unset".to_string()
+                }),
             });
         }
-        Block::Paragraph(para) => {
-            let title_text = inlines_to_string(&para.title);
-            if !title_text.is_empty() {
+        BlockKind::Paragraph(_)
+        | BlockKind::Image(_)
+        | BlockKind::Example(_)
+        | BlockKind::Sidebar(_)
+        | BlockKind::Open(_)
+        | BlockKind::Quote(_)
+        | BlockKind::Listing(_)
+        | BlockKind::Literal(_)
+        | BlockKind::Table(_)
+        | BlockKind::Passthrough(_)
+        | BlockKind::Verse(_)
+        | BlockKind::Stem(_)
+        | BlockKind::DelimitedComment(_) => {
+            let title = title_text(block.title());
+            if !title.is_empty() {
                 symbols.push(IndexedSymbol {
-                    name: title_text,
+                    name: title,
                     kind: SymbolKind::PROPERTY,
-                    location: para.location.clone(),
+                    location: block.location().into(),
                     detail: Some("Block title".to_string()),
                 });
             }
-            extract_metadata_anchors(&para.metadata, &para.location, symbols);
+            extract_anchors(block, block.location(), symbols);
         }
-        Block::DelimitedBlock(delimited) => {
-            let title_text = inlines_to_string(&delimited.title);
-            if !title_text.is_empty() {
-                symbols.push(IndexedSymbol {
-                    name: title_text,
-                    kind: SymbolKind::PROPERTY,
-                    location: delimited.location.clone(),
-                    detail: Some("Block title".to_string()),
-                });
-            }
-            extract_metadata_anchors(&delimited.metadata, &delimited.location, symbols);
-            extract_delimited_symbols(&delimited.inner, symbols);
-        }
-        Block::Image(img) => {
-            let title_text = inlines_to_string(&img.title);
-            if !title_text.is_empty() {
-                symbols.push(IndexedSymbol {
-                    name: title_text,
-                    kind: SymbolKind::PROPERTY,
-                    location: img.location.clone(),
-                    detail: Some("Block title".to_string()),
-                });
-            }
-            extract_metadata_anchors(&img.metadata, &img.location, symbols);
-        }
-        Block::Admonition(adm) => {
-            extract_metadata_anchors(&adm.metadata, &adm.location, symbols);
-            for b in &adm.blocks {
-                extract_block_symbols(b, symbols);
-            }
-        }
-        Block::UnorderedList(list) => {
-            for item in &list.items {
-                for b in &item.blocks {
-                    extract_block_symbols(b, symbols);
-                }
-            }
-        }
-        Block::OrderedList(list) => {
-            for item in &list.items {
-                for b in &item.blocks {
-                    extract_block_symbols(b, symbols);
-                }
-            }
-        }
-        Block::DescriptionList(list) => {
-            for item in &list.items {
-                for b in &item.description {
-                    extract_block_symbols(b, symbols);
-                }
-            }
-        }
-        Block::TableOfContents(_)
-        | Block::ThematicBreak(_)
-        | Block::PageBreak(_)
-        | Block::CalloutList(_)
-        | Block::Audio(_)
-        | Block::Video(_)
-        | Block::Comment(_)
-        // non_exhaustive
+        BlockKind::Admonition(_) => extract_anchors(block, block.location(), symbols),
+        BlockKind::UnorderedList(_)
+        | BlockKind::OrderedList(_)
+        | BlockKind::DescriptionList(_)
+        | BlockKind::TableOfContents(_)
+        | BlockKind::ThematicBreak(_)
+        | BlockKind::PageBreak(_)
+        | BlockKind::CalloutList(_)
+        | BlockKind::Audio(_)
+        | BlockKind::Video(_)
+        | BlockKind::Comment(_)
         | _ => {}
     }
+    for_each_symbol_child(block, |child| extract_block_symbols(child, symbols));
 }
 
-fn extract_section_symbols(section: &Section, symbols: &mut Vec<IndexedSymbol>) {
-    let title_text = inlines_to_string(&section.title);
-    let heading = super::definition::heading_line_location(section);
-    symbols.push(IndexedSymbol {
-        name: title_text,
-        kind: section_level_to_symbol_kind(section.level),
-        location: heading.clone(),
-        detail: Some(format!("Level {}", section.level)),
-    });
-
-    // Collect anchors from metadata
-    extract_metadata_anchors(&section.metadata, &heading, symbols);
-
-    // Also add generated section ID as anchor
-    let id = section.id().into_owned();
-    symbols.push(IndexedSymbol {
-        name: id,
-        kind: SymbolKind::KEY,
-        location: heading,
-        detail: Some("Anchor".to_string()),
-    });
-
-    // Recurse into section content
-    for child in &section.content {
-        extract_block_symbols(child, symbols);
-    }
-}
-
-fn extract_metadata_anchors(
-    metadata: &acdc_parser::BlockMetadata,
-    fallback_location: &Location,
+fn extract_section_symbols(
+    block: BlockRef<'_>,
+    section: SectionRef<'_>,
     symbols: &mut Vec<IndexedSymbol>,
 ) {
-    for anchor in &metadata.anchors {
-        let loc = if anchor.location == Location::default() {
-            fallback_location
-        } else {
-            &anchor.location
-        };
+    let heading = super::identity::heading_location(section);
+    symbols.push(IndexedSymbol {
+        name: title_text(section.title()),
+        kind: section_level_to_symbol_kind(section.level()),
+        location: heading.clone(),
+        detail: Some(format!("Level {}", section.level())),
+    });
+    extract_anchors(block, (&heading).into(), symbols);
+    if let Some(id) = section.id() {
         symbols.push(IndexedSymbol {
-            name: anchor.id.to_string(),
+            name: id.as_str().to_string(),
             kind: SymbolKind::KEY,
-            location: loc.clone(),
-            detail: Some("Anchor".to_string()),
-        });
-    }
-    if let Some(id_anchor) = &metadata.id {
-        let loc = if id_anchor.location == Location::default() {
-            fallback_location
-        } else {
-            &id_anchor.location
-        };
-        symbols.push(IndexedSymbol {
-            name: id_anchor.id.to_string(),
-            kind: SymbolKind::KEY,
-            location: loc.clone(),
+            location: heading,
             detail: Some("Anchor".to_string()),
         });
     }
 }
 
-fn extract_delimited_symbols(inner: &DelimitedBlockType, symbols: &mut Vec<IndexedSymbol>) {
-    match inner {
-        DelimitedBlockType::DelimitedExample(blocks)
-        | DelimitedBlockType::DelimitedOpen(blocks)
-        | DelimitedBlockType::DelimitedSidebar(blocks)
-        | DelimitedBlockType::DelimitedQuote(blocks) => {
-            for block in blocks {
-                extract_block_symbols(block, symbols);
-            }
-        }
-        DelimitedBlockType::DelimitedListing(_)
-        | DelimitedBlockType::DelimitedLiteral(_)
-        | DelimitedBlockType::DelimitedPass(_)
-        | DelimitedBlockType::DelimitedVerse(_)
-        | DelimitedBlockType::DelimitedComment(_)
-        | DelimitedBlockType::DelimitedTable(_)
-        | DelimitedBlockType::DelimitedStem(_)
-        // non_exhaustive
-        | _ => {}
-    }
-}
-
-/// Map section levels to symbol kinds (same mapping as `document_symbols`)
-const fn section_level_to_symbol_kind(level: u8) -> SymbolKind {
-    match level {
-        0 => SymbolKind::NAMESPACE,
-        1 => SymbolKind::MODULE,
-        2 => SymbolKind::CLASS,
-        3 => SymbolKind::METHOD,
-        4 => SymbolKind::FUNCTION,
-        _ => SymbolKind::VARIABLE,
+fn extract_anchors(
+    block: BlockRef<'_>,
+    fallback: LocationRef<'_>,
+    symbols: &mut Vec<IndexedSymbol>,
+) {
+    for anchor in block.anchors() {
+        let location: Location = anchor.location().into();
+        symbols.push(IndexedSymbol {
+            name: anchor.id().to_string(),
+            kind: SymbolKind::KEY,
+            location: if location == Location::default() {
+                fallback.into()
+            } else {
+                location
+            },
+            detail: Some("Anchor".to_string()),
+        });
     }
 }
 
@@ -248,7 +161,7 @@ mod tests {
         let content =
             "= Document Title\n\n== Section One\n\nContent.\n\n== Section Two\n\n=== Subsection\n";
         let parsed = parse(content, &Options::default())?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
         let symbols = extract_workspace_symbols(doc);
 
         // Document title + 3 sections + generated anchors
@@ -267,7 +180,7 @@ mod tests {
     fn test_extract_symbols_anchors() -> Result<(), Error> {
         let content = "= Doc\n\n[[my-anchor]]\n== Section\n\nContent.\n";
         let parsed = parse(content, &Options::default())?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
         let symbols = extract_workspace_symbols(doc);
 
         assert!(
@@ -282,7 +195,7 @@ mod tests {
     fn test_extract_symbols_discrete_header() -> Result<(), Error> {
         let content = "= Doc\n\n[discrete]\n== Discrete Title\n\nContent.\n";
         let parsed = parse(content, &Options::default())?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
         let symbols = extract_workspace_symbols(doc);
 
         assert!(
@@ -299,7 +212,7 @@ mod tests {
         // Body document attributes produce Block::DocumentAttribute
         let content = "= Doc\n\n== Section\n\n:my-attr: some value\n\nContent.\n";
         let parsed = parse(content, &Options::default())?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
         let symbols = extract_workspace_symbols(doc);
 
         assert!(

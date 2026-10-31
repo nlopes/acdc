@@ -49,7 +49,7 @@ fn outline_keeps_parent_text_nested_under_an_included_section() -> Result<(), Bo
     let (workspace, uri) = setup()?;
     let doc = workspace.get_document(&uri).ok_or("missing book")?;
     let ast = doc.ast().ok_or("missing AST")?;
-    let symbols = symbols::document_symbols(ast.document(), doc.text());
+    let symbols = symbols::document_symbols(ast.document_ref(), doc.text());
     let symbols = flatten_symbols(&symbols);
     assert!(symbols.iter().any(|symbol| symbol.name == "Parent"));
     assert!(
@@ -80,7 +80,7 @@ fn outline_keeps_a_local_heading_when_its_section_ends_in_an_include() -> Result
     );
     let doc = workspace.get_document(&uri).ok_or("missing book")?;
     let ast = doc.ast().ok_or("missing AST")?;
-    let symbols = symbols::document_symbols(ast.document(), doc.text());
+    let symbols = symbols::document_symbols(ast.document_ref(), doc.text());
     let symbols = flatten_symbols(&symbols);
     let parent = symbols
         .iter()

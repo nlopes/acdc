@@ -591,7 +591,7 @@ impl Workspace {
             if let Some(text) = read_bounded(&path)
                 && let Ok(parsed) = parse(&text, self.parser_profiles.get(self.backend_for(&uri)))
             {
-                let symbols = extract_workspace_symbols(parsed.document());
+                let symbols = extract_workspace_symbols(parsed.document_ref());
                 self.symbol_index.insert(uri, symbols);
             }
         }
@@ -616,7 +616,7 @@ impl Workspace {
         for entry in &self.documents {
             let uri = entry.key();
             if let Some(ast) = entry.value().ast() {
-                let symbols = extract_workspace_symbols(ast.document());
+                let symbols = extract_workspace_symbols(ast.document_ref());
                 for symbol in symbols {
                     if (query.is_empty() || symbol.name.to_lowercase().contains(&query_lower))
                         && let Some(source_uri) =
@@ -698,7 +698,7 @@ impl Workspace {
         {
             let backend = self.backend_for(uri);
             if let Ok(parsed) = parse(&text, self.parser_profiles.get(backend)) {
-                let symbols = extract_workspace_symbols(parsed.document());
+                let symbols = extract_workspace_symbols(parsed.document_ref());
                 self.symbol_index.insert(uri.clone(), symbols);
             }
         }
@@ -1231,7 +1231,7 @@ mod tests {
             "= Doc Two\n\n== TLS Configuration\n\nStuff.\n",
             &acdc_parser::Options::default(),
         )?;
-        let symbols = extract_workspace_symbols(parsed2.document());
+        let symbols = extract_workspace_symbols(parsed2.document_ref());
         workspace.symbol_index.insert(uri2.clone(), symbols);
 
         // Query for "tls" (case-insensitive)
