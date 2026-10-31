@@ -1,11 +1,15 @@
 //! Hover: show information about elements at cursor position
 
+use std::ops::ControlFlow;
+
 use acdc_converters_core::inlines_to_string;
 use acdc_parser::{
-    Block, DelimitedBlockType, Document, InlineMacro, InlineNode, Location,
-    ast::{IdOrigin, SectionRef},
+    Block, Document, Location,
+    ast::{DocumentRef, HyperlinkRef, IdOrigin, SectionRef},
 };
 use tower_lsp_server::ls_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position, Uri};
+
+use super::link_occurrences::{LinkOccurrence, visit_links};
 
 use crate::{
     convert::{location_to_utf16_range, position_in_location, position_to_scalar_position},
@@ -80,7 +84,7 @@ pub(crate) fn compute_hover(
     }
 
     // Check for URL/link at this position
-    if let Some((url, link_loc)) = find_link_at_position(ast, &position) {
+    if let Some((url, link_loc)) = find_link_at_position(ast.into(), &position) {
         let content = format!("**Link**\n\nURL: {url}");
 
         return Some(Hover {
@@ -189,176 +193,26 @@ pub(crate) fn find_anchor_at_position<'doc>(
 
 /// Find a link or URL at an original-source scalar position.
 pub(crate) fn find_link_at_position(
-    doc: &Document,
+    doc: DocumentRef<'_>,
     position: &acdc_parser::Position,
 ) -> Option<(String, Location)> {
-    for block in &doc.blocks {
-        if let Some(result) = find_link_in_block(block, position) {
-            return Some(result);
-        }
-    }
-    None
-}
-
-fn find_link_in_block(
-    block: &Block,
-    position: &acdc_parser::Position,
-) -> Option<(String, Location)> {
-    match block {
-        Block::Section(section) => {
-            for child in &section.content {
-                if let Some(result) = find_link_in_block(child, position) {
-                    return Some(result);
-                }
-            }
-            None
-        }
-        Block::Paragraph(para) => find_link_in_inlines(&para.content, position),
-        Block::DelimitedBlock(delimited) => find_link_in_delimited(&delimited.inner, position),
-        Block::UnorderedList(list) => {
-            for item in &list.items {
-                if let Some(result) = find_link_in_inlines(&item.principal, position) {
-                    return Some(result);
-                }
-                for b in &item.blocks {
-                    if let Some(result) = find_link_in_block(b, position) {
-                        return Some(result);
+    visit_links(doc, |occurrence| {
+        if let LinkOccurrence::Hyperlink(link) = occurrence {
+            match link {
+                HyperlinkRef::Link(_) | HyperlinkRef::Url(_) | HyperlinkRef::Autolink(_) => {
+                    if position_in_location(position, link.location()) {
+                        return ControlFlow::Break((
+                            link.target().to_string(),
+                            link.location().into(),
+                        ));
                     }
                 }
+                HyperlinkRef::Mailto(_) | _ => {}
             }
-            None
         }
-        Block::OrderedList(list) => {
-            for item in &list.items {
-                if let Some(result) = find_link_in_inlines(&item.principal, position) {
-                    return Some(result);
-                }
-                for b in &item.blocks {
-                    if let Some(result) = find_link_in_block(b, position) {
-                        return Some(result);
-                    }
-                }
-            }
-            None
-        }
-        Block::DescriptionList(list) => {
-            for item in &list.items {
-                if let Some(result) = find_link_in_inlines(&item.principal_text, position) {
-                    return Some(result);
-                }
-                for b in &item.description {
-                    if let Some(result) = find_link_in_block(b, position) {
-                        return Some(result);
-                    }
-                }
-            }
-            None
-        }
-        Block::Admonition(adm) => {
-            for b in &adm.blocks {
-                if let Some(result) = find_link_in_block(b, position) {
-                    return Some(result);
-                }
-            }
-            None
-        }
-        Block::TableOfContents(_)
-        | Block::DiscreteHeader(_)
-        | Block::DocumentAttribute(_)
-        | Block::ThematicBreak(_)
-        | Block::PageBreak(_)
-        | Block::CalloutList(_)
-        | Block::Image(_)
-        | Block::Audio(_)
-        | Block::Video(_)
-        | Block::Comment(_)
-        // non_exhaustive
-        | _ => None,
-    }
-}
-
-fn find_link_in_delimited(
-    inner: &DelimitedBlockType,
-    position: &acdc_parser::Position,
-) -> Option<(String, Location)> {
-    match inner {
-        DelimitedBlockType::DelimitedExample(blocks)
-        | DelimitedBlockType::DelimitedOpen(blocks)
-        | DelimitedBlockType::DelimitedSidebar(blocks)
-        | DelimitedBlockType::DelimitedQuote(blocks) => {
-            for block in blocks {
-                if let Some(result) = find_link_in_block(block, position) {
-                    return Some(result);
-                }
-            }
-            None
-        }
-        DelimitedBlockType::DelimitedListing(inlines)
-        | DelimitedBlockType::DelimitedLiteral(inlines)
-        | DelimitedBlockType::DelimitedPass(inlines)
-        | DelimitedBlockType::DelimitedVerse(inlines)
-        | DelimitedBlockType::DelimitedComment(inlines) => find_link_in_inlines(inlines, position),
-        DelimitedBlockType::DelimitedTable(_)
-        | DelimitedBlockType::DelimitedStem(_)
-        // non_exhaustive
-        | _ => None,
-    }
-}
-
-fn find_link_in_inlines(
-    inlines: &[InlineNode],
-    position: &acdc_parser::Position,
-) -> Option<(String, Location)> {
-    for inline in inlines {
-        if let Some(result) = find_link_in_inline(inline, position) {
-            return Some(result);
-        }
-    }
-    None
-}
-
-fn find_link_in_inline(
-    inline: &InlineNode,
-    position: &acdc_parser::Position,
-) -> Option<(String, Location)> {
-    match inline {
-        InlineNode::Macro(InlineMacro::Link(link)) => {
-            if position_in_location(position, &link.location) {
-                return Some((link.target.to_string(), link.location.clone()));
-            }
-            None
-        }
-        InlineNode::Macro(InlineMacro::Url(url)) => {
-            if position_in_location(position, &url.location) {
-                return Some((url.target.to_string(), url.location.clone()));
-            }
-            None
-        }
-        InlineNode::Macro(InlineMacro::Autolink(autolink)) => {
-            if position_in_location(position, &autolink.location) {
-                return Some((autolink.url.to_string(), autolink.location.clone()));
-            }
-            None
-        }
-        InlineNode::BoldText(b) => find_link_in_inlines(&b.content, position),
-        InlineNode::ItalicText(i) => find_link_in_inlines(&i.content, position),
-        InlineNode::MonospaceText(m) => find_link_in_inlines(&m.content, position),
-        InlineNode::HighlightText(h) => find_link_in_inlines(&h.content, position),
-        InlineNode::SubscriptText(s) => find_link_in_inlines(&s.content, position),
-        InlineNode::SuperscriptText(s) => find_link_in_inlines(&s.content, position),
-        InlineNode::PlainText(_)
-        | InlineNode::RawText(_)
-        | InlineNode::VerbatimText(_)
-        | InlineNode::CurvedQuotationText(_)
-        | InlineNode::CurvedApostropheText(_)
-        | InlineNode::StandaloneCurvedApostrophe(_)
-        | InlineNode::LineBreak(_)
-        | InlineNode::InlineAnchor(_)
-        | InlineNode::Macro(_)
-        | InlineNode::CalloutRef(_)
-        // non_exhaustive
-        | _ => None,
-    }
+        ControlFlow::Continue(())
+    })
+    .break_value()
 }
 
 /// Find a raw attribute reference at an original-source scalar position.

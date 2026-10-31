@@ -292,7 +292,7 @@ pub(crate) fn find_definition_at_position(
 
     // Check if cursor is on a link macro
     if let Some((target, _)) =
-        crate::capabilities::hover::find_link_at_position(ast, &source_position)
+        crate::capabilities::hover::find_link_at_position(ast.into(), &source_position)
     {
         return resolve_link_target(&target, doc_uri);
     }

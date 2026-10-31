@@ -29,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Clickable `mailto:` links use a single scheme prefix, so editors open the
+  intended email address.
+
 - Navigation, references, and rename now recognize retained named block IDs and
   inline IDs, including images and formatting spans in titles, tables, and includes.
   Rename changes only source-validated literal spellings, preserves quoting and

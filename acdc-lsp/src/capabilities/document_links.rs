@@ -1,8 +1,12 @@
 //! Document Links: make URLs, file references, and includes clickable
 
-use acdc_converters_core::inlines_to_string;
-use acdc_parser::{Block, DelimitedBlockType, InlineMacro, InlineNode, Location};
+use std::ops::ControlFlow;
+
+use acdc_converters_core::InlineTextTransform;
+use acdc_parser::{Location, ast::HyperlinkRef};
 use tower_lsp_server::ls_types::{DocumentLink, Uri};
+
+use super::link_occurrences::{LinkOccurrence, visit_links};
 
 use crate::{
     convert::{is_primary_location, location_to_utf16_range, resolve_relative_uri},
@@ -21,9 +25,32 @@ struct LinkInfo {
 pub(crate) fn collect_document_links(doc: &DocumentState, doc_uri: &Uri) -> Vec<DocumentLink> {
     let mut links = Vec::new();
 
-    // Collect links from AST (URLs, link macros, images)
     if let Some(ast) = doc.ast() {
-        collect_links_from_blocks(&ast.document().blocks, &mut links);
+        let _ = visit_links(ast.document_ref(), |link| {
+            let info = match link {
+                LinkOccurrence::Hyperlink(link) => LinkInfo {
+                    target: link.target().to_string(),
+                    location: link.location().into(),
+                    tooltip: match link {
+                        HyperlinkRef::Link(explicit) if !explicit.text().is_empty() => {
+                            Some(InlineTextTransform::default().content_to_string(explicit.text()))
+                        }
+                        HyperlinkRef::Link(_)
+                        | HyperlinkRef::Url(_)
+                        | HyperlinkRef::Mailto(_)
+                        | HyperlinkRef::Autolink(_)
+                        | _ => None,
+                    },
+                },
+                LinkOccurrence::Image(image) => LinkInfo {
+                    target: image.source().to_string(),
+                    location: image.location().into(),
+                    tooltip: Some("Open image".to_string()),
+                },
+            };
+            links.push(info);
+            ControlFlow::<()>::Continue(())
+        });
     }
 
     let mut result: Vec<DocumentLink> = links
@@ -67,146 +94,6 @@ pub(crate) fn collect_document_links(doc: &DocumentState, doc_uri: &Uri) -> Vec<
     }
 
     result
-}
-
-fn collect_links_from_blocks(blocks: &[Block], links: &mut Vec<LinkInfo>) {
-    for block in blocks {
-        collect_links_from_block(block, links);
-    }
-}
-
-fn collect_links_from_block(block: &Block, links: &mut Vec<LinkInfo>) {
-    match block {
-        Block::Section(section) => {
-            collect_links_from_blocks(&section.content, links);
-        }
-        Block::Paragraph(para) => {
-            collect_links_from_inlines(&para.content, links);
-        }
-        Block::DelimitedBlock(delimited) => {
-            collect_links_from_delimited(&delimited.inner, links);
-        }
-        Block::UnorderedList(list) => {
-            for item in &list.items {
-                collect_links_from_inlines(&item.principal, links);
-                collect_links_from_blocks(&item.blocks, links);
-            }
-        }
-        Block::OrderedList(list) => {
-            for item in &list.items {
-                collect_links_from_inlines(&item.principal, links);
-                collect_links_from_blocks(&item.blocks, links);
-            }
-        }
-        Block::DescriptionList(list) => {
-            for item in &list.items {
-                collect_links_from_inlines(&item.principal_text, links);
-                collect_links_from_blocks(&item.description, links);
-            }
-        }
-        Block::Admonition(adm) => {
-            collect_links_from_blocks(&adm.blocks, links);
-        }
-        Block::Image(img) => {
-            // Image source as a link (for opening the image file)
-            links.push(LinkInfo {
-                target: img.source.to_string(),
-                location: img.location.clone(),
-                tooltip: Some("Open image".to_string()),
-            });
-        }
-        Block::TableOfContents(_)
-        | Block::DiscreteHeader(_)
-        | Block::DocumentAttribute(_)
-        | Block::ThematicBreak(_)
-        | Block::PageBreak(_)
-        | Block::CalloutList(_)
-        | Block::Audio(_)
-        | Block::Video(_)
-        | Block::Comment(_)
-        // non_exhaustive
-        | _ => {}
-    }
-}
-
-fn collect_links_from_delimited(inner: &DelimitedBlockType, links: &mut Vec<LinkInfo>) {
-    match inner {
-        DelimitedBlockType::DelimitedExample(blocks)
-        | DelimitedBlockType::DelimitedOpen(blocks)
-        | DelimitedBlockType::DelimitedSidebar(blocks)
-        | DelimitedBlockType::DelimitedQuote(blocks) => {
-            collect_links_from_blocks(blocks, links);
-        }
-        DelimitedBlockType::DelimitedListing(inlines)
-        | DelimitedBlockType::DelimitedLiteral(inlines)
-        | DelimitedBlockType::DelimitedPass(inlines)
-        | DelimitedBlockType::DelimitedVerse(inlines)
-        | DelimitedBlockType::DelimitedComment(inlines) => {
-            collect_links_from_inlines(inlines, links);
-        }
-        DelimitedBlockType::DelimitedTable(_)
-        | DelimitedBlockType::DelimitedStem(_)
-        // non_exhaustive
-        | _ => {}
-    }
-}
-
-fn collect_links_from_inlines(inlines: &[InlineNode], links: &mut Vec<LinkInfo>) {
-    for inline in inlines {
-        collect_links_from_inline(inline, links);
-    }
-}
-
-fn collect_links_from_inline(inline: &InlineNode, links: &mut Vec<LinkInfo>) {
-    match inline {
-        InlineNode::Macro(InlineMacro::Link(link)) => {
-            links.push(LinkInfo {
-                target: link.target.to_string(),
-                location: link.location.clone(),
-                tooltip: (!link.text.is_empty()).then(|| inlines_to_string(&link.text)),
-            });
-        }
-        InlineNode::Macro(InlineMacro::Url(url)) => {
-            links.push(LinkInfo {
-                target: url.target.to_string(),
-                location: url.location.clone(),
-                tooltip: None,
-            });
-        }
-        InlineNode::Macro(InlineMacro::Autolink(autolink)) => {
-            links.push(LinkInfo {
-                target: autolink.url.to_string(),
-                location: autolink.location.clone(),
-                tooltip: None,
-            });
-        }
-        InlineNode::Macro(InlineMacro::Mailto(mailto)) => {
-            links.push(LinkInfo {
-                target: format!("mailto:{}", mailto.target),
-                location: mailto.location.clone(),
-                tooltip: None, // Text is Vec<InlineNode>, skip tooltip extraction
-            });
-        }
-        // Recurse into formatted text
-        InlineNode::BoldText(b) => collect_links_from_inlines(&b.content, links),
-        InlineNode::ItalicText(i) => collect_links_from_inlines(&i.content, links),
-        InlineNode::MonospaceText(m) => collect_links_from_inlines(&m.content, links),
-        InlineNode::HighlightText(h) => collect_links_from_inlines(&h.content, links),
-        InlineNode::SubscriptText(s) => collect_links_from_inlines(&s.content, links),
-        InlineNode::SuperscriptText(s) => collect_links_from_inlines(&s.content, links),
-        InlineNode::PlainText(_)
-        | InlineNode::RawText(_)
-        | InlineNode::VerbatimText(_)
-        | InlineNode::CurvedQuotationText(_)
-        | InlineNode::CurvedApostropheText(_)
-        | InlineNode::StandaloneCurvedApostrophe(_)
-        | InlineNode::LineBreak(_)
-        | InlineNode::InlineAnchor(_)
-        | InlineNode::Macro(_)
-        | InlineNode::CalloutRef(_)
-        // non_exhaustive
-        | _ => {}
-    }
 }
 
 #[cfg(test)]

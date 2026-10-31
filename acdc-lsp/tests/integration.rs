@@ -9,6 +9,7 @@ mod integration {
     mod coordinates;
     mod includes;
     mod inlay_hints;
+    mod link_navigation;
     mod preview;
     mod selection_range;
     mod source_edits;
