@@ -15,6 +15,7 @@ mod integration {
     mod reference_displays;
     mod selection_range;
     mod source_edits;
+    mod structural_displays;
     mod symbol_text;
     mod xref_content;
 }

@@ -399,7 +399,7 @@ impl Workspace {
         // Compute section level diagnostics (skipped heading levels)
         if let Some(ast) = state.ast() {
             source_diagnostics.extend(
-                diagnostics::compute_section_level_diagnostics(ast.document())
+                diagnostics::compute_section_level_diagnostics(ast.document_ref())
                     .into_iter()
                     .map(|(location, diagnostic)| (ast.source_location(&location), diagnostic)),
             );

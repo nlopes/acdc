@@ -2,7 +2,10 @@
 
 use std::{collections::HashMap, hash::BuildHasher, path::Path};
 
-use acdc_parser::{Block, Document, Error, Location, SourceLocation, Warning};
+use acdc_parser::{
+    Error, Location, SourceLocation, Warning,
+    ast::{BlockKind, DocumentRef, SectionRef},
+};
 use tower_lsp_server::ls_types::{Diagnostic, DiagnosticSeverity, DiagnosticTag, Range};
 
 use crate::state::{
@@ -117,49 +120,48 @@ pub(crate) fn compute_link_diagnostics(
     diagnostics
 }
 
-/// Collect sections in document order by walking the AST recursively.
-fn collect_sections<'a>(blocks: &'a [Block<'_>]) -> Vec<(u8, &'a Location)> {
-    let mut sections = Vec::new();
-    for block in blocks {
-        if let Block::Section(section) = block {
-            sections.push((section.level, &section.location));
-            sections.extend(collect_sections(&section.content));
-        }
-    }
-    sections
-}
-
 /// Compute diagnostics for skipped section heading levels.
 ///
-/// Walks the AST to find sections in document order and checks that
-/// levels don't jump by more than 1 (e.g., `==` followed by `====` skips `===`).
-/// Going back to a higher level is always fine.
+/// Only root sections and their nested sections participate. Headings inside
+/// other block types do not affect the progression.
 #[must_use]
 pub(crate) fn compute_section_level_diagnostics(
-    ast: &Document,
+    ast: DocumentRef<'_>,
 ) -> Vec<(Location, DiagnosticMessage)> {
-    let sections = collect_sections(&ast.blocks);
     let mut diagnostics = Vec::new();
-    let mut last_level: u8 = 0;
-
-    for &(level, location) in &sections {
-        if level > last_level + 1 {
-            let expected = last_level + 2; // display level (internal + 1)
-            let found = level + 1;
-            let expected_markers = "=".repeat(expected as usize);
-            let found_markers = "=".repeat(found as usize);
-
-            diagnostics.push((location.clone(), DiagnosticMessage {
-                severity: DiagnosticSeverity::WARNING,
-                message: format!(
-                    "Section level skipped: expected level {expected} (`{expected_markers}`) but found level {found} (`{found_markers}`)"
-                ),
-            }));
+    let mut last_level = 0;
+    for block in ast.blocks() {
+        if let BlockKind::Section(section) = block.kind() {
+            check_section_level(section, &mut last_level, &mut diagnostics);
         }
-        last_level = level;
     }
-
     diagnostics
+}
+
+fn check_section_level(
+    section: SectionRef<'_>,
+    last_level: &mut u8,
+    diagnostics: &mut Vec<(Location, DiagnosticMessage)>,
+) {
+    let level = section.level();
+    if level > *last_level + 1 {
+        let expected = *last_level + 2;
+        let found = level + 1;
+        let expected_markers = "=".repeat(usize::from(expected));
+        let found_markers = "=".repeat(usize::from(found));
+        diagnostics.push((section.location().into(), DiagnosticMessage {
+            severity: DiagnosticSeverity::WARNING,
+            message: format!(
+                "Section level skipped: expected level {expected} (`{expected_markers}`) but found level {found} (`{found_markers}`)"
+            ),
+        }));
+    }
+    *last_level = level;
+    for block in section.blocks() {
+        if let BlockKind::Section(section) = block.kind() {
+            check_section_level(section, last_level, diagnostics);
+        }
+    }
 }
 
 /// Compute diagnostics for inactive conditional blocks.
@@ -239,7 +241,7 @@ mod tests {
         let parsed = parse_doc(
             "= Title\n\n== Chapter 1\n\n=== Section 1.1\n\n== Chapter 2\n\n=== Section 2.1\n",
         )?;
-        let diags = compute_section_level_diagnostics(parsed.document());
+        let diags = compute_section_level_diagnostics(parsed.document_ref());
         assert!(
             diags.is_empty(),
             "valid progression should produce no warnings, got: {diags:?}"
@@ -251,7 +253,7 @@ mod tests {
     fn test_section_level_first_section_skip() -> Result<(), Box<dyn std::error::Error>> {
         // First section is === (level 2) but should be == (level 1)
         let parsed = parse_doc("= Title\n\n=== Skipped First\n")?;
-        let diags = compute_section_level_diagnostics(parsed.document());
+        let diags = compute_section_level_diagnostics(parsed.document_ref());
         assert_eq!(diags.len(), 1, "expected 1 warning, got: {diags:?}");
         let (_, d) = diags.first().ok_or("expected a diagnostic")?;
         assert_eq!(d.severity, DiagnosticSeverity::WARNING);
@@ -271,7 +273,7 @@ mod tests {
     #[test]
     fn test_section_level_going_up_no_warning() -> Result<(), Box<dyn std::error::Error>> {
         let parsed = parse_doc("= Title\n\n== Chapter 1\n\n=== Deep\n\n== Chapter 2\n")?;
-        let diags = compute_section_level_diagnostics(parsed.document());
+        let diags = compute_section_level_diagnostics(parsed.document_ref());
         assert!(
             diags.is_empty(),
             "going up should produce no warnings, got: {diags:?}"
@@ -283,7 +285,7 @@ mod tests {
     fn test_section_level_large_skip() -> Result<(), Box<dyn std::error::Error>> {
         // First section is ==== (level 3), skipping levels 1 and 2
         let parsed = parse_doc("= Title\n\n==== Big Skip\n")?;
-        let diags = compute_section_level_diagnostics(parsed.document());
+        let diags = compute_section_level_diagnostics(parsed.document_ref());
         assert_eq!(diags.len(), 1, "expected 1 warning, got: {diags:?}");
         let (_, d) = diags.first().ok_or("expected a diagnostic")?;
         assert_eq!(d.severity, DiagnosticSeverity::WARNING);
@@ -303,7 +305,7 @@ mod tests {
     #[test]
     fn test_section_level_jump_down_one_ok() -> Result<(), Box<dyn std::error::Error>> {
         let parsed = parse_doc("= Title\n\n== Chapter\n\n=== Section\n")?;
-        let diags = compute_section_level_diagnostics(parsed.document());
+        let diags = compute_section_level_diagnostics(parsed.document_ref());
         assert!(
             diags.is_empty(),
             "increment by 1 should be fine, got: {diags:?}"
@@ -318,7 +320,7 @@ mod tests {
         // the section at its literal level, and the LSP surfaces the skip as a
         // warning from the parsed AST.
         let parsed = parse_doc("= Title\n\n== Section\n\n==== Skipped\n")?;
-        let diags = compute_section_level_diagnostics(parsed.document());
+        let diags = compute_section_level_diagnostics(parsed.document_ref());
         assert_eq!(diags.len(), 1, "expected 1 warning, got: {diags:?}");
         let (_, diag) = diags.first().ok_or("expected a diagnostic")?;
         assert_eq!(diag.severity, DiagnosticSeverity::WARNING);

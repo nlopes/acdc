@@ -140,7 +140,7 @@ fn selected_reindented_includes_preserve_primary_selection_highlights_and_folds(
     ));
     assert!(tokens.contains(&(6, 3, 7, 4, 0)));
     assert!(tokens.iter().all(|(line, ..)| *line == 2 || *line == 6));
-    let folds = folding::compute_folding_ranges(ast.document(), doc.text());
+    let folds = folding::compute_folding_ranges(ast.document_ref(), doc.text());
     assert!(folds.iter().all(|fold| fold.start_line == 2));
     assert!(
         folds

@@ -112,7 +112,7 @@ fn highlighting_and_folding_only_use_primary_source_ranges() -> Result<(), Box<d
         );
     }
     assert_ne!(tokens.data, []);
-    let folds = folding::compute_folding_ranges(ast.document(), doc.text());
+    let folds = folding::compute_folding_ranges(ast.document_ref(), doc.text());
     assert_eq!(folds.len(), 1);
     assert_eq!(folds.first().ok_or("missing parent fold")?.start_line, 2);
     Ok(())
