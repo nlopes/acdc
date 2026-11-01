@@ -500,8 +500,21 @@ pub(crate) fn render_preformatted_content(
     metadata: &BlockMetadata<'_>,
     processor: &Processor<'_>,
 ) -> Result<String, Error> {
-    let language = detect_language(metadata);
-    let inlines = inlines.iter().map(InlineRef::from).collect::<Vec<_>>();
+    render_preformatted_inlines(
+        inlines.iter().map(InlineRef::from),
+        detect_language(metadata),
+        processor,
+        |source| SourceLineOptions::resolve(metadata, source),
+    )
+}
+
+pub(crate) fn render_preformatted_inlines<'inline>(
+    inlines: impl Iterator<Item = InlineRef<'inline>>,
+    language: Option<&str>,
+    processor: &Processor<'_>,
+    line_options: impl FnOnce(&str) -> SourceLineOptions,
+) -> Result<String, Error> {
+    let inlines = inlines.collect::<Vec<_>>();
     let (source, callouts, formatted) =
         source_with_callout_placeholders(&inlines, language, processor);
     let mut output = Vec::new();
@@ -523,7 +536,7 @@ pub(crate) fn render_preformatted_content(
         );
         output = output.replace(&placeholder, &marker);
     }
-    let options = SourceLineOptions::resolve(metadata, &source);
+    let options = line_options(&source);
     Ok(apply_source_line_options(&output, &options))
 }
 

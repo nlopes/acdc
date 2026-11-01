@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking changes
+
+- `render_listing_to_ansi` now takes typed content and element attributes. Source
+  language aliases and line decoration retain their existing behavior.
+
 ### Changed
 
 - Source blocks and HTML terminal previews retain nested formatting, highlight
@@ -191,6 +196,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   target, keeping allocations flat on large documents.
 
 ### Added
+
+- Asciicast parsing accepts typed inline iterators as well as owner slices,
+  preserving character-reference decoding and idle-gap overrides.
 
 - Document headers, tables of contents, book chapters, hidden section titles,
   and non-final index sections now preserve their configured labels, numbering,

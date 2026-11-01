@@ -18,7 +18,7 @@
 
 use std::{io::BufRead, time::Duration};
 
-use acdc_parser::InlineNode;
+use acdc_parser::ast::InlineRef;
 use asciicast_rs::{Reader, V2, V3, common, v2, v3};
 
 use crate::{
@@ -178,7 +178,7 @@ fn detect_version(input: &str) -> Result<u8, Error> {
     Ok(probe.version)
 }
 
-/// Parse an asciicast recording from a verbatim block's inline nodes.
+/// Parse an asciicast recording from typed inlines or an existing owner slice.
 ///
 /// The block content is reconstructed as plain text (joined on newlines) and
 /// parsed with [`parse`].
@@ -186,11 +186,16 @@ fn detect_version(input: &str) -> Result<u8, Error> {
 /// # Errors
 ///
 /// Returns the same errors as [`parse`].
-pub fn parse_inlines(inlines: &[InlineNode<'_>]) -> Result<Recording, Error> {
-    parse(&crate::extract_inline_text(inlines, "\n"))
+pub fn parse_inlines<'inline, I>(inlines: I) -> Result<Recording, Error>
+where
+    I: IntoIterator,
+    I::Item: Into<InlineRef<'inline>>,
+    I::IntoIter: DoubleEndedIterator + ExactSizeIterator + Clone,
+{
+    parse_inlines_with(inlines, None)
 }
 
-/// Parse an asciicast recording from inline nodes, overriding the idle-gap cap.
+/// Parse typed inlines or an owner slice, overriding the idle-gap cap.
 ///
 /// `idle_limit` caps the gap between consecutive events, compressing dead air
 /// (e.g. a build before a test run) so a replay dwells on real output. `None`
@@ -199,14 +204,24 @@ pub fn parse_inlines(inlines: &[InlineNode<'_>]) -> Result<Recording, Error> {
 /// # Errors
 ///
 /// Returns the same errors as [`parse_inlines`].
-pub fn parse_inlines_with(
-    inlines: &[InlineNode<'_>],
+pub fn parse_inlines_with<'inline, I>(
+    inlines: I,
     idle_limit: Option<Duration>,
-) -> Result<Recording, Error> {
-    parse_with(
-        &crate::extract_inline_text(inlines, "\n"),
-        idle_limit.map(|limit| limit.as_secs_f64()),
-    )
+) -> Result<Recording, Error>
+where
+    I: IntoIterator,
+    I::Item: Into<InlineRef<'inline>>,
+    I::IntoIter: DoubleEndedIterator + ExactSizeIterator + Clone,
+{
+    let mut text = String::new();
+    let _ = acdc_converters_core::InlineTextTransform::default()
+        .line_break("\n")
+        .decode_char_refs(true)
+        .write_inlines(&mut text, inlines.into_iter().map(Into::into));
+    match idle_limit {
+        Some(limit) => parse_with(&text, Some(limit.as_secs_f64())),
+        None => parse(&text),
+    }
 }
 
 /// Build a [`Recording`] from a streaming v2 reader: terminal size, theme, and
@@ -352,6 +367,50 @@ impl IdleClock {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn asciicast_inline_inputs_preserve_decoding_and_idle_override() -> Result<(), Error> {
+        use acdc_parser::{InlineNode, LineBreak, Location, Plain, Raw};
+
+        for header in [
+            r#"{"version":2,"width":20,"height":4,"idle_time_limit":1}"#,
+            r#"{"version":3,"term":{"cols":20,"rows":4},"idle_time_limit":1}"#,
+        ] {
+            let inlines = [
+                InlineNode::PlainText(Plain {
+                    content: header,
+                    location: Location::default(),
+                    escaped: false,
+                }),
+                InlineNode::LineBreak(LineBreak {
+                    location: Location::default(),
+                }),
+                InlineNode::RawText(Raw {
+                    content: "[0,\"o\",\"&#60;λ&#62;\"]\n[60,\"o\",\"done\"]\n",
+                    location: Location::default(),
+                    subs: Vec::new(),
+                }),
+            ];
+            let expected = vec![
+                Event::write_at("<λ>".as_bytes().to_vec(), Duration::ZERO),
+                Event::write_at(b"done".to_vec(), Duration::from_millis(500)),
+            ];
+            let owned = parse_inlines_with(&inlines, Some(Duration::from_millis(500)))?;
+            let typed = parse_inlines_with(
+                inlines.iter().map(InlineRef::from),
+                Some(Duration::from_millis(500)),
+            )?;
+            assert_eq!(owned.size(), TerminalSize::new(20, 4));
+            assert_eq!(typed.size(), owned.size());
+            assert_eq!(owned.events, expected);
+            assert_eq!(typed.events, expected);
+            assert_eq!(
+                parse_inlines(&inlines)?.events.get(1),
+                Some(&Event::write_at(b"done".to_vec(), Duration::from_secs(1)))
+            );
+        }
+        Ok(())
+    }
 
     #[test]
     fn parses_v2_output_with_absolute_timestamps() -> Result<(), Error> {

@@ -21,15 +21,18 @@
 
 use std::{borrow::Cow, collections::HashMap, io::Write, time::Duration};
 
-use acdc_converters_core::{Diagnostics, Options, code::detect_language};
+use acdc_converters_core::{Diagnostics, Options, code::source_language};
 use acdc_converters_terminal::{
     asciicast,
     cell_grid::{Cell, CellDecorations, CellGrid, Rgb, TerminalSize, capture_ansi},
     replay::{self, Options as ReplayOptions},
 };
-use acdc_parser::{AttributeValue, BlockMetadata, DocumentAttributes, InlineNode};
+use acdc_parser::{
+    DocumentAttributes,
+    ast::{AttributeValueRef, AttributesRef, ContentRef, DocumentAttributesRef},
+};
 
-use crate::Error;
+use crate::{Error, image_helpers::attribute_scalar};
 
 const DEFAULT_COLS: usize = 80;
 const AUTO_ROW_PADDING: usize = 1;
@@ -55,7 +58,10 @@ enum Theme {
 
 impl Theme {
     fn from_document_attributes(attrs: &DocumentAttributes<'_>) -> Self {
-        if attrs.get("dark-mode").is_some() {
+        if DocumentAttributesRef::from(attrs)
+            .get("dark-mode")
+            .is_some()
+        {
             Self::Dark
         } else {
             Self::Light
@@ -78,23 +84,23 @@ struct PreviewOptions {
 }
 
 impl PreviewOptions {
-    fn resolve(attrs: &DocumentAttributes<'_>, metadata: Option<&BlockMetadata<'_>>) -> Self {
+    fn resolve(attrs: &DocumentAttributes<'_>, attributes: Option<AttributesRef<'_>>) -> Self {
         let document_cols = resolved_usize(attrs, "acdc-terminal-cols");
         let document_rows = resolved_usize(attrs, "acdc-terminal-rows");
         let document_theme = Theme::from_document_attributes(attrs);
 
         Self {
-            cols: metadata
-                .and_then(|metadata| {
-                    attr_usize(metadata.attributes.get("cols"))
-                        .or_else(|| attr_usize(metadata.attributes.get("acdc-terminal-cols")))
+            cols: attributes
+                .and_then(|attributes| {
+                    attr_usize(attributes.get("cols"))
+                        .or_else(|| attr_usize(attributes.get("acdc-terminal-cols")))
                 })
                 .or(document_cols)
                 .unwrap_or(DEFAULT_COLS),
-            rows: metadata
-                .and_then(|metadata| {
-                    attr_usize(metadata.attributes.get("rows"))
-                        .or_else(|| attr_usize(metadata.attributes.get("acdc-terminal-rows")))
+            rows: attributes
+                .and_then(|attributes| {
+                    attr_usize(attributes.get("rows"))
+                        .or_else(|| attr_usize(attributes.get("acdc-terminal-rows")))
                 })
                 .or(document_rows),
             theme: document_theme,
@@ -118,62 +124,68 @@ struct SpanStyle {
 }
 
 pub(crate) fn is_enabled(attrs: &DocumentAttributes<'_>) -> bool {
-    attrs.get("acdc-terminal").is_some()
+    DocumentAttributesRef::from(attrs)
+        .get("acdc-terminal")
+        .is_some()
 }
 
 pub(crate) fn is_terminal_listing(
     attrs: &DocumentAttributes<'_>,
-    metadata: &BlockMetadata<'_>,
+    attributes: AttributesRef<'_>,
 ) -> bool {
-    is_enabled(attrs) && detect_language(metadata).is_some_and(is_terminal_language)
+    is_enabled(attrs) && source_language(attributes).is_some_and(is_terminal_language)
 }
 
-pub(crate) fn is_terminal_session(metadata: &BlockMetadata<'_>) -> bool {
-    metadata.style == Some("terminal")
+pub(crate) fn is_terminal_session(attributes: AttributesRef<'_>) -> bool {
+    matches!(
+        attributes.get("style"),
+        Some(AttributeValueRef::Text("terminal"))
+    )
 }
 
-fn is_terminal_replay(metadata: &BlockMetadata<'_>) -> bool {
-    metadata.options.contains(&REPLAY_OPTION) || metadata.attributes.contains_key(REPLAY_OPTION)
+fn is_terminal_replay(attributes: AttributesRef<'_>) -> bool {
+    matches!(attributes.get("options"), Some(AttributeValueRef::Tokens(options)) if options.contains(REPLAY_OPTION))
+        || attributes.contains(REPLAY_OPTION)
 }
 
 pub(crate) fn render_listing<W: Write>(
     writer: W,
-    inlines: &[InlineNode<'_>],
-    metadata: &BlockMetadata<'_>,
+    content: ContentRef<'_>,
+    attributes: AttributesRef<'_>,
     options: Options,
     attrs: &DocumentAttributes<'_>,
 ) -> Result<(), Error> {
     let preview_options = PreviewOptions::resolve(attrs, None);
-    render_with_options(writer, inlines, metadata, options, attrs, preview_options)
+    render_with_options(writer, content, attributes, options, attrs, preview_options)
 }
 
 pub(crate) fn render_session<W: Write>(
     writer: W,
-    inlines: &[InlineNode<'_>],
-    metadata: &BlockMetadata<'_>,
+    content: ContentRef<'_>,
+    attributes: AttributesRef<'_>,
     options: Options,
     attrs: &DocumentAttributes<'_>,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Result<(), Error> {
-    let preview_options = PreviewOptions::resolve(attrs, Some(metadata));
-    if is_terminal_replay(metadata) {
+    let preview_options = PreviewOptions::resolve(attrs, Some(attributes));
+    if is_terminal_replay(attributes) {
         return render_replay(
             writer,
-            inlines,
-            metadata,
+            content,
+            attributes,
             options,
             attrs,
             preview_options,
             diagnostics,
         );
     }
-    render_with_options(writer, inlines, metadata, options, attrs, preview_options)
+    render_with_options(writer, content, attributes, options, attrs, preview_options)
 }
 
 fn render_with_options<W: Write>(
     mut writer: W,
-    inlines: &[InlineNode<'_>],
-    metadata: &BlockMetadata<'_>,
+    content: ContentRef<'_>,
+    attributes: AttributesRef<'_>,
     options: Options,
     attrs: &DocumentAttributes<'_>,
     preview_options: PreviewOptions,
@@ -181,8 +193,8 @@ fn render_with_options<W: Write>(
     let ansi = normalize_terminal_newlines(&acdc_converters_terminal::render_listing_to_ansi(
         options,
         attrs.clone(),
-        inlines,
-        metadata,
+        content,
+        attributes,
         preview_options.cols,
         preview_options.theme == Theme::Dark,
     )?);
@@ -201,11 +213,16 @@ enum ReplayFormat {
     Asciicast,
 }
 
-fn replay_format(metadata: &BlockMetadata<'_>, diagnostics: &mut Diagnostics<'_>) -> ReplayFormat {
-    let Some(value) = metadata.attributes.get(REPLAY_FORMAT_ATTR) else {
+fn replay_format(attributes: AttributesRef<'_>, diagnostics: &mut Diagnostics<'_>) -> ReplayFormat {
+    let Some(value) = attributes.get(REPLAY_FORMAT_ATTR) else {
         return ReplayFormat::Ansi;
     };
-    match value.to_string().trim().to_ascii_lowercase().as_str() {
+    match attribute_scalar(value)
+        .unwrap_or("<non-text value>")
+        .trim()
+        .to_ascii_lowercase()
+        .as_str()
+    {
         "" | "ansi" => ReplayFormat::Ansi,
         "asciicast" | "cast" => ReplayFormat::Asciicast,
         other => {
@@ -222,18 +239,18 @@ fn replay_format(metadata: &BlockMetadata<'_>, diagnostics: &mut Diagnostics<'_>
 
 fn render_replay<W: Write>(
     writer: W,
-    inlines: &[InlineNode<'_>],
-    metadata: &BlockMetadata<'_>,
+    content: ContentRef<'_>,
+    attributes: AttributesRef<'_>,
     options: Options,
     attrs: &DocumentAttributes<'_>,
     preview_options: PreviewOptions,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Result<(), Error> {
-    match replay_format(metadata, diagnostics) {
+    match replay_format(attributes, diagnostics) {
         ReplayFormat::Ansi => render_replay_ansi(
             writer,
-            inlines,
-            metadata,
+            content,
+            attributes,
             options,
             attrs,
             preview_options,
@@ -241,8 +258,8 @@ fn render_replay<W: Write>(
         ),
         ReplayFormat::Asciicast => render_replay_asciicast(
             writer,
-            inlines,
-            metadata,
+            content,
+            attributes,
             options,
             attrs,
             preview_options,
@@ -253,23 +270,23 @@ fn render_replay<W: Write>(
 
 fn render_replay_ansi<W: Write>(
     mut writer: W,
-    inlines: &[InlineNode<'_>],
-    metadata: &BlockMetadata<'_>,
+    content: ContentRef<'_>,
+    attributes: AttributesRef<'_>,
     options: Options,
     attrs: &DocumentAttributes<'_>,
     preview_options: PreviewOptions,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Result<(), Error> {
-    let Some(size) = replay_size(attrs, metadata, diagnostics) else {
-        return render_with_options(writer, inlines, metadata, options, attrs, preview_options);
+    let Some(size) = replay_size(attrs, attributes, diagnostics) else {
+        return render_with_options(writer, content, attributes, options, attrs, preview_options);
     };
-    let playback_duration = replay_playback_override(metadata, diagnostics);
+    let playback_duration = replay_playback_override(attributes, diagnostics);
 
     let ansi = normalize_terminal_newlines(&acdc_converters_terminal::render_listing_to_ansi(
         options,
         attrs.clone(),
-        inlines,
-        metadata,
+        content,
+        attributes,
         size.cols,
         preview_options.theme == Theme::Dark,
     )?);
@@ -331,8 +348,8 @@ fn render_replay_ansi<W: Write>(
 
 fn render_replay_asciicast<W: Write>(
     mut writer: W,
-    inlines: &[InlineNode<'_>],
-    metadata: &BlockMetadata<'_>,
+    content: ContentRef<'_>,
+    attributes: AttributesRef<'_>,
     options: Options,
     attrs: &DocumentAttributes<'_>,
     preview_options: PreviewOptions,
@@ -342,12 +359,12 @@ fn render_replay_asciicast<W: Write>(
     // playback dwells on real output; absent, the header or a default applies.
     let idle_limit = positive_attr(
         REPLAY_IDLE_LIMIT_MS_ATTR,
-        metadata.attributes.get(REPLAY_IDLE_LIMIT_MS_ATTR),
+        attributes.get(REPLAY_IDLE_LIMIT_MS_ATTR),
         diagnostics,
     )
     .map(|ms| Duration::from_millis(ms as u64));
 
-    let recording = match asciicast::parse_inlines_with(inlines, idle_limit) {
+    let recording = match asciicast::parse_inlines_with(content.inlines(), idle_limit) {
         Ok(recording) => recording,
         Err(err) => {
             diagnostics.warn_with_advice(
@@ -356,14 +373,21 @@ fn render_replay_asciicast<W: Write>(
                 ),
                 "Provide a valid asciicast v2 or v3 recording, or drop `format=asciicast` to replay raw ANSI.",
             );
-            return render_with_options(writer, inlines, metadata, options, attrs, preview_options);
+            return render_with_options(
+                writer,
+                content,
+                attributes,
+                options,
+                attrs,
+                preview_options,
+            );
         }
     };
 
     // Block `cols`/`rows` override the recording; the asciicast header supplies
     // the size otherwise, so dimensions are never required on the block.
-    let size = replay_size_with_default(attrs, metadata, recording.size(), diagnostics);
-    let playback_duration = replay_playback_override(metadata, diagnostics);
+    let size = replay_size_with_default(attrs, attributes, recording.size(), diagnostics);
+    let playback_duration = replay_playback_override(attributes, diagnostics);
     // Header metadata paints the replay chrome; read it before `capture` consumes
     // the recording.
     let recorded_theme = recording.theme();
@@ -457,12 +481,12 @@ fn window_grid_to_bottom(grid: &CellGrid, display_rows: usize) -> CellGrid {
 
 /// The `replay-duration-ms` playback override, if set to a positive integer.
 fn replay_playback_override(
-    metadata: &BlockMetadata<'_>,
+    attributes: AttributesRef<'_>,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Option<Duration> {
     positive_attr(
         REPLAY_DURATION_MS_ATTR,
-        metadata.attributes.get(REPLAY_DURATION_MS_ATTR),
+        attributes.get(REPLAY_DURATION_MS_ATTR),
         diagnostics,
     )
     .map(|ms| Duration::from_millis(ms as u64))
@@ -474,13 +498,13 @@ fn replay_playback_override(
 /// because the asciicast header supplies the default.
 fn replay_size_with_default(
     attrs: &DocumentAttributes<'_>,
-    metadata: &BlockMetadata<'_>,
+    attributes: AttributesRef<'_>,
     default: TerminalSize,
     diagnostics: &mut Diagnostics<'_>,
 ) -> TerminalSize {
-    let cols = replay_dimension(attrs, metadata, "cols", "acdc-terminal-cols", diagnostics)
+    let cols = replay_dimension(attrs, attributes, "cols", "acdc-terminal-cols", diagnostics)
         .unwrap_or(default.cols);
-    let rows = replay_dimension(attrs, metadata, "rows", "acdc-terminal-rows", diagnostics)
+    let rows = replay_dimension(attrs, attributes, "rows", "acdc-terminal-rows", diagnostics)
         .unwrap_or(default.rows);
     TerminalSize::new(cols, rows)
 }
@@ -492,13 +516,13 @@ fn replay_size_with_default(
 /// warned about by [`positive_attr`].
 fn replay_dimension(
     attrs: &DocumentAttributes<'_>,
-    metadata: &BlockMetadata<'_>,
+    attributes: AttributesRef<'_>,
     primary: &'static str,
     document: &'static str,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Option<usize> {
-    positive_attr(primary, metadata.attributes.get(primary), diagnostics)
-        .or_else(|| positive_attr(document, metadata.attributes.get(document), diagnostics))
+    positive_attr(primary, attributes.get(primary), diagnostics)
+        .or_else(|| positive_attr(document, attributes.get(document), diagnostics))
         .or_else(|| positive_document_attr(document, attrs, diagnostics))
 }
 
@@ -507,11 +531,11 @@ fn positive_document_attr(
     attributes: &DocumentAttributes<'_>,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Option<usize> {
-    attributes.get(name)?;
+    DocumentAttributesRef::from(attributes).get(name)?;
     let parsed = resolved_usize(attributes, name);
     if parsed.is_none() {
         let mut presented = String::new();
-        if attributes
+        if DocumentAttributesRef::from(attributes)
             .get(name)
             .is_none_or(|value| value.write_text(&mut presented).is_err())
         {
@@ -538,11 +562,11 @@ fn render_blank_preview<W: Write>(
 
 fn replay_size(
     attrs: &DocumentAttributes<'_>,
-    metadata: &BlockMetadata<'_>,
+    attributes: AttributesRef<'_>,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Option<TerminalSize> {
-    let cols = replay_dimension(attrs, metadata, "cols", "acdc-terminal-cols", diagnostics);
-    let rows = replay_dimension(attrs, metadata, "rows", "acdc-terminal-rows", diagnostics);
+    let cols = replay_dimension(attrs, attributes, "cols", "acdc-terminal-cols", diagnostics);
+    let rows = replay_dimension(attrs, attributes, "rows", "acdc-terminal-rows", diagnostics);
 
     if let (Some(cols), Some(rows)) = (cols, rows) {
         Some(TerminalSize::new(cols, rows))
@@ -557,12 +581,13 @@ fn replay_size(
 
 fn positive_attr(
     name: &'static str,
-    value: Option<&AttributeValue<'_>>,
+    value: Option<AttributeValueRef<'_>>,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Option<usize> {
     let value = value?;
     let parsed = attr_usize(Some(value));
     if parsed.is_none() {
+        let value = attribute_scalar(value).unwrap_or("<non-text value>");
         diagnostics.warn_with_advice(
             format!("terminal replay attribute `{name}` must be a positive integer, got `{value}`"),
             format!("Set `{name}` to a positive integer."),
@@ -1126,15 +1151,15 @@ fn flush_span<W: Write>(
     Ok(())
 }
 
-fn attr_usize(value: Option<&AttributeValue<'_>>) -> Option<usize> {
+fn attr_usize(value: Option<AttributeValueRef<'_>>) -> Option<usize> {
     value
-        .map(ToString::to_string)
+        .and_then(attribute_scalar)
         .and_then(|value| value.parse::<usize>().ok())
         .filter(|value| *value > 0)
 }
 
 fn resolved_usize(attributes: &DocumentAttributes<'_>, name: &str) -> Option<usize> {
-    attributes
+    DocumentAttributesRef::from(attributes)
         .get(name)
         .and_then(|value| {
             if let Some(value) = value.as_integer() {
@@ -1319,6 +1344,79 @@ mod tests {
             &mut diagnostics,
         )?;
         Ok((String::from_utf8(output)?, warnings))
+    }
+
+    #[test]
+    fn terminal_session_style_preserves_exact_matching() {
+        use acdc_parser::{Location, Paragraph, ast::ParagraphRef};
+
+        for (style, expected) in [
+            ("terminal", true),
+            ("'terminal'", false),
+            ("\"terminal\"", false),
+            ("console", false),
+        ] {
+            let mut block = Paragraph::new(Vec::new(), Location::default());
+            block.metadata.style = Some(style);
+            assert_eq!(
+                super::is_terminal_session(ParagraphRef::from(&block).attributes()),
+                expected,
+            );
+        }
+    }
+
+    #[test]
+    fn replay_controls_preserve_scalar_presence_and_warning_text() -> TestResult {
+        use super::{ReplayFormat, positive_attr, replay_format};
+        use acdc_parser::{
+            AttributeValue, Location, Paragraph,
+            ast::{AttributeValueRef, ParagraphRef},
+        };
+
+        for (value, number, presented) in [
+            (AttributeValue::None, None, "null"),
+            (AttributeValue::Bool(false), None, "false"),
+            (AttributeValue::Bool(true), None, "true"),
+            (AttributeValue::from("0"), None, "0"),
+            (AttributeValue::from(" 2 "), None, " 2 "),
+            (AttributeValue::from("002"), Some(2), "002"),
+        ] {
+            let source = WarningSource::new("html");
+            let mut warnings = Vec::new();
+            let parsed = positive_attr(
+                "cols",
+                Some(AttributeValueRef::from(&value)),
+                &mut Diagnostics::new(&source, &mut warnings),
+            );
+            assert_eq!(parsed, number);
+            if number.is_none() {
+                let [warning] = warnings.as_slice() else {
+                    return Err("expected one warning".into());
+                };
+                assert!(warning.message.ends_with(&format!("got `{presented}`")));
+            } else {
+                assert_eq!(warnings, []);
+            }
+            let mut block = Paragraph::new(Vec::new(), Location::default());
+            block.metadata.attributes.set("format".into(), value);
+            warnings.clear();
+            assert_eq!(
+                replay_format(
+                    ParagraphRef::from(&block).attributes(),
+                    &mut Diagnostics::new(&source, &mut warnings)
+                ),
+                ReplayFormat::Ansi,
+            );
+            let [warning] = warnings.as_slice() else {
+                return Err("expected unknown format warning".into());
+            };
+            assert!(
+                warning
+                    .message
+                    .contains(&format!("value `{}`", presented.trim()))
+            );
+        }
+        Ok(())
     }
 
     #[test]

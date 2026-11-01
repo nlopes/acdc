@@ -14,6 +14,8 @@ use acdc_converters_core::{
 };
 #[cfg(any(test, feature = "emulator"))]
 use acdc_parser::DocumentAttributes;
+#[cfg(feature = "emulator")]
+use acdc_parser::ast::{AttributesRef, ContentRef};
 use acdc_parser::{
     BlockMetadata, Caption, CaptionKind, Document, InlineNode, Options as ParserOptions, Reference,
     TocEntry,
@@ -371,8 +373,8 @@ pub fn render_document_to_ansi(
 pub fn render_listing_to_ansi(
     options: Options,
     document_attributes: DocumentAttributes<'_>,
-    inlines: &[acdc_parser::InlineNode<'_>],
-    metadata: &acdc_parser::BlockMetadata<'_>,
+    content: ContentRef<'_>,
+    attributes: AttributesRef<'_>,
     width: usize,
     dark_mode: bool,
 ) -> Result<Vec<u8>, Error> {
@@ -382,21 +384,16 @@ pub fn render_listing_to_ansi(
     )?
     .with_terminal_width(width)
     .with_dark_mode(dark_mode);
-    let mut output = Vec::new();
     let color_guard = ColorOutputGuard::force_enabled();
-
-    let mut metadata = metadata.clone();
-    if let Some(language) =
-        acdc_converters_core::code::detect_language(&metadata).map(str::to_string)
-    {
-        metadata.attributes.set(
-            "language".into(),
-            preview_highlight_language(&language).to_string().into(),
-        );
-    }
-    output.extend_from_slice(
-        crate::delimited::render_preformatted_content(inlines, &metadata, &processor)?.as_bytes(),
-    );
+    let language =
+        acdc_converters_core::code::source_language(attributes).map(preview_highlight_language);
+    let output = crate::delimited::render_preformatted_inlines(
+        content.inlines(),
+        language,
+        &processor,
+        |source| acdc_converters_core::code::SourceLineOptions::from_attributes(attributes, source),
+    )?
+    .into_bytes();
 
     drop(color_guard);
     Ok(output)
@@ -502,17 +499,6 @@ impl Drop for ColorOutputGuard {
     fn drop(&mut self) {
         crossterm::style::Colored::set_ansi_color_disabled(self.previous_disabled);
     }
-}
-
-/// Plain text for output that cannot carry styling, such as literal content.
-///
-/// `line_break` controls how `LineBreak` nodes are represented: `" "` for
-/// titles, `"\n"` for literal paragraphs.
-pub(crate) fn extract_inline_text(nodes: &[acdc_parser::InlineNode], line_break: &str) -> String {
-    acdc_converters_core::InlineTextTransform::default()
-        .line_break(line_break)
-        .decode_char_refs(true)
-        .to_string(nodes)
 }
 
 /// Plain text for a heading or caption.
