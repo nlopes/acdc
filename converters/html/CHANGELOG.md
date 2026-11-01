@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Tables and admonitions retain captions, cell formatting, authored scalar controls,
+  and nested document scopes through typed parser reads in both HTML variants.
+
 - Tables of contents retain local depth overrides, book-part nesting, and appendix
   numbering through typed parser reads in both HTML variants.
 

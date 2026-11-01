@@ -1285,6 +1285,22 @@ mod title_media_tests {
 
     struct RejectWrites;
 
+    struct RejectCellText;
+
+    impl Write for RejectCellText {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            if bytes.windows(7).any(|part| part == b"TRIGGER") {
+                Err(std::io::Error::other("rejected cell text"))
+            } else {
+                Ok(bytes.len())
+            }
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
     impl Write for RejectWrites {
         fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
             Err(std::io::Error::other("rejected"))
@@ -1460,6 +1476,116 @@ mod title_media_tests {
                 assert!(!output.contains(" controls"));
                 assert_eq!(warnings, [] as [acdc_converters_core::Warning; 0]);
             }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn table_cell_scope_restores_parent_after_a_body_write_error() -> Result<(), TestError> {
+        let parsed = parse(
+            "= Manual\n:scope: outer\n\n[cols=a]\n|===\na|\n:scope: inner\n\nTRIGGER\n|===\n",
+            &ParserOptions::default(),
+        )?;
+        let Some(Block::DelimitedBlock(block)) = parsed.document().blocks.first() else {
+            return Err("expected table block".into());
+        };
+        let BlockKind::Table(table) = BlockRef::from(block).kind() else {
+            return Err("expected table".into());
+        };
+        let DelimitedBlockType::DelimitedTable(rows) = &block.inner else {
+            return Err("expected table body".into());
+        };
+        let processor = Rc::new(Processor::new(
+            ConverterOptions::default(),
+            ParserOptions::builder(),
+        )?);
+        let source = WarningSource::new("html");
+        let mut warnings = Vec::new();
+        let mut visitor = HtmlVisitor::new(
+            RejectCellText,
+            processor.clone(),
+            RenderOptions::default(),
+            Diagnostics::new(&source, &mut warnings),
+        );
+        let mut context = TraversalContext::new(&parsed.document().attributes);
+        let Err(error) =
+            crate::table::render_table(&mut context, table, rows, &mut visitor, &processor)
+        else {
+            return Err("cell text must reach the failing writer".into());
+        };
+        assert!(error.to_string().contains("rejected cell text"));
+        assert_eq!(
+            context.get("scope").and_then(|value| value.text()),
+            Some("outer")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn constructed_compound_blocks_keep_scalar_controls_and_id_policy() -> Result<(), TestError> {
+        let parsed = parse(
+            ".Note\n[NOTE]\n====\nBody.\n====\n\n.Table\n|===\n|Cell\n|===\n",
+            &ParserOptions::default(),
+        )?;
+        let mut document = acdc_parser::Document::default();
+        document.attributes = parsed.document().attributes.clone();
+        document.blocks = parsed.document().blocks.clone();
+        for block in &mut document.blocks {
+            let metadata = if let Block::Admonition(admonition) = block {
+                &mut admonition.metadata
+            } else if let Block::DelimitedBlock(block) = block {
+                &mut block.metadata
+            } else {
+                return Err("expected compound block".into());
+            };
+            metadata.id = Some(Anchor::new("primary&", Location::default()));
+            metadata
+                .anchors
+                .push(Anchor::new("fallback", Location::default()));
+            metadata.roles = vec!["one", "one"];
+            metadata
+                .attributes
+                .set("width".into(), AttributeValue::from("\"75%\""));
+            metadata
+                .attributes
+                .set("float".into(), AttributeValue::from("'right'"));
+            metadata
+                .attributes
+                .set("icon".into(), AttributeValue::Bool(false));
+        }
+        for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+            let processor = Processor::new(ConverterOptions::default(), ParserOptions::builder())?
+                .with_variant(variant)?;
+            let source = WarningSource::new("html");
+            let mut warnings = Vec::new();
+            let mut output = Vec::new();
+            processor.convert_to_writer(
+                &document,
+                &mut output,
+                &RenderOptions {
+                    embedded: true,
+                    ..RenderOptions::default()
+                },
+                &mut Diagnostics::new(&source, &mut warnings),
+            )?;
+            let output = String::from_utf8(output)?;
+            assert_eq!(output.matches("one one").count(), 2);
+            assert!(!output.contains("fallback"));
+            assert!(output.contains("style=\"width: 75%;\""));
+            assert!(output.contains("stretch right") || output.contains("grid-all right"));
+            assert_eq!(
+                output.matches("id=\"primary&amp;\"").count(),
+                if variant == HtmlVariant::Standard {
+                    2
+                } else {
+                    1
+                }
+            );
+            assert_eq!(
+                output.matches("id=\"primary&\"").count(),
+                usize::from(variant == HtmlVariant::Semantic)
+            );
+            assert_eq!(warnings, [] as [acdc_converters_core::Warning; 0]);
         }
         Ok(())
     }

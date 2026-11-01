@@ -405,17 +405,11 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 }
             }
             // Handle tables
-            DelimitedBlockType::DelimitedTable(t) => {
+            DelimitedBlockType::DelimitedTable(rows) => {
                 let processor = self.processor.clone();
-                crate::table::render_table(
-                    traversal,
-                    t,
-                    self,
-                    &processor,
-                    &block.metadata,
-                    &block.title,
-                    BlockRef::from(block).attributes(),
-                )?;
+                if let acdc_parser::ast::BlockKind::Table(table) = BlockRef::from(block).kind() {
+                    crate::table::render_table(traversal, table, rows, self, &processor)?;
+                }
             }
             // Verse, literal, and stem blocks need semantic handling
             DelimitedBlockType::DelimitedVerse(_)
