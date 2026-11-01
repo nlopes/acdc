@@ -333,3 +333,108 @@ fn handles_and_iterators_support_shared_reads_after_temporary_handles() {
         scope.spawn(move || assert_eq!(tokens.count(), 2));
     });
 }
+
+#[rstest::rstest]
+fn attribute_locations_keep_recorded_spans_and_absence(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    let source =
+        "Before.\n\n[NOTE,icon=missing.svg]\n====\nBody.\n====\n\nimage:bird.png[id=bird]\n";
+    let parsed = parse(
+        source,
+        &Options::builder().with_compatibility_mode(mode).build()?,
+    )?;
+    let mut blocks = parsed.document_ref().blocks();
+    assert!(
+        blocks
+            .next()
+            .ok_or("paragraph")?
+            .attributes()
+            .ok_or("attributes")?
+            .location()
+            .is_none()
+    );
+    let BlockKind::Admonition(note) = blocks.next().ok_or("admonition")?.kind() else {
+        return Err("expected admonition".into());
+    };
+    let span = note.attributes().location().ok_or("metadata span")?;
+    let start = source.find("[NOTE").ok_or("metadata start")?;
+    assert_eq!(span.absolute_start(), start);
+    assert_eq!(span.start().line(), 3);
+    assert_eq!(span.start().column(), 1);
+    assert!(span.absolute_end() < source.find("====").ok_or("delimiter")?);
+    assert!(source[start..=span.absolute_end()].starts_with("[NOTE,icon=missing.svg]"));
+    assert_ne!(span, note.location());
+    let BlockKind::Paragraph(paragraph) = blocks.next().ok_or("inline paragraph")?.kind() else {
+        return Err("expected inline paragraph".into());
+    };
+    let InlineKind::Image(image) = paragraph
+        .content()
+        .inlines()
+        .next()
+        .ok_or("inline image")?
+        .kind()
+    else {
+        return Err("expected inline image".into());
+    };
+    assert!(image.attributes().location().is_none());
+    let constructed = Paragraph::new(Vec::new(), Location::default());
+    assert!(
+        ParagraphRef::from(&constructed)
+            .attributes()
+            .location()
+            .is_none()
+    );
+    Ok(())
+}
+
+#[rstest::rstest]
+fn attribute_locations_keep_include_provenance(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    let directory = tempfile::tempdir()?;
+    let child = directory.path().join("note.adoc");
+    std::fs::write(
+        &child,
+        "éarlier paragraph.\n\n[NOTE,icon=missing.svg]\n====\nBody.\n====\n",
+    )?;
+    let source = format!("include::{}[]\n", child.display());
+    let parsed = parse(
+        &source,
+        &Options::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .with_compatibility_mode(mode)
+            .build()?,
+    )?;
+    let note = parsed
+        .document_ref()
+        .blocks()
+        .find_map(|block| {
+            if let BlockKind::Admonition(note) = block.kind() {
+                Some(note)
+            } else {
+                None
+            }
+        })
+        .ok_or("included note")?;
+    let span = note.attributes().location().ok_or("included metadata")?;
+    assert_eq!(span.start().line(), 3);
+    assert_eq!(span.start().column(), 1);
+    assert_eq!(
+        span.start()
+            .include_chain()
+            .ok_or("start chain")?
+            .collect::<Vec<_>>(),
+        [child.to_str().ok_or("child path")?]
+    );
+    assert_eq!(
+        span.end()
+            .include_chain()
+            .ok_or("end chain")?
+            .collect::<Vec<_>>(),
+        [child.to_str().ok_or("child path")?]
+    );
+    let copied = Location::from(span);
+    assert_eq!(span, (&copied).into());
+    Ok(())
+}

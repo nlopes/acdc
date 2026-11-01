@@ -1696,7 +1696,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             links,
             ..
         } = self.code_text(traversal, nodes, metadata, tab_size)?;
-        let autofit = has_autofit_option(metadata, traversal);
+        let autofit = has_autofit_option(metadata.options.iter().copied(), traversal);
         let options = if Self::source_highlighting_enabled(traversal) {
             SourceLineOptions::resolve(metadata, &source)
         } else {

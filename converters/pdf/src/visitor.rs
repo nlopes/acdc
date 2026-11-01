@@ -310,7 +310,7 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
             == AutomaticPreambleLeadState::Pending
             && para.metadata.roles.is_empty();
         self.automatic_preamble_lead_state = AutomaticPreambleLeadState::Inactive;
-        let unbreakable = is_unbreakable_paragraph(para);
+        let unbreakable = is_unbreakable_paragraph(para.into());
         if unbreakable {
             self.writer.raw("#_acdc_unbreakable[\n");
         }
@@ -327,11 +327,11 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
         traversal: &mut TraversalContext<'a>,
         block: &'a DelimitedBlock<'a>,
     ) -> Result<(), Self::Error> {
-        let unbreakable = is_unbreakable_delimited_block(block);
+        let unbreakable = is_unbreakable_delimited_block(block.into());
         if unbreakable {
             self.writer.raw("#_acdc_unbreakable[\n");
         }
-        let sticky_anchor = is_page_breakable_table(block)
+        let sticky_anchor = is_page_breakable_table(block.into())
             && (block.metadata.id.is_some() || !block.metadata.anchors.is_empty());
         if sticky_anchor {
             self.writer

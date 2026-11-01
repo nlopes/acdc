@@ -30,13 +30,17 @@ use acdc_converters_core::{
     },
     media::resolve_target,
     toc::Config as TocConfig,
-    visitor::Visitor,
+    visitor::{BlockVisitor, Visitor},
     xref::XrefGuard,
 };
 use acdc_parser::{
-    Admonition, Author, Block, BlockMetadata, CaptionKind, DelimitedBlock, DelimitedBlockType,
-    Document, DocumentAttributes, IndexTerm, IndexTermRelationship, InlineMacro, InlineNode,
-    Location, Options as ParserOptions, Reference, SafeMode, Source, SourceLocation,
+    Author, CaptionKind, Document, DocumentAttributes, Location, Options as ParserOptions,
+    Reference, SafeMode, SourceLocation,
+    ast::{
+        AdmonitionRef, AttributeValueRef, AttributesRef, BlockKind, BlockRef, ContentRef,
+        ContentRole, DocumentRef, IndexTermRef, IndexTermRelationshipRef, InlineKind, LocationRef,
+        ParagraphRef,
+    },
 };
 use acdc_pdf_images::{
     Error as ImageError, ImageMap, ResolveConfig, ResolveFailure, SourcePolicy, resolve,
@@ -1288,15 +1292,15 @@ fn collect_pdf_preparation(doc: &Document<'_>) -> PdfPreparation {
         preparation.has_index_terms = true;
         Ok::<(), std::convert::Infallible>(())
     });
-    let mut traversal = TraversalContext::new(&doc.attributes);
-    if let Some(header) = &doc.header {
-        collect_inline_preparation(header.title.as_ref(), &traversal, &mut preparation);
-        if let Some(subtitle) = &header.subtitle {
-            collect_inline_preparation(subtitle.as_ref(), &traversal, &mut preparation);
+    let document = DocumentRef::from(doc);
+    let mut traversal = TraversalContext::new(document.attributes());
+    if let Some(header) = document.header() {
+        for content in header.title().into_iter().chain(header.subtitle()) {
+            collect_inline_preparation(content, &traversal, &mut preparation);
         }
     }
     let mut visitor = PreparationVisitor { preparation };
-    let Ok(()) = traversal.visit_blocks(&mut visitor, &doc.blocks);
+    let Ok(()) = traversal.visit_blocks(&mut visitor, document.blocks());
     visitor.preparation
 }
 
@@ -1329,23 +1333,33 @@ struct UnsupportedFontIcon {
 }
 
 impl PdfPreparation {
-    fn insert_image(&mut self, source: String, location: &Location) {
+    fn insert_image(&mut self, source: String, location: LocationRef<'_>) {
         self.image_urls.insert(source.clone());
         self.ordinary_image_locations
             .entry(source)
-            .or_insert_with(|| location.clone());
+            .or_insert_with(|| Location::from(location));
     }
 
-    fn insert_image_icon(&mut self, source: String, target: &Source<'_>, location: &Location) {
+    fn insert_image_icon(
+        &mut self,
+        source: String,
+        target: acdc_parser::ast::SourceRef<'_>,
+        location: LocationRef<'_>,
+    ) {
         self.insert_named_image_icon(source, target.to_string(), location);
     }
 
-    fn insert_named_image_icon(&mut self, source: String, target: String, location: &Location) {
+    fn insert_named_image_icon(
+        &mut self,
+        source: String,
+        target: String,
+        location: LocationRef<'_>,
+    ) {
         self.image_urls.insert(source.clone());
         self.image_icons.push(ImageIconReference {
             source,
             target,
-            location: location.clone(),
+            location: location.into(),
         });
     }
 }
@@ -1354,325 +1368,403 @@ struct PreparationVisitor {
     preparation: PdfPreparation,
 }
 
-impl<'doc> Visitor<'doc> for PreparationVisitor {
+impl<'doc> BlockVisitor<'doc> for PreparationVisitor {
     type Error = std::convert::Infallible;
 
     fn before_block(
         &mut self,
         traversal: &mut TraversalContext<'doc>,
-        block: &'doc Block<'doc>,
+        block: BlockRef<'doc>,
     ) -> Result<(), Self::Error> {
         let preparation = &mut self.preparation;
-        match block {
-            Block::Paragraph(paragraph) => {
+        match block.kind() {
+            BlockKind::Paragraph(paragraph) => {
                 preparation.has_unbreakable_blocks |= is_unbreakable_paragraph(paragraph);
-                preparation.has_autofit_blocks |= is_autofit_paragraph(paragraph, traversal);
-                collect_metadata_preparation(&paragraph.metadata, traversal, preparation);
+                preparation.has_autofit_blocks |=
+                    matches!(paragraph.style(), Some("listing" | "literal" | "source"))
+                        && has_autofit_option(paragraph.options().iter(), traversal);
+                collect_metadata_preparation(paragraph.attributes(), traversal, preparation);
             }
-            Block::DelimitedBlock(block) => {
-                preparation.has_unbreakable_blocks |= is_unbreakable_delimited_block(block);
-                preparation.has_autofit_blocks |= is_autofit_delimited_block(block, traversal);
-                collect_inline_preparation(&block.title, traversal, preparation);
-                collect_metadata_preparation(&block.metadata, traversal, preparation);
-                if let DelimitedBlockType::DelimitedListing(nodes)
-                | DelimitedBlockType::DelimitedLiteral(nodes) = &block.inner
-                {
-                    acdc_converters_core::index::visit_index_terms(nodes, &mut |term, _| {
-                        collect_index_term_preparation(term, traversal, preparation);
-                        Ok::<(), Self::Error>(())
-                    })?;
-                }
+            BlockKind::DescriptionList(_) | BlockKind::CalloutList(_) => {
+                collect_optional_preparation(block.title(), traversal, preparation);
             }
-            Block::DescriptionList(list) => {
-                collect_inline_preparation(&list.title, traversal, preparation);
-            }
-            Block::CalloutList(list) => {
-                collect_inline_preparation(&list.title, traversal, preparation);
-            }
-            Block::Admonition(admonition) => {
+            BlockKind::Admonition(admonition) => {
                 collect_admonition_preparation(admonition, traversal, preparation);
             }
-            Block::Image(image) => {
-                collect_inline_preparation(&image.title, traversal, preparation);
-                if let Some(alt) = &image.alt {
-                    collect_inline_preparation(alt, traversal, preparation);
-                }
+            BlockKind::Image(image) => {
+                collect_optional_preparation(image.title(), traversal, preparation);
+                collect_optional_preparation(image.alt(), traversal, preparation);
                 preparation.insert_image(
-                    resolve_target(&image.source.to_string(), traversal),
-                    &image.location,
+                    resolve_target(&image.source().to_string(), traversal),
+                    image.location(),
                 );
             }
-            Block::Audio(audio) => collect_inline_preparation(&audio.title, traversal, preparation),
-            Block::Video(video) => {
-                collect_inline_preparation(&video.title, traversal, preparation);
-                if let Some(poster) =
-                    video
-                        .metadata
-                        .attributes
-                        .get_string("poster")
-                        .filter(|poster| {
-                            !poster.is_empty() && !matches!(poster.as_ref(), "youtube" | "vimeo")
-                        })
-                {
-                    preparation.insert_image(resolve_target(&poster, traversal), &video.location);
+            BlockKind::Audio(audio) => {
+                collect_optional_preparation(audio.title(), traversal, preparation);
+            }
+            BlockKind::Video(video) => {
+                collect_optional_preparation(video.title(), traversal, preparation);
+                if let Some(AttributeValueRef::Text(poster)) = video.attributes().get("poster") {
+                    let poster = acdc_parser::strip_quotes(poster);
+                    if !poster.is_empty() && !matches!(poster, "youtube" | "vimeo") {
+                        preparation
+                            .insert_image(resolve_target(poster, traversal), video.location());
+                    }
                 }
             }
-            Block::Section(_)
-            | Block::OrderedList(_)
-            | Block::UnorderedList(_)
-            | Block::DiscreteHeader(_)
-            | Block::DocumentAttribute(_)
-            | Block::TableOfContents(_)
-            | Block::ThematicBreak(_)
-            | Block::PageBreak(_)
-            | Block::Comment(_)
+            BlockKind::Example(_)
+            | BlockKind::Open(_)
+            | BlockKind::Quote(_)
+            | BlockKind::Sidebar(_)
+            | BlockKind::Table(_)
+            | BlockKind::Listing(_)
+            | BlockKind::Literal(_)
+            | BlockKind::DelimitedComment(_)
+            | BlockKind::Passthrough(_)
+            | BlockKind::Verse(_)
+            | BlockKind::Stem(_) => {
+                preparation.has_unbreakable_blocks |= is_unbreakable_delimited_block(block);
+                if let Some(attributes) = block.attributes() {
+                    preparation.has_autofit_blocks |=
+                        if let BlockKind::Listing(listing) = block.kind() {
+                            has_autofit_option(listing.options().iter(), traversal)
+                        } else if let BlockKind::Literal(literal) = block.kind() {
+                            has_autofit_option(literal.options().iter(), traversal)
+                        } else {
+                            false
+                        };
+                    collect_optional_preparation(block.title(), traversal, preparation);
+                    collect_metadata_preparation(attributes, traversal, preparation);
+                }
+                let content = if let BlockKind::Listing(listing) = block.kind() {
+                    Some(listing.content())
+                } else if let BlockKind::Literal(literal) = block.kind() {
+                    Some(literal.content())
+                } else {
+                    None
+                };
+                if let Some(content) = content {
+                    acdc_converters_core::index::visit_index_inlines(
+                        content.inlines(),
+                        &mut |term, _| {
+                            collect_index_term_preparation(term, traversal, preparation);
+                            Ok::<(), Self::Error>(())
+                        },
+                    )?;
+                }
+            }
+            BlockKind::TableOfContents(_)
+            | BlockKind::DiscreteHeader(_)
+            | BlockKind::DocumentAttribute(_)
+            | BlockKind::ThematicBreak(_)
+            | BlockKind::PageBreak(_)
+            | BlockKind::UnorderedList(_)
+            | BlockKind::OrderedList(_)
+            | BlockKind::Section(_)
+            | BlockKind::Comment(_)
             | _ => {}
         }
         Ok(())
     }
 
-    fn visit_section(
+    fn visit_block(
         &mut self,
         traversal: &mut TraversalContext<'doc>,
-        section: &'doc acdc_parser::Section<'doc>,
+        block: BlockRef<'doc>,
     ) -> Result<(), Self::Error> {
-        self.visit_inline_nodes(traversal, &section.title)?;
-        if section.kind == acdc_parser::SectionKind::Index {
-            if self.preparation.has_index_terms {
-                self.preparation
-                    .populated_index_sections
-                    .insert(section.id().into_owned());
+        match block.kind() {
+            BlockKind::Section(section) => {
+                collect_optional_preparation(section.title(), traversal, &mut self.preparation);
+                if section.kind() == acdc_parser::SectionKind::Index {
+                    if self.preparation.has_index_terms {
+                        self.preparation
+                            .populated_index_sections
+                            .insert(section.resolve_id().into_owned());
+                    }
+                } else {
+                    traversal.visit_blocks(self, section.blocks())?;
+                }
             }
-            return Ok(());
+            BlockKind::Paragraph(paragraph) => {
+                collect_optional_preparation(paragraph.title(), traversal, &mut self.preparation);
+                collect_inline_preparation(paragraph.content(), traversal, &mut self.preparation);
+            }
+            BlockKind::Example(block) => traversal.visit_blocks(self, block.blocks())?,
+            BlockKind::Open(block) => traversal.visit_blocks(self, block.blocks())?,
+            BlockKind::Quote(block) => traversal.visit_blocks(self, block.blocks())?,
+            BlockKind::Sidebar(block) => traversal.visit_blocks(self, block.blocks())?,
+            BlockKind::Admonition(block) => traversal.visit_blocks(self, block.blocks())?,
+            BlockKind::Table(table) => {
+                for row in table
+                    .header()
+                    .into_iter()
+                    .chain(table.rows())
+                    .chain(table.footer())
+                {
+                    let mut columns = table.columns();
+                    for cell in row.cells() {
+                        let column_style = columns.next().map_or(
+                            acdc_parser::ColumnStyle::Default,
+                            acdc_parser::ast::ColumnFormatRef::style,
+                        );
+                        let style = cell.style().unwrap_or(column_style);
+                        if style == acdc_parser::ColumnStyle::AsciiDoc {
+                            traversal.with_table_cell(cell, |context| {
+                                context.visit_blocks(self, cell.blocks())
+                            })?;
+                        } else {
+                            traversal.visit_blocks(self, cell.blocks())?;
+                        }
+                    }
+                }
+            }
+            BlockKind::OrderedList(list) => {
+                collect_optional_preparation(list.title(), traversal, &mut self.preparation);
+                for item in list.items() {
+                    collect_inline_preparation(item.principal(), traversal, &mut self.preparation);
+                    traversal.visit_blocks(self, item.blocks())?;
+                }
+            }
+            BlockKind::UnorderedList(list) => {
+                collect_optional_preparation(list.title(), traversal, &mut self.preparation);
+                for item in list.items() {
+                    collect_inline_preparation(item.principal(), traversal, &mut self.preparation);
+                    traversal.visit_blocks(self, item.blocks())?;
+                }
+            }
+            BlockKind::DescriptionList(list) => {
+                for item in list.items() {
+                    collect_inline_preparation(item.term(), traversal, &mut self.preparation);
+                    collect_inline_preparation(item.principal(), traversal, &mut self.preparation);
+                    traversal.visit_blocks(self, item.blocks())?;
+                }
+            }
+            BlockKind::CalloutList(list) => {
+                for item in list.items() {
+                    collect_inline_preparation(item.principal(), traversal, &mut self.preparation);
+                    traversal.visit_blocks(self, item.blocks())?;
+                }
+            }
+            BlockKind::DiscreteHeader(header) => {
+                collect_optional_preparation(header.title(), traversal, &mut self.preparation);
+            }
+            BlockKind::TableOfContents(_)
+            | BlockKind::DocumentAttribute(_)
+            | BlockKind::ThematicBreak(_)
+            | BlockKind::PageBreak(_)
+            | BlockKind::Image(_)
+            | BlockKind::Audio(_)
+            | BlockKind::Video(_)
+            | BlockKind::Comment(_)
+            | BlockKind::DelimitedComment(_)
+            | BlockKind::Listing(_)
+            | BlockKind::Literal(_)
+            | BlockKind::Passthrough(_)
+            | BlockKind::Verse(_)
+            | BlockKind::Stem(_)
+            | _ => {}
         }
-        traversal.visit_blocks(self, &section.content)
-    }
-
-    fn visit_inline_nodes(
-        &mut self,
-        traversal: &mut TraversalContext<'doc>,
-        nodes: &[InlineNode<'_>],
-    ) -> Result<(), Self::Error> {
-        collect_inline_preparation(nodes, traversal, &mut self.preparation);
         Ok(())
     }
 }
 
-fn collect_admonition_preparation<'a>(
-    admonition: &'a Admonition<'a>,
+fn collect_admonition_preparation(
+    admonition: AdmonitionRef<'_>,
     attributes: &TraversalContext<'_>,
     preparation: &mut PdfPreparation,
 ) {
-    preparation.has_unbreakable_blocks |= admonition.metadata.options.contains(&"unbreakable");
-    preparation.needs_admonition_label_helper |= admonition.metadata.caption_content().is_some();
+    preparation.has_unbreakable_blocks |= admonition.options().contains("unbreakable");
+    preparation.needs_admonition_label_helper |= admonition.caption_content().is_some();
     if IconMode::from_attributes(attributes) != IconMode::Text
-        && let Some(icon) = admonition
-            .metadata
-            .attributes
-            .get_string("icon")
-            .filter(|icon| !icon.is_empty())
+        && let Some(AttributeValueRef::Text(icon)) = admonition.attributes().get("icon")
     {
-        preparation.needs_admonition_label_helper = true;
-        preparation.insert_named_image_icon(
-            admonition_icon_source(attributes, &icon),
-            icon.into_owned(),
-            admonition
-                .metadata
-                .location
-                .as_ref()
-                .unwrap_or(&admonition.location),
-        );
+        let icon = acdc_parser::strip_quotes(icon);
+        if !icon.is_empty() {
+            preparation.needs_admonition_label_helper = true;
+            preparation.insert_named_image_icon(
+                admonition_icon_source(attributes, icon),
+                icon.to_owned(),
+                admonition
+                    .attributes()
+                    .location()
+                    .unwrap_or_else(|| admonition.location()),
+            );
+        }
     }
-    collect_inline_preparation(admonition.title.as_ref(), attributes, preparation);
+    collect_optional_preparation(admonition.title(), attributes, preparation);
 }
 
-fn is_unbreakable_paragraph(paragraph: &acdc_parser::Paragraph<'_>) -> bool {
-    paragraph.metadata.options.contains(&"unbreakable")
+fn is_unbreakable_paragraph(paragraph: ParagraphRef<'_>) -> bool {
+    paragraph.options().contains("unbreakable")
         && matches!(
-            paragraph.metadata.style,
+            paragraph.style(),
             Some("example" | "listing" | "literal" | "quote" | "sidebar" | "source" | "verse")
         )
 }
 
-fn is_unbreakable_delimited_block<'a>(block: &'a DelimitedBlock<'a>) -> bool {
-    block.metadata.options.contains(&"unbreakable")
+fn is_unbreakable_delimited_block(block: BlockRef<'_>) -> bool {
+    matches!(block.attributes().and_then(|attributes| attributes.get("opts")), Some(AttributeValueRef::Tokens(options)) if options.contains("unbreakable"))
         && matches!(
-            block.inner,
-            DelimitedBlockType::DelimitedExample(_)
-                | DelimitedBlockType::DelimitedListing(_)
-                | DelimitedBlockType::DelimitedLiteral(_)
-                | DelimitedBlockType::DelimitedOpen(_)
-                | DelimitedBlockType::DelimitedQuote(_)
-                | DelimitedBlockType::DelimitedSidebar(_)
-                | DelimitedBlockType::DelimitedStem(_)
-                | DelimitedBlockType::DelimitedTable(_)
-                | DelimitedBlockType::DelimitedVerse(_)
+            block.kind(),
+            BlockKind::Example(_)
+                | BlockKind::Listing(_)
+                | BlockKind::Literal(_)
+                | BlockKind::Open(_)
+                | BlockKind::Quote(_)
+                | BlockKind::Sidebar(_)
+                | BlockKind::Stem(_)
+                | BlockKind::Table(_)
+                | BlockKind::Verse(_)
         )
 }
 
-fn is_page_breakable_table<'a>(block: &'a DelimitedBlock<'a>) -> bool {
-    !block.metadata.options.contains(&"unbreakable")
-        && matches!(block.inner, DelimitedBlockType::DelimitedTable(_))
+fn is_page_breakable_table(block: BlockRef<'_>) -> bool {
+    matches!(block.kind(), BlockKind::Table(table) if !table.options().contains("unbreakable"))
 }
 
-fn is_autofit_paragraph(
-    paragraph: &acdc_parser::Paragraph<'_>,
+fn has_autofit_option<'a>(
+    mut options: impl Iterator<Item = &'a str>,
     attributes: &TraversalContext<'_>,
 ) -> bool {
-    matches!(
-        paragraph.metadata.style,
-        Some("listing" | "literal" | "source")
-    ) && has_autofit_option(&paragraph.metadata, attributes)
-}
-
-fn is_autofit_delimited_block<'a>(
-    block: &'a DelimitedBlock<'a>,
-    attributes: &TraversalContext<'_>,
-) -> bool {
-    matches!(
-        block.inner,
-        DelimitedBlockType::DelimitedListing(_) | DelimitedBlockType::DelimitedLiteral(_)
-    ) && has_autofit_option(&block.metadata, attributes)
-}
-
-fn has_autofit_option(metadata: &BlockMetadata<'_>, attributes: &TraversalContext<'_>) -> bool {
-    metadata.options.contains(&"autofit") || attributes.get("autofit-option").is_some()
+    options.any(|option| option == "autofit") || attributes.get("autofit-option").is_some()
 }
 
 fn collect_metadata_preparation(
-    metadata: &BlockMetadata<'_>,
+    metadata: AttributesRef<'_>,
     attributes: &TraversalContext<'_>,
     preparation: &mut PdfPreparation,
 ) {
-    if let Some(caption) = metadata.caption_content() {
-        collect_inline_preparation(caption, attributes, preparation);
+    for name in ["caption", "attribution", "citetitle"] {
+        if let Some(AttributeValueRef::Content(content)) = metadata.get(name) {
+            collect_inline_preparation(content, attributes, preparation);
+        }
     }
-    if let Some(attribution) = &metadata.attribution {
-        collect_inline_preparation(attribution, attributes, preparation);
-    }
-    if let Some(citetitle) = &metadata.citetitle {
-        collect_inline_preparation(citetitle, attributes, preparation);
+}
+
+fn collect_optional_preparation(
+    content: Option<ContentRef<'_>>,
+    attributes: &TraversalContext<'_>,
+    preparation: &mut PdfPreparation,
+) {
+    if let Some(content) = content {
+        collect_inline_preparation(content, attributes, preparation);
     }
 }
 
 fn collect_inline_preparation(
-    nodes: &[InlineNode<'_>],
+    content: ContentRef<'_>,
     attributes: &TraversalContext<'_>,
     preparation: &mut PdfPreparation,
 ) {
-    for node in nodes {
-        if let InlineNode::Macro(value) = node {
-            value.for_each_content_attribute(|content| {
-                collect_inline_preparation(content, attributes, preparation);
-            });
+    for node in content.inlines() {
+        // Prepare display attributes before macro bodies to retain warning order.
+        for field in node.content_fields().filter(|field| {
+            matches!(
+                field.role(),
+                ContentRole::Alt
+                    | ContentRole::Tooltip
+                    | ContentRole::ButtonLabel
+                    | ContentRole::KeyboardKey
+                    | ContentRole::MenuTarget
+                    | ContentRole::MenuItem
+            )
+        }) {
+            collect_inline_preparation(field.content(), attributes, preparation);
         }
-        match node {
-            InlineNode::BoldText(text) => {
-                collect_inline_preparation(&text.content, attributes, preparation);
-            }
-            InlineNode::ItalicText(text) => {
-                collect_inline_preparation(&text.content, attributes, preparation);
-            }
-            InlineNode::MonospaceText(text) => {
-                collect_inline_preparation(&text.content, attributes, preparation);
-            }
-            InlineNode::HighlightText(text) => {
-                collect_inline_preparation(&text.content, attributes, preparation);
-            }
-            InlineNode::SubscriptText(text) => {
-                collect_inline_preparation(&text.content, attributes, preparation);
-            }
-            InlineNode::SuperscriptText(text) => {
-                collect_inline_preparation(&text.content, attributes, preparation);
-            }
-            InlineNode::CurvedQuotationText(text) => {
-                collect_inline_preparation(&text.content, attributes, preparation);
-            }
-            InlineNode::CurvedApostropheText(text) => {
-                collect_inline_preparation(&text.content, attributes, preparation);
-            }
-            InlineNode::Macro(InlineMacro::Image(image)) => {
-                preparation.insert_image(
-                    resolve_target(&image.source.to_string(), attributes),
-                    &image.location,
-                );
-            }
-            InlineNode::Macro(InlineMacro::Icon(icon)) => {
-                match IconMode::from_attributes(attributes) {
-                    IconMode::Image => preparation.insert_image_icon(
-                        icon.attributes().get_string("icon").map_or_else(
-                            || icon_image_source(attributes, &icon.target),
-                            |value| {
-                                acdc_converters_core::icon::custom_image_source(attributes, &value)
-                            },
-                        ),
-                        &icon.target,
-                        &icon.location,
-                    ),
-                    IconMode::Font => {
-                        let icon_name = icon.target.to_string();
-                        if builtin_icon_glyph(&icon_name).is_none() {
-                            preparation
-                                .unsupported_font_icons
-                                .push(UnsupportedFontIcon {
-                                    name: icon_name,
-                                    location: icon.location.clone(),
-                                });
-                        }
-                    }
-                    IconMode::Text | _ => {}
+        match node.kind() {
+            InlineKind::Image(image) => preparation.insert_image(
+                resolve_target(&image.source().to_string(), attributes),
+                image.location(),
+            ),
+            InlineKind::Icon(icon) => match IconMode::from_attributes(attributes) {
+                IconMode::Image => {
+                    let source = if let Some(AttributeValueRef::Text(value)) =
+                        icon.attributes().get("icon")
+                    {
+                        acdc_converters_core::icon::custom_image_source(
+                            attributes,
+                            acdc_parser::strip_quotes(value),
+                        )
+                    } else {
+                        icon_image_source(attributes, icon.target())
+                    };
+                    preparation.insert_image_icon(source, icon.target(), icon.location());
                 }
-            }
-            InlineNode::Macro(InlineMacro::Footnote(footnote)) => {
-                collect_inline_preparation(&footnote.content, attributes, preparation);
-            }
-            InlineNode::Macro(InlineMacro::Url(url)) => {
-                collect_inline_preparation(&url.text, attributes, preparation);
-            }
-            InlineNode::Macro(InlineMacro::Link(link)) => {
-                collect_inline_preparation(&link.text, attributes, preparation);
-            }
-            InlineNode::Macro(InlineMacro::Mailto(mailto)) => {
-                collect_inline_preparation(&mailto.text, attributes, preparation);
-            }
-            InlineNode::Macro(InlineMacro::CrossReference(xref)) => {
-                collect_inline_preparation(&xref.text, attributes, preparation);
-            }
-            InlineNode::Macro(InlineMacro::IndexTerm(term)) => {
-                collect_index_term_preparation(term, attributes, preparation);
-            }
-            InlineNode::PlainText(_)
-            | InlineNode::RawText(_)
-            | InlineNode::VerbatimText(_)
-            | InlineNode::StandaloneCurvedApostrophe(_)
-            | InlineNode::LineBreak(_)
-            | InlineNode::InlineAnchor(_)
-            | InlineNode::Macro(_)
-            | InlineNode::CalloutRef(_)
+                IconMode::Font => {
+                    let icon_name = icon.target().to_string();
+                    if builtin_icon_glyph(&icon_name).is_none() {
+                        preparation
+                            .unsupported_font_icons
+                            .push(UnsupportedFontIcon {
+                                name: icon_name,
+                                location: icon.location().into(),
+                            });
+                    }
+                }
+                IconMode::Text | _ => {}
+            },
+            InlineKind::IndexTerm(_) => preparation.has_index_terms = true,
+            InlineKind::Plain(_)
+            | InlineKind::Raw(_)
+            | InlineKind::Verbatim(_)
+            | InlineKind::Bold(_)
+            | InlineKind::Italic(_)
+            | InlineKind::Monospace(_)
+            | InlineKind::Highlight(_)
+            | InlineKind::Subscript(_)
+            | InlineKind::Superscript(_)
+            | InlineKind::CurvedQuotation(_)
+            | InlineKind::CurvedApostrophe(_)
+            | InlineKind::StandaloneCurvedApostrophe(_)
+            | InlineKind::LineBreak(_)
+            | InlineKind::Anchor(_)
+            | InlineKind::Callout(_)
+            | InlineKind::Footnote(_)
+            | InlineKind::Keyboard(_)
+            | InlineKind::Button(_)
+            | InlineKind::Menu(_)
+            | InlineKind::Url(_)
+            | InlineKind::Link(_)
+            | InlineKind::Mailto(_)
+            | InlineKind::Autolink(_)
+            | InlineKind::CrossReference(_)
+            | InlineKind::Pass(_)
+            | InlineKind::Stem(_)
             | _ => {}
+        }
+        for field in node.content_fields().filter(|field| {
+            matches!(
+                field.role(),
+                ContentRole::Span
+                    | ContentRole::LinkText
+                    | ContentRole::Footnote
+                    | ContentRole::IndexPrimary
+                    | ContentRole::IndexSecondary
+                    | ContentRole::IndexTertiary
+                    | ContentRole::IndexSee
+                    | ContentRole::IndexSeeAlso
+            )
+        }) {
+            collect_inline_preparation(field.content(), attributes, preparation);
         }
     }
 }
 
 fn collect_index_term_preparation(
-    term: &IndexTerm<'_>,
+    term: IndexTermRef<'_>,
     attributes: &TraversalContext<'_>,
     preparation: &mut PdfPreparation,
 ) {
     preparation.has_index_terms = true;
     collect_inline_preparation(term.term(), attributes, preparation);
-    if let Some(secondary) = term.secondary() {
-        collect_inline_preparation(secondary, attributes, preparation);
-    }
-    if let Some(tertiary) = term.tertiary() {
-        collect_inline_preparation(tertiary, attributes, preparation);
-    }
-    match term.relationship.as_ref() {
-        Some(IndexTermRelationship::See { target }) => {
+    collect_optional_preparation(term.secondary(), attributes, preparation);
+    collect_optional_preparation(term.tertiary(), attributes, preparation);
+    match term.relationship() {
+        Some(IndexTermRelationshipRef::See { target }) => {
             collect_inline_preparation(target, attributes, preparation);
         }
-        Some(IndexTermRelationship::SeeAlso { targets }) => {
-            for target in targets {
+        Some(IndexTermRelationshipRef::SeeAlso { targets }) => {
+            for target in targets.iter() {
                 collect_inline_preparation(target, attributes, preparation);
             }
         }
@@ -1704,7 +1796,10 @@ fn encode_footnote_label(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use acdc_converters_core::{Converter, Warning, WarningSource};
-    use acdc_parser::{DelimitedBlock, Image, Location, Paragraph, Plain, Title, parse};
+    use acdc_parser::{
+        Block, DelimitedBlock, DelimitedBlockType, Image, InlineNode, Location, Paragraph, Plain,
+        Source, Title, parse,
+    };
     use std::{error::Error as StdError, io::Error as IoError};
     use tempfile::{NamedTempFile, tempdir};
 
@@ -4291,6 +4386,53 @@ mod tests {
                 "media%20library/subtitle.png",
             ]
         );
+        Ok(())
+    }
+
+    #[rstest::rstest]
+    fn preparation_retains_nested_asset_locations(
+        #[values(
+            acdc_parser::CompatibilityMode::Asciidoctor,
+            acdc_parser::CompatibilityMode::Draft
+        )]
+        mode: acdc_parser::CompatibilityMode,
+    ) -> Result<(), Box<dyn StdError>> {
+        let source = "= Assets\n:imagesdir: outer\n:icons: svg\n\n[NOTE,icon=missing.svg]\n====\nNote.\n====\n\n[cols=\"a,a\"]\n|===\na|\nCell.\n\n:imagesdir: inner\n\nimage:cell.svg[]\n\na|\nimage:sibling.svg[]\n|===\n\nimage:tail.svg[]\n";
+        let parsed = parse(
+            source,
+            &ParserOptions::builder()
+                .with_compatibility_mode(mode)
+                .build()?,
+        )?;
+        let preparation = collect_pdf_preparation(parsed.document());
+        assert_eq!(
+            preparation.image_urls.into_iter().collect::<Vec<_>>(),
+            [
+                "outer/cell.svg",
+                "outer/icons/missing.svg",
+                "outer/sibling.svg",
+                "outer/tail.svg"
+            ]
+        );
+        assert!(preparation.needs_admonition_label_helper);
+        let icon = preparation.image_icons.first().ok_or("missing icon")?;
+        assert_eq!(icon.location.start.line, 5);
+        assert_eq!(icon.location.start.column, 1);
+        assert!(icon.location.absolute_end < source.find("====").ok_or("delimiter")?);
+        for (target, authored) in [
+            ("outer/cell.svg", "image:cell.svg"),
+            ("outer/sibling.svg", "image:sibling.svg"),
+            ("outer/tail.svg", "image:tail.svg"),
+        ] {
+            let location = preparation
+                .ordinary_image_locations
+                .get(target)
+                .ok_or("image location")?;
+            assert_eq!(
+                location.absolute_start,
+                source.find(authored).ok_or("source target")?
+            );
+        }
         Ok(())
     }
 

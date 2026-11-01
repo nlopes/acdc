@@ -89,6 +89,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Typed element attributes expose their recorded block metadata span for source-aware
+  diagnostics. Inline attributes and blocks without a retained span return no span.
+
 - Library callers can copy document attributes and registered TOC/reference
   entries from typed handles with `From`. Copies preserve defaults, explicit
   unsets, assignment provenance, assigned numbers, and source locations without

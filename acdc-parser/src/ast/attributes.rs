@@ -7,8 +7,8 @@ use crate::{
 };
 
 use super::{
-    AnchorRef, AttributeValueRef, ContentListRef, ContentRef, ElementIdRef, SubstitutionSpecRef,
-    TokensRef,
+    AnchorRef, AttributeValueRef, ContentListRef, ContentRef, ElementIdRef, LocationRef,
+    SubstitutionSpecRef, TokensRef,
 };
 
 /// Named values on an element.
@@ -128,6 +128,17 @@ impl Field {
 }
 
 impl<'doc> AttributesRef<'doc> {
+    /// The recorded block-metadata span, if retained.
+    ///
+    /// This is the collection's span, not an individual value's range.
+    /// Inline attributes and blocks without a recorded span return `None`.
+    #[must_use]
+    pub fn location(self) -> Option<LocationRef<'doc>> {
+        self.metadata()
+            .and_then(|metadata| metadata.location.as_ref())
+            .map(LocationRef::from)
+    }
+
     pub(super) fn index_term(owner: &'doc IndexTerm<'doc>) -> Self {
         Self {
             owner: Owner::IndexTerm(owner),
