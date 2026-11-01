@@ -17,7 +17,6 @@ use std::{
 };
 
 use acdc_converters_core::visitor::WritableVisitor;
-use acdc_parser::Section;
 
 use crate::{Error, HtmlVisitor, IndexCatalogRelationship, IndexTermEntry, IndexTermLabel};
 
@@ -289,10 +288,7 @@ fn render_entries<W: Write + ?Sized>(
 /// Render the index catalog for a section with `[index]` style.
 ///
 /// This generates nested definition lists organized alphabetically by first letter.
-pub(crate) fn render<'a, W: Write>(
-    _section: &'a Section<'a>,
-    visitor: &mut HtmlVisitor<'_, '_, W>,
-) -> Result<(), Error> {
+pub(crate) fn render<W: Write>(visitor: &mut HtmlVisitor<'_, '_, W>) -> Result<(), Error> {
     let processor = visitor.processor.clone();
     let entries = processor.index_entries().borrow();
 

@@ -1,20 +1,24 @@
 use std::io::Write;
 
 use acdc_converters_core::{
-    TraversalContext,
-    list::OrderedListNumbering,
-    visitor::{Visitor, WritableVisitor},
+    TraversalContext, list::OrderedListNumbering, visitor::WritableVisitor,
 };
 use acdc_parser::{
     Block, CalloutList, DescriptionList, ListItem, ListItemCheckedStatus, OrderedList,
     UnorderedList,
+    ast::{
+        CalloutListItemRef, CalloutListRef, DescriptionListItemRef, DescriptionListRef,
+        ListItemRef, OrderedListRef, UnorderedListRef,
+    },
 };
 
-use crate::{Error, HtmlVariant, HtmlVisitor, build_class, write_id};
+use crate::{
+    Error, HtmlVariant, HtmlVisitor, build_class, image_helpers::attribute_text, write_element_id,
+};
 
 /// Check if any list item has a checkbox
-fn has_checklist_items<'a>(items: &'a [ListItem<'a>]) -> bool {
-    items.iter().any(|item| item.checked.is_some())
+fn has_checklist_items<'doc>(mut items: impl Iterator<Item = ListItemRef<'doc>>) -> bool {
+    items.any(|item| item.checked().is_some())
 }
 
 /// The numbering style for a list at the given nesting `depth`.
@@ -69,11 +73,12 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         list: &'a UnorderedList<'a>,
         section_style: Option<&str>,
     ) -> Result<(), Error> {
-        let is_checklist = has_checklist_items(&list.items);
+        let data = UnorderedListRef::from(list);
+        let is_checklist = has_checklist_items(data.items());
         let is_bibliography = section_style == Some("bibliography");
 
         let semantic = self.processor.variant() == HtmlVariant::Semantic;
-        let has_title = list.title.is_present();
+        let has_title = data.title().is_some();
 
         // Semantic mode: use <section> for titled, <div> otherwise
         let wrapper_tag = if semantic && has_title {
@@ -82,10 +87,8 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             "div"
         };
         write!(self.writer, "<{wrapper_tag}")?;
-        if let Some(id) = &list.metadata.id {
-            write!(self.writer, " id=\"{}\"", id.id)?;
-        } else if let Some(anchor) = list.metadata.anchors.first() {
-            write!(self.writer, " id=\"{}\"", anchor.id)?;
+        if let Some(id) = data.id() {
+            write!(self.writer, " id=\"{}\"", id.as_str())?;
         }
         let mut wrapper_class = String::from("ulist");
         if is_checklist && !semantic {
@@ -94,25 +97,25 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         if is_bibliography {
             wrapper_class.push_str(" bibliography");
         }
-        if let Some(style) = list.metadata.style
+        if let Some(style) = data.style()
             && !wrapper_class.split_whitespace().any(|class| class == style)
         {
             wrapper_class.push(' ');
             wrapper_class.push_str(style);
         }
-        wrapper_class = build_class(&wrapper_class, &list.metadata.roles);
+        wrapper_class = build_class(&wrapper_class, data.roles().iter());
         writeln!(self.writer, " class=\"{wrapper_class}\">")?;
         if semantic && has_title {
-            self.render_title_with_wrapper(
+            self.render_title_content(
                 traversal,
-                &list.title,
+                data.title(),
                 "<h6 class=\"block-title\">",
                 "</h6>\n",
             )?;
         } else {
-            self.render_title_with_wrapper(
+            self.render_title_content(
                 traversal,
-                &list.title,
+                data.title(),
                 "<div class=\"title\">",
                 "</div>\n",
             )?;
@@ -124,7 +127,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             writeln!(self.writer, "<ul class=\"checklist\">")?;
         } else if is_bibliography {
             writeln!(self.writer, "<ul class=\"bibliography\">")?;
-        } else if let Some(style) = list.metadata.style {
+        } else if let Some(style) = data.style() {
             writeln!(self.writer, "<ul class=\"{style}\">")?;
         } else {
             writeln!(self.writer, "<ul>")?;
@@ -140,7 +143,8 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         list: &'a OrderedList<'a>,
     ) -> Result<(), Error> {
-        let raw_depth = list.marker.matches('.').count().max(1);
+        let data = OrderedListRef::from(list);
+        let raw_depth = data.marker().matches('.').count().max(1);
         if raw_depth > usize::from(u8::MAX) {
             self.diagnostics.warn_with_advice(
                 format!("ordered list marker depth {raw_depth} exceeds 255, clamping"),
@@ -148,10 +152,10 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             );
         }
         let depth = u8::try_from(raw_depth).unwrap_or(u8::MAX);
-        let (style, type_attr) = resolve_ordered_list_style(list.metadata.style, depth);
+        let (style, type_attr) = resolve_ordered_list_style(data.style(), depth);
 
         let semantic = self.processor.variant() == HtmlVariant::Semantic;
-        let has_title = list.title.is_present();
+        let has_title = data.title().is_some();
 
         // Semantic mode: use <section> for titled, <div> otherwise
         let wrapper_tag = if semantic && has_title {
@@ -160,24 +164,22 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             "div"
         };
         write!(self.writer, "<{wrapper_tag}")?;
-        if let Some(id) = &list.metadata.id {
-            write!(self.writer, " id=\"{}\"", id.id)?;
-        } else if let Some(anchor) = list.metadata.anchors.first() {
-            write!(self.writer, " id=\"{}\"", anchor.id)?;
+        if let Some(id) = data.id() {
+            write!(self.writer, " id=\"{}\"", id.as_str())?;
         }
-        let class = build_class(&format!("olist {style}"), &list.metadata.roles);
+        let class = build_class(&format!("olist {style}"), data.roles().iter());
         writeln!(self.writer, " class=\"{class}\">")?;
         if semantic && has_title {
-            self.render_title_with_wrapper(
+            self.render_title_content(
                 traversal,
-                &list.title,
+                data.title(),
                 "<h6 class=\"block-title\">",
                 "</h6>\n",
             )?;
         } else {
-            self.render_title_with_wrapper(
+            self.render_title_content(
                 traversal,
-                &list.title,
+                data.title(),
                 "<div class=\"title\">",
                 "</div>\n",
             )?;
@@ -187,16 +189,13 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         if let Some(value) = type_attr {
             write!(self.writer, " type=\"{value}\"")?;
         }
-        if let Some(start) = list
-            .metadata
-            .attributes
-            .get_string("start")
+        if let Some(start) = attribute_text(data.attributes(), "start")
             .and_then(|start| start.parse::<usize>().ok())
             .filter(|start| *start > 0)
         {
             write!(self.writer, " start=\"{start}\"")?;
         }
-        if list.metadata.options.contains(&"reversed") {
+        if data.options().contains("reversed") {
             write!(self.writer, " reversed")?;
         }
         writeln!(self.writer, ">")?;
@@ -211,33 +210,30 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         list: &'a CalloutList<'a>,
     ) -> Result<(), Error> {
+        let data = CalloutListRef::from(list);
         if self.processor.variant() == HtmlVariant::Semantic {
             return visit_callout_list_semantic(traversal, list, self);
         }
 
-        let class = build_class("colist arabic", &list.metadata.roles);
+        let class = build_class("colist arabic", data.roles().iter());
         write!(self.writer, "<div")?;
-        write_id(&mut self.writer, &list.metadata)?;
+        write_element_id(&mut self.writer, data.id())?;
         writeln!(self.writer, " class=\"{class}\">")?;
-        self.render_title_with_wrapper(
-            traversal,
-            &list.title,
-            "<div class=\"title\">",
-            "</div>\n",
-        )?;
+        self.render_title_content(traversal, data.title(), "<div class=\"title\">", "</div>\n")?;
 
         if crate::callouts::font_icons(traversal) {
             writeln!(self.writer, "<table>")?;
 
             for item in &list.items {
-                let num = item.callout.number;
+                let item_data = CalloutListItemRef::from(item);
+                let num = item_data.callout().number();
                 writeln!(self.writer, "<tr>")?;
                 writeln!(
                     self.writer,
                     "<td><i class=\"conum\" data-value=\"{num}\"></i><b>{num}</b></td>"
                 )?;
                 write!(self.writer, "<td>")?;
-                self.visit_inline_nodes(traversal, &item.principal)?;
+                self.visit_content(traversal, item_data.principal())?;
                 for block in &item.blocks {
                     traversal.visit_block(self, block)?;
                 }
@@ -250,9 +246,10 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             writeln!(self.writer, "<ol>")?;
 
             for item in &list.items {
+                let item_data = CalloutListItemRef::from(item);
                 write!(self.writer, "<li>")?;
                 write!(self.writer, "<p>")?;
-                self.visit_inline_nodes(traversal, &item.principal)?;
+                self.visit_content(traversal, item_data.principal())?;
                 write!(self.writer, "</p>")?;
                 for block in &item.blocks {
                     traversal.visit_block(self, block)?;
@@ -268,39 +265,41 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     }
 }
 
-fn visit_callout_list_semantic<'a, V: WritableVisitor<'a, Error = Error>>(
+fn visit_callout_list_semantic<'a, W: Write>(
     traversal: &mut TraversalContext<'a>,
     list: &'a CalloutList<'a>,
-    visitor: &mut V,
+    visitor: &mut HtmlVisitor<'a, '_, W>,
 ) -> Result<(), Error> {
-    let has_title = list.title.is_present();
+    let data = CalloutListRef::from(list);
+    let has_title = data.title().is_some();
     if has_title {
         let writer = visitor.writer_mut();
-        let class = build_class("colist arabic", &list.metadata.roles);
+        let class = build_class("colist arabic", data.roles().iter());
         write!(writer, "<section")?;
-        write_id(writer, &list.metadata)?;
+        write_element_id(writer, data.id())?;
         writeln!(writer, " class=\"{class}\">")?;
         let _ = writer;
-        visitor.render_title_with_wrapper(
+        visitor.render_title_content(
             traversal,
-            &list.title,
+            data.title(),
             "<h6 class=\"block-title\">",
             "</h6>\n",
         )?;
         writeln!(visitor.writer_mut(), "<ol class=\"callout-list arabic\">")?;
     } else {
         let writer = visitor.writer_mut();
-        let class = build_class("callout-list arabic", &list.metadata.roles);
+        let class = build_class("callout-list arabic", data.roles().iter());
         write!(writer, "<ol")?;
-        write_id(writer, &list.metadata)?;
+        write_element_id(writer, data.id())?;
         writeln!(writer, " class=\"{class}\">")?;
     }
 
     for item in &list.items {
+        let item_data = CalloutListItemRef::from(item);
         let writer = visitor.writer_mut();
         write!(writer, "<li>")?;
         let _ = writer;
-        visitor.visit_inline_nodes(traversal, &item.principal)?;
+        visitor.visit_content(traversal, item_data.principal())?;
         for block in &item.blocks {
             traversal.visit_block(visitor, block)?;
         }
@@ -390,24 +389,24 @@ fn render_nested_list_items<'a, W: Write>(
             i,
         ))?;
 
-        if item.level < expected_level {
+        if ListItemRef::from(item).level() < expected_level {
             break;
         }
 
         render_list_item_content(traversal, item, visitor, wrap_li_in_p, semantic)?;
 
         // Check if next items are nested (higher level) - only for items at expected level
-        if item.level == expected_level
+        if ListItemRef::from(item).level() == expected_level
             && i + 1 < items.len()
             && let Some(inner_item) = items.get(i + 1)
-            && inner_item.level > expected_level
+            && ListItemRef::from(inner_item).level() > expected_level
         {
-            let next_level = inner_item.level;
+            let next_level = ListItemRef::from(inner_item).level();
 
             let writer = visitor.writer_mut();
             render_checked_status_list(
                 is_ordered,
-                inner_item.checked.as_ref(),
+                ListItemRef::from(inner_item).checked().as_ref(),
                 depth + 1,
                 writer,
                 !wrap_li_in_p,
@@ -416,7 +415,11 @@ fn render_nested_list_items<'a, W: Write>(
             // Recursively render nested items
             i += 1;
             let nested_start = i;
-            while i < items.len() && items.get(i).is_some_and(|item| item.level >= next_level) {
+            while i < items.len()
+                && items
+                    .get(i)
+                    .is_some_and(|item| ListItemRef::from(item).level() >= next_level)
+            {
                 i += 1;
             }
             if let Some(inner_items) = items.get(nested_start..i) {
@@ -452,26 +455,27 @@ fn render_nested_list_items<'a, W: Write>(
 }
 
 /// Render the opening `<li>` tag, principal text, and attached blocks of a list item.
-fn render_list_item_content<'a, V: WritableVisitor<'a, Error = Error>>(
+fn render_list_item_content<'a, W: Write>(
     traversal: &mut TraversalContext<'a>,
     item: &'a ListItem<'a>,
-    visitor: &mut V,
+    visitor: &mut HtmlVisitor<'a, '_, W>,
     wrap_li_in_p: bool,
     semantic: bool,
 ) -> Result<(), Error> {
+    let data = ListItemRef::from(item);
     let writer = visitor.writer_mut();
-    if semantic && item.checked.is_some() {
+    if semantic && data.checked().is_some() {
         writeln!(writer, "<li class=\"task-list-item\">")?;
     } else {
         writeln!(writer, "<li>")?;
     }
-    if !item.principal.is_empty() || item.checked.is_some() {
+    if !data.principal().is_empty() || data.checked().is_some() {
         if wrap_li_in_p {
             write!(writer, "<p>")?;
         }
-        render_checked_status(item.checked.as_ref(), writer, semantic)?;
+        render_checked_status(data.checked().as_ref(), writer, semantic)?;
         let _ = writer;
-        visitor.visit_inline_nodes(traversal, &item.principal)?;
+        visitor.visit_content(traversal, data.principal())?;
         let writer = visitor.writer_mut();
         if wrap_li_in_p {
             writeln!(writer, "</p>")?;
@@ -492,6 +496,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         list: &'a DescriptionList<'a>,
     ) -> Result<(), Error> {
+        let data = DescriptionListRef::from(list);
         let semantic = self.processor.variant() == HtmlVariant::Semantic;
 
         if semantic {
@@ -500,15 +505,12 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
         // Start the description list outer div
         write!(self.writer, "<div")?;
-        // Use metadata.id if present, otherwise use first anchor
-        if let Some(id) = &list.metadata.id {
-            write!(self.writer, " id=\"{}\"", id.id)?;
-        } else if let Some(anchor) = list.metadata.anchors.first() {
-            write!(self.writer, " id=\"{}\"", anchor.id)?;
+        if let Some(id) = data.id() {
+            write!(self.writer, " id=\"{}\"", id.as_str())?;
         }
 
         // Description list
-        let is_horizontal = list.metadata.style == Some("horizontal");
+        let is_horizontal = data.style() == Some("horizontal");
         if is_horizontal {
             visit_horizontal_description_list(traversal, list, self)?;
         } else {
@@ -523,39 +525,36 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
 /// Renders a horizontal description list as an HTML table with `hdlist` class.
 /// This matches asciidoctor's output for `[horizontal]` style description lists.
-fn visit_horizontal_description_list<'a, V: WritableVisitor<'a, Error = Error>>(
+fn visit_horizontal_description_list<'a, W: Write>(
     traversal: &mut TraversalContext<'a>,
     list: &'a DescriptionList<'a>,
-    visitor: &mut V,
+    visitor: &mut HtmlVisitor<'a, '_, W>,
 ) -> Result<(), Error> {
+    let data = DescriptionListRef::from(list);
     let writer = visitor.writer_mut();
 
-    let class = build_class("hdlist", &list.metadata.roles);
+    let class = build_class("hdlist", data.roles().iter());
     writeln!(writer, " class=\"{class}\">")?;
     let _ = writer;
-    visitor.render_title_with_wrapper(
-        traversal,
-        &list.title,
-        "<div class=\"title\">",
-        "</div>\n",
-    )?;
+    visitor.render_title_content(traversal, data.title(), "<div class=\"title\">", "</div>\n")?;
     let mut writer = visitor.writer_mut();
     writeln!(writer, "<table>")?;
     let _ = writer;
 
     for item in &list.items {
+        let item_data = DescriptionListItemRef::from(item);
         let mut writer = visitor.writer_mut();
         writeln!(writer, "<tr>")?;
         writeln!(writer, "<td class=\"hdlist1\">")?;
         let _ = writer;
-        visitor.visit_inline_nodes(traversal, &item.term)?;
+        visitor.visit_content(traversal, item_data.term())?;
         writer = visitor.writer_mut();
         writeln!(writer, "</td>")?;
         writeln!(writer, "<td class=\"hdlist2\">")?;
-        if !item.principal_text.is_empty() {
+        if !item_data.principal().is_empty() {
             write!(writer, "<p>")?;
             let _ = writer;
-            visitor.visit_inline_nodes(traversal, &item.principal_text)?;
+            visitor.visit_content(traversal, item_data.principal())?;
             writer = visitor.writer_mut();
             writeln!(writer, "</p>")?;
         }
@@ -574,39 +573,35 @@ fn visit_horizontal_description_list<'a, V: WritableVisitor<'a, Error = Error>>(
 }
 
 /// Renders a standard description list as an HTML `<dl>` with `dlist` class.
-fn visit_standard_description_list<'a, V: WritableVisitor<'a, Error = Error>>(
+fn visit_standard_description_list<'a, W: Write>(
     traversal: &mut TraversalContext<'a>,
     list: &'a DescriptionList<'a>,
-    visitor: &mut V,
+    visitor: &mut HtmlVisitor<'a, '_, W>,
 ) -> Result<(), Error> {
+    let data = DescriptionListRef::from(list);
     let writer = visitor.writer_mut();
 
     // Check for ordered/unordered style (affects dt class)
-    let is_marker_style = list
-        .metadata
-        .style
+    let is_marker_style = data
+        .style()
         .is_some_and(|s| s == "ordered" || s == "unordered");
 
     // Build class including style if present
-    let base_class = if let Some(style) = &list.metadata.style {
+    let base_class = if let Some(style) = data.style() {
         format!("dlist {style}")
     } else {
         "dlist".to_string()
     };
-    let class = build_class(&base_class, &list.metadata.roles);
+    let class = build_class(&base_class, data.roles().iter());
     writeln!(writer, " class=\"{class}\">")?;
     let _ = writer;
-    visitor.render_title_with_wrapper(
-        traversal,
-        &list.title,
-        "<div class=\"title\">",
-        "</div>\n",
-    )?;
+    visitor.render_title_content(traversal, data.title(), "<div class=\"title\">", "</div>\n")?;
     let mut writer = visitor.writer_mut();
     writeln!(writer, "<dl>")?;
     let _ = writer;
 
     for item in &list.items {
+        let item_data = DescriptionListItemRef::from(item);
         let mut writer = visitor.writer_mut();
         // Only add hdlist1 class when NOT ordered/unordered
         if is_marker_style {
@@ -615,14 +610,14 @@ fn visit_standard_description_list<'a, V: WritableVisitor<'a, Error = Error>>(
             write!(writer, "<dt class=\"hdlist1\">")?;
         }
         let _ = writer;
-        visitor.visit_inline_nodes(traversal, &item.term)?;
+        visitor.visit_content(traversal, item_data.term())?;
         writer = visitor.writer_mut();
         writeln!(writer, "</dt>")?;
         writeln!(writer, "<dd>")?;
-        if !item.principal_text.is_empty() {
+        if !item_data.principal().is_empty() {
             write!(writer, "<p>")?;
             let _ = writer;
-            visitor.visit_inline_nodes(traversal, &item.principal_text)?;
+            visitor.visit_content(traversal, item_data.principal())?;
             writer = visitor.writer_mut();
             writeln!(writer, "</p>")?;
         }
@@ -675,11 +670,12 @@ fn render_bare_ulist_semantic<'a, W: Write>(
     list: &'a UnorderedList<'a>,
     visitor: &mut HtmlVisitor<'a, '_, W>,
 ) -> Result<(), Error> {
-    let is_checklist = has_checklist_items(&list.items);
+    let data = UnorderedListRef::from(list);
+    let is_checklist = has_checklist_items(data.items());
 
     if is_checklist {
         writeln!(visitor.writer, "<ul class=\"task-list\">")?;
-    } else if let Some(style) = list.metadata.style {
+    } else if let Some(style) = data.style() {
         writeln!(visitor.writer, "<ul class=\"{style}\">")?;
     } else {
         writeln!(visitor.writer, "<ul>")?;
@@ -695,9 +691,10 @@ fn render_bare_olist_semantic<'a, W: Write>(
     list: &'a OrderedList<'a>,
     visitor: &mut HtmlVisitor<'a, '_, W>,
 ) -> Result<(), Error> {
-    let raw_depth = list.marker.matches('.').count().max(1);
+    let data = OrderedListRef::from(list);
+    let raw_depth = data.marker().matches('.').count().max(1);
     let depth = u8::try_from(raw_depth).unwrap_or(u8::MAX);
-    let (style, type_attr) = resolve_ordered_list_style(list.metadata.style, depth);
+    let (style, type_attr) = resolve_ordered_list_style(data.style(), depth);
 
     if let Some(t) = type_attr {
         writeln!(visitor.writer, "<ol class=\"{style}\" type=\"{t}\">")?;
@@ -718,18 +715,19 @@ fn render_bare_dlist_semantic<'a, W: Write>(
     writeln!(visitor.writer, "<dl>")?;
 
     for item in &list.items {
+        let item_data = DescriptionListItemRef::from(item);
         writeln!(visitor.writer, "<dt>")?;
-        visitor.visit_inline_nodes(traversal, &item.term)?;
+        visitor.visit_content(traversal, item_data.term())?;
         writeln!(visitor.writer, "</dt>")?;
 
-        if !item.principal_text.is_empty() || !item.description.is_empty() {
+        if !item_data.principal().is_empty() || item_data.blocks().next().is_some() {
             writeln!(visitor.writer, "<dd>")?;
-            if !item.principal_text.is_empty() {
-                if item.description.is_empty() {
-                    visitor.visit_inline_nodes(traversal, &item.principal_text)?;
+            if !item_data.principal().is_empty() {
+                if item_data.blocks().next().is_none() {
+                    visitor.visit_content(traversal, item_data.principal())?;
                 } else {
                     write!(visitor.writer, "<p>")?;
-                    visitor.visit_inline_nodes(traversal, &item.principal_text)?;
+                    visitor.visit_content(traversal, item_data.principal())?;
                     writeln!(visitor.writer, "</p>")?;
                 }
             }
@@ -757,24 +755,23 @@ fn visit_description_list_semantic<'a, W: Write>(
     list: &'a DescriptionList<'a>,
     visitor: &mut HtmlVisitor<'a, '_, W>,
 ) -> Result<(), Error> {
-    let has_title = list.title.is_present();
-    let is_qanda = list.metadata.style == Some("qanda");
-    let is_horizontal = list.metadata.style == Some("horizontal");
+    let data = DescriptionListRef::from(list);
+    let has_title = data.title().is_some();
+    let is_qanda = data.style() == Some("qanda");
+    let is_horizontal = data.style() == Some("horizontal");
 
     // Build wrapper class
-    let base_class = if let Some(style) = &list.metadata.style {
+    let base_class = if let Some(style) = data.style() {
         format!("dlist {style}")
     } else {
         "dlist".to_string()
     };
-    let class = build_class(&base_class, &list.metadata.roles);
+    let class = build_class(&base_class, data.roles().iter());
 
     let wrapper_tag = if has_title { "section" } else { "div" };
     write!(visitor.writer, "<{wrapper_tag}")?;
-    if let Some(id) = &list.metadata.id {
-        write!(visitor.writer, " id=\"{}\"", id.id)?;
-    } else if let Some(anchor) = list.metadata.anchors.first() {
-        write!(visitor.writer, " id=\"{}\"", anchor.id)?;
+    if let Some(id) = data.id() {
+        write!(visitor.writer, " id=\"{}\"", id.as_str())?;
     }
     write!(visitor.writer, " class=\"{class}\"")?;
     if is_qanda {
@@ -783,9 +780,9 @@ fn visit_description_list_semantic<'a, W: Write>(
     writeln!(visitor.writer, ">")?;
 
     if has_title {
-        visitor.render_title_with_wrapper(
+        visitor.render_title_content(
             traversal,
-            &list.title,
+            data.title(),
             "<h6 class=\"block-title\">",
             "</h6>\n",
         )?;
@@ -801,20 +798,21 @@ fn visit_description_list_semantic<'a, W: Write>(
     }
 
     for item in &list.items {
+        let item_data = DescriptionListItemRef::from(item);
         writeln!(visitor.writer, "<dt>")?;
-        visitor.visit_inline_nodes(traversal, &item.term)?;
+        visitor.visit_content(traversal, item_data.term())?;
         writeln!(visitor.writer, "</dt>")?;
 
         // Only render <dd> if there's content
-        if !item.principal_text.is_empty() || !item.description.is_empty() {
+        if !item_data.principal().is_empty() || item_data.blocks().next().is_some() {
             writeln!(visitor.writer, "<dd>")?;
-            if !item.principal_text.is_empty() {
+            if !item_data.principal().is_empty() {
                 // Wrap in <p> only when there are also blocks
-                if item.description.is_empty() {
-                    visitor.visit_inline_nodes(traversal, &item.principal_text)?;
+                if item_data.blocks().next().is_none() {
+                    visitor.visit_content(traversal, item_data.principal())?;
                 } else {
                     write!(visitor.writer, "<p>")?;
-                    visitor.visit_inline_nodes(traversal, &item.principal_text)?;
+                    visitor.visit_content(traversal, item_data.principal())?;
                     writeln!(visitor.writer, "</p>")?;
                 }
             }

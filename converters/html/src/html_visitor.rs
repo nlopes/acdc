@@ -3,7 +3,7 @@
 use std::{convert::Infallible, io::Write, path::Path, rc::Rc};
 
 use acdc_converters_core::{
-    Diagnostics, TraversalContext, document_attribute_text, inlines_to_string,
+    Diagnostics, TraversalContext, document_attribute_text,
     substitutions::TextBoundaries,
     visitor::{BlockVisitor, Visitor, WritableVisitor},
 };
@@ -1036,16 +1036,15 @@ impl<'a, W: Write> Visitor<'a> for HtmlVisitor<'a, '_, W> {
         section: &'a Section<'a>,
     ) -> Result<(), Self::Error> {
         let previous_style = self.section_style.clone();
-        self.section_style = section
-            .metadata
-            .style
-            .as_ref()
-            .map(std::string::ToString::to_string);
+        let data = acdc_parser::ast::SectionRef::from(section);
+        self.section_style = data.style().map(str::to_owned);
         // Set before rendering the header so index terms in the section's own
         // title attribute to this section; restore the parent (or None) on exit
         // so nested sections pop back correctly.
         let previous_section_title = self.current_section_title.take();
-        self.current_section_title = Some(inlines_to_string(&section.title));
+        self.current_section_title = Some(data.title().map_or_else(String::new, |content| {
+            acdc_converters_core::InlineTextTransform::default().content_to_string(content)
+        }));
         let result = self.render_section(traversal, section);
         self.current_section_title = previous_section_title;
         self.section_style = previous_style;
@@ -1309,6 +1308,114 @@ mod title_media_tests {
         fn flush(&mut self) -> std::io::Result<()> {
             Ok(())
         }
+    }
+
+    #[test]
+    fn nested_section_errors_restore_parent_style_and_index_title() -> Result<(), TestError> {
+        let parsed = parse(
+            "= Manual\n\n[bibliography]\n== Outer\n\n=== Nested\n\nTRIGGER\n",
+            &ParserOptions::default(),
+        )?;
+        let Some(Block::Section(section)) = parsed.document().blocks.first() else {
+            return Err("expected section".into());
+        };
+        let processor = Rc::new(Processor::new(
+            ConverterOptions::default(),
+            ParserOptions::builder(),
+        )?);
+        let source = WarningSource::new("html");
+        let mut warnings = Vec::new();
+        let mut visitor = HtmlVisitor::new(
+            RejectCellText,
+            processor.clone(),
+            RenderOptions::default(),
+            Diagnostics::new(&source, &mut warnings),
+        );
+        visitor.section_style = Some("parent-style".into());
+        visitor.current_section_title = Some("Parent title".into());
+        let mut context = TraversalContext::new(&parsed.document().attributes);
+        let Err(error) = visitor.visit_section(&mut context, section) else {
+            return Err("nested section text must reach the failing writer".into());
+        };
+        assert!(error.to_string().contains("rejected cell text"));
+        assert_eq!(visitor.section_style.as_deref(), Some("parent-style"));
+        assert_eq!(
+            visitor.current_section_title.as_deref(),
+            Some("Parent title")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn constructed_section_and_discrete_ids_keep_fallbacks_and_role_order() -> Result<(), TestError>
+    {
+        let parsed = parse("== *Heading*\n", &ParserOptions::default())?;
+        let Some(Block::Section(section)) = parsed.document().blocks.first() else {
+            return Err("expected section".into());
+        };
+        let discrete = parse("[discrete]\n== *Heading*\n", &ParserOptions::default())?;
+        for (primary, fallback, expected) in [
+            (None, false, "_heading"),
+            (None, true, "fallback"),
+            (Some("primary"), true, "primary"),
+            (Some(""), true, ""),
+        ] {
+            let mut document = acdc_parser::Document::default();
+            document.attributes = parsed.document().attributes.clone();
+            document.blocks = vec![
+                Block::Section(Section::new(
+                    section.title.clone(),
+                    1,
+                    Vec::new(),
+                    Location::default(),
+                )),
+                discrete
+                    .document()
+                    .blocks
+                    .first()
+                    .ok_or("expected discrete heading")?
+                    .clone(),
+            ];
+            for block in &mut document.blocks {
+                let metadata = if let Block::Section(section) = block {
+                    &mut section.metadata
+                } else if let Block::DiscreteHeader(header) = block {
+                    &mut header.metadata
+                } else {
+                    return Err("expected heading".into());
+                };
+                metadata.id = primary.map(|id| Anchor::new(id, Location::default()));
+                metadata.anchors.clear();
+                if fallback {
+                    metadata
+                        .anchors
+                        .push(Anchor::new("fallback", Location::default()));
+                }
+                metadata.roles = vec!["one", "one"];
+            }
+            for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+                let processor =
+                    Processor::new(ConverterOptions::default(), ParserOptions::builder())?
+                        .with_variant(variant)?;
+                let source = WarningSource::new("html");
+                let mut warnings = Vec::new();
+                let mut output = Vec::new();
+                processor.convert_to_writer(
+                    &document,
+                    &mut output,
+                    &RenderOptions {
+                        embedded: true,
+                        ..RenderOptions::default()
+                    },
+                    &mut Diagnostics::new(&source, &mut warnings),
+                )?;
+                let output = String::from_utf8(output)?;
+                assert_eq!(output.matches(&format!("id=\"{expected}\"")).count(), 2);
+                assert_eq!(output.matches("one one").count(), 2);
+                assert_eq!(warnings, [] as [acdc_converters_core::Warning; 0]);
+            }
+        }
+        Ok(())
     }
 
     #[test]

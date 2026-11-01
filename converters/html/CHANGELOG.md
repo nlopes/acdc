@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Section headings and lists retain numbering, IDs, formatting, nested list styles,
+  checkboxes, and callouts through typed parser reads in both HTML variants.
+
 - Tables and admonitions retain captions, cell formatting, authored scalar controls,
   and nested document scopes through typed parser reads in both HTML variants.
 
