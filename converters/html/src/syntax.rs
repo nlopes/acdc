@@ -31,10 +31,7 @@ use acdc_converters_core::{
     substitutions::TextBoundaries,
 };
 #[cfg(feature = "highlighting")]
-use acdc_parser::{
-    InlineNode,
-    ast::{AttributesRef, InlineKind, InlineRef},
-};
+use acdc_parser::ast::{AttributesRef, InlineKind, InlineRef};
 
 #[cfg(feature = "highlighting")]
 use crate::Error;
@@ -65,7 +62,7 @@ pub(crate) struct HighlightOptions<'a> {
     pub(crate) theme_name: &'a str,
     pub(crate) mode: HighlightMode,
     pub(crate) font_icons: bool,
-    pub(crate) text_context: Option<&'a [InlineNode<'a>]>,
+    pub(crate) text_context: Option<&'a [InlineRef<'a>]>,
 }
 
 /// The `ClassStyle` used for class-based output.  Every scope token is
@@ -82,7 +79,7 @@ const SYNTAX_CLASS_STYLE: syntect::html::ClassStyle =
 #[cfg(feature = "highlighting")]
 pub(crate) fn highlight_code<W: Write + ?Sized>(
     writer: &mut W,
-    inlines: &[InlineNode],
+    inlines: &[InlineRef<'_>],
     attributes: Option<AttributesRef<'_>>,
     options: HighlightOptions<'_>,
     links: &[HighlightedLink],
@@ -97,10 +94,10 @@ pub(crate) fn highlight_code<W: Write + ?Sized>(
         text_context,
     } = options;
     let (code, callouts) = extract_text_and_callouts(
-        inlines.iter().map(InlineRef::from),
+        inlines.iter().copied(),
         replacements,
         TextBoundaries::BOTH,
-        &text_context.unwrap_or(inlines).iter().map(InlineRef::from),
+        &text_context.unwrap_or(inlines).iter().copied(),
         diagnostics,
     );
     let syntax_set = SyntaxSet::load_defaults_newlines();
@@ -474,8 +471,8 @@ pub(crate) fn extract_text_and_callouts<'inline>(
 mod tests {
     use super::*;
     use acdc_parser::{
-        CalloutRef, CalloutRefKind, CompatibilityMode, LineBreak, Location, Options, Plain, Raw,
-        Substitution, Verbatim, parse_inline,
+        CalloutRef, CalloutRefKind, CompatibilityMode, InlineNode, LineBreak, Location, Options,
+        Plain, Raw, Substitution, Verbatim, parse_inline,
     };
 
     fn create_verbatim_inlines(content: &str) -> Vec<InlineNode<'_>> {
@@ -607,7 +604,7 @@ mod tests {
     #[test]
     #[allow(clippy::expect_used)]
     fn test_highlight_code_with_callouts() -> Result<(), Error> {
-        let inlines = vec![
+        let inlines = [
             InlineNode::VerbatimText(Verbatim {
                 content: "let x = 1; ",
                 location: Location::default(),
@@ -623,7 +620,7 @@ mod tests {
         let mut buffer = Vec::new();
         highlight_code(
             &mut buffer,
-            &inlines,
+            &inlines.iter().map(InlineRef::from).collect::<Vec<_>>(),
             None,
             HighlightOptions {
                 language: "rust",
@@ -663,7 +660,7 @@ mod tests {
         let mut buffer = Vec::new();
         highlight_code(
             &mut buffer,
-            &inlines,
+            &inlines.iter().map(InlineRef::from).collect::<Vec<_>>(),
             None,
             HighlightOptions {
                 language: "rust",
@@ -695,7 +692,7 @@ mod tests {
         let mut buffer = Vec::new();
         highlight_code(
             &mut buffer,
-            &inlines,
+            &inlines.iter().map(InlineRef::from).collect::<Vec<_>>(),
             None,
             HighlightOptions {
                 language: "unknown_lang_xyz",
@@ -729,7 +726,7 @@ mod tests {
         let mut buffer = Vec::new();
         highlight_code(
             &mut buffer,
-            &inlines,
+            &inlines.iter().map(InlineRef::from).collect::<Vec<_>>(),
             None,
             HighlightOptions {
                 language: "rust",
@@ -758,7 +755,7 @@ mod tests {
     #[test]
     #[allow(clippy::expect_used)]
     fn test_highlight_class_mode_with_callouts() -> Result<(), Error> {
-        let inlines = vec![
+        let inlines = [
             InlineNode::VerbatimText(Verbatim {
                 content: "let x = 1; ",
                 location: Location::default(),
@@ -774,7 +771,7 @@ mod tests {
         let mut buffer = Vec::new();
         highlight_code(
             &mut buffer,
-            &inlines,
+            &inlines.iter().map(InlineRef::from).collect::<Vec<_>>(),
             None,
             HighlightOptions {
                 language: "rust",

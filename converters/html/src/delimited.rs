@@ -11,8 +11,8 @@ use acdc_parser::{
     Block, BlockMetadata, CaptionKind, DelimitedBlock, DelimitedBlockType, InlineNode,
     StemNotation,
     ast::{
-        AttributeValueRef, AttributesRef, BlockKind, BlockRef, ContentRef, ExampleRef,
-        StemBlockRef, TokensRef, VerseRef,
+        AttributeValueRef, AttributesRef, BlockKind, BlockRef, ContentRef, ExampleRef, ListingRef,
+        LiteralRef, StemBlockRef, TokensRef, VerseRef,
     },
 };
 
@@ -471,7 +471,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     fn render_listing_code(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        inlines: &[InlineNode],
+        content: ContentRef<'_>,
         attributes: Option<AttributesRef<'_>>,
     ) -> Result<(), Error> {
         let language = attributes
@@ -505,7 +505,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
         crate::render_pre_code(
             traversal,
-            inlines,
+            content,
             attributes,
             language.as_deref(),
             self,
@@ -518,11 +518,13 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         &mut self,
         traversal: &mut TraversalContext<'a>,
         inlines: &[InlineNode],
-        title: Option<ContentRef<'_>>,
+        data: ListingRef<'_>,
         metadata: &BlockMetadata,
         caption_kind: Option<CaptionKind>,
-        attributes: Option<AttributesRef<'_>>,
     ) -> Result<(), Error> {
+        let content = data.content();
+        let title = data.title();
+        let attributes = Some(data.attributes());
         #[cfg(not(feature = "terminal"))]
         let _ = metadata;
 
@@ -531,10 +533,9 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             return self.render_listing_block_semantic(
                 traversal,
                 inlines,
-                title,
+                data,
                 metadata,
                 caption_kind,
-                attributes,
             );
         }
 
@@ -576,7 +577,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         )?;
 
         writeln!(self.writer, "<div class=\"content\">")?;
-        self.render_listing_code(traversal, inlines, attributes)?;
+        self.render_listing_code(traversal, content, attributes)?;
         writeln!(self.writer, "</div>")?;
         writeln!(self.writer, "</div>")?;
         Ok(())
@@ -586,13 +587,15 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         &mut self,
         traversal: &mut TraversalContext<'a>,
         inlines: &[InlineNode],
-        title: Option<ContentRef<'_>>,
+        data: ListingRef<'_>,
         metadata: &BlockMetadata,
         caption_kind: Option<CaptionKind>,
-        attributes: Option<AttributesRef<'_>>,
     ) -> Result<(), Error> {
+        let content = data.content();
+        let title = data.title();
+        let attributes = Some(data.attributes());
         #[cfg(not(feature = "terminal"))]
-        let _ = metadata;
+        let _ = (inlines, metadata);
 
         #[cfg(feature = "terminal")]
         if is_terminal_session(metadata) && self.terminal_emulator_allowed() {
@@ -631,12 +634,12 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 "<figcaption>",
                 "</figcaption>\n",
             )?;
-            self.render_listing_code(traversal, inlines, attributes)?;
+            self.render_listing_code(traversal, content, attributes)?;
             writeln!(self.writer, "</figure>")?;
         } else {
             // Untitled: use div
             write_semantic_tag_open(&mut self.writer, "div", attributes, "listing-block")?;
-            self.render_listing_code(traversal, inlines, attributes)?;
+            self.render_listing_code(traversal, content, attributes)?;
             writeln!(self.writer, "</div>")?;
         }
         Ok(())
@@ -877,13 +880,15 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         &mut self,
         traversal: &mut TraversalContext<'a>,
         inlines: &[InlineNode<'_>],
-        title: Option<ContentRef<'_>>,
+        data: LiteralRef<'_>,
         metadata: &BlockMetadata<'_>,
         caption_kind: Option<CaptionKind>,
-        attributes: Option<AttributesRef<'_>>,
     ) -> Result<(), Error> {
+        let content = data.content();
+        let title = data.title();
+        let attributes = Some(data.attributes());
         #[cfg(not(feature = "terminal"))]
-        let _ = metadata;
+        let _ = (inlines, metadata);
 
         #[cfg(feature = "terminal")]
         if is_terminal_session(metadata) && self.terminal_emulator_allowed() {
@@ -928,7 +933,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         )?;
         writeln!(self.writer, "<div class=\"content\">")?;
         write!(self.writer, "<pre>")?;
-        self.visit_indented_inlines(traversal, inlines, attributes)?;
+        self.visit_indented_inlines(traversal, content, attributes)?;
         writeln!(self.writer, "</pre>")?;
         writeln!(self.writer, "</div>")?;
         writeln!(self.writer, "</div>")?;
@@ -956,24 +961,10 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 self.visit_content(traversal, data.content())?;
             }
             (BlockKind::Listing(data), DelimitedBlockType::DelimitedListing(inlines)) => {
-                self.render_listing_block(
-                    traversal,
-                    inlines,
-                    data.title(),
-                    &block.metadata,
-                    caption_kind,
-                    attributes,
-                )?;
+                self.render_listing_block(traversal, inlines, data, &block.metadata, caption_kind)?;
             }
             (BlockKind::Literal(data), DelimitedBlockType::DelimitedLiteral(inlines)) => {
-                self.render_literal_block(
-                    traversal,
-                    inlines,
-                    data.title(),
-                    &block.metadata,
-                    caption_kind,
-                    attributes,
-                )?;
+                self.render_literal_block(traversal, inlines, data, &block.metadata, caption_kind)?;
             }
             (BlockKind::Stem(data), _) => {
                 write_block_div_open(&mut self.writer, attributes, "stemblock")?;
@@ -1108,7 +1099,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             (BlockKind::Verse(data), _) => {
                 self.render_verse_block_semantic(traversal, data)?;
             }
-            (BlockKind::Literal(data), DelimitedBlockType::DelimitedLiteral(inlines)) => {
+            (BlockKind::Literal(data), _) => {
                 let has_title = data.title().is_some();
                 if has_title {
                     write_semantic_tag_open(
@@ -1129,7 +1120,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                     write_semantic_tag_open(&mut self.writer, "div", attributes, "literal-block")?;
                 }
                 write!(self.writer, "<pre>")?;
-                self.visit_indented_inlines(traversal, inlines, attributes)?;
+                self.visit_indented_inlines(traversal, data.content(), attributes)?;
                 writeln!(self.writer, "</pre>")?;
                 if has_title {
                     writeln!(self.writer, "</section>")?;

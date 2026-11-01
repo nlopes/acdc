@@ -42,7 +42,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             )?;
             writeln!(self.writer, "<div class=\"content\">")?;
             write!(self.writer, "<pre>")?;
-            self.visit_indented_inlines(traversal, &para.content, Some(data.attributes()))?;
+            self.visit_indented_inlines(traversal, data.content(), Some(data.attributes()))?;
             writeln!(self.writer, "</pre>")?;
             writeln!(self.writer, "</div>")?;
             writeln!(self.writer, "</div>")?;
@@ -339,7 +339,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 )?;
                 render_pre_code(
                     traversal,
-                    &para.content,
+                    data.content(),
                     Some(attributes),
                     language.as_deref(),
                     self,
@@ -354,7 +354,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 writeln!(self.writer, " class=\"{class}\">")?;
                 render_pre_code(
                     traversal,
-                    &para.content,
+                    data.content(),
                     Some(attributes),
                     language.as_deref(),
                     self,
@@ -381,7 +381,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             writeln!(self.writer, "<div class=\"content\">")?;
             render_pre_code(
                 traversal,
-                &para.content,
+                data.content(),
                 Some(attributes),
                 language.as_deref(),
                 self,

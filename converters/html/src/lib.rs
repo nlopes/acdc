@@ -25,6 +25,9 @@ use acdc_parser::{
     },
 };
 
+#[cfg(feature = "highlighting")]
+use acdc_parser::ast::InlineKind;
+
 mod admonition;
 mod audio;
 mod callouts;
@@ -44,6 +47,7 @@ mod inlines;
 mod list;
 mod paragraph;
 mod section;
+mod source;
 mod source_indent;
 mod syntax;
 mod table;
@@ -850,58 +854,71 @@ pub(crate) fn build_class(base: &str, roles: impl IntoIterator<Item = impl AsRef
     class
 }
 
+#[cfg(feature = "highlighting")]
+fn is_formatted_code_inline(node: InlineRef<'_>) -> bool {
+    matches!(
+        node.kind(),
+        InlineKind::Bold(_)
+            | InlineKind::Italic(_)
+            | InlineKind::Monospace(_)
+            | InlineKind::Highlight(_)
+            | InlineKind::Subscript(_)
+            | InlineKind::Superscript(_)
+            | InlineKind::CurvedQuotation(_)
+            | InlineKind::CurvedApostrophe(_)
+            | InlineKind::StandaloneCurvedApostrophe(_)
+    )
+}
+
 /// Preserve parsed formatting and macros while the surrounding code is highlighted.
 #[cfg(feature = "highlighting")]
 fn capture_code_inlines<'a, W: std::io::Write>(
     traversal: &mut TraversalContext<'a>,
-    highlight_inlines: &[InlineNode<'_>],
-    text_context: &[InlineNode<'_>],
+    highlight_inlines: &[InlineRef<'_>],
+    text_context: &[InlineRef<'_>],
     visitor: &mut HtmlVisitor<'a, '_, W>,
     subs: &[Substitution],
 ) -> Result<(Vec<Option<String>>, Vec<syntax::HighlightedLink>), Error> {
     let text_boundaries =
         TextBoundaries::BOTH.with_ordinary_replacements(subs.contains(&Substitution::Replacements));
+    let boundaries = |index| {
+        text_boundaries.for_inline_refs(
+            text_context.get(index).copied(),
+            text_context.iter().copied().take(index).rev(),
+            text_context.iter().copied().skip(index + 1),
+        )
+    };
     let labels = highlight_inlines
         .iter()
+        .copied()
         .enumerate()
         .map(|(index, node)| {
             let (mut text, linked) = acdc_converters_core::code::code_inline_text(
-                std::iter::once(InlineRef::from(node)),
+                std::iter::once(node),
                 &visitor.processor.references,
                 "html",
             );
-            let formatted = matches!(
-                node,
-                InlineNode::BoldText(_)
-                    | InlineNode::ItalicText(_)
-                    | InlineNode::MonospaceText(_)
-                    | InlineNode::HighlightText(_)
-                    | InlineNode::SubscriptText(_)
-                    | InlineNode::SuperscriptText(_)
-                    | InlineNode::CurvedQuotationText(_)
-                    | InlineNode::CurvedApostropheText(_)
-                    | InlineNode::StandaloneCurvedApostrophe(_)
-            );
+            let formatted = is_formatted_code_inline(node);
             // Render a raw fragment's typography before highlighting discards its
             // profile. A lone bracket still uses escaping to avoid broken tags.
-            let raw = matches!(node, InlineNode::RawText(raw)
-                if raw.subs.contains(&Substitution::Replacements)
-                    || (raw.subs.is_empty() && raw.content.contains(['<', '>', '&'])
-                        && !matches!(raw.content, "<" | ">")));
+            let raw = matches!(node.kind(), InlineKind::Raw(raw)
+                if raw.substitutions().any(|sub| sub == Substitution::Replacements)
+                    || (raw.substitutions().next().is_none() && raw.text().contains(['<', '>', '&'])
+                        && !matches!(raw.text(), "<" | ">")));
             if raw {
                 text.clear();
                 let _ = acdc_converters_core::InlineTextTransform::default()
                     .line_break("\n")
                     .rendered_replacements(false)
-                    .text_boundaries(text_boundaries.for_inline(text_context, index))
-                    .write_inlines(&mut text, std::iter::once(InlineRef::from(node)));
+                    .text_boundaries(boundaries(index))
+                    .write_inlines(&mut text, std::iter::once(node));
             }
             (linked || formatted || raw).then_some(text)
         })
         .collect::<Vec<_>>();
     let mut links = Vec::new();
     let mut offset = 0;
-    for (index, (node, label)) in highlight_inlines.iter().zip(&labels).enumerate() {
+    for (index, (node, label)) in highlight_inlines.iter().copied().zip(&labels).enumerate() {
         if let Some(label) = label {
             let mut options = visitor.render_options.clone();
             options.embedded = true;
@@ -913,23 +930,23 @@ fn capture_code_inlines<'a, W: std::io::Write>(
                 visitor.diagnostics.reborrow(),
             );
             capture.current_subs = subs.to_vec();
-            capture.text_boundaries = text_boundaries.for_inline(text_context, index);
+            capture.text_boundaries = boundaries(index);
             capture
                 .current_section_title
                 .clone_from(&visitor.current_section_title);
-            capture.visit_inline_nodes(traversal, std::slice::from_ref(node))?;
+            capture.visit_inline_refs(traversal, std::iter::once(node))?;
             links.push(syntax::HighlightedLink {
                 range: offset..offset + label.len(),
                 html: String::from_utf8_lossy(&capture.into_writer()).into_owned(),
-                outside_spans: matches!(node, InlineNode::RawText(raw) if raw.subs.is_empty()),
+                outside_spans: matches!(node.kind(), InlineKind::Raw(raw) if raw.substitutions().next().is_none()),
             });
             offset += label.len();
         } else {
-            let inline = InlineRef::from(node);
+            let inline = node;
             let text = syntax::extract_text_and_callouts(
                 std::iter::once(inline),
                 subs.contains(&Substitution::Replacements),
-                text_boundaries.for_inline(text_context, index),
+                boundaries(index),
                 &std::iter::once(inline),
                 None,
             )
@@ -939,7 +956,7 @@ fn capture_code_inlines<'a, W: std::io::Write>(
             // inserting anchors after line decoration can target the line gutter
             // or split a multiline link.
             acdc_converters_core::index::visit_index_inlines(
-                std::iter::once(InlineRef::from(node)),
+                std::iter::once(node),
                 &mut |term, term_offset| {
                     if let Some(id) = visitor.register_indexterm(
                         traversal,
@@ -964,23 +981,20 @@ fn capture_code_inlines<'a, W: std::io::Write>(
 }
 
 #[cfg(feature = "highlighting")]
-fn code_nodes_with_text<'a>(
-    inlines: &[InlineNode<'a>],
-    text: &'a [Option<String>],
-) -> Vec<InlineNode<'a>> {
+fn code_nodes_with_text<'inline>(
+    inlines: &[InlineRef<'inline>],
+    text: &'inline [Option<String>],
+) -> Vec<Option<InlineNode<'inline>>> {
     inlines
         .iter()
         .zip(text)
         .map(|(node, text)| {
-            text.as_ref().map_or_else(
-                || node.clone(),
-                |text| {
-                    InlineNode::VerbatimText(acdc_parser::Verbatim {
-                        content: text,
-                        location: node.location().clone(),
-                    })
-                },
-            )
+            text.as_ref().map(|text| {
+                InlineNode::VerbatimText(acdc_parser::Verbatim {
+                    content: text,
+                    location: acdc_parser::Location::from(node.location()),
+                })
+            })
         })
         .collect()
 }
@@ -988,7 +1002,7 @@ fn code_nodes_with_text<'a>(
 #[cfg(feature = "highlighting")]
 fn render_highlighted_code<'a, W: std::io::Write>(
     traversal: &mut TraversalContext<'a>,
-    highlight_inlines: &[InlineNode<'_>],
+    highlight_inlines: &[InlineRef<'_>],
     attributes: Option<AttributesRef<'_>>,
     visitor: &mut HtmlVisitor<'a, '_, W>,
     subs: &[Substitution],
@@ -1000,30 +1014,23 @@ fn render_highlighted_code<'a, W: std::io::Write>(
     let typography = subs.contains(&Substitution::Replacements).then(|| {
         highlight_inlines
             .iter()
+            .copied()
             .enumerate()
             .map(|(index, node)| {
-                let text = match node {
-                    InlineNode::PlainText(text) => text.content,
-                    InlineNode::VerbatimText(text) => text.content,
-                    InlineNode::RawText(_)
-                    | InlineNode::BoldText(_)
-                    | InlineNode::ItalicText(_)
-                    | InlineNode::MonospaceText(_)
-                    | InlineNode::HighlightText(_)
-                    | InlineNode::SubscriptText(_)
-                    | InlineNode::SuperscriptText(_)
-                    | InlineNode::CurvedQuotationText(_)
-                    | InlineNode::CurvedApostropheText(_)
-                    | InlineNode::StandaloneCurvedApostrophe(_)
-                    | InlineNode::LineBreak(_)
-                    | InlineNode::InlineAnchor(_)
-                    | InlineNode::Macro(_)
-                    | InlineNode::CalloutRef(_)
-                    | _ => return None,
+                let text = if let InlineKind::Plain(text) = node.kind() {
+                    text.text()
+                } else if let InlineKind::Verbatim(text) = node.kind() {
+                    text.text()
+                } else {
+                    return None;
                 };
                 Some(Replacements::unicode().transform_verbatim(
                     text,
-                    TextBoundaries::BOTH.for_inline(highlight_inlines, index),
+                    TextBoundaries::BOTH.for_inline_refs(
+                        Some(node),
+                        highlight_inlines.iter().copied().take(index).rev(),
+                        highlight_inlines.iter().copied().skip(index + 1),
+                    ),
                 ))
             })
             .collect::<Vec<_>>()
@@ -1034,11 +1041,15 @@ fn render_highlighted_code<'a, W: std::io::Write>(
     // All fragments use the original source context. Earlier replacements
     // must not hide spaces or dash halves from another fragment's owner.
     let text_context = highlight_inlines;
-    let highlight_inlines = prepared.as_deref().unwrap_or(highlight_inlines);
+    let projected = prepared
+        .as_ref()
+        .map(|nodes| source::replaced_inlines(highlight_inlines, nodes).collect::<Vec<_>>());
+    let highlight_inlines = projected.as_deref().unwrap_or(highlight_inlines);
     let (labels, links) =
         capture_code_inlines(traversal, highlight_inlines, text_context, visitor, subs)?;
     let resolved = code_nodes_with_text(highlight_inlines, &labels);
-    let highlight_inlines = &resolved;
+    let projected = source::replaced_inlines(highlight_inlines, &resolved).collect::<Vec<_>>();
+    let highlight_inlines = &projected;
     // Split-borrow writer and diagnostics so highlight_code can have both
     // without overlapping &mut self calls on the visitor.
     syntax::highlight_code(
@@ -1061,99 +1072,102 @@ fn render_highlighted_code<'a, W: std::io::Write>(
 /// decoration. Otherwise it visits the inlines directly.
 pub(crate) fn render_pre_code<'a, W: std::io::Write>(
     traversal: &mut TraversalContext<'a>,
-    inlines: &[InlineNode<'_>],
+    content: ContentRef<'_>,
     attributes: Option<AttributesRef<'_>>,
     language: Option<&str>,
     visitor: &mut HtmlVisitor<'a, '_, W>,
     subs: &[Substitution],
     source_indent: Option<u16>,
 ) -> Result<(), Error> {
-    let guarded = callouts::strip_guards(inlines, attributes, callouts::font_icons(traversal));
-    let inlines = guarded.as_ref();
-    let indentation =
-        source_indent::IndentedSource::new(inlines.iter().map(InlineRef::from), source_indent);
-    let indented = indentation.as_ref().map(|source| source.inlines(inlines));
-    let inlines = indented.as_deref().unwrap_or(inlines);
-    #[cfg(feature = "highlighting")]
-    let highlighting_enabled = visitor
-        .processor
-        .document_attributes()
-        .get("source-highlighter")
-        .is_some();
-    let nowrap = matches!(attributes.and_then(|attributes| attributes.get("options")), Some(AttributeValueRef::Tokens(tokens)) if tokens.contains("nowrap"));
-    let nowrap_class = if nowrap { " nowrap" } else { "" };
+    source::with_source_inlines(
+        content,
+        attributes,
+        callouts::font_icons(traversal),
+        source_indent,
+        |inlines| {
+            #[cfg(feature = "highlighting")]
+            let highlighting_enabled = visitor
+                .processor
+                .document_attributes()
+                .get("source-highlighter")
+                .is_some();
+            let nowrap = matches!(attributes.and_then(|attributes| attributes.get("options")), Some(AttributeValueRef::Tokens(tokens)) if tokens.contains("nowrap"));
+            let nowrap_class = if nowrap { " nowrap" } else { "" };
 
-    #[cfg(feature = "highlighting")]
-    if highlighting_enabled {
-        let lang = language.unwrap_or("text");
-        if let Some(language) = language {
-            write!(
-                visitor.writer,
-                "<pre class=\"highlight{nowrap_class}\"><code class=\"language-{language}\" data-lang=\"{language}\">"
-            )?;
-        } else {
-            write!(
-                visitor.writer,
-                "<pre class=\"highlight{nowrap_class}\"><code>"
-            )?;
-        }
-        let processor = visitor.processor.clone();
-        let (theme_name, mode) = resolve_highlight_settings(processor.document_attributes().into());
-        let highlight_inlines = inlines;
-        render_highlighted_code(
-            traversal,
-            highlight_inlines,
-            attributes,
-            visitor,
-            subs,
-            syntax::HighlightOptions {
-                language: lang,
-                theme_name: &theme_name,
-                mode,
-                font_icons: callouts::font_icons(traversal),
-                text_context: None,
-            },
-        )?;
-        writeln!(visitor.writer, "</code></pre>")?;
-    } else if let Some(lang) = language {
-        write!(
-            visitor.writer,
-            "<pre class=\"highlight{nowrap_class}\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
-        )?;
-        visitor.visit_inline_nodes(traversal, inlines)?;
-        writeln!(visitor.writer, "</code></pre>")?;
-    } else {
-        if nowrap {
-            write!(visitor.writer, "<pre class=\"nowrap\">")?;
-        } else {
-            write!(visitor.writer, "<pre>")?;
-        }
-        visitor.visit_inline_nodes(traversal, inlines)?;
-        writeln!(visitor.writer, "</pre>")?;
-    }
-
-    #[cfg(not(feature = "highlighting"))]
-    {
-        let _ = subs;
-        if let Some(lang) = language {
-            write!(
-                visitor.writer,
-                "<pre class=\"highlight{nowrap_class}\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
-            )?;
-            visitor.visit_inline_nodes(traversal, inlines)?;
-            writeln!(visitor.writer, "</code></pre>")?;
-        } else {
-            if nowrap {
-                write!(visitor.writer, "<pre class=\"nowrap\">")?;
+            #[cfg(feature = "highlighting")]
+            if highlighting_enabled {
+                let lang = language.unwrap_or("text");
+                if let Some(language) = language {
+                    write!(
+                        visitor.writer,
+                        "<pre class=\"highlight{nowrap_class}\"><code class=\"language-{language}\" data-lang=\"{language}\">"
+                    )?;
+                } else {
+                    write!(
+                        visitor.writer,
+                        "<pre class=\"highlight{nowrap_class}\"><code>"
+                    )?;
+                }
+                let processor = visitor.processor.clone();
+                let (theme_name, mode) =
+                    resolve_highlight_settings(processor.document_attributes().into());
+                let highlight_inlines = inlines;
+                render_highlighted_code(
+                    traversal,
+                    highlight_inlines,
+                    attributes,
+                    visitor,
+                    subs,
+                    syntax::HighlightOptions {
+                        language: lang,
+                        theme_name: &theme_name,
+                        mode,
+                        font_icons: callouts::font_icons(traversal),
+                        text_context: None,
+                    },
+                )?;
+                writeln!(visitor.writer, "</code></pre>")?;
+            } else if let Some(lang) = language {
+                write!(
+                    visitor.writer,
+                    "<pre class=\"highlight{nowrap_class}\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
+                )?;
+                visitor.visit_inline_refs(traversal, inlines.iter().copied())?;
+                writeln!(visitor.writer, "</code></pre>")?;
             } else {
-                write!(visitor.writer, "<pre>")?;
+                if nowrap {
+                    write!(visitor.writer, "<pre class=\"nowrap\">")?;
+                } else {
+                    write!(visitor.writer, "<pre>")?;
+                }
+                visitor.visit_inline_refs(traversal, inlines.iter().copied())?;
+                writeln!(visitor.writer, "</pre>")?;
             }
-            visitor.visit_inline_nodes(traversal, inlines)?;
-            writeln!(visitor.writer, "</pre>")?;
-        }
-    }
 
-    Ok(())
+            #[cfg(not(feature = "highlighting"))]
+            {
+                let _ = subs;
+                if let Some(lang) = language {
+                    write!(
+                        visitor.writer,
+                        "<pre class=\"highlight{nowrap_class}\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
+                    )?;
+                    visitor.visit_inline_refs(traversal, inlines.iter().copied())?;
+                    writeln!(visitor.writer, "</code></pre>")?;
+                } else {
+                    if nowrap {
+                        write!(visitor.writer, "<pre class=\"nowrap\">")?;
+                    } else {
+                        write!(visitor.writer, "<pre>")?;
+                    }
+                    visitor.visit_inline_refs(traversal, inlines.iter().copied())?;
+                    writeln!(visitor.writer, "</pre>")?;
+                }
+            }
+
+            Ok(())
+        },
+    )
 }
 
 fn attribute_content<'doc>(

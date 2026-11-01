@@ -1,9 +1,9 @@
 use std::io::Write;
 
-use acdc_converters_core::{Diagnostics, TraversalContext, visitor::Visitor};
+use acdc_converters_core::{Diagnostics, TraversalContext};
 use acdc_parser::{
-    InlineNode, Verbatim,
-    ast::{AttributeValueRef, AttributesRef, InlineKind, InlineRef},
+    InlineNode, Location, Verbatim,
+    ast::{AttributeValueRef, AttributesRef, ContentRef, InlineKind, InlineRef},
     strip_quotes,
 };
 
@@ -13,19 +13,17 @@ impl<'a, W: Write> crate::HtmlVisitor<'a, '_, W> {
     pub(crate) fn visit_indented_inlines(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        inlines: &[InlineNode<'_>],
+        content: ContentRef<'_>,
         element_attributes: Option<AttributesRef<'_>>,
     ) -> Result<(), crate::Error> {
         let width = resolve(element_attributes, traversal, &mut self.diagnostics);
-        let guarded = crate::callouts::strip_guards(
-            inlines,
+        crate::source::with_source_inlines(
+            content,
             element_attributes,
             crate::callouts::font_icons(traversal),
-        );
-        let inlines = guarded.as_ref();
-        let indentation = IndentedSource::new(inlines.iter().map(InlineRef::from), width);
-        let indented = indentation.as_ref().map(|source| source.inlines(inlines));
-        self.visit_inline_nodes(traversal, indented.as_deref().unwrap_or(inlines))
+            width,
+            |inlines| self.visit_inline_refs(traversal, inlines.iter().copied()),
+        )
     }
 }
 
@@ -131,6 +129,20 @@ pub(crate) struct IndentedSource {
     text: Vec<Option<String>>,
 }
 
+pub(crate) fn indented_inlines<'inline>(
+    inlines: &'inline [InlineRef<'inline>],
+    replacements: &'inline [Option<InlineNode<'inline>>],
+) -> impl Iterator<Item = InlineRef<'inline>> {
+    inlines
+        .iter()
+        .zip(replacements)
+        .flat_map(|(&node, replacement)| {
+            let replacement = replacement.as_ref().map(InlineRef::from);
+            let original = (replacement.is_none() || text(node).is_none()).then_some(node);
+            replacement.into_iter().chain(original)
+        })
+}
+
 impl IndentedSource {
     pub(crate) fn new<'inline>(
         inlines: impl Iterator<Item = InlineRef<'inline>> + Clone,
@@ -185,41 +197,25 @@ impl IndentedSource {
         Some(Self { text })
     }
 
-    pub(crate) fn inlines<'a>(&'a self, inlines: &'a [InlineNode<'a>]) -> Vec<InlineNode<'a>> {
-        let mut output = Vec::with_capacity(inlines.len());
-        for (node, text) in inlines.iter().zip(&self.text) {
-            let mut node = node.clone();
-            if let Some(text) = text {
-                match &mut node {
-                    InlineNode::VerbatimText(node) => node.content = text,
-                    InlineNode::PlainText(node) => node.content = text,
-                    InlineNode::RawText(node) => node.content = text,
-                    InlineNode::BoldText(_)
-                    | InlineNode::ItalicText(_)
-                    | InlineNode::MonospaceText(_)
-                    | InlineNode::HighlightText(_)
-                    | InlineNode::SubscriptText(_)
-                    | InlineNode::SuperscriptText(_)
-                    | InlineNode::CurvedQuotationText(_)
-                    | InlineNode::CurvedApostropheText(_)
-                    | InlineNode::StandaloneCurvedApostrophe(_)
-                    | InlineNode::LineBreak(_)
-                    | InlineNode::InlineAnchor(_)
-                    | InlineNode::Macro(_)
-                    | InlineNode::CalloutRef(_)
-                    | _ => {
-                        if !text.is_empty() {
-                            output.push(InlineNode::VerbatimText(Verbatim {
-                                content: text,
-                                location: node.location().clone(),
-                            }));
-                        }
-                    }
-                }
-            }
-            output.push(node);
-        }
-        output
+    pub(crate) fn replacements<'inline>(
+        &'inline self,
+        inlines: &[InlineRef<'inline>],
+    ) -> Vec<Option<InlineNode<'inline>>> {
+        inlines
+            .iter()
+            .zip(&self.text)
+            .map(|(&node, text)| {
+                let text = text.as_deref()?;
+                crate::source::replace_text(node, text).or_else(|| {
+                    (!text.is_empty()).then(|| {
+                        InlineNode::VerbatimText(Verbatim {
+                            content: text,
+                            location: Location::from(node.location()),
+                        })
+                    })
+                })
+            })
+            .collect()
     }
 }
 
@@ -307,17 +303,15 @@ mod tests {
         for (width, expected) in [(0, "α\n\n  β\nγ"), (2, "  α\n\n    β\n  γ")] {
             let normalized = IndentedSource::new(inlines.iter().map(InlineRef::from), Some(width))
                 .ok_or("expected indentation to change")?;
-            let output = normalized.inlines(&inlines);
+            let refs = inlines.iter().map(InlineRef::from).collect::<Vec<_>>();
+            let replacements = normalized.replacements(&refs);
+            let output = indented_inlines(&refs, &replacements).collect::<Vec<_>>();
             assert_eq!(
-                output
-                    .iter()
-                    .map(InlineRef::from)
-                    .filter_map(text)
-                    .collect::<String>(),
+                output.iter().copied().filter_map(text).collect::<String>(),
                 expected
             );
             for (original, output) in inlines.iter().zip(&output) {
-                assert_eq!(original.location(), output.location());
+                assert_eq!(original.location(), &Location::from(output.location()));
             }
         }
         Ok(())
@@ -364,26 +358,25 @@ mod tests {
         for (width, expected) in [(0, "α\n\n  β\nγ"), (2, "  α\n\n    β\n  γ")] {
             let normalized = IndentedSource::new(inlines.iter().map(InlineRef::from), Some(width))
                 .ok_or("expected indentation to change")?;
-            let output = normalized.inlines(&inlines);
+            let refs = inlines.iter().map(InlineRef::from).collect::<Vec<_>>();
+            let replacements = normalized.replacements(&refs);
+            let output = indented_inlines(&refs, &replacements).collect::<Vec<_>>();
             assert_eq!(
-                output
-                    .iter()
-                    .map(InlineRef::from)
-                    .filter_map(text)
-                    .collect::<String>(),
+                output.iter().copied().filter_map(text).collect::<String>(),
                 expected
             );
+            let kinds = output.iter().map(|node| node.kind()).collect::<Vec<_>>();
             let [
-                InlineNode::PlainText(plain),
-                InlineNode::RawText(raw),
-                InlineNode::VerbatimText(_),
-            ] = output.as_slice()
+                InlineKind::Plain(plain),
+                InlineKind::Raw(raw),
+                InlineKind::Verbatim(_),
+            ] = kinds.as_slice()
             else {
                 return Err("text kinds changed".into());
             };
-            assert!(plain.escaped);
+            assert!(plain.is_escaped());
             assert_eq!(
-                raw.subs,
+                raw.substitutions().collect::<Vec<_>>(),
                 [
                     Substitution::Replacements,
                     Substitution::SpecialChars,
@@ -391,7 +384,7 @@ mod tests {
                 ]
             );
             for (original, output) in inlines.iter().zip(&output) {
-                assert_eq!(original.location(), output.location());
+                assert_eq!(original.location(), &Location::from(output.location()));
             }
         }
         Ok(())
@@ -425,21 +418,25 @@ mod tests {
             ];
             let normalized = IndentedSource::new(inlines.iter().map(InlineRef::from), Some(2))
                 .ok_or("expected indentation to change")?;
-            let output = normalized.inlines(&inlines);
+            let refs = inlines.iter().map(InlineRef::from).collect::<Vec<_>>();
+            let replacements = normalized.replacements(&refs);
+            let output = indented_inlines(&refs, &replacements).collect::<Vec<_>>();
+            let kinds = output.iter().map(|node| node.kind()).collect::<Vec<_>>();
             let [
-                InlineNode::VerbatimText(first),
-                InlineNode::VerbatimText(prefix),
-                span,
-                InlineNode::VerbatimText(tail),
-            ] = output.as_slice()
+                InlineKind::Verbatim(first),
+                InlineKind::Verbatim(prefix),
+                InlineKind::Bold(span),
+                InlineKind::Verbatim(tail),
+            ] = kinds.as_slice()
             else {
                 return Err("unexpected normalized fragments".into());
             };
-            assert_eq!(first.content, "");
-            assert_eq!(prefix.content, "  ");
-            assert_eq!(span, &original);
-            assert_eq!(&prefix.location, original.location());
-            assert_eq!(tail.content, "\n   after");
+            assert_eq!(first.text(), "");
+            assert_eq!(prefix.text(), "  ");
+            assert_eq!(span.content().inlines().count(), 1);
+            assert!(replacements.get(1).is_some_and(Option::is_some));
+            assert_eq!(&Location::from(prefix.location()), original.location());
+            assert_eq!(tail.text(), "\n   after");
         }
         Ok(())
     }
