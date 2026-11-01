@@ -96,6 +96,10 @@ pub enum Error {
     #[error("Parser error: {0}")]
     Parser(#[from] acdc_parser::Error),
 
+    /// Constructed metadata contains a value owned by a dedicated field.
+    #[error(transparent)]
+    ReservedAttribute(#[from] acdc_parser::ReservedAttribute),
+
     /// Theme file could not be read.
     #[error("could not read PDF theme {path}: {source}")]
     ThemeRead {

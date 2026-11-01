@@ -1,6 +1,6 @@
 #[cfg(feature = "pre-spec-subs")]
 use acdc_parser::DelimitedBlockType;
-use std::{borrow::Cow, fmt::Write as _};
+use std::fmt::Write as _;
 
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::effective_subs_flags;
@@ -13,10 +13,10 @@ use acdc_converters_core::{
     visitor::{Visitor, is_formatting_span},
 };
 use acdc_parser::{
-    Admonition, AdmonitionVariant, AttributeValue, Audio, Block, CalloutList, Caption,
-    DelimitedBlock, DescriptionList, DiscreteHeader, Document, Header, Image, InlineNode, ListItem,
-    OrderedList, PageBreak, Paragraph, Section, SectionKind, Source, TableOfContents,
-    ThematicBreak, UnorderedList, Video,
+    Admonition, AdmonitionVariant, Audio, Block, CalloutList, Caption, DelimitedBlock,
+    DescriptionList, DiscreteHeader, Document, Header, Image, InlineNode, ListItem, OrderedList,
+    PageBreak, Paragraph, Section, SectionKind, Source, TableOfContents, ThematicBreak,
+    UnorderedList, Video,
 };
 
 use crate::{
@@ -24,6 +24,21 @@ use crate::{
     is_unbreakable_delimited_block, is_unbreakable_paragraph,
     pdf_visitor::{AutomaticPreambleLeadState, ExplicitPageBreakState},
 };
+
+fn poster_image<'a>(video: &Video<'a>, poster: &'a str, target: &str) -> Result<Image<'a>, Error> {
+    let mut metadata = video.metadata.clone();
+    metadata.caption = Some(Caption::Unnumbered);
+    // Video alt is an extension value, not parsed image alternative content.
+    metadata.attributes.remove("alt");
+    metadata
+        .attributes
+        .set("link".into(), target.to_owned().into());
+    Ok(
+        Image::new(Source::from_str_borrowed(poster)?, video.location.clone())
+            .with_title(video.title.clone())
+            .with_metadata(metadata)?,
+    )
+}
 
 fn revision_text(attributes: &TraversalContext<'_>) -> Option<String> {
     let revnumber = document_attribute_text((attributes).get("revnumber"));
@@ -552,15 +567,7 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
             (poster.as_deref(), poster_target.as_deref(), sources.first())
             && self.has_asset(poster_target)
         {
-            let mut metadata = video.metadata.clone();
-            metadata.caption = Some(Caption::Unnumbered);
-            metadata.attributes.set(
-                Cow::Borrowed("link"),
-                AttributeValue::String(Cow::Owned(target.clone())),
-            );
-            let image = Image::new(Source::from_str_borrowed(poster)?, video.location.clone())
-                .with_title(video.title.clone())
-                .with_metadata(metadata);
+            let image = poster_image(video, poster, target)?;
             self.write_block_image(traversal, &image)?;
             true
         } else {
@@ -785,5 +792,71 @@ fn part_signifier<'doc>(attributes: &TraversalContext<'doc>) -> Option<&'doc str
         Some(value) => Some(value),
         None if attributes.is_explicit("part-signifier") => None,
         None => Some("Part"),
+    }
+}
+
+#[cfg(test)]
+mod poster_tests {
+    use super::*;
+    use acdc_parser::{
+        Anchor, BlockMetadata, ContentAttribute, ElementAttributes, Location, Title,
+    };
+
+    #[test]
+    fn poster_transfer_keeps_compatible_metadata_and_the_original_video()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let mut attributes = ElementAttributes::default();
+        attributes.set("alt".into(), "opaque video extension".into());
+        attributes.set("width".into(), "120".into());
+        attributes.set("link".into(), "old".into());
+        attributes.set("custom".into(), "".into());
+        let mut metadata = BlockMetadata::new().with_attributes(attributes)?;
+        metadata.caption = Some(Caption::CustomContent(ContentAttribute::default()));
+        metadata.id = Some(Anchor::new("clip", Location::default()));
+        metadata.roles.push("wide");
+        metadata.options.push("loop");
+        let video = Video::new(Source::Name("clip"), Location::default())
+            .with_title(Title::new(Vec::new()))
+            .with_metadata(metadata)?;
+        let before = video.clone();
+        let image = poster_image(&video, "poster.svg", "clip.mp4#t=2")?;
+        assert_eq!(video, before);
+        assert_eq!(image.title, video.title);
+        assert_eq!(image.metadata.id, video.metadata.id);
+        assert_eq!(image.metadata.roles, video.metadata.roles);
+        assert_eq!(image.metadata.options, video.metadata.options);
+        assert_eq!(image.metadata.caption, Some(Caption::Unnumbered));
+        assert_eq!(
+            image.metadata.attributes.get_string("link").as_deref(),
+            Some("clip.mp4#t=2")
+        );
+        assert_eq!(
+            image.metadata.attributes.get_string("width").as_deref(),
+            Some("120")
+        );
+        assert_eq!(
+            image.metadata.attributes.get_string("custom").as_deref(),
+            Some("")
+        );
+        assert!(image.alt.is_none());
+        assert!(!image.metadata.attributes.contains_key("alt"));
+        Ok(())
+    }
+
+    #[test]
+    fn poster_transfer_reports_conflicting_caller_metadata()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let mut video = Video::new(Source::Name("clip"), Location::default());
+        video
+            .metadata
+            .attributes
+            .set("roles".into(), "shadow".into());
+        let before = video.clone();
+        let error = poster_image(&video, "poster.svg", "clip.mp4")
+            .err()
+            .ok_or("invalid metadata accepted")?;
+        assert!(matches!(error, Error::ReservedAttribute(error) if error.name == "roles"));
+        assert_eq!(video, before);
+        Ok(())
     }
 }

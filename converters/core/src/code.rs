@@ -239,7 +239,9 @@ mod tests {
 
     use super::SourceLineOptions;
 
-    fn metadata(attributes: &[(&'static str, &'static str)]) -> BlockMetadata<'static> {
+    fn metadata(
+        attributes: &[(&'static str, &'static str)],
+    ) -> Result<BlockMetadata<'static>, acdc_parser::ReservedAttribute> {
         let mut values = ElementAttributes::default();
         for (name, value) in attributes {
             values.set(
@@ -253,8 +255,9 @@ mod tests {
     }
 
     #[test]
-    fn resolves_numbering_start_and_visible_highlight_numbers() {
-        let metadata = metadata(&[("linenums", ""), ("start", "10"), ("highlight", "10;12")]);
+    fn resolves_numbering_start_and_visible_highlight_numbers()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let metadata = metadata(&[("linenums", ""), ("start", "10"), ("highlight", "10;12")])?;
 
         assert_eq!(
             SourceLineOptions::resolve(&metadata, "ten\neleven\ntwelve"),
@@ -263,16 +266,18 @@ mod tests {
                 highlighted_lines: vec![1, 3],
             }
         );
+        Ok(())
     }
 
     #[test]
-    fn resolves_ranges_exclusions_and_open_ends() {
-        let metadata = metadata(&[("highlight", "1..,!2,4")]);
+    fn resolves_ranges_exclusions_and_open_ends() -> Result<(), Box<dyn std::error::Error>> {
+        let metadata = metadata(&[("highlight", "1..,!2,4")])?;
 
         assert_eq!(
             SourceLineOptions::resolve(&metadata, "one\ntwo\nthree\nfour").highlighted_lines,
             [1, 3, 4]
         );
+        Ok(())
     }
 
     #[test]

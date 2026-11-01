@@ -239,11 +239,10 @@ fn build_example_block<'input>(
         && let Ok(variant) = style.parse::<AdmonitionVariant>()
     {
         metadata.style = None;
-        return Ok(Block::Admonition(
-            Admonition::new(variant, blocks, location)
-                .with_metadata(metadata)
-                .with_title(block_metadata.title.clone()),
-        ));
+        let mut admonition =
+            Admonition::new(variant, blocks, location).with_title(block_metadata.title.clone());
+        admonition.metadata = metadata;
+        return Ok(Block::Admonition(admonition));
     }
     Ok(assemble_delimited(
         metadata,

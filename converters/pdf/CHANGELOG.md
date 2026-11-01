@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Video poster images copy compatible metadata without treating a video's
+  opaque `alt` attribute as image alternative content. Invalid constructed
+  metadata now returns an error instead of creating hidden duplicate values.
+
 ### Fixed
 
 - Headings with a single character after formatted text retain their public link

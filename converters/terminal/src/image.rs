@@ -113,7 +113,9 @@ mod tests {
 
     use super::*;
 
-    fn image(attributes: &[(&'static str, &'static str)]) -> Image<'static> {
+    fn image(
+        attributes: &[(&'static str, &'static str)],
+    ) -> Result<Image<'static>, Box<dyn std::error::Error>> {
         let mut values = ElementAttributes::default();
         for (name, value) in attributes {
             values.set(
@@ -121,26 +123,29 @@ mod tests {
                 AttributeValue::String(Cow::Borrowed(*value)),
             );
         }
-        Image::new(Source::Name("image.png"), Location::default())
-            .with_metadata(BlockMetadata::new().with_attributes(values))
+        Ok(Image::new(Source::Name("image.png"), Location::default())
+            .with_metadata(BlockMetadata::new().with_attributes(values)?)?)
     }
 
     #[test]
-    fn protocol_image_uses_integer_dimensions_and_alignment() {
-        let image = image(&[("width", "20"), ("height", "10"), ("align", "right")]);
+    fn protocol_image_uses_integer_dimensions_and_alignment()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let image = image(&[("width", "20"), ("height", "10"), ("align", "right")])?;
         let config = image_config(&image, 80);
 
         assert_eq!(config.width, Some(20));
         assert_eq!(config.height, Some(10));
         assert_eq!(config.x, 60);
+        Ok(())
     }
 
     #[test]
-    fn protocol_image_ignores_percentage_dimensions() {
-        let image = image(&[("width", "50%"), ("align", "center")]);
+    fn protocol_image_ignores_percentage_dimensions() -> Result<(), Box<dyn std::error::Error>> {
+        let image = image(&[("width", "50%"), ("align", "center")])?;
         let config = image_config(&image, 80);
 
         assert_eq!(config.width, None);
         assert_eq!(config.x, 0);
+        Ok(())
     }
 }

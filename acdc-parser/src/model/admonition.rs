@@ -83,11 +83,17 @@ impl<'a> Admonition<'a> {
         }
     }
 
-    /// Set the metadata.
-    #[must_use]
-    pub fn with_metadata(mut self, metadata: BlockMetadata<'a>) -> Self {
+    /// Replace metadata without shadowing dedicated fields.
+    ///
+    /// # Errors
+    /// Rejects scalar attributes for dedicated metadata or title fields.
+    pub fn with_metadata(
+        mut self,
+        metadata: BlockMetadata<'a>,
+    ) -> Result<Self, crate::ReservedAttribute> {
+        metadata.validate_attributes(&["title"])?;
         self.metadata = metadata;
-        self
+        Ok(self)
     }
 
     /// Set the title.

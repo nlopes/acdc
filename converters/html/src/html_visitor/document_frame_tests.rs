@@ -30,7 +30,7 @@ fn frame_preserves_document_processor_and_replay_snapshots_after_owner_edits()
                 .ok_or("expected a header")?;
             document.header = Some(
                 Header::new(original.title.as_ref().to_vec().into(), Location::default())
-                    .with_metadata(original.metadata.clone()),
+                    .with_metadata(original.metadata.clone())?,
             );
             document.attributes = parsed.document().attributes.clone();
             let header = document.header.as_mut().ok_or("expected a header")?;

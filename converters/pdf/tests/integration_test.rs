@@ -1586,7 +1586,7 @@ fn named_pdf_destinations_keep_caller_built_document_titles() -> Result<(), Erro
     let mut document = Document::default();
     document.header = Some(
         acdc_parser::Header::new(header.title.clone(), header.location.clone())
-            .with_metadata(header.metadata.clone()),
+            .with_metadata(header.metadata.clone())?,
     );
     document.attributes = parsed.document().attributes.clone();
     let pdf = render_document(&document)?;

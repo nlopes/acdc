@@ -9,19 +9,29 @@ use acdc_parser::{
     ast::{AudioRef, VideoRef},
 };
 
-fn video<'a>(target: &'a str, values: &[(&'a str, &'a str)], options: Vec<&'a str>) -> Video<'a> {
+fn video<'a>(
+    target: &'a str,
+    values: &[(&'a str, &'a str)],
+    options: Vec<&'a str>,
+) -> Result<Video<'a>, Box<dyn std::error::Error>> {
     let mut attributes = ElementAttributes::default();
     for &(key, value) in values {
         attributes.set(key.into(), value.into());
     }
-    Video::new(Source::Name(target), Location::default()).with_metadata(
-        BlockMetadata::new()
-            .with_attributes(attributes)
-            .with_options(options),
+    Ok(
+        Video::new(Source::Name(target), Location::default()).with_metadata(
+            BlockMetadata::new()
+                .with_attributes(attributes)?
+                .with_options(options),
+        )?,
     )
 }
 
-fn assert_urls(video: &Video<'_>, watch: &str, embed: &str) -> Result<(), UrlError> {
+fn assert_urls(
+    video: &Video<'_>,
+    watch: &str,
+    embed: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(video.try_url(false)?, watch);
     assert_eq!(video.try_url(true)?, embed);
     let typed = VideoRef::from(video);
@@ -31,7 +41,8 @@ fn assert_urls(video: &Video<'_>, watch: &str, embed: &str) -> Result<(), UrlErr
 }
 
 #[test]
-fn youtube_playlists_keep_shorthand_and_named_precedence() -> Result<(), UrlError> {
+fn youtube_playlists_keep_shorthand_and_named_precedence() -> Result<(), Box<dyn std::error::Error>>
+{
     for (target, controls, watch, embed) in [
         (
             "one,two,three",
@@ -66,13 +77,14 @@ fn youtube_playlists_keep_shorthand_and_named_precedence() -> Result<(), UrlErro
     ] {
         let mut controls = controls;
         controls.push(("poster", "youtube"));
-        assert_urls(&video(target, &controls, vec!["loop"]), watch, embed)?;
+        assert_urls(&video(target, &controls, vec!["loop"])?, watch, embed)?;
     }
     Ok(())
 }
 
 #[test]
-fn youtube_controls_keep_raw_time_values_and_unquoted_language() -> Result<(), UrlError> {
+fn youtube_controls_keep_raw_time_values_and_unquoted_language()
+-> Result<(), Box<dyn std::error::Error>> {
     let video = video(
         "one",
         &[
@@ -91,7 +103,7 @@ fn youtube_controls_keep_raw_time_values_and_unquoted_language() -> Result<(), U
             "nofullscreen",
             "modest",
         ],
-    );
+    )?;
     assert_urls(
         &video,
         "https://www.youtube.com/watch?v=one&t=\"5\"&end=",
@@ -100,14 +112,15 @@ fn youtube_controls_keep_raw_time_values_and_unquoted_language() -> Result<(), U
 }
 
 #[test]
-fn vimeo_hashes_and_times_keep_watch_and_embed_policies() -> Result<(), UrlError> {
+fn vimeo_hashes_and_times_keep_watch_and_embed_policies() -> Result<(), Box<dyn std::error::Error>>
+{
     for (target, hash) in [("123/secret", "ignored"), ("123", "secret")] {
         assert_urls(
             &video(
                 target,
                 &[("poster", "vimeo"), ("hash", hash), ("start", "\"5\"")],
                 vec!["autoplay", "loop", "muted"],
-            ),
+            )?,
             "https://vimeo.com/123/secret#t=\"5\"",
             "https://player.vimeo.com/video/123?h=secret&autoplay=1&loop=1&muted=1#at=5",
         )?;
@@ -117,14 +130,14 @@ fn vimeo_hashes_and_times_keep_watch_and_embed_policies() -> Result<(), UrlError
             "123",
             &[("poster", "vimeo"), ("hash", ""), ("start", "")],
             vec![],
-        ),
+        )?,
         "https://vimeo.com/123/#t=",
         "https://player.vimeo.com/video/123?h=#at=",
     )
 }
 
 #[test]
-fn ranges_keep_absent_empty_nontext_and_quoted_values() -> Result<(), UrlError> {
+fn ranges_keep_absent_empty_nontext_and_quoted_values() -> Result<(), Box<dyn std::error::Error>> {
     for (start, end, expected) in [
         (None, None, "clip,audio.ogg?x=1#part"),
         (Some(""), None, "clip,audio.ogg?x=1#part#t="),
@@ -157,7 +170,7 @@ fn ranges_keep_absent_empty_nontext_and_quoted_values() -> Result<(), UrlError> 
             ),
             expected
         );
-        let mut video = video("clip,audio.ogg?x=1#part", &[], vec![]);
+        let mut video = video("clip,audio.ogg?x=1#part", &[], vec![])?;
         video.metadata.attributes = audio.metadata.attributes;
         assert_eq!(video.try_url(false)?, expected);
         assert_eq!(video.try_url(true)?, expected);
@@ -168,11 +181,12 @@ fn ranges_keep_absent_empty_nontext_and_quoted_values() -> Result<(), UrlError> 
 }
 
 #[test]
-fn playback_results_outlive_temporary_targets_and_edited_controls() -> Result<(), UrlError> {
+fn playback_results_outlive_temporary_targets_and_edited_controls()
+-> Result<(), Box<dyn std::error::Error>> {
     let (before, after) = {
         let target = String::from("one,two,three");
         let start = String::from("5");
-        let mut video = video(&target, &[("poster", "youtube"), ("start", &start)], vec![]);
+        let mut video = video(&target, &[("poster", "youtube"), ("start", &start)], vec![])?;
         let before = VideoRef::from(&video).try_url(true)?;
         assert_eq!(video.try_url(true)?, before);
         video
@@ -196,9 +210,10 @@ fn playback_results_outlive_temporary_targets_and_edited_controls() -> Result<()
 }
 
 #[test]
-fn empty_targets_fail_before_provider_specific_controls() {
+fn empty_targets_fail_before_provider_specific_controls() -> Result<(), Box<dyn std::error::Error>>
+{
     for poster in ["", "youtube", "vimeo"] {
-        let video = video("", &[("poster", poster)], vec![]);
+        let video = video("", &[("poster", poster)], vec![])?;
         for embed in [false, true] {
             assert!(matches!(video.try_url(embed), Err(UrlError::MissingSource)));
             assert!(matches!(
@@ -207,6 +222,7 @@ fn empty_targets_fail_before_provider_specific_controls() {
             ));
         }
     }
+    Ok(())
 }
 
 #[test]
@@ -226,13 +242,13 @@ fn range_results_outlive_temporary_attribute_values() {
 }
 
 #[test]
-fn nontext_controls_keep_a_complete_local_target() -> Result<(), UrlError> {
+fn nontext_controls_keep_a_complete_local_target() -> Result<(), Box<dyn std::error::Error>> {
     for value in [
         AttributeValue::None,
         AttributeValue::Bool(false),
         AttributeValue::Bool(true),
     ] {
-        let mut video = video("one,two,three", &[], vec!["loop", "related"]);
+        let mut video = video("one,two,three", &[], vec!["loop", "related"])?;
         for key in ["poster", "start", "end"] {
             video.metadata.attributes.set(key.into(), value.clone());
         }

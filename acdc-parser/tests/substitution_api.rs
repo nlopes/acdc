@@ -43,7 +43,7 @@ fn substitution_metadata_preserves_absent_empty_and_populated_values() -> Result
             serde_json::to_value(&metadata)?,
             json!({"substitutions": expected})
         );
-        let paragraph = Paragraph::new(Vec::new(), Location::default()).with_metadata(metadata);
+        let paragraph = Paragraph::new(Vec::new(), Location::default()).with_metadata(metadata)?;
         assert_eq!(
             serde_json::to_value(paragraph)?.pointer("/metadata/substitutions"),
             Some(&expected)

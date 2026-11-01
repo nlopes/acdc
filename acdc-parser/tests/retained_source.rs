@@ -83,7 +83,7 @@ fn retained_text_does_not_change_serialization_or_equality() -> TestResult {
         original.delimiter,
         original.location.clone(),
     )
-    .with_metadata(original.metadata.clone())
+    .with_metadata(original.metadata.clone())?
     .with_title(original.title.clone());
     synthetic
         .open_delimiter_location
@@ -102,7 +102,7 @@ fn retained_text_does_not_change_serialization_or_equality() -> TestResult {
         return Err("expected final source paragraph".into());
     };
     let synthetic = Paragraph::new(original.content.clone(), original.location.clone())
-        .with_metadata(original.metadata.clone())
+        .with_metadata(original.metadata.clone())?
         .with_title(original.title.clone());
     assert!(synthetic.source_text().is_none());
     assert_eq!(original, &synthetic);

@@ -1224,7 +1224,7 @@ mod tests {
     }
 
     #[test]
-    fn test_listing_block_renders_as_listingblock() -> Result<(), Error> {
+    fn test_listing_block_renders_as_listingblock() -> Result<(), Box<dyn std::error::Error>> {
         let block = DelimitedBlock::new(
             DelimitedBlockType::DelimitedListing(create_test_inlines("code here")),
             "----",
@@ -1252,7 +1252,7 @@ mod tests {
     }
 
     #[test]
-    fn test_literal_block_renders_as_literalblock() -> Result<(), Error> {
+    fn test_literal_block_renders_as_literalblock() -> Result<(), Box<dyn std::error::Error>> {
         let block = DelimitedBlock::new(
             DelimitedBlockType::DelimitedLiteral(create_test_inlines("literal text")),
             "....",
@@ -1280,7 +1280,8 @@ mod tests {
     }
 
     #[test]
-    fn test_listing_block_with_source_style_and_language() -> Result<(), Error> {
+    fn test_listing_block_with_source_style_and_language() -> Result<(), Box<dyn std::error::Error>>
+    {
         use acdc_parser::{AttributeValue, ElementAttributes};
 
         let mut attributes = ElementAttributes::default();
@@ -1288,14 +1289,14 @@ mod tests {
 
         let metadata = BlockMetadata::new()
             .with_style(Some("source"))
-            .with_attributes(attributes);
+            .with_attributes(attributes)?;
 
         let block = DelimitedBlock::new(
             DelimitedBlockType::DelimitedListing(create_test_inlines("code here")),
             "----",
             Location::default(),
         )
-        .with_metadata(metadata);
+        .with_metadata(metadata)?;
 
         let output = Vec::new();
         let processor = create_test_processor();
@@ -1326,7 +1327,7 @@ mod tests {
     }
 
     #[test]
-    fn test_literal_block_with_style_attribute() -> Result<(), Error> {
+    fn test_literal_block_with_style_attribute() -> Result<(), Box<dyn std::error::Error>> {
         let metadata = BlockMetadata::new().with_style(Some("verse"));
 
         let block = DelimitedBlock::new(
@@ -1334,7 +1335,7 @@ mod tests {
             "....",
             Location::default(),
         )
-        .with_metadata(metadata);
+        .with_metadata(metadata)?;
 
         let output = Vec::new();
         let processor = create_test_processor();
@@ -1361,8 +1362,8 @@ mod tests {
     }
 
     #[test]
-    fn test_listing_block_without_listing_caption_renders_title_without_number() -> Result<(), Error>
-    {
+    fn test_listing_block_without_listing_caption_renders_title_without_number()
+    -> Result<(), Box<dyn std::error::Error>> {
         let title = Title::new(vec![InlineNode::PlainText(Plain {
             content: "My Code Example",
             location: Location::default(),
@@ -1407,7 +1408,8 @@ mod tests {
     }
 
     #[test]
-    fn test_listing_block_with_listing_caption_renders_title_with_number() -> Result<(), Error> {
+    fn test_listing_block_with_listing_caption_renders_title_with_number()
+    -> Result<(), Box<dyn std::error::Error>> {
         let title1 = Title::new(vec![InlineNode::PlainText(Plain {
             content: "First Example",
             location: Location::default(),
@@ -1497,7 +1499,7 @@ mod tests {
     }
 
     #[test]
-    fn test_listing_block_with_id_and_role() -> Result<(), Error> {
+    fn test_listing_block_with_id_and_role() -> Result<(), Box<dyn std::error::Error>> {
         use acdc_parser::Anchor;
 
         let metadata = BlockMetadata::new()
@@ -1509,7 +1511,7 @@ mod tests {
             "----",
             Location::default(),
         )
-        .with_metadata(metadata);
+        .with_metadata(metadata)?;
 
         let output = Vec::new();
         let processor = create_test_processor();
@@ -1532,7 +1534,7 @@ mod tests {
     }
 
     #[test]
-    fn test_example_block_with_id_and_role() -> Result<(), Error> {
+    fn test_example_block_with_id_and_role() -> Result<(), Box<dyn std::error::Error>> {
         use acdc_parser::Anchor;
 
         let metadata = BlockMetadata::new()
@@ -1544,7 +1546,7 @@ mod tests {
             "====",
             Location::default(),
         )
-        .with_metadata(metadata);
+        .with_metadata(metadata)?;
 
         let output = Vec::new();
         let processor = create_test_processor();
@@ -1567,7 +1569,7 @@ mod tests {
     }
 
     #[test]
-    fn test_quote_block_with_id_and_role() -> Result<(), Error> {
+    fn test_quote_block_with_id_and_role() -> Result<(), Box<dyn std::error::Error>> {
         use acdc_parser::Anchor;
 
         let metadata = BlockMetadata::new()
@@ -1579,7 +1581,7 @@ mod tests {
             "____",
             Location::default(),
         )
-        .with_metadata(metadata);
+        .with_metadata(metadata)?;
 
         let output = Vec::new();
         let processor = create_test_processor();
@@ -1602,7 +1604,7 @@ mod tests {
     }
 
     #[test]
-    fn test_sidebar_block_with_id_and_role() -> Result<(), Error> {
+    fn test_sidebar_block_with_id_and_role() -> Result<(), Box<dyn std::error::Error>> {
         use acdc_parser::Anchor;
 
         let metadata = BlockMetadata::new()
@@ -1614,7 +1616,7 @@ mod tests {
             "****",
             Location::default(),
         )
-        .with_metadata(metadata);
+        .with_metadata(metadata)?;
 
         let output = Vec::new();
         let processor = create_test_processor();
@@ -1637,7 +1639,7 @@ mod tests {
     }
 
     #[test]
-    fn test_open_block_with_id_and_role() -> Result<(), Error> {
+    fn test_open_block_with_id_and_role() -> Result<(), Box<dyn std::error::Error>> {
         use acdc_parser::Anchor;
 
         let metadata = BlockMetadata::new()
@@ -1649,7 +1651,7 @@ mod tests {
             "--",
             Location::default(),
         )
-        .with_metadata(metadata);
+        .with_metadata(metadata)?;
 
         let output = Vec::new();
         let processor = create_test_processor();
@@ -1672,7 +1674,7 @@ mod tests {
     }
 
     #[test]
-    fn test_example_block_collapsible() -> Result<(), Error> {
+    fn test_example_block_collapsible() -> Result<(), Box<dyn std::error::Error>> {
         let title = Title::new(vec![InlineNode::PlainText(Plain {
             content: "Click to expand",
             location: Location::default(),
@@ -1686,7 +1688,7 @@ mod tests {
             "====",
             Location::default(),
         )
-        .with_metadata(metadata)
+        .with_metadata(metadata)?
         .with_title(title);
 
         let output = Vec::new();
@@ -1722,7 +1724,7 @@ mod tests {
     }
 
     #[test]
-    fn test_example_block_collapsible_open() -> Result<(), Error> {
+    fn test_example_block_collapsible_open() -> Result<(), Box<dyn std::error::Error>> {
         let title = Title::new(vec![InlineNode::PlainText(Plain {
             content: "Initially open",
             location: Location::default(),
@@ -1736,7 +1738,7 @@ mod tests {
             "====",
             Location::default(),
         )
-        .with_metadata(metadata)
+        .with_metadata(metadata)?
         .with_title(title);
 
         let output = Vec::new();
@@ -1760,7 +1762,7 @@ mod tests {
     }
 
     #[test]
-    fn test_example_block_collapsible_without_title() -> Result<(), Error> {
+    fn test_example_block_collapsible_without_title() -> Result<(), Box<dyn std::error::Error>> {
         let metadata = BlockMetadata::new().with_options(vec!["collapsible"]);
 
         let block = DelimitedBlock::new(
@@ -1768,7 +1770,7 @@ mod tests {
             "====",
             Location::default(),
         )
-        .with_metadata(metadata);
+        .with_metadata(metadata)?;
 
         let output = Vec::new();
         let processor = create_test_processor();
@@ -1791,7 +1793,7 @@ mod tests {
     }
 
     #[test]
-    fn test_block_with_anchor_fallback() -> Result<(), Error> {
+    fn test_block_with_anchor_fallback() -> Result<(), Box<dyn std::error::Error>> {
         use acdc_parser::Anchor;
 
         // Test that anchors are used as fallback when id is None
@@ -1803,7 +1805,7 @@ mod tests {
             "----",
             Location::default(),
         )
-        .with_metadata(metadata);
+        .with_metadata(metadata)?;
 
         let output = Vec::new();
         let processor = create_test_processor();

@@ -466,7 +466,7 @@ fn retained_id_origin_survives_direct_metadata_edits() -> Result<(), Error> {
         ("_generated", IdOrigin::Generated)
     );
     assert!(
-        SectionRef::from(&generated.with_metadata(BlockMetadata::default()))
+        SectionRef::from(&generated.with_metadata(BlockMetadata::default())?)
             .id()
             .is_none()
     );

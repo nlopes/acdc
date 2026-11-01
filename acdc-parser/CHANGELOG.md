@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- Block metadata builders reject attributes that shadow dedicated fields,
+  including aliases and fields that are absent. `BlockMetadata::with_attributes`
+  and block `with_metadata` builders now return `Result`; propagate the error
+  with `?` and set content, identity, roles, and options through their fields.
+
 - Formatting IDs now retain their authored source ranges, including expanded
   references, nested content, includes, and table cells. When constructing
   formatting nodes, use `ElementId::new(value, location)` instead of a string

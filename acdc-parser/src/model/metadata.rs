@@ -192,11 +192,43 @@ impl<'a> BlockMetadata<'a> {
         self.id.as_ref().or_else(|| self.anchors.last())
     }
 
-    /// Set the attributes.
-    #[must_use]
-    pub fn with_attributes(mut self, attributes: ElementAttributes<'a>) -> Self {
+    /// Replace scalar attributes without shadowing dedicated metadata.
+    ///
+    /// # Errors
+    /// Rejects identity, roles, options, style, caption, reference text,
+    /// substitutions, attribution, and citation title. Aliases are checked too.
+    pub fn with_attributes(
+        mut self,
+        attributes: ElementAttributes<'a>,
+    ) -> Result<Self, ReservedAttribute> {
+        Self::validate_attribute_map(&attributes, &[])?;
         self.attributes = attributes;
-        self
+        Ok(self)
+    }
+
+    pub(crate) fn validate_attributes(&self, dedicated: &[&str]) -> Result<(), ReservedAttribute> {
+        Self::validate_attribute_map(&self.attributes, dedicated)
+    }
+
+    fn validate_attribute_map(
+        attributes: &ElementAttributes<'_>,
+        dedicated: &[&str],
+    ) -> Result<(), ReservedAttribute> {
+        for (name, _) in attributes.iter() {
+            check_attribute_name(
+                name,
+                &[
+                    "style",
+                    "caption",
+                    "reftext",
+                    "subs",
+                    "attribution",
+                    "citetitle",
+                ],
+            )?;
+            check_attribute_name(name, dedicated)?;
+        }
+        Ok(())
     }
 
     /// Set the options.
@@ -471,7 +503,7 @@ impl<'a> MacroAttributes<'a> {
         reserved: &[&str],
     ) -> Result<(), ReservedAttribute> {
         for (name, _) in attributes.iter() {
-            Self::check_name(name, reserved)?;
+            check_attribute_name(name, reserved)?;
         }
         self.attributes = attributes;
         Ok(())
@@ -483,7 +515,7 @@ impl<'a> MacroAttributes<'a> {
         value: AttributeValue<'a>,
         reserved: &[&str],
     ) -> Result<(), ReservedAttribute> {
-        Self::check_name(&name, reserved)?;
+        check_attribute_name(&name, reserved)?;
         self.attributes.set(name, value);
         Ok(())
     }
@@ -493,23 +525,23 @@ impl<'a> MacroAttributes<'a> {
         name: &str,
         reserved: &[&str],
     ) -> Result<Option<AttributeValue<'a>>, ReservedAttribute> {
-        Self::check_name(name, reserved)?;
+        check_attribute_name(name, reserved)?;
         Ok(self.attributes.remove(name))
-    }
-
-    fn check_name(name: &str, reserved: &[&str]) -> Result<(), ReservedAttribute> {
-        let canonical = super::attributes::canonical_attribute_name(name);
-        if matches!(canonical, "id" | "role" | "opts") || reserved.contains(&canonical) {
-            Err(ReservedAttribute {
-                name: name.to_owned(),
-            })
-        } else {
-            Ok(())
-        }
     }
 
     pub(crate) fn is_empty(&self) -> bool {
         self.attributes.is_empty() && self.options.is_empty()
+    }
+}
+
+fn check_attribute_name(name: &str, reserved: &[&str]) -> Result<(), ReservedAttribute> {
+    let canonical = super::attributes::canonical_attribute_name(name);
+    if matches!(canonical, "id" | "role" | "opts") || reserved.contains(&canonical) {
+        Err(ReservedAttribute {
+            name: name.to_owned(),
+        })
+    } else {
+        Ok(())
     }
 }
 

@@ -325,19 +325,21 @@ mod tests {
         source: &'a str,
         attributes: ElementAttributes<'a>,
         options: Vec<&'a str>,
-    ) -> Video<'a> {
-        Video::new(Source::Name(source), Location::default()).with_metadata(
-            BlockMetadata::new()
-                .with_attributes(attributes)
-                .with_options(options),
+    ) -> Result<Video<'a>, Box<dyn std::error::Error>> {
+        Ok(
+            Video::new(Source::Name(source), Location::default()).with_metadata(
+                BlockMetadata::new()
+                    .with_attributes(attributes)?
+                    .with_options(options),
+            )?,
         )
     }
 
     #[test]
-    fn test_youtube_watch_url_basic() -> Result<(), UrlError> {
+    fn test_youtube_watch_url_basic() -> Result<(), Box<dyn std::error::Error>> {
         let mut attrs = ElementAttributes::default();
         attrs.insert("poster".into(), "youtube".into());
-        let video = create_video("rPQoq7ThGAU", attrs, vec![]);
+        let video = create_video("rPQoq7ThGAU", attrs, vec![])?;
 
         let url = video.try_url(false)?;
         assert_eq!(url, "https://www.youtube.com/watch?v=rPQoq7ThGAU");
@@ -345,11 +347,11 @@ mod tests {
     }
 
     #[test]
-    fn test_youtube_watch_url_with_start() -> Result<(), UrlError> {
+    fn test_youtube_watch_url_with_start() -> Result<(), Box<dyn std::error::Error>> {
         let mut attrs = ElementAttributes::default();
         attrs.insert("poster".into(), "youtube".into());
         attrs.insert("start".into(), AttributeValue::String("60".into()));
-        let video = create_video("rPQoq7ThGAU", attrs, vec![]);
+        let video = create_video("rPQoq7ThGAU", attrs, vec![])?;
 
         let url = video.try_url(false)?;
         assert_eq!(url, "https://www.youtube.com/watch?v=rPQoq7ThGAU&t=60");
@@ -357,12 +359,12 @@ mod tests {
     }
 
     #[test]
-    fn test_youtube_watch_url_with_start_and_end() -> Result<(), UrlError> {
+    fn test_youtube_watch_url_with_start_and_end() -> Result<(), Box<dyn std::error::Error>> {
         let mut attrs = ElementAttributes::default();
         attrs.insert("poster".into(), "youtube".into());
         attrs.insert("start".into(), AttributeValue::String("60".into()));
         attrs.insert("end".into(), AttributeValue::String("120".into()));
-        let video = create_video("rPQoq7ThGAU", attrs, vec![]);
+        let video = create_video("rPQoq7ThGAU", attrs, vec![])?;
 
         let url = video.try_url(false)?;
         assert_eq!(
@@ -373,10 +375,10 @@ mod tests {
     }
 
     #[test]
-    fn test_youtube_embed_url_basic() -> Result<(), UrlError> {
+    fn test_youtube_embed_url_basic() -> Result<(), Box<dyn std::error::Error>> {
         let mut attrs = ElementAttributes::default();
         attrs.insert("poster".into(), "youtube".into());
-        let video = create_video("rPQoq7ThGAU", attrs, vec![]);
+        let video = create_video("rPQoq7ThGAU", attrs, vec![])?;
 
         let url = video.try_url(true)?;
         assert_eq!(url, "https://www.youtube.com/embed/rPQoq7ThGAU?rel=0");
@@ -384,7 +386,7 @@ mod tests {
     }
 
     #[test]
-    fn test_youtube_embed_url_with_all_params() -> Result<(), UrlError> {
+    fn test_youtube_embed_url_with_all_params() -> Result<(), Box<dyn std::error::Error>> {
         let mut attrs = ElementAttributes::default();
         attrs.insert("poster".into(), "youtube".into());
         attrs.insert("start".into(), AttributeValue::String("60".into()));
@@ -394,7 +396,7 @@ mod tests {
             "rPQoq7ThGAU",
             attrs,
             vec!["autoplay", "loop", "muted", "nocontrols", "modest"],
-        );
+        )?;
 
         let url = video.try_url(true)?;
         assert_eq!(
@@ -405,10 +407,10 @@ mod tests {
     }
 
     #[test]
-    fn test_youtube_embed_url_with_autoplay_only() -> Result<(), UrlError> {
+    fn test_youtube_embed_url_with_autoplay_only() -> Result<(), Box<dyn std::error::Error>> {
         let mut attrs = ElementAttributes::default();
         attrs.insert("poster".into(), "youtube".into());
-        let video = create_video("rPQoq7ThGAU", attrs, vec!["autoplay"]);
+        let video = create_video("rPQoq7ThGAU", attrs, vec!["autoplay"])?;
 
         let url = video.try_url(true)?;
         assert_eq!(
@@ -419,10 +421,10 @@ mod tests {
     }
 
     #[test]
-    fn test_youtube_embed_url_with_loop_only() -> Result<(), UrlError> {
+    fn test_youtube_embed_url_with_loop_only() -> Result<(), Box<dyn std::error::Error>> {
         let mut attrs = ElementAttributes::default();
         attrs.insert("poster".into(), "youtube".into());
-        let video = create_video("rPQoq7ThGAU", attrs, vec!["loop"]);
+        let video = create_video("rPQoq7ThGAU", attrs, vec!["loop"])?;
 
         let url = video.try_url(true)?;
         assert_eq!(
@@ -433,10 +435,10 @@ mod tests {
     }
 
     #[test]
-    fn test_vimeo_watch_url_basic() -> Result<(), UrlError> {
+    fn test_vimeo_watch_url_basic() -> Result<(), Box<dyn std::error::Error>> {
         let mut attrs = ElementAttributes::default();
         attrs.insert("poster".into(), "vimeo".into());
-        let video = create_video("67480300", attrs, vec![]);
+        let video = create_video("67480300", attrs, vec![])?;
 
         let url = video.try_url(false)?;
         assert_eq!(url, "https://vimeo.com/67480300");
@@ -444,11 +446,11 @@ mod tests {
     }
 
     #[test]
-    fn test_vimeo_watch_url_with_start() -> Result<(), UrlError> {
+    fn test_vimeo_watch_url_with_start() -> Result<(), Box<dyn std::error::Error>> {
         let mut attrs = ElementAttributes::default();
         attrs.insert("poster".into(), "vimeo".into());
         attrs.insert("start".into(), AttributeValue::String("30".into()));
-        let video = create_video("67480300", attrs, vec![]);
+        let video = create_video("67480300", attrs, vec![])?;
 
         let url = video.try_url(false)?;
         assert_eq!(url, "https://vimeo.com/67480300#t=30");
@@ -456,10 +458,10 @@ mod tests {
     }
 
     #[test]
-    fn test_vimeo_embed_url_basic() -> Result<(), UrlError> {
+    fn test_vimeo_embed_url_basic() -> Result<(), Box<dyn std::error::Error>> {
         let mut attrs = ElementAttributes::default();
         attrs.insert("poster".into(), "vimeo".into());
-        let video = create_video("67480300", attrs, vec![]);
+        let video = create_video("67480300", attrs, vec![])?;
 
         let url = video.try_url(true)?;
         assert_eq!(url, "https://player.vimeo.com/video/67480300");
@@ -467,10 +469,10 @@ mod tests {
     }
 
     #[test]
-    fn test_vimeo_embed_url_with_all_options() -> Result<(), UrlError> {
+    fn test_vimeo_embed_url_with_all_options() -> Result<(), Box<dyn std::error::Error>> {
         let mut attrs = ElementAttributes::default();
         attrs.insert("poster".into(), "vimeo".into());
-        let video = create_video("67480300", attrs, vec!["autoplay", "loop", "muted"]);
+        let video = create_video("67480300", attrs, vec!["autoplay", "loop", "muted"])?;
 
         let url = video.try_url(true)?;
         assert_eq!(
@@ -481,10 +483,10 @@ mod tests {
     }
 
     #[test]
-    fn test_vimeo_embed_url_with_autoplay_only() -> Result<(), UrlError> {
+    fn test_vimeo_embed_url_with_autoplay_only() -> Result<(), Box<dyn std::error::Error>> {
         let mut attrs = ElementAttributes::default();
         attrs.insert("poster".into(), "vimeo".into());
-        let video = create_video("67480300", attrs, vec!["autoplay"]);
+        let video = create_video("67480300", attrs, vec!["autoplay"])?;
 
         let url = video.try_url(true)?;
         assert_eq!(url, "https://player.vimeo.com/video/67480300?autoplay=1");
@@ -492,10 +494,10 @@ mod tests {
     }
 
     #[test]
-    fn test_vimeo_embed_url_with_loop_only() -> Result<(), UrlError> {
+    fn test_vimeo_embed_url_with_loop_only() -> Result<(), Box<dyn std::error::Error>> {
         let mut attrs = ElementAttributes::default();
         attrs.insert("poster".into(), "vimeo".into());
-        let video = create_video("67480300", attrs, vec!["loop"]);
+        let video = create_video("67480300", attrs, vec!["loop"])?;
 
         let url = video.try_url(true)?;
         assert_eq!(url, "https://player.vimeo.com/video/67480300?loop=1");
@@ -503,8 +505,8 @@ mod tests {
     }
 
     #[test]
-    fn test_local_video_url_basic() -> Result<(), UrlError> {
-        let video = create_video("demo.mp4", ElementAttributes::default(), vec![]);
+    fn test_local_video_url_basic() -> Result<(), Box<dyn std::error::Error>> {
+        let video = create_video("demo.mp4", ElementAttributes::default(), vec![])?;
 
         let url = video.try_url(false)?;
         assert_eq!(url, "demo.mp4");
@@ -512,10 +514,10 @@ mod tests {
     }
 
     #[test]
-    fn test_local_video_url_with_start() -> Result<(), UrlError> {
+    fn test_local_video_url_with_start() -> Result<(), Box<dyn std::error::Error>> {
         let mut attrs = ElementAttributes::default();
         attrs.insert("start".into(), AttributeValue::String("10".into()));
-        let video = create_video("demo.mp4", attrs, vec![]);
+        let video = create_video("demo.mp4", attrs, vec![])?;
 
         let url = video.try_url(false)?;
         assert_eq!(url, "demo.mp4#t=10");
@@ -523,11 +525,11 @@ mod tests {
     }
 
     #[test]
-    fn test_local_video_url_with_start_and_end() -> Result<(), UrlError> {
+    fn test_local_video_url_with_start_and_end() -> Result<(), Box<dyn std::error::Error>> {
         let mut attrs = ElementAttributes::default();
         attrs.insert("start".into(), AttributeValue::String("10".into()));
         attrs.insert("end".into(), AttributeValue::String("90".into()));
-        let video = create_video("demo.mp4", attrs, vec![]);
+        let video = create_video("demo.mp4", attrs, vec![])?;
 
         let url = video.try_url(false)?;
         assert_eq!(url, "demo.mp4#t=10,90");
@@ -535,10 +537,11 @@ mod tests {
     }
 
     #[test]
-    fn test_local_video_url_embed_returns_same_as_watch() -> Result<(), UrlError> {
+    fn test_local_video_url_embed_returns_same_as_watch() -> Result<(), Box<dyn std::error::Error>>
+    {
         let mut attrs = ElementAttributes::default();
         attrs.insert("start".into(), AttributeValue::String("10".into()));
-        let video = create_video("demo.mp4", attrs, vec![]);
+        let video = create_video("demo.mp4", attrs, vec![])?;
 
         let watch_url = video.try_url(false)?;
         let embed_url = video.try_url(true)?;
@@ -548,24 +551,26 @@ mod tests {
     }
 
     #[test]
-    fn test_empty_sources_returns_error() {
+    fn test_empty_sources_returns_error() -> Result<(), Box<dyn std::error::Error>> {
         let mut attrs = ElementAttributes::default();
         attrs.insert("poster".into(), "youtube".into());
         let video = Video::new(Source::Name(""), Location::default())
-            .with_metadata(BlockMetadata::new().with_attributes(attrs));
+            .with_metadata(BlockMetadata::new().with_attributes(attrs)?)?;
 
         // Should return an error instead of panicking
         let result = video.try_url(false);
         assert!(result.is_err(), "Expected error for empty video target");
+        Ok(())
     }
     #[test]
-    fn private_vimeo_hash_syntaxes_produce_the_same_links() -> Result<(), UrlError> {
+    fn private_vimeo_hash_syntaxes_produce_the_same_links() -> Result<(), Box<dyn std::error::Error>>
+    {
         let mut attributes = ElementAttributes::default();
         attributes.insert("poster".into(), "vimeo".into());
         attributes.insert("start".into(), "5".into());
-        let shorthand = create_video("12345/secret", attributes.clone(), vec![]);
+        let shorthand = create_video("12345/secret", attributes.clone(), vec![])?;
         attributes.insert("hash".into(), "secret".into());
-        let named = create_video("12345", attributes, vec![]);
+        let named = create_video("12345", attributes, vec![])?;
         for embed in [false, true] {
             assert_eq!(shorthand.try_url(embed)?, named.try_url(embed)?);
         }
