@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::{
     CommentKind,
     ast::{AnchorRef, SourceRef},
@@ -109,7 +111,23 @@ macro_rules! media_reads {
 
 media_reads!(AudioRef, VideoRef);
 
-impl DiscreteHeaderRef<'_> {
+impl<'doc> DiscreteHeaderRef<'doc> {
+    /// Resolve the heading ID from the explicit ID, last anchor, or title.
+    ///
+    /// Title-derived fallbacks are not assigned or checked for collisions.
+    #[must_use]
+    pub fn resolve_id(self) -> Cow<'doc, str> {
+        crate::Section::explicit_id(&self.node.metadata).map_or_else(
+            || {
+                Cow::Owned(crate::Section::generate_id_string(
+                    &self.node.metadata,
+                    &self.node.title,
+                ))
+            },
+            Cow::Borrowed,
+        )
+    }
+
     /// The heading's parsed level; discrete headings do not create sections.
     #[must_use]
     pub fn level(self) -> u8 {

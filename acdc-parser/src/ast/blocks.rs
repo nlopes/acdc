@@ -6,6 +6,8 @@ mod lists;
 pub use document::{AuthorRef, DocumentAttributesRef, FootnoteDefinitionRef, HeaderRef};
 pub use lists::{CalloutListItemRef, DescriptionListItemRef, ListItemRef};
 
+use std::borrow::Cow;
+
 use crate::{Block, DelimitedBlockType, Document, Paragraph, Section};
 
 use super::{AttributesRef, ContentRef, ElementIdRef, ImageRef, LocationRef, TableRef, TokensRef};
@@ -267,6 +269,15 @@ impl<'doc> SectionRef<'doc> {
     #[must_use]
     pub fn id(self) -> Option<ElementIdRef<'doc>> {
         self.attributes().id()
+    }
+
+    /// Return the explicit or assigned ID, or derive one from the title.
+    ///
+    /// Caller-built sections use a fallback without collision checks. This does
+    /// not assign an ID.
+    #[must_use]
+    pub fn resolve_id(self) -> Cow<'doc, str> {
+        self.node.id()
     }
 
     /// Read direct blocks and subsections in document order.

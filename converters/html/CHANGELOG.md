@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Caller-built section and discrete headings retain title-derived ID fallbacks
+  through typed parser reads, including empty and formatted titles.
+
 - Section headings and lists retain numbering, IDs, formatting, nested list styles,
   checkboxes, and callouts through typed parser reads in both HTML variants.
 

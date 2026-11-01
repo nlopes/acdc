@@ -28,7 +28,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         let is_index_section = data.kind() == SectionKind::Index;
         let render_catalog = is_index_section && processor.generate_index();
 
-        self.render_section_header(traversal, data, section.id().as_ref())?;
+        self.render_section_header(traversal, data)?;
 
         // Keep authored content before the generated catalog.
         for nested_block in &section.content {
@@ -49,9 +49,9 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         &mut self,
         traversal: &mut TraversalContext<'a>,
         section: SectionRef<'_>,
-        id: &str,
     ) -> Result<(), Error> {
         let processor = self.processor.clone();
+        let id = section.resolve_id();
         let effective_level = effective_section_level(section.level(), section.kind());
 
         let is_appendix = section.kind() == SectionKind::Appendix;
@@ -142,8 +142,8 @@ pub(crate) fn visit_discrete_header<'a, W: Write>(
     header: &DiscreteHeader,
     visitor: &mut HtmlVisitor<'a, '_, W>,
 ) -> Result<(), Error> {
-    let id = Section::generate_id_string(&header.metadata, &header.title);
     let header = DiscreteHeaderRef::from(header);
+    let id = header.resolve_id();
     let level = header.level() + 1; // Level 1 = h2
 
     // asciidoctor emits a `class` only when the discreteness came from the
