@@ -29,7 +29,7 @@ use acdc_parser::{
     DelimitedBlock, DelimitedBlockType, DescriptionList, DescriptionListItem, HorizontalAlignment,
     Image, IndexTerm, InlineNode, ListItem, Location, PageBreak, Paragraph, Section, SectionKind,
     Source, Substitution, Table, TableColumn, TableFrame, TableGrid, TableOfContents,
-    TablePresentation, TableStripes, Title, TocEntry, VerticalAlignment,
+    TablePresentation, TableRow, TableStripes, Title, TocEntry, VerticalAlignment,
     ast::{
         AttributeValueRef, AttributesRef, AutolinkRef, ContentRef, CrossReferenceRef, ElementIdRef,
         FootnoteRef, IconRef, ImageRef, IndexTermRef, IndexTermRelationshipRef, InlineImageRef,
@@ -3433,7 +3433,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         &mut self,
         traversal: &mut TraversalContext<'a>,
         context: &TableRenderContext<'_, '_>,
-        row: &GridRow<'a>,
+        row: &GridRow<&'a TableRow<'a>>,
         y: usize,
         first_separator: &str,
     ) -> Result<(), Error> {

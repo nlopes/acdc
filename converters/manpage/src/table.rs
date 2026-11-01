@@ -13,7 +13,8 @@ use acdc_converters_core::{
 };
 use acdc_parser::{
     BlockMetadata, ColumnFormat, ColumnStyle, ColumnWidth, DelimitedBlock, HorizontalAlignment,
-    Table, TableColumn, TableFrame, TableGrid, TablePresentation, TableStripes, VerticalAlignment,
+    Table, TableColumn, TableFrame, TableGrid, TablePresentation, TableRow, TableStripes,
+    VerticalAlignment,
 };
 
 use crate::{Error, ManpageVisitor, Processor};
@@ -74,7 +75,7 @@ fn effective_style<'a>(
 /// Generate a tbl format entry for a single cell position.
 fn format_entry(
     kind: &CellKind,
-    row: &GridRow<'_>,
+    row: &GridRow<&TableRow<'_>>,
     column_index: usize,
     columns: &[ColumnFormat],
     width_modifiers: &[String],
@@ -98,7 +99,11 @@ fn format_entry(
     }
 }
 
-fn has_hspan_origin(grid: &[GridRow<'_>], row_index: usize, column_index: usize) -> bool {
+fn has_hspan_origin(
+    grid: &[GridRow<&TableRow<'_>>],
+    row_index: usize,
+    column_index: usize,
+) -> bool {
     let mut row_index = row_index;
     while row_index > 0 {
         row_index -= 1;
@@ -115,7 +120,7 @@ fn has_hspan_origin(grid: &[GridRow<'_>], row_index: usize, column_index: usize)
 }
 
 fn format_row(
-    grid: &[GridRow<'_>],
+    grid: &[GridRow<&TableRow<'_>>],
     row_index: usize,
     columns: &[ColumnFormat],
     width_modifiers: &[String],
@@ -304,7 +309,7 @@ fn has_rowspans<'a>(table: &'a Table<'a>) -> bool {
 
 /// Render a data row from the grid, producing a colon-separated string.
 fn render_grid_row<'a>(
-    grid_row: &GridRow<'a>,
+    grid_row: &GridRow<&'a TableRow<'a>>,
     columns: &[ColumnFormat],
     processor: &Processor<'a>,
     traversal: &mut TraversalContext<'a>,

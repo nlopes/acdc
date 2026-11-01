@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- Table grid rows now use `GridRow<Row>`; existing explicit row types become
+  `GridRow<&TableRow<'_>>`. Typed table consumers can use `column_count`,
+  `grid_rows`, and `has_spans` with the same span placement and row ordering.
+
 - `effective_subs` and `effective_subs_flags` now accept
   `Option<SubstitutionSpecRef>`; convert existing optional owner references with
   `.map(Into::into)`. Block defaults, ordering, and feature behavior are unchanged.

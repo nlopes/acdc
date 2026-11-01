@@ -11,7 +11,8 @@ use acdc_converters_core::{
 
 use acdc_parser::{
     BlockMetadata, ColumnFormat, ColumnStyle, HorizontalAlignment, Table as ParserTable,
-    TableColumn, TableFrame, TableGrid, TablePresentation, TableStripes, VerticalAlignment,
+    TableColumn, TableFrame, TableGrid, TablePresentation, TableRow, TableStripes,
+    VerticalAlignment,
 };
 use comfy_table::{
     Attribute, Cell, CellAlignment, ColumnConstraint, ContentArrangement, Table, Width,
@@ -301,7 +302,7 @@ fn classify_lines(output: &str, num_grid_rows: usize) -> Vec<LineType> {
 #[allow(clippy::too_many_lines)]
 fn remove_span_borders(
     output: &str,
-    grid: &[GridRow<'_>],
+    grid: &[GridRow<&TableRow<'_>>],
     num_cols: usize,
     boundaries: &[usize],
     line_types: &[LineType],
@@ -521,7 +522,7 @@ fn visible_line_len(line: &str) -> usize {
 /// `HSpan` origin — i.e., the cell it continues from (upward) was `HSpan`.
 /// This means the vertical separator should also be removed for `VSpan` rows
 /// that are part of a combined colspan+rowspan.
-fn is_hspan_origin(grid: &[GridRow<'_>], row_idx: usize, col_idx: usize) -> bool {
+fn is_hspan_origin(grid: &[GridRow<&TableRow<'_>>], row_idx: usize, col_idx: usize) -> bool {
     // Walk upward through VSpan cells until we find the row that isn't VSpan
     let mut r = row_idx;
     while r > 0 {
@@ -627,7 +628,7 @@ fn apply_table_presentation(
 
 /// Build `comfy_table` cells from a logical grid row.
 fn build_comfy_cells_from_grid<'a>(
-    grid_row: &GridRow<'a>,
+    grid_row: &GridRow<&'a TableRow<'a>>,
     tbl: &'a ParserTable<'a>,
     processor: &Processor<'a>,
     traversal: &mut TraversalContext<'a>,

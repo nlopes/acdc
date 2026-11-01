@@ -1,12 +1,15 @@
 //! Table utilities shared between converters.
 //!
-//! The grid utilities ([`build_grid`], [`CellKind`], [`GridRow`]) reconstruct
+//! The grid utilities ([`grid_rows`], [`build_grid`], [`CellKind`], [`GridRow`]) reconstruct
 //! logical cell positions for converters that need explicit placement or span
 //! placeholders (e.g. PDF, manpage tbl, terminal). Formats whose row containers
 //! provide placement directly (like HTML `<tr>`) can iterate the AST cells
 //! without building a grid.
 
-use acdc_parser::{ColumnFormat, ColumnWidth, Table, TableRow, ast::ColumnFormatRef};
+use acdc_parser::{
+    ColumnFormat, ColumnWidth, Table, TableRow,
+    ast::{ColumnFormatRef, TableRef, TableRowRef},
+};
 
 /// Calculate column widths as percentages from column format specifications.
 ///
@@ -81,12 +84,12 @@ pub fn column_widths<'column>(
 /// normalized grid where every row has the same number of columns.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CellKind {
-    /// A real cell with content. `cell_index` indexes into the AST row's `columns` vec.
+    /// A real cell with content, indexed in the original row's cell order.
     Content {
-        /// Index into the AST row's `columns` vector.
+        /// Index into the original row's cells, excluding span placeholders.
         cell_index: usize,
     },
-    /// Horizontal span placeholder (the primary cell is to the left).
+    /// Horizontal span placeholder, also used to pad missing cells.
     HSpan,
     /// Vertical span placeholder (the primary cell is above).
     VSpan,
@@ -94,11 +97,11 @@ pub enum CellKind {
 
 /// A logical row in the grid, with metadata about its role.
 #[derive(Debug)]
-pub struct GridRow<'a> {
+pub struct GridRow<Row> {
     /// The cell kinds for each logical column position.
     pub cells: Vec<CellKind>,
-    /// Reference to the original AST row.
-    pub ast_row: &'a TableRow<'a>,
+    /// The original row, retained as a reference or typed handle.
+    pub ast_row: Row,
     /// Whether this row is a header row.
     pub is_header: bool,
     /// Whether this row is a footer row.
@@ -111,20 +114,41 @@ pub struct GridRow<'a> {
 /// Otherwise, scans all rows and returns the maximum colspan-adjusted width.
 #[must_use]
 pub fn determine_column_count(table: &Table) -> usize {
-    if !table.columns.is_empty() {
-        return table.columns.len();
+    count_columns(
+        table.columns.len(),
+        table
+            .header
+            .iter()
+            .chain(&table.rows)
+            .chain(&table.footer)
+            .map(TableRowRef::from),
+    )
+}
+
+/// Count logical columns, using explicit column formats when present.
+///
+/// Otherwise, use the widest row after accounting for colspans. A table without
+/// rows has one column; a table containing only empty rows has zero.
+#[must_use]
+pub fn column_count(table: TableRef<'_>) -> usize {
+    count_columns(table.columns().count(), table_rows(table))
+}
+
+fn count_columns<'a>(columns: usize, rows: impl Iterator<Item = TableRowRef<'a>>) -> usize {
+    if columns > 0 {
+        return columns;
     }
-
-    let all_rows = table
-        .header
-        .iter()
-        .chain(table.rows.iter())
-        .chain(table.footer.iter());
-
-    all_rows
-        .map(|row| row.columns.iter().map(|c| c.colspan.max(1)).sum::<usize>())
+    rows.map(|row| row.cells().map(|cell| cell.colspan().max(1)).sum::<usize>())
         .max()
         .unwrap_or(1)
+}
+
+fn table_rows(table: TableRef<'_>) -> impl Iterator<Item = TableRowRef<'_>> {
+    table
+        .header()
+        .into_iter()
+        .chain(table.rows())
+        .chain(table.footer())
 }
 
 /// Build a logical grid from all table rows, normalizing spans into a
@@ -133,21 +157,48 @@ pub fn determine_column_count(table: &Table) -> usize {
 /// Each cell position is either a real content cell, a horizontal span
 /// placeholder, or a vertical span placeholder.
 #[must_use]
-pub fn build_grid<'a>(table: &'a Table<'a>, num_cols: usize) -> Vec<GridRow<'a>> {
-    let all_rows: Vec<(&'a TableRow<'a>, bool, bool)> = table
+pub fn build_grid<'a>(table: &'a Table<'a>, num_cols: usize) -> Vec<GridRow<&'a TableRow<'a>>> {
+    let rows = table
         .header
         .iter()
         .map(|r| (r, true, false))
         .chain(table.rows.iter().map(|r| (r, false, false)))
-        .chain(table.footer.iter().map(|r| (r, false, true)))
-        .collect();
+        .chain(table.footer.iter().map(|r| (r, false, true)));
+    build_grid_rows(rows, num_cols, |row| {
+        row.columns.iter().map(|cell| (cell.colspan, cell.rowspan))
+    })
+}
 
-    let mut grid = Vec::with_capacity(all_rows.len());
+/// Build a rectangular grid while retaining typed handles to its original rows.
+///
+/// Rows remain in header, body, footer order. Content indices address
+/// [`TableRowRef::cells`]; placeholders represent covered or missing positions.
+/// Spans are clamped to the supplied width. Zero width retains the rows with
+/// empty cell vectors.
+#[must_use]
+pub fn grid_rows(table: TableRef<'_>, num_cols: usize) -> Vec<GridRow<TableRowRef<'_>>> {
+    let rows = table
+        .header()
+        .into_iter()
+        .map(|row| (row, true, false))
+        .chain(table.rows().map(|row| (row, false, false)))
+        .chain(table.footer().map(|row| (row, false, true)));
+    build_grid_rows(rows, num_cols, |row| {
+        row.cells().map(|cell| (cell.colspan(), cell.rowspan()))
+    })
+}
+
+fn build_grid_rows<Row: Copy, Cells: Iterator<Item = (usize, usize)>>(
+    rows: impl Iterator<Item = (Row, bool, bool)>,
+    num_cols: usize,
+    cell_spans: impl Fn(Row) -> Cells,
+) -> Vec<GridRow<Row>> {
+    let mut grid = Vec::with_capacity(rows.size_hint().0);
     let mut rowspan_remaining = vec![0usize; num_cols];
 
-    for (ast_row, is_header, is_footer) in &all_rows {
+    for (ast_row, is_header, is_footer) in rows {
+        let mut cells = cell_spans(ast_row).enumerate();
         let mut row_cells = Vec::with_capacity(num_cols);
-        let mut cell_cursor = 0;
         let mut col = 0;
 
         while col < num_cols {
@@ -160,19 +211,17 @@ pub fn build_grid<'a>(table: &'a Table<'a>, num_cols: usize) -> Vec<GridRow<'a>>
                 continue;
             }
 
-            let Some(cell) = ast_row.columns.get(cell_cursor) else {
+            let Some((cell_index, (colspan, rowspan))) = cells.next() else {
                 // Shouldn't happen in well-formed input; fill remaining
                 row_cells.push(CellKind::HSpan);
                 col += 1;
                 continue;
             };
 
-            let colspan = cell.colspan.max(1);
-            let rowspan = cell.rowspan.max(1);
+            let colspan = colspan.max(1);
+            let rowspan = rowspan.max(1);
 
-            row_cells.push(CellKind::Content {
-                cell_index: cell_cursor,
-            });
+            row_cells.push(CellKind::Content { cell_index });
 
             // Fill horizontal span markers for extra colspan columns
             for _ in 1..colspan {
@@ -189,14 +238,13 @@ pub fn build_grid<'a>(table: &'a Table<'a>, num_cols: usize) -> Vec<GridRow<'a>>
             }
 
             col += colspan;
-            cell_cursor += 1;
         }
 
         grid.push(GridRow {
             cells: row_cells,
             ast_row,
-            is_header: *is_header,
-            is_footer: *is_footer,
+            is_header,
+            is_footer,
         });
     }
 
@@ -206,15 +254,27 @@ pub fn build_grid<'a>(table: &'a Table<'a>, num_cols: usize) -> Vec<GridRow<'a>>
 /// Check whether any cell in the table has colspan or rowspan greater than 1.
 #[must_use]
 pub fn table_has_spans(table: &Table) -> bool {
-    let all_rows = table
-        .header
-        .iter()
-        .chain(table.rows.iter())
-        .chain(table.footer.iter());
+    rows_have_spans(
+        table
+            .header
+            .iter()
+            .chain(&table.rows)
+            .chain(&table.footer)
+            .map(TableRowRef::from),
+    )
+}
 
-    all_rows
-        .flat_map(|row| &row.columns)
-        .any(|cell| cell.colspan > 1 || cell.rowspan > 1)
+/// Whether any header, body, or footer cell spans multiple rows or columns.
+#[must_use]
+pub fn has_spans(table: TableRef<'_>) -> bool {
+    rows_have_spans(table_rows(table))
+}
+
+fn rows_have_spans<'a>(mut rows: impl Iterator<Item = TableRowRef<'a>>) -> bool {
+    rows.any(|row| {
+        row.cells()
+            .any(|cell| cell.colspan() > 1 || cell.rowspan() > 1)
+    })
 }
 
 #[cfg(test)]
@@ -400,7 +460,10 @@ mod tests {
                 .ok_or_else(|| std::io::Error::other("no table found in document").into())
         }
 
-        fn assert_grid_rows(grid: &[GridRow<'_>], expected: &[(bool, bool, Vec<CellKind>)]) {
+        fn assert_grid_rows(
+            grid: &[GridRow<&TableRow<'_>>],
+            expected: &[(bool, bool, Vec<CellKind>)],
+        ) {
             assert_eq!(grid.len(), expected.len());
             for (row, (is_header, is_footer, cells)) in grid.iter().zip(expected) {
                 assert_eq!(row.is_header, *is_header);

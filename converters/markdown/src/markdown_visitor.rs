@@ -28,7 +28,8 @@ use acdc_parser::{
     HorizontalAlignment, Image, IndexTerm, IndexTermRelationship, InlineImage, InlineMacro,
     InlineNode, Link, ListItem, ListItemCheckedStatus, Location, OrderedList, PageBreak, Paragraph,
     Section, SectionKind, Source, SourceLocation, Substitution, Table, TableColumn,
-    TableOfContents, ThematicBreak, Title, TocEntry, UnorderedList, VerticalAlignment, Video,
+    TableOfContents, TableRow, ThematicBreak, Title, TocEntry, UnorderedList, VerticalAlignment,
+    Video,
 };
 
 use crate::{
@@ -2925,7 +2926,7 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
     fn write_gfm_table_row(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        row: &GridRow<'a>,
+        row: &GridRow<&'a TableRow<'a>>,
         table: &'a Table<'a>,
     ) -> Result<(), Error> {
         write!(self.writer, "|")?;
