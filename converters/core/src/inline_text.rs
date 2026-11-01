@@ -142,7 +142,15 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
         self.write_inlines(w, content.inlines())
     }
 
-    pub(crate) fn write_inlines<'doc, W: Write + ?Sized>(
+    /// Write plain text from a typed inline iterator using this extraction policy.
+    ///
+    /// For an isolated fragment, supply its surrounding context with
+    /// [`Self::text_boundaries`].
+    ///
+    /// # Errors
+    ///
+    /// Returns any error produced by the underlying writer.
+    pub fn write_inlines<'doc, W: Write + ?Sized>(
         self,
         w: &mut W,
         inlines: impl DoubleEndedIterator<Item = InlineRef<'doc>> + ExactSizeIterator + Clone,

@@ -49,6 +49,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Text extraction can write typed inline iterators directly to a caller's buffer,
+  including temporary fragments. Existing text policies, surrounding word context,
+  and writer errors are preserved.
+
 - Source code text extraction accepts typed inline iterators. Existing owner
   slice calls retain displayed text, visible index terms, footnote markers,
   and link detection.

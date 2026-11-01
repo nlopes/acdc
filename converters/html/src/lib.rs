@@ -849,6 +849,8 @@ fn capture_code_inlines<'a, W: std::io::Write>(
     visitor: &mut HtmlVisitor<'a, '_, W>,
     subs: &[Substitution],
 ) -> Result<(Vec<Option<String>>, Vec<syntax::HighlightedLink>), Error> {
+    let text_boundaries =
+        TextBoundaries::BOTH.with_ordinary_replacements(subs.contains(&Substitution::Replacements));
     let labels = highlight_inlines
         .iter()
         .enumerate()
@@ -877,15 +879,15 @@ fn capture_code_inlines<'a, W: std::io::Write>(
                     || (raw.subs.is_empty() && raw.content.contains(['<', '>', '&'])
                         && !matches!(raw.content, "<" | ">")));
             if raw {
-                text = acdc_converters_core::InlineTextTransform::default()
+                text.clear();
+                let _ = acdc_converters_core::InlineTextTransform::default()
                     .line_break("\n")
                     .rendered_replacements(false)
-                    .text_boundaries(
-                        TextBoundaries::BOTH
-                            .with_ordinary_replacements(subs.contains(&Substitution::Replacements))
-                            .for_inline(text_context, index),
-                    )
-                    .to_string(std::slice::from_ref(node));
+                    .text_boundaries(text_boundaries.for_inline(text_context, index))
+                    .write_inlines(
+                        &mut text,
+                        std::iter::once(acdc_parser::ast::InlineRef::from(node)),
+                    );
             }
             (linked || formatted || raw).then_some(text)
         })
@@ -904,9 +906,7 @@ fn capture_code_inlines<'a, W: std::io::Write>(
                 visitor.diagnostics.reborrow(),
             );
             capture.current_subs = subs.to_vec();
-            capture.text_boundaries = TextBoundaries::BOTH
-                .with_ordinary_replacements(subs.contains(&Substitution::Replacements))
-                .for_inline(text_context, index);
+            capture.text_boundaries = text_boundaries.for_inline(text_context, index);
             capture
                 .current_section_title
                 .clone_from(&visitor.current_section_title);
@@ -921,9 +921,7 @@ fn capture_code_inlines<'a, W: std::io::Write>(
             let text = syntax::extract_text_and_callouts(
                 std::slice::from_ref(node),
                 subs.contains(&Substitution::Replacements),
-                TextBoundaries::BOTH
-                    .with_ordinary_replacements(subs.contains(&Substitution::Replacements))
-                    .for_inline(text_context, index),
+                text_boundaries.for_inline(text_context, index),
                 None,
                 None,
             )
