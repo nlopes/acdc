@@ -1,17 +1,16 @@
 //! Error types for the PDF converter.
 
 use std::{
-    collections::HashMap,
     fmt::Write as _,
     path::{Path, PathBuf},
 };
 
-use acdc_parser::Reference;
+use acdc_parser::ast::ReferencesRef;
 use acdc_pdf_render::Error as RenderError;
 
 pub(crate) fn with_source_labels(
     error: RenderError,
-    references: &HashMap<&str, Reference<'_>>,
+    references: ReferencesRef<'_>,
     source_file: Option<&Path>,
 ) -> RenderError {
     match error {
@@ -27,7 +26,7 @@ pub(crate) fn with_source_labels(
 
 pub(crate) fn source_labels(
     message: &str,
-    references: &HashMap<&str, Reference<'_>>,
+    references: ReferencesRef<'_>,
     source_file: Option<&Path>,
 ) -> String {
     let mut output = String::with_capacity(message.len());
@@ -42,19 +41,18 @@ pub(crate) fn source_labels(
             .as_deref()
             .and_then(|target| references.get(target).map(|reference| (target, reference)))
         {
-            let location = &reference.location;
-            let file = location
-                .start
-                .file
-                .as_ref()
-                .and_then(|chain| chain.last())
+            let start = reference.location().start();
+            let file = start
+                .include_chain()
+                .and_then(Iterator::last)
                 .map(Path::new)
                 .or(source_file);
             let file = file.map_or_else(|| "<input>".into(), Path::to_string_lossy);
             let _ = write!(
                 output,
                 "<{target}> (defined at {file}:{}:{})",
-                location.start.line, location.start.column
+                start.line(),
+                start.column()
             );
         } else {
             let _ = write!(output, "<id-{hex}>");
@@ -201,7 +199,7 @@ mod tests {
         let message = "label `<id-636166c3a9>` occurs multiple times\nunknown variable\nunknown label <id-ff>\nunfinished <id-0";
         let error = with_source_labels(
             RenderError::Compile(message.into()),
-            &parsed.document().references,
+            parsed.document_ref().references(),
             Some(Path::new("guide.adoc")),
         );
         assert_eq!(

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- PDF metadata, page settings, heading index terms, and diagnostic source labels
+  retain their parsed values during conversion.
 - Nested blocks, grouped description terms, and AsciiDoc table cells retain
   their order, local settings, and source locations during PDF conversion.
 - Video posters retain the video title, layout controls, links, and source

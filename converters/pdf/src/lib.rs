@@ -38,8 +38,8 @@ use acdc_parser::{
     SafeMode, SourceLocation,
     ast::{
         AdmonitionRef, AttributeValueRef, AttributesRef, BlockKind, BlockRef, ContentRef,
-        ContentRole, DocumentRef, IndexTermRef, IndexTermRelationshipRef, InlineKind, LocationRef,
-        ParagraphRef,
+        ContentRole, DocumentAttributesRef, DocumentRef, IndexTermRef, IndexTermRelationshipRef,
+        InlineKind, LocationRef, ParagraphRef,
     },
 };
 use acdc_pdf_images::{
@@ -432,18 +432,15 @@ impl Processor<'_> {
         // Public PDF names use AsciiDoc IDs, not the encoded labels used by Typst.
         // The renderer omits catalog entries whose labels were not actually emitted.
         // Caller-built document titles may have an ID without a reference catalog entry.
-        let header_id = doc.header.as_ref().and_then(|header| {
-            header
-                .metadata
-                .id
-                .as_ref()
-                .or_else(|| header.metadata.anchors.last())
-                .map(|anchor| anchor.id)
-        });
-        let mut ids = doc
-            .references
-            .keys()
-            .copied()
+        let document = DocumentRef::from(doc);
+        let header_id = document
+            .header()
+            .and_then(acdc_parser::ast::HeaderRef::primary_anchor)
+            .map(acdc_parser::ast::AnchorRef::id);
+        let mut ids = document
+            .references()
+            .iter()
+            .map(|(id, _)| id)
             .chain(header_id)
             .collect::<Vec<_>>();
         ids.sort_unstable();
@@ -460,7 +457,7 @@ impl Processor<'_> {
                 named_destinations,
             },
         )
-        .map_err(|error| error::with_source_labels(error, &doc.references, source_file))?;
+        .map_err(|error| error::with_source_labels(error, document.references(), source_file))?;
         if let Some(start) = page_numbering.conditional_arabic_start() {
             // Typst exports PDF labels only for fixed numbering patterns. A body-relative
             // transition uses a numbering function, so add its equivalent label ranges here.
@@ -470,7 +467,7 @@ impl Processor<'_> {
         for warning in rendered.warnings {
             diagnostics.warn(format!(
                 "Typst warning: {}",
-                error::source_labels(&warning, &doc.references, source_file)
+                error::source_labels(&warning, document.references(), source_file)
             ));
         }
 
@@ -493,11 +490,12 @@ impl Processor<'_> {
         config: TypstSourceConfig<'_>,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<String, Error> {
+        let doc = DocumentRef::from(doc);
         let mut processor = Processor::new(self.options.clone(), ParserOptions::builder())?
             .with_pdf_options(self.pdf_options.clone());
         processor.parser_options =
-            ParserOptions::default().with_document_attributes(doc.attributes.clone());
-        processor.references = Rc::new(doc.references.clone());
+            ParserOptions::default().with_document_attributes(doc.attributes().into());
+        processor.references = Rc::new(doc.references().into());
         // The parser numbers every caption it resolved. These counters only number a title it
         // could not — one on a caller-built block, or added after parsing — so they start past
         // every assigned ordinal instead of colliding with one. Assigning rather than raising
@@ -514,12 +512,12 @@ impl Processor<'_> {
         processor
             .table_counter
             .set(doc.highest_caption_number(CaptionKind::Table));
-        let mut traversal = TraversalContext::new(&doc.attributes);
+        let mut traversal = TraversalContext::new(doc.attributes());
         let mut visitor = PdfVisitor::new(
             processor,
             assets,
             config,
-            doc.toc_entries.clone(),
+            doc.toc_entries().map(acdc_parser::TocEntry::from).collect(),
             diagnostics.reborrow(),
         )
         .with_populated_index_sections(preparation.populated_index_sections.clone());
@@ -536,7 +534,7 @@ impl Processor<'_> {
         if preparation.needs_admonition_label_helper {
             write_admonition_image_helper(&mut visitor.writer, config.theme);
         }
-        DocumentVisitor::visit_document(&mut visitor, &mut traversal, DocumentRef::from(doc))?;
+        DocumentVisitor::visit_document(&mut visitor, &mut traversal, doc)?;
         let mut source = visitor.writer.into_string();
         source.truncate(source.trim_end_matches('\n').len());
         source.push('\n');
@@ -587,7 +585,8 @@ impl Processor<'_> {
     }
 
     fn page_numbering_plan(&self, doc: &Document<'_>, theme: &Theme) -> PageNumberingPlan {
-        let has_title_page = doc.header.is_some()
+        let doc = DocumentRef::from(doc);
+        let has_title_page = doc.header().is_some()
             && (self
                 .parser_options
                 .document_attributes()
@@ -598,7 +597,7 @@ impl Processor<'_> {
                     Some(value) if value.as_str() == Some("book")
                 )
                 || self.options.doctype() == acdc_converters_core::Doctype::Book);
-        let toc = TocConfig::from_attributes(
+        let toc = TocConfig::resolve(
             None,
             &TraversalContext::new(self.parser_options.document_attributes()),
         );
@@ -607,7 +606,7 @@ impl Processor<'_> {
         } else {
             toc.placement()
         };
-        let has_automatic_toc = !doc.toc_entries.is_empty()
+        let has_automatic_toc = doc.toc_entries().next().is_some()
             && matches!(placement, "auto" | "left" | "right" | "top" | "bottom");
         PageNumberingPlan::new(
             theme.page_numbering_start_at,
@@ -655,7 +654,9 @@ impl Processor<'_> {
         if let Some(page) = self.pdf_options.page {
             return page;
         }
-        let Some(value) = document_attribute_text((doc.attributes).get("pdf-page-size")) else {
+        let Some(value) =
+            document_attribute_text(DocumentRef::from(doc).attributes().get("pdf-page-size"))
+        else {
             return theme.page.unwrap_or(PageSize::A4);
         };
         if let Some(page) = parse_page_size(value) {
@@ -678,7 +679,9 @@ impl Processor<'_> {
         if let Some(margin) = self.pdf_options.page_margin {
             return Some(margin);
         }
-        let Some(value) = document_attribute_text((doc.attributes).get("pdf-page-margin")) else {
+        let Some(value) =
+            document_attribute_text(DocumentRef::from(doc).attributes().get("pdf-page-margin"))
+        else {
             return theme.margin;
         };
         if value.trim().is_empty() {
@@ -729,7 +732,9 @@ impl Processor<'_> {
         if let Some(layout) = self.pdf_options.page_layout {
             return layout;
         }
-        let Some(value) = document_attribute_text((doc.attributes).get("pdf-page-layout")) else {
+        let Some(value) =
+            document_attribute_text(DocumentRef::from(doc).attributes().get("pdf-page-layout"))
+        else {
             return theme.layout.unwrap_or(PageLayout::Portrait);
         };
         match value.to_ascii_lowercase().as_str() {
@@ -759,7 +764,9 @@ impl Processor<'_> {
         let base_dir = base_dir_for_source(source_file);
         let source_policy = image_source_policy(
             self.options.safe_mode(),
-            doc.attributes.get("allow-uri-read").is_some(),
+            DocumentRef::from(doc)
+                .attributes()
+                .contains("allow-uri-read"),
         );
         let config = ResolveConfig::new(base_dir, spool_dir).with_source_policy(source_policy);
         let config = if let Some(count) = self.pdf_options.remote_image_concurrency {
@@ -1203,14 +1210,16 @@ fn base_dir_for_source(source_file: Option<&Path>) -> PathBuf {
 }
 
 fn document_metadata(doc: &Document<'_>) -> DocumentMetadata {
+    let doc = DocumentRef::from(doc);
     let title = doc
-        .header
-        .as_ref()
+        .header()
         .and_then(|header| {
             let transform = InlineTextTransform::default().decode_char_refs(true);
-            let mut title = transform.to_string(header.title.as_ref());
-            if let Some(subtitle) = &header.subtitle {
-                let subtitle = transform.to_string(subtitle.as_ref());
+            let mut title = header
+                .title()
+                .map_or_else(String::new, |title| transform.content_to_string(title));
+            if let Some(subtitle) = header.subtitle() {
+                let subtitle = transform.content_to_string(subtitle);
                 if !subtitle.is_empty() {
                     title.push_str(": ");
                     title.push_str(&subtitle);
@@ -1219,18 +1228,18 @@ fn document_metadata(doc: &Document<'_>) -> DocumentMetadata {
             (!title.is_empty()).then_some(title)
         })
         .or_else(|| {
-            document_attribute_text((doc.attributes).get("untitled-label")).map(str::to_owned)
+            document_attribute_text(doc.attributes().get("untitled-label")).map(str::to_owned)
         });
     let mut authors = doc
-        .header
-        .iter()
-        .flat_map(|header| &header.authors)
-        .map(|author| author_name(author.into()))
+        .header()
+        .into_iter()
+        .flat_map(acdc_parser::ast::HeaderRef::authors)
+        .map(author_name)
         .collect::<Vec<_>>();
     if authors.is_empty()
         && let Some(author) = ["authors", "author"]
             .into_iter()
-            .find_map(|name| document_attribute_text((doc.attributes).get(name)))
+            .find_map(|name| document_attribute_text(doc.attributes().get(name)))
     {
         authors.push(author.to_owned());
     }
@@ -1238,13 +1247,14 @@ fn document_metadata(doc: &Document<'_>) -> DocumentMetadata {
     DocumentMetadata {
         title,
         authors,
-        description: metadata_attribute(&doc.attributes, "subject"),
-        keywords: metadata_attribute(&doc.attributes, "keywords"),
+        description: metadata_attribute(doc.attributes(), "subject"),
+        keywords: metadata_attribute(doc.attributes(), "keywords"),
     }
 }
 
 fn document_locale(doc: &Document<'_>, diagnostics: &mut Diagnostics<'_>) -> DocumentLocale {
-    let Some(value) = document_attribute_text((doc.attributes).get("lang")) else {
+    let Some(value) = document_attribute_text(DocumentRef::from(doc).attributes().get("lang"))
+    else {
         return DocumentLocale::default();
     };
     if value.is_empty() {
@@ -1269,8 +1279,8 @@ fn parse_document_locale(value: &str) -> Result<DocumentLocale, TypstError> {
     DocumentLocale::try_from_codes(language, region)
 }
 
-fn metadata_attribute(attributes: &DocumentAttributes<'_>, name: &str) -> Option<String> {
-    document_attribute_text((attributes).get(name)).map(str::to_owned)
+fn metadata_attribute(attributes: DocumentAttributesRef<'_>, name: &str) -> Option<String> {
+    document_attribute_text(attributes.get(name)).map(str::to_owned)
 }
 
 fn author_name(author: acdc_parser::ast::AuthorRef<'_>) -> String {
@@ -1288,7 +1298,7 @@ fn author_name(author: acdc_parser::ast::AuthorRef<'_>) -> String {
 
 fn collect_pdf_preparation(doc: &Document<'_>) -> PdfPreparation {
     let mut preparation = PdfPreparation::default();
-    let Ok(()) = heading_index::visit_terms(doc, |_, _| {
+    let Ok(()) = heading_index::visit_terms(DocumentRef::from(doc), |_, _| {
         preparation.has_index_terms = true;
         Ok::<(), std::convert::Infallible>(())
     });

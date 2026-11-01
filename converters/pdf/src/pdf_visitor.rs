@@ -23,9 +23,9 @@ use acdc_converters_core::{
     xref::{XrefDisplay, interdocument_xref, resolve_xref},
 };
 use acdc_parser::{
-    CaptionKind, ColumnStyle, ColumnWidth, HorizontalAlignment, IndexTerm, InlineNode, Location,
-    SectionKind, Substitution, TableFrame, TableGrid, TablePresentation, TableStripes, Title,
-    TocEntry, VerticalAlignment,
+    CaptionKind, ColumnStyle, ColumnWidth, HorizontalAlignment, InlineNode, Location, SectionKind,
+    Substitution, TableFrame, TableGrid, TablePresentation, TableStripes, Title, TocEntry,
+    VerticalAlignment,
     ast::{
         AnchorRef, AttributeValueRef, AttributesRef, AutolinkRef, BlockKind, BlockRef, CaptionRef,
         ColumnFormatRef, ContentRef, CrossReferenceRef, DescriptionListItemRef, DescriptionListRef,
@@ -4287,9 +4287,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     pub(crate) fn register_heading_index_term(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        term: &IndexTerm<'_>,
+        term: IndexTermRef<'_>,
     ) -> Result<(), Error> {
-        let entry = self.render_index_entry(traversal, term.into())?;
+        let entry = self.render_index_entry(traversal, term)?;
         self.index_catalog.register(entry);
         Ok(())
     }
