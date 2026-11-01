@@ -1,10 +1,8 @@
-use acdc_converters_core::{
-    TraversalContext, table::calculate_column_widths, visitor::WritableVisitor,
-};
+use acdc_converters_core::{TraversalContext, table::column_widths, visitor::WritableVisitor};
 use acdc_parser::{
     Block, BlockMetadata, CaptionKind, ColumnFormat, ColumnStyle, HorizontalAlignment, InlineNode,
     Table, TableColumn, TableFrame, TableGrid, TablePresentation, TableStripes, VerticalAlignment,
-    ast::AttributesRef,
+    ast::{AttributesRef, ColumnFormatRef},
 };
 
 use crate::{Error, HtmlVariant, Processor, inlines::escape_pcdata};
@@ -298,7 +296,7 @@ fn render_colgroup<'a, W: std::io::Write + ?Sized>(
             let width = 100.0 / f64::from(u32::try_from(col_count).unwrap_or(1));
             vec![width; col_count]
         } else {
-            calculate_column_widths(&table.columns)
+            column_widths(table.columns.iter().map(ColumnFormatRef::from))
         };
 
         for width in widths {

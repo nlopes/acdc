@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Tables retain proportional, percentage, and automatic column widths in both
+  HTML variants.
+
 - Caption rendering retains authored rich and empty prefixes, source-order label
   changes, delimiter-specific categories, and fallback numbering for library-built
   blocks in both HTML variants.

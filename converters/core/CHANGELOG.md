@@ -49,6 +49,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Library converters can calculate column widths from typed format iterators.
+  Existing slice calls retain proportional, percentage, automatic, and
+  normalization behavior.
+
 - Text extraction can write typed inline iterators directly to a caller's buffer,
   including temporary fragments. Existing text policies, surrounding word context,
   and writer errors are preserved.

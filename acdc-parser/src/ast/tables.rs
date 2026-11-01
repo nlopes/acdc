@@ -79,7 +79,9 @@ impl<'doc> TableRef<'doc> {
     }
 
     /// Column formats in table order.
-    pub fn columns(self) -> impl Iterator<Item = ColumnFormatRef<'doc>> + Send + Sync + 'doc {
+    pub fn columns(
+        self,
+    ) -> impl Iterator<Item = ColumnFormatRef<'doc>> + Clone + Send + Sync + 'doc {
         self.table.columns.iter().map(ColumnFormatRef::from)
     }
 

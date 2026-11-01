@@ -6,13 +6,13 @@
 //! provide placement directly (like HTML `<tr>`) can iterate the AST cells
 //! without building a grid.
 
-use acdc_parser::{ColumnFormat, ColumnWidth, Table, TableRow};
+use acdc_parser::{ColumnFormat, ColumnWidth, Table, TableRow, ast::ColumnFormatRef};
 
 /// Calculate column widths as percentages from column format specifications.
 ///
 /// Converts proportional widths (e.g., `1,3`) to percentages (e.g., `25%, 75%`).
-/// Percentage widths are passed through directly. Auto widths return 0.0,
-/// leaving the renderer to decide.
+/// Proportional and percentage widths are normalized together. Auto widths
+/// return 0.0, leaving the renderer to decide.
 ///
 /// # Arguments
 ///
@@ -31,23 +31,27 @@ use acdc_parser::{ColumnFormat, ColumnWidth, Table, TableRow};
 /// ```
 #[must_use]
 pub fn calculate_column_widths(columns: &[ColumnFormat]) -> Vec<f64> {
-    if columns.is_empty() {
-        return vec![];
-    }
+    column_widths(columns.iter().map(ColumnFormatRef::from))
+}
 
-    // Sum all proportional widths
+/// Calculate percentage widths from typed column formats.
+///
+/// Proportional and percentage widths are normalized together; automatic widths
+/// remain zero. An empty iterator produces no widths.
+#[must_use]
+pub fn column_widths<'column>(
+    columns: impl Iterator<Item = ColumnFormatRef<'column>> + Clone,
+) -> Vec<f64> {
     let total_proportional: u32 = columns
-        .iter()
-        .filter_map(|c| match c.width {
+        .clone()
+        .filter_map(|c| match c.width() {
             ColumnWidth::Proportional(w) => Some(w),
             ColumnWidth::Percentage(_) | ColumnWidth::Auto | _ => None,
         })
         .sum();
 
-    // Calculate percentage for each column
     let mut widths: Vec<f64> = columns
-        .iter()
-        .map(|c| match c.width {
+        .map(|c| match c.width() {
             ColumnWidth::Proportional(w) if total_proportional > 0 => {
                 (f64::from(w) / f64::from(total_proportional)) * 100.0
             }
@@ -57,8 +61,7 @@ pub fn calculate_column_widths(columns: &[ColumnFormat]) -> Vec<f64> {
         })
         .collect();
 
-    // Normalize percentage widths to sum to 100% (like asciidoctor does).
-    // Only non-zero (non-auto) widths participate in normalization.
+    // Normalize positive widths to 100%; automatic widths remain zero.
     let pct_sum: f64 = widths.iter().filter(|w| **w > 0.0).sum();
     if pct_sum > 0.0 && (pct_sum - 100.0).abs() > f64::EPSILON {
         let scale = 100.0 / pct_sum;

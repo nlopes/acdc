@@ -535,3 +535,49 @@ fn reads_support_shared_iterators_and_leave_the_document_unchanged() -> Result<(
     assert_eq!(parsed.document().footnotes, []);
     Ok(())
 }
+
+#[rstest::rstest]
+fn column_iterator_clones_keep_independent_positions(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    let parsed = parse(
+        "[cols=\"1,2,3\"]\n|===\n|A |B |C\n|===\n",
+        &Options::builder().with_compatibility_mode(mode).build()?,
+    )?;
+    let table = table(
+        parsed
+            .document_ref()
+            .blocks()
+            .next()
+            .ok_or("missing table")?,
+    )?;
+    let mut columns = table.columns();
+    let all = columns.clone();
+    assert_eq!(
+        columns.next().ok_or("missing first column")?.width(),
+        ColumnWidth::Proportional(1)
+    );
+    let remaining = columns.clone();
+    assert_eq!(
+        columns.next().ok_or("missing second column")?.width(),
+        ColumnWidth::Proportional(2)
+    );
+    assert_eq!(
+        all.map(ColumnFormatRef::width).collect::<Vec<_>>(),
+        [
+            ColumnWidth::Proportional(1),
+            ColumnWidth::Proportional(2),
+            ColumnWidth::Proportional(3)
+        ]
+    );
+    assert_eq!(
+        remaining.map(ColumnFormatRef::width).collect::<Vec<_>>(),
+        [ColumnWidth::Proportional(2), ColumnWidth::Proportional(3)]
+    );
+    assert_eq!(
+        columns.next().ok_or("missing third column")?.width(),
+        ColumnWidth::Proportional(3)
+    );
+    assert!(columns.next().is_none());
+    Ok(())
+}

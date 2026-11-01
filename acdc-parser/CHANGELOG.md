@@ -84,6 +84,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Table column-format iterators can be cloned to inspect the same formats again
+  without collecting them.
+
 - Typed source spans can be compared directly, including their byte offsets,
   endpoint positions, and include chains.
 
