@@ -31,7 +31,10 @@ use acdc_converters_core::{
     substitutions::TextBoundaries,
 };
 #[cfg(feature = "highlighting")]
-use acdc_parser::{InlineNode, ast::AttributesRef};
+use acdc_parser::{
+    InlineNode,
+    ast::{AttributesRef, InlineKind, InlineRef},
+};
 
 #[cfg(feature = "highlighting")]
 use crate::Error;
@@ -94,10 +97,10 @@ pub(crate) fn highlight_code<W: Write + ?Sized>(
         text_context,
     } = options;
     let (code, callouts) = extract_text_and_callouts(
-        inlines,
+        inlines.iter().map(InlineRef::from),
         replacements,
         TextBoundaries::BOTH,
-        text_context,
+        &text_context.unwrap_or(inlines).iter().map(InlineRef::from),
         diagnostics,
     );
     let syntax_set = SyntaxSet::load_defaults_newlines();
@@ -377,67 +380,81 @@ fn html_escape(s: &str) -> String {
 /// Visible index labels retain their profiles and use `replacements` for
 /// ordinary label text.
 #[cfg(feature = "highlighting")]
-pub(crate) fn extract_text_and_callouts(
-    inlines: &[InlineNode],
+pub(crate) fn extract_text_and_callouts<'inline>(
+    inlines: impl Iterator<Item = InlineRef<'inline>>,
     replacements: bool,
     boundaries: TextBoundaries,
-    text_context: Option<&[InlineNode]>,
+    text_context: &(impl DoubleEndedIterator<Item = InlineRef<'inline>> + ExactSizeIterator + Clone),
     mut diagnostics: Option<&mut Diagnostics<'_>>,
 ) -> (String, Vec<(usize, usize)>) {
     let mut result = String::new();
     let mut callouts = Vec::new();
-    let text_context = text_context.unwrap_or(inlines);
 
-    for (index, node) in inlines.iter().enumerate() {
+    for (index, node) in inlines.enumerate() {
         #[allow(clippy::match_same_arms)]
-        match node {
-            InlineNode::VerbatimText(verbatim) => {
-                result.push_str(verbatim.content);
+        match node.kind() {
+            InlineKind::Verbatim(verbatim) => {
+                result.push_str(verbatim.text());
             }
-            InlineNode::RawText(raw) => {
-                result.push_str(raw.content);
+            InlineKind::Raw(raw) => {
+                result.push_str(raw.text());
             }
-            InlineNode::PlainText(plain) => {
-                result.push_str(plain.content);
+            InlineKind::Plain(plain) => {
+                result.push_str(plain.text());
             }
-            InlineNode::LineBreak(_) => {
+            InlineKind::LineBreak(_) => {
                 result.push('\n');
             }
-            InlineNode::CalloutRef(callout) => {
-                callouts.push((result.len(), callout.number));
+            InlineKind::Callout(callout) => {
+                callouts.push((result.len(), callout.number()));
                 // Marker-only lines still need a line number/highlight. Replacing
                 // this space with the marker adds no rendered whitespace.
                 result.push(' ');
             }
-            InlineNode::Macro(acdc_parser::InlineMacro::IndexTerm(term)) => {
+            InlineKind::IndexTerm(term) => {
                 if term.is_visible() {
                     // Index labels remain structured until text extraction, so
                     // apply their display substitutions here. Catalog labels
                     // are registered independently from the original nodes.
-                    let text = InlineTextTransform::default()
+                    let _ = InlineTextTransform::default()
                         .line_break("\n")
                         .decode_char_refs(true)
                         .rendered_replacements(replacements)
                         .text_boundaries(
                             boundaries
                                 .with_ordinary_replacements(replacements)
-                                .for_inline(text_context, index),
+                                .for_inline_refs(
+                                    text_context.clone().nth(index),
+                                    text_context.clone().take(index).rev(),
+                                    text_context.clone().skip(index + 1),
+                                ),
                         )
-                        .to_string(std::slice::from_ref(node));
-                    result.push_str(&text);
+                        .write_inlines(&mut result, std::iter::once(node));
                 }
             }
-            InlineNode::BoldText(_)
-            | InlineNode::ItalicText(_)
-            | InlineNode::MonospaceText(_)
-            | InlineNode::HighlightText(_)
-            | InlineNode::SubscriptText(_)
-            | InlineNode::SuperscriptText(_)
-            | InlineNode::CurvedQuotationText(_)
-            | InlineNode::CurvedApostropheText(_)
-            | InlineNode::StandaloneCurvedApostrophe(_)
-            | InlineNode::InlineAnchor(_)
-            | InlineNode::Macro(_) => {}
+            InlineKind::Bold(_)
+            | InlineKind::Italic(_)
+            | InlineKind::Monospace(_)
+            | InlineKind::Highlight(_)
+            | InlineKind::Subscript(_)
+            | InlineKind::Superscript(_)
+            | InlineKind::CurvedQuotation(_)
+            | InlineKind::CurvedApostrophe(_)
+            | InlineKind::StandaloneCurvedApostrophe(_)
+            | InlineKind::Anchor(_)
+            | InlineKind::Footnote(_)
+            | InlineKind::Icon(_)
+            | InlineKind::Image(_)
+            | InlineKind::Keyboard(_)
+            | InlineKind::Button(_)
+            | InlineKind::Menu(_)
+            | InlineKind::Url(_)
+            | InlineKind::Link(_)
+            | InlineKind::Mailto(_)
+            | InlineKind::Autolink(_)
+            | InlineKind::CrossReference(_)
+            | InlineKind::Pass(_)
+            | InlineKind::Stem(_) => {}
             node => {
                 if let Some(diagnostics) = diagnostics.as_deref_mut() {
                     diagnostics.warn_with_advice(
@@ -456,7 +473,10 @@ pub(crate) fn extract_text_and_callouts(
 #[cfg(all(test, feature = "highlighting"))]
 mod tests {
     use super::*;
-    use acdc_parser::{CalloutRef, CalloutRefKind, Location, Verbatim};
+    use acdc_parser::{
+        CalloutRef, CalloutRefKind, CompatibilityMode, LineBreak, Location, Options, Plain, Raw,
+        Substitution, Verbatim, parse_inline,
+    };
 
     fn create_verbatim_inlines(content: &str) -> Vec<InlineNode<'_>> {
         vec![InlineNode::VerbatimText(Verbatim {
@@ -476,15 +496,20 @@ mod tests {
     #[test]
     fn test_extract_text_and_callouts_from_verbatim() {
         let inlines = create_verbatim_inlines("fn main() {\n    println!(\"Hello\");\n}");
-        let (text, callouts) =
-            extract_text_and_callouts(&inlines, false, TextBoundaries::BOTH, None, None);
+        let (text, callouts) = extract_text_and_callouts(
+            inlines.iter().map(InlineRef::from),
+            false,
+            TextBoundaries::BOTH,
+            &inlines.iter().map(InlineRef::from),
+            None,
+        );
         assert_eq!(text, "fn main() {\n    println!(\"Hello\");\n}");
         assert_eq!(callouts, []);
     }
 
     #[test]
     fn test_extract_text_and_callouts_with_callouts() {
-        let inlines = vec![
+        let inlines = [
             InlineNode::VerbatimText(Verbatim {
                 content: "let x = 1; ",
                 location: Location::default(),
@@ -501,10 +526,82 @@ mod tests {
             }),
         ];
 
-        let (text, callouts) =
-            extract_text_and_callouts(&inlines, false, TextBoundaries::BOTH, None, None);
+        let (text, callouts) = extract_text_and_callouts(
+            inlines.iter().map(InlineRef::from),
+            false,
+            TextBoundaries::BOTH,
+            &inlines.iter().map(InlineRef::from),
+            None,
+        );
         assert_eq!(text, "let x = 1;  \nlet y = 2;  \n");
         assert_eq!(callouts, [(11, 1), (24, 2)]);
+    }
+
+    #[test]
+    fn extraction_preserves_prepared_text_and_unicode_callout_offsets() {
+        let inlines = [
+            InlineNode::PlainText(Plain {
+                content: "été -- ",
+                location: Location::default(),
+                escaped: false,
+            }),
+            InlineNode::RawText(Raw {
+                content: "(C)",
+                location: Location::default(),
+                subs: vec![Substitution::Replacements],
+            }),
+            InlineNode::VerbatimText(Verbatim {
+                content: "日本語",
+                location: Location::default(),
+            }),
+            InlineNode::LineBreak(LineBreak {
+                location: Location::default(),
+            }),
+            create_callout_ref(7),
+            create_callout_ref(2),
+        ];
+        for replacements in [false, true] {
+            let (text, callouts) = extract_text_and_callouts(
+                inlines.iter().map(InlineRef::from),
+                replacements,
+                TextBoundaries::BOTH,
+                &inlines.iter().map(InlineRef::from),
+                None,
+            );
+            assert_eq!(text, "été -- (C)日本語\n  ");
+            assert_eq!(callouts, [(22, 7), (23, 2)]);
+        }
+    }
+
+    #[test]
+    fn extraction_uses_original_index_siblings() -> Result<(), Box<dyn std::error::Error>> {
+        for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+            let options = Options::builder().with_compatibility_mode(mode).build()?;
+            let parsed = parse_inline("prefixindexterm2:[--]tail", &options)?;
+            let [_, term, tail] = parsed.inlines() else {
+                return Err("expected three inline fragments".into());
+            };
+            let prepared = [
+                InlineNode::VerbatimText(Verbatim {
+                    content: " ",
+                    location: Location::default(),
+                }),
+                term.clone(),
+                tail.clone(),
+            ];
+            for (replacements, expected) in [(false, " --tail"), (true, " —\u{200b}tail")] {
+                let (text, callouts) = extract_text_and_callouts(
+                    prepared.iter().map(InlineRef::from),
+                    replacements,
+                    TextBoundaries::BOTH,
+                    &parsed.content().inlines(),
+                    None,
+                );
+                assert_eq!(text, expected, "{mode:?} {replacements}");
+                assert_eq!(callouts, []);
+            }
+        }
+        Ok(())
     }
 
     #[test]

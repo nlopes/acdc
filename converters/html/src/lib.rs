@@ -918,11 +918,12 @@ fn capture_code_inlines<'a, W: std::io::Write>(
             });
             offset += label.len();
         } else {
+            let inline = acdc_parser::ast::InlineRef::from(node);
             let text = syntax::extract_text_and_callouts(
-                std::slice::from_ref(node),
+                std::iter::once(inline),
                 subs.contains(&Substitution::Replacements),
                 text_boundaries.for_inline(text_context, index),
-                None,
+                &std::iter::once(inline),
                 None,
             )
             .0;

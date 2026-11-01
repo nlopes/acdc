@@ -15,7 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Listing and literal blocks retain source numbering, highlighted lines, linked
   labels, passthrough typography, custom indentation, callout guards, and `nowrap`
-  in both HTML variants.
+  in both HTML variants. Highlighting keeps visible index labels in their original
+  word context and leaves callout markers in the right positions after Unicode text.
 
 - Source paragraphs retain explicit and default language labels, including
   unknown and empty languages, with or without syntax highlighting.
