@@ -1,9 +1,9 @@
-use crate::{Admonition, AdmonitionVariant, StemNotation};
+use crate::{Admonition, AdmonitionVariant, Block, StemNotation};
 
 use super::{
     AdmonitionRef, AttributesRef, BlockRef, ContentRef, DelimitedCommentRef, ElementIdRef,
-    ExampleRef, ListingRef, LiteralRef, LocationRef, OpenRef, PassthroughRef, QuoteRef, SidebarRef,
-    StemBlockRef, TokensRef, VerseRef,
+    ExampleRef, ListingRef, LiteralRef, LocationRef, OpenRef, ParagraphRef, PassthroughRef,
+    QuoteRef, SidebarRef, StemBlockRef, TokensRef, VerseRef,
 };
 
 macro_rules! block_metadata {
@@ -182,6 +182,18 @@ impl<'doc> StemBlockRef<'doc> {
 }
 
 impl<'doc> AdmonitionRef<'doc> {
+    /// The sole paragraph, if its block metadata matches the admonition's.
+    #[must_use]
+    pub fn simple_paragraph(self) -> Option<ParagraphRef<'doc>> {
+        if let [Block::Paragraph(paragraph)] = self.node.blocks.as_slice()
+            && paragraph.metadata == self.node.metadata
+        {
+            Some(ParagraphRef::from(paragraph))
+        } else {
+            None
+        }
+    }
+
     /// Direct child blocks in content order.
     pub fn blocks(self) -> impl Iterator<Item = BlockRef<'doc>> + Send + Sync + 'doc {
         self.node.blocks.iter().map(BlockRef::from)

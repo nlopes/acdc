@@ -17,7 +17,7 @@ use acdc_parser::{
     DescriptionList, DiscreteHeader, Document, Header, Image, InlineNode, ListItem, OrderedList,
     PageBreak, Paragraph, Section, SectionKind, Source, TableOfContents, ThematicBreak,
     UnorderedList, Video,
-    ast::{ContentRef, InlineKind, InlineRef},
+    ast::{AdmonitionRef, ContentRef, InlineKind, InlineRef},
 };
 
 use crate::{
@@ -513,7 +513,9 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
                 self.writer.raw("]\n");
             }
             match admon.blocks.as_slice() {
-                [Block::Paragraph(para)] if para.metadata == admon.metadata => {
+                [Block::Paragraph(para)]
+                    if AdmonitionRef::from(admon).simple_paragraph().is_some() =>
+                {
                     // The parser copies a simple admonition's metadata to its
                     // synthetic paragraph. Render that paragraph without its anchor
                     // and title, which the admonition wrapper already wrote, but

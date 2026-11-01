@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Simple admonitions retain a single title and anchor, along with their paragraph
+  substitution settings.
 - Typed table controls retain column sizing, alignment, merged-cell geometry,
   literal cell text, and source-located zero-width warnings in PDF output.
 
