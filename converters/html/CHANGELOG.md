@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Highlighted source blocks retain index occurrence order and anchor positions
+  across formatted text, links, and footnotes.
+
 - Library-built tables retain local border and row-stripe overrides and document
   defaults when their presentation has not been resolved.
 

@@ -928,12 +928,12 @@ fn capture_code_inlines<'a, W: std::io::Write>(
             // ordinary terms in the same pass, at their displayed byte offsets;
             // inserting anchors after line decoration can target the line gutter
             // or split a multiline link.
-            acdc_converters_core::index::visit_index_terms(
-                std::slice::from_ref(node),
+            acdc_converters_core::index::visit_index_inlines(
+                std::iter::once(InlineRef::from(node)),
                 &mut |term, term_offset| {
                     if let Some(id) = visitor.register_indexterm(
                         traversal,
-                        term.into(),
+                        term,
                         &RenderOptions::default(),
                         subs,
                     )? {

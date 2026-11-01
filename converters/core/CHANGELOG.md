@@ -49,6 +49,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Library converters can discover index occurrences from typed inline iterators.
+  Existing owner callbacks retain their original references, occurrence order,
+  plain-text byte offsets, and first-error stopping.
+
 - Library converters can calculate column widths from typed format iterators.
   Existing slice calls retain proportional, percentage, automatic, and
   normalization behavior.
