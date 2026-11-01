@@ -30,8 +30,13 @@ use crate::{
     pdf_visitor::{AutomaticPreambleLeadState, ExplicitPageBreakState, attribute_text},
 };
 
-fn poster_image<'a>(video: &Video<'a>, poster: &'a str, target: &str) -> Result<Image<'a>, Error> {
-    let mut metadata = video.metadata.clone();
+fn poster_image<'a>(
+    video: VideoRef<'a>,
+    poster: &'a str,
+    target: &str,
+) -> Result<Image<'a>, Error> {
+    let video = Video::from(video);
+    let mut metadata = video.metadata;
     metadata.caption = Some(Caption::Unnumbered);
     // Video alt is an extension value, not parsed image alternative content.
     metadata.attributes.remove("alt");
@@ -39,8 +44,8 @@ fn poster_image<'a>(video: &Video<'a>, poster: &'a str, target: &str) -> Result<
         .attributes
         .set("link".into(), target.to_owned().into());
     Ok(
-        Image::new(Source::from_str_borrowed(poster)?, video.location.clone())
-            .with_title(video.title.clone())
+        Image::new(Source::from_str_borrowed(poster)?, video.location)
+            .with_title(video.title)
             .with_metadata(metadata)?,
     )
 }
@@ -573,7 +578,7 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
             (poster, poster_target.as_deref(), sources.first())
             && self.has_asset(poster_target)
         {
-            let image = poster_image(video, poster, target)?;
+            let image = poster_image(VideoRef::from(video), poster, target)?;
             self.write_block_image(traversal, ImageRef::from(&image))?;
             true
         } else {
@@ -886,7 +891,7 @@ mod poster_tests {
             .with_title(Title::new(Vec::new()))
             .with_metadata(metadata)?;
         let before = video.clone();
-        let image = poster_image(&video, "poster.svg", "clip.mp4#t=2")?;
+        let image = poster_image(VideoRef::from(&video), "poster.svg", "clip.mp4#t=2")?;
         assert_eq!(video, before);
         assert_eq!(image.title, video.title);
         assert_eq!(image.metadata.id, video.metadata.id);
@@ -919,7 +924,7 @@ mod poster_tests {
             .attributes
             .set("roles".into(), "shadow".into());
         let before = video.clone();
-        let error = poster_image(&video, "poster.svg", "clip.mp4")
+        let error = poster_image(VideoRef::from(&video), "poster.svg", "clip.mp4")
             .err()
             .ok_or("invalid metadata accepted")?;
         assert!(matches!(error, Error::ReservedAttribute(error) if error.name == "roles"));

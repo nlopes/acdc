@@ -111,6 +111,14 @@ macro_rules! media_reads {
 
 media_reads!(AudioRef, VideoRef);
 
+/// Copies the video's current values and source locations. The copy can still
+/// borrow source text; changing it does not update the original.
+impl<'doc> From<VideoRef<'doc>> for crate::Video<'doc> {
+    fn from(video: VideoRef<'doc>) -> Self {
+        video.node.clone()
+    }
+}
+
 impl<'doc> DiscreteHeaderRef<'doc> {
     /// Resolve the heading ID from the explicit ID, last anchor, or title.
     ///

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Video posters retain the video title, layout controls, links, and source
+  locations when creating their printable image.
 - Paragraphs, captions, source blocks, lists, media, and page breaks retain their
   formatting, substitution settings, and source-located warnings during conversion.
 - Simple admonitions retain a single title and anchor, along with their paragraph

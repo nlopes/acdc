@@ -89,6 +89,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Library consumers can copy a video from a typed read, retaining its source,
+  title, attributes, and source locations for independent edits.
 - Library consumers can identify a simple admonition's paragraph while retaining
   its title, ID, and source span.
 - Typed element attributes expose their recorded block metadata span for source-aware
