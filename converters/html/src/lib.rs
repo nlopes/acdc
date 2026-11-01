@@ -17,7 +17,7 @@ use acdc_converters_core::{
 use acdc_parser::{
     AttributeValue, BlockMetadata, CaptionKind, Document, DocumentAttributes, InlineNode,
     Options as ParserOptions, Reference, Substitution, TocEntry,
-    ast::{AttributeValueRef, AttributesRef, CaptionRef},
+    ast::{AttributeValueRef, AttributesRef, CaptionRef, InlineRef},
 };
 
 mod admonition;
@@ -856,7 +856,7 @@ fn capture_code_inlines<'a, W: std::io::Write>(
         .enumerate()
         .map(|(index, node)| {
             let (mut text, linked) = acdc_converters_core::code::code_inline_text(
-                std::iter::once(acdc_parser::ast::InlineRef::from(node)),
+                std::iter::once(InlineRef::from(node)),
                 &visitor.processor.references,
                 "html",
             );
@@ -884,10 +884,7 @@ fn capture_code_inlines<'a, W: std::io::Write>(
                     .line_break("\n")
                     .rendered_replacements(false)
                     .text_boundaries(text_boundaries.for_inline(text_context, index))
-                    .write_inlines(
-                        &mut text,
-                        std::iter::once(acdc_parser::ast::InlineRef::from(node)),
-                    );
+                    .write_inlines(&mut text, std::iter::once(InlineRef::from(node)));
             }
             (linked || formatted || raw).then_some(text)
         })
@@ -918,7 +915,7 @@ fn capture_code_inlines<'a, W: std::io::Write>(
             });
             offset += label.len();
         } else {
-            let inline = acdc_parser::ast::InlineRef::from(node);
+            let inline = InlineRef::from(node);
             let text = syntax::extract_text_and_callouts(
                 std::iter::once(inline),
                 subs.contains(&Substitution::Replacements),
@@ -1063,7 +1060,8 @@ pub(crate) fn render_pre_code<'a, W: std::io::Write>(
 ) -> Result<(), Error> {
     let guarded = callouts::strip_guards(inlines, attributes, callouts::font_icons(traversal));
     let inlines = guarded.as_ref();
-    let indentation = source_indent::IndentedSource::new(inlines, source_indent);
+    let indentation =
+        source_indent::IndentedSource::new(inlines.iter().map(InlineRef::from), source_indent);
     let indented = indentation.as_ref().map(|source| source.inlines(inlines));
     let inlines = indented.as_deref().unwrap_or(inlines);
     #[cfg(feature = "highlighting")]

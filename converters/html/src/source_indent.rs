@@ -3,7 +3,7 @@ use std::io::Write;
 use acdc_converters_core::{Diagnostics, TraversalContext, visitor::Visitor};
 use acdc_parser::{
     InlineNode, Verbatim,
-    ast::{AttributeValueRef, AttributesRef},
+    ast::{AttributeValueRef, AttributesRef, InlineKind, InlineRef},
     strip_quotes,
 };
 
@@ -23,7 +23,7 @@ impl<'a, W: Write> crate::HtmlVisitor<'a, '_, W> {
             crate::callouts::font_icons(traversal),
         );
         let inlines = guarded.as_ref();
-        let indentation = IndentedSource::new(inlines, width);
+        let indentation = IndentedSource::new(inlines.iter().map(InlineRef::from), width);
         let indented = indentation.as_ref().map(|source| source.inlines(inlines));
         self.visit_inline_nodes(traversal, indented.as_deref().unwrap_or(inlines))
     }
@@ -63,29 +63,42 @@ pub(crate) fn resolve(
     }
 }
 
-fn text<'a>(node: &'a InlineNode<'_>) -> Option<&'a str> {
-    match node {
-        InlineNode::VerbatimText(node) => Some(node.content),
-        InlineNode::PlainText(node) => Some(node.content),
-        InlineNode::RawText(node) => Some(node.content),
-        InlineNode::BoldText(_)
-        | InlineNode::ItalicText(_)
-        | InlineNode::MonospaceText(_)
-        | InlineNode::HighlightText(_)
-        | InlineNode::SubscriptText(_)
-        | InlineNode::SuperscriptText(_)
-        | InlineNode::CurvedQuotationText(_)
-        | InlineNode::CurvedApostropheText(_)
-        | InlineNode::StandaloneCurvedApostrophe(_)
-        | InlineNode::LineBreak(_)
-        | InlineNode::InlineAnchor(_)
-        | InlineNode::Macro(_)
-        | InlineNode::CalloutRef(_)
+fn text(node: InlineRef<'_>) -> Option<&str> {
+    match node.kind() {
+        InlineKind::Verbatim(node) => Some(node.text()),
+        InlineKind::Plain(node) => Some(node.text()),
+        InlineKind::Raw(node) => Some(node.text()),
+        InlineKind::Bold(_)
+        | InlineKind::Italic(_)
+        | InlineKind::Monospace(_)
+        | InlineKind::Highlight(_)
+        | InlineKind::Subscript(_)
+        | InlineKind::Superscript(_)
+        | InlineKind::CurvedQuotation(_)
+        | InlineKind::CurvedApostrophe(_)
+        | InlineKind::StandaloneCurvedApostrophe(_)
+        | InlineKind::LineBreak(_)
+        | InlineKind::Anchor(_)
+        | InlineKind::Callout(_)
+        | InlineKind::Footnote(_)
+        | InlineKind::Icon(_)
+        | InlineKind::Image(_)
+        | InlineKind::Keyboard(_)
+        | InlineKind::Button(_)
+        | InlineKind::Menu(_)
+        | InlineKind::Url(_)
+        | InlineKind::Link(_)
+        | InlineKind::Mailto(_)
+        | InlineKind::Autolink(_)
+        | InlineKind::CrossReference(_)
+        | InlineKind::Pass(_)
+        | InlineKind::Stem(_)
+        | InlineKind::IndexTerm(_)
         | _ => None,
     }
 }
 
-fn common_indent(inlines: &[InlineNode<'_>]) -> usize {
+fn common_indent<'inline>(inlines: impl Iterator<Item = InlineRef<'inline>>) -> usize {
     let mut minimum = None;
     let mut leading = true;
     let mut width = 0;
@@ -119,12 +132,15 @@ pub(crate) struct IndentedSource {
 }
 
 impl IndentedSource {
-    pub(crate) fn new(inlines: &[InlineNode<'_>], width: Option<u16>) -> Option<Self> {
+    pub(crate) fn new<'inline>(
+        inlines: impl Iterator<Item = InlineRef<'inline>> + Clone,
+        width: Option<u16>,
+    ) -> Option<Self> {
         let width = usize::from(width?);
-        let common = common_indent(inlines);
+        let common = common_indent(inlines.clone());
         if width == common
             && !inlines
-                .iter()
+                .clone()
                 .filter_map(text)
                 .any(|text| text.contains('\t'))
         {
@@ -134,7 +150,6 @@ impl IndentedSource {
         let mut leading = true;
         let mut trim = common;
         let text = inlines
-            .iter()
             .map(|node| {
                 let Some(text) = text(node) else {
                     let prefix = leading.then(|| indent.clone());
@@ -290,10 +305,17 @@ mod tests {
             })
         });
         for (width, expected) in [(0, "α\n\n  β\nγ"), (2, "  α\n\n    β\n  γ")] {
-            let normalized = IndentedSource::new(&inlines, Some(width))
+            let normalized = IndentedSource::new(inlines.iter().map(InlineRef::from), Some(width))
                 .ok_or("expected indentation to change")?;
             let output = normalized.inlines(&inlines);
-            assert_eq!(output.iter().filter_map(text).collect::<String>(), expected);
+            assert_eq!(
+                output
+                    .iter()
+                    .map(InlineRef::from)
+                    .filter_map(text)
+                    .collect::<String>(),
+                expected
+            );
             for (original, output) in inlines.iter().zip(&output) {
                 assert_eq!(original.location(), output.location());
             }
@@ -307,7 +329,118 @@ mod tests {
             content: "  first\n    second",
             location: acdc_parser::Location::default(),
         })];
-        assert!(IndentedSource::new(&inlines, None).is_none());
-        assert!(IndentedSource::new(&inlines, Some(2)).is_none());
+        assert!(IndentedSource::new(inlines.iter().map(InlineRef::from), None).is_none());
+        assert!(IndentedSource::new(inlines.iter().map(InlineRef::from), Some(2)).is_none());
+    }
+
+    #[test]
+    fn normalization_preserves_text_kinds_profiles_and_include_spans()
+    -> Result<(), Box<dyn std::error::Error>> {
+        use acdc_parser::{Location, Plain, Raw, Substitution};
+
+        let mut location = Location::default();
+        location.start.file = Some(vec!["outer.adoc".into(), "selected.adoc".into()].into());
+        location.end.file = Some(vec!["outer.adoc".into(), "selected.adoc".into()].into());
+        let inlines = [
+            InlineNode::PlainText(Plain {
+                content: "  ",
+                location: location.clone(),
+                escaped: true,
+            }),
+            InlineNode::RawText(Raw {
+                content: "  α\n    ",
+                location: location.clone(),
+                subs: vec![
+                    Substitution::Replacements,
+                    Substitution::SpecialChars,
+                    Substitution::Replacements,
+                ],
+            }),
+            InlineNode::VerbatimText(Verbatim {
+                content: "\n      β\n    γ",
+                location,
+            }),
+        ];
+        for (width, expected) in [(0, "α\n\n  β\nγ"), (2, "  α\n\n    β\n  γ")] {
+            let normalized = IndentedSource::new(inlines.iter().map(InlineRef::from), Some(width))
+                .ok_or("expected indentation to change")?;
+            let output = normalized.inlines(&inlines);
+            assert_eq!(
+                output
+                    .iter()
+                    .map(InlineRef::from)
+                    .filter_map(text)
+                    .collect::<String>(),
+                expected
+            );
+            let [
+                InlineNode::PlainText(plain),
+                InlineNode::RawText(raw),
+                InlineNode::VerbatimText(_),
+            ] = output.as_slice()
+            else {
+                return Err("text kinds changed".into());
+            };
+            assert!(plain.escaped);
+            assert_eq!(
+                raw.subs,
+                [
+                    Substitution::Replacements,
+                    Substitution::SpecialChars,
+                    Substitution::Replacements,
+                ]
+            );
+            for (original, output) in inlines.iter().zip(&output) {
+                assert_eq!(original.location(), output.location());
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn structured_content_starts_a_line_and_retains_its_source_span()
+    -> Result<(), Box<dyn std::error::Error>> {
+        use acdc_parser::{CompatibilityMode, Location, Options, parse_inline};
+
+        for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+            let options = Options::builder().with_compatibility_mode(mode).build()?;
+            let parsed = parse_inline("*bold*", &options)?;
+            let [InlineNode::BoldText(span)] = parsed.inlines() else {
+                return Err("expected one formatting span".into());
+            };
+            let mut span = span.clone();
+            span.location.start.file = Some(vec!["selected.adoc".into()].into());
+            span.location.end.file = Some(vec!["selected.adoc".into()].into());
+            let original = InlineNode::BoldText(span);
+            let inlines = [
+                InlineNode::VerbatimText(Verbatim {
+                    content: "\t",
+                    location: Location::default(),
+                }),
+                original.clone(),
+                InlineNode::VerbatimText(Verbatim {
+                    content: "\n  after",
+                    location: Location::default(),
+                }),
+            ];
+            let normalized = IndentedSource::new(inlines.iter().map(InlineRef::from), Some(2))
+                .ok_or("expected indentation to change")?;
+            let output = normalized.inlines(&inlines);
+            let [
+                InlineNode::VerbatimText(first),
+                InlineNode::VerbatimText(prefix),
+                span,
+                InlineNode::VerbatimText(tail),
+            ] = output.as_slice()
+            else {
+                return Err("unexpected normalized fragments".into());
+            };
+            assert_eq!(first.content, "");
+            assert_eq!(prefix.content, "  ");
+            assert_eq!(span, &original);
+            assert_eq!(&prefix.location, original.location());
+            assert_eq!(tail.content, "\n   after");
+        }
+        Ok(())
     }
 }
