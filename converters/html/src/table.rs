@@ -421,9 +421,7 @@ where
     // Build table classes. Order matches asciidoctor:
     // frame, grid, stripes, sizing (stretch/fit-content), float, roles.
     let presentation = table.presentation().unwrap_or_else(|| {
-        TablePresentation::from_attributes(metadata, |name| {
-            (processor.document_attributes()).get(name)
-        })
+        TablePresentation::resolve(attributes, processor.document_attributes().into())
     });
     let frame = frame_class(presentation.frame());
     let grid = grid_class(presentation.grid());

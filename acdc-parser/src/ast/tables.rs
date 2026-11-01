@@ -4,7 +4,8 @@ use crate::{
 };
 
 use super::{
-    AttributeValueRef, AttributesRef, BlockRef, ContentRef, ElementIdRef, LocationRef, TokensRef,
+    AttributeValueRef, AttributesRef, BlockRef, ContentRef, DocumentAttributesRef, ElementIdRef,
+    LocationRef, TokensRef,
 };
 
 /// A table block, including its title and local declarations.
@@ -223,5 +224,23 @@ impl ColumnFormatRef<'_> {
 impl<'doc> From<&'doc ColumnFormat> for ColumnFormatRef<'doc> {
     fn from(format: &'doc ColumnFormat) -> Self {
         Self { format }
+    }
+}
+
+impl TablePresentation {
+    /// Resolve table decoration from local declarations and a document snapshot.
+    ///
+    /// Absent local declarations use document defaults. A present false or
+    /// valueless declaration masks the document value and uses the built-in
+    /// default. This does not update a table's stored presentation.
+    #[must_use]
+    pub fn resolve(
+        attributes: Option<AttributesRef<'_>>,
+        document_attributes: DocumentAttributesRef<'_>,
+    ) -> Self {
+        Self::from_attribute_values(
+            |name| attributes.and_then(|attributes| attributes.get(name)),
+            |name| document_attributes.get(name),
+        )
     }
 }

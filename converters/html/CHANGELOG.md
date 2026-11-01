@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Library-built tables retain local border and row-stripe overrides and document
+  defaults when their presentation has not been resolved.
+
 - Tables retain proportional, percentage, and automatic column widths in both
   HTML variants.
 

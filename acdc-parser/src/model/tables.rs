@@ -2,10 +2,9 @@
 
 use serde::Serialize;
 
-use super::{
-    AttributeName, AttributeValue, Block, BlockMetadata, DocumentAttributeAssignment,
-    location::Location,
-};
+use crate::ast::AttributeValueRef;
+
+use super::{AttributeName, Block, BlockMetadata, DocumentAttributeAssignment, location::Location};
 
 /// The outer border applied to a table.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -68,10 +67,20 @@ impl TablePresentation {
     #[must_use]
     pub fn from_attributes<'value>(
         metadata: &'value BlockMetadata<'_>,
+        lookup: impl FnMut(&str) -> Option<&'value crate::DocumentAttributeValue<'value>>,
+    ) -> Self {
+        Self::from_attribute_values(
+            |name| metadata.attributes.get(name).map(AttributeValueRef::from),
+            lookup,
+        )
+    }
+
+    pub(crate) fn from_attribute_values<'value>(
+        mut local: impl FnMut(&str) -> Option<AttributeValueRef<'value>>,
         mut lookup: impl FnMut(&str) -> Option<&'value crate::DocumentAttributeValue<'value>>,
     ) -> Self {
         Self {
-            frame: resolve_table_attribute(metadata, &mut lookup, "frame", "table-frame").map_or(
+            frame: resolve_table_attribute(local("frame"), &mut lookup, "table-frame").map_or(
                 TableFrame::All,
                 |value| match value {
                     "all" => TableFrame::All,
@@ -80,7 +89,7 @@ impl TablePresentation {
                     _ => TableFrame::None,
                 },
             ),
-            grid: resolve_table_attribute(metadata, &mut lookup, "grid", "table-grid").map_or(
+            grid: resolve_table_attribute(local("grid"), &mut lookup, "table-grid").map_or(
                 TableGrid::All,
                 |value| match value {
                     "all" => TableGrid::All,
@@ -89,7 +98,7 @@ impl TablePresentation {
                     _ => TableGrid::None,
                 },
             ),
-            stripes: resolve_table_attribute(metadata, &mut lookup, "stripes", "table-stripes")
+            stripes: resolve_table_attribute(local("stripes"), &mut lookup, "table-stripes")
                 .map_or(TableStripes::None, |value| match value {
                     "all" => TableStripes::All,
                     "odd" => TableStripes::Odd,
@@ -120,16 +129,20 @@ impl TablePresentation {
 }
 
 fn resolve_table_attribute<'value>(
-    metadata: &'value BlockMetadata<'_>,
+    local: Option<AttributeValueRef<'value>>,
     lookup: &mut impl FnMut(&str) -> Option<&'value crate::DocumentAttributeValue<'value>>,
-    local_name: &str,
     document_name: &str,
 ) -> Option<&'value str> {
-    if let Some(value) = metadata.attributes.get(local_name) {
+    if let Some(value) = local {
         return match value {
-            AttributeValue::String(value) => Some(value),
-            AttributeValue::Bool(true) => Some(""),
-            AttributeValue::Bool(false) | AttributeValue::None => None,
+            AttributeValueRef::Text(value) => Some(value),
+            AttributeValueRef::Bool(true) => Some(""),
+            AttributeValueRef::Bool(false)
+            | AttributeValueRef::None
+            | AttributeValueRef::Content(_)
+            | AttributeValueRef::ContentList(_)
+            | AttributeValueRef::Tokens(_)
+            | AttributeValueRef::Substitutions(_) => None,
         };
     }
     let value = lookup(document_name)?;

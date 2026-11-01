@@ -12,7 +12,10 @@ use acdc_converters_core::{
 };
 use acdc_converters_dev::output::remove_lines_trailing_whitespace;
 use acdc_converters_html::{HtmlVariant, HtmlVisitor, Processor, RenderOptions};
-use acdc_parser::{AttributeValue, Options as ParserOptions, SafeMode, parse, parse_file};
+use acdc_parser::{
+    AttributeValue, Block, CompatibilityMode, DelimitedBlockType, Options as ParserOptions,
+    SafeMode, Table, parse, parse_file,
+};
 
 mod support;
 
@@ -3139,6 +3142,79 @@ fn heading_and_title_footnotes_keep_unique_link_targets() -> Result<(), Error> {
         for embedded in [true, false] {
             let output = render_fixture_document(parsed.document(), variant, embedded)?;
             check_link_structure(&output, "heading_and_title_macro_registration")?;
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn unresolved_table_decoration_matches_the_parsed_presentation() -> Result<(), Error> {
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        for local in [
+            "",
+            "[frame=ends,grid=cols,stripes=even]\n",
+            "[frame=none,grid=none,stripes=none]\n",
+            "[frame=\"\",grid=\"\",stripes=\"\"]\n",
+            "[frame=topbot,grid=INVALID,stripes=hover]\n",
+        ] {
+            let source = format!(
+                "= Tables\n:table-frame: sides\n:table-grid: rows\n:table-stripes: odd\n\n{local}|===\n|One |Two\n|===\n"
+            );
+            let parsed = parse(
+                &source,
+                &ParserOptions::builder()
+                    .with_compatibility_mode(mode)
+                    .build()?,
+            )?;
+            let mut resolved = acdc_parser::Document::default();
+            resolved.attributes = parsed.document().attributes.clone();
+            resolved.blocks = parsed.document().blocks.clone();
+            let mut unresolved = acdc_parser::Document::default();
+            unresolved.attributes = resolved.attributes.clone();
+            unresolved.blocks = resolved.blocks.clone();
+            let Some(Block::DelimitedBlock(block)) = unresolved.blocks.first_mut() else {
+                return Err("expected table block".into());
+            };
+            let DelimitedBlockType::DelimitedTable(table) = &mut block.inner else {
+                return Err("expected table".into());
+            };
+            assert!(table.presentation().is_some());
+            *table = Table::new(table.rows.clone(), table.location.clone())
+                .with_header(table.header.clone())
+                .with_footer(table.footer.clone())
+                .with_columns(table.columns.clone());
+            assert!(table.presentation().is_none());
+            for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+                let processor = Processor::new_with_variant(
+                    ConverterOptions::default(),
+                    ParserOptions::builder(),
+                    variant,
+                )?;
+                let options = RenderOptions {
+                    embedded: true,
+                    ..RenderOptions::default()
+                };
+                let mut outputs = Vec::new();
+                for document in [&resolved, &unresolved] {
+                    let mut output = Vec::new();
+                    let mut warnings = Vec::new();
+                    let warning_source = WarningSource::new("html");
+                    let mut diagnostics = Diagnostics::new(&warning_source, &mut warnings);
+                    processor.convert_to_writer(
+                        document,
+                        &mut output,
+                        &options,
+                        &mut diagnostics,
+                    )?;
+                    assert!(warnings.is_empty(), "{warnings:?}");
+                    outputs.push(output);
+                }
+                assert_eq!(
+                    outputs.first(),
+                    outputs.get(1),
+                    "{mode:?} {variant:?} {local:?}"
+                );
+            }
         }
     }
     Ok(())

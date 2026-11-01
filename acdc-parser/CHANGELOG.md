@@ -84,6 +84,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Library callers can resolve table borders and row stripes from typed element
+  attributes and a document snapshot. Local overrides, empty values, and document
+  defaults keep their existing meaning; stored table presentations stay unchanged.
+
 - Table column-format iterators can be cloned to inspect the same formats again
   without collecting them.
 
