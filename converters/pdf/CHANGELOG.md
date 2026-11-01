@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Caller-built tables retain the border and stripe defaults active at their
+  position, including nested AsciiDoc cell scopes, when using typed attributes.
+
 - Inline formatting, links, footnotes, and index entries preserve their PDF text and
   destinations when read through the typed parser API.
 

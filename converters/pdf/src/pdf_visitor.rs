@@ -31,9 +31,9 @@ use acdc_parser::{
     Source, Substitution, Table, TableColumn, TableFrame, TableGrid, TableOfContents,
     TablePresentation, TableRow, TableStripes, Title, TocEntry, VerticalAlignment,
     ast::{
-        AttributeValueRef, AttributesRef, AutolinkRef, ContentRef, CrossReferenceRef, ElementIdRef,
-        FootnoteRef, IconRef, ImageRef, IndexTermRef, IndexTermRelationshipRef, InlineImageRef,
-        InlineKind, InlineRef, LocationRef, MenuRef, RawRef,
+        AttributeValueRef, AttributesRef, AutolinkRef, BlockRef, ContentRef, CrossReferenceRef,
+        ElementIdRef, FootnoteRef, IconRef, ImageRef, IndexTermRef, IndexTermRelationshipRef,
+        InlineImageRef, InlineKind, InlineRef, LocationRef, MenuRef, RawRef,
     },
 };
 use acdc_pdf_images::ImageMap;
@@ -694,6 +694,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         block: &'a DelimitedBlock<'a>,
     ) -> Result<(), Error> {
         let fallback = CaptionKind::for_delimited(&block.inner, block.metadata.style);
+        let attributes = BlockRef::from(block).attributes();
         let collapsible_example = is_collapsible_example(&block.metadata, fallback);
         let table = matches!(block.inner, DelimitedBlockType::DelimitedTable(_));
         if table && self.omit_zero_width_table(&block.metadata) {
@@ -776,7 +777,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 Ok(())
             }
             DelimitedBlockType::DelimitedTable(table) => {
-                self.write_table(traversal, table, &block.metadata)
+                self.write_table(traversal, table, &block.metadata, attributes)
             }
             DelimitedBlockType::DelimitedStem(stem) => {
                 self.write_stem_fallback(
@@ -3268,6 +3269,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         traversal: &mut TraversalContext<'a>,
         table: &'a Table<'a>,
         metadata: &BlockMetadata<'_>,
+        attributes: Option<AttributesRef<'_>>,
     ) -> Result<(), Error> {
         let column_count = determine_column_count(table);
         let width = table_width(metadata);
@@ -3288,7 +3290,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
 
         let grid = build_grid(table, column_count);
         let presentation = table.presentation().unwrap_or_else(|| {
-            TablePresentation::from_attributes(metadata, |name| (traversal).get(name))
+            TablePresentation::resolve_with(attributes, |name| traversal.get(name))
         });
         let header_rows = usize::from(grid.first().is_some_and(|row| row.is_header));
         let row_count = grid.len();

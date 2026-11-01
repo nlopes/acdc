@@ -238,9 +238,22 @@ impl TablePresentation {
         attributes: Option<AttributesRef<'_>>,
         document_attributes: DocumentAttributesRef<'_>,
     ) -> Self {
+        Self::resolve_with(attributes, |name| document_attributes.get(name))
+    }
+
+    /// Resolve table decoration using the document values active at this position.
+    ///
+    /// Local declarations follow the same masking rules as [`Self::resolve`].
+    /// The lookup supplies document defaults, including body changes or nested
+    /// scopes. This does not update a table's stored presentation.
+    #[must_use]
+    pub fn resolve_with<'value>(
+        attributes: Option<AttributesRef<'value>>,
+        lookup: impl FnMut(&str) -> Option<&'value crate::DocumentAttributeValue<'value>>,
+    ) -> Self {
         Self::from_attribute_values(
             |name| attributes.and_then(|attributes| attributes.get(name)),
-            |name| document_attributes.get(name),
+            lookup,
         )
     }
 }

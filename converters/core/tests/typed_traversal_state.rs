@@ -4,7 +4,7 @@ use std::ptr;
 
 use acdc_converters_core::TraversalContext;
 use acdc_parser::{
-    DocumentAttributeValue, Options,
+    CompatibilityMode, DocumentAttributeValue, Options, TableFrame, TableGrid, TablePresentation,
     ast::{BlockKind, DocumentAttributesRef, TableCellRef, TableRowRef},
     parse,
 };
@@ -148,6 +148,67 @@ fn typed_nested_cells_restore_parent_state_after_success_and_error() -> Result<(
                 .get("imagesdir")
                 .and_then(DocumentAttributeValue::as_str),
             Some("root")
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn table_decoration_lookup_follows_nested_scopes_and_restores_body_defaults() -> Result<(), Error> {
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            "= Doc\n:table-frame: all\n\nBody.\n\n:table-frame: sides\n\n[cols=\"a,a\"]\n|===\n|\nOne.\n\n:table-grid: cols\n\nLater.\n|\nTwo.\n\n:table-grid: rows\n\nLater.\n|===\n",
+            &Options::builder().with_compatibility_mode(mode).build()?,
+        )?;
+        let document = parsed.document_ref();
+        let table = document
+            .blocks()
+            .find_map(|block| {
+                if let BlockKind::Table(table) = block.kind() {
+                    Some(table)
+                } else {
+                    None
+                }
+            })
+            .ok_or("table")?;
+        let mut cells = table.rows().flat_map(TableRowRef::cells);
+        let first = cells.next().ok_or("first cell")?;
+        let second = cells.next().ok_or("second cell")?;
+        let mut context = TraversalContext::new(document.attributes());
+        for block in document.blocks() {
+            if let BlockKind::DocumentAttribute(event) = block.kind() {
+                context.apply(event);
+            }
+        }
+        let grid = |context: &TraversalContext<'_>| {
+            TablePresentation::resolve_with(None, |name| context.get(name)).grid()
+        };
+        assert_eq!(
+            TablePresentation::resolve_with(None, |name| context.get(name)).frame(),
+            TableFrame::Sides
+        );
+        assert_eq!(grid(&context), TableGrid::All);
+        let result = context.with_table_cell(first, |context| {
+            replay_cell(context, first);
+            assert_eq!(grid(context), TableGrid::Columns);
+            let nested = context.with_table_cell(second, |context| {
+                replay_cell(context, second);
+                assert_eq!(grid(context), TableGrid::Rows);
+                Err::<(), _>("nested conversion failed")
+            });
+            assert!(nested.is_err());
+            assert_eq!(grid(context), TableGrid::Columns);
+            Err::<(), _>("conversion failed")
+        });
+        assert!(result.is_err());
+        assert_eq!(grid(&context), TableGrid::All);
+        assert_eq!(
+            TablePresentation::resolve(None, context.header()).grid(),
+            TableGrid::All
+        );
+        assert_eq!(
+            TablePresentation::resolve(None, context.header()).frame(),
+            TableFrame::All
         );
     }
     Ok(())

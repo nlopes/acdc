@@ -1,5 +1,7 @@
 //! Table decoration preserves local declarations and document snapshots.
 
+use std::collections::HashMap;
+
 use acdc_parser::{
     AttributeValue, CompatibilityMode, DelimitedBlock, DelimitedBlockType, DocumentAttributes,
     Location, Options, Table, TableFrame, TableGrid, TablePresentation, TableStripes,
@@ -18,6 +20,11 @@ fn resolve(block: &DelimitedBlock<'_>, defaults: &DocumentAttributes<'_>) -> Tab
     let expected = TablePresentation::from_attributes(&block.metadata, |name| defaults.get(name));
     let actual = TablePresentation::resolve(BlockRef::from(block).attributes(), defaults.into());
     assert_eq!(actual, expected);
+    assert_eq!(
+        TablePresentation::resolve_with(BlockRef::from(block).attributes(), |name| defaults
+            .get(name)),
+        expected
+    );
     actual
 }
 
@@ -213,4 +220,83 @@ fn explicit_resolution_preserves_stored_source_position_and_unresolved_tables(
     );
     assert_eq!(table.presentation(), None);
     Ok(())
+}
+
+#[rstest::rstest]
+fn lookup_resolution_uses_body_assignments_and_unsets_without_updating_tables(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    let parsed = parse(
+        "= Tables\n:table-frame: sides\n:table-grid: rows\n:table-stripes: odd\n\n|===\n|Header defaults\n|===\n\n:table-frame: ends\n:table-grid: cols\n:table-stripes: even\n\n|===\n|Body defaults\n|===\n\n:table-frame!:\n:table-grid!:\n:table-stripes!:\n\n|===\n|Unset defaults\n|===\n",
+        &Options::builder().with_compatibility_mode(mode).build()?,
+    )?;
+    let header = parsed.document_ref().attributes();
+    let mut overlay = HashMap::new();
+    let mut actual = Vec::new();
+    let unresolved = empty_table();
+    let BlockKind::Table(constructed) = BlockRef::from(&unresolved).kind() else {
+        return Err("expected constructed table".into());
+    };
+    for block in parsed.document_ref().blocks() {
+        if let BlockKind::DocumentAttribute(event) = block.kind() {
+            overlay.insert(event.name(), event.assignment().value());
+        } else if let BlockKind::Table(table) = block.kind() {
+            let lookup = |name: &str| {
+                overlay
+                    .get(name)
+                    .copied()
+                    .unwrap_or_else(|| header.get(name))
+            };
+            let stored = table.presentation();
+            let resolved = TablePresentation::resolve_with(Some(constructed.attributes()), lookup);
+            assert_eq!(Some(resolved), stored);
+            assert_eq!(
+                resolved,
+                TablePresentation::from_attributes(&unresolved.metadata, lookup)
+            );
+            assert_eq!(table.presentation(), stored);
+            assert_eq!(constructed.presentation(), None);
+            actual.push(decoration(resolved));
+        }
+    }
+    assert_eq!(
+        actual,
+        [
+            (TableFrame::Sides, TableGrid::Rows, TableStripes::Odd),
+            (TableFrame::Ends, TableGrid::Columns, TableStripes::Even),
+            (TableFrame::All, TableGrid::All, TableStripes::None),
+        ]
+    );
+    assert_eq!(
+        decoration(TablePresentation::resolve(None, header)),
+        (TableFrame::Sides, TableGrid::Rows, TableStripes::Odd)
+    );
+    Ok(())
+}
+
+#[test]
+fn local_values_mask_lookup_defaults_without_requesting_them() {
+    for value in [
+        AttributeValue::None,
+        AttributeValue::Bool(false),
+        AttributeValue::from(""),
+    ] {
+        let mut block = empty_table();
+        for name in ["frame", "grid", "stripes"] {
+            block.metadata.attributes.set(name.into(), value.clone());
+        }
+        let mut requested = Vec::new();
+        let resolved =
+            TablePresentation::resolve_with(BlockRef::from(&block).attributes(), |name| {
+                requested.push(name.to_owned());
+                None
+            });
+        assert_eq!(requested, [] as [String; 0]);
+        let expected = if value == AttributeValue::from("") {
+            (TableFrame::None, TableGrid::None, TableStripes::None)
+        } else {
+            (TableFrame::All, TableGrid::All, TableStripes::None)
+        };
+        assert_eq!(decoration(resolved), expected);
+    }
 }

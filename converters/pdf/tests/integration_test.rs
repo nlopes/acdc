@@ -14,6 +14,77 @@ use acdc_converters_pdf::{PageLayout, PageMargins, PageSize, PdfOptions, Process
 type Error = Box<dyn std::error::Error>;
 
 #[test]
+fn unresolved_tables_preserve_body_and_nested_cell_decoration() -> Result<(), Error> {
+    fn clear_table_presentations(blocks: &mut [acdc_parser::Block<'_>]) {
+        for block in blocks {
+            let acdc_parser::Block::DelimitedBlock(block) = block else {
+                continue;
+            };
+            let acdc_parser::DelimitedBlockType::DelimitedTable(table) = &mut block.inner else {
+                continue;
+            };
+            for row in table
+                .header
+                .iter_mut()
+                .chain(&mut table.rows)
+                .chain(&mut table.footer)
+            {
+                for cell in &mut row.columns {
+                    clear_table_presentations(&mut cell.content);
+                }
+            }
+            *table =
+                acdc_parser::Table::new(std::mem::take(&mut table.rows), table.location.clone())
+                    .with_header(table.header.take())
+                    .with_footer(table.footer.take())
+                    .with_columns(std::mem::take(&mut table.columns));
+        }
+    }
+
+    let parsed = parse(
+        "= Tables\n:table-frame: all\n:table-grid: all\n\nBody.\n\n:table-frame: none\n:table-grid: none\n:table-stripes: odd\n\n[cols=\"a\"]\n|===\n|\nNested.\n\n[cols=\"2*\"]\n!===\n!A !B\n!C !D\n!===\n|===\n\n:table-frame: sides\n:table-grid: cols\n\n[cols=\"2*\"]\n|===\n|E |F\n|G |H\n|===\n",
+        &Options::default(),
+    )?;
+    let mut stored = Document::default();
+    stored.attributes = parsed.document().attributes.clone();
+    stored.blocks = parsed.document().blocks.clone();
+    let mut unresolved = Document::default();
+    unresolved.attributes = stored.attributes.clone();
+    unresolved.blocks = stored.blocks.clone();
+    clear_table_presentations(&mut unresolved.blocks);
+    let directory = tempfile::tempdir()?;
+    let mut rendered = Vec::new();
+    for (name, document) in [("stored", &stored), ("unresolved", &unresolved)] {
+        let typst = directory.path().join(name).with_extension("typ");
+        let processor = cli_fixture_processor(
+            Options::builder().with_attributes(document.attributes.clone().into_inputs()),
+        )?
+        .with_pdf_options(PdfOptions {
+            emit_typst: Some(typst.clone()),
+            ..PdfOptions::default()
+        });
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        processor.write_to(
+            document,
+            &mut Vec::new(),
+            None,
+            None,
+            &mut Diagnostics::new(&source, &mut warnings),
+        )?;
+        assert!(warnings.is_empty(), "{warnings:?}");
+        let output = read_to_string(typst)?;
+        assert_eq!(output.matches("#table(columns:").count(), 3);
+        rendered.push(output);
+    }
+    let [stored, unresolved] = rendered.as_slice() else {
+        return Err("expected two renderings".into());
+    };
+    assert_eq!(stored, unresolved);
+    Ok(())
+}
+
+#[test]
 fn theme_config_export_rejects_library_input_and_output_collisions() -> Result<(), Error> {
     let directory = tempfile::tempdir()?;
     let input = directory.path().join("document.adoc");
