@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Typed table controls retain column sizing, alignment, merged-cell geometry,
+  literal cell text, and source-located zero-width warnings in PDF output.
+
 - Caller-built tables retain the border and stripe defaults active at their
   position, including nested AsciiDoc cell scopes, when using typed attributes.
 

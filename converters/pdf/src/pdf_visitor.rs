@@ -31,9 +31,10 @@ use acdc_parser::{
     Source, Substitution, Table, TableColumn, TableFrame, TableGrid, TableOfContents,
     TablePresentation, TableRow, TableStripes, Title, TocEntry, VerticalAlignment,
     ast::{
-        AttributeValueRef, AttributesRef, AutolinkRef, BlockRef, ContentRef, CrossReferenceRef,
-        ElementIdRef, FootnoteRef, IconRef, ImageRef, IndexTermRef, IndexTermRelationshipRef,
-        InlineImageRef, InlineKind, InlineRef, LocationRef, MenuRef, RawRef,
+        AttributeValueRef, AttributesRef, AutolinkRef, BlockKind, BlockRef, ColumnFormatRef,
+        ContentRef, CrossReferenceRef, ElementIdRef, FootnoteRef, IconRef, ImageRef, IndexTermRef,
+        IndexTermRelationshipRef, InlineImageRef, InlineKind, InlineRef, LocationRef, MenuRef,
+        RawRef, TableCellRef,
     },
 };
 use acdc_pdf_images::ImageMap;
@@ -368,8 +369,8 @@ enum ParagraphAlignment {
     Justify,
 }
 
-struct TableRenderContext<'table, 'source> {
-    table: &'table Table<'source>,
+struct TableRenderContext<'doc> {
+    columns: Vec<ColumnFormatRef<'doc>>,
     presentation: TablePresentation,
     column_count: usize,
     row_count: usize,
@@ -697,16 +698,16 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         let attributes = BlockRef::from(block).attributes();
         let collapsible_example = is_collapsible_example(&block.metadata, fallback);
         let table = matches!(block.inner, DelimitedBlockType::DelimitedTable(_));
-        if table && self.omit_zero_width_table(&block.metadata) {
+        if table && self.omit_zero_width_table(attributes) {
             return Ok(());
         }
         let intrinsic_table =
-            table && block.title.is_present() && Self::table_has_intrinsic_width(&block.metadata);
+            table && block.title.is_present() && Self::table_has_intrinsic_width(attributes);
         if intrinsic_table {
             self.write_intrinsic_table_start();
         }
         let (sized_table, aligned_table) =
-            self.write_table_wrappers_start(&block.metadata, table && !intrinsic_table);
+            self.write_table_wrappers_start(attributes, table && !intrinsic_table);
         let writes_own_title = matches!(block.inner, DelimitedBlockType::DelimitedSidebar(_))
             || matches!(block.inner, DelimitedBlockType::DelimitedOpen(_))
                 && block.metadata.style == Some("abstract")
@@ -777,7 +778,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 Ok(())
             }
             DelimitedBlockType::DelimitedTable(table) => {
-                self.write_table(traversal, table, &block.metadata, attributes)
+                self.write_table(traversal, table, attributes)
             }
             DelimitedBlockType::DelimitedStem(stem) => {
                 self.write_stem_fallback(
@@ -794,7 +795,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             }
         };
         if intrinsic_table {
-            self.write_intrinsic_table_end(traversal, &block.title, &block.metadata, fallback)?;
+            self.write_intrinsic_table_end(traversal, block, fallback)?;
         }
         self.write_table_wrappers_end(sized_table, aligned_table);
         result
@@ -3268,24 +3269,29 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         &mut self,
         traversal: &mut TraversalContext<'a>,
         table: &'a Table<'a>,
-        metadata: &BlockMetadata<'_>,
         attributes: Option<AttributesRef<'_>>,
     ) -> Result<(), Error> {
         let column_count = determine_column_count(table);
-        let width = table_width(metadata);
-        let autowidth = metadata.options.contains(&"autowidth");
-        let constrained = width.is_some() || metadata.roles.contains(&"stretch");
-        if autowidth && !constrained {
-            let _ = write!(self.writer, "#table(columns: {column_count}");
-        } else {
-            let tracks = table_column_tracks(table, column_count);
+        let width = table_width(attributes);
+        let autowidth = has_attribute_token(attributes, "options", "autowidth");
+        let constrained = width.is_some() || has_attribute_token(attributes, "role", "stretch");
+        let columns = table
+            .columns
+            .iter()
+            .map(ColumnFormatRef::from)
+            .collect::<Vec<_>>();
+        let tracks = (!autowidth || constrained)
+            .then(|| table_column_tracks(columns.iter().copied(), column_count));
+        if let Some(tracks) = &tracks {
             let _ = write!(
                 self.writer,
                 "#table(columns: {}",
-                typst_table_column_tracks(&tracks)
+                typst_table_column_tracks(tracks)
             );
+        } else {
+            let _ = write!(self.writer, "#table(columns: {column_count}");
         }
-        let alignments = table_column_alignments(table, column_count);
+        let alignments = table_column_alignments(columns.iter().copied(), column_count);
         let _ = write!(self.writer, ", align: {alignments}, stroke: none");
 
         let grid = build_grid(table, column_count);
@@ -3300,19 +3306,15 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             .saturating_mul(usize::from(width.unwrap_or(100)))
             / 100;
         let context = TableRenderContext {
-            table,
+            columns,
             presentation,
             column_count,
             row_count,
             header_rows,
-            column_width_columns: if autowidth && !constrained {
-                equal_table_column_widths(column_count, available_columns)
-            } else {
-                table_column_width_columns(
-                    &table_column_tracks(table, column_count),
-                    available_columns,
-                )
-            },
+            column_width_columns: tracks.as_ref().map_or_else(
+                || equal_table_column_widths(column_count, available_columns),
+                |tracks| table_column_width_columns(tracks, available_columns),
+            ),
         };
         if let Some(header) = grid.first().filter(|row| row.is_header) {
             self.writer.raw(", table.header(repeat: true, ");
@@ -3340,19 +3342,25 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         Ok(())
     }
 
-    pub(crate) fn write_table_width_start(&mut self, metadata: &BlockMetadata<'_>) -> bool {
-        let Some(width) = table_width(metadata).filter(|width| *width < 100) else {
+    pub(crate) fn write_table_width_start(
+        &mut self,
+        attributes: Option<AttributesRef<'_>>,
+    ) -> bool {
+        let Some(width) = table_width(attributes).filter(|width| *width < 100) else {
             return false;
         };
         let _ = writeln!(self.writer, "#block(width: {width}%)[");
         true
     }
 
-    pub(crate) fn write_table_alignment_start(&mut self, metadata: &BlockMetadata<'_>) -> bool {
-        let alignment = table_alignment(metadata, self.table_theme.align);
-        let has_reduced_width = table_width(metadata).is_some_and(|width| width < 100);
+    pub(crate) fn write_table_alignment_start(
+        &mut self,
+        attributes: Option<AttributesRef<'_>>,
+    ) -> bool {
+        let alignment = table_alignment(attributes, self.table_theme.align);
+        let has_reduced_width = table_width(attributes).is_some_and(|width| width < 100);
         if alignment == TableAlignment::Left
-            || !(has_reduced_width || Self::table_has_intrinsic_width(metadata))
+            || !(has_reduced_width || Self::table_has_intrinsic_width(attributes))
         {
             return false;
         }
@@ -3362,18 +3370,18 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
 
     pub(crate) fn write_table_wrappers_start(
         &mut self,
-        metadata: &BlockMetadata<'_>,
+        attributes: Option<AttributesRef<'_>>,
         enabled: bool,
     ) -> (bool, bool) {
-        let aligned = enabled && self.write_table_alignment_start(metadata);
-        let sized = enabled && self.write_table_width_start(metadata);
+        let aligned = enabled && self.write_table_alignment_start(attributes);
+        let sized = enabled && self.write_table_width_start(attributes);
         (sized, aligned)
     }
 
-    pub(crate) fn table_has_intrinsic_width(metadata: &BlockMetadata<'_>) -> bool {
-        metadata.options.contains(&"autowidth")
-            && table_width(metadata).is_none()
-            && !metadata.roles.contains(&"stretch")
+    pub(crate) fn table_has_intrinsic_width(attributes: Option<AttributesRef<'_>>) -> bool {
+        has_attribute_token(attributes, "options", "autowidth")
+            && table_width(attributes).is_none()
+            && !has_attribute_token(attributes, "role", "stretch")
     }
 
     pub(crate) fn write_intrinsic_table_start(&mut self) {
@@ -3383,22 +3391,23 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     pub(crate) fn write_intrinsic_table_end(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &Title<'_>,
-        metadata: &BlockMetadata<'_>,
+        block: &DelimitedBlock<'_>,
         fallback: Option<CaptionKind>,
     ) -> Result<(), Error> {
-        let alignment = table_alignment(metadata, self.table_theme.align);
+        let attributes = BlockRef::from(block).attributes();
+        let alignment = table_alignment(attributes, self.table_theme.align);
         let _ = writeln!(
             self.writer,
             "]\nalign({}, [\n#context block(width: measure(acdc-table-body).width)[",
             typst_table_alignment(alignment)
         );
-        let sticky_title = !metadata.options.contains(&"unbreakable") && title.is_present();
+        let sticky_title =
+            !has_attribute_token(attributes, "options", "unbreakable") && block.title.is_present();
         if sticky_title {
             self.writer
                 .raw("#block(sticky: true, above: 0pt, below: 0pt)[\n");
         }
-        self.write_captioned_title(traversal, title, metadata, fallback)?;
+        self.write_captioned_title(traversal, &block.title, &block.metadata, fallback)?;
         if sticky_title {
             self.writer.raw("]\n");
         }
@@ -3418,13 +3427,16 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         }
     }
 
-    pub(crate) fn omit_zero_width_table(&mut self, metadata: &BlockMetadata<'_>) -> bool {
-        if table_width(metadata) != Some(0) {
+    pub(crate) fn omit_zero_width_table(&mut self, attributes: Option<AttributesRef<'_>>) -> bool {
+        if table_width(attributes) != Some(0) {
             return false;
         }
+        let location = attributes
+            .and_then(AttributesRef::location)
+            .map(Location::from);
         warn_with_advice_at(
             &mut self.diagnostics,
-            metadata.location.as_ref(),
+            location.as_ref(),
             "cannot fit contents of table cell into a table with a width of 0%; omitting the table",
             "Set the table width to a value greater than 0% to include it in the PDF.",
         );
@@ -3434,7 +3446,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     fn write_table_row_cells(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        context: &TableRenderContext<'_, '_>,
+        context: &TableRenderContext<'_>,
         row: &GridRow<&'a TableRow<'a>>,
         y: usize,
         first_separator: &str,
@@ -3467,56 +3479,58 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     fn write_table_cell(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        context: &TableRenderContext<'_, '_>,
+        context: &TableRenderContext<'_>,
         cell: &'a TableColumn<'a>,
         source_column_index: usize,
         position: TableCellPosition,
     ) -> Result<(), Error> {
+        let cell_ref = TableCellRef::from(cell);
         let TableCellPosition { x, y, .. } = position;
         let _ = write!(self.writer, "table.cell(x: {x}, y: {y}");
-        if cell.colspan > 1 {
-            let _ = write!(self.writer, ", colspan: {}", cell.colspan);
+        if cell_ref.colspan() > 1 {
+            let _ = write!(self.writer, ", colspan: {}", cell_ref.colspan());
         }
-        if cell.rowspan > 1 {
-            let _ = write!(self.writer, ", rowspan: {}", cell.rowspan);
+        if cell_ref.rowspan() > 1 {
+            let _ = write!(self.writer, ", rowspan: {}", cell_ref.rowspan());
         }
         let style = if position.is_header {
             ColumnStyle::Header
         } else {
-            cell.style.unwrap_or_else(|| {
+            cell_ref.style().unwrap_or_else(|| {
                 context
-                    .table
                     .columns
                     .get(source_column_index)
-                    .map_or(ColumnStyle::Default, |column| column.style)
+                    .map_or(ColumnStyle::Default, |column| column.style())
             })
         };
         let default_alignment = || (HorizontalAlignment::default(), VerticalAlignment::default());
         let source_column_alignment = context
-            .table
             .columns
             .get(source_column_index)
-            .map_or_else(default_alignment, |column| (column.halign, column.valign));
+            .map_or_else(default_alignment, |column| {
+                (column.halign(), column.valign())
+            });
         let physical_column_alignment = context
-            .table
             .columns
             .get(x)
-            .map_or_else(default_alignment, |column| (column.halign, column.valign));
+            .map_or_else(default_alignment, |column| {
+                (column.halign(), column.valign())
+            });
         if let Some(alignment) = table_cell_alignment(
-            cell,
+            cell_ref,
             style,
             source_column_alignment,
             physical_column_alignment,
         ) {
             let _ = write!(self.writer, ", align: {alignment}");
         }
-        self.write_table_cell_stroke(context, cell, position);
+        self.write_table_cell_stroke(context, cell_ref, position);
         self.write_table_cell_fill(context, position);
         self.writer.raw(")[");
         let outer_cell_state = replace(
             &mut self.table_cell_section_state,
             TableCellSectionState::Inside {
-                width_columns: table_cell_width_columns(context, x, cell.colspan),
+                width_columns: table_cell_width_columns(context, x, cell_ref.colspan()),
             },
         );
         let result = self.write_table_cell_content(traversal, cell, style);
@@ -3528,8 +3542,8 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
 
     fn write_table_cell_stroke(
         &mut self,
-        context: &TableRenderContext<'_, '_>,
-        cell: &'a TableColumn<'a>,
+        context: &TableRenderContext<'_>,
+        cell_ref: TableCellRef<'_>,
         position: TableCellPosition,
     ) {
         let presentation = context.presentation;
@@ -3541,8 +3555,8 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         let column_rule = matches!(presentation.grid(), TableGrid::All | TableGrid::Columns);
         let vertical_frame = matches!(presentation.frame(), TableFrame::All | TableFrame::Sides);
         let horizontal_frame = matches!(presentation.frame(), TableFrame::All | TableFrame::Ends);
-        let right = x.saturating_add(cell.colspan).min(column_count);
-        let bottom = y.saturating_add(cell.rowspan).min(row_count);
+        let right = x.saturating_add(cell_ref.colspan()).min(column_count);
+        let bottom = y.saturating_add(cell_ref.rowspan()).min(row_count);
 
         self.writer.raw(", stroke: (");
         self.write_table_stroke_side("left", if x == 0 { vertical_frame } else { column_rule });
@@ -3596,7 +3610,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
 
     fn write_table_cell_fill(
         &mut self,
-        context: &TableRenderContext<'_, '_>,
+        context: &TableRenderContext<'_>,
         position: TableCellPosition,
     ) {
         let fill = if position.is_header {
@@ -3625,7 +3639,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         style: ColumnStyle,
     ) -> Result<(), Error> {
         if style == ColumnStyle::Literal
-            && let Some(text) = literal_table_cell_text(&cell.content)
+            && let Some(text) = literal_table_cell_text(TableCellRef::from(cell).blocks())
         {
             self.write_table_literal(&text);
             return Ok(());
@@ -4603,19 +4617,20 @@ fn description_list_rows<'items, 'document>(
     items.split_inclusive(|item| !item.principal_text.is_empty() || !item.description.is_empty())
 }
 
-fn table_column_tracks<'a>(table: &'a Table<'a>, column_count: usize) -> Vec<TableColumnTrack> {
-    if table.columns.is_empty() {
+fn table_column_tracks<'doc>(
+    columns: impl Iterator<Item = ColumnFormatRef<'doc>> + Clone,
+    column_count: usize,
+) -> Vec<TableColumnTrack> {
+    if columns.clone().next().is_none() {
         return vec![TableColumnTrack::Fraction(1); column_count];
     }
 
-    let has_automatic_width = table
-        .columns
-        .iter()
-        .any(|column| column.width == ColumnWidth::Auto);
-    let fixed_width_total: u64 = table
-        .columns
-        .iter()
-        .filter_map(|column| match column.width {
+    let has_automatic_width = columns
+        .clone()
+        .any(|column| column.width() == ColumnWidth::Auto);
+    let fixed_width_total: u64 = columns
+        .clone()
+        .filter_map(|column| match column.width() {
             ColumnWidth::Proportional(width) | ColumnWidth::Percentage(width) => {
                 Some(u64::from(width))
             }
@@ -4626,10 +4641,8 @@ fn table_column_tracks<'a>(table: &'a Table<'a>, column_count: usize) -> Vec<Tab
     let fixed_widths_fit = fixed_width_total <= 100;
     let all_fixed_widths_are_zero = !has_automatic_width && fixed_width_total == 0;
 
-    table
-        .columns
-        .iter()
-        .map(|column| match column.width {
+    columns
+        .map(|column| match column.width() {
             ColumnWidth::Proportional(_) | ColumnWidth::Percentage(_)
                 if all_fixed_widths_are_zero =>
             {
@@ -4662,7 +4675,7 @@ fn typst_table_column_tracks(tracks: &[TableColumnTrack]) -> String {
 }
 
 fn table_cell_width_columns(
-    context: &TableRenderContext<'_, '_>,
+    context: &TableRenderContext<'_>,
     column: usize,
     colspan: usize,
 ) -> usize {
@@ -4718,11 +4731,11 @@ fn table_column_width_columns(tracks: &[TableColumnTrack], table_columns: usize)
         .collect()
 }
 
-fn table_width(metadata: &BlockMetadata<'_>) -> Option<u8> {
-    let AttributeValue::String(value) = metadata.attributes.get("width")? else {
+fn table_width(attributes: Option<AttributesRef<'_>>) -> Option<u8> {
+    let AttributeValueRef::Text(value) = attributes?.get("width")? else {
         return Some(100);
     };
-    if matches!(value.as_ref(), "0" | "0%") {
+    if matches!(value, "0" | "0%") {
         return Some(0);
     }
     let value = value.trim_start();
@@ -4740,18 +4753,27 @@ fn table_width(metadata: &BlockMetadata<'_>) -> Option<u8> {
     )
 }
 
-fn table_alignment(metadata: &BlockMetadata<'_>, theme_default: TableAlignment) -> TableAlignment {
-    if let Some(AttributeValue::String(value)) = metadata.attributes.get("align")
+fn table_alignment(
+    attributes: Option<AttributesRef<'_>>,
+    theme_default: TableAlignment,
+) -> TableAlignment {
+    if let Some(AttributeValueRef::Text(value)) =
+        attributes.and_then(|attributes| attributes.get("align"))
         && let Some(alignment) = source_table_alignment(value)
     {
         return alignment;
     }
-    metadata
-        .roles
-        .iter()
-        .rev()
-        .find_map(|role| source_table_alignment(role))
-        .unwrap_or(theme_default)
+    if let Some(AttributeValueRef::Tokens(roles)) =
+        attributes.and_then(|attributes| attributes.get("role"))
+    {
+        roles
+            .iter()
+            .filter_map(source_table_alignment)
+            .last()
+            .unwrap_or(theme_default)
+    } else {
+        theme_default
+    }
 }
 
 fn source_table_alignment(value: &str) -> Option<TableAlignment> {
@@ -4771,17 +4793,18 @@ const fn typst_table_alignment(alignment: TableAlignment) -> &'static str {
     }
 }
 
-fn table_column_alignments<'a>(table: &'a Table<'a>, column_count: usize) -> String {
-    if table.columns.is_empty() {
+fn table_column_alignments<'doc>(
+    columns: impl Iterator<Item = ColumnFormatRef<'doc>> + Clone,
+    column_count: usize,
+) -> String {
+    if columns.clone().next().is_none() {
         return format!("({})", vec!["left + top"; column_count].join(", "));
     }
 
-    let alignments = table
-        .columns
-        .iter()
+    let alignments = columns
         .map(|column| {
-            let horizontal = typst_horizontal_alignment(column.halign);
-            let vertical = typst_vertical_alignment(column.valign);
+            let horizontal = typst_horizontal_alignment(column.halign());
+            let vertical = typst_vertical_alignment(column.valign());
             format!("{horizontal} + {vertical}")
         })
         .collect::<Vec<_>>();
@@ -4789,15 +4812,15 @@ fn table_column_alignments<'a>(table: &'a Table<'a>, column_count: usize) -> Str
     format!("({})", alignments.join(", "))
 }
 
-fn table_cell_alignment<'a>(
-    cell: &'a TableColumn<'a>,
+fn table_cell_alignment(
+    cell: TableCellRef<'_>,
     style: ColumnStyle,
     source_column_alignment: (HorizontalAlignment, VerticalAlignment),
     physical_column_alignment: (HorizontalAlignment, VerticalAlignment),
 ) -> Option<String> {
     let (column_horizontal, column_vertical) = source_column_alignment;
-    let horizontal = cell.halign.unwrap_or(column_horizontal);
-    let vertical = cell.valign.unwrap_or(column_vertical);
+    let horizontal = cell.halign().unwrap_or(column_horizontal);
+    let vertical = cell.valign().unwrap_or(column_vertical);
 
     if style == ColumnStyle::AsciiDoc {
         let effective = (HorizontalAlignment::Left, vertical);
@@ -4813,7 +4836,7 @@ fn table_cell_alignment<'a>(
         ));
     }
 
-    match (cell.halign, cell.valign) {
+    match (cell.halign(), cell.valign()) {
         (Some(horizontal), Some(vertical)) => Some(format!(
             "{} + {}",
             typst_horizontal_alignment(horizontal),
@@ -5229,6 +5252,10 @@ fn asciidoctor_background_colour(role: &str) -> Option<&'static str> {
     }
 }
 
+fn has_attribute_token(attributes: Option<AttributesRef<'_>>, name: &str, token: &str) -> bool {
+    matches!(attributes.and_then(|attributes| attributes.get(name)), Some(AttributeValueRef::Tokens(tokens)) if tokens.contains(token))
+}
+
 fn attribute_text<'doc>(attributes: AttributesRef<'doc>, name: &str) -> Option<&'doc str> {
     if let Some(AttributeValueRef::Text(value)) = attributes.get(name) {
         Some(acdc_parser::strip_quotes(value))
@@ -5411,17 +5438,17 @@ fn leading_number(value: &str) -> f64 {
         .unwrap_or(0.0)
 }
 
-fn literal_table_cell_text<'a>(blocks: &'a [Block<'a>]) -> Option<String> {
+fn literal_table_cell_text<'doc>(blocks: impl Iterator<Item = BlockRef<'doc>>) -> Option<String> {
     let mut text = String::new();
-    for (index, block) in blocks.iter().enumerate() {
-        let Block::Paragraph(paragraph) = block else {
+    for (index, block) in blocks.enumerate() {
+        let BlockKind::Paragraph(paragraph) = block.kind() else {
             return None;
         };
         if index > 0 {
             text.push_str("\n\n");
         }
         let transform = InlineTextTransform::default().line_break("\n");
-        let _ = transform.write(&mut text, &paragraph.content);
+        let _ = transform.write_inlines(&mut text, paragraph.content().inlines());
     }
     Some(text)
 }
