@@ -175,7 +175,12 @@ pub fn code_inline_children<'n, 'a>(node: &'n InlineNode<'a>) -> Option<&'n [Inl
     }
 }
 
-fn code_inline_content(node: InlineRef<'_>) -> Option<ContentRef<'_>> {
+/// Direct content of formatting spans and visible index terms in source code.
+///
+/// Hidden index terms and other inline kinds have no code child content.
+/// An explicitly empty formatting span still returns `Some`.
+#[must_use]
+pub fn code_inline_content(node: InlineRef<'_>) -> Option<ContentRef<'_>> {
     match node.kind() {
         InlineKind::Bold(text) => Some(text.content()),
         InlineKind::Italic(text) => Some(text.content()),

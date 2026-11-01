@@ -49,6 +49,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Code renderers can inspect formatting-span and visible-index-term content
+  through typed parser handles, including explicitly empty formatting.
+
 - Library converters can resolve TOC settings and number prefixes from typed
   macro and catalog reads. Existing owner-based calls remain supported.
 

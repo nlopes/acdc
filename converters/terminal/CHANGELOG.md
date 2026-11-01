@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Source blocks and HTML terminal previews retain nested formatting, highlight
+  roles, callout guards, and per-fragment substitutions through typed reads.
+
 ### Fixed
 
 - Visible image/icon alternatives, UI labels, and custom `caption=` values retain

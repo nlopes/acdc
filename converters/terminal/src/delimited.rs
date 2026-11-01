@@ -8,7 +8,8 @@ use acdc_converters_core::{
     visitor::{Visitor, WritableVisitor},
 };
 use acdc_parser::{
-    Block, BlockMetadata, CaptionKind, DelimitedBlock, DelimitedBlockType, InlineNode,
+    Block, BlockMetadata, CaptionKind, DelimitedBlock, DelimitedBlockType, InlineNode, Location,
+    ast::{InlineKind, InlineRef},
 };
 use crossterm::{
     QueueableCommand,
@@ -500,8 +501,9 @@ pub(crate) fn render_preformatted_content(
     processor: &Processor<'_>,
 ) -> Result<String, Error> {
     let language = detect_language(metadata);
+    let inlines = inlines.iter().map(InlineRef::from).collect::<Vec<_>>();
     let (source, callouts, formatted) =
-        source_with_callout_placeholders(inlines, language, processor);
+        source_with_callout_placeholders(&inlines, language, processor);
     let mut output = Vec::new();
     // Explicit quote formatting takes precedence over syntax colors. Sending
     // its terminal escapes through the highlighter would display or corrupt them.
@@ -544,7 +546,7 @@ pub(crate) fn code_text_transform(
 }
 
 fn source_with_callout_placeholders(
-    nodes: &[InlineNode<'_>],
+    nodes: &[InlineRef<'_>],
     language: Option<&str>,
     processor: &Processor<'_>,
 ) -> (String, Vec<(String, usize)>, bool) {
@@ -554,19 +556,21 @@ fn source_with_callout_placeholders(
     let transform = code_text_transform(processor);
     let comment_prefix = default_line_comment(language);
 
-    for (index, node) in nodes.iter().enumerate() {
-        if let InlineNode::VerbatimText(verbatim) = node {
-            let mut content = verbatim.content.to_string();
+    for (index, node) in nodes.iter().copied().enumerate() {
+        if let InlineKind::Verbatim(verbatim) = node.kind() {
+            let mut content = verbatim.text().to_string();
             if index
                 .checked_sub(1)
                 .is_some_and(|previous| is_xml_callout(nodes, previous))
             {
                 content = content.strip_prefix("-->").unwrap_or(&content).to_string();
             }
-            if index
-                .checked_add(1)
-                .is_some_and(|next| matches!(nodes.get(next), Some(InlineNode::CalloutRef(_))))
-            {
+            if index.checked_add(1).is_some_and(|next| {
+                matches!(
+                    nodes.get(next).map(|node| node.kind()),
+                    Some(InlineKind::Callout(_))
+                )
+            }) {
                 if index
                     .checked_add(1)
                     .is_some_and(|next| is_xml_callout(nodes, next))
@@ -576,51 +580,53 @@ fn source_with_callout_placeholders(
                     content = strip_callout_guard(&content, comment_prefix);
                 }
             }
-            source.push_str(&transform.to_string(&[InlineNode::VerbatimText(
-                acdc_parser::Verbatim {
-                    content: &content,
-                    location: verbatim.location.clone(),
-                },
-            )]));
-        } else if let InlineNode::CalloutRef(callout) = node {
+            let text = InlineNode::VerbatimText(acdc_parser::Verbatim {
+                content: &content,
+                location: Location::from(verbatim.location()),
+            });
+            let _ = transform.write_inlines(&mut source, std::iter::once((&text).into()));
+        } else if let InlineKind::Callout(callout) = node.kind() {
             let offset = u32::try_from(callouts.len()).unwrap_or(0xFFFD).min(0xFFFD);
             let placeholder = char::from_u32(0xF0000 + offset)
                 .unwrap_or('\u{F0000}')
                 .to_string();
             source.push_str(&placeholder);
-            callouts.push((placeholder, callout.number));
+            callouts.push((placeholder, callout.number()));
         } else if let Some(text) = formatted_code_text(node, processor) {
             source.push_str(&text);
             formatted = true;
         } else {
-            let _ = transform.write(&mut source, std::slice::from_ref(node));
+            let _ = transform.write_inlines(&mut source, std::iter::once(node));
         }
     }
     (source, callouts, formatted)
 }
 
-fn formatted_code_text(node: &InlineNode<'_>, processor: &Processor<'_>) -> Option<String> {
-    let children = acdc_converters_core::code::code_inline_children(node)?;
+fn formatted_code_text(node: InlineRef<'_>, processor: &Processor<'_>) -> Option<String> {
+    let children = acdc_converters_core::code::code_inline_content(node)?;
     let transform = code_text_transform(processor);
     let text = children
-        .iter()
+        .inlines()
         .map(|child| {
-            formatted_code_text(child, processor)
-                .unwrap_or_else(|| transform.to_string(std::slice::from_ref(child)))
+            formatted_code_text(child, processor).unwrap_or_else(|| {
+                let mut text = String::new();
+                let _ = transform.write_inlines(&mut text, std::iter::once(child));
+                text
+            })
         })
         .collect::<String>();
-    Some(match node {
-        InlineNode::BoldText(_) => wrap_code_style(
+    Some(match node.kind() {
+        InlineKind::Bold(_) => wrap_code_style(
             &text,
             SetAttribute(Attribute::Bold),
             SetAttribute(Attribute::NormalIntensity),
         ),
-        InlineNode::ItalicText(_) => wrap_code_style(
+        InlineKind::Italic(_) => wrap_code_style(
             &text,
             SetAttribute(Attribute::Italic),
             SetAttribute(Attribute::NoItalic),
         ),
-        InlineNode::HighlightText(highlight) => match highlight.role {
+        InlineKind::Highlight(highlight) => match highlight.role() {
             Some("underline") => wrap_code_style(
                 &text,
                 SetAttribute(Attribute::Underlined),
@@ -637,19 +643,30 @@ fn formatted_code_text(node: &InlineNode<'_>, processor: &Processor<'_>) -> Opti
                 SetBackgroundColor(Color::Reset),
             ),
         },
-        InlineNode::MonospaceText(_)
-        | InlineNode::SuperscriptText(_)
-        | InlineNode::SubscriptText(_) => text,
-        InlineNode::CurvedQuotationText(_) => format!("“{text}”"),
-        InlineNode::CurvedApostropheText(_) => format!("‘{text}’"),
-        InlineNode::PlainText(_)
-        | InlineNode::RawText(_)
-        | InlineNode::VerbatimText(_)
-        | InlineNode::StandaloneCurvedApostrophe(_)
-        | InlineNode::LineBreak(_)
-        | InlineNode::InlineAnchor(_)
-        | InlineNode::Macro(_)
-        | InlineNode::CalloutRef(_)
+        InlineKind::Monospace(_) | InlineKind::Superscript(_) | InlineKind::Subscript(_) => text,
+        InlineKind::CurvedQuotation(_) => format!("“{text}”"),
+        InlineKind::CurvedApostrophe(_) => format!("‘{text}’"),
+        InlineKind::Plain(_)
+        | InlineKind::Raw(_)
+        | InlineKind::Verbatim(_)
+        | InlineKind::StandaloneCurvedApostrophe(_)
+        | InlineKind::LineBreak(_)
+        | InlineKind::Anchor(_)
+        | InlineKind::Footnote(_)
+        | InlineKind::Icon(_)
+        | InlineKind::Image(_)
+        | InlineKind::Keyboard(_)
+        | InlineKind::Button(_)
+        | InlineKind::Menu(_)
+        | InlineKind::Url(_)
+        | InlineKind::Link(_)
+        | InlineKind::Mailto(_)
+        | InlineKind::Autolink(_)
+        | InlineKind::CrossReference(_)
+        | InlineKind::Pass(_)
+        | InlineKind::Stem(_)
+        | InlineKind::IndexTerm(_)
+        | InlineKind::Callout(_)
         | _ => return None,
     })
 }
@@ -666,20 +683,21 @@ fn wrap_code_style(
         .join("\n")
 }
 
-fn is_xml_callout(nodes: &[InlineNode<'_>], index: usize) -> bool {
-    matches!(nodes.get(index), Some(InlineNode::CalloutRef(_)))
-        && index.checked_sub(1).is_some_and(|previous| {
-            matches!(
-                nodes.get(previous),
-                Some(InlineNode::VerbatimText(text)) if text.content.ends_with("<!--")
-            )
-        })
-        && index.checked_add(1).is_some_and(|next| {
-            matches!(
-                nodes.get(next),
-                Some(InlineNode::VerbatimText(text)) if text.content.starts_with("-->")
-            )
-        })
+fn is_xml_callout(nodes: &[InlineRef<'_>], index: usize) -> bool {
+    matches!(
+        nodes.get(index).map(|node| node.kind()),
+        Some(InlineKind::Callout(_))
+    ) && index.checked_sub(1).is_some_and(|previous| {
+        matches!(
+            nodes.get(previous).map(|node| node.kind()),
+            Some(InlineKind::Verbatim(text)) if text.text().ends_with("<!--")
+        )
+    }) && index.checked_add(1).is_some_and(|next| {
+        matches!(
+            nodes.get(next).map(|node| node.kind()),
+            Some(InlineKind::Verbatim(text)) if text.text().starts_with("-->")
+        )
+    })
 }
 
 fn strip_callout_guard(text: &str, language_prefix: Option<&str>) -> String {
