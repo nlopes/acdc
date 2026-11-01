@@ -1,12 +1,15 @@
-use std::io::Write;
+use std::{io::Write, ops::Range};
 
 use acdc_converters_core::{
     TraversalContext,
     section::book_chapter_signifier,
-    toc::{Config as TocConfig, NumberingConfig, effective_level, has_real_parts, section_numbers},
+    toc::{Config as TocConfig, NumberingConfig, entry_level, has_parts, number_prefixes},
     visitor::WritableVisitor,
 };
-use acdc_parser::{SectionKind, TableOfContents, TocEntry};
+use acdc_parser::{
+    SectionKind,
+    ast::{TableOfContentsRef, TocEntryRef},
+};
 
 use crate::{Error, HtmlVariant, HtmlVisitor};
 
@@ -15,7 +18,7 @@ struct TocRenderConfig<'a> {
     section_numbers: &'a [Option<String>],
     semantic: bool,
     /// Whether the document has normal level-0 parts.
-    /// Controls where level-0 special sections are placed; see [`effective_level`].
+    /// Controls where level-0 special sections are placed; see [`entry_level`].
     has_real_parts: bool,
 }
 
@@ -24,13 +27,13 @@ struct TocRenderConfig<'a> {
 /// When `parts_at_current_level` is true, level-0 entries (parts) are rendered
 /// alongside level-1 entries in the same list. This matches asciidoctor behavior
 /// when pre-part sections exist before the first level-0 section.
-fn render_entries<'a, W: Write>(
+fn render_entries<'a, 'doc, W: Write>(
     traversal: &mut TraversalContext<'a>,
-    entries: &[TocEntry],
+    entries: &(impl Iterator<Item = TocEntryRef<'doc>> + Clone),
     visitor: &mut HtmlVisitor<'a, '_, W>,
     config: &TocRenderConfig,
     current_level: u8,
-    base_index: usize,
+    range: Range<usize>,
     parts_at_current_level: bool,
 ) -> Result<(), Error> {
     if current_level > config.max_level {
@@ -44,27 +47,33 @@ fn render_entries<'a, W: Write>(
     // Only normal level-0 sections are parts.
     let first_real_part_idx = if parts_at_current_level {
         entries
-            .iter()
-            .position(|entry| entry.level == 0 && entry.kind == SectionKind::Normal)
+            .clone()
+            .enumerate()
+            .skip(range.start)
+            .take(range.len())
+            .find(|(_, entry)| entry.level() == 0 && entry.kind() == SectionKind::Normal)
+            .map(|(index, _)| index)
     } else {
         None
     };
 
-    let current_level_entries: Vec<(usize, &TocEntry)> = entries
-        .iter()
+    let current_level_entries: Vec<(usize, TocEntryRef<'doc>)> = entries
+        .clone()
         .enumerate()
+        .skip(range.start)
+        .take(range.len())
         .filter(|(idx, entry)| {
-            let eff_level = effective_level(entry, config.has_real_parts);
+            let eff_level = entry_level(*entry, config.has_real_parts);
             if eff_level == current_level {
                 // When merging, only include level-1 entries before the first part
                 if let Some(first_l0) = first_real_part_idx {
-                    *idx < first_l0 || entry.level != current_level
+                    *idx < first_l0 || entry.level() != current_level
                 } else {
                     true
                 }
             } else {
                 // Merge level-0 parts into the level-1 tier when required.
-                parts_at_current_level && entry.level == 0 && eff_level == 0
+                parts_at_current_level && entry.level() == 0 && eff_level == 0
             }
         })
         .collect();
@@ -87,18 +96,17 @@ fn render_entries<'a, W: Write>(
 
     for (i, (entry_index, entry)) in current_level_entries.iter().enumerate() {
         writeln!(visitor.writer_mut(), "<li>")?;
-        write!(visitor.writer_mut(), "<a href=\"#{}\">", entry.id)?;
+        write!(visitor.writer_mut(), "<a href=\"#{}\">", entry.id())?;
 
         // Include section number if available
-        let global_index = base_index + entry_index;
-        if let Some(Some(number)) = config.section_numbers.get(global_index) {
+        if let Some(Some(number)) = config.section_numbers.get(*entry_index) {
             write!(visitor.writer_mut(), "{number}")?;
         }
 
         // Enable TOC mode to render inline nodes without nested links
         let was_toc_mode = visitor.render_options.toc_mode;
         visitor.render_options.toc_mode = true;
-        visitor.visit_title(traversal, entry.title.content())?;
+        visitor.visit_title(traversal, entry.title())?;
         visitor.render_options.toc_mode = was_toc_mode;
 
         writeln!(visitor.writer_mut(), "</a>")?;
@@ -108,31 +116,34 @@ fn render_entries<'a, W: Write>(
         let end_search = if let Some(next_entry) = current_level_entries.get(i + 1) {
             next_entry.0 // Next entry at current level
         } else {
-            entries.len() // End of all entries
+            range.end // End of this subtree
         };
 
         // A source level-0 special section is presented at the chapter tier, so
         // its valid children start at source level 2.
-        let child_level = if entry.level == 0 && entry.kind.is_special() {
+        let child_level = if entry.level() == 0 && entry.kind().is_special() {
             2
         } else {
-            effective_level(entry, config.has_real_parts) + 1
+            entry_level(*entry, config.has_real_parts) + 1
         };
 
-        if let Some(direct_children) = entries.get(start_search..end_search) {
-            let has_children = direct_children.iter().any(|e| e.level == child_level);
+        let children = start_search..end_search;
+        let has_children = entries
+            .clone()
+            .skip(children.start)
+            .take(children.len())
+            .any(|entry| entry.level() == child_level);
 
-            if has_children && child_level <= config.max_level {
-                render_entries(
-                    traversal,
-                    direct_children,
-                    visitor,
-                    config,
-                    child_level,
-                    base_index + start_search,
-                    false, // no more merging in nested lists
-                )?;
-            }
+        if has_children && child_level <= config.max_level {
+            render_entries(
+                traversal,
+                entries,
+                visitor,
+                config,
+                child_level,
+                children,
+                false, // no more merging in nested lists
+            )?;
         }
         writeln!(visitor.writer_mut(), "</li>")?;
     }
@@ -157,11 +168,11 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     pub(crate) fn render_toc(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        toc_macro: Option<&TableOfContents>,
+        toc_macro: Option<TableOfContentsRef<'_>>,
         placement: &str,
     ) -> Result<(), Error> {
         let processor = self.processor.clone();
-        let config = TocConfig::from_attributes(
+        let config = TocConfig::resolve(
             toc_macro,
             &TraversalContext::new(processor.document_attributes()),
         );
@@ -192,8 +203,9 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             // toc::[] macro adds class="title" to the toctitle div
             let is_macro = placement == "macro";
 
+            let entries = processor.toc_entries.iter().map(TocEntryRef::from);
             let section_numbers =
-                section_numbers(&processor.toc_entries, &section_number_config(traversal));
+                number_prefixes(entries.clone(), &section_number_config(traversal));
 
             if semantic {
                 writeln!(
@@ -223,12 +235,11 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             // section can sit at that tier without establishing a part.
             // When pre-part sections (level 1) appear before the first part (level 0),
             // the outer list starts at sectlevel1 and parts are merged into that tier.
-            let has_real_parts = has_real_parts(&self.processor.toc_entries);
-            let first_level = self
-                .processor
-                .toc_entries
-                .first()
-                .map_or(1, |entry| effective_level(entry, has_real_parts));
+            let has_real_parts = has_parts(entries.clone());
+            let first_level = entries
+                .clone()
+                .next()
+                .map_or(1, |entry| entry_level(entry, has_real_parts));
             let parts_at_current_level = first_level > 0 && has_real_parts;
             let start_level = if parts_at_current_level {
                 1
@@ -244,11 +255,11 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             };
             render_entries(
                 traversal,
-                &processor.toc_entries,
+                &entries,
                 self,
                 &render_config,
                 start_level,
-                0,
+                0..entries.len(),
                 parts_at_current_level,
             )?;
             if semantic {

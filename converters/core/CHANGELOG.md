@@ -49,6 +49,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Library converters can resolve TOC settings and number prefixes from typed
+  macro and catalog reads. Existing owner-based calls remain supported.
+
 - Library converters can detect index sections from typed block iterators.
   Existing slice calls keep the same search boundaries and short-circuiting.
 

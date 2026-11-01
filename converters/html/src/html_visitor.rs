@@ -771,10 +771,8 @@ impl<'a, W: Write> Visitor<'a> for HtmlVisitor<'a, '_, W> {
         }
 
         // Add TOC-related classes to body based on placement and custom toc-class
-        let toc_config = acdc_converters_core::toc::Config::from_attributes(
-            None,
-            &TraversalContext::new(attributes),
-        );
+        let toc_config =
+            acdc_converters_core::toc::Config::resolve(None, &TraversalContext::new(attributes));
         let has_custom_toc_class = attributes.contains("toc-class");
 
         match toc_config.placement() {
@@ -984,7 +982,7 @@ impl<'a, W: Write> Visitor<'a> for HtmlVisitor<'a, '_, W> {
         // When there's no header, emit a header wrapper for the TOC
         // (matching asciidoctor which always emits <div id="header"> when TOC is enabled)
         if doc.header().is_none() && !self.processor.toc_entries.is_empty() {
-            let toc_config = acdc_converters_core::toc::Config::from_attributes(
+            let toc_config = acdc_converters_core::toc::Config::resolve(
                 None,
                 &TraversalContext::new(DocumentAttributesRef::from(
                     self.processor.document_attributes(),
@@ -1221,7 +1219,7 @@ impl<'a, W: Write> Visitor<'a> for HtmlVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         toc: &TableOfContents,
     ) -> Result<(), Self::Error> {
-        self.render_toc(traversal, Some(toc), "macro")
+        self.render_toc(traversal, Some(toc.into()), "macro")
     }
 
     fn visit_discrete_header(

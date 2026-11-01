@@ -11,7 +11,10 @@
 //! - `preamble` - Render at end of preamble
 //! - `macro` - Render where `toc::[]` macro appears
 
-use acdc_parser::{AttributeValue, SectionKind, TableOfContents, TocEntry};
+use acdc_parser::{
+    SectionKind, TableOfContents, TocEntry,
+    ast::{AttributeValueRef, TableOfContentsRef, TocEntryRef},
+};
 
 use crate::{
     TraversalContext,
@@ -69,18 +72,28 @@ impl<'a> NumberingConfig<'a> {
 /// Returns whether the TOC contains a level-zero book part.
 #[must_use]
 pub fn has_real_parts(entries: &[TocEntry<'_>]) -> bool {
-    entries
-        .iter()
-        .any(|entry| entry.level == 0 && entry.kind == SectionKind::Normal)
+    has_parts(entries.iter().map(TocEntryRef::from))
+}
+
+/// Returns whether a level-zero book part occurs, stopping at the first match.
+#[must_use]
+pub fn has_parts<'doc>(mut entries: impl Iterator<Item = TocEntryRef<'doc>>) -> bool {
+    entries.any(|entry| entry.level() == 0 && entry.kind() == SectionKind::Normal)
 }
 
 /// Returns the TOC level after applying book special-section placement rules.
 #[must_use]
 pub fn effective_level(entry: &TocEntry<'_>, has_real_parts: bool) -> u8 {
-    if entry.level == 0 && entry.kind.is_special() && !has_real_parts {
+    entry_level(entry.into(), has_real_parts)
+}
+
+/// Returns the TOC level after applying book special-section placement rules.
+#[must_use]
+pub fn entry_level(entry: TocEntryRef<'_>, has_real_parts: bool) -> u8 {
+    if entry.level() == 0 && entry.kind().is_special() && !has_real_parts {
         1
     } else {
-        entry.level
+        entry.level()
     }
 }
 
@@ -90,15 +103,23 @@ pub fn section_numbers(
     entries: &[TocEntry<'_>],
     config: &NumberingConfig<'_>,
 ) -> Vec<Option<String>> {
+    number_prefixes(entries.iter().map(TocEntryRef::from), config)
+}
+
+/// Computes visible number prefixes in catalog order, retaining unnumbered entries.
+#[must_use]
+pub fn number_prefixes<'doc>(
+    entries: impl Iterator<Item = TocEntryRef<'doc>>,
+    config: &NumberingConfig<'_>,
+) -> Vec<Option<String>> {
     entries
-        .iter()
         .map(|entry| {
             let number = entry.number()?;
-            Some(if entry.kind == SectionKind::Appendix {
+            Some(if entry.kind() == SectionKind::Appendix {
                 appendix_number_prefix(number, config.appendix_caption)
-            } else if entry.level == 0 && entry.kind == SectionKind::Normal {
+            } else if entry.level() == 0 && entry.kind() == SectionKind::Normal {
                 part_number_prefix(number, config.part_signifier)
-            } else if entry.level == 1 && entry.kind == SectionKind::Normal {
+            } else if entry.level() == 1 && entry.kind() == SectionKind::Normal {
                 section_number_prefix(number, config.chapter_signifier)
             } else {
                 section_number_prefix(number, None)
@@ -109,7 +130,7 @@ pub fn section_numbers(
 
 /// Configuration for the table of contents placement and options.
 ///
-/// Created from document attributes using [`Config::from_attributes()`].
+/// Created from document attributes and an optional TOC macro using [`Config::resolve`].
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub struct Config {
@@ -122,10 +143,22 @@ pub struct Config {
 impl Config {
     /// Create a Config from document attributes and an optional TOC macro.
     ///
-    /// Block-level attributes from the toc macro take precedence over document attributes.
+    /// The macro's `levels` value takes precedence over `toclevels`.
     #[must_use]
     pub fn from_attributes(
         toc_macro: Option<&TableOfContents<'_>>,
+        attributes: &TraversalContext<'_>,
+    ) -> Self {
+        Self::resolve(toc_macro.map(TableOfContentsRef::from), attributes)
+    }
+
+    /// Resolves placement, title, depth, and class from document and macro settings.
+    ///
+    /// The macro's `levels` value takes precedence over `toclevels`. It must be
+    /// exact numeric text; quoted, padded, boolean, and valueless values fall back.
+    #[must_use]
+    pub fn resolve(
+        toc_macro: Option<TableOfContentsRef<'_>>,
         attributes: &TraversalContext<'_>,
     ) -> Self {
         let placement = if attributes.contains_key("toc") {
@@ -152,12 +185,14 @@ impl Config {
             .and_then(|value| value.text())
             .map(str::to_owned);
 
-        // First check if toc macro has a levels attribute (block-level)
         let levels = toc_macro
-            .and_then(|toc| toc.metadata.attributes.get("levels"))
-            .and_then(|v| match v {
-                AttributeValue::String(s) => s.parse::<u8>().ok(),
-                AttributeValue::Bool(_) | AttributeValue::None | _ => None,
+            .and_then(|toc| toc.attributes().get("levels"))
+            .and_then(|value| {
+                if let AttributeValueRef::Text(text) = value {
+                    text.parse::<u8>().ok()
+                } else {
+                    None
+                }
             })
             // Fall back to document-level toclevels attribute.
             .or_else(|| resolved_u8(attributes, "toclevels"))

@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Tables of contents retain local depth overrides, book-part nesting, and appendix
+  numbering through typed parser reads in both HTML variants.
+
 - Document headers and block image/audio/video rendering preserve formatted titles,
   empty captions, authored controls, and duplicate roles through typed parser reads.
 
