@@ -29,7 +29,8 @@ macro_rules! list_reads {
         $(
             impl<'doc> $name<'doc> {
                 /// Items in their parsed order, without grouping adjacent entries.
-                pub fn items(self) -> impl Iterator<Item = $item<'doc>> + Send + Sync + 'doc {
+                /// Clones keep independent positions over the same items.
+                pub fn items(self) -> impl Iterator<Item = $item<'doc>> + Clone + Send + Sync + 'doc {
                     self.node.items.iter().map($item::from)
                 }
 

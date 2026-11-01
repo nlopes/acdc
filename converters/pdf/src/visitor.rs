@@ -1,5 +1,3 @@
-#[cfg(feature = "pre-spec-subs")]
-use acdc_parser::ast::BlockKind;
 use std::fmt::Write as _;
 
 #[cfg(feature = "pre-spec-subs")]
@@ -10,17 +8,15 @@ use acdc_converters_core::{
     section::{
         appendix_number_prefix, effective_section_level, part_number_prefix, section_number_prefix,
     },
-    visitor::{InlineVisitor, Visitor, is_formatting_span},
+    visitor::{BlockVisitor, DocumentVisitor, InlineVisitor, is_formatting_span},
 };
 use acdc_parser::{
-    Admonition, AdmonitionVariant, Audio, Block, CalloutList, Caption, DelimitedBlock,
-    DescriptionList, DiscreteHeader, Document, Header, Image, InlineNode, ListItem, OrderedList,
-    PageBreak, Paragraph, Section, SectionKind, Source, TableOfContents, ThematicBreak,
-    UnorderedList, Video,
+    AdmonitionVariant, Caption, Image, SectionKind, Source, Video,
     ast::{
-        AdmonitionRef, AudioRef, BlockRef, ContentRef, DescriptionListRef, DiscreteHeaderRef,
-        ImageRef, InlineKind, InlineRef, OrderedListRef, PageBreakRef, ParagraphRef,
-        TableOfContentsRef, UnorderedListRef, VideoRef,
+        AdmonitionRef, AudioRef, BlockKind, BlockRef, CalloutListRef, ContentRef,
+        DescriptionListRef, DiscreteHeaderRef, DocumentRef, HeaderRef, ImageRef, InlineKind,
+        InlineRef, OrderedListRef, PageBreakRef, ParagraphRef, SectionRef, TableOfContentsRef,
+        ThematicBreakRef, UnorderedListRef, VideoRef,
     },
 };
 
@@ -80,56 +76,21 @@ fn revision_text(attributes: &TraversalContext<'_>) -> Option<String> {
     Some(revision)
 }
 
-impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
-    type Error = Error;
-
+impl<'a> DocumentVisitor<'a> for PdfVisitor<'a, '_, '_> {
     fn visit_document_start(
         &mut self,
         _traversal: &mut TraversalContext<'a>,
-        _doc: &Document<'_>,
-    ) -> Result<(), Self::Error> {
+        _doc: DocumentRef<'a>,
+    ) -> Result<(), Error> {
         self.page_numbering.write_initial(&mut self.writer);
-        Ok(())
-    }
-
-    fn before_block(
-        &mut self,
-        _traversal: &mut TraversalContext<'a>,
-        block: &'a Block<'a>,
-    ) -> Result<(), Self::Error> {
-        if self.automatic_preamble_lead_state == AutomaticPreambleLeadState::Pending
-            && !matches!(
-                block,
-                Block::Paragraph(_) | Block::DocumentAttribute(_) | Block::Comment(_)
-            )
-        {
-            self.automatic_preamble_lead_state = AutomaticPreambleLeadState::Inactive;
-        }
-
-        if !matches!(
-            block,
-            Block::PageBreak(_) | Block::DocumentAttribute(_) | Block::Comment(_)
-        ) {
-            self.explicit_page_break_state = ExplicitPageBreakState::Inactive;
-        }
-
-        Ok(())
-    }
-
-    fn visit_unhandled_block(
-        &mut self,
-        _traversal: &mut TraversalContext<'a>,
-        _block: &'a Block<'a>,
-    ) -> Result<(), Self::Error> {
-        self.warn_unsupported_parser_variant("block", None);
         Ok(())
     }
 
     fn visit_body_content_start(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        _doc: &Document<'_>,
-    ) -> Result<(), Self::Error> {
+        _doc: DocumentRef<'a>,
+    ) -> Result<(), Error> {
         if self.page_numbering.plan.starts_at_body() {
             self.page_numbering.start_arabic(&mut self.writer);
         }
@@ -141,8 +102,8 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
     fn visit_preamble_start(
         &mut self,
         _traversal: &mut TraversalContext<'a>,
-        _doc: &Document<'_>,
-    ) -> Result<(), Self::Error> {
+        _doc: DocumentRef<'a>,
+    ) -> Result<(), Error> {
         self.automatic_preamble_lead_state = AutomaticPreambleLeadState::Pending;
         Ok(())
     }
@@ -150,8 +111,8 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
     fn visit_preamble_end(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        _doc: &Document<'_>,
-    ) -> Result<(), Self::Error> {
+        _doc: DocumentRef<'a>,
+    ) -> Result<(), Error> {
         self.automatic_preamble_lead_state = AutomaticPreambleLeadState::Inactive;
         self.render_toc(traversal, None, "preamble")
     }
@@ -159,17 +120,12 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
     fn visit_header(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        header: &Header<'_>,
-    ) -> Result<(), Self::Error> {
+        header: HeaderRef<'a>,
+    ) -> Result<(), Error> {
         let title_page = self.page_numbering.plan.has_title_page();
 
-        if let Some(anchor) = header
-            .metadata
-            .id
-            .as_ref()
-            .or_else(|| header.metadata.anchors.last())
-        {
-            self.write_anchor_target(anchor.into());
+        if let Some(anchor) = header.primary_anchor() {
+            self.write_anchor_target(anchor);
         }
 
         if self.page_numbering.plan.starts_before_header() {
@@ -182,20 +138,19 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
         }
         self.writer.raw("#align(center)[\n");
         self.writer.raw("#text(size: 22pt, weight: \"bold\")[");
-        self.write_title(traversal, header.title.content())?;
+        self.write_title(traversal, header.title())?;
         self.writer.raw("]\n");
-        if let Some(subtitle) = &header.subtitle {
+        if let Some(subtitle) = header.subtitle() {
             self.writer.raw("#v(0.2em)\n");
             self.writer
                 .raw("#text(size: 14pt, weight: \"bold\", style: \"italic\")[");
-            self.write_title(traversal, subtitle.content())?;
+            self.write_title(traversal, Some(subtitle))?;
             self.writer.raw("]\n");
         }
-        if title_page && !header.authors.is_empty() {
+        if title_page && header.authors().next().is_some() {
             self.writer.raw("#v(0.4em)\n");
             let authors = header
-                .authors
-                .iter()
+                .authors()
                 .map(author_name)
                 .collect::<Vec<_>>()
                 .join(", ");
@@ -218,14 +173,89 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
         }
         Ok(())
     }
+}
 
+impl<'a> BlockVisitor<'a> for PdfVisitor<'a, '_, '_> {
+    type Error = Error;
+
+    fn before_block(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        block: BlockRef<'a>,
+    ) -> Result<(), Error> {
+        if self.automatic_preamble_lead_state == AutomaticPreambleLeadState::Pending
+            && !matches!(
+                block.kind(),
+                BlockKind::Paragraph(_) | BlockKind::DocumentAttribute(_) | BlockKind::Comment(_)
+            )
+        {
+            self.automatic_preamble_lead_state = AutomaticPreambleLeadState::Inactive;
+        }
+
+        if !matches!(
+            block.kind(),
+            BlockKind::PageBreak(_) | BlockKind::DocumentAttribute(_) | BlockKind::Comment(_)
+        ) {
+            self.explicit_page_break_state = ExplicitPageBreakState::Inactive;
+        }
+
+        Ok(())
+    }
+
+    fn visit_block(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        block: BlockRef<'a>,
+    ) -> Result<(), Error> {
+        match block.kind() {
+            BlockKind::Section(node) => self.visit_section(traversal, node),
+            BlockKind::Paragraph(node) => self.visit_paragraph(traversal, node),
+            BlockKind::OrderedList(node) => self.visit_ordered_list(traversal, node),
+            BlockKind::UnorderedList(node) => self.visit_unordered_list(traversal, node),
+            BlockKind::DescriptionList(node) => self.visit_description_list(traversal, node),
+            BlockKind::CalloutList(node) => self.visit_callout_list(traversal, node),
+            BlockKind::Admonition(node) => self.visit_admonition(traversal, node),
+            BlockKind::Image(node) => self.visit_image(traversal, node),
+            BlockKind::Video(node) => self.visit_video(traversal, node),
+            BlockKind::Audio(node) => self.visit_audio(traversal, node),
+            BlockKind::ThematicBreak(node) => {
+                self.visit_thematic_break(node);
+                Ok(())
+            }
+            BlockKind::PageBreak(node) => {
+                self.visit_page_break(node);
+                Ok(())
+            }
+            BlockKind::TableOfContents(node) => self.visit_table_of_contents(traversal, node),
+            BlockKind::DiscreteHeader(node) => self.visit_discrete_header(traversal, node),
+            BlockKind::DocumentAttribute(_) | BlockKind::Comment(_) => Ok(()),
+            BlockKind::Example(_)
+            | BlockKind::Open(_)
+            | BlockKind::Sidebar(_)
+            | BlockKind::Quote(_)
+            | BlockKind::Verse(_)
+            | BlockKind::Listing(_)
+            | BlockKind::Literal(_)
+            | BlockKind::Passthrough(_)
+            | BlockKind::Table(_)
+            | BlockKind::Stem(_)
+            | BlockKind::DelimitedComment(_) => self.visit_delimited_block(traversal, block),
+            _ => {
+                self.warn_unsupported_parser_variant("block", None);
+                Ok(())
+            }
+        }
+    }
+}
+
+impl<'a> PdfVisitor<'a, '_, '_> {
     fn visit_section(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        section: &'a Section<'a>,
-    ) -> Result<(), Self::Error> {
-        let is_index_section = section.kind == SectionKind::Index;
-        let id = section.id();
+        section: SectionRef<'a>,
+    ) -> Result<(), Error> {
+        let is_index_section = section.kind() == SectionKind::Index;
+        let id = section.resolve_id();
         let label = self.anchors.section(section, self.in_asciidoc_table_cell());
         if is_index_section && !self.index_section_is_populated(&id) {
             return Ok(());
@@ -235,11 +265,11 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
             self.writer.raw("#pagebreak(weak: true)\n\n");
         }
 
-        let level = effective_section_level(section.level, section.kind);
+        let level = effective_section_level(section.level(), section.kind());
         let prefix = section.number().map_or_else(String::new, |number| {
-            if section.kind == SectionKind::Appendix {
+            if section.kind() == SectionKind::Appendix {
                 appendix_number_prefix(number, appendix_caption(traversal))
-            } else if section.level == 0 && section.kind == SectionKind::Normal {
+            } else if section.level() == 0 && section.kind() == SectionKind::Normal {
                 part_number_prefix(number, part_signifier(traversal))
             } else {
                 let signifier = (level == 1 && !in_asciidoc_table_cell)
@@ -255,21 +285,21 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
         });
 
         let heading_level = level.max(1);
-        if self.doctype == Doctype::Article && section.kind == SectionKind::Abstract {
-            self.write_abstract_title(traversal, section.title.content())?;
+        if self.doctype == Doctype::Article && section.kind() == SectionKind::Abstract {
+            self.write_abstract_title(traversal, section.title())?;
             if !id.is_empty() {
                 let _ = write!(self.writer, " <{label}>");
             }
             self.writer.raw("\n#abstract[\n");
             let previous = self.in_article_abstract;
             self.in_article_abstract = true;
-            let result = self.write_blocks(traversal, &section.content);
+            let result = self.write_blocks(traversal, section.blocks());
             self.in_article_abstract = previous;
             self.writer.raw("]\n\n");
             return result;
         }
 
-        let hidden_title = section.metadata.options.contains(&"notitle");
+        let hidden_title = section.options().contains("notitle");
         if is_index_section && hidden_title {
             if !id.is_empty() {
                 let _ = writeln!(self.writer, "#metadata(none) <{label}>");
@@ -289,7 +319,7 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
             if !prefix.is_empty() {
                 self.write_text_expr(&prefix);
             }
-            self.write_title(traversal, section.title.content())?;
+            self.write_title(traversal, section.title())?;
             if self.in_article_abstract {
                 self.writer.raw("]");
             }
@@ -307,26 +337,25 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
             self.write_index_catalog(traversal);
             Ok(())
         } else {
-            self.write_blocks(traversal, &section.content)
+            self.write_blocks(traversal, section.blocks())
         }
     }
 
     fn visit_paragraph(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        para: &Paragraph<'_>,
-    ) -> Result<(), Self::Error> {
+        para: ParagraphRef<'_>,
+    ) -> Result<(), Error> {
         let automatic_lead = self.automatic_preamble_lead_state
             == AutomaticPreambleLeadState::Pending
-            && ParagraphRef::from(para).roles().is_empty();
+            && para.roles().is_empty();
         self.automatic_preamble_lead_state = AutomaticPreambleLeadState::Inactive;
-        let unbreakable = is_unbreakable_paragraph(para.into());
+        let unbreakable = is_unbreakable_paragraph(para);
         if unbreakable {
             self.writer.raw("#_acdc_unbreakable[\n");
         }
-        self.write_block_anchor(ParagraphRef::from(para).primary_anchor());
-        let result =
-            self.write_paragraph_content(traversal, ParagraphRef::from(para), true, automatic_lead);
+        self.write_block_anchor(para.primary_anchor());
+        let result = self.write_paragraph_content(traversal, para, true, automatic_lead);
         if unbreakable {
             self.writer.raw("]\n\n");
         }
@@ -336,33 +365,32 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
     fn visit_delimited_block(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        block: &'a DelimitedBlock<'a>,
-    ) -> Result<(), Self::Error> {
-        let unbreakable = is_unbreakable_delimited_block(block.into());
+        block: BlockRef<'a>,
+    ) -> Result<(), Error> {
+        let unbreakable = is_unbreakable_delimited_block(block);
         if unbreakable {
             self.writer.raw("#_acdc_unbreakable[\n");
         }
-        let sticky_anchor = is_page_breakable_table(block.into())
-            && BlockRef::from(block).primary_anchor().is_some();
+        let sticky_anchor = is_page_breakable_table(block) && block.primary_anchor().is_some();
         if sticky_anchor {
             self.writer
                 .raw("#block(sticky: true, above: 0pt, below: 0pt)[\n");
         }
-        self.write_block_anchor(BlockRef::from(block).primary_anchor());
+        self.write_block_anchor(block.primary_anchor());
         if sticky_anchor {
             self.writer.raw("]\n");
         }
 
         #[cfg(feature = "pre-spec-subs")]
         let previous_subs = self.processor.current_subs.replace(effective_subs_flags(
-            BlockRef::from(block).attributes().and_then(|attributes| {
-                match attributes.get("subs") {
+            block
+                .attributes()
+                .and_then(|attributes| match attributes.get("subs") {
                     Some(acdc_parser::ast::AttributeValueRef::Substitutions(spec)) => Some(spec),
                     _ => None,
-                }
-            }),
+                }),
             matches!(
-                BlockRef::from(block).kind(),
+                block.kind(),
                 BlockKind::Listing(_) | BlockKind::Literal(_) | BlockKind::Passthrough(_)
             ),
         ));
@@ -381,19 +409,19 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
     fn visit_ordered_list(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        list: &'a OrderedList<'a>,
-    ) -> Result<(), Self::Error> {
-        self.write_block_anchor(OrderedListRef::from(list).primary_anchor());
-        self.write_block_title(traversal, OrderedListRef::from(list).title())?;
-        self.write_ordered_list_start(Some(OrderedListRef::from(list).attributes()), list.marker);
+        list: OrderedListRef<'a>,
+    ) -> Result<(), Error> {
+        self.write_block_anchor(list.primary_anchor());
+        self.write_block_title(traversal, list.title())?;
+        self.write_ordered_list_start(Some(list.attributes()), list.marker());
         self.list_depth += 1;
-        for item in &list.items {
+        for item in list.items() {
             self.write_list_item(traversal, "+", item)?;
         }
         self.list_depth -= 1;
         let indent = "  ".repeat(self.list_depth);
         let _ = writeln!(self.writer, "{indent}]");
-        self.write_ordered_list_end(Some(OrderedListRef::from(list).attributes()));
+        self.write_ordered_list_end(Some(list.attributes()));
         self.writer.raw("\n");
         Ok(())
     }
@@ -401,18 +429,17 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
     fn visit_unordered_list(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        list: &'a UnorderedList<'a>,
-    ) -> Result<(), Self::Error> {
-        self.write_block_anchor(UnorderedListRef::from(list).primary_anchor());
-        self.write_block_title(traversal, UnorderedListRef::from(list).title())?;
-        if UnorderedListRef::from(list).style() == Some("bibliography") {
+        list: UnorderedListRef<'a>,
+    ) -> Result<(), Error> {
+        self.write_block_anchor(list.primary_anchor());
+        self.write_block_title(traversal, list.title())?;
+        if list.style() == Some("bibliography") {
             return self.write_bibliography_list(traversal, list);
         }
-        let styled =
-            self.write_unordered_list_start(Some(UnorderedListRef::from(list).attributes()));
+        let styled = self.write_unordered_list_start(Some(list.attributes()));
         self.list_depth += 1;
         self.unordered_list_depth += 1;
-        for item in &list.items {
+        for item in list.items() {
             self.write_list_item(traversal, "-", item)?;
         }
         self.unordered_list_depth -= 1;
@@ -429,20 +456,17 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
     fn visit_description_list(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        list: &'a DescriptionList<'a>,
-    ) -> Result<(), Self::Error> {
-        self.write_block_anchor(DescriptionListRef::from(list).primary_anchor());
-        if matches!(
-            DescriptionListRef::from(list).style(),
-            Some("ordered" | "unordered")
-        ) {
+        list: DescriptionListRef<'a>,
+    ) -> Result<(), Error> {
+        self.write_block_anchor(list.primary_anchor());
+        if matches!(list.style(), Some("ordered" | "unordered")) {
             return self.write_marker_description_list(traversal, list);
         }
-        self.write_block_title(traversal, DescriptionListRef::from(list).title())?;
-        if DescriptionListRef::from(list).style() == Some("horizontal") {
+        self.write_block_title(traversal, list.title())?;
+        if list.style() == Some("horizontal") {
             return self.write_horizontal_description_list(traversal, list);
         }
-        if DescriptionListRef::from(list).style() == Some("qanda") {
+        if list.style() == Some("qanda") {
             return self.write_qanda_description_list(traversal, list);
         }
         self.write_description_list(traversal, list)
@@ -451,51 +475,40 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
     fn visit_callout_list(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        list: &'a CalloutList<'a>,
-    ) -> Result<(), Self::Error> {
-        self.write_block_anchor(acdc_parser::ast::CalloutListRef::from(list).primary_anchor());
-        self.write_block_title(
-            traversal,
-            acdc_parser::ast::CalloutListRef::from(list).title(),
-        )?;
+        list: CalloutListRef<'a>,
+    ) -> Result<(), Error> {
+        self.write_block_anchor(list.primary_anchor());
+        self.write_block_title(traversal, list.title())?;
         self.writer.raw(
             "#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },\n",
         );
-        for item in &list.items {
+        for item in list.items() {
             self.writer.raw("[");
-            self.write_text_expr(&format!("({})", item.callout.number));
+            self.write_text_expr(&format!("({})", item.callout().number()));
             self.writer.raw("], [");
-            self.write_inlines(traversal, &item.principal)?;
-            if !item.principal.is_empty() && !item.blocks.is_empty() {
+            self.write_content(traversal, item.principal())?;
+            if !item.principal().is_empty() && item.blocks().next().is_some() {
                 self.writer.raw("\n\n");
             }
-            self.write_blocks(traversal, &item.blocks)?;
+            self.write_blocks(traversal, item.blocks())?;
             self.writer.raw("],\n");
         }
         self.writer.raw(")\n\n");
         Ok(())
     }
 
-    fn visit_list_item(
-        &mut self,
-        _traversal: &mut TraversalContext<'a>,
-        _item: &'a ListItem<'a>,
-    ) -> Result<(), Self::Error> {
-        Ok(())
-    }
-
     fn visit_admonition(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        admon: &'a Admonition<'a>,
-    ) -> Result<(), Self::Error> {
-        let unbreakable = AdmonitionRef::from(admon).options().contains("unbreakable");
+        admon: AdmonitionRef<'a>,
+    ) -> Result<(), Error> {
+        let unbreakable = admon.options().contains("unbreakable");
         if unbreakable {
             self.writer.raw("#_acdc_unbreakable[\n");
         }
         let result = (|| {
-            self.write_block_anchor(AdmonitionRef::from(admon).primary_anchor());
-            let kind = match AdmonitionRef::from(admon).variant() {
+            self.write_block_anchor(admon.primary_anchor());
+            let kind = match admon.variant() {
                 AdmonitionVariant::Note => "note",
                 AdmonitionVariant::Tip => "tip",
                 AdmonitionVariant::Important => "important",
@@ -503,7 +516,7 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
                 AdmonitionVariant::Warning => "warning",
             };
             let image_icon = (IconMode::from_attributes(traversal) != IconMode::Text)
-                .then(|| attribute_text(AdmonitionRef::from(admon).attributes(), "icon"))
+                .then(|| attribute_text(admon.attributes(), "icon"))
                 .flatten()
                 .filter(|icon| !icon.is_empty())
                 .map(|icon| admonition_icon_source(traversal, icon))
@@ -512,12 +525,12 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
                 self.writer.raw("#_acdc_image_callout(image(");
                 self.writer.string_literal(&path);
                 self.writer.raw(", width: 36pt, alt: ");
-                let alt = AdmonitionRef::from(admon).caption_content().map(|content| {
+                let alt = admon.caption_content().map(|content| {
                     acdc_converters_core::InlineTextTransform::default().content_to_string(content)
                 });
                 self.writer.string_literal(alt.as_deref().unwrap_or(kind));
                 self.writer.raw("))[\n");
-            } else if let Some(content) = AdmonitionRef::from(admon).caption_content() {
+            } else if let Some(content) = admon.caption_content() {
                 self.writer.raw("#_acdc_image_callout([");
                 self.write_content(traversal, content)?;
                 self.writer.raw("])[\n");
@@ -526,16 +539,16 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
                 self.writer.string_literal(kind);
                 self.writer.raw(")[\n");
             }
-            if AdmonitionRef::from(admon).title().is_some() {
+            if admon.title().is_some() {
                 self.writer.raw("#admonitiontitle[");
-                self.write_title(traversal, AdmonitionRef::from(admon).title())?;
+                self.write_title(traversal, admon.title())?;
                 self.writer.raw("]\n");
             }
-            if let Some(paragraph) = AdmonitionRef::from(admon).simple_paragraph() {
+            if let Some(paragraph) = admon.simple_paragraph() {
                 // Keep the paragraph's substitutions without repeating the wrapper's title and anchor.
                 self.write_paragraph_content(traversal, paragraph, false, false)?;
             } else {
-                self.write_blocks(traversal, &admon.blocks)?;
+                self.write_blocks(traversal, admon.blocks())?;
             }
             self.writer.raw("]\n\n");
             Ok(())
@@ -549,36 +562,36 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
     fn visit_image(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        img: &Image<'_>,
-    ) -> Result<(), Self::Error> {
-        self.write_block_anchor(ImageRef::from(img).primary_anchor());
-        self.write_block_image(traversal, ImageRef::from(img))
+        img: ImageRef<'_>,
+    ) -> Result<(), Error> {
+        self.write_block_anchor(img.primary_anchor());
+        self.write_block_image(traversal, img)
     }
 
     fn visit_video(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        video: &Video<'_>,
-    ) -> Result<(), Self::Error> {
-        self.write_block_anchor(VideoRef::from(video).primary_anchor());
-        self.warn_static_media_fallback(&video.location);
-        let kind = match attribute_text(VideoRef::from(video).attributes(), "poster") {
+        video: VideoRef<'_>,
+    ) -> Result<(), Error> {
+        self.write_block_anchor(video.primary_anchor());
+        self.warn_static_media_fallback(&video.location().into());
+        let kind = match attribute_text(video.attributes(), "poster") {
             Some("youtube") => "YouTube video",
             Some("vimeo") => "Vimeo video",
             _ => "video",
         };
-        let target = acdc_converters_core::video::TryUrl::try_url(&VideoRef::from(video), false)
+        let target = acdc_converters_core::video::TryUrl::try_url(&video, false)
             .map_err(|error| std::io::Error::other(error.to_string()))?;
         let sources = [(Self::static_media_target(traversal, &target), kind)];
 
-        let poster = attribute_text(VideoRef::from(video).attributes(), "poster")
+        let poster = attribute_text(video.attributes(), "poster")
             .filter(|poster| !poster.is_empty() && !matches!(*poster, "youtube" | "vimeo"));
         let poster_target = poster.map(|poster| Self::static_media_target(traversal, poster));
         let poster_rendered = if let (Some(poster), Some(poster_target), Some((target, _))) =
             (poster, poster_target.as_deref(), sources.first())
             && self.has_asset(poster_target)
         {
-            let image = poster_image(VideoRef::from(video), poster, target)?;
+            let image = poster_image(video, poster, target)?;
             self.write_block_image(traversal, ImageRef::from(&image))?;
             true
         } else {
@@ -590,7 +603,7 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
             self.writer.raw("\n");
         }
         if !poster_rendered {
-            self.write_static_media_caption(traversal, VideoRef::from(video).title())?;
+            self.write_static_media_caption(traversal, video.title())?;
         }
         self.writer.raw("\n\n");
         Ok(())
@@ -599,37 +612,28 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
     fn visit_audio(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        audio: &Audio<'_>,
-    ) -> Result<(), Self::Error> {
-        self.write_block_anchor(AudioRef::from(audio).primary_anchor());
-        self.warn_static_media_fallback(&audio.location);
-        let target = Self::static_media_source_target(traversal, AudioRef::from(audio).source());
+        audio: AudioRef<'_>,
+    ) -> Result<(), Error> {
+        self.write_block_anchor(audio.primary_anchor());
+        self.warn_static_media_fallback(&audio.location().into());
+        let target = Self::static_media_source_target(traversal, audio.source());
         self.write_static_media_link(&target, "audio");
         self.writer.raw("\n");
-        self.write_static_media_caption(traversal, AudioRef::from(audio).title())?;
+        self.write_static_media_caption(traversal, audio.title())?;
         self.writer.raw("\n\n");
         Ok(())
     }
 
-    fn visit_thematic_break(
-        &mut self,
-        _traversal: &mut TraversalContext<'a>,
-        br: &ThematicBreak<'_>,
-    ) -> Result<(), Self::Error> {
-        if let Some(anchor) = br.anchors.first() {
-            self.write_anchor_target(anchor.into());
+    fn visit_thematic_break(&mut self, br: ThematicBreakRef<'_>) {
+        if let Some(anchor) = br.anchors().next() {
+            self.write_anchor_target(anchor);
         }
         self.writer.raw("#hr()\n\n");
-        Ok(())
     }
 
-    fn visit_page_break(
-        &mut self,
-        _traversal: &mut TraversalContext<'a>,
-        br: &PageBreak<'_>,
-    ) -> Result<(), Self::Error> {
-        self.write_block_anchor(PageBreakRef::from(br).primary_anchor());
-        if PageBreakRef::from(br).options().contains("always") {
+    fn visit_page_break(&mut self, br: PageBreakRef<'_>) {
+        self.write_block_anchor(br.primary_anchor());
+        if br.options().contains("always") {
             if self.explicit_page_break_state == ExplicitPageBreakState::Weak {
                 self.writer.raw("#pagebreak()\n");
             }
@@ -640,46 +644,28 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
             self.explicit_page_break_state = ExplicitPageBreakState::Weak;
         }
         // Apply the layout after the break so an empty page gets the new geometry.
-        self.write_page_layout_change(PageBreakRef::from(br));
-        Ok(())
+        self.write_page_layout_change(br);
     }
 
     fn visit_table_of_contents(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        toc: &TableOfContents<'_>,
-    ) -> Result<(), Self::Error> {
-        self.write_block_anchor(TableOfContentsRef::from(toc).primary_anchor());
+        toc: TableOfContentsRef<'_>,
+    ) -> Result<(), Error> {
+        self.write_block_anchor(toc.primary_anchor());
         self.render_toc(traversal, Some(toc), "macro")
     }
 
     fn visit_discrete_header(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        header: &DiscreteHeader<'_>,
-    ) -> Result<(), Self::Error> {
-        self.write_block_anchor(DiscreteHeaderRef::from(header).primary_anchor());
-        let level = DiscreteHeaderRef::from(header).level().max(1);
+        header: DiscreteHeaderRef<'_>,
+    ) -> Result<(), Error> {
+        self.write_block_anchor(header.primary_anchor());
+        let level = header.level().max(1);
         let _ = write!(self.writer, "#heading(level: {level}, outlined: false)[");
-        self.write_title(traversal, header.title.content())?;
+        self.write_title(traversal, header.title())?;
         self.writer.raw("]\n\n");
-        Ok(())
-    }
-
-    fn visit_inline_node(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        node: &InlineNode<'_>,
-    ) -> Result<(), Self::Error> {
-        InlineVisitor::visit_inline_node(self, traversal, node.into())
-    }
-
-    fn visit_text(
-        &mut self,
-        _traversal: &mut TraversalContext<'a>,
-        text: &str,
-    ) -> Result<(), Self::Error> {
-        self.write_plain(text);
         Ok(())
     }
 }

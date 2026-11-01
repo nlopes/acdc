@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Nested blocks, grouped description terms, and AsciiDoc table cells retain
+  their order, local settings, and source locations during PDF conversion.
 - Video posters retain the video title, layout controls, links, and source
   locations when creating their printable image.
 - Paragraphs, captions, source blocks, lists, media, and page breaks retain their

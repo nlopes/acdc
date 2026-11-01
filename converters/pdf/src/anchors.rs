@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use acdc_parser::{Reference, Section, TocEntry};
+use acdc_parser::{Reference, TocEntry, ast::SectionRef};
 
 use crate::encode_label;
 
@@ -54,8 +54,8 @@ impl<'a> Anchors<'a> {
         Some(encode_label(id))
     }
 
-    pub(crate) fn section(&mut self, section: &Section<'_>, in_table_cell: bool) -> String {
-        let id = section.id();
+    pub(crate) fn section(&mut self, section: SectionRef<'_>, in_table_cell: bool) -> String {
+        let id = section.resolve_id();
         if !in_table_cell
             && let Some(label) = self
                 .sections

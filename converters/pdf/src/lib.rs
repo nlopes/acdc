@@ -30,12 +30,12 @@ use acdc_converters_core::{
     },
     media::resolve_target,
     toc::Config as TocConfig,
-    visitor::{BlockVisitor, Visitor},
+    visitor::{BlockVisitor, DocumentVisitor},
     xref::XrefGuard,
 };
 use acdc_parser::{
-    Author, CaptionKind, Document, DocumentAttributes, Location, Options as ParserOptions,
-    Reference, SafeMode, SourceLocation,
+    CaptionKind, Document, DocumentAttributes, Location, Options as ParserOptions, Reference,
+    SafeMode, SourceLocation,
     ast::{
         AdmonitionRef, AttributeValueRef, AttributesRef, BlockKind, BlockRef, ContentRef,
         ContentRole, DocumentRef, IndexTermRef, IndexTermRelationshipRef, InlineKind, LocationRef,
@@ -536,7 +536,7 @@ impl Processor<'_> {
         if preparation.needs_admonition_label_helper {
             write_admonition_image_helper(&mut visitor.writer, config.theme);
         }
-        visitor.visit_document(&mut traversal, doc)?;
+        DocumentVisitor::visit_document(&mut visitor, &mut traversal, DocumentRef::from(doc))?;
         let mut source = visitor.writer.into_string();
         source.truncate(source.trim_end_matches('\n').len());
         source.push('\n');
@@ -1225,7 +1225,7 @@ fn document_metadata(doc: &Document<'_>) -> DocumentMetadata {
         .header
         .iter()
         .flat_map(|header| &header.authors)
-        .map(author_name)
+        .map(|author| author_name(author.into()))
         .collect::<Vec<_>>();
     if authors.is_empty()
         && let Some(author) = ["authors", "author"]
@@ -1273,11 +1273,11 @@ fn metadata_attribute(attributes: &DocumentAttributes<'_>, name: &str) -> Option
     document_attribute_text((attributes).get(name)).map(str::to_owned)
 }
 
-fn author_name(author: &Author<'_>) -> String {
+fn author_name(author: acdc_parser::ast::AuthorRef<'_>) -> String {
     [
-        Some(author.first_name),
-        author.middle_name,
-        Some(author.last_name),
+        Some(author.first_name()),
+        author.middle_name(),
+        Some(author.last_name()),
     ]
     .into_iter()
     .flatten()
@@ -2641,11 +2641,6 @@ mod tests {
     #[test]
     fn unhandled_parser_block_warning_is_structured() -> Result<(), Box<dyn StdError>> {
         let parsed = parse("text", &ParserOptions::default())?;
-        let block = parsed
-            .document()
-            .blocks
-            .first()
-            .ok_or_else(|| IoError::other("missing parsed block"))?;
         let processor = Processor::new(
             Options::default(),
             ParserOptions::builder()
@@ -2662,7 +2657,6 @@ mod tests {
         let mut warnings = Vec::new();
         {
             let diagnostics = Diagnostics::new(&source, &mut warnings);
-            let mut traversal = TraversalContext::new(&parsed.document().attributes);
             let mut visitor = PdfVisitor::new(
                 processor,
                 &assets,
@@ -2674,7 +2668,7 @@ mod tests {
                 Vec::new(),
                 diagnostics,
             );
-            visitor.visit_unhandled_block(&mut traversal, block)?;
+            visitor.warn_unsupported_parser_variant("block", None);
         }
 
         assert_eq!(warnings.len(), 1);

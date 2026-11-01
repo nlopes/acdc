@@ -13,28 +13,26 @@ use acdc_converters_core::{
     },
     document_attribute_text,
     icon::{IconMode, image_source as icon_image_source},
-    inlines_to_string,
     link::{autolink_fallback, link_fallback, mailto_fallback, mailto_target},
     list::OrderedListNumbering,
     section::effective_section_level,
-    shows_block_title,
     substitutions::{Replacements, TextBoundaries, apply_passthrough_replacements_iter},
-    table::{CellKind, GridRow, build_grid, determine_column_count},
+    table::{CellKind, GridRow, column_count, grid_rows},
     toc::{Config as TocConfig, NumberingConfig, effective_level, has_real_parts, section_numbers},
     visitor::InlineVisitor,
     xref::{XrefDisplay, interdocument_xref, resolve_xref},
 };
 use acdc_parser::{
-    Block, CaptionKind, ColumnStyle, ColumnWidth, DelimitedBlock, DelimitedBlockType,
-    DescriptionList, DescriptionListItem, HorizontalAlignment, IndexTerm, InlineNode, ListItem,
-    Location, Section, SectionKind, Substitution, Table, TableColumn, TableFrame, TableGrid,
-    TableOfContents, TablePresentation, TableRow, TableStripes, Title, TocEntry, VerticalAlignment,
+    CaptionKind, ColumnStyle, ColumnWidth, HorizontalAlignment, IndexTerm, InlineNode, Location,
+    SectionKind, Substitution, TableFrame, TableGrid, TablePresentation, TableStripes, Title,
+    TocEntry, VerticalAlignment,
     ast::{
         AnchorRef, AttributeValueRef, AttributesRef, AutolinkRef, BlockKind, BlockRef, CaptionRef,
-        ColumnFormatRef, ContentRef, CrossReferenceRef, DescriptionListRef, ElementIdRef,
-        FootnoteRef, IconRef, ImageRef, IndexTermRef, IndexTermRelationshipRef, InlineImageRef,
-        InlineKind, InlineRef, LocationRef, MenuRef, PageBreakRef, ParagraphRef, RawRef, SourceRef,
-        TableCellRef, TokensRef, UnorderedListRef,
+        ColumnFormatRef, ContentRef, CrossReferenceRef, DescriptionListItemRef, DescriptionListRef,
+        ElementIdRef, FootnoteRef, IconRef, ImageRef, IndexTermRef, IndexTermRelationshipRef,
+        InlineImageRef, InlineKind, InlineRef, ListItemRef, LocationRef, MenuRef, PageBreakRef,
+        ParagraphRef, RawRef, SectionRef, SourceRef, TableCellRef, TableOfContentsRef, TableRef,
+        TableRowRef, TokensRef, UnorderedListRef,
     },
 };
 use acdc_pdf_images::ImageMap;
@@ -537,17 +535,17 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         );
     }
 
-    pub(crate) fn section_break_before(&mut self, section: &'a Section<'a>) -> bool {
+    pub(crate) fn section_break_before(&mut self, section: SectionRef<'a>) -> bool {
         if self.book_page_break_state == BookPageBreakState::Disabled {
             return false;
         }
 
-        if section.level == 0 && section.kind == SectionKind::Normal {
+        if section.level() == 0 && section.kind() == SectionKind::Normal {
             self.book_page_break_state = BookPageBreakState::AfterPart;
             return self.heading.part.break_before == PageBreakBefore::Always;
         }
 
-        if effective_section_level(section.level, section.kind) == 1 {
+        if effective_section_level(section.level(), section.kind()) == 1 {
             let first_chapter_of_part = self.book_page_break_state == BookPageBreakState::AfterPart;
             self.book_page_break_state = BookPageBreakState::Enabled;
             return if first_chapter_of_part {
@@ -563,7 +561,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             };
         }
 
-        if section.level == 0 {
+        if section.level() == 0 {
             self.book_page_break_state = BookPageBreakState::Enabled;
         }
         false
@@ -572,14 +570,14 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     pub(crate) fn render_toc(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        toc_macro: Option<&TableOfContents<'_>>,
+        toc_macro: Option<TableOfContentsRef<'_>>,
         placement: &str,
     ) -> Result<(), Error> {
         if self.toc_written || self.toc_entries.is_empty() {
             return Ok(());
         }
 
-        let config = TocConfig::from_attributes(
+        let config = TocConfig::resolve(
             toc_macro,
             &TraversalContext::new(self.processor.document_attributes()),
         );
@@ -601,10 +599,8 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         }
 
         self.toc_written = true;
-        let suppress_header =
-            toc_macro.is_some_and(|toc| toc.metadata.options.contains(&"noheader"));
-        let suppress_footer =
-            toc_macro.is_some_and(|toc| toc.metadata.options.contains(&"nofooter"));
+        let suppress_header = toc_macro.is_some_and(|toc| toc.options().contains("noheader"));
+        let suppress_footer = toc_macro.is_some_and(|toc| toc.options().contains("nofooter"));
         match (suppress_header, suppress_footer) {
             (true, true) => self.writer.raw("#page(header: none, footer: none)[\n"),
             (true, false) => self.writer.raw("#page(header: none)[\n"),
@@ -683,7 +679,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     pub(crate) fn write_blocks(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        blocks: &'a [Block<'a>],
+        blocks: impl Iterator<Item = BlockRef<'a>>,
     ) -> Result<(), Error> {
         for block in blocks {
             traversal.visit_block(self, block)?;
@@ -694,107 +690,133 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     pub(crate) fn write_delimited_block_content(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        block: &'a DelimitedBlock<'a>,
+        block: BlockRef<'a>,
     ) -> Result<(), Error> {
-        let fallback = CaptionKind::for_block(BlockRef::from(block));
-        let attributes = BlockRef::from(block).attributes();
+        let fallback = CaptionKind::for_block(block);
+        let attributes = block.attributes();
         let collapsible_example = is_collapsible_example(attributes, fallback);
-        let table = matches!(block.inner, DelimitedBlockType::DelimitedTable(_));
+        let table = matches!(block.kind(), BlockKind::Table(_));
         if table && self.omit_zero_width_table(attributes) {
             return Ok(());
         }
         let intrinsic_table =
-            table && block.title.is_present() && Self::table_has_intrinsic_width(attributes);
+            table && block.title().is_some() && Self::table_has_intrinsic_width(attributes);
         if intrinsic_table {
             self.write_intrinsic_table_start();
         }
         let (sized_table, aligned_table) =
             self.write_table_wrappers_start(attributes, table && !intrinsic_table);
-        let writes_own_title = matches!(block.inner, DelimitedBlockType::DelimitedSidebar(_))
-            || matches!(block.inner, DelimitedBlockType::DelimitedOpen(_))
+        let writes_own_title = matches!(block.kind(), BlockKind::Sidebar(_))
+            || matches!(block.kind(), BlockKind::Open(_))
                 && attribute_style(attributes) == Some("abstract")
             || collapsible_example;
-        if shows_block_title(&block.inner) && !writes_own_title && !intrinsic_table {
+        if !matches!(block.kind(), BlockKind::Passthrough(_))
+            && !writes_own_title
+            && !intrinsic_table
+        {
             let sticky_title = table
                 && !has_attribute_token(attributes, "options", "unbreakable")
-                && block.title.is_present();
+                && block.title().is_some();
             if sticky_title {
                 self.writer
                     .raw("#block(sticky: true, above: 0pt, below: 0pt)[\n");
             }
-            self.write_block_heading(traversal, block.title.content(), attributes, fallback)?;
+            self.write_block_heading(traversal, block.title(), attributes, fallback)?;
             if sticky_title {
                 self.writer.raw("]\n");
             }
         }
-        let result = match &block.inner {
-            DelimitedBlockType::DelimitedExample(blocks)
-            | DelimitedBlockType::DelimitedOpen(blocks)
-                if collapsible_example =>
-            {
-                self.write_disclosure(traversal, block.title.content(), |visitor, traversal| {
-                    visitor.write_blocks(traversal, blocks)
-                })
-            }
-            // Each container reads differently in print: an example takes a
-            // light frame, a sidebar a shaded box, and an open block is a
-            // transparent container that takes neither.
-            DelimitedBlockType::DelimitedExample(blocks) => self.write_example(traversal, blocks),
-            DelimitedBlockType::DelimitedSidebar(blocks) => {
-                self.write_sidebar(traversal, block.title.content(), blocks)
-            }
-            DelimitedBlockType::DelimitedOpen(blocks)
-                if attribute_style(attributes) == Some("abstract") =>
-            {
-                self.write_abstract(
-                    traversal,
-                    block.title.content(),
-                    true,
-                    attributes,
-                    |visitor, traversal| visitor.write_blocks(traversal, blocks),
-                )
-            }
-            DelimitedBlockType::DelimitedOpen(blocks) => {
-                self.write_framed_blocks(traversal, None, None, blocks)
-            }
-            DelimitedBlockType::DelimitedQuote(blocks) => {
-                self.write_quote_block(traversal, attributes, |visitor, traversal| {
-                    visitor.write_blocks(traversal, blocks)
-                })
-            }
-            DelimitedBlockType::DelimitedVerse(nodes) => {
-                self.write_verse_block(traversal, nodes.iter().map(InlineRef::from), attributes)
-            }
-            DelimitedBlockType::DelimitedListing(nodes)
-            | DelimitedBlockType::DelimitedLiteral(nodes) => {
-                self.write_verbatim_block(traversal, nodes.iter().map(InlineRef::from), attributes)
-            }
-            DelimitedBlockType::DelimitedPass(nodes) => {
-                self.write_passthrough_block(nodes);
-                Ok(())
-            }
-            DelimitedBlockType::DelimitedTable(table) => {
-                self.write_table(traversal, table, attributes)
-            }
-            DelimitedBlockType::DelimitedStem(stem) => {
-                self.write_stem_fallback(
-                    stem.content,
-                    true,
-                    block.metadata.location.as_ref().or(Some(&block.location)),
-                );
-                Ok(())
-            }
-            DelimitedBlockType::DelimitedComment(_) => Ok(()),
-            _ => {
-                self.warn_unsupported_parser_variant("delimited block", Some(&block.location));
-                Ok(())
-            }
-        };
+        let result = self.write_delimited_body(traversal, block, collapsible_example);
         if intrinsic_table {
             self.write_intrinsic_table_end(traversal, block, fallback)?;
         }
         self.write_table_wrappers_end(sized_table, aligned_table);
         result
+    }
+
+    fn write_delimited_body(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        block: BlockRef<'a>,
+        collapsible: bool,
+    ) -> Result<(), Error> {
+        let attributes = block.attributes();
+        match block.kind() {
+            BlockKind::Example(example) if collapsible => {
+                self.write_disclosure(traversal, block.title(), |visitor, traversal| {
+                    visitor.write_blocks(traversal, example.blocks())
+                })
+            }
+            BlockKind::Open(open) if collapsible => {
+                self.write_disclosure(traversal, block.title(), |visitor, traversal| {
+                    visitor.write_blocks(traversal, open.blocks())
+                })
+            }
+            BlockKind::Example(example) => self.write_example(traversal, example.blocks()),
+            BlockKind::Sidebar(sidebar) => {
+                self.write_sidebar(traversal, block.title(), sidebar.blocks())
+            }
+            BlockKind::Open(open) if open.style() == Some("abstract") => self.write_abstract(
+                traversal,
+                block.title(),
+                true,
+                attributes,
+                |visitor, traversal| visitor.write_blocks(traversal, open.blocks()),
+            ),
+            BlockKind::Open(open) => self.write_framed_blocks(traversal, None, None, open.blocks()),
+            BlockKind::Quote(quote) => {
+                self.write_quote_block(traversal, attributes, |visitor, traversal| {
+                    visitor.write_blocks(traversal, quote.blocks())
+                })
+            }
+            BlockKind::Verse(verse) => {
+                self.write_verse_block(traversal, verse.content().inlines(), attributes)
+            }
+            BlockKind::Listing(listing) => {
+                self.write_verbatim_block(traversal, listing.content().inlines(), attributes)
+            }
+            BlockKind::Literal(literal) => {
+                self.write_verbatim_block(traversal, literal.content().inlines(), attributes)
+            }
+            BlockKind::Passthrough(pass) => {
+                self.write_passthrough_block(pass.content());
+                Ok(())
+            }
+            BlockKind::Table(table) => self.write_table(traversal, table, attributes),
+            BlockKind::Stem(stem) => {
+                let location = Location::from(
+                    stem.attributes()
+                        .location()
+                        .unwrap_or_else(|| stem.location()),
+                );
+                self.write_stem_fallback(stem.text(), true, Some(&location));
+                Ok(())
+            }
+            BlockKind::DelimitedComment(_) => Ok(()),
+            BlockKind::TableOfContents(_)
+            | BlockKind::Admonition(_)
+            | BlockKind::DiscreteHeader(_)
+            | BlockKind::DocumentAttribute(_)
+            | BlockKind::ThematicBreak(_)
+            | BlockKind::PageBreak(_)
+            | BlockKind::UnorderedList(_)
+            | BlockKind::OrderedList(_)
+            | BlockKind::CalloutList(_)
+            | BlockKind::DescriptionList(_)
+            | BlockKind::Section(_)
+            | BlockKind::Paragraph(_)
+            | BlockKind::Image(_)
+            | BlockKind::Audio(_)
+            | BlockKind::Video(_)
+            | BlockKind::Comment(_)
+            | _ => {
+                self.warn_unsupported_parser_variant(
+                    "delimited block",
+                    Some(&block.location().into()),
+                );
+                Ok(())
+            }
+        }
     }
 
     pub(crate) fn write_title(
@@ -1689,7 +1711,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     pub(crate) fn write_example(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        blocks: &'a [Block<'a>],
+        blocks: impl Iterator<Item = BlockRef<'a>>,
     ) -> Result<(), Error> {
         self.write_framed_blocks(traversal, Some("examplebox"), None, blocks)
     }
@@ -1700,7 +1722,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         &mut self,
         traversal: &mut TraversalContext<'a>,
         title: Option<ContentRef<'_>>,
-        blocks: &'a [Block<'a>],
+        blocks: impl Iterator<Item = BlockRef<'a>>,
     ) -> Result<(), Error> {
         self.writer.raw("#sidebarbox[\n");
         if let Some(title) = title {
@@ -2005,16 +2027,16 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     }
 
     /// Write passthrough content as escaped, unframed monospace text.
-    pub(crate) fn write_passthrough_block(&mut self, nodes: &[InlineNode<'_>]) {
+    pub(crate) fn write_passthrough_block(&mut self, content: ContentRef<'_>) {
         self.writer.raw("#block(width: 100%)[#raw(block: false, ");
-        self.write_verbatim_string(nodes);
+        self.write_verbatim_string(content);
         self.writer.raw(")]\n\n");
     }
 
-    fn write_verbatim_string(&mut self, nodes: &[InlineNode<'_>]) {
+    fn write_verbatim_string(&mut self, content: ContentRef<'_>) {
         let text = InlineTextTransform::default()
             .line_break("\n")
-            .to_string(nodes);
+            .content_to_string(content);
         self.write_verbatim_text(&text);
     }
 
@@ -2626,7 +2648,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         traversal: &mut TraversalContext<'a>,
         frame: Option<&str>,
         label: Option<&str>,
-        blocks: &'a [Block<'a>],
+        blocks: impl Iterator<Item = BlockRef<'a>>,
     ) -> Result<(), Error> {
         if let Some(frame) = frame {
             let _ = writeln!(self.writer, "#{frame}[");
@@ -2747,15 +2769,15 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         &mut self,
         traversal: &mut TraversalContext<'a>,
         marker: &str,
-        item: &'a ListItem<'a>,
+        item: ListItemRef<'a>,
     ) -> Result<(), Error> {
         let indent = "  ".repeat(self.list_depth);
         let _ = write!(self.writer, "{indent}{marker} ");
-        let has_blocks = !item.blocks.is_empty();
+        let has_blocks = item.blocks().next().is_some();
         if has_blocks {
             self.writer.raw("#block(width: 100%)[");
         }
-        if let Some(checked) = &item.checked {
+        if let Some(checked) = item.checked() {
             match checked {
                 acdc_parser::ListItemCheckedStatus::Checked => self.writer.raw("#checkbox(true) "),
                 acdc_parser::ListItemCheckedStatus::Unchecked => {
@@ -2764,13 +2786,13 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 _ => {}
             }
         }
-        self.write_inlines(traversal, &item.principal)?;
+        self.write_content(traversal, item.principal())?;
         self.writer.raw("\n");
 
         if has_blocks {
             self.writer.raw("\n");
             self.list_depth += 1;
-            for block in &item.blocks {
+            for block in item.blocks() {
                 traversal.visit_block(self, block)?;
             }
             self.list_depth -= 1;
@@ -2782,7 +2804,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     pub(crate) fn write_bibliography_list(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        list: &'a acdc_parser::UnorderedList<'a>,
+        list: UnorderedListRef<'a>,
     ) -> Result<(), Error> {
         let indent = "  ".repeat(self.list_depth);
         let _ = writeln!(self.writer, "{indent}#[");
@@ -2794,17 +2816,16 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         self.writer.raw("))))\n");
 
         self.list_depth += 1;
-        for item in &list.items {
+        for item in list.items() {
             let item_indent = "  ".repeat(self.list_depth);
             let _ = write!(self.writer, "{item_indent}- #block(width: 100%)[");
-            self.write_paragraph_alignment(
-                Some(UnorderedListRef::from(list).attributes()),
-                |visitor| visitor.write_bibliography_principal(traversal, item),
-            )?;
-            if !item.blocks.is_empty() {
+            self.write_paragraph_alignment(Some(list.attributes()), |visitor| {
+                visitor.write_bibliography_principal(traversal, item)
+            })?;
+            if item.blocks().next().is_some() {
                 self.writer.raw("\n\n");
                 self.list_depth += 1;
-                for block in &item.blocks {
+                for block in item.blocks() {
                     traversal.visit_block(self, block)?;
                 }
                 self.list_depth -= 1;
@@ -2819,57 +2840,60 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     fn write_bibliography_principal(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        item: &'a ListItem<'a>,
+        item: ListItemRef<'a>,
     ) -> Result<(), Error> {
-        let Some((InlineNode::InlineAnchor(anchor), content)) = item.principal.split_first() else {
-            return self.write_inlines(traversal, &item.principal);
+        let mut content = item.principal().inlines();
+        let Some(first) = content.next() else {
+            return Ok(());
+        };
+        let InlineKind::Anchor(anchor) = first.kind() else {
+            return self.write_content(traversal, item.principal());
         };
         if !anchor.is_bibliography() {
-            return self.write_inlines(traversal, &item.principal);
+            return self.write_content(traversal, item.principal());
         }
-
-        self.write_inline_anchor(anchor.id);
+        self.write_inline_anchor(anchor.id());
         let references = Rc::clone(&self.processor.references);
         let backlink = references
-            .get(anchor.id)
+            .get(anchor.id())
             .is_some_and(acdc_parser::Reference::has_automatic_citation);
         if backlink {
-            let label = encode_bibliography_reference_label(anchor.id);
+            let label = encode_bibliography_reference_label(anchor.id());
             let _ = write!(self.writer, "#link(<{label}>)[");
         }
 
         if let Some(label) = anchor.bibliography_label() {
             self.write_text_expr("[");
-            self.write_inlines(traversal, label)?;
+            self.write_content(traversal, label)?;
             self.write_text_expr("]");
         } else {
-            self.write_text_expr(&format!("[{}]", anchor.id));
+            self.write_text_expr(&format!("[{}]", anchor.id()));
         }
 
         if backlink {
             self.writer.raw("]");
         }
-        self.write_inlines(traversal, content)
+        self.write_inline_refs(traversal, content)
     }
 
     pub(crate) fn write_horizontal_description_list(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        list: &'a DescriptionList<'a>,
+        list: DescriptionListRef<'a>,
     ) -> Result<(), Error> {
-        if list.items.is_empty() {
+        if list.items().next().is_none() {
             return Ok(());
         }
 
         self.writer
             .raw("#layout(size => {\nlet term-width = calc.min(calc.max(0pt,\n");
-        for row in description_list_rows(&list.items) {
+        for row in description_list_rows(list.items()) {
             self.writer.raw("measure([");
             // Measurement content is not displayed, so its anchors must not
             // consume destinations or index entries from the visible term.
             let previous = self.index_catalog.set_suspended(true);
             let previous_anchors = replace(&mut self.anchors.suspended, true);
-            let result = self.write_horizontal_description_terms(traversal, row, false);
+            let result = self.write_horizontal_description_terms(traversal, row.clone(), false);
             self.anchors.suspended = previous_anchors;
             self.index_catalog.set_suspended(previous);
             result?;
@@ -2879,12 +2903,12 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             "), size.width * 50%)\ngrid(columns: (term-width, 1fr), column-gutter: 20pt, row-gutter: 0.5em, align: top,\n",
         );
 
-        for row in description_list_rows(&list.items) {
-            let Some(item) = row.last() else {
+        for row in description_list_rows(list.items()) {
+            let Some(item) = row.clone().last() else {
                 continue;
             };
             self.writer.raw("[");
-            self.write_horizontal_description_terms(traversal, row, true)?;
+            self.write_horizontal_description_terms(traversal, row.clone(), true)?;
             self.writer.raw("], [");
             self.write_description_list_item(traversal, item)?;
             self.writer.raw("],\n");
@@ -2897,30 +2921,30 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     pub(crate) fn write_description_list(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        list: &'a DescriptionList<'a>,
+        list: DescriptionListRef<'a>,
     ) -> Result<(), Error> {
         let indent = "  ".repeat(self.list_depth);
 
-        for row in description_list_rows(&list.items) {
-            let Some(description) = row.last() else {
+        for row in description_list_rows(list.items()) {
+            let Some(description) = row.clone().last() else {
                 continue;
             };
             let _ = writeln!(
                 self.writer,
                 "{indent}#block(width: 100%, above: 0pt, below: 0.5em)["
             );
-            for (index, item) in row.iter().enumerate() {
+            for (index, item) in row.clone().enumerate() {
                 if index > 0 {
                     self.writer.raw("#linebreak()");
                 }
-                for anchor in &item.anchors {
-                    self.write_anchor_target(anchor.into());
+                for anchor in item.anchors() {
+                    self.write_anchor_target(anchor);
                 }
                 self.writer.raw("#text(weight: \"bold\")[");
-                self.write_inlines(traversal, &item.term)?;
+                self.write_content(traversal, item.term())?;
                 self.writer.raw("]");
             }
-            if !description.principal_text.is_empty() || !description.description.is_empty() {
+            if !description.principal().is_empty() || description.blocks().next().is_some() {
                 self.writer
                     .raw("\n#block(above: 0pt, below: 0pt, inset: (left: 1.5em))[");
                 self.list_depth += 1;
@@ -2937,9 +2961,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     pub(crate) fn write_qanda_description_list(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        list: &'a DescriptionList<'a>,
+        list: DescriptionListRef<'a>,
     ) -> Result<(), Error> {
-        if list.items.is_empty() {
+        if list.items().next().is_none() {
             return Ok(());
         }
 
@@ -2949,27 +2973,24 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         self.write_ordered_list_numbering(OrderedListNumbering::Arabic);
         self.writer.raw(", spacing: 1em)\n");
 
-        for row in description_list_rows(&list.items) {
-            let Some(answer) = row.last() else {
+        for row in description_list_rows(list.items()) {
+            let Some(answer) = row.clone().last() else {
                 continue;
             };
             let _ = write!(self.writer, "{indent}  + #block(width: 100%)[");
             self.writer.raw("#block(width: 100%, breakable: false)[");
-            self.write_paragraph_alignment(
-                Some(DescriptionListRef::from(list).attributes()),
-                |visitor| {
-                    visitor.write_qanda_description_terms(traversal, row)?;
-                    if !answer.principal_text.is_empty() {
-                        visitor.writer.raw("#linebreak()\n");
-                        visitor.write_inlines(traversal, &answer.principal_text)?;
-                    }
-                    Ok(())
-                },
-            )?;
+            self.write_paragraph_alignment(Some(list.attributes()), |visitor| {
+                visitor.write_qanda_description_terms(traversal, row.clone())?;
+                if !answer.principal().is_empty() {
+                    visitor.writer.raw("#linebreak()\n");
+                    visitor.write_content(traversal, answer.principal())?;
+                }
+                Ok(())
+            })?;
             self.writer.raw("]");
-            if !answer.description.is_empty() {
+            if answer.blocks().next().is_some() {
                 self.writer.raw("\n\n");
-                self.write_blocks(traversal, &answer.description)?;
+                self.write_blocks(traversal, answer.blocks())?;
             }
             self.writer.raw("]\n");
         }
@@ -2981,13 +3002,13 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     pub(crate) fn write_marker_description_list(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        list: &'a DescriptionList<'a>,
+        list: DescriptionListRef<'a>,
     ) -> Result<(), Error> {
-        if list.items.is_empty() {
+        if list.items().next().is_none() {
             return Ok(());
         }
 
-        let node = DescriptionListRef::from(list);
+        let node = list;
         let ordered = node.style() == Some("ordered");
         let stacked = node.roles().contains("stack");
         let subject_stop = attribute_text(node.attributes(), "subject-stop");
@@ -3006,21 +3027,21 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             self.writer.raw("))))\n");
         }
 
-        for row in description_list_rows(&list.items) {
-            let Some(subject) = row.first() else {
+        for row in description_list_rows(list.items()) {
+            let Some(subject) = row.clone().next() else {
                 continue;
             };
-            let Some(description) = row.last() else {
+            let Some(description) = row.clone().last() else {
                 continue;
             };
             let marker = if ordered { "+" } else { "-" };
             let _ = write!(self.writer, "{indent}  {marker} #block(width: 100%)[");
-            for anchor in &subject.anchors {
-                self.write_anchor_target(anchor.into());
+            for anchor in subject.anchors() {
+                self.write_anchor_target(anchor);
             }
             self.writer.raw("#strong[");
-            self.write_inlines(traversal, &subject.term)?;
-            let subject_text = inlines_to_string(&subject.term);
+            self.write_content(traversal, subject.term())?;
+            let subject_text = InlineTextTransform::default().content_to_string(subject.term());
             let has_stop = subject_text
                 .trim_end()
                 .chars()
@@ -3031,14 +3052,14 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             }
             self.writer.raw("]");
 
-            if !description.principal_text.is_empty() {
+            if !description.principal().is_empty() {
                 self.writer
                     .raw(if stacked { "#linebreak()\n" } else { " " });
-                self.write_inlines(traversal, &description.principal_text)?;
+                self.write_content(traversal, description.principal())?;
             }
-            if !description.description.is_empty() {
+            if description.blocks().next().is_some() {
                 self.writer.raw("\n\n");
-                self.write_blocks(traversal, &description.description)?;
+                self.write_blocks(traversal, description.blocks())?;
             }
             self.writer.raw("]\n");
         }
@@ -3047,42 +3068,42 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         Ok(())
     }
 
-    fn write_horizontal_description_terms(
+    fn write_horizontal_description_terms<'doc>(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        items: &[DescriptionListItem<'_>],
+        items: impl Iterator<Item = DescriptionListItemRef<'doc>>,
         write_anchors: bool,
     ) -> Result<(), Error> {
-        for (index, item) in items.iter().enumerate() {
+        for (index, item) in items.enumerate() {
             if index > 0 {
                 self.writer.raw("#linebreak()");
             }
             if write_anchors {
-                for anchor in &item.anchors {
-                    self.write_anchor_target(anchor.into());
+                for anchor in item.anchors() {
+                    self.write_anchor_target(anchor);
                 }
             }
             self.writer.raw("#text(weight: \"bold\")[");
-            self.write_inlines(traversal, &item.term)?;
+            self.write_content(traversal, item.term())?;
             self.writer.raw("]");
         }
         Ok(())
     }
 
-    fn write_qanda_description_terms(
+    fn write_qanda_description_terms<'doc>(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        items: &[DescriptionListItem<'_>],
+        items: impl Iterator<Item = DescriptionListItemRef<'doc>>,
     ) -> Result<(), Error> {
-        for (index, item) in items.iter().enumerate() {
+        for (index, item) in items.enumerate() {
             if index > 0 {
                 self.writer.raw("#linebreak()");
             }
-            for anchor in &item.anchors {
-                self.write_anchor_target(anchor.into());
+            for anchor in item.anchors() {
+                self.write_anchor_target(anchor);
             }
             self.writer.raw("#emph[");
-            self.write_inlines(traversal, &item.term)?;
+            self.write_content(traversal, item.term())?;
             self.writer.raw("]");
         }
         Ok(())
@@ -3091,15 +3112,15 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     fn write_description_list_item(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        item: &'a DescriptionListItem<'a>,
+        item: DescriptionListItemRef<'a>,
     ) -> Result<(), Error> {
-        if !item.principal_text.is_empty() {
-            self.write_inlines(traversal, &item.principal_text)?;
-            if !item.description.is_empty() {
+        if !item.principal().is_empty() {
+            self.write_content(traversal, item.principal())?;
+            if item.blocks().next().is_some() {
                 self.writer.raw("\n\n");
             }
         }
-        self.write_blocks(traversal, &item.description)
+        self.write_blocks(traversal, item.blocks())
     }
 
     pub(crate) fn write_ordered_list_start(
@@ -3285,18 +3306,14 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     pub(crate) fn write_table(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        table: &'a Table<'a>,
+        table: TableRef<'a>,
         attributes: Option<AttributesRef<'_>>,
     ) -> Result<(), Error> {
-        let column_count = determine_column_count(table);
+        let column_count = column_count(table);
         let width = table_width(attributes);
         let autowidth = has_attribute_token(attributes, "options", "autowidth");
         let constrained = width.is_some() || has_attribute_token(attributes, "role", "stretch");
-        let columns = table
-            .columns
-            .iter()
-            .map(ColumnFormatRef::from)
-            .collect::<Vec<_>>();
+        let columns = table.columns().collect::<Vec<_>>();
         let tracks = (!autowidth || constrained)
             .then(|| table_column_tracks(columns.iter().copied(), column_count));
         if let Some(tracks) = &tracks {
@@ -3311,7 +3328,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         let alignments = table_column_alignments(columns.iter().copied(), column_count);
         let _ = write!(self.writer, ", align: {alignments}, stroke: none");
 
-        let grid = build_grid(table, column_count);
+        let grid = grid_rows(table, column_count);
         let presentation = table.presentation().unwrap_or_else(|| {
             TablePresentation::resolve_with(attributes, |name| traversal.get(name))
         });
@@ -3408,23 +3425,23 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     pub(crate) fn write_intrinsic_table_end(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        block: &DelimitedBlock<'_>,
+        block: BlockRef<'_>,
         fallback: Option<CaptionKind>,
     ) -> Result<(), Error> {
-        let attributes = BlockRef::from(block).attributes();
+        let attributes = block.attributes();
         let alignment = table_alignment(attributes, self.table_theme.align);
         let _ = writeln!(
             self.writer,
             "]\nalign({}, [\n#context block(width: measure(acdc-table-body).width)[",
             typst_table_alignment(alignment)
         );
-        let sticky_title = !has_attribute_token(attributes, "options", "unbreakable")
-            && block.title.content().is_some();
+        let sticky_title =
+            !has_attribute_token(attributes, "options", "unbreakable") && block.title().is_some();
         if sticky_title {
             self.writer
                 .raw("#block(sticky: true, above: 0pt, below: 0pt)[\n");
         }
-        self.write_captioned_title(traversal, block.title.content(), attributes, fallback)?;
+        self.write_captioned_title(traversal, block.title(), attributes, fallback)?;
         if sticky_title {
             self.writer.raw("]\n");
         }
@@ -3464,16 +3481,17 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         &mut self,
         traversal: &mut TraversalContext<'a>,
         context: &TableRenderContext<'_>,
-        row: &GridRow<&'a TableRow<'a>>,
+        row: &GridRow<TableRowRef<'a>>,
         y: usize,
         first_separator: &str,
     ) -> Result<(), Error> {
         let mut separator = first_separator;
+        let mut source_cells = row.ast_row.cells().enumerate();
         for (x, cell) in row.cells.iter().enumerate() {
             let CellKind::Content { cell_index } = cell else {
                 continue;
             };
-            if let Some(ast_cell) = row.ast_row.columns.get(*cell_index) {
+            if let Some((_, ast_cell)) = source_cells.find(|(index, _)| index == cell_index) {
                 self.writer.raw(separator);
                 self.write_table_cell(
                     traversal,
@@ -3497,11 +3515,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         &mut self,
         traversal: &mut TraversalContext<'a>,
         context: &TableRenderContext<'_>,
-        cell: &'a TableColumn<'a>,
+        cell: TableCellRef<'a>,
         source_column_index: usize,
         position: TableCellPosition,
     ) -> Result<(), Error> {
-        let cell_ref = TableCellRef::from(cell);
+        let cell_ref = cell;
         let TableCellPosition { x, y, .. } = position;
         let _ = write!(self.writer, "table.cell(x: {x}, y: {y}");
         if cell_ref.colspan() > 1 {
@@ -3652,11 +3670,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     fn write_table_cell_content(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        cell: &'a TableColumn<'a>,
+        cell: TableCellRef<'a>,
         style: ColumnStyle,
     ) -> Result<(), Error> {
         if style == ColumnStyle::Literal
-            && let Some(text) = literal_table_cell_text(TableCellRef::from(cell).blocks())
+            && let Some(text) = literal_table_cell_text(cell.blocks())
         {
             self.write_table_literal(&text);
             return Ok(());
@@ -3674,26 +3692,18 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         }
         if style == ColumnStyle::AsciiDoc {
             traversal.with_table_cell(cell, |traversal| {
-                self.write_asciidoc_table_cell(traversal, &cell.content)
+                self.write_blocks(traversal, cell.blocks())
             })?;
         } else {
-            self.write_blocks(traversal, &cell.content)?;
+            self.write_blocks(traversal, cell.blocks())?;
         }
-        if cell.content.is_empty() {
+        if cell.blocks().next().is_none() {
             self.write_text_expr("");
         }
         if wrapper.is_some() {
             self.writer.raw("]");
         }
         Ok(())
-    }
-
-    fn write_asciidoc_table_cell(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        blocks: &'a [Block<'a>],
-    ) -> Result<(), Error> {
-        self.write_blocks(traversal, blocks)
     }
 
     pub(super) fn in_asciidoc_table_cell(&self) -> bool {
@@ -4624,10 +4634,20 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     }
 }
 
-fn description_list_rows<'items, 'document>(
-    items: &'items [DescriptionListItem<'document>],
-) -> impl Iterator<Item = &'items [DescriptionListItem<'document>]> {
-    items.split_inclusive(|item| !item.principal_text.is_empty() || !item.description.is_empty())
+fn description_list_rows<'doc>(
+    mut items: impl Iterator<Item = DescriptionListItemRef<'doc>> + Clone,
+) -> impl Iterator<Item = impl Iterator<Item = DescriptionListItemRef<'doc>> + Clone> {
+    std::iter::from_fn(move || {
+        let row = items.clone();
+        let mut count = 0;
+        for item in items.by_ref() {
+            count += 1;
+            if !item.principal().is_empty() || item.blocks().next().is_some() {
+                break;
+            }
+        }
+        (count > 0).then(|| row.take(count))
+    })
 }
 
 fn table_column_tracks<'doc>(

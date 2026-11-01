@@ -89,6 +89,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- List item iterators can be cloned to retain independent positions without
+  copying their items or allocating a collection.
 - Library consumers can copy a video from a typed read, retaining its source,
   title, attributes, and source locations for independent edits.
 - Library consumers can identify a simple admonition's paragraph while retaining
