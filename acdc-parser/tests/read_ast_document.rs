@@ -1,6 +1,6 @@
 use acdc_parser::{
     Author, CompatibilityMode, Document, DocumentAttributeAssignment, DocumentAttributeValue,
-    Header, Location, Options, SafeMode, Title,
+    DocumentAttributes, Header, Location, Options, SafeMode, Title,
     ast::{
         AttributeValueRef, AuthorRef, BlockKind, ContentRef, DocumentRef, HeaderRef, InlineKind,
     },
@@ -334,5 +334,79 @@ fn constructed_headers_keep_optional_content_and_shared_authors() -> Result<(), 
         let values = attributes.iter();
         scope.spawn(move || assert!(values.count() > 0));
     });
+    Ok(())
+}
+
+#[rstest::rstest]
+fn document_attribute_snapshots_preserve_values_provenance_and_input_policy(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    let options = Options::builder()
+        .with_compatibility_mode(mode)
+        .with_attribute("locked", "caller")
+        .with_attribute("literal-at", "caller@")
+        .with_attribute("max-include-depth", "064")
+        .with_default_attribute("processor", "fallback")
+        .build()?;
+    let parsed = parse(":flag:\n:removed!:\n:figure-caption!:\n\nBody.\n", &options)?;
+    let original = &parsed.document().attributes;
+    let before = serde_json::to_value(original)?;
+    let copied = DocumentAttributes::from(parsed.document_ref().attributes());
+    assert_eq!(&copied, original);
+    assert_eq!(serde_json::to_value(&copied)?, before);
+    assert!(
+        copied
+            .get("flag")
+            .is_some_and(DocumentAttributeValue::is_presence)
+    );
+    for name in ["removed", "figure-caption"] {
+        assert!(matches!(
+            copied.assignment(name),
+            Some(DocumentAttributeAssignment::Unset)
+        ));
+        assert!(copied.is_explicit(name));
+    }
+    assert!(copied.assignment("missing").is_none());
+    assert!(!copied.is_explicit("table-caption"));
+    assert_eq!(
+        copied
+            .get("max-include-depth")
+            .and_then(DocumentAttributeValue::as_integer),
+        Some(64)
+    );
+    assert_eq!(
+        copied
+            .get("max-include-depth")
+            .and_then(DocumentAttributeValue::text),
+        Some("064")
+    );
+    let retained = copied.clone().into_static();
+    assert_eq!(&retained, original);
+
+    let input = ":locked: changed\n:literal-at: changed\n:processor: changed\n\nNext.\n";
+    let replay = parse(input, &Options::default().with_document_attributes(copied))?;
+    let expected = parse(
+        input,
+        &Options::default().with_document_attributes(original.clone()),
+    )?;
+    assert_eq!(replay.document().attributes, expected.document().attributes);
+    let values = replay.document_ref().attributes();
+    assert_eq!(
+        values.get("locked").and_then(DocumentAttributeValue::text),
+        Some("caller")
+    );
+    assert_eq!(
+        values
+            .get("literal-at")
+            .and_then(DocumentAttributeValue::text),
+        Some("caller@")
+    );
+    assert_eq!(
+        values
+            .get("processor")
+            .and_then(DocumentAttributeValue::text),
+        Some("changed")
+    );
+    assert_eq!(serde_json::to_value(original)?, before);
     Ok(())
 }

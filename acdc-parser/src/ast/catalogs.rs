@@ -1,4 +1,7 @@
-use std::{collections::HashMap, iter::FusedIterator};
+use std::{
+    collections::{HashMap, hash_map::RandomState},
+    iter::FusedIterator,
+};
 
 use crate::{Reference, SectionKind, TocEntry};
 
@@ -197,5 +200,29 @@ impl<'doc> From<&'doc Reference<'doc>> for ReferenceRef<'doc> {
 impl<'doc> From<&'doc TocEntry<'doc>> for TocEntryRef<'doc> {
     fn from(entry: &'doc TocEntry<'doc>) -> Self {
         Self::new(entry)
+    }
+}
+
+/// Copies the registered target, including derived values and source locations.
+/// Source text remains borrowed. The copy does not refresh the catalog.
+impl<'doc> From<ReferenceRef<'doc>> for Reference<'doc> {
+    fn from(reference: ReferenceRef<'doc>) -> Self {
+        reference.node.clone()
+    }
+}
+
+/// Copies the stored TOC entry, including its assigned number and source location.
+/// Source text remains borrowed. The copy does not discover or refresh headings.
+impl<'doc> From<TocEntryRef<'doc>> for TocEntry<'doc> {
+    fn from(entry: TocEntryRef<'doc>) -> Self {
+        entry.node.clone()
+    }
+}
+
+/// Copies every registered ID and target, including aliases.
+/// Source text remains borrowed. The copy does not refresh the catalog.
+impl<'doc> From<ReferencesRef<'doc>> for HashMap<&'doc str, Reference<'doc>, RandomState> {
+    fn from(references: ReferencesRef<'doc>) -> Self {
+        references.references.clone()
     }
 }

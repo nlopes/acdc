@@ -84,6 +84,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Library callers can copy document attributes and registered TOC/reference
+  entries from typed handles with `From`. Copies preserve defaults, explicit
+  unsets, assignment provenance, assigned numbers, and source locations without
+  revalidation or catalog updates. Source text keeps its existing lifetime.
 - Library callers can read the highest assigned caption number through typed
   document handles. Nested blocks and table cells are included; reads preserve
   stored numbers and leave edited documents and reference catalogs unchanged.

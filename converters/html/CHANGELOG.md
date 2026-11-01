@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Per-document HTML configuration retains reference aliases, assigned heading
+  numbers, and attribute defaults and unsets when copied from typed handles.
+
 - Nested sections, lists, compound blocks, admonitions, and table cells preserve
   their HTML and attribute scopes. Companion stylesheets retain their existing
   paths and contents.

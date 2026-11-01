@@ -244,3 +244,11 @@ impl<'doc> FootnoteDefinitionRef<'doc> {
         ContentRef::new(&self.node.content)
     }
 }
+
+/// Copies values, defaults, unsets, and assignment provenance without revalidation.
+/// Source text remains borrowed; use [`DocumentAttributes::into_static`] when needed.
+impl<'doc> From<DocumentAttributesRef<'doc>> for DocumentAttributes<'doc> {
+    fn from(attributes: DocumentAttributesRef<'doc>) -> Self {
+        attributes.attributes.clone()
+    }
+}

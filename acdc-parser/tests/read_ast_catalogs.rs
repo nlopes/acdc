@@ -1,7 +1,8 @@
 use std::{alloc::System, hint::black_box};
 
 use acdc_parser::{
-    CompatibilityMode, ContentAttribute, Document, Location, Options, SafeMode, Title,
+    CompatibilityMode, ContentAttribute, Document, Location, Options, Reference, SafeMode, Title,
+    TocEntry,
     ast::{ContentRef, DocumentRef, InlineKind, ReferenceRef, ReferencesRef, TocEntryRef},
     parse, parse_file,
 };
@@ -252,5 +253,97 @@ fn catalog_locations_resolve_to_the_included_source() -> Result<(), Error> {
             ["xref_include_target.adoc"]
         );
     }
+    Ok(())
+}
+
+#[rstest::rstest]
+fn catalog_snapshots_preserve_registered_state_without_refreshing(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    let options = Options::builder().with_compatibility_mode(mode).build()?;
+    for source in [
+        include_str!("../fixtures/tests/section_reference_metadata.adoc"),
+        include_str!("../fixtures/tests/xref_reftext_order.adoc"),
+        "= Catalog\n\n[#figure]\n.A *bird*\nimage::bird.svg[]\n\n[bibliography]\n== References\n\n* [[[book,Book]]] Entry.\n\nSee <<book>>.\n",
+    ] {
+        let parsed = parse(source, &options)?;
+        let original = parsed.document();
+        let before = serde_json::to_value(original)?;
+        let doc = parsed.document_ref();
+        let mut references = std::collections::HashMap::from(doc.references());
+        for (id, reference) in doc.references().iter() {
+            assert_eq!(
+                &Reference::from(reference),
+                references.get(id).ok_or("copied target")?
+            );
+        }
+        let mut entries: Vec<_> = doc.toc_entries().map(TocEntry::from).collect();
+        assert_eq!(references, original.references);
+        assert_eq!(entries, original.toc_entries);
+        let original_references = original.references.clone();
+        let original_entries = original.toc_entries.clone();
+        assert_eq!(
+            serde_json::to_value(&entries)?,
+            serde_json::to_value(&original.toc_entries)?
+        );
+        for reference in references.values_mut() {
+            reference.title = Some(Title::new(Vec::new()));
+            reference.xreflabel = Some(ContentAttribute::new(Vec::new()));
+            reference.caption = None;
+            reference.location = Location::default();
+        }
+        for entry in &mut entries {
+            entry.title = Title::new(Vec::new());
+            entry.xreflabel = Some(ContentAttribute::new(Vec::new()));
+            entry.location = Location::default();
+        }
+        assert_eq!(serde_json::to_value(original)?, before);
+        assert_eq!(original.references, original_references);
+        assert_eq!(original.toc_entries, original_entries);
+
+        let mut stale = Document::default();
+        stale.references = original.references.clone();
+        stale.toc_entries = original.toc_entries.clone();
+        stale.blocks.clear();
+        let stale_doc = DocumentRef::from(&stale);
+        for (id, reference) in stale_doc.references().iter() {
+            assert_eq!(
+                &Reference::from(reference),
+                original.references.get(id).ok_or("original target")?
+            );
+        }
+        assert_eq!(
+            stale_doc
+                .toc_entries()
+                .map(TocEntry::from)
+                .collect::<Vec<_>>(),
+            original.toc_entries
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn catalog_snapshots_keep_absent_and_explicitly_empty_content() -> Result<(), Error> {
+    let parsed = parse("[#target]\n== Original\n", &Options::default())?;
+    let original = parsed.document().references.get("target").ok_or("target")?;
+    for title in [None, Some(Title::new(Vec::new()))] {
+        for label in [None, Some(ContentAttribute::new(Vec::new()))] {
+            let mut owner = original.clone();
+            owner.title = title.clone();
+            owner.xreflabel = label;
+            let copied = Reference::from(ReferenceRef::from(&owner));
+            assert_eq!(copied, owner);
+        }
+    }
+    let mut entry = parsed
+        .document()
+        .toc_entries
+        .first()
+        .ok_or("entry")?
+        .clone();
+    entry.title = Title::new(Vec::new());
+    entry.xreflabel = Some(ContentAttribute::new(Vec::new()));
+    assert_eq!(TocEntry::from(TocEntryRef::from(&entry)), entry);
     Ok(())
 }

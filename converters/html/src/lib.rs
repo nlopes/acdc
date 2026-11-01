@@ -18,8 +18,8 @@ use acdc_parser::{
     AttributeValue, CaptionKind, Document, DocumentAttributes, InlineNode,
     Options as ParserOptions, Reference, Substitution, TocEntry,
     ast::{
-        AttributeValueRef, AttributesRef, CaptionRef, ContentRef, DocumentRef, ElementIdRef,
-        InlineRef,
+        AttributeValueRef, AttributesRef, CaptionRef, ContentRef, DocumentAttributesRef,
+        DocumentRef, ElementIdRef, InlineRef,
     },
 };
 
@@ -298,23 +298,21 @@ impl<'a> Processor<'a> {
     /// # Errors
     ///
     /// Returns an error if document conversion or writing fails.
-    pub fn convert_to_writer<'doc, W: Write>(
+    pub fn convert_to_writer<W: Write>(
         &self,
-        doc: &Document<'doc>,
+        doc: &Document<'_>,
         writer: W,
         options: &RenderOptions,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Error> {
-        // The per-conversion processor borrows from `doc`; its `'a` is `'doc`,
-        // independent of `self`'s stored-attribute lifetime.
         let document = DocumentRef::from(doc);
-        let processor: Processor<'doc> = Processor {
-            toc_entries: doc.toc_entries.clone(),
-            references: doc.references.clone(),
+        let processor = Processor {
+            toc_entries: document.toc_entries().map(TocEntry::from).collect(),
+            references: document.references().into(),
             xref_guard: XrefGuard::default(),
             parser_options: ParserOptions::default()
-                .with_document_attributes(doc.attributes.clone()),
-            generate_index: index_generation_enabled(&doc.attributes)
+                .with_document_attributes(document.attributes().into()),
+            generate_index: index_generation_enabled(document.attributes())
                 && contains_index_section(document.blocks()),
             options: self.options.clone(),
             example_counter: Rc::new(Cell::new(
@@ -426,8 +424,10 @@ pub(crate) const STYLESHEET_ADVICE: &str =
 /// html5 backend (see `crate::index`), so it is off unless the author asks for
 /// it. Treated as a boolean attribute: present and not soft-unset (`:!acdc-index:`)
 /// turns it on.
-pub(crate) fn index_generation_enabled(attributes: &DocumentAttributes<'_>) -> bool {
-    attributes.get("acdc-index").is_some()
+pub(crate) fn index_generation_enabled<'doc>(
+    attributes: impl Into<DocumentAttributesRef<'doc>>,
+) -> bool {
+    attributes.into().get("acdc-index").is_some()
 }
 
 pub(crate) fn load_css(dark_mode: bool, variant: HtmlVariant) -> &'static str {
