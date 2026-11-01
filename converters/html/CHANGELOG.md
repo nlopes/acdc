@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Source blocks retain titled and untitled presentation, pass-block substitutions,
+  math notation and escaping, and verse formatting in both HTML variants.
+  Footnote output preserves the stored definitions and their order.
+
 - Paragraphs and compound blocks retain formatted and empty titles, quote and
   verse attribution, collapsible controls, captions, IDs, and role order through
   typed parser reads in both HTML variants.

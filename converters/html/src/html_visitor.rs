@@ -15,13 +15,13 @@ use acdc_converters_core::substitutions::effective_subs;
 
 use acdc_parser::{
     Admonition, Audio, Block, CalloutList, CaptionKind, ColumnStyle, DelimitedBlock,
-    DescriptionList, DiscreteHeader, Document, Footnote, Header, Image, InlineNode, ListItem,
-    NORMAL, OrderedList, PageBreak, Paragraph, Section, Substitution, TableOfContents,
-    ThematicBreak, UnorderedList, Video,
+    DescriptionList, DiscreteHeader, Document, Header, Image, InlineNode, ListItem, NORMAL,
+    OrderedList, PageBreak, Paragraph, Section, Substitution, TableOfContents, ThematicBreak,
+    UnorderedList, Video,
     ast::{
         AttributeValueRef, AttributesRef, BlockKind, BlockRef, ColumnFormatRef, ContentRef,
-        DocumentAttributesRef, DocumentRef, HeaderRef, InlineRef, ParagraphRef, StructuralRef,
-        TableRef,
+        DocumentAttributesRef, DocumentRef, FootnoteDefinitionRef, HeaderRef, InlineRef,
+        ParagraphRef, StructuralRef, TableRef, ThematicBreakRef,
     },
 };
 
@@ -632,7 +632,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
     fn render_footnotes(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        footnotes: &[Footnote],
+        footnotes: impl Iterator<Item = FootnoteDefinitionRef<'a>>,
     ) -> Result<(), Error> {
         if self.processor.variant() == HtmlVariant::Semantic {
             return self.render_footnotes_semantic(traversal, footnotes);
@@ -640,7 +640,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
         writeln!(self.writer, "<div id=\"footnotes\">")?;
         writeln!(self.writer, "<hr>")?;
         for footnote in footnotes {
-            let number = footnote.number;
+            let number = footnote.number();
             writeln!(
                 self.writer,
                 "<div class=\"footnote\" id=\"_footnotedef_{number}\">"
@@ -649,7 +649,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
                 self.writer,
                 "<a href=\"#_footnoteref_{number}\">{number}</a>. "
             )?;
-            self.visit_inline_nodes(traversal, &footnote.content)?;
+            self.visit_content(traversal, footnote.content())?;
             writeln!(self.writer, "</div>")?;
         }
         writeln!(self.writer, "</div>")?;
@@ -659,7 +659,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
     fn render_footnotes_semantic(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        footnotes: &[Footnote],
+        footnotes: impl Iterator<Item = FootnoteDefinitionRef<'a>>,
     ) -> Result<(), Error> {
         writeln!(
             self.writer,
@@ -668,12 +668,12 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
         writeln!(self.writer, "<hr>")?;
         writeln!(self.writer, "<ol class=\"footnotes\">")?;
         for footnote in footnotes {
-            let number = footnote.number;
+            let number = footnote.number();
             writeln!(
                 self.writer,
                 "<li class=\"footnote\" id=\"_footnote_{number}\" role=\"doc-endnote\">"
             )?;
-            self.visit_inline_nodes(traversal, &footnote.content)?;
+            self.visit_content(traversal, footnote.content())?;
             write!(
                 self.writer,
                 " <a class=\"footnote-backref\" href=\"#_footnoteref_{number}\" role=\"doc-backlink\" title=\"Jump to the first occurrence in the text\">&#8617;</a>"
@@ -840,8 +840,9 @@ impl<'a, W: Write> Visitor<'a> for HtmlVisitor<'a, '_, W> {
                 writeln!(self.writer, "</div>")?;
             }
         }
-        if !doc.footnotes.is_empty() {
-            self.render_footnotes(traversal, &doc.footnotes)?;
+        let mut footnotes = DocumentRef::from(doc).footnotes().peekable();
+        if footnotes.peek().is_some() {
+            self.render_footnotes(traversal, footnotes)?;
         }
         // Skip footer in embedded mode
         if !self.render_options.embedded {
@@ -1202,8 +1203,8 @@ impl<'a, W: Write> Visitor<'a> for HtmlVisitor<'a, '_, W> {
         br: &ThematicBreak,
     ) -> Result<(), Self::Error> {
         write!(self.writer, "<hr")?;
-        if let Some(anchor) = br.anchors.first() {
-            write!(self.writer, " id=\"{}\"", anchor.id)?;
+        if let Some(id) = ThematicBreakRef::from(br).id() {
+            write!(self.writer, " id=\"{}\"", id.as_str())?;
         }
         writeln!(self.writer, ">")?;
         Ok(())
@@ -1316,6 +1317,102 @@ mod title_media_tests {
         fn flush(&mut self) -> std::io::Result<()> {
             Ok(())
         }
+    }
+
+    #[test]
+    fn source_leaf_errors_restore_substitution_state() -> Result<(), TestError> {
+        let source = WarningSource::new("html");
+        let mut warnings = Vec::new();
+        for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+            let processor = Rc::new(
+                Processor::new(ConverterOptions::default(), ParserOptions::builder())?
+                    .with_variant(variant)?,
+            );
+            for input in [
+                "[source,rust,subs=none]\n----\nTRIGGER\n----\n",
+                "[literal,subs=none]\n....\nTRIGGER\n....\n",
+                "[verse,Author,Book]\n____\nTRIGGER\n____\n",
+                "[latexmath,subs=none]\n++++\nTRIGGER\n++++\n",
+                "[subs=none]\n++++\nTRIGGER\n++++\n",
+            ] {
+                let parsed = parse(input, &ParserOptions::default())?;
+                let block = parsed.document().blocks.first().ok_or("expected block")?;
+                let mut visitor = HtmlVisitor::new(
+                    RejectCellText,
+                    processor.clone(),
+                    RenderOptions::default(),
+                    Diagnostics::new(&source, &mut warnings),
+                );
+                visitor.current_subs = vec![Substitution::SpecialChars];
+                visitor.render_options.inlines_verbatim = true;
+                let mut context = TraversalContext::new(&parsed.document().attributes);
+                let Err(error) = context.visit_block(&mut visitor, block) else {
+                    return Err(format!("body must reach the failing writer: {input}").into());
+                };
+                assert!(error.to_string().contains("rejected cell text"));
+                assert_eq!(visitor.current_subs, [Substitution::SpecialChars]);
+                assert!(visitor.render_options.inlines_verbatim);
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn footnote_catalog_preserves_stored_order_and_writer_errors() -> Result<(), TestError> {
+        let parsed = parse(
+            "First footnote:[FIRST *note*]. Second footnote:[SECOND _note_].\n",
+            &ParserOptions::default(),
+        )?;
+        let mut document = Document::default();
+        document.attributes = parsed.document().attributes.clone();
+        document.footnotes = parsed.document().footnotes.clone();
+        document.footnotes.reverse();
+        let retained = document.footnotes.clone();
+        for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+            let processor = Rc::new(
+                Processor::new(ConverterOptions::default(), ParserOptions::builder())?
+                    .with_variant(variant)?,
+            );
+            let source = WarningSource::new("html");
+            let mut warnings = Vec::new();
+            let mut output = Vec::new();
+            let mut visitor = HtmlVisitor::new(
+                &mut output,
+                processor.clone(),
+                RenderOptions {
+                    embedded: true,
+                    ..RenderOptions::default()
+                },
+                Diagnostics::new(&source, &mut warnings),
+            );
+            let mut context = TraversalContext::new(&document.attributes);
+            visitor.visit_document_supplements(&mut context, &document)?;
+            let output = String::from_utf8(output)?;
+            assert!(
+                output.find("SECOND").ok_or("second definition")?
+                    < output.find("FIRST").ok_or("first definition")?
+            );
+            assert_eq!(output.matches("SECOND").count(), 1);
+            assert_eq!(output.matches("FIRST").count(), 1);
+            assert!(output.contains("<strong>note</strong>"));
+            assert!(output.contains("<em>note</em>"));
+            let mut visitor = HtmlVisitor::new(
+                RejectWrites,
+                processor,
+                RenderOptions {
+                    embedded: true,
+                    ..RenderOptions::default()
+                },
+                Diagnostics::new(&source, &mut warnings),
+            );
+            assert!(
+                visitor
+                    .visit_document_supplements(&mut context, &document)
+                    .is_err()
+            );
+        }
+        assert_eq!(document.footnotes, retained);
+        Ok(())
     }
 
     #[test]
