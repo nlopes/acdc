@@ -11,13 +11,18 @@ use std::{
 use acdc_converters_core::substitutions::{Replacements, TextBoundaries};
 use acdc_converters_core::{
     BackendProfile, Converter, Diagnostics, Options, TraversalContext, WarningSource,
-    section::contains_index_section, visitor::Visitor, xref::XrefGuard,
+    section::contains_index_section,
+    visitor::{Visitor, WritableVisitor},
+    xref::XrefGuard,
 };
 
 use acdc_parser::{
-    AttributeValue, BlockMetadata, CaptionKind, Document, DocumentAttributes, InlineNode,
+    AttributeValue, CaptionKind, Document, DocumentAttributes, InlineNode,
     Options as ParserOptions, Reference, Substitution, TocEntry,
-    ast::{AttributeValueRef, AttributesRef, CaptionRef, DocumentRef, ElementIdRef, InlineRef},
+    ast::{
+        AttributeValueRef, AttributesRef, CaptionRef, ContentRef, DocumentRef, ElementIdRef,
+        InlineRef,
+    },
 };
 
 mod admonition;
@@ -817,36 +822,30 @@ impl<'a> Processor<'a> {
     }
 }
 
-/// Write the `id` attribute from metadata (explicit id or first anchor).
-pub(crate) fn write_id<W: std::io::Write + ?Sized>(
-    w: &mut W,
-    metadata: &BlockMetadata,
-) -> Result<(), std::io::Error> {
-    write_element_id(
-        w,
-        metadata
-            .id
-            .as_ref()
-            .or_else(|| metadata.anchors.first())
-            .map(ElementIdRef::from),
-    )
-}
-
 pub(crate) fn write_element_id<W: std::io::Write + ?Sized>(
     writer: &mut W,
     id: Option<ElementIdRef<'_>>,
 ) -> Result<(), std::io::Error> {
+    write_id(writer, id.map(ElementIdRef::as_str))
+}
+
+pub(crate) fn write_id<W: Write + ?Sized>(
+    writer: &mut W,
+    id: Option<&str>,
+) -> Result<(), std::io::Error> {
     if let Some(id) = id {
-        write!(writer, " id=\"{}\"", inlines::escape_attribute(id.as_str()))?;
+        write!(writer, " id=\"{}\"", inlines::escape_attribute(id))?;
     }
     Ok(())
 }
 
 pub(crate) fn build_class(base: &str, roles: impl IntoIterator<Item = impl AsRef<str>>) -> String {
     let mut class = base.to_owned();
+    let mut separator = if base.is_empty() { "" } else { " " };
     for role in roles {
-        class.push(' ');
+        class.push_str(separator);
         class.push_str(role.as_ref());
+        separator = " ";
     }
     class
 }
@@ -1157,17 +1156,24 @@ pub(crate) fn render_pre_code<'a, W: std::io::Write>(
     Ok(())
 }
 
+fn attribute_content<'doc>(
+    attributes: Option<AttributesRef<'doc>>,
+    name: &str,
+) -> Option<ContentRef<'doc>> {
+    match attributes?.get(name) {
+        Some(AttributeValueRef::Content(content)) => Some(content),
+        _ => None,
+    }
+}
+
 /// Write attribution div for quote/verse blocks if author or citation present
-pub(crate) fn write_attribution<
-    'a,
-    V: acdc_converters_core::visitor::WritableVisitor<'a, Error = Error>,
->(
+pub(crate) fn write_attribution<'a, W: Write>(
     traversal: &mut TraversalContext<'a>,
-    visitor: &mut V,
-    metadata: &BlockMetadata,
+    visitor: &mut HtmlVisitor<'a, '_, W>,
+    attributes: Option<AttributesRef<'_>>,
 ) -> Result<(), Error> {
-    let attribution = metadata.attribution.as_ref();
-    let citetitle = metadata.citetitle.as_ref();
+    let attribution = attribute_content(attributes, "attribution");
+    let citetitle = attribute_content(attributes, "citetitle");
 
     if attribution.is_some() || citetitle.is_some() {
         let w = visitor.writer_mut();
@@ -1175,24 +1181,24 @@ pub(crate) fn write_attribution<
         if let (Some(attr), Some(cite)) = (attribution, citetitle) {
             write!(w, "&#8212; ")?;
             let _ = w;
-            visitor.visit_inline_nodes(traversal, attr)?;
+            visitor.visit_content(traversal, attr)?;
             let w = visitor.writer_mut();
             writeln!(w, "<br>")?;
             write!(w, "<cite>")?;
             let _ = w;
-            visitor.visit_inline_nodes(traversal, cite)?;
+            visitor.visit_content(traversal, cite)?;
             let w = visitor.writer_mut();
             writeln!(w, "</cite>")?;
         } else if let Some(attr) = attribution {
             write!(w, "&#8212; ")?;
             let _ = w;
-            visitor.visit_inline_nodes(traversal, attr)?;
+            visitor.visit_content(traversal, attr)?;
             let w = visitor.writer_mut();
             writeln!(w)?;
         } else if let Some(cite) = citetitle {
             write!(w, "<cite>")?;
             let _ = w;
-            visitor.visit_inline_nodes(traversal, cite)?;
+            visitor.visit_content(traversal, cite)?;
             let w = visitor.writer_mut();
             writeln!(w, "</cite>")?;
         }
@@ -1203,16 +1209,13 @@ pub(crate) fn write_attribution<
 }
 
 /// Write quote or verse attribution in a semantic `<footer>`.
-pub(crate) fn write_semantic_attribution<
-    'a,
-    V: acdc_converters_core::visitor::WritableVisitor<'a, Error = Error>,
->(
+pub(crate) fn write_semantic_attribution<'a, W: Write>(
     traversal: &mut TraversalContext<'a>,
-    visitor: &mut V,
-    metadata: &BlockMetadata,
+    visitor: &mut HtmlVisitor<'a, '_, W>,
+    attributes: Option<AttributesRef<'_>>,
 ) -> Result<(), Error> {
-    let attribution = metadata.attribution.as_ref();
-    let citetitle = metadata.citetitle.as_ref();
+    let attribution = attribute_content(attributes, "attribution");
+    let citetitle = attribute_content(attributes, "citetitle");
 
     if attribution.is_some() || citetitle.is_some() {
         let w = visitor.writer_mut();
@@ -1220,21 +1223,21 @@ pub(crate) fn write_semantic_attribution<
         if let (Some(attr), Some(cite)) = (attribution, citetitle) {
             write!(w, "&#8212; ")?;
             let _ = w;
-            visitor.visit_inline_nodes(traversal, attr)?;
+            visitor.visit_content(traversal, attr)?;
             let w = visitor.writer_mut();
             write!(w, "<br><cite>")?;
             let _ = w;
-            visitor.visit_inline_nodes(traversal, cite)?;
+            visitor.visit_content(traversal, cite)?;
             let w = visitor.writer_mut();
             write!(w, "</cite>")?;
         } else if let Some(attr) = attribution {
             write!(w, "&#8212; ")?;
             let _ = w;
-            visitor.visit_inline_nodes(traversal, attr)?;
+            visitor.visit_content(traversal, attr)?;
         } else if let Some(cite) = citetitle {
             write!(w, "<cite>")?;
             let _ = w;
-            visitor.visit_inline_nodes(traversal, cite)?;
+            visitor.visit_content(traversal, cite)?;
             let w = visitor.writer_mut();
             write!(w, "</cite>")?;
         }

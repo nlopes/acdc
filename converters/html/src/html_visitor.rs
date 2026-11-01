@@ -15,12 +15,13 @@ use acdc_converters_core::substitutions::effective_subs;
 
 use acdc_parser::{
     Admonition, Audio, Block, CalloutList, CaptionKind, ColumnStyle, DelimitedBlock,
-    DelimitedBlockType, DescriptionList, DiscreteHeader, Document, Footnote, Header, Image,
-    InlineNode, ListItem, NORMAL, OrderedList, PageBreak, Paragraph, Section, Substitution,
-    TableOfContents, ThematicBreak, UnorderedList, Video,
+    DescriptionList, DiscreteHeader, Document, Footnote, Header, Image, InlineNode, ListItem,
+    NORMAL, OrderedList, PageBreak, Paragraph, Section, Substitution, TableOfContents,
+    ThematicBreak, UnorderedList, Video,
     ast::{
         AttributeValueRef, AttributesRef, BlockKind, BlockRef, ColumnFormatRef, ContentRef,
-        DocumentAttributesRef, DocumentRef, HeaderRef, InlineRef, StructuralRef, TableRef,
+        DocumentAttributesRef, DocumentRef, HeaderRef, InlineRef, ParagraphRef, StructuralRef,
+        TableRef,
     },
 };
 
@@ -1057,15 +1058,18 @@ impl<'a, W: Write> Visitor<'a> for HtmlVisitor<'a, '_, W> {
         para: &Paragraph,
     ) -> Result<(), Self::Error> {
         // Paragraphs with [literal], [listing], or [source] style are verbatim
-        let is_verbatim = para
-            .metadata
-            .style
+        let data = ParagraphRef::from(para);
+        let is_verbatim = data
+            .style()
             .is_some_and(|s| matches!(s, "literal" | "listing" | "source"));
 
         // Compute effective substitutions for this paragraph
         #[cfg(feature = "pre-spec-subs")]
         let new_subs = effective_subs(
-            para.metadata.substitutions.as_ref().map(Into::into),
+            match data.attributes().get("subs") {
+                Some(AttributeValueRef::Substitutions(spec)) => Some(spec),
+                _ => None,
+            },
             is_verbatim,
         );
         #[cfg(not(feature = "pre-spec-subs"))]
@@ -1084,15 +1088,19 @@ impl<'a, W: Write> Visitor<'a> for HtmlVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         block: &'a DelimitedBlock<'a>,
     ) -> Result<(), Self::Error> {
-        let is_verbatim = matches!(
-            &block.inner,
-            DelimitedBlockType::DelimitedListing(_) | DelimitedBlockType::DelimitedLiteral(_)
-        );
+        let data = BlockRef::from(block);
+        let is_verbatim = matches!(data.kind(), BlockKind::Listing(_) | BlockKind::Literal(_));
 
         // Compute effective substitutions for this block
         #[cfg(feature = "pre-spec-subs")]
         let new_subs = effective_subs(
-            block.metadata.substitutions.as_ref().map(Into::into),
+            match data
+                .attributes()
+                .and_then(|attributes| attributes.get("subs"))
+            {
+                Some(AttributeValueRef::Substitutions(spec)) => Some(spec),
+                _ => None,
+            },
             is_verbatim,
         );
         #[cfg(not(feature = "pre-spec-subs"))]
@@ -1276,8 +1284,8 @@ mod title_media_tests {
     use super::*;
     use acdc_converters_core::{Converter, Options as ConverterOptions, WarningSource};
     use acdc_parser::{
-        Anchor, AttributeValue, CompatibilityMode, Location, Options as ParserOptions, Title,
-        parse, parse_inline,
+        Anchor, AttributeValue, CompatibilityMode, DelimitedBlockType, Location,
+        Options as ParserOptions, Title, parse, parse_inline,
     };
 
     type TestError = Box<dyn std::error::Error>;
@@ -1308,6 +1316,101 @@ mod title_media_tests {
         fn flush(&mut self) -> std::io::Result<()> {
             Ok(())
         }
+    }
+
+    #[test]
+    fn paragraph_and_compound_errors_restore_substitution_state() -> Result<(), TestError> {
+        let processor = Rc::new(Processor::new(
+            ConverterOptions::default(),
+            ParserOptions::builder(),
+        )?);
+        let source = WarningSource::new("html");
+        let mut warnings = Vec::new();
+        for input in [
+            "[subs=none]\nTRIGGER\n",
+            "[quote,Author,Book]\n____\nTRIGGER\n____\n",
+        ] {
+            let parsed = parse(input, &ParserOptions::default())?;
+            let block = parsed.document().blocks.first().ok_or("expected block")?;
+            let mut visitor = HtmlVisitor::new(
+                RejectCellText,
+                processor.clone(),
+                RenderOptions::default(),
+                Diagnostics::new(&source, &mut warnings),
+            );
+            visitor.current_subs = vec![Substitution::SpecialChars];
+            visitor.render_options.inlines_verbatim = true;
+            let mut context = TraversalContext::new(&parsed.document().attributes);
+            let Err(error) = context.visit_block(&mut visitor, block) else {
+                return Err("body must reach the failing writer".into());
+            };
+            assert!(error.to_string().contains("rejected cell text"));
+            assert_eq!(visitor.current_subs, [Substitution::SpecialChars]);
+            assert!(visitor.render_options.inlines_verbatim);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn paragraph_and_compound_attribution_presence_ignores_stale_scalars() -> Result<(), TestError>
+    {
+        let parsed = parse(
+            "[quote]\nParagraph.\n\n[quote]\n____\nCompound.\n____\n",
+            &ParserOptions::default(),
+        )?;
+        for (author, citation) in [(false, false), (true, false), (false, true), (true, true)] {
+            let mut document = acdc_parser::Document::default();
+            document.attributes = parsed.document().attributes.clone();
+            document.blocks = parsed.document().blocks.clone();
+            for block in &mut document.blocks {
+                let metadata = if let Block::Paragraph(node) = block {
+                    &mut node.metadata
+                } else if let Block::DelimitedBlock(node) = block {
+                    &mut node.metadata
+                } else {
+                    return Err("expected quote".into());
+                };
+                metadata.attribution = author.then(|| Vec::new().into());
+                metadata.citetitle = citation.then(|| Vec::new().into());
+                metadata
+                    .attributes
+                    .set("attribution".into(), AttributeValue::from("SHADOW AUTHOR"));
+                metadata
+                    .attributes
+                    .set("citetitle".into(), AttributeValue::from("SHADOW BOOK"));
+                metadata.roles = vec!["", "one", "one"];
+            }
+            for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+                let processor =
+                    Processor::new(ConverterOptions::default(), ParserOptions::builder())?
+                        .with_variant(variant)?;
+                let mut output = Vec::new();
+                let source = WarningSource::new("html");
+                let mut warnings = Vec::new();
+                processor.convert_to_writer(
+                    &document,
+                    &mut output,
+                    &RenderOptions {
+                        embedded: true,
+                        ..RenderOptions::default()
+                    },
+                    &mut Diagnostics::new(&source, &mut warnings),
+                )?;
+                let output = String::from_utf8(output)?;
+                assert!(!output.contains("SHADOW"));
+                assert_eq!(
+                    output.matches("&#8212;").count(),
+                    if author { 2 } else { 0 }
+                );
+                assert_eq!(
+                    output.matches("<cite>").count(),
+                    if citation { 2 } else { 0 }
+                );
+                assert_eq!(output.matches("  one one").count(), 2);
+                assert_eq!(warnings, [] as [acdc_converters_core::Warning; 0]);
+            }
+        }
+        Ok(())
     }
 
     #[test]
