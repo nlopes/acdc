@@ -1,9 +1,9 @@
 use std::io::Write;
 
-use acdc_converters_core::{TraversalContext, visitor::WritableVisitor};
+use acdc_converters_core::TraversalContext;
 use acdc_parser::{
-    Admonition, AdmonitionVariant, Block,
-    ast::{AdmonitionRef, ParagraphRef},
+    AdmonitionVariant,
+    ast::{AdmonitionRef, BlockKind},
 };
 
 use crate::{
@@ -14,9 +14,8 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     pub(crate) fn render_admonition(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        owner: &'a Admonition<'a>,
+        admon: AdmonitionRef<'a>,
     ) -> Result<(), Error> {
-        let admon = AdmonitionRef::from(owner);
         let processor = self.processor.clone();
 
         // Get the appropriate caption attribute for this admonition type
@@ -49,14 +48,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         let icon = self.admonition_icon(traversal, admon, &plain_caption);
 
         if processor.variant() == HtmlVariant::Semantic {
-            return visit_admonition_semantic(
-                traversal,
-                self,
-                admon,
-                &owner.blocks,
-                &caption,
-                icon.as_deref(),
-            );
+            return visit_admonition_semantic(traversal, self, admon, &caption, icon.as_deref());
         }
 
         let class = build_class(
@@ -83,7 +75,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             writeln!(self.writer, "</div>")?;
         }
 
-        render_admonition_body(traversal, self, &owner.blocks, false)?;
+        render_admonition_body(traversal, self, admon, false)?;
 
         writeln!(self.writer, "</td>")?;
         writeln!(self.writer, "</tr>")?;
@@ -97,8 +89,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 fn visit_admonition_semantic<'a, W: Write>(
     traversal: &mut TraversalContext<'a>,
     visitor: &mut HtmlVisitor<'a, '_, W>,
-    admon: AdmonitionRef<'_>,
-    blocks: &'a [Block<'a>],
+    admon: AdmonitionRef<'a>,
     caption: &str,
     icon: Option<&str>,
 ) -> Result<(), Error> {
@@ -150,7 +141,7 @@ fn visit_admonition_semantic<'a, W: Write>(
     }
     let _ = writer;
 
-    render_admonition_body(traversal, visitor, blocks, true)?;
+    render_admonition_body(traversal, visitor, admon, true)?;
 
     let writer = visitor.writer_mut();
     writeln!(writer, "</{tag}>")?;
@@ -160,11 +151,16 @@ fn visit_admonition_semantic<'a, W: Write>(
 fn render_admonition_body<'a, W: Write>(
     traversal: &mut TraversalContext<'a>,
     visitor: &mut HtmlVisitor<'a, '_, W>,
-    blocks: &'a [Block<'a>],
+    admon: AdmonitionRef<'a>,
     semantic: bool,
 ) -> Result<(), Error> {
-    if let [Block::Paragraph(paragraph)] = blocks {
-        let paragraph = ParagraphRef::from(paragraph);
+    let mut blocks = admon.blocks().peekable();
+    let Some(first) = blocks.next() else {
+        return Ok(());
+    };
+    if let BlockKind::Paragraph(paragraph) = first.kind()
+        && blocks.peek().is_none()
+    {
         if !semantic {
             writeln!(visitor.writer_mut(), "<div class=\"paragraph\">")?;
         }
@@ -174,10 +170,10 @@ fn render_admonition_body<'a, W: Write>(
         if !semantic {
             writeln!(visitor.writer_mut(), "</div>")?;
         }
+        Ok(())
     } else {
-        traversal.visit_blocks(visitor, blocks)?;
+        traversal.visit_blocks(visitor, std::iter::once(first).chain(blocks))
     }
-    Ok(())
 }
 
 impl<'a, W: Write> HtmlVisitor<'a, '_, W> {

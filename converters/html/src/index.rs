@@ -16,8 +16,6 @@ use std::{
     io::Write,
 };
 
-use acdc_converters_core::visitor::WritableVisitor;
-
 use crate::{Error, HtmlVisitor, IndexCatalogRelationship, IndexTermEntry, IndexTermLabel};
 
 /// A single occurrence of a term: the anchor to jump to, and the title of the

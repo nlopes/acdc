@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Nested sections, lists, compound blocks, admonitions, and table cells preserve
+  their HTML and attribute scopes. Companion stylesheets retain their existing
+  paths and contents.
 - Fallback caption numbering for caller-built or newly titled blocks starts
   after existing assigned numbers, including those in nested blocks and cells,
   through typed document reads.

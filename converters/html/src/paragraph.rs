@@ -6,7 +6,7 @@ use acdc_converters_core::substitutions::baseline_subs;
 use acdc_converters_core::substitutions::effective_subs;
 use acdc_converters_core::{TraversalContext, code::source_language};
 use acdc_parser::{
-    CaptionKind, Paragraph,
+    CaptionKind,
     ast::{AttributeValueRef, ParagraphRef},
 };
 
@@ -23,9 +23,9 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     pub(crate) fn render_paragraph(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        para: &Paragraph,
+        para: ParagraphRef<'_>,
     ) -> Result<(), Error> {
-        let data = ParagraphRef::from(para);
+        let data = para;
         // Check if this paragraph should be rendered as a literal block
         if let Some(style) = data.style()
             && style == "literal"
@@ -293,9 +293,9 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     fn render_listing_paragraph(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        para: &Paragraph,
+        para: ParagraphRef<'_>,
     ) -> Result<(), Error> {
-        let data = ParagraphRef::from(para);
+        let data = para;
         let attributes = data.attributes();
         let language = source_language(attributes).map(str::to_owned).or_else(|| {
             matches!(

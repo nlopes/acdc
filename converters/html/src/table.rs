@@ -1,12 +1,12 @@
 use std::io::Write;
 
-use acdc_converters_core::{TraversalContext, table::column_widths, visitor::WritableVisitor};
+use acdc_converters_core::{TraversalContext, table::column_widths};
 use acdc_parser::{
-    Block, CaptionKind, ColumnStyle, HorizontalAlignment, Table, TableColumn, TableFrame,
-    TableGrid, TablePresentation, TableStripes, VerticalAlignment,
+    CaptionKind, ColumnStyle, HorizontalAlignment, TableFrame, TableGrid, TablePresentation,
+    TableStripes, VerticalAlignment,
     ast::{
         AttributeValueRef, AttributesRef, BlockKind, ColumnFormatRef, ContentRef, InlineKind,
-        ParagraphRef, TableCellRef, TableRef,
+        TableCellRef, TableRef,
     },
 };
 
@@ -102,18 +102,17 @@ fn inline_nodes_blank(content: ContentRef<'_>) -> bool {
 /// * `header` - Whether to flatten paragraph boundaries into header text
 fn render_cell_content<'a, W: Write>(
     traversal: &mut TraversalContext<'a>,
-    column: &'a TableColumn<'a>,
+    cell: TableCellRef<'a>,
     visitor: &mut HtmlVisitor<'a, '_, W>,
     wrap_paragraph: bool,
     style: Option<ColumnStyle>,
     header: bool,
 ) -> Result<(), Error> {
-    let cell = TableCellRef::from(column);
     if style == Some(ColumnStyle::AsciiDoc) {
         // AsciiDoc cells contain full blocks. Their visitor preserves paragraph
         // metadata and substitution settings within the cell's attribute scope.
         return traversal.with_table_cell(cell, |traversal| {
-            traversal.visit_blocks(visitor, &column.content)
+            traversal.visit_blocks(visitor, cell.blocks())
         });
     }
     // Bare cell text is sufficient for one paragraph. Multiple blocks need
@@ -130,9 +129,8 @@ fn render_cell_content<'a, W: Write>(
         .count()
         == 2;
     let needs_paragraphs = wrap_paragraph || (has_multiple_blocks && !header);
-    for (index, block) in column.content.iter().enumerate() {
-        if let Block::Paragraph(para) = block {
-            let para = ParagraphRef::from(para);
+    for (index, block) in cell.blocks().enumerate() {
+        if let BlockKind::Paragraph(para) = block.kind() {
             // Header cells use one text flow, but source paragraph breaks
             // must still separate words when the browser collapses whitespace.
             if header && index > 0 {
@@ -356,12 +354,11 @@ fn table_sizing(attributes: AttributesRef<'_>) -> (Option<&'static str>, String)
 /// Render a single body cell with appropriate tag and style.
 fn render_body_cell<'a, W: Write>(
     traversal: &mut TraversalContext<'a>,
-    owner: &'a TableColumn<'a>,
+    cell: TableCellRef<'a>,
     column: Option<ColumnFormatRef<'_>>,
     visitor: &mut HtmlVisitor<'a, '_, W>,
     processor: &Processor<'_>,
 ) -> Result<(), Error> {
-    let cell = TableCellRef::from(owner);
     let halign = halign_class(get_effective_halign(column, cell));
     let valign = valign_class(get_effective_valign(column, cell));
     let style = get_effective_style(column, cell);
@@ -382,7 +379,7 @@ fn render_body_cell<'a, W: Write>(
         "<{tag} class=\"{cell_class_prefix}{halign} {valign}\"{span_attrs}>"
     )?;
     let _ = writer;
-    render_cell_content(traversal, owner, visitor, !semantic, style, false)?;
+    render_cell_content(traversal, cell, visitor, !semantic, style, false)?;
     let writer = visitor.writer_mut();
     writeln!(writer, "</{tag}>")?;
     Ok(())
@@ -392,8 +389,7 @@ fn render_body_cell<'a, W: Write>(
 #[allow(clippy::too_many_lines)]
 pub(crate) fn render_table<'a, W: Write>(
     traversal: &mut TraversalContext<'a>,
-    table: TableRef<'_>,
-    rows: &'a Table<'a>,
+    table: TableRef<'a>,
     visitor: &mut HtmlVisitor<'a, '_, W>,
     processor: &Processor<'_>,
 ) -> Result<(), Error> {
@@ -457,21 +453,15 @@ pub(crate) fn render_table<'a, W: Write>(
     let cell_class_prefix = if semantic { "" } else { "tableblock " };
 
     // Render header
-    if let Some(header) = &rows.header {
+    if let Some(header) = table.header() {
         let writer = visitor.writer_mut();
         writeln!(writer, "<thead>")?;
         writeln!(writer, "<tr>")?;
         let _ = writer;
-        for (col_index, cell) in header.columns.iter().enumerate() {
-            let halign = halign_class(get_effective_halign(
-                table.columns().nth(col_index),
-                cell.into(),
-            ));
-            let valign = valign_class(get_effective_valign(
-                table.columns().nth(col_index),
-                cell.into(),
-            ));
-            let span_attrs = format_span_attrs(cell.into());
+        for (col_index, cell) in header.cells().enumerate() {
+            let halign = halign_class(get_effective_halign(table.columns().nth(col_index), cell));
+            let valign = valign_class(get_effective_valign(table.columns().nth(col_index), cell));
+            let span_attrs = format_span_attrs(cell);
             let writer = visitor.writer_mut();
             write!(
                 writer,
@@ -491,11 +481,11 @@ pub(crate) fn render_table<'a, W: Write>(
     let writer = visitor.writer_mut();
     writeln!(writer, "<tbody>")?;
     let _ = writer;
-    for row in &rows.rows {
+    for row in table.rows() {
         let writer = visitor.writer_mut();
         writeln!(writer, "<tr>")?;
         let _ = writer;
-        for (col_index, cell) in row.columns.iter().enumerate() {
+        for (col_index, cell) in row.cells().enumerate() {
             render_body_cell(
                 traversal,
                 cell,
@@ -511,22 +501,16 @@ pub(crate) fn render_table<'a, W: Write>(
     writeln!(writer, "</tbody>")?;
 
     // Render footer if present
-    if let Some(footer) = &rows.footer {
+    if let Some(footer) = table.footer() {
         let writer = visitor.writer_mut();
         writeln!(writer, "<tfoot>")?;
         writeln!(writer, "<tr>")?;
         let _ = writer;
-        for (col_index, cell) in footer.columns.iter().enumerate() {
-            let halign = halign_class(get_effective_halign(
-                table.columns().nth(col_index),
-                cell.into(),
-            ));
-            let valign = valign_class(get_effective_valign(
-                table.columns().nth(col_index),
-                cell.into(),
-            ));
-            let style = get_effective_style(table.columns().nth(col_index), cell.into());
-            let span_attrs = format_span_attrs(cell.into());
+        for (col_index, cell) in footer.cells().enumerate() {
+            let halign = halign_class(get_effective_halign(table.columns().nth(col_index), cell));
+            let valign = valign_class(get_effective_valign(table.columns().nth(col_index), cell));
+            let style = get_effective_style(table.columns().nth(col_index), cell);
+            let span_attrs = format_span_attrs(cell);
             let writer = visitor.writer_mut();
             write!(
                 writer,

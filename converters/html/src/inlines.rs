@@ -54,7 +54,6 @@ use acdc_converters_core::{
         Replacements, TextBoundaries, apply_passthrough_replacements_iter,
         protect_replacement_escapes, restore_escaped_patterns, strip_backslash_escapes,
     },
-    visitor::WritableVisitor,
     xref::{XrefDisplay, interdocument_xref, resolve_xref},
 };
 use acdc_parser::{

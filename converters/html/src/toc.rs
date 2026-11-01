@@ -4,7 +4,6 @@ use acdc_converters_core::{
     TraversalContext,
     section::book_chapter_signifier,
     toc::{Config as TocConfig, NumberingConfig, entry_level, has_parts, number_prefixes},
-    visitor::WritableVisitor,
 };
 use acdc_parser::{
     SectionKind,

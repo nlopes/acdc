@@ -11,9 +11,7 @@ use std::{
 use acdc_converters_core::substitutions::{Replacements, TextBoundaries};
 use acdc_converters_core::{
     BackendProfile, Converter, Diagnostics, Options, TraversalContext, WarningSource,
-    section::contains_index_section,
-    visitor::{Visitor, WritableVisitor},
-    xref::XrefGuard,
+    section::contains_index_section, xref::XrefGuard,
 };
 
 use acdc_parser::{
@@ -336,14 +334,18 @@ impl<'a> Processor<'a> {
             index_entries: Rc::new(RefCell::new(Vec::new())),
             variant: self.variant,
         };
-        let mut traversal = TraversalContext::new(&doc.attributes);
+        let mut traversal = TraversalContext::new(document.attributes());
         let mut visitor = HtmlVisitor::new(
             writer,
             Rc::new(processor),
             options.clone(),
             diagnostics.reborrow(),
         );
-        visitor.visit_document(&mut traversal, doc)
+        acdc_converters_core::visitor::DocumentVisitor::visit_document(
+            &mut visitor,
+            &mut traversal,
+            document,
+        )
     }
 
     /// Convert a document to an HTML string.
@@ -567,8 +569,16 @@ impl<'a> Converter<'a> for Processor<'a> {
         if let Some(output_path) = output_path
             && !self.options.embedded()
         {
-            self.handle_copycss(doc, output_path, diagnostics);
-            Self::handle_copy_syntax_css(doc, output_path, diagnostics);
+            self.handle_copycss(
+                DocumentRef::from(doc).attributes(),
+                output_path,
+                diagnostics,
+            );
+            Self::handle_copy_syntax_css(
+                DocumentRef::from(doc).attributes(),
+                output_path,
+                diagnostics,
+            );
         }
         Ok(())
     }
@@ -647,41 +657,39 @@ impl<'a> Processor<'a> {
     /// from), decoupling the source location from the output reference.
     fn handle_copycss(
         &self,
-        doc: &acdc_parser::Document<'_>,
+        attributes: acdc_parser::ast::DocumentAttributesRef<'_>,
         html_path: &Path,
         diagnostics: &mut Diagnostics<'_>,
     ) {
         // No-stylesheet mode — nothing to copy
         let stylesheet_disabled =
-            !doc.attributes.contains_key("stylesheet") && doc.attributes.is_explicit("stylesheet");
+            !attributes.contains("stylesheet") && attributes.is_explicit("stylesheet");
         if stylesheet_disabled {
             return;
         }
 
-        let linkcss = doc.attributes.get("linkcss").is_some();
+        let linkcss = attributes.get("linkcss").is_some();
         if !linkcss {
             return;
         }
 
-        let should_copy = doc.attributes.get("copycss").is_some();
+        let should_copy = attributes.get("copycss").is_some();
         tracing::debug!("linkcss={linkcss}, copycss exists={should_copy}");
 
         if !should_copy {
             return;
         }
 
-        let is_dark = doc.attributes.get("dark-mode").is_some();
+        let is_dark = attributes.get("dark-mode").is_some();
         let default_filename = self.default_stylesheet_name(is_dark);
 
         // Determine whether the default (built-in) stylesheet is in use
-        let using_default = doc
-            .attributes
+        let using_default = attributes
             .get("stylesheet")
             .and_then(|value| value.text())
             .is_none_or(str::is_empty);
 
-        let stylesheet = doc
-            .attributes
+        let stylesheet = attributes
             .get("stylesheet")
             .and_then(|value| value.text())
             .filter(|value| !value.is_empty())
@@ -691,8 +699,7 @@ impl<'a> Processor<'a> {
         let dest_path = output_dir.join(&stylesheet);
 
         // Check if copycss has a non-empty value (source path override)
-        let copycss_source = doc
-            .attributes
+        let copycss_source = attributes
             .get("copycss")
             .and_then(|value| value.text())
             .map(str::to_owned)
@@ -714,8 +721,7 @@ impl<'a> Processor<'a> {
             }
         } else {
             // Custom stylesheet or copycss source override — copy file
-            let stylesdir = doc
-                .attributes
+            let stylesdir = attributes
                 .get("stylesdir")
                 .and_then(|value| value.text())
                 .map_or_else(|| STYLESDIR_DEFAULT.into(), str::to_owned);
@@ -756,22 +762,21 @@ impl<'a> Processor<'a> {
     /// `asciidoctor-pygments.css` alongside the output.
     #[cfg(feature = "highlighting")]
     fn handle_copy_syntax_css(
-        doc: &Document<'_>,
+        attributes: acdc_parser::ast::DocumentAttributesRef<'_>,
         html_path: &Path,
         diagnostics: &mut Diagnostics<'_>,
     ) {
-        let linkcss = doc.attributes.get("linkcss").is_some();
+        let linkcss = attributes.get("linkcss").is_some();
         if !linkcss {
             return;
         }
 
-        let processor_attrs = &doc.attributes;
-        let source_highlighter_set = processor_attrs.get("source-highlighter").is_some();
+        let source_highlighter_set = attributes.get("source-highlighter").is_some();
         if !source_highlighter_set {
             return;
         }
 
-        let (theme_name, mode) = crate::resolve_highlight_settings((&doc.attributes).into());
+        let (theme_name, mode) = crate::resolve_highlight_settings(attributes);
 
         if mode != syntax::HighlightMode::Class {
             return;
@@ -783,8 +788,7 @@ impl<'a> Processor<'a> {
 
         let output_dir = html_path.parent().unwrap_or_else(|| Path::new("."));
 
-        let stylesdir = doc
-            .attributes
+        let stylesdir = attributes
             .get("stylesdir")
             .and_then(|value| value.text())
             .map_or_else(|| STYLESDIR_DEFAULT.to_string(), str::to_owned);
@@ -828,7 +832,7 @@ impl<'a> Processor<'a> {
 
     #[cfg(not(feature = "highlighting"))]
     fn handle_copy_syntax_css(
-        _doc: &Document<'_>,
+        _attributes: acdc_parser::ast::DocumentAttributesRef<'_>,
         _html_path: &Path,
         _diagnostics: &mut Diagnostics<'_>,
     ) {

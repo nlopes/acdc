@@ -6,10 +6,9 @@ use acdc_converters_core::{
         appendix_number_prefix, book_chapter_signifier, effective_section_level,
         part_number_prefix, section_number_prefix,
     },
-    visitor::WritableVisitor,
 };
 use acdc_parser::{
-    DiscreteHeader, Section, SectionKind,
+    SectionKind,
     ast::{DiscreteHeaderRef, SectionRef},
 };
 
@@ -20,10 +19,10 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     pub(crate) fn render_section(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        section: &'a Section<'a>,
+        section: SectionRef<'a>,
     ) -> Result<(), Error> {
         let processor = self.processor.clone();
-        let data = SectionRef::from(section);
+        let data = section;
 
         let is_index_section = data.kind() == SectionKind::Index;
         let render_catalog = is_index_section && processor.generate_index();
@@ -31,7 +30,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         self.render_section_header(traversal, data)?;
 
         // Keep authored content before the generated catalog.
-        for nested_block in &section.content {
+        for nested_block in section.blocks() {
             traversal.visit_block(self, nested_block)?;
         }
         if render_catalog {
@@ -139,10 +138,9 @@ fn string_attribute<'a>(attributes: &'a TraversalContext<'_>, name: &str) -> Opt
 
 pub(crate) fn visit_discrete_header<'a, W: Write>(
     traversal: &mut TraversalContext<'a>,
-    header: &DiscreteHeader,
+    header: DiscreteHeaderRef<'_>,
     visitor: &mut HtmlVisitor<'a, '_, W>,
 ) -> Result<(), Error> {
-    let header = DiscreteHeaderRef::from(header);
     let id = header.resolve_id();
     let level = header.level() + 1; // Level 1 = h2
 
