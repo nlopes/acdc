@@ -212,6 +212,15 @@ impl<'doc> BlockRef<'doc> {
 }
 
 impl<'doc> DocumentRef<'doc> {
+    /// The highest stored caption ordinal for this category, or zero if none is assigned.
+    ///
+    /// Scans the block tree, including nested lists and table cells, without
+    /// renumbering blocks or consulting reference catalogs.
+    #[must_use]
+    pub fn highest_caption_number(self, kind: crate::CaptionKind) -> u32 {
+        self.node.highest_caption_number(kind)
+    }
+
     /// Read direct blocks in document order, excluding derived catalogs.
     ///
     /// The iterator cannot outlive the owning parse result:

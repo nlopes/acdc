@@ -24,6 +24,147 @@ const SOURCE: &str = "= Doc\n:listing-caption: Listing\n\n\
     :figure-caption!:\n\n[#disabled]\n.Disabled title\nimage::disabled.svg[]\n";
 
 #[rstest::rstest]
+fn highest_caption_numbers_include_nested_blocks(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    let image = ".Nested figure\nimage::nested.svg[]\n\n";
+    for (prefix, suffix, expected) in [
+        ("== Section\n\n", "", 2),
+        ("[NOTE]\n====\n", "====\n", 2),
+        ("* Item\n+\n", "", 2),
+        (". Item\n+\n", "", 2),
+        ("Term:: Item\n+\n", "", 2),
+        ("----\ncode <1>\n----\n<1> Item\n+\n", "", 2),
+        ("--\n", "--\n", 2),
+        ("====\n", "====\n", 2),
+        ("****\n", "****\n", 2),
+        ("____\n", "____\n", 2),
+        (
+            "[cols=a,options=\"header,footer\"]\n|===\na|\n",
+            "a|\n.Cell two\nimage::two.svg[]\n\na|\n.Cell three\nimage::three.svg[]\n\n|===\n",
+            3,
+        ),
+    ] {
+        let source = format!("= Doc\n\n.Root figure\nimage::root.svg[]\n\n{prefix}{image}{suffix}");
+        let parsed = parse(
+            &source,
+            &Options::builder().with_compatibility_mode(mode).build()?,
+        )?;
+        let before = serde_json::to_value(parsed.document())?;
+        let document = parsed.document_ref();
+        assert_eq!(
+            document.highest_caption_number(CaptionKind::Figure),
+            expected,
+            "{prefix}"
+        );
+        assert_eq!(
+            document.highest_caption_number(CaptionKind::Figure),
+            parsed
+                .document()
+                .highest_caption_number(CaptionKind::Figure)
+        );
+        assert_eq!(serde_json::to_value(parsed.document())?, before);
+    }
+    Ok(())
+}
+
+#[rstest::rstest]
+fn highest_caption_numbers_use_stored_tree_values_without_allocating(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    let parsed = parse(
+        SOURCE,
+        &Options::builder().with_compatibility_mode(mode).build()?,
+    )?;
+    for kind in [
+        CaptionKind::Example,
+        CaptionKind::Table,
+        CaptionKind::Figure,
+        CaptionKind::Listing,
+    ] {
+        assert_eq!(parsed.document_ref().highest_caption_number(kind), 1);
+        assert_eq!(
+            DocumentRef::from(&Document::default()).highest_caption_number(kind),
+            0
+        );
+    }
+    let mut document = Document::default();
+    document.blocks = parsed.document().blocks.clone();
+    document.references = parsed.document().references.clone();
+    document
+        .references
+        .get_mut("figure")
+        .ok_or("reference")?
+        .caption = Some(Caption::Numbered {
+        kind: CaptionKind::Figure,
+        label: "Catalog".into(),
+        number: NonZeroU32::new(99),
+    });
+
+    for (caption, expected_figure, expected_example) in [
+        (None, 0, 1),
+        (Some(Caption::Unnumbered), 0, 1),
+        (Some(Caption::Custom("Custom".into())), 0, 1),
+        (
+            Some(Caption::Numbered {
+                kind: CaptionKind::Figure,
+                label: "".into(),
+                number: None,
+            }),
+            0,
+            1,
+        ),
+        (
+            Some(Caption::Numbered {
+                kind: CaptionKind::Figure,
+                label: "".into(),
+                number: NonZeroU32::new(41),
+            }),
+            41,
+            1,
+        ),
+        (
+            Some(Caption::Numbered {
+                kind: CaptionKind::Example,
+                label: "Other category".into(),
+                number: NonZeroU32::new(17),
+            }),
+            0,
+            17,
+        ),
+    ] {
+        let image = document
+            .blocks
+            .iter_mut()
+            .find_map(|block| {
+                if let Block::Image(image) = block {
+                    Some(image)
+                } else {
+                    None
+                }
+            })
+            .ok_or("image")?;
+        image.title = acdc_parser::Title::default();
+        image.metadata.caption = caption;
+        let before = serde_json::to_value(&document)?;
+        let region = Region::new(ALLOCATOR);
+        let handle = DocumentRef::from(&document);
+        let numbers = black_box([
+            handle.highest_caption_number(CaptionKind::Figure),
+            handle.highest_caption_number(CaptionKind::Example),
+            handle.highest_caption_number(CaptionKind::Table),
+            handle.highest_caption_number(CaptionKind::Listing),
+        ]);
+        let stats = region.change();
+        assert_eq!(numbers, [expected_figure, expected_example, 1, 1]);
+        assert_eq!(stats.allocations, 0);
+        assert_eq!(stats.reallocations, 0);
+        assert_eq!(serde_json::to_value(&document)?, before);
+    }
+    Ok(())
+}
+
+#[rstest::rstest]
 fn registered_captions_preserve_values_and_json(
     #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
 ) -> Result<(), Error> {

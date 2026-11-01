@@ -309,6 +309,7 @@ impl<'a> Processor<'a> {
     ) -> Result<(), Error> {
         // The per-conversion processor borrows from `doc`; its `'a` is `'doc`,
         // independent of `self`'s stored-attribute lifetime.
+        let document = DocumentRef::from(doc);
         let processor: Processor<'doc> = Processor {
             toc_entries: doc.toc_entries.clone(),
             references: doc.references.clone(),
@@ -316,12 +317,20 @@ impl<'a> Processor<'a> {
             parser_options: ParserOptions::default()
                 .with_document_attributes(doc.attributes.clone()),
             generate_index: index_generation_enabled(&doc.attributes)
-                && contains_index_section(DocumentRef::from(doc).blocks()),
+                && contains_index_section(document.blocks()),
             options: self.options.clone(),
-            example_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Example))),
-            table_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Table))),
-            figure_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Figure))),
-            listing_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Listing))),
+            example_counter: Rc::new(Cell::new(
+                document.highest_caption_number(CaptionKind::Example),
+            )),
+            table_counter: Rc::new(Cell::new(
+                document.highest_caption_number(CaptionKind::Table),
+            )),
+            figure_counter: Rc::new(Cell::new(
+                document.highest_caption_number(CaptionKind::Figure),
+            )),
+            listing_counter: Rc::new(Cell::new(
+                document.highest_caption_number(CaptionKind::Listing),
+            )),
             index_term_counter: self.index_term_counter.clone(),
             index_catalog_counter: self.index_catalog_counter.clone(),
             index_entries: Rc::new(RefCell::new(Vec::new())),

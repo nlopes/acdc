@@ -84,6 +84,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Library callers can read the highest assigned caption number through typed
+  document handles. Nested blocks and table cells are included; reads preserve
+  stored numbers and leave edited documents and reference catalogs unchanged.
+
 - Library callers can resolve section and discrete heading IDs through typed
   handles, including title-derived fallbacks for caller-built headings. Existing
   parsed IDs and retained identity reads stay unchanged.

@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Fallback caption numbering for caller-built or newly titled blocks starts
+  after existing assigned numbers, including those in nested blocks and cells,
+  through typed document reads.
 - Native terminal previews and replays retain source formatting, line decoration,
   size overrides, playback controls, and scalar diagnostics through typed reads.
 - Highlighted and indented source blocks retain formatted labels, callouts,
