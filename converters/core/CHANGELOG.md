@@ -49,6 +49,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Source code text extraction accepts typed inline iterators. Existing owner
+  slice calls retain displayed text, visible index terms, footnote markers,
+  and link detection.
+
 - Source-code links can be resolved from typed inline handles. Existing owner
   calls retain label formatting, fallback text, destinations, and registered IDs.
 

@@ -4,7 +4,7 @@ use std::{collections::HashMap, fmt::Write as _};
 
 use acdc_parser::{
     InlineMacro, InlineNode, Reference,
-    ast::{InlineKind, InlineRef, LocationRef},
+    ast::{ContentRef, InlineKind, InlineRef, LocationRef},
 };
 
 use crate::{
@@ -152,6 +152,7 @@ fn link_anchor(node: InlineRef<'_>, references: &HashMap<&str, Reference<'_>>) -
 /// Inline content that keeps its place in a code block's text.
 #[must_use]
 pub fn code_inline_children<'n, 'a>(node: &'n InlineNode<'a>) -> Option<&'n [InlineNode<'a>]> {
+    code_inline_content(InlineRef::from(node))?;
     match node {
         InlineNode::BoldText(text) => Some(&text.content),
         InlineNode::ItalicText(text) => Some(&text.content),
@@ -161,7 +162,7 @@ pub fn code_inline_children<'n, 'a>(node: &'n InlineNode<'a>) -> Option<&'n [Inl
         InlineNode::SuperscriptText(text) => Some(&text.content),
         InlineNode::CurvedQuotationText(text) => Some(&text.content),
         InlineNode::CurvedApostropheText(text) => Some(&text.content),
-        InlineNode::Macro(InlineMacro::IndexTerm(term)) if term.is_visible() => Some(term.term()),
+        InlineNode::Macro(InlineMacro::IndexTerm(term)) => Some(term.term()),
         InlineNode::PlainText(_)
         | InlineNode::RawText(_)
         | InlineNode::VerbatimText(_)
@@ -174,39 +175,77 @@ pub fn code_inline_children<'n, 'a>(node: &'n InlineNode<'a>) -> Option<&'n [Inl
     }
 }
 
+fn code_inline_content(node: InlineRef<'_>) -> Option<ContentRef<'_>> {
+    match node.kind() {
+        InlineKind::Bold(text) => Some(text.content()),
+        InlineKind::Italic(text) => Some(text.content()),
+        InlineKind::Monospace(text) => Some(text.content()),
+        InlineKind::Highlight(text) => Some(text.content()),
+        InlineKind::Subscript(text) => Some(text.content()),
+        InlineKind::Superscript(text) => Some(text.content()),
+        InlineKind::CurvedQuotation(text) => Some(text.content()),
+        InlineKind::CurvedApostrophe(text) => Some(text.content()),
+        InlineKind::IndexTerm(term) if term.is_visible() => Some(term.term()),
+        InlineKind::Plain(_)
+        | InlineKind::Raw(_)
+        | InlineKind::Verbatim(_)
+        | InlineKind::StandaloneCurvedApostrophe(_)
+        | InlineKind::LineBreak(_)
+        | InlineKind::Anchor(_)
+        | InlineKind::Callout(_)
+        | InlineKind::Footnote(_)
+        | InlineKind::Icon(_)
+        | InlineKind::Image(_)
+        | InlineKind::Keyboard(_)
+        | InlineKind::Button(_)
+        | InlineKind::Menu(_)
+        | InlineKind::Url(_)
+        | InlineKind::Link(_)
+        | InlineKind::Mailto(_)
+        | InlineKind::Autolink(_)
+        | InlineKind::CrossReference(_)
+        | InlineKind::Pass(_)
+        | InlineKind::Stem(_)
+        | InlineKind::IndexTerm(_)
+        | _ => None,
+    }
+}
+
 /// Resolve code text and report whether it needs links, anchors, or footnote markers.
+///
+/// Accepts typed inline iterators and existing owner slices.
 #[must_use]
 #[expect(
     clippy::implicit_hasher,
     reason = "InlineTextTransform uses the parser reference catalog type"
 )]
-pub fn code_inline_text(
-    nodes: &[InlineNode<'_>],
+pub fn code_inline_text<'inline>(
+    nodes: impl IntoIterator<Item = impl Into<InlineRef<'inline>>>,
     references: &HashMap<&str, Reference<'_>>,
     output_extension: &str,
 ) -> (String, bool) {
     let mut text = String::new();
     let mut linked = false;
     for node in nodes {
-        if matches!(node, InlineNode::InlineAnchor(_)) {
+        let node = node.into();
+        if matches!(node.kind(), InlineKind::Anchor(_)) {
             linked = true;
-        } else if let InlineNode::Macro(InlineMacro::Footnote(note)) = node {
-            let _ = write!(text, "[{}]", note.number);
+        } else if let InlineKind::Footnote(note) = node.kind() {
+            let _ = write!(text, "[{}]", note.number());
             linked = true;
         } else if let Some(link) = resolve_code_link(node, references, output_extension) {
             text.push_str(&link.text);
             linked = true;
-        } else if let Some(children) = code_inline_children(node) {
-            let (child, has_links) = code_inline_text(children, references, output_extension);
+        } else if let Some(children) = code_inline_content(node) {
+            let (child, has_links) =
+                code_inline_text(children.inlines(), references, output_extension);
             text.push_str(&child);
             linked |= has_links;
         } else {
-            text.push_str(
-                &InlineTextTransform::default()
-                    .line_break("\n")
-                    .references(references)
-                    .to_string(std::slice::from_ref(node)),
-            );
+            let _ = InlineTextTransform::default()
+                .line_break("\n")
+                .references(references)
+                .write_inlines(&mut text, std::iter::once(node));
         }
     }
     (text, linked)

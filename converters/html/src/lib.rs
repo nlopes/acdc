@@ -854,7 +854,7 @@ fn capture_code_inlines<'a, W: std::io::Write>(
         .enumerate()
         .map(|(index, node)| {
             let (mut text, linked) = acdc_converters_core::code::code_inline_text(
-                std::slice::from_ref(node),
+                std::iter::once(acdc_parser::ast::InlineRef::from(node)),
                 &visitor.processor.references,
                 "html",
             );

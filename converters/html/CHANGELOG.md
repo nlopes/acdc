@@ -13,8 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   changes, delimiter-specific categories, and fallback numbering for library-built
   blocks in both HTML variants.
 
-- Listing and literal blocks retain source numbering, highlighted lines, custom
-  indentation, callout guards, and `nowrap` in both HTML variants.
+- Listing and literal blocks retain source numbering, highlighted lines, linked
+  labels, custom indentation, callout guards, and `nowrap` in both HTML variants.
 
 - Source paragraphs retain explicit and default language labels, including
   unknown and empty languages, with or without syntax highlighting.

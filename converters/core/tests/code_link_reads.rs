@@ -1,6 +1,6 @@
-//! Link labels, destinations, and registered IDs inside source code.
+//! Code text, link destinations, and registered IDs inside source code.
 
-use acdc_converters_core::code::{CodeLinkTarget, resolve_code_link};
+use acdc_converters_core::code::{CodeLinkTarget, code_inline_text, resolve_code_link};
 use acdc_parser::{Block, CompatibilityMode, Options, ast::InlineRef, parse, parse_inline};
 
 type Error = Box<dyn std::error::Error>;
@@ -196,5 +196,74 @@ fn code_link_results_outlive_temporary_inline_inputs() -> Result<(), Error> {
     assert!(
         matches!(resolved.target, Some(CodeLinkTarget::Internal(target)) if target == "target")
     );
+    Ok(())
+}
+
+#[test]
+fn code_text_keeps_displayed_content_and_required_markers() -> Result<(), Error> {
+    let cases = [
+        ("plain words", "plain words", false),
+        (
+            "*Bold* _italic_ `mono` #mark# ~sub~ ^sup^",
+            "Bold italic mono mark sub sup",
+            false,
+        ),
+        ("\"`Double`\" '`Single`'", "Double Single", false),
+        ("((Visible)) (((Hidden)))", "Visible ", false),
+        ("[[anchor]]Text.", "Text.", true),
+        ("footnote:[Note.]", "[1]", true),
+        ("link:https://example.org[Web]", "Web", true),
+        ("<<target>>", "Destination", true),
+        ("*<<target>>*", "Destination", true),
+        ("image:bird.svg[Bird]", "[Bird]", false),
+        ("kbd:[Ctrl+C]", "Ctrl+C", false),
+    ];
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let options = Options::builder()
+            .with_compatibility_mode(mode)
+            .with_attribute("experimental", true)
+            .build()?;
+        let document = parse("[[target]]\n== Destination\n", &options)?;
+        let empty: &[acdc_parser::InlineNode<'_>] = &[];
+        assert_eq!(
+            code_inline_text(empty, &document.document().references, "html"),
+            (String::new(), false)
+        );
+        assert_eq!(
+            code_inline_text(
+                std::iter::empty::<InlineRef<'_>>(),
+                &document.document().references,
+                "html"
+            ),
+            (String::new(), false)
+        );
+        for (source, expected, linked) in cases {
+            let input = parse_inline(source, &options)?;
+            let result = code_inline_text(input.inlines(), &document.document().references, "html");
+            assert_eq!(result, (expected.to_owned(), linked), "{source:?} {mode:?}");
+            let typed = code_inline_text(
+                input.content().inlines(),
+                &document.document().references,
+                "html",
+            );
+            assert_eq!(typed, result);
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn code_text_consumes_temporary_typed_input_once() -> Result<(), Error> {
+    let document = parse("[[target]]\n== Destination\n", &Options::default())?;
+    let result = {
+        let source = String::from("*Temporary* <<target>>");
+        let input = parse_inline(&source, &Options::default())?;
+        let mut visited = 0;
+        let nodes = input.content().inlines().inspect(|_| visited += 1);
+        let result = code_inline_text(nodes, &document.document().references, "html");
+        assert_eq!(visited, input.inlines().len());
+        result
+    };
+    assert_eq!(result, (String::from("Temporary Destination"), true));
     Ok(())
 }

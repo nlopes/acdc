@@ -142,7 +142,7 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
         self.write_inlines(w, content.inlines())
     }
 
-    fn write_inlines<'doc, W: Write + ?Sized>(
+    pub(crate) fn write_inlines<'doc, W: Write + ?Sized>(
         self,
         w: &mut W,
         inlines: impl DoubleEndedIterator<Item = InlineRef<'doc>> + ExactSizeIterator + Clone,
