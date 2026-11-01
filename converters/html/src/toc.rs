@@ -98,7 +98,7 @@ fn render_entries<'a, W: Write>(
         // Enable TOC mode to render inline nodes without nested links
         let was_toc_mode = visitor.render_options.toc_mode;
         visitor.render_options.toc_mode = true;
-        visitor.visit_title(traversal, &entry.title)?;
+        visitor.visit_title(traversal, entry.title.content())?;
         visitor.render_options.toc_mode = was_toc_mode;
 
         writeln!(visitor.writer_mut(), "</a>")?;

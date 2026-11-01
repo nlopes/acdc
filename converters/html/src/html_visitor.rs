@@ -14,13 +14,13 @@ use acdc_converters_core::substitutions::baseline_subs;
 use acdc_converters_core::substitutions::effective_subs;
 
 use acdc_parser::{
-    Admonition, Audio, Block, BlockMetadata, CalloutList, CaptionKind, ColumnStyle, DelimitedBlock,
+    Admonition, Audio, Block, CalloutList, CaptionKind, ColumnStyle, DelimitedBlock,
     DelimitedBlockType, DescriptionList, DiscreteHeader, Document, Footnote, Header, Image,
     InlineNode, ListItem, NORMAL, OrderedList, PageBreak, Paragraph, Section, Substitution,
     TableOfContents, ThematicBreak, UnorderedList, Video,
     ast::{
-        AttributeValueRef, AttributesRef, BlockKind, BlockRef, ColumnFormatRef,
-        DocumentAttributesRef, DocumentRef, InlineRef, StructuralRef, TableRef,
+        AttributeValueRef, AttributesRef, BlockKind, BlockRef, ColumnFormatRef, ContentRef,
+        DocumentAttributesRef, DocumentRef, HeaderRef, InlineRef, StructuralRef, TableRef,
     },
 };
 
@@ -321,12 +321,16 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
     pub(crate) fn visit_title(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &[InlineNode],
+        title: Option<ContentRef<'_>>,
     ) -> Result<(), Error> {
         // Titles use normal substitutions, including above a verbatim or subs=none body.
         let previous_subs = std::mem::replace(&mut self.current_subs, NORMAL.to_vec());
         let previous_verbatim = std::mem::replace(&mut self.render_options.inlines_verbatim, false);
-        let result = self.visit_inline_nodes(traversal, title);
+        let result = if let Some(title) = title {
+            self.visit_content(traversal, title)
+        } else {
+            self.visit_inline_refs(traversal, std::iter::empty())
+        };
         self.render_options.inlines_verbatim = previous_verbatim;
         self.current_subs = previous_subs;
         result
@@ -335,13 +339,13 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
     pub(crate) fn render_captioned_title_with_wrapper(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &acdc_parser::Title<'_>,
+        title: Option<ContentRef<'_>>,
         attributes: Option<AttributesRef<'_>>,
         fallback: Option<CaptionKind>,
         prefix: &str,
         suffix: &str,
     ) -> Result<(), Error> {
-        if !title.is_present() {
+        if title.is_none() {
             return Ok(());
         }
         let caption = match attributes.and_then(|attributes| attributes.get("caption")) {
@@ -351,7 +355,22 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
                 .caption_prefix(attributes, fallback)
                 .unwrap_or_default(),
         };
-        self.render_title_with_wrapper(traversal, title, &format!("{prefix}{caption}"), suffix)
+        self.render_title_content(traversal, title, &format!("{prefix}{caption}"), suffix)
+    }
+
+    pub(crate) fn render_title_content(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        title: Option<ContentRef<'_>>,
+        prefix: &str,
+        suffix: &str,
+    ) -> Result<(), Error> {
+        if let Some(title) = title {
+            write!(self.writer, "{prefix}")?;
+            self.visit_title(traversal, Some(title))?;
+            write!(self.writer, "{suffix}")?;
+        }
+        Ok(())
     }
 
     /// Consume the visitor and return the writer
@@ -856,6 +875,7 @@ impl<'a, W: Write> Visitor<'a> for HtmlVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         header: &Header,
     ) -> Result<(), Self::Error> {
+        let header = HeaderRef::from(header);
         if self.render_options.embedded {
             // In embedded mode, render the TOC but skip the header chrome
             self.render_toc(traversal, None, "auto")?;
@@ -866,12 +886,12 @@ impl<'a, W: Write> Visitor<'a> for HtmlVisitor<'a, '_, W> {
         } else {
             writeln!(self.writer, "<div id=\"header\">")?;
         }
-        if !header.title.is_empty() {
+        if let Some(title) = header.title().filter(|title| !title.is_empty()) {
             write!(self.writer, "<h1>")?;
-            self.visit_title(traversal, &header.title)?;
-            if let Some(subtitle) = &header.subtitle {
+            self.visit_title(traversal, Some(title))?;
+            if let Some(subtitle) = header.subtitle() {
                 write!(self.writer, ": ")?;
-                self.visit_title(traversal, subtitle)?;
+                self.visit_title(traversal, Some(subtitle))?;
             }
             writeln!(self.writer, "</h1>")?;
             // Output details div if there are authors or revision info
@@ -879,9 +899,9 @@ impl<'a, W: Write> Visitor<'a> for HtmlVisitor<'a, '_, W> {
             let revnumber = attributes.get("revnumber").and_then(|value| value.text());
             let revdate = attributes.get("revdate").and_then(|value| value.text());
             let has_revision = revnumber.is_some() || revdate.is_some();
-            if !header.authors.is_empty() || has_revision {
+            if header.authors().next().is_some() || has_revision {
                 writeln!(self.writer, "<div class=\"details\">")?;
-                for (i, author) in header.authors.iter().enumerate() {
+                for (i, author) in header.authors().enumerate() {
                     write!(
                         self.writer,
                         "<span id=\"author{}\" class=\"author\">",
@@ -891,13 +911,13 @@ impl<'a, W: Write> Visitor<'a> for HtmlVisitor<'a, '_, W> {
                             String::new()
                         }
                     )?;
-                    write!(self.writer, "{} ", author.first_name)?;
-                    if let Some(middle_name) = &author.middle_name {
+                    write!(self.writer, "{} ", author.first_name())?;
+                    if let Some(middle_name) = author.middle_name() {
                         write!(self.writer, "{middle_name} ")?;
                     }
-                    write!(self.writer, "{}", author.last_name)?;
+                    write!(self.writer, "{}", author.last_name())?;
                     writeln!(self.writer, "</span><br>")?;
-                    if let Some(email) = &author.email {
+                    if let Some(email) = author.email() {
                         // Emit on a single line, like asciidoctor: a newline
                         // inside the span renders as a leading space that shifts
                         // the email right of the `–` separator.
@@ -1152,7 +1172,7 @@ impl<'a, W: Write> Visitor<'a> for HtmlVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         img: &Image,
     ) -> Result<(), Self::Error> {
-        self.render_image(traversal, img)
+        self.render_image(traversal, img.into())
     }
 
     fn visit_video(
@@ -1160,7 +1180,7 @@ impl<'a, W: Write> Visitor<'a> for HtmlVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         video: &Video,
     ) -> Result<(), Self::Error> {
-        self.render_video(traversal, video)
+        self.render_video(traversal, video.into())
     }
 
     fn visit_audio(
@@ -1168,7 +1188,7 @@ impl<'a, W: Write> Visitor<'a> for HtmlVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         audio: &Audio,
     ) -> Result<(), Self::Error> {
-        self.render_audio(traversal, audio)
+        self.render_audio(traversal, audio.into())
     }
 
     fn visit_thematic_break(
@@ -1250,12 +1270,199 @@ impl<'a, W: Write> WritableVisitor<'a> for HtmlVisitor<'a, '_, W> {
         prefix: &str,
         suffix: &str,
     ) -> Result<(), Error> {
-        if !title.is_present() {
-            return Ok(());
+        self.render_title_content(traversal, title.content(), prefix, suffix)
+    }
+}
+
+#[cfg(test)]
+mod title_media_tests {
+    use super::*;
+    use acdc_converters_core::{Converter, Options as ConverterOptions, WarningSource};
+    use acdc_parser::{
+        Anchor, AttributeValue, CompatibilityMode, Location, Options as ParserOptions, Title,
+        parse, parse_inline,
+    };
+
+    type TestError = Box<dyn std::error::Error>;
+
+    struct RejectWrites;
+
+    impl Write for RejectWrites {
+        fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+            Err(std::io::Error::other("rejected"))
         }
-        write!(self.writer, "{prefix}")?;
-        self.visit_title(traversal, title)?;
-        write!(self.writer, "{suffix}")?;
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn title_rendering_restores_body_settings_after_success_and_error() -> Result<(), TestError> {
+        let processor = Rc::new(Processor::new(
+            ConverterOptions::default(),
+            ParserOptions::builder(),
+        )?);
+        let source = WarningSource::new("html");
+        let mut warnings = Vec::new();
+        let mut context = TraversalContext::new(processor.document_attributes());
+        let settings = vec![Substitution::SpecialChars];
+        let options = RenderOptions {
+            embedded: true,
+            inlines_verbatim: true,
+            ..RenderOptions::default()
+        };
+        let mut visitor = HtmlVisitor::new(
+            Vec::new(),
+            processor.clone(),
+            options.clone(),
+            Diagnostics::new(&source, &mut warnings),
+        );
+        visitor.current_subs.clone_from(&settings);
+        {
+            let text = String::from("*Rich* https://example.org[link]");
+            let parsed = parse_inline(&text, &ParserOptions::default())?;
+            visitor.visit_title(&mut context, Some(parsed.content()))?;
+        }
+        assert_eq!(visitor.current_subs, settings);
+        assert!(visitor.render_options.inlines_verbatim);
+        assert!(String::from_utf8(visitor.into_writer())?.contains("<strong>Rich</strong>"));
+        let mut visitor = HtmlVisitor::new(
+            RejectWrites,
+            processor.clone(),
+            options,
+            Diagnostics::new(&source, &mut warnings),
+        );
+        visitor.current_subs.clone_from(&settings);
+        let parsed = parse_inline("*Rejected*", &ParserOptions::default())?;
+        assert!(
+            visitor
+                .visit_title(&mut context, Some(parsed.content()))
+                .is_err()
+        );
+        assert_eq!(visitor.current_subs, settings);
+        assert!(visitor.render_options.inlines_verbatim);
+        assert_eq!(warnings, [] as [acdc_converters_core::Warning; 0]);
+        Ok(())
+    }
+
+    #[test]
+    fn captioned_titles_distinguish_absent_and_empty_before_counting() -> Result<(), TestError> {
+        let processor = Rc::new(Processor::new(
+            ConverterOptions::default(),
+            ParserOptions::builder(),
+        )?);
+        let source = WarningSource::new("html");
+        let mut warnings = Vec::new();
+        let mut context = TraversalContext::new(processor.document_attributes());
+        let mut visitor = HtmlVisitor::new(
+            Vec::new(),
+            processor.clone(),
+            RenderOptions {
+                embedded: true,
+                ..RenderOptions::default()
+            },
+            Diagnostics::new(&source, &mut warnings),
+        );
+        let mut paragraph = acdc_parser::Paragraph::new(Vec::new(), Location::default());
+        paragraph.metadata.caption = Some(acdc_parser::Caption::Numbered {
+            kind: CaptionKind::Figure,
+            label: "Figure".into(),
+            number: None,
+        });
+        let attributes = Some(acdc_parser::ast::ParagraphRef::from(&paragraph).attributes());
+        visitor.render_captioned_title_with_wrapper(
+            &mut context,
+            Title::default().content(),
+            attributes,
+            Some(CaptionKind::Figure),
+            "<caption>",
+            "</caption>",
+        )?;
+        assert_eq!(processor.figure_counter.get(), 0);
+        assert_eq!(visitor.writer, [] as [u8; 0]);
+        visitor.render_captioned_title_with_wrapper(
+            &mut context,
+            Title::new(Vec::new()).content(),
+            attributes,
+            Some(CaptionKind::Figure),
+            "<caption>",
+            "</caption>",
+        )?;
+        assert_eq!(processor.figure_counter.get(), 1);
+        assert_eq!(
+            String::from_utf8(visitor.into_writer())?,
+            "<caption>Figure 1. </caption>"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn constructed_media_preserve_scalar_controls_roles_and_identity() -> Result<(), TestError> {
+        for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+            let options = ParserOptions::builder()
+                .with_compatibility_mode(mode)
+                .build()?;
+            let parsed = parse(
+                ".Image\nimage::photo.png[Alt]\n\n.Audio\naudio::song.ogg[]\n\n.Video\nvideo::clip.mp4[]\n",
+                &options,
+            )?;
+            let mut document = acdc_parser::Document::default();
+            document.attributes = parsed.document().attributes.clone();
+            document.blocks = parsed.document().blocks.clone();
+            for block in &mut document.blocks {
+                let metadata = if let Block::Image(image) = block {
+                    &mut image.metadata
+                } else if let Block::Audio(audio) = block {
+                    &mut audio.metadata
+                } else if let Block::Video(video) = block {
+                    &mut video.metadata
+                } else {
+                    return Err("expected media".into());
+                };
+                metadata.id = Some(Anchor::new("primary", Location::default()));
+                metadata
+                    .anchors
+                    .push(Anchor::new("fallback", Location::default()));
+                metadata.roles = vec!["one", "one"];
+                metadata.options = vec!["autoplay", "nocontrols"];
+                metadata
+                    .attributes
+                    .set("align".into(), AttributeValue::from("'center'"));
+                metadata
+                    .attributes
+                    .set("width".into(), AttributeValue::from("\"320\""));
+                metadata
+                    .attributes
+                    .set("link".into(), AttributeValue::Bool(false));
+            }
+            for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+                let processor =
+                    Processor::new(ConverterOptions::default(), ParserOptions::builder())?
+                        .with_variant(variant)?;
+                let source = WarningSource::new("html");
+                let mut warnings = Vec::new();
+                let mut bytes = Vec::new();
+                processor.convert_to_writer(
+                    &document,
+                    &mut bytes,
+                    &RenderOptions {
+                        embedded: true,
+                        ..RenderOptions::default()
+                    },
+                    &mut Diagnostics::new(&source, &mut warnings),
+                )?;
+                let output = String::from_utf8(bytes)?;
+                assert_eq!(output.matches("id=\"primary\"").count(), 3);
+                assert!(!output.contains("id=\"fallback\""));
+                assert_eq!(output.matches("one one").count(), 3);
+                assert!(output.contains("href=\"false\""));
+                assert_eq!(output.matches("width=\"&quot;320&quot;\"").count(), 2);
+                assert_eq!(output.matches(" autoplay").count(), 2);
+                assert!(!output.contains(" controls"));
+                assert_eq!(warnings, [] as [acdc_converters_core::Warning; 0]);
+            }
+        }
         Ok(())
     }
 }

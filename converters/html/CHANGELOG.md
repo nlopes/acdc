@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Document headers and block image/audio/video rendering preserve formatted titles,
+  empty captions, authored controls, and duplicate roles through typed parser reads.
+
 - Index generation retains section discovery through nested blocks, list
   attachments, and AsciiDoc table cells.
 

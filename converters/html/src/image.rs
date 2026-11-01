@@ -2,18 +2,22 @@ use std::{io::Write, string::ToString};
 
 use acdc_converters_core::{TraversalContext, media::resolve_target};
 use acdc_parser::{
-    CaptionKind, Image,
+    CaptionKind,
     ast::{AttributeValueRef, AttributesRef, ImageRef, TokensRef},
     strip_quotes,
 };
 
-use crate::{Error, HtmlVariant, HtmlVisitor, inlines::escape_attribute};
+use crate::{
+    Error, HtmlVariant, HtmlVisitor,
+    image_helpers::{attribute_scalar, attribute_text},
+    inlines::escape_attribute,
+};
 
 impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     pub(crate) fn render_image(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        img: &Image,
+        img: ImageRef<'_>,
     ) -> Result<(), Error> {
         let processor = self.processor.clone();
         if processor.variant() == HtmlVariant::Semantic {
@@ -24,22 +28,22 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         let mut classes = vec!["imageblock".to_string()];
 
         // align=left|center|right → text-left|text-center|text-right
-        if let Some(align) = img.metadata.attributes.get_string("align") {
+        if let Some(align) = attribute_text(img.attributes(), "align") {
             classes.push(format!("text-{align}"));
         }
 
         // float=left|right → left|right
-        if let Some(float) = img.metadata.attributes.get_string("float") {
-            classes.push(float.into_owned());
+        if let Some(float) = attribute_text(img.attributes(), "float") {
+            classes.push(float.to_owned());
         }
 
         // roles → added as classes
-        for role in &img.metadata.roles {
+        for role in img.roles().iter() {
             classes.push(role.to_string());
         }
 
         write!(self.writer, "<div")?;
-        crate::write_id(&mut self.writer, &img.metadata)?;
+        crate::write_element_id(&mut self.writer, img.id())?;
         write!(
             self.writer,
             " class=\"{}\">",
@@ -49,14 +53,14 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         // Get alt text from attribute or generate from filename
 
         // Wrap in link if link attribute exists
-        let link = img.metadata.attributes.get("link");
-        let image = ImageRef::from(img);
+        let link = img.attributes().get("link").and_then(attribute_scalar);
+        let image = img;
         let link_controls = image_link_control_attributes(image.attributes(), image.options());
         if let Some(link) = link {
             write!(
                 self.writer,
                 "<a class=\"image\" href=\"{}\"{link_controls}>",
-                escape_attribute(&link.to_string()),
+                escape_attribute(link),
             )?;
         }
 
@@ -77,10 +81,10 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
         // Render title with figure caption if title exists
         // Caption can be disabled with :figure-caption!:
-        if img.title.is_present() {
+        if img.title().is_some() {
             self.render_captioned_title_with_wrapper(
                 traversal,
-                &img.title,
+                img.title(),
                 Some(image.attributes()),
                 Some(CaptionKind::Figure),
                 "<div class=\"title\">",
@@ -95,21 +99,21 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     fn render_image_semantic(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        img: &Image,
+        img: ImageRef<'_>,
     ) -> Result<(), Error> {
-        let has_title = img.title.is_present();
+        let has_title = img.title().is_some();
 
         // Build class and style for wrapper
         let mut classes = vec!["image-block".to_string()];
-        for role in &img.metadata.roles {
+        for role in img.roles().iter() {
             classes.push(role.to_string());
         }
 
         let mut styles = Vec::new();
-        if let Some(align) = img.metadata.attributes.get_string("align") {
+        if let Some(align) = attribute_text(img.attributes(), "align") {
             styles.push(format!("text-align: {align}"));
         }
-        if let Some(float) = img.metadata.attributes.get_string("float") {
+        if let Some(float) = attribute_text(img.attributes(), "float") {
             styles.push(format!("float: {float}"));
         }
 
@@ -120,11 +124,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             "<{tag} class=\"{}\"",
             escape_attribute(&classes.join(" "))
         )?;
-        if let Some(id) = &img.metadata.id {
-            write!(self.writer, " id=\"{}\"", escape_attribute(id.id))?;
-        } else if let Some(anchor) = img.metadata.anchors.first() {
-            write!(self.writer, " id=\"{}\"", escape_attribute(anchor.id))?;
-        }
+        crate::write_element_id(&mut self.writer, img.id())?;
         if !styles.is_empty() {
             write!(
                 self.writer,
@@ -134,11 +134,11 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         }
         writeln!(self.writer, ">")?;
 
-        let source = escape_attribute(&resolve_target(&img.source.to_string(), traversal));
+        let source = escape_attribute(&resolve_target(&img.source().to_string(), traversal));
 
         // Check for link=self, link=none, or html5s-image-default-link=self
-        let link = img.metadata.attributes.get("link");
-        let image = ImageRef::from(img);
+        let link = img.attributes().get("link").and_then(attribute_scalar);
+        let image = img;
         let link_controls = image_link_control_attributes(image.attributes(), image.options());
         let link_str = link.as_ref().map(ToString::to_string);
         let is_link_none = link_str.as_deref() == Some("none");
@@ -202,7 +202,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         if has_title {
             self.render_captioned_title_with_wrapper(
                 traversal,
-                &img.title,
+                img.title(),
                 Some(image.attributes()),
                 Some(CaptionKind::Figure),
                 "<figcaption>",

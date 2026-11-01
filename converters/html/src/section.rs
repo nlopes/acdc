@@ -93,7 +93,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             }
         }
 
-        self.visit_title(traversal, &section.title)?;
+        self.visit_title(traversal, section.title.content())?;
         writeln!(self.writer, "</h{heading_level}>")?;
 
         // sect1 (or appendix demoted to sect1) gets a sectionbody wrapper in standard mode
@@ -156,7 +156,7 @@ pub(crate) fn visit_discrete_header<'a, W: Write>(
         write!(w, "<h{level} id=\"{id}\">")?;
     }
     let _ = w;
-    visitor.visit_title(traversal, &header.title)?;
+    visitor.visit_title(traversal, header.title.content())?;
     w = visitor.writer_mut();
     writeln!(w, "</h{level}>")?;
     Ok(())

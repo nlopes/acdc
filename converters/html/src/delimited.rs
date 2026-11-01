@@ -74,7 +74,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         if block.title.is_present() {
             self.render_captioned_title_with_wrapper(
                 traversal,
-                &block.title,
+                block.title.content(),
                 BlockRef::from(block).attributes(),
                 Some(CaptionKind::Example),
                 "<div class=\"title\">",
@@ -158,7 +158,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             if block.title.is_present() {
                 self.render_captioned_title_with_wrapper(
                     traversal,
-                    &block.title,
+                    block.title.content(),
                     BlockRef::from(block).attributes(),
                     Some(CaptionKind::Example),
                     "<summary>",
@@ -177,7 +177,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             write_semantic_tag_open(&mut self.writer, "figure", &block.metadata, "example-block")?;
             self.render_captioned_title_with_wrapper(
                 traversal,
-                &block.title,
+                block.title.content(),
                 BlockRef::from(block).attributes(),
                 Some(CaptionKind::Example),
                 "<figcaption>",
@@ -289,7 +289,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                             writeln!(self.writer, ">")?;
                             self.render_captioned_title_with_wrapper(
                                 traversal,
-                                &block.title,
+                                block.title.content(),
                                 BlockRef::from(block).attributes(),
                                 caption_kind,
                                 "<h6 class=\"block-title\">",
@@ -325,7 +325,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                             )?;
                             self.render_captioned_title_with_wrapper(
                                 traversal,
-                                &block.title,
+                                block.title.content(),
                                 BlockRef::from(block).attributes(),
                                 caption_kind,
                                 "<h6 class=\"block-title\">",
@@ -354,7 +354,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                     write_block_div_open(&mut self.writer, &block.metadata, "openblock")?;
                     self.render_captioned_title_with_wrapper(
                         traversal,
-                        &block.title,
+                        block.title.content(),
                         BlockRef::from(block).attributes(),
                         caption_kind,
                         "<div class=\"title\">",
@@ -538,7 +538,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
         self.render_captioned_title_with_wrapper(
             traversal,
-            title,
+            title.content(),
             attributes,
             caption_kind,
             "<div class=\"title\">",
@@ -592,7 +592,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             write_semantic_tag_open(&mut self.writer, "figure", metadata, "listing-block")?;
             self.render_captioned_title_with_wrapper(
                 traversal,
-                title,
+                title.content(),
                 attributes,
                 caption_kind,
                 "<figcaption>",
@@ -646,7 +646,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
         self.render_captioned_title_with_wrapper(
             traversal,
-            title,
+            title.content(),
             attributes,
             caption_kind,
             "<div class=\"title\">",
@@ -687,7 +687,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             write_semantic_tag_open(&mut self.writer, "figure", metadata, "terminal-block")?;
             self.render_captioned_title_with_wrapper(
                 traversal,
-                title,
+                title.content(),
                 attributes,
                 caption_kind,
                 "<figcaption>",
@@ -733,7 +733,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
         self.render_captioned_title_with_wrapper(
             traversal,
-            title,
+            title.content(),
             attributes,
             caption_kind,
             "<div class=\"title\">",
@@ -768,7 +768,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             )?;
             self.render_captioned_title_with_wrapper(
                 traversal,
-                title,
+                title.content(),
                 attributes,
                 caption_kind,
                 "<figcaption>",
@@ -883,7 +883,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         write_block_div_open(&mut self.writer, metadata, &base_class)?;
         self.render_captioned_title_with_wrapper(
             traversal,
-            title,
+            title.content(),
             attributes,
             caption_kind,
             "<div class=\"title\">",
@@ -1098,7 +1098,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                     )?;
                     self.render_captioned_title_with_wrapper(
                         traversal,
-                        title,
+                        title.content(),
                         attributes,
                         caption_kind,
                         "<h6 class=\"block-title\">",

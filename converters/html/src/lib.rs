@@ -17,7 +17,7 @@ use acdc_converters_core::{
 use acdc_parser::{
     AttributeValue, BlockMetadata, CaptionKind, Document, DocumentAttributes, InlineNode,
     Options as ParserOptions, Reference, Substitution, TocEntry,
-    ast::{AttributeValueRef, AttributesRef, CaptionRef, DocumentRef, InlineRef},
+    ast::{AttributeValueRef, AttributesRef, CaptionRef, DocumentRef, ElementIdRef, InlineRef},
 };
 
 mod admonition;
@@ -822,21 +822,33 @@ pub(crate) fn write_id<W: std::io::Write + ?Sized>(
     w: &mut W,
     metadata: &BlockMetadata,
 ) -> Result<(), std::io::Error> {
-    if let Some(id) = &metadata.id {
-        write!(w, " id=\"{}\"", inlines::escape_attribute(id.id))?;
-    } else if let Some(anchor) = metadata.anchors.first() {
-        write!(w, " id=\"{}\"", inlines::escape_attribute(anchor.id))?;
+    write_element_id(
+        w,
+        metadata
+            .id
+            .as_ref()
+            .or_else(|| metadata.anchors.first())
+            .map(ElementIdRef::from),
+    )
+}
+
+pub(crate) fn write_element_id<W: std::io::Write + ?Sized>(
+    writer: &mut W,
+    id: Option<ElementIdRef<'_>>,
+) -> Result<(), std::io::Error> {
+    if let Some(id) = id {
+        write!(writer, " id=\"{}\"", inlines::escape_attribute(id.as_str()))?;
     }
     Ok(())
 }
 
-/// Build a class string from a base class and optional roles
-pub(crate) fn build_class(base: &str, roles: &[&str]) -> String {
-    if roles.is_empty() {
-        base.to_string()
-    } else {
-        format!("{base} {}", roles.join(" "))
+pub(crate) fn build_class(base: &str, roles: impl IntoIterator<Item = impl AsRef<str>>) -> String {
+    let mut class = base.to_owned();
+    for role in roles {
+        class.push(' ');
+        class.push_str(role.as_ref());
     }
+    class
 }
 
 /// Preserve parsed formatting and macros while the surrounding code is highlighted.

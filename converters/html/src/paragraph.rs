@@ -157,7 +157,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 writeln!(self.writer, " class=\"{class}\">")?;
                 self.render_captioned_title_with_wrapper(
                     traversal,
-                    &para.title,
+                    para.title.content(),
                     Some(ParagraphRef::from(para).attributes()),
                     CaptionKind::for_style(para.metadata.style),
                     "<h6 class=\"block-title\">",
@@ -190,7 +190,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             writeln!(self.writer, " class=\"{class}\">")?;
             self.render_captioned_title_with_wrapper(
                 traversal,
-                &para.title,
+                para.title.content(),
                 Some(ParagraphRef::from(para).attributes()),
                 CaptionKind::for_style(para.metadata.style),
                 "<div class=\"title\">",
@@ -272,7 +272,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             };
             self.render_captioned_title_with_wrapper(
                 traversal,
-                &para.title,
+                para.title.content(),
                 Some(ParagraphRef::from(para).attributes()),
                 Some(CaptionKind::Example),
                 open,
@@ -329,7 +329,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 writeln!(self.writer, " class=\"{class}\">")?;
                 self.render_captioned_title_with_wrapper(
                     traversal,
-                    &para.title,
+                    para.title.content(),
                     Some(ParagraphRef::from(para).attributes()),
                     Some(CaptionKind::Listing),
                     "<figcaption>",
@@ -369,7 +369,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
             self.render_captioned_title_with_wrapper(
                 traversal,
-                &para.title,
+                para.title.content(),
                 Some(ParagraphRef::from(para).attributes()),
                 Some(CaptionKind::Listing),
                 "<div class=\"title\">",

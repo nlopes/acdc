@@ -69,7 +69,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         writeln!(self.writer, "<td class=\"content\">")?;
         if admon.title.is_present() {
             write!(self.writer, "<div class=\"title\">")?;
-            self.visit_title(traversal, &admon.title)?;
+            self.visit_title(traversal, admon.title.content())?;
             writeln!(self.writer, "</div>")?;
         }
 
@@ -140,7 +140,7 @@ fn visit_admonition_semantic<'a, W: Write>(
         if admon.title.is_present() {
             write!(writer, "<h6 class=\"block-title\">")?;
             let _ = writer;
-            visitor.visit_title(traversal, &admon.title)?;
+            visitor.visit_title(traversal, admon.title.content())?;
             writer = visitor.writer_mut();
             writeln!(writer, "</h6>")?;
         }
@@ -157,7 +157,7 @@ fn visit_admonition_semantic<'a, W: Write>(
             "<h6 class=\"block-title\"><span class=\"title-label\">{caption}: </span>"
         )?;
         let _ = writer;
-        visitor.visit_title(traversal, &admon.title)?;
+        visitor.visit_title(traversal, admon.title.content())?;
         writer = visitor.writer_mut();
         writeln!(writer, "</h6>")?;
     }
