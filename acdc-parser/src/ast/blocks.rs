@@ -291,6 +291,13 @@ impl<'doc> SectionRef<'doc> {
     pub fn kind(self) -> crate::SectionKind {
         self.node.kind
     }
+
+    /// The assigned number without a signifier or presentation punctuation.
+    /// This read does not renumber sections after an edit.
+    #[must_use]
+    pub fn number(self) -> Option<&'doc str> {
+        self.node.number()
+    }
 }
 
 impl<'doc> ParagraphRef<'doc> {

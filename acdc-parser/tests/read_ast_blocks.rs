@@ -1,11 +1,115 @@
 use acdc_parser::{
     Admonition, AdmonitionVariant, Block, Caption, CompatibilityMode, ContentAttribute,
-    DelimitedBlock, DelimitedBlockType, Location, Options, SafeMode, StemNotation,
-    ast::{AdmonitionRef, AttributeValueRef, BlockKind, BlockRef, ContentRef, InlineKind},
+    DelimitedBlock, DelimitedBlockType, Location, Options, SafeMode, Section, SectionKind,
+    StemNotation, Title,
+    ast::{
+        AdmonitionRef, AttributeValueRef, BlockKind, BlockRef, ContentRef, DocumentRef, InlineKind,
+        SectionRef, StructuralRef, TocEntryRef,
+    },
     parse, parse_file,
 };
 
 type Error = Box<dyn std::error::Error>;
+
+fn section_numbers(document: DocumentRef<'_>) -> Vec<Option<&str>> {
+    document
+        .descendants()
+        .filter_map(|node| {
+            if let StructuralRef::Block(block) = node
+                && let BlockKind::Section(section) = block.kind()
+            {
+                Some(section.number())
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+#[rstest::rstest]
+fn typed_section_numbers_follow_article_depth_and_catalog_order(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    let options = Options::builder().with_compatibility_mode(mode).build()?;
+    for (attributes, expected) in [
+        ("", vec![None, None]),
+        (":sectnums:\n", vec![Some("1"), Some("1.1")]),
+        (":sectnums:\n:sectnumlevels: 1\n", vec![Some("1"), None]),
+    ] {
+        let source = format!("= Manual\n{attributes}\n== First\n\n=== Nested\n");
+        let parsed = parse(&source, &options)?;
+        let before = serde_json::to_value(parsed.document())?;
+        let numbers = section_numbers(parsed.document_ref());
+        assert_eq!(numbers, expected);
+        assert_eq!(
+            numbers,
+            parsed
+                .document_ref()
+                .toc_entries()
+                .map(TocEntryRef::number)
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(serde_json::to_value(parsed.document())?, before);
+    }
+    Ok(())
+}
+
+#[rstest::rstest]
+fn typed_section_numbers_keep_book_parts_chapters_and_appendices_distinct(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    let parsed = parse(
+        "= Book\n:doctype: book\n:sectnums:\n:partnums:\n\n[preface]\n= Preface\n\n=== Preface Topic\n\n= Part\n\n== Chapter\n\n=== Topic\n\n[appendix]\n== Appendix Material\n\n=== Appendix Topic\n",
+        &Options::builder().with_compatibility_mode(mode).build()?,
+    )?;
+    let numbers = section_numbers(parsed.document_ref());
+    assert_eq!(
+        numbers,
+        [
+            None,
+            None,
+            Some("I"),
+            Some("1"),
+            Some("1.1"),
+            Some("A"),
+            Some("A.1")
+        ]
+    );
+    assert_eq!(
+        numbers,
+        parsed
+            .document_ref()
+            .toc_entries()
+            .map(TocEntryRef::number)
+            .collect::<Vec<_>>()
+    );
+    Ok(())
+}
+
+#[rstest::rstest]
+fn typed_section_numbers_read_stored_values_without_renumbering(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    let options = Options::builder().with_compatibility_mode(mode).build()?;
+    let number = {
+        let source = String::from("= Manual\n:sectnums:\n\n== First\n");
+        let parsed = parse(&source, &options)?;
+        let Some(Block::Section(section)) = parsed.document().blocks.first() else {
+            return Err("expected section".into());
+        };
+        let mut section = section.clone();
+        section.level = 3;
+        section.kind = SectionKind::Appendix;
+        assert_eq!(SectionRef::from(&section).number(), section.number());
+        SectionRef::from(&section).number().map(str::to_owned)
+    };
+    assert_eq!(number.as_deref(), Some("1"));
+    let section = Section::new(Title::default(), 1, Vec::new(), Location::default());
+    assert_eq!(SectionRef::from(&section).number(), None);
+    let section = section.with_numbering(true);
+    assert_eq!(SectionRef::from(&section).number(), None);
+    Ok(())
+}
 
 fn text(content: ContentRef<'_>) -> Result<String, Error> {
     let mut output = String::new();
