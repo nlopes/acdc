@@ -8,7 +8,7 @@ use acdc_converters_core::substitutions::{SubsFlags, apply_replacements, effecti
 use acdc_converters_core::{
     Diagnostics, Doctype, InlineTextTransform, TraversalContext,
     code::{
-        CodeLinkTarget, SourceLineOptions, code_inline_content, detect_language, resolve_code_link,
+        CodeLinkTarget, SourceLineOptions, code_inline_content, resolve_code_link,
         source_line_count,
     },
     document_attribute_text,
@@ -25,16 +25,16 @@ use acdc_converters_core::{
     xref::{XrefDisplay, interdocument_xref, resolve_xref},
 };
 use acdc_parser::{
-    Anchor, AttributeValue, Block, BlockMetadata, Caption, CaptionKind, ColumnStyle, ColumnWidth,
-    DelimitedBlock, DelimitedBlockType, DescriptionList, DescriptionListItem, HorizontalAlignment,
-    Image, IndexTerm, InlineNode, ListItem, Location, PageBreak, Paragraph, Section, SectionKind,
-    Source, Substitution, Table, TableColumn, TableFrame, TableGrid, TableOfContents,
-    TablePresentation, TableRow, TableStripes, Title, TocEntry, VerticalAlignment,
+    Block, CaptionKind, ColumnStyle, ColumnWidth, DelimitedBlock, DelimitedBlockType,
+    DescriptionList, DescriptionListItem, HorizontalAlignment, IndexTerm, InlineNode, ListItem,
+    Location, Section, SectionKind, Substitution, Table, TableColumn, TableFrame, TableGrid,
+    TableOfContents, TablePresentation, TableRow, TableStripes, Title, TocEntry, VerticalAlignment,
     ast::{
-        AttributeValueRef, AttributesRef, AutolinkRef, BlockKind, BlockRef, ColumnFormatRef,
-        ContentRef, CrossReferenceRef, ElementIdRef, FootnoteRef, IconRef, ImageRef, IndexTermRef,
-        IndexTermRelationshipRef, InlineImageRef, InlineKind, InlineRef, LocationRef, MenuRef,
-        RawRef, TableCellRef,
+        AnchorRef, AttributeValueRef, AttributesRef, AutolinkRef, BlockKind, BlockRef, CaptionRef,
+        ColumnFormatRef, ContentRef, CrossReferenceRef, DescriptionListRef, ElementIdRef,
+        FootnoteRef, IconRef, ImageRef, IndexTermRef, IndexTermRelationshipRef, InlineImageRef,
+        InlineKind, InlineRef, LocationRef, MenuRef, PageBreakRef, ParagraphRef, RawRef, SourceRef,
+        TableCellRef, TokensRef, UnorderedListRef,
     },
 };
 use acdc_pdf_images::ImageMap;
@@ -393,14 +393,16 @@ pub(crate) struct InlineSpanState {
 }
 
 impl ParagraphAlignment {
-    fn from_metadata(metadata: &BlockMetadata<'_>) -> Option<Self> {
-        metadata.roles.iter().rev().find_map(|role| match *role {
-            "text-left" => Some(Self::Left),
-            "text-center" => Some(Self::Center),
-            "text-right" => Some(Self::Right),
-            "text-justify" => Some(Self::Justify),
-            _ => None,
-        })
+    fn from_attributes(attributes: Option<AttributesRef<'_>>) -> Option<Self> {
+        attribute_tokens(attributes, "role")
+            .filter_map(|role| match role {
+                "text-left" => Some(Self::Left),
+                "text-center" => Some(Self::Center),
+                "text-right" => Some(Self::Right),
+                "text-justify" => Some(Self::Justify),
+                _ => None,
+            })
+            .last()
     }
 
     const fn typst_prefix(self) -> &'static str {
@@ -694,9 +696,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         traversal: &mut TraversalContext<'a>,
         block: &'a DelimitedBlock<'a>,
     ) -> Result<(), Error> {
-        let fallback = CaptionKind::for_delimited(&block.inner, block.metadata.style);
+        let fallback = CaptionKind::for_block(BlockRef::from(block));
         let attributes = BlockRef::from(block).attributes();
-        let collapsible_example = is_collapsible_example(&block.metadata, fallback);
+        let collapsible_example = is_collapsible_example(attributes, fallback);
         let table = matches!(block.inner, DelimitedBlockType::DelimitedTable(_));
         if table && self.omit_zero_width_table(attributes) {
             return Ok(());
@@ -710,24 +712,17 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             self.write_table_wrappers_start(attributes, table && !intrinsic_table);
         let writes_own_title = matches!(block.inner, DelimitedBlockType::DelimitedSidebar(_))
             || matches!(block.inner, DelimitedBlockType::DelimitedOpen(_))
-                && block.metadata.style == Some("abstract")
+                && attribute_style(attributes) == Some("abstract")
             || collapsible_example;
-        // A block built through the API carries no resolved caption, so classify it with
-        // the same rules the parser used.
-        let captioned = block.metadata.caption.is_some() || fallback.is_some();
         if shows_block_title(&block.inner) && !writes_own_title && !intrinsic_table {
             let sticky_title = table
-                && !block.metadata.options.contains(&"unbreakable")
+                && !has_attribute_token(attributes, "options", "unbreakable")
                 && block.title.is_present();
             if sticky_title {
                 self.writer
                     .raw("#block(sticky: true, above: 0pt, below: 0pt)[\n");
             }
-            if captioned {
-                self.write_captioned_title(traversal, &block.title, &block.metadata, fallback)?;
-            } else {
-                self.write_block_title(traversal, &block.title)?;
-            }
+            self.write_block_heading(traversal, block.title.content(), attributes, fallback)?;
             if sticky_title {
                 self.writer.raw("]\n");
             }
@@ -737,7 +732,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             | DelimitedBlockType::DelimitedOpen(blocks)
                 if collapsible_example =>
             {
-                self.write_disclosure(traversal, &block.title, |visitor, traversal| {
+                self.write_disclosure(traversal, block.title.content(), |visitor, traversal| {
                     visitor.write_blocks(traversal, blocks)
                 })
             }
@@ -746,15 +741,16 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             // transparent container that takes neither.
             DelimitedBlockType::DelimitedExample(blocks) => self.write_example(traversal, blocks),
             DelimitedBlockType::DelimitedSidebar(blocks) => {
-                self.write_sidebar(traversal, &block.title, blocks)
+                self.write_sidebar(traversal, block.title.content(), blocks)
             }
             DelimitedBlockType::DelimitedOpen(blocks)
-                if block.metadata.style == Some("abstract") =>
+                if attribute_style(attributes) == Some("abstract") =>
             {
                 self.write_abstract(
                     traversal,
-                    Some(&block.title),
-                    &block.metadata,
+                    block.title.content(),
+                    true,
+                    attributes,
                     |visitor, traversal| visitor.write_blocks(traversal, blocks),
                 )
             }
@@ -762,16 +758,16 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 self.write_framed_blocks(traversal, None, None, blocks)
             }
             DelimitedBlockType::DelimitedQuote(blocks) => {
-                self.write_quote_block(traversal, &block.metadata, |visitor, traversal| {
+                self.write_quote_block(traversal, attributes, |visitor, traversal| {
                     visitor.write_blocks(traversal, blocks)
                 })
             }
             DelimitedBlockType::DelimitedVerse(nodes) => {
-                self.write_verse_block(traversal, nodes, &block.metadata)
+                self.write_verse_block(traversal, nodes.iter().map(InlineRef::from), attributes)
             }
             DelimitedBlockType::DelimitedListing(nodes)
             | DelimitedBlockType::DelimitedLiteral(nodes) => {
-                self.write_verbatim_block(traversal, nodes, &block.metadata)
+                self.write_verbatim_block(traversal, nodes.iter().map(InlineRef::from), attributes)
             }
             DelimitedBlockType::DelimitedPass(nodes) => {
                 self.write_passthrough_block(nodes);
@@ -804,18 +800,18 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     pub(crate) fn write_title(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &Title<'_>,
+        title: Option<ContentRef<'_>>,
     ) -> Result<(), Error> {
-        if !title.is_present() {
+        let Some(title) = title else {
             return Ok(());
-        }
+        };
         // A title keeps normal substitutions independently of its block's body.
         #[cfg(feature = "pre-spec-subs")]
         let previous_subs = self
             .processor
             .current_subs
             .replace(effective_subs_flags(None, false));
-        let result = self.write_inlines(traversal, title.as_ref());
+        let result = self.write_content(traversal, title);
         #[cfg(feature = "pre-spec-subs")]
         self.processor.current_subs.set(previous_subs);
         result
@@ -828,7 +824,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     ) -> Result<(), Error> {
         let previous = self.index_catalog.set_suspended(true);
         let previous_anchors = replace(&mut self.anchors.suspended, true);
-        let result = self.write_title(traversal, title);
+        let result = self.write_title(traversal, title.content());
         self.anchors.suspended = previous_anchors;
         self.index_catalog.set_suspended(previous);
         result
@@ -842,7 +838,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         self.write_inline_refs(traversal, nodes.iter().map(InlineRef::from))
     }
 
-    fn write_content(
+    pub(crate) fn write_content(
         &mut self,
         traversal: &mut TraversalContext<'a>,
         content: ContentRef<'_>,
@@ -1124,14 +1120,14 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         self.writer.raw(")");
     }
 
-    pub(crate) fn write_block_anchor(&mut self, metadata: &BlockMetadata<'_>) {
-        if let Some(anchor) = metadata.id.as_ref().or_else(|| metadata.anchors.first()) {
+    pub(crate) fn write_block_anchor(&mut self, anchor: Option<AnchorRef<'_>>) {
+        if let Some(anchor) = anchor {
             self.write_anchor_target(anchor);
         }
     }
 
-    pub(crate) fn write_anchor_target(&mut self, anchor: &Anchor<'_>) {
-        if let Some(label) = self.anchors.claim(anchor.id) {
+    pub(crate) fn write_anchor_target(&mut self, anchor: AnchorRef<'_>) {
+        if let Some(label) = self.anchors.claim(anchor.id()) {
             let _ = writeln!(self.writer, "#metadata(none) <{label}>");
         }
     }
@@ -1277,22 +1273,36 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     pub(crate) fn write_block_title(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &Title<'_>,
+        title: Option<ContentRef<'_>>,
     ) -> Result<(), Error> {
-        if !title.is_present() {
+        let Some(title) = title else {
             return Ok(());
-        }
+        };
         self.writer.raw("#blocktitle[");
-        self.write_title(traversal, title)?;
+        self.write_title(traversal, Some(title))?;
         self.writer.raw("]\n");
         Ok(())
+    }
+
+    fn write_block_heading(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        title: Option<ContentRef<'_>>,
+        attributes: Option<AttributesRef<'_>>,
+        fallback: Option<CaptionKind>,
+    ) -> Result<(), Error> {
+        if self.resolved_caption(attributes, fallback).is_some() {
+            self.write_captioned_title(traversal, title, attributes, fallback)
+        } else {
+            self.write_block_title(traversal, title)
+        }
     }
 
     /// Write a collapsible example as an expanded disclosure for print.
     pub(crate) fn write_disclosure(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &Title<'_>,
+        title: Option<ContentRef<'_>>,
         write_body: impl FnOnce(&mut Self, &mut TraversalContext<'a>) -> Result<(), Error>,
     ) -> Result<(), Error> {
         self.writer.raw("#block(width: 100%, below: 0.8em)[\n");
@@ -1303,8 +1313,8 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         self.writer
             .raw("rotate(90deg, origin: center, text(weight: \"bold\", size: 0.8em, \">\"))))], ");
         self.writer.raw("[#captiontext[");
-        if title.is_present() {
-            self.write_title(traversal, title)?;
+        if let Some(title) = title {
+            self.write_title(traversal, Some(title))?;
         } else {
             self.write_text_expr("Details");
         }
@@ -1323,43 +1333,41 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     pub(crate) fn write_paragraph_content(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        para: &Paragraph<'_>,
+        para: ParagraphRef<'_>,
         write_title: bool,
         automatic_lead: bool,
     ) -> Result<(), Error> {
         #[cfg(feature = "pre-spec-subs")]
         let previous_subs = self.processor.current_subs.replace(effective_subs_flags(
-            para.metadata.substitutions.as_ref().map(Into::into),
-            matches!(para.metadata.style, Some("literal" | "listing" | "source")),
+            attribute_substitutions(Some(para.attributes())),
+            matches!(para.style(), Some("literal" | "listing" | "source")),
         ));
 
         let result = (|| {
-            let fallback = CaptionKind::for_style(para.metadata.style);
-            if is_collapsible_example(&para.metadata, fallback) {
-                return self.write_disclosure(traversal, &para.title, |visitor, traversal| {
-                    visitor.write_paragraph_alignment(&para.metadata, |visitor| {
-                        visitor.write_inlines(traversal, &para.content)
+            let fallback = CaptionKind::for_style(para.style());
+            if is_collapsible_example(Some(para.attributes()), fallback) {
+                return self.write_disclosure(traversal, para.title(), |visitor, traversal| {
+                    visitor.write_paragraph_alignment(Some(para.attributes()), |visitor| {
+                        visitor.write_content(traversal, para.content())
                     })
                 });
             }
-            if para.metadata.style == Some("abstract") {
-                let title = write_title.then_some(&para.title);
+            if para.style() == Some("abstract") {
                 return self.write_abstract(
                     traversal,
-                    title,
-                    &para.metadata,
-                    |visitor, traversal| visitor.write_inlines(traversal, &para.content),
+                    para.title(),
+                    write_title,
+                    Some(para.attributes()),
+                    |visitor, traversal| visitor.write_content(traversal, para.content()),
                 );
             }
             if write_title {
-                // An `[example]`, `[listing]` or `[source]` paragraph takes a caption; every
-                // other paragraph takes an ordinary title. A paragraph built through the API
-                // carries no resolved caption, so its style is classified here instead.
-                if para.metadata.caption.is_some() || fallback.is_some() {
-                    self.write_captioned_title(traversal, &para.title, &para.metadata, fallback)?;
-                } else {
-                    self.write_block_title(traversal, &para.title)?;
-                }
+                self.write_block_heading(
+                    traversal,
+                    para.title(),
+                    Some(para.attributes()),
+                    fallback,
+                )?;
             }
             self.write_paragraph_body(traversal, para, automatic_lead)
         })();
@@ -1372,13 +1380,13 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     pub(crate) fn write_abstract_title(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &Title<'_>,
+        title: Option<ContentRef<'_>>,
     ) -> Result<(), Error> {
-        if !title.is_present() {
+        let Some(title) = title else {
             return Ok(());
-        }
+        };
         self.writer.raw("#abstracttitle[");
-        self.write_title(traversal, title)?;
+        self.write_title(traversal, Some(title))?;
         self.writer.raw("]");
         Ok(())
     }
@@ -1386,16 +1394,17 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     pub(crate) fn write_abstract(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: Option<&Title<'_>>,
-        metadata: &BlockMetadata<'_>,
+        title: Option<ContentRef<'_>>,
+        write_title: bool,
+        attributes: Option<AttributesRef<'_>>,
         write_body: impl FnOnce(&mut Self, &mut TraversalContext<'a>) -> Result<(), Error>,
     ) -> Result<(), Error> {
-        if let Some(title) = title {
+        if write_title {
             self.write_abstract_title(traversal, title)?;
             self.writer.raw("\n");
         }
         self.writer.raw("#abstract[\n");
-        self.write_paragraph_alignment(metadata, |visitor| write_body(visitor, traversal))?;
+        self.write_paragraph_alignment(attributes, |visitor| write_body(visitor, traversal))?;
         self.writer.raw("\n]\n\n");
         Ok(())
     }
@@ -1407,17 +1416,17 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     pub(crate) fn write_attribution(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        metadata: &BlockMetadata<'_>,
+        attributes: Option<AttributesRef<'_>>,
     ) -> Result<(), Error> {
-        let Some(attribution) = metadata.attribution.as_ref() else {
+        let Some(attribution) = attribute_content(attributes, "attribution") else {
             return Ok(());
         };
-        let citetitle = metadata.citetitle.as_ref();
+        let citetitle = attribute_content(attributes, "citetitle");
         self.writer.raw("#attribution[");
-        self.write_inlines(traversal, attribution)?;
+        self.write_content(traversal, attribution)?;
         if let Some(citetitle) = citetitle {
             self.write_text_expr(", ");
-            self.write_inlines(traversal, citetitle)?;
+            self.write_content(traversal, citetitle)?;
         }
         self.writer.raw("]\n\n");
         Ok(())
@@ -1425,10 +1434,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
 
     fn write_paragraph_alignment(
         &mut self,
-        metadata: &BlockMetadata<'_>,
+        attributes: Option<AttributesRef<'_>>,
         write_body: impl FnOnce(&mut Self) -> Result<(), Error>,
     ) -> Result<(), Error> {
-        let alignment = ParagraphAlignment::from_metadata(metadata);
+        let alignment = ParagraphAlignment::from_attributes(attributes);
         if let Some(alignment) = alignment {
             self.writer.raw(alignment.typst_prefix());
         }
@@ -1441,17 +1450,17 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
 
     fn write_aligned_paragraph_body(
         &mut self,
-        metadata: &BlockMetadata<'_>,
+        attributes: Option<AttributesRef<'_>>,
         write_body: impl FnOnce(&mut Self) -> Result<(), Error>,
     ) -> Result<(), Error> {
-        self.write_paragraph_alignment(metadata, write_body)?;
+        self.write_paragraph_alignment(attributes, write_body)?;
         self.writer.raw("\n\n");
         Ok(())
     }
 
     fn write_paragraph_roles_start(
         &mut self,
-        metadata: &BlockMetadata<'_>,
+        attributes: Option<AttributesRef<'_>>,
         automatic_lead: bool,
     ) -> usize {
         let mut wrappers = 0;
@@ -1459,8 +1468,8 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             self.writer.raw("#text(size: 1.25em)[");
             wrappers += 1;
         }
-        for role in &metadata.roles {
-            let prefix = match *role {
+        for role in attribute_tokens(attributes, "role") {
+            let prefix = match role {
                 "lead" => Some("#text(size: 1.25em)["),
                 "big" => Some("#text(size: 1.2em)["),
                 "small" => Some("#text(size: 0.8em)["),
@@ -1488,44 +1497,44 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     pub(crate) fn write_quote_block(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        metadata: &BlockMetadata<'_>,
+        attributes: Option<AttributesRef<'_>>,
         write_body: impl FnOnce(&mut Self, &mut TraversalContext<'a>) -> Result<(), Error>,
     ) -> Result<(), Error> {
         self.writer.raw("#blockquote[\n");
         write_body(self, traversal)?;
-        if metadata.attribution.is_some() {
+        if attribute_content(attributes, "attribution").is_some() {
             self.writer.raw("\n#text(style: \"normal\")[\n");
-            self.write_attribution(traversal, metadata)?;
+            self.write_attribution(traversal, attributes)?;
             self.writer.raw("]\n");
         }
         self.writer.raw("]\n\n");
         Ok(())
     }
 
-    fn write_verse_content(
+    fn write_verse_content<'inline>(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        nodes: &[InlineNode<'_>],
+        nodes: impl DoubleEndedIterator<Item = InlineRef<'inline>> + ExactSizeIterator + Clone,
     ) -> Result<(), Error> {
         self.writer.raw("#verse[");
         // Verse has normal inline semantics, but its authored whitespace is layout.
         let previous = replace(&mut self.text_whitespace, TextWhitespace::Preserve);
-        let result = self.write_inlines(traversal, nodes);
+        let result = self.write_inline_refs(traversal, nodes);
         self.text_whitespace = previous;
         self.writer.raw("]");
         result
     }
 
     /// Write verse content, which keeps its line breaks and stays proportional.
-    pub(crate) fn write_verse_block(
+    pub(crate) fn write_verse_block<'inline>(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        nodes: &[InlineNode<'_>],
-        metadata: &BlockMetadata<'_>,
+        nodes: impl DoubleEndedIterator<Item = InlineRef<'inline>> + ExactSizeIterator + Clone,
+        attributes: Option<AttributesRef<'_>>,
     ) -> Result<(), Error> {
         self.write_verse_content(traversal, nodes)?;
         self.writer.raw("\n\n");
-        self.write_attribution(traversal, metadata)
+        self.write_attribution(traversal, attributes)
     }
 
     /// Write a paragraph's content in the shape its style asks for.
@@ -1536,36 +1545,41 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     fn write_paragraph_body(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        para: &Paragraph<'_>,
+        para: ParagraphRef<'_>,
         automatic_lead: bool,
     ) -> Result<(), Error> {
-        match para.metadata.style {
+        match para.style() {
             Some("quote") => {
-                self.write_quote_block(traversal, &para.metadata, |visitor, traversal| {
-                    visitor.write_paragraph_alignment(&para.metadata, |visitor| {
-                        visitor.write_inlines(traversal, &para.content)
+                self.write_quote_block(traversal, Some(para.attributes()), |visitor, traversal| {
+                    visitor.write_paragraph_alignment(Some(para.attributes()), |visitor| {
+                        visitor.write_content(traversal, para.content())
                     })
                 })
             }
             Some("verse") => {
-                self.write_aligned_paragraph_body(&para.metadata, |visitor| {
-                    visitor.write_verse_content(traversal, &para.content)
+                self.write_aligned_paragraph_body(Some(para.attributes()), |visitor| {
+                    visitor.write_verse_content(traversal, para.content().inlines())
                 })?;
-                self.write_attribution(traversal, &para.metadata)
+                self.write_attribution(traversal, Some(para.attributes()))
             }
-            Some("literal" | "listing" | "source") => {
-                self.write_verbatim_block(traversal, &para.content, &para.metadata)
+            Some("literal" | "listing" | "source") => self.write_verbatim_block(
+                traversal,
+                para.content().inlines(),
+                Some(para.attributes()),
+            ),
+            Some("example") => {
+                self.write_aligned_paragraph_body(Some(para.attributes()), |visitor| {
+                    visitor.writer.raw("#examplebox[\n");
+                    visitor.write_content(traversal, para.content())?;
+                    visitor.writer.raw("\n]");
+                    Ok(())
+                })
             }
-            Some("example") => self.write_aligned_paragraph_body(&para.metadata, |visitor| {
-                visitor.writer.raw("#examplebox[\n");
-                visitor.write_inlines(traversal, &para.content)?;
-                visitor.writer.raw("\n]");
-                Ok(())
-            }),
             _ => {
-                let wrappers = self.write_paragraph_roles_start(&para.metadata, automatic_lead);
-                self.write_paragraph_alignment(&para.metadata, |visitor| {
-                    visitor.write_inlines(traversal, &para.content)
+                let wrappers =
+                    self.write_paragraph_roles_start(Some(para.attributes()), automatic_lead);
+                self.write_paragraph_alignment(Some(para.attributes()), |visitor| {
+                    visitor.write_content(traversal, para.content())
                 })?;
                 self.write_paragraph_roles_end(wrappers);
                 self.writer.raw("\n\n");
@@ -1581,32 +1595,32 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     pub(crate) fn write_captioned_title(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &Title<'_>,
-        metadata: &BlockMetadata<'_>,
+        title: Option<ContentRef<'_>>,
+        attributes: Option<AttributesRef<'_>>,
         fallback: Option<CaptionKind>,
     ) -> Result<(), Error> {
-        self.write_captioned_title_with(traversal, "blocktitle", title, metadata, fallback)
+        self.write_captioned_title_with(traversal, "blocktitle", title, attributes, fallback)
     }
 
     fn write_captioned_title_with(
         &mut self,
         traversal: &mut TraversalContext<'a>,
         wrapper: &str,
-        title: &Title<'_>,
-        metadata: &BlockMetadata<'_>,
+        title: Option<ContentRef<'_>>,
+        attributes: Option<AttributesRef<'_>>,
         fallback: Option<CaptionKind>,
     ) -> Result<(), Error> {
-        if !title.is_present() {
+        let Some(title) = title else {
             return Ok(());
-        }
-        let prefix = self.caption_prefix(metadata, fallback);
+        };
+        let prefix = self.caption_prefix(attributes, fallback);
         let _ = write!(self.writer, "#{wrapper}[");
-        if let Some(content) = metadata.caption_content() {
-            self.write_inlines(traversal, content)?;
+        if let Some(content) = attribute_content(attributes, "caption") {
+            self.write_content(traversal, content)?;
         } else if let Some(prefix) = prefix {
             self.write_text_expr(&prefix);
         }
-        self.write_title(traversal, title)?;
+        self.write_title(traversal, Some(title))?;
         self.writer.raw("]\n");
         Ok(())
     }
@@ -1619,37 +1633,37 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     /// applies from that point on, and nested blocks number inner-first.
     fn caption_prefix(
         &self,
-        metadata: &BlockMetadata<'_>,
+        attributes: Option<AttributesRef<'_>>,
         fallback: Option<CaptionKind>,
     ) -> Option<String> {
-        // Caller-built metadata never had a source position, so it falls back to the document's
-        // final attributes. `Caption::resolve_owned` keeps the precedence chain in the parser
-        // rather than duplicating it here.
-        let resolved = match (&metadata.caption, fallback) {
-            (Some(caption), _) => caption.clone(),
-            (None, Some(kind)) => {
-                Caption::resolve_owned(metadata, self.processor.document_attributes(), kind)
-            }
-            (None, None) => return None,
-        };
+        let resolved = self.resolved_caption(attributes, fallback)?;
         match resolved {
-            Caption::Numbered {
+            CaptionRef::Numbered {
                 label,
                 number,
                 kind,
             } => Some(Self::numbered_caption_prefix(
-                &label,
-                // A block the parser numbered keeps that ordinal. One it could not — a
-                // caller-built block, or a parsed block that gained its title afterwards —
-                // draws from this converter's counter, which starts past every parsed ordinal.
+                label,
                 number.map_or_else(|| self.next_caption_number(kind), NonZeroU32::get),
             )),
-            Caption::Custom(prefix) => Some(prefix.into_owned()),
-            Caption::CustomContent(content) => {
-                Some(acdc_converters_core::inlines_to_string(&content))
+            CaptionRef::Custom(prefix) => Some(prefix.to_owned()),
+            CaptionRef::CustomContent(content) => {
+                Some(InlineTextTransform::default().content_to_string(content))
             }
-            Caption::Unnumbered | _ => None,
+            CaptionRef::Unnumbered | _ => None,
         }
+    }
+
+    fn resolved_caption<'doc>(
+        &'doc self,
+        attributes: Option<AttributesRef<'doc>>,
+        fallback: Option<CaptionKind>,
+    ) -> Option<CaptionRef<'doc>> {
+        CaptionRef::resolve(
+            attributes?,
+            self.processor.document_attributes().into(),
+            fallback,
+        )
     }
 
     fn next_caption_number(&self, kind: CaptionKind) -> u32 {
@@ -1685,13 +1699,13 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     pub(crate) fn write_sidebar(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &Title<'_>,
+        title: Option<ContentRef<'_>>,
         blocks: &'a [Block<'a>],
     ) -> Result<(), Error> {
         self.writer.raw("#sidebarbox[\n");
-        if title.is_present() {
+        if let Some(title) = title {
             self.writer.raw("#sidebartitle[");
-            self.write_title(traversal, title)?;
+            self.write_title(traversal, Some(title))?;
             self.writer.raw("]\n");
         }
         self.write_blocks(traversal, blocks)?;
@@ -1699,32 +1713,34 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         Ok(())
     }
 
-    pub(crate) fn write_verbatim_block(
+    pub(crate) fn write_verbatim_block<'inline>(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        nodes: &[InlineNode<'_>],
-        metadata: &BlockMetadata<'_>,
+        nodes: impl DoubleEndedIterator<Item = InlineRef<'inline>> + ExactSizeIterator + Clone,
+        attributes: Option<AttributesRef<'_>>,
     ) -> Result<(), Error> {
-        if metadata.options.contains(&"mixed")
-            && Self::source_language(traversal, metadata) == Some("php")
+        if has_attribute_token(attributes, "options", "mixed")
+            && Self::source_language(traversal, attributes) == Some("php")
         {
             self.warn_unsupported_once(
                 "php-mixed-highlighting",
                 "PHP source block mixed-mode highlighting is not supported by the PDF backend; rendering with Typst's normal PHP highlighter",
                 "Use the `html+php` source language when it gives acceptable highlighting, or use Asciidoctor PDF for explicit `%mixed` highlighting.",
-                metadata.location.as_ref(),
+                attributes.and_then(AttributesRef::location).map(Location::from).as_ref(),
             );
         }
-        let tab_size = Self::code_tab_size(traversal, metadata);
+        let tab_size = Self::code_tab_size(traversal, attributes);
         let CodeText {
             source,
             indexes: index_positions,
             links,
             ..
-        } = self.code_text(traversal, nodes, metadata, tab_size)?;
-        let autofit = has_autofit_option(metadata.options.iter().copied(), traversal);
+        } = self.code_text(traversal, nodes, attributes, tab_size)?;
+        let autofit = has_autofit_option(attribute_tokens(attributes, "options"), traversal);
         let options = if Self::source_highlighting_enabled(traversal) {
-            SourceLineOptions::resolve(metadata, &source)
+            attributes.map_or_else(SourceLineOptions::default, |attributes| {
+                SourceLineOptions::from_attributes(attributes, &source)
+            })
         } else {
             SourceLineOptions::default()
         };
@@ -1734,16 +1750,16 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         };
         if autofit {
             if options.is_empty() {
-                self.write_autofit_open(traversal, &source, metadata, 0);
-                self.write_raw_block(traversal, &source, metadata, &annotations);
+                self.write_autofit_open(traversal, &source, attributes, 0);
+                self.write_raw_block(traversal, &source, attributes, &annotations);
                 self.writer.raw("]\n\n");
                 return Ok(());
             }
 
             let source_lines = (1..=source_line_count(&source)).collect::<Vec<_>>();
             if source_lines.is_empty() {
-                self.write_autofit_open(traversal, &source, metadata, 0);
-                self.write_raw_block(traversal, &source, metadata, &annotations);
+                self.write_autofit_open(traversal, &source, attributes, 0);
+                self.write_raw_block(traversal, &source, attributes, &annotations);
                 self.writer.raw("]\n\n");
                 return Ok(());
             }
@@ -1752,12 +1768,12 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             } else {
                 0
             };
-            self.write_autofit_open(traversal, &source, metadata, extra_width_tenths);
+            self.write_autofit_open(traversal, &source, attributes, extra_width_tenths);
             self.write_source_block_with_line_options(
                 traversal,
                 &source,
                 &source_lines,
-                metadata,
+                attributes,
                 &options,
                 &annotations,
             );
@@ -1770,21 +1786,21 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             .unwrap_or(self.code_wrap_columns);
         if options.is_empty() {
             let source = wrap_code_text(&source, wrap_columns, tab_size);
-            self.write_raw_block(traversal, &source, metadata, &annotations);
+            self.write_raw_block(traversal, &source, attributes, &annotations);
             return Ok(());
         }
 
         let (source, source_lines) =
             wrap_code_text_with_line_origins(&source, wrap_columns, tab_size);
         if source_lines.is_empty() {
-            self.write_raw_block(traversal, &source, metadata, &annotations);
+            self.write_raw_block(traversal, &source, attributes, &annotations);
             return Ok(());
         }
         self.write_source_block_with_line_options(
             traversal,
             &source,
             &source_lines,
-            metadata,
+            attributes,
             &options,
             &annotations,
         );
@@ -1795,12 +1811,12 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         &mut self,
         traversal: &mut TraversalContext<'a>,
         source: &str,
-        metadata: &BlockMetadata<'_>,
+        attributes: Option<AttributesRef<'_>>,
         extra_width_tenths: usize,
     ) {
         self.writer.raw("#_acdc_autofit_code(");
         self.writer.string_literal(source);
-        if let Some(language) = Self::source_language(traversal, metadata) {
+        if let Some(language) = Self::source_language(traversal, attributes) {
             self.writer.raw(", language: ");
             self.writer.string_literal(language);
         }
@@ -1819,7 +1835,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         &mut self,
         traversal: &mut TraversalContext<'a>,
         source: &str,
-        metadata: &BlockMetadata<'_>,
+        attributes: Option<AttributesRef<'_>>,
         annotations: &CodeAnnotations,
     ) {
         if !annotations.is_empty() {
@@ -1841,7 +1857,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         } else {
             "raw(block: true"
         });
-        if let Some(language) = Self::source_language(traversal, metadata) {
+        if let Some(language) = Self::source_language(traversal, attributes) {
             self.writer.raw(", lang: ");
             self.writer.string_literal(language);
         }
@@ -1857,7 +1873,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         traversal: &mut TraversalContext<'a>,
         source: &str,
         source_lines: &[usize],
-        metadata: &BlockMetadata<'_>,
+        attributes: Option<AttributesRef<'_>>,
         options: &SourceLineOptions,
         annotations: &CodeAnnotations,
     ) {
@@ -1911,7 +1927,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         self.writer.string_literal(&self.palette.counter);
         self.writer
             .raw("), str(number)) })) + h(0.8em) + code\n    }\n  }\n  raw(block: true");
-        if let Some(language) = Self::source_language(traversal, metadata) {
+        if let Some(language) = Self::source_language(traversal, attributes) {
             self.writer.raw(", lang: ");
             self.writer.string_literal(language);
         }
@@ -1952,17 +1968,13 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         self.writer.raw(")");
     }
 
-    fn code_tab_size(traversal: &TraversalContext<'a>, metadata: &BlockMetadata<'_>) -> usize {
-        metadata
-            .attributes
-            .get("tabsize")
-            .and_then(|value| {
-                if let AttributeValue::String(value) = value {
-                    value.parse().ok()
-                } else {
-                    None
-                }
-            })
+    fn code_tab_size(
+        traversal: &TraversalContext<'a>,
+        attributes: Option<AttributesRef<'_>>,
+    ) -> usize {
+        attributes
+            .and_then(|attributes| retained_attribute_text(attributes, "tabsize"))
+            .and_then(|value| value.parse().ok())
             .or_else(|| {
                 traversal.get("tabsize").and_then(|value| {
                     if let Some(value) = value.as_str() {
@@ -1978,12 +1990,12 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             .unwrap_or(4)
     }
 
-    fn source_language<'metadata>(
+    fn source_language<'doc>(
         traversal: &TraversalContext<'a>,
-        metadata: &'metadata BlockMetadata<'_>,
-    ) -> Option<&'metadata str> {
+        attributes: Option<AttributesRef<'doc>>,
+    ) -> Option<&'doc str> {
         Self::source_highlighting_enabled(traversal)
-            .then(|| detect_language(metadata))
+            .then(|| attributes.and_then(acdc_converters_core::code::source_language))
             .flatten()
             .filter(|language| acdc_pdf_render::supports_raw_language(language))
     }
@@ -2006,15 +2018,16 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         self.write_verbatim_text(&text);
     }
 
-    fn code_text(
+    fn code_text<'inline>(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        nodes: &[InlineNode<'_>],
-        metadata: &BlockMetadata<'_>,
+        nodes: impl DoubleEndedIterator<Item = InlineRef<'inline>> + ExactSizeIterator + Clone,
+        attributes: Option<AttributesRef<'_>>,
         tab_size: usize,
     ) -> Result<CodeText, Error> {
         let extension = code_output_extension(traversal).to_owned();
-        let line_comment = metadata.attributes.get_string("line-comment");
+        let line_comment =
+            attributes.and_then(|attributes| attribute_text(attributes, "line-comment"));
         let CodeText {
             source: mut text,
             indexes: mut positions,
@@ -2022,9 +2035,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             protected,
         } = self.collect_code_text(
             traversal,
-            nodes.iter().map(InlineRef::from),
+            nodes,
             &extension,
-            line_comment.as_deref(),
+            line_comment,
             false,
             TextBoundaries::BOTH,
         )?;
@@ -2509,20 +2522,19 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         self.writer.string_literal(text);
     }
 
-    pub(crate) fn write_page_layout_change(&mut self, br: &PageBreak<'_>) {
-        let layout = if let Some(value) = br
-            .metadata
-            .attributes
-            .get_string("page-layout")
-            .filter(|value| !value.is_empty())
+    pub(crate) fn write_page_layout_change(&mut self, br: PageBreakRef<'_>) {
+        let layout = if let Some(value) =
+            attribute_text(br.attributes(), "page-layout").filter(|value| !value.is_empty())
         {
-            match value.as_ref() {
+            match value {
                 "portrait" => Some(PageLayout::Portrait),
                 "landscape" => Some(PageLayout::Landscape),
                 _ => {
                     warn_with_advice_at(
                         &mut self.diagnostics,
-                        br.metadata.location.as_ref().or(Some(&br.location)),
+                        Some(&Location::from(
+                            br.attributes().location().unwrap_or(br.location()),
+                        )),
                         format!(
                             "unsupported page-break layout '{value}', keeping the current page layout"
                         ),
@@ -2533,16 +2545,8 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             }
         } else {
             // Asciidoctor ignores repeated role names before selecting a layout.
-            let portrait = br
-                .metadata
-                .roles
-                .iter()
-                .position(|role| *role == "portrait");
-            let landscape = br
-                .metadata
-                .roles
-                .iter()
-                .position(|role| *role == "landscape");
+            let portrait = br.roles().iter().position(|role| role == "portrait");
+            let landscape = br.roles().iter().position(|role| role == "landscape");
             match (portrait, landscape) {
                 (Some(portrait), Some(landscape)) if portrait > landscape => {
                     Some(PageLayout::Portrait)
@@ -2562,7 +2566,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         {
             warn_with_advice_at(
                 &mut self.diagnostics,
-                br.metadata.location.as_ref().or(Some(&br.location)),
+                Some(&Location::from(
+                    br.attributes().location().unwrap_or(br.location()),
+                )),
                 "page-break layout leaves no room inside the configured margins, keeping the current page layout",
                 "Reduce `pdf-page-margin` or choose a larger page size before switching the layout.",
             );
@@ -2704,7 +2710,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
 
     pub(crate) fn static_media_source_target(
         traversal: &TraversalContext<'a>,
-        source: &Source<'_>,
+        source: SourceRef<'_>,
     ) -> String {
         Self::static_media_target(traversal, source.to_string().as_str())
     }
@@ -2726,13 +2732,13 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     pub(crate) fn write_static_media_caption(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &Title<'_>,
+        title: Option<ContentRef<'_>>,
     ) -> Result<(), Error> {
-        if !title.is_present() {
+        let Some(title) = title else {
             return Ok(());
-        }
+        };
         self.writer.raw("#imagecaption[");
-        self.write_title(traversal, title)?;
+        self.write_title(traversal, Some(title))?;
         self.writer.raw("]\n");
         Ok(())
     }
@@ -2791,9 +2797,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         for item in &list.items {
             let item_indent = "  ".repeat(self.list_depth);
             let _ = write!(self.writer, "{item_indent}- #block(width: 100%)[");
-            self.write_paragraph_alignment(&list.metadata, |visitor| {
-                visitor.write_bibliography_principal(traversal, item)
-            })?;
+            self.write_paragraph_alignment(
+                Some(UnorderedListRef::from(list).attributes()),
+                |visitor| visitor.write_bibliography_principal(traversal, item),
+            )?;
             if !item.blocks.is_empty() {
                 self.writer.raw("\n\n");
                 self.list_depth += 1;
@@ -2907,7 +2914,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     self.writer.raw("#linebreak()");
                 }
                 for anchor in &item.anchors {
-                    self.write_anchor_target(anchor);
+                    self.write_anchor_target(anchor.into());
                 }
                 self.writer.raw("#text(weight: \"bold\")[");
                 self.write_inlines(traversal, &item.term)?;
@@ -2948,14 +2955,17 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             };
             let _ = write!(self.writer, "{indent}  + #block(width: 100%)[");
             self.writer.raw("#block(width: 100%, breakable: false)[");
-            self.write_paragraph_alignment(&list.metadata, |visitor| {
-                visitor.write_qanda_description_terms(traversal, row)?;
-                if !answer.principal_text.is_empty() {
-                    visitor.writer.raw("#linebreak()\n");
-                    visitor.write_inlines(traversal, &answer.principal_text)?;
-                }
-                Ok(())
-            })?;
+            self.write_paragraph_alignment(
+                Some(DescriptionListRef::from(list).attributes()),
+                |visitor| {
+                    visitor.write_qanda_description_terms(traversal, row)?;
+                    if !answer.principal_text.is_empty() {
+                        visitor.writer.raw("#linebreak()\n");
+                        visitor.write_inlines(traversal, &answer.principal_text)?;
+                    }
+                    Ok(())
+                },
+            )?;
             self.writer.raw("]");
             if !answer.description.is_empty() {
                 self.writer.raw("\n\n");
@@ -2977,9 +2987,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             return Ok(());
         }
 
-        let ordered = list.metadata.style == Some("ordered");
-        let stacked = list.metadata.roles.contains(&"stack");
-        let subject_stop = list.metadata.attributes.get_string("subject-stop");
+        let node = DescriptionListRef::from(list);
+        let ordered = node.style() == Some("ordered");
+        let stacked = node.roles().contains("stack");
+        let subject_stop = attribute_text(node.attributes(), "subject-stop");
         let indent = "  ".repeat(self.list_depth);
         let _ = writeln!(self.writer, "{indent}#[");
         if ordered {
@@ -3005,7 +3016,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             let marker = if ordered { "+" } else { "-" };
             let _ = write!(self.writer, "{indent}  {marker} #block(width: 100%)[");
             for anchor in &subject.anchors {
-                self.write_anchor_target(anchor);
+                self.write_anchor_target(anchor.into());
             }
             self.writer.raw("#strong[");
             self.write_inlines(traversal, &subject.term)?;
@@ -3015,11 +3026,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 .chars()
                 .next_back()
                 .is_some_and(|last| matches!(last, '.' | '!' | '?' | ';' | ':'));
-            if !has_stop
-                && let Some(stop) = subject_stop
-                    .as_deref()
-                    .or_else(|| (!stacked).then_some(":"))
-            {
+            if !has_stop && let Some(stop) = subject_stop.or_else(|| (!stacked).then_some(":")) {
                 self.write_text_expr(stop);
             }
             self.writer.raw("]");
@@ -3052,7 +3059,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             }
             if write_anchors {
                 for anchor in &item.anchors {
-                    self.write_anchor_target(anchor);
+                    self.write_anchor_target(anchor.into());
                 }
             }
             self.writer.raw("#text(weight: \"bold\")[");
@@ -3072,7 +3079,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 self.writer.raw("#linebreak()");
             }
             for anchor in &item.anchors {
-                self.write_anchor_target(anchor);
+                self.write_anchor_target(anchor.into());
             }
             self.writer.raw("#emph[");
             self.write_inlines(traversal, &item.term)?;
@@ -3095,20 +3102,26 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         self.write_blocks(traversal, &item.description)
     }
 
-    pub(crate) fn write_ordered_list_start(&mut self, metadata: &BlockMetadata<'_>, marker: &str) {
+    pub(crate) fn write_ordered_list_start(
+        &mut self,
+        attributes: Option<AttributesRef<'_>>,
+        marker: &str,
+    ) {
         let indent = "  ".repeat(self.list_depth);
         let _ = writeln!(self.writer, "{indent}#[");
         let _ = write!(self.writer, "{indent}#set enum(numbering: ");
         let markerless = matches!(
-            metadata.style,
+            attribute_style(attributes),
             Some("none" | "no-bullet" | "unnumbered" | "unstyled")
         );
-        if metadata.style == Some("none") {
+        if attribute_style(attributes) == Some("none") {
             self.writer.raw("(..numbers) => box(width: 0.5em)[]");
         } else if markerless {
             self.writer.raw("(..numbers) => none");
         } else {
-            let numbering = match metadata.style {
+            let numbering = match attributes
+                .and_then(|attributes| attribute_text(attributes, "style"))
+            {
                 Some(style) => OrderedListNumbering::from_explicit_style(style).unwrap_or_default(),
                 None => match marker.matches('.').count() {
                     2 => OrderedListNumbering::LowerAlpha,
@@ -3120,37 +3133,41 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             };
             self.write_ordered_list_numbering(numbering);
         }
-        if metadata.style == Some("unstyled") {
+        if attribute_style(attributes) == Some("unstyled") {
             self.writer.raw(", body-indent: 0pt");
             self.ordered_unstyled_scope_depth += 1;
         } else if self.ordered_unstyled_scope_depth > 0 {
             self.writer.raw(", body-indent: 0.5em");
         }
-        if let Some(start) = metadata
-            .attributes
-            .get_string("start")
+        if let Some(start) = attributes
+            .and_then(|attributes| attribute_text(attributes, "start"))
             .and_then(|start| start.parse::<i64>().ok())
             .filter(|start| *start > 0)
         {
             let _ = write!(self.writer, ", start: {start}");
         }
-        if metadata.options.contains(&"reversed") {
+        if has_attribute_token(attributes, "options", "reversed") {
             self.writer.raw(", reversed: true");
         }
         self.writer.raw(")\n");
     }
 
-    pub(crate) fn write_ordered_list_end(&mut self, metadata: &BlockMetadata<'_>) {
-        if metadata.style == Some("unstyled") {
+    pub(crate) fn write_ordered_list_end(&mut self, attributes: Option<AttributesRef<'_>>) {
+        if attribute_style(attributes) == Some("unstyled") {
             self.ordered_unstyled_scope_depth -= 1;
         }
     }
 
-    pub(crate) fn write_unordered_list_start(&mut self, metadata: &BlockMetadata<'_>) -> bool {
-        if metadata.options.contains(&"checklist") {
+    pub(crate) fn write_unordered_list_start(
+        &mut self,
+        attributes: Option<AttributesRef<'_>>,
+    ) -> bool {
+        if has_attribute_token(attributes, "options", "checklist") {
             return false;
         }
-        let style = metadata.style.and_then(UnorderedMarker::from_style);
+        let style = attributes
+            .and_then(|attributes| attribute_text(attributes, "style"))
+            .and_then(UnorderedMarker::from_style);
         let resets_parent_style = style.is_none() && self.unordered_style_scope_depth > 0;
         if style.is_none() && !resets_parent_style {
             return false;
@@ -3401,13 +3418,13 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             "]\nalign({}, [\n#context block(width: measure(acdc-table-body).width)[",
             typst_table_alignment(alignment)
         );
-        let sticky_title =
-            !has_attribute_token(attributes, "options", "unbreakable") && block.title.is_present();
+        let sticky_title = !has_attribute_token(attributes, "options", "unbreakable")
+            && block.title.content().is_some();
         if sticky_title {
             self.writer
                 .raw("#block(sticky: true, above: 0pt, below: 0pt)[\n");
         }
-        self.write_captioned_title(traversal, &block.title, &block.metadata, fallback)?;
+        self.write_captioned_title(traversal, block.title.content(), attributes, fallback)?;
         if sticky_title {
             self.writer.raw("]\n");
         }
@@ -3710,30 +3727,26 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     pub(crate) fn write_block_image(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        image: &Image<'_>,
+        image: ImageRef<'_>,
     ) -> Result<(), Error> {
-        if block_image_float(&image.metadata).is_some() {
+        if block_image_float(Some(image.attributes())).is_some() {
             self.warn_unsupported(
                 "block image side wrapping",
                 "rendering the image on the requested side with following content below it",
-                Some(&image.location),
+                Some(&Location::from(image.location())),
             );
         }
-        let has_caption = image.title.is_present();
+        let has_caption = image.title().is_some();
         if has_caption {
             self.writer.raw("#block(width: 100%, breakable: false)[\n");
         }
-        let source = Self::static_media_source_target(traversal, &image.source);
+        let source = Self::static_media_source_target(traversal, image.source());
         let alt = block_image_alt(image);
-        let link = image
-            .metadata
-            .attributes
-            .get_string("link")
-            .filter(|target| !target.is_empty());
+        let link = attribute_text(image.attributes(), "link").filter(|target| !target.is_empty());
         if let Some(asset) = self.assets.get(&source) {
-            let width = image_width(ImageRef::from(image).attributes(), true);
-            let alignment = block_image_alignment(&image.metadata);
-            let align_to_page = image.metadata.options.contains(&"align-to-page");
+            let width = image_width(image.attributes(), true);
+            let alignment = block_image_alignment(Some(image.attributes()));
+            let align_to_page = image.options().contains("align-to-page");
             let uses_doc_image = !align_to_page
                 && alignment == BlockImageAlignment::Left
                 && matches!(
@@ -3773,20 +3786,20 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     &alt,
                     width,
                     alignment,
-                    link.as_deref(),
+                    link,
                     align_to_page,
                 );
             }
         } else {
-            self.write_block_image_fallback(traversal, image, &alt, link.as_deref())?;
+            self.write_block_image_fallback(traversal, image, &alt, link)?;
             self.writer.raw("\n");
         }
         if has_caption {
             self.write_captioned_title_with(
                 traversal,
                 "imagecaption",
-                &image.title,
-                &image.metadata,
+                image.title(),
+                Some(image.attributes()),
                 Some(CaptionKind::Figure),
             )?;
             self.writer.raw("]\n\n");
@@ -3799,7 +3812,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     fn write_block_image_fallback(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        image: &Image<'_>,
+        image: ImageRef<'_>,
         alt: &str,
         link: Option<&str>,
     ) -> Result<(), Error> {
@@ -3809,8 +3822,8 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             self.writer.raw(")[");
         }
         self.write_text_expr("[");
-        if let Some(content) = &image.alt {
-            self.write_inlines(traversal, content)?;
+        if let Some(content) = image.alt() {
+            self.write_content(traversal, content)?;
         } else {
             self.write_text_expr(alt);
         }
@@ -3818,7 +3831,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         if link.is_some() {
             self.writer.raw("]");
         }
-        self.write_text_expr(&format!(" | {}", image.source));
+        self.write_text_expr(&format!(" | {}", image.source()));
         Ok(())
     }
 
@@ -4865,10 +4878,10 @@ const fn typst_vertical_alignment(alignment: VerticalAlignment) -> &'static str 
 }
 
 pub(crate) fn is_collapsible_example(
-    metadata: &BlockMetadata<'_>,
+    attributes: Option<AttributesRef<'_>>,
     kind: Option<CaptionKind>,
 ) -> bool {
-    kind == Some(CaptionKind::Example) && metadata.options.contains(&"collapsible")
+    kind == Some(CaptionKind::Example) && has_attribute_token(attributes, "options", "collapsible")
 }
 
 pub(crate) fn collapse_source_whitespace(text: &str) -> Cow<'_, str> {
@@ -5252,11 +5265,59 @@ fn asciidoctor_background_colour(role: &str) -> Option<&'static str> {
     }
 }
 
+fn attribute_tokens<'doc>(
+    attributes: Option<AttributesRef<'doc>>,
+    name: &str,
+) -> impl Iterator<Item = &'doc str> {
+    attributes
+        .and_then(|attributes| match attributes.get(name) {
+            Some(AttributeValueRef::Tokens(tokens)) => Some(tokens),
+            _ => None,
+        })
+        .into_iter()
+        .flat_map(TokensRef::iter)
+}
+
+fn attribute_content<'doc>(
+    attributes: Option<AttributesRef<'doc>>,
+    name: &str,
+) -> Option<ContentRef<'doc>> {
+    match attributes.and_then(|attributes| attributes.get(name)) {
+        Some(AttributeValueRef::Content(content)) => Some(content),
+        _ => None,
+    }
+}
+
+#[cfg(feature = "pre-spec-subs")]
+fn attribute_substitutions(
+    attributes: Option<AttributesRef<'_>>,
+) -> Option<acdc_parser::ast::SubstitutionSpecRef<'_>> {
+    match attributes.and_then(|attributes| attributes.get("subs")) {
+        Some(AttributeValueRef::Substitutions(spec)) => Some(spec),
+        _ => None,
+    }
+}
+
 fn has_attribute_token(attributes: Option<AttributesRef<'_>>, name: &str, token: &str) -> bool {
     matches!(attributes.and_then(|attributes| attributes.get(name)), Some(AttributeValueRef::Tokens(tokens)) if tokens.contains(token))
 }
 
-fn attribute_text<'doc>(attributes: AttributesRef<'doc>, name: &str) -> Option<&'doc str> {
+fn attribute_style(attributes: Option<AttributesRef<'_>>) -> Option<&str> {
+    attributes.and_then(|attributes| retained_attribute_text(attributes, "style"))
+}
+
+fn retained_attribute_text<'doc>(attributes: AttributesRef<'doc>, name: &str) -> Option<&'doc str> {
+    if let Some(AttributeValueRef::Text(value)) = attributes.get(name) {
+        Some(value)
+    } else {
+        None
+    }
+}
+
+pub(super) fn attribute_text<'doc>(
+    attributes: AttributesRef<'doc>,
+    name: &str,
+) -> Option<&'doc str> {
     if let Some(AttributeValueRef::Text(value)) = attributes.get(name) {
         Some(acdc_parser::strip_quotes(value))
     } else {
@@ -5292,35 +5353,30 @@ pub(crate) fn builtin_icon_glyph(name: &str) -> Option<&'static str> {
     }
 }
 
-fn block_image_alt<'a>(image: &'a Image<'_>) -> Cow<'a, str> {
-    acdc_converters_core::media::image_alt(&image.source, image.alt.as_ref())
+fn block_image_alt(image: ImageRef<'_>) -> String {
+    acdc_converters_core::media::image_alt_from_content(image.source(), image.alt())
 }
 
-fn block_image_alignment(metadata: &BlockMetadata<'_>) -> BlockImageAlignment {
-    if let Some(side) = block_image_float(metadata) {
+fn block_image_alignment(attributes: Option<AttributesRef<'_>>) -> BlockImageAlignment {
+    if let Some(side) = block_image_float(attributes) {
         return side;
     }
-    if metadata.attributes.contains_key("align") {
-        return metadata
-            .attributes
-            .get_string("align")
-            .as_deref()
+    if attributes.is_some_and(|attributes| attributes.contains("align")) {
+        return attributes
+            .and_then(|attributes| attribute_text(attributes, "align"))
             .and_then(BlockImageAlignment::from_name)
             .unwrap_or_default();
     }
-    metadata
-        .roles
-        .iter()
-        .rev()
-        .find_map(|role| BlockImageAlignment::from_name(role))
+    attribute_tokens(attributes, "role")
+        .filter_map(BlockImageAlignment::from_name)
+        .last()
         .unwrap_or_default()
 }
 
-fn block_image_float(metadata: &BlockMetadata<'_>) -> Option<BlockImageAlignment> {
-    metadata
-        .attributes
-        .get_string("float")
-        .and_then(|value| BlockImageAlignment::from_name(&value))
+fn block_image_float(attributes: Option<AttributesRef<'_>>) -> Option<BlockImageAlignment> {
+    attributes
+        .and_then(|attributes| attribute_text(attributes, "float"))
+        .and_then(BlockImageAlignment::from_name)
         .filter(|alignment| *alignment != BlockImageAlignment::Center)
 }
 
@@ -5460,7 +5516,7 @@ mod tests {
         long_unbreakable_ranges, measurement_points, prose_whitespace, wrap_code_text,
         wrap_code_text_with_line_origins,
     };
-    use acdc_parser::{AttributeValue, BlockMetadata, ast::ImageRef};
+    use acdc_parser::{AttributeValue, Image, Location, Source, ast::ImageRef};
 
     fn image_with_width(width: &'static str) -> acdc_parser::Image<'static> {
         let mut image = acdc_parser::Image::new(
@@ -5659,38 +5715,55 @@ mod tests {
 
     #[test]
     fn block_image_alignment_follows_float_attribute_and_role_precedence() {
-        let mut metadata = BlockMetadata::default();
-        assert_eq!(block_image_alignment(&metadata), BlockImageAlignment::Left);
+        let mut image = Image::new(Source::Name("example"), Location::default());
+        assert_eq!(
+            block_image_alignment(Some(ImageRef::from(&image).attributes())),
+            BlockImageAlignment::Left
+        );
 
-        metadata.roles = vec!["left", "unrelated", "right"];
-        assert_eq!(block_image_alignment(&metadata), BlockImageAlignment::Right);
+        image.metadata.roles = vec!["left", "unrelated", "right"];
+        assert_eq!(
+            block_image_alignment(Some(ImageRef::from(&image).attributes())),
+            BlockImageAlignment::Right
+        );
 
-        metadata
+        image
+            .metadata
             .attributes
             .set("align".into(), AttributeValue::String("center".into()));
         assert_eq!(
-            block_image_alignment(&metadata),
+            block_image_alignment(Some(ImageRef::from(&image).attributes())),
             BlockImageAlignment::Center
         );
 
-        metadata
+        image
+            .metadata
             .attributes
             .set("align".into(), AttributeValue::String("invalid".into()));
-        assert_eq!(block_image_alignment(&metadata), BlockImageAlignment::Left);
+        assert_eq!(
+            block_image_alignment(Some(ImageRef::from(&image).attributes())),
+            BlockImageAlignment::Left
+        );
 
-        metadata
+        image
+            .metadata
             .attributes
             .set("float".into(), AttributeValue::String("right".into()));
-        assert_eq!(block_image_alignment(&metadata), BlockImageAlignment::Right);
+        assert_eq!(
+            block_image_alignment(Some(ImageRef::from(&image).attributes())),
+            BlockImageAlignment::Right
+        );
 
-        metadata
+        image
+            .metadata
             .attributes
             .set("float".into(), AttributeValue::String("invalid".into()));
-        metadata
+        image
+            .metadata
             .attributes
             .set("align".into(), AttributeValue::String("center".into()));
         assert_eq!(
-            block_image_alignment(&metadata),
+            block_image_alignment(Some(ImageRef::from(&image).attributes())),
             BlockImageAlignment::Center
         );
     }
