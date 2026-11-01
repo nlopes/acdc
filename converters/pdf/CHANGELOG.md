@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Inline formatting, links, footnotes, and index entries preserve their PDF text and
+  destinations when read through the typed parser API.
+
 - PDF asset diagnostics retain metadata source spans and include provenance for
   custom admonition icons.
 

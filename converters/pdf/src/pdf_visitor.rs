@@ -8,30 +8,33 @@ use acdc_converters_core::substitutions::{SubsFlags, apply_replacements, effecti
 use acdc_converters_core::{
     Diagnostics, Doctype, InlineTextTransform, TraversalContext,
     code::{
-        CodeLinkTarget, SourceLineOptions, code_inline_children, detect_language,
-        resolve_code_link, source_line_count,
+        CodeLinkTarget, SourceLineOptions, code_inline_content, detect_language, resolve_code_link,
+        source_line_count,
     },
     document_attribute_text,
-    icon::{IconMode, alt as icon_alt, image_source as icon_image_source},
+    icon::{IconMode, image_source as icon_image_source},
     inlines_to_string,
     link::{autolink_fallback, link_fallback, mailto_fallback, mailto_target},
     list::OrderedListNumbering,
     section::effective_section_level,
     shows_block_title,
-    substitutions::{Replacements, TextBoundaries, apply_passthrough_replacements},
+    substitutions::{Replacements, TextBoundaries, apply_passthrough_replacements_iter},
     table::{CellKind, GridRow, build_grid, determine_column_count},
     toc::{Config as TocConfig, NumberingConfig, effective_level, has_real_parts, section_numbers},
-    visitor::Visitor,
+    visitor::InlineVisitor,
     xref::{XrefDisplay, interdocument_xref, resolve_xref},
 };
 use acdc_parser::{
-    Anchor, AttributeValue, Autolink, Block, BlockMetadata, Caption, CaptionKind, ColumnStyle,
-    ColumnWidth, CrossReference, DelimitedBlock, DelimitedBlockType, DescriptionList,
-    DescriptionListItem, ElementAttributes, HorizontalAlignment, Icon, Image, IndexTerm,
-    IndexTermRelationship, InlineImage, InlineMacro, InlineNode, ListItem, Location, Menu,
-    PageBreak, Paragraph, Raw, Section, SectionKind, Source, Substitution, Table, TableColumn,
-    TableFrame, TableGrid, TableOfContents, TablePresentation, TableStripes, Title, TocEntry,
-    VerticalAlignment,
+    Anchor, AttributeValue, Block, BlockMetadata, Caption, CaptionKind, ColumnStyle, ColumnWidth,
+    DelimitedBlock, DelimitedBlockType, DescriptionList, DescriptionListItem, HorizontalAlignment,
+    Image, IndexTerm, InlineNode, ListItem, Location, PageBreak, Paragraph, Section, SectionKind,
+    Source, Substitution, Table, TableColumn, TableFrame, TableGrid, TableOfContents,
+    TablePresentation, TableStripes, Title, TocEntry, VerticalAlignment,
+    ast::{
+        AttributeValueRef, AttributesRef, AutolinkRef, ContentRef, CrossReferenceRef, ElementIdRef,
+        FootnoteRef, IconRef, ImageRef, IndexTermRef, IndexTermRelationshipRef, InlineImageRef,
+        InlineKind, InlineRef, LocationRef, MenuRef, RawRef,
+    },
 };
 use acdc_pdf_images::ImageMap;
 use acdc_pdf_theme::{
@@ -58,16 +61,17 @@ struct CodeText {
 }
 
 impl CodeText {
-    fn push_inline_text(&mut self, node: &InlineNode<'_>, boundaries: TextBoundaries) {
+    fn push_inline_text(&mut self, node: InlineRef<'_>, boundaries: TextBoundaries) {
         let start = self.source.len();
-        let decode = matches!(node, InlineNode::RawText(raw) if raw.subs.is_empty());
+        let decode =
+            matches!(node.kind(), InlineKind::Raw(raw) if raw.substitutions().next().is_none());
         let _ = InlineTextTransform::default()
             .line_break("\n")
             .rendered_replacements(false)
             .text_boundaries(boundaries)
             .decode_char_refs(decode)
-            .write(&mut self.source, std::slice::from_ref(node));
-        if matches!(node, InlineNode::RawText(_)) {
+            .write_inlines(&mut self.source, std::iter::once(node));
+        if matches!(node.kind(), InlineKind::Raw(_)) {
             // Raw fragments have already followed their own profile.
             self.protected.push(start..self.source.len());
         }
@@ -833,6 +837,22 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         traversal: &mut TraversalContext<'a>,
         nodes: &[InlineNode<'_>],
     ) -> Result<(), Error> {
+        self.write_inline_refs(traversal, nodes.iter().map(InlineRef::from))
+    }
+
+    fn write_content(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        content: ContentRef<'_>,
+    ) -> Result<(), Error> {
+        self.write_inline_refs(traversal, content.inlines())
+    }
+
+    pub(crate) fn write_inline_refs<'inline>(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        nodes: impl DoubleEndedIterator<Item = InlineRef<'inline>> + ExactSizeIterator + Clone,
+    ) -> Result<(), Error> {
         let previous_boundaries = self.text_boundaries;
         #[cfg(feature = "pre-spec-subs")]
         let replacements = self
@@ -842,9 +862,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             .contains(SubsFlags::REPLACEMENTS);
         #[cfg(not(feature = "pre-spec-subs"))]
         let replacements = true;
-
+        let siblings = nodes.clone();
         let result = (|| {
-            for (index, node) in nodes.iter().enumerate() {
+            for (index, node) in nodes.enumerate() {
                 let boundaries = if self.in_inline_span {
                     TextBoundaries::NONE
                 } else {
@@ -852,8 +872,12 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 };
                 self.text_boundaries = boundaries
                     .with_ordinary_replacements(replacements)
-                    .for_inline(nodes, index);
-                self.visit_inline_node(traversal, node)?;
+                    .for_inline_refs(
+                        Some(node),
+                        siblings.clone().take(index).rev(),
+                        siblings.clone().skip(index + 1),
+                    );
+                InlineVisitor::visit_inline_node(self, traversal, node)?;
             }
             Ok(())
         })();
@@ -872,7 +896,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     pub(crate) fn write_inline_verbatim_nodes(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        nodes: &[InlineNode<'_>],
+        nodes: ContentRef<'_>,
     ) -> Result<(), Error> {
         let mut code = self.inline_verbatim_text(traversal, nodes)?;
         let mut positions = code
@@ -979,20 +1003,20 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     fn inline_verbatim_text(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        nodes: &[InlineNode<'_>],
+        nodes: ContentRef<'_>,
     ) -> Result<CodeText, Error> {
         let mut code = CodeText::default();
         let transform = InlineTextTransform::default().rendered_replacements(false);
-        for node in nodes {
-            if let InlineNode::InlineAnchor(anchor) = node {
+        for node in nodes.inlines() {
+            if let InlineKind::Anchor(anchor) = node.kind() {
                 code.links.push(CodeSpan {
                     range: code.source.len()..code.source.len(),
-                    anchor: Some(anchor.id.to_owned()),
+                    anchor: Some(anchor.id().to_owned()),
                     ..CodeSpan::default()
                 });
-            } else if let InlineNode::Macro(inline_macro @ InlineMacro::Footnote(_)) = node {
-                self.collect_code_footnote(traversal, inline_macro, &mut code)?;
-            } else if let Some(children) = code_inline_children(node) {
+            } else if let InlineKind::Footnote(footnote) = node.kind() {
+                self.collect_code_footnote(traversal, footnote, &mut code)?;
+            } else if let Some(children) = code_inline_content(node) {
                 let child = self.inline_verbatim_text(traversal, children)?;
                 code.append(self.format_code_text(node, child));
             } else if let Some(link) = resolve_code_link(
@@ -1001,7 +1025,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 code_output_extension(traversal),
             ) {
                 let mut child = if let Some(children) =
-                    code_link_children(node).filter(|nodes| !nodes.is_empty())
+                    code_link_content(node).filter(|nodes| !nodes.is_empty())
                 {
                     self.inline_verbatim_text(traversal, children)?
                 } else {
@@ -1022,7 +1046,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 });
                 code.append(child);
             } else {
-                let _ = transform.write(&mut code.source, std::slice::from_ref(node));
+                let _ = transform.write_inlines(&mut code.source, std::iter::once(node));
             }
         }
         Ok(code)
@@ -1031,11 +1055,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     fn collect_code_footnote(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        inline_macro: &InlineMacro<'_>,
+        footnote: FootnoteRef<'_>,
         code: &mut CodeText,
     ) -> Result<(), Error> {
         let output = replace(&mut self.writer, Writer::new());
-        let result = self.write_inline_macro(traversal, inline_macro);
+        let result = self.write_footnote(traversal, footnote);
         let markup = replace(&mut self.writer, output).into_string();
         result?;
         let start = code.source.len();
@@ -1185,10 +1209,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         self.write_text_expr(&acdc_converters_core::decode_numeric_char_refs(&text));
     }
 
-    pub(crate) fn write_raw(&mut self, raw: &Raw<'_>) {
-        let mut text = raw.content.to_string();
+    pub(crate) fn write_raw(&mut self, raw: RawRef<'_>) {
+        let mut text = raw.text().to_string();
         let mut applied_special_chars = false;
-        for substitution in &raw.subs {
+        for substitution in raw.substitutions() {
             match substitution {
                 Substitution::SpecialChars => {
                     if applied_special_chars {
@@ -1200,9 +1224,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     applied_special_chars = true;
                 }
                 Substitution::Replacements => {
-                    text = apply_passthrough_replacements(
+                    text = apply_passthrough_replacements_iter(
                         &text,
-                        &raw.subs,
+                        raw.substitutions(),
                         &Replacements::unicode(),
                         self.text_boundaries,
                     )
@@ -1227,18 +1251,18 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         }
     }
 
-    pub(crate) fn write_quoted_span(
+    pub(crate) fn write_quoted_span<'inline>(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        id: Option<&str>,
+        id: Option<ElementIdRef<'_>>,
         role: Option<&str>,
         prefix: &str,
-        nodes: &[InlineNode<'_>],
+        nodes: impl DoubleEndedIterator<Item = InlineRef<'inline>> + ExactSizeIterator + Clone,
         suffix: &str,
     ) -> Result<(), Error> {
-        let state = self.write_inline_span_start(id, role);
+        let state = self.write_inline_span_start(id.map(ElementIdRef::as_str), role);
         self.writer.raw(prefix);
-        self.write_inlines(traversal, nodes)?;
+        self.write_inline_refs(traversal, nodes)?;
         self.writer.raw(suffix);
         self.write_inline_span_end(state);
         Ok(())
@@ -1996,7 +2020,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             protected,
         } = self.collect_code_text(
             traversal,
-            nodes,
+            nodes.iter().map(InlineRef::from),
             &extension,
             line_comment.as_deref(),
             false,
@@ -2068,10 +2092,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         })
     }
 
-    fn collect_code_text(
+    fn collect_code_text<'inline>(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        nodes: &[InlineNode<'_>],
+        nodes: impl DoubleEndedIterator<Item = InlineRef<'inline>> + ExactSizeIterator + Clone,
         extension: &str,
         line_comment: Option<&str>,
         suppress_indexes: bool,
@@ -2079,32 +2103,36 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     ) -> Result<CodeText, Error> {
         let mut code = CodeText::default();
 
-        for (index, node) in nodes.iter().enumerate() {
-            let boundaries = boundaries.for_inline(nodes, index);
-            if !suppress_indexes && let InlineNode::Macro(InlineMacro::IndexTerm(term)) = node {
+        let siblings = nodes.clone();
+        for (index, node) in nodes.enumerate() {
+            let boundaries = boundaries.for_inline_refs(
+                Some(node),
+                siblings.clone().take(index).rev(),
+                siblings.clone().skip(index + 1),
+            );
+            if !suppress_indexes && let InlineKind::IndexTerm(term) = node.kind() {
                 let entry = self.render_index_entry(traversal, term)?;
                 if let Some(anchor) = self.index_catalog.add(entry) {
                     code.indexes.push((code.source.len(), anchor));
                 }
             }
-            if let InlineNode::InlineAnchor(anchor) = node {
+            if let InlineKind::Anchor(anchor) = node.kind() {
                 code.links.push(CodeSpan {
                     range: code.source.len()..code.source.len(),
                     target: None,
-                    anchor: Some(anchor.id.to_owned()),
+                    anchor: Some(anchor.id().to_owned()),
                     replacement: Some(String::new()),
                     ..CodeSpan::default()
                 });
-            } else if let InlineNode::Macro(inline_macro @ InlineMacro::Footnote(_)) = node {
-                self.collect_code_footnote(traversal, inline_macro, &mut code)?;
-            } else if let Some(children) = code_inline_children(node) {
+            } else if let InlineKind::Footnote(footnote) = node.kind() {
+                self.collect_code_footnote(traversal, footnote, &mut code)?;
+            } else if let Some(children) = code_inline_content(node) {
                 let child = self.collect_code_text(
                     traversal,
-                    children,
+                    children.inlines(),
                     extension,
                     line_comment,
-                    suppress_indexes
-                        || matches!(node, InlineNode::Macro(InlineMacro::IndexTerm(_))),
+                    suppress_indexes || matches!(node.kind(), InlineKind::IndexTerm(_)),
                     boundaries,
                 )?;
                 code.append(self.format_code_text(node, child));
@@ -2112,11 +2140,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 resolve_code_link(node, &self.processor.references, extension)
             {
                 let mut child = if let Some(children) =
-                    code_link_children(node).filter(|nodes| !nodes.is_empty())
+                    code_link_content(node).filter(|nodes| !nodes.is_empty())
                 {
                     self.collect_code_text(
                         traversal,
-                        children,
+                        children.inlines(),
                         extension,
                         line_comment,
                         suppress_indexes,
@@ -2134,29 +2162,31 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     ..CodeSpan::default()
                 });
                 code.append(child);
-            } else if let InlineNode::VerbatimText(verbatim) = node {
-                let mut content = verbatim.content;
+            } else if let InlineKind::Verbatim(verbatim) = node.kind() {
+                let mut content = verbatim.text();
                 if index
                     .checked_sub(1)
-                    .is_some_and(|previous| is_xml_callout(nodes, previous))
+                    .is_some_and(|previous| is_xml_callout(siblings.clone(), previous))
                 {
                     content = content.strip_prefix("-->").unwrap_or(content);
                 }
-                if index
-                    .checked_add(1)
-                    .is_some_and(|next| matches!(nodes.get(next), Some(InlineNode::CalloutRef(_))))
-                {
+                if index.checked_add(1).is_some_and(|next| {
+                    matches!(
+                        siblings.clone().nth(next).map(InlineRef::kind),
+                        Some(InlineKind::Callout(_))
+                    )
+                }) {
                     if index
                         .checked_add(1)
-                        .is_some_and(|next| is_xml_callout(nodes, next))
+                        .is_some_and(|next| is_xml_callout(siblings.clone(), next))
                     {
                         content = content.strip_suffix("<!--").unwrap_or(content);
                     }
                     content = strip_pdf_callout_guard(content, line_comment);
                 }
                 code.source.push_str(content);
-            } else if let InlineNode::CalloutRef(callout) = node {
-                let _ = write!(code.source, "({})", callout.number);
+            } else if let InlineKind::Callout(callout) = node.kind() {
+                let _ = write!(code.source, "({})", callout.number());
             } else {
                 code.push_inline_text(node, boundaries);
             }
@@ -2165,10 +2195,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         Ok(code)
     }
 
-    fn format_code_text(&mut self, node: &InlineNode<'_>, mut text: CodeText) -> CodeText {
-        let quotes = if matches!(node, InlineNode::CurvedQuotationText(_)) {
+    fn format_code_text(&mut self, node: InlineRef<'_>, mut text: CodeText) -> CodeText {
+        let quotes = if matches!(node.kind(), InlineKind::CurvedQuotation(_)) {
             Some(("“", "”"))
-        } else if matches!(node, InlineNode::CurvedApostropheText(_)) {
+        } else if matches!(node.kind(), InlineKind::CurvedApostrophe(_)) {
             Some(("‘", "’"))
         } else {
             None
@@ -2188,45 +2218,84 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         text
     }
 
-    fn code_formatting(&mut self, node: &InlineNode<'_>) -> Option<CodeSpan> {
-        let (id, role, prefix, suffix) = match node {
-            InlineNode::BoldText(text) => {
-                (text.id.as_ref().map(|id| id.id), text.role, "#strong[", "]")
-            }
-            InlineNode::ItalicText(text) => {
-                (text.id.as_ref().map(|id| id.id), text.role, "#emph[", "]")
-            }
-            InlineNode::MonospaceText(text) => {
-                (text.id.as_ref().map(|id| id.id), text.role, "", "")
-            }
-            InlineNode::HighlightText(text) => {
-                let (prefix, suffix) = if text.id.is_none() && text.role.is_none() {
+    fn code_formatting(&mut self, node: InlineRef<'_>) -> Option<CodeSpan> {
+        let (id, role, prefix, suffix) = match node.kind() {
+            InlineKind::Bold(text) => (
+                text.id().map(acdc_parser::ast::ElementIdRef::as_str),
+                text.role(),
+                "#strong[",
+                "]",
+            ),
+            InlineKind::Italic(text) => (
+                text.id().map(acdc_parser::ast::ElementIdRef::as_str),
+                text.role(),
+                "#emph[",
+                "]",
+            ),
+            InlineKind::Monospace(text) => (
+                text.id().map(acdc_parser::ast::ElementIdRef::as_str),
+                text.role(),
+                "",
+                "",
+            ),
+            InlineKind::Highlight(text) => {
+                let (prefix, suffix) = if text.id().is_none() && text.role().is_none() {
                     ("#highlight[", "]")
                 } else {
                     ("", "")
                 };
-                (text.id.as_ref().map(|id| id.id), text.role, prefix, suffix)
+                (
+                    text.id().map(acdc_parser::ast::ElementIdRef::as_str),
+                    text.role(),
+                    prefix,
+                    suffix,
+                )
             }
-            InlineNode::SuperscriptText(text) => {
-                (text.id.as_ref().map(|id| id.id), text.role, "#super[", "]")
-            }
-            InlineNode::SubscriptText(text) => {
-                (text.id.as_ref().map(|id| id.id), text.role, "#sub[", "]")
-            }
-            InlineNode::CurvedQuotationText(text) => {
-                (text.id.as_ref().map(|id| id.id), text.role, "", "")
-            }
-            InlineNode::CurvedApostropheText(text) => {
-                (text.id.as_ref().map(|id| id.id), text.role, "", "")
-            }
-            InlineNode::PlainText(_)
-            | InlineNode::RawText(_)
-            | InlineNode::VerbatimText(_)
-            | InlineNode::StandaloneCurvedApostrophe(_)
-            | InlineNode::LineBreak(_)
-            | InlineNode::InlineAnchor(_)
-            | InlineNode::Macro(_)
-            | InlineNode::CalloutRef(_)
+            InlineKind::Superscript(text) => (
+                text.id().map(acdc_parser::ast::ElementIdRef::as_str),
+                text.role(),
+                "#super[",
+                "]",
+            ),
+            InlineKind::Subscript(text) => (
+                text.id().map(acdc_parser::ast::ElementIdRef::as_str),
+                text.role(),
+                "#sub[",
+                "]",
+            ),
+            InlineKind::CurvedQuotation(text) => (
+                text.id().map(acdc_parser::ast::ElementIdRef::as_str),
+                text.role(),
+                "",
+                "",
+            ),
+            InlineKind::CurvedApostrophe(text) => (
+                text.id().map(acdc_parser::ast::ElementIdRef::as_str),
+                text.role(),
+                "",
+                "",
+            ),
+            InlineKind::Plain(_)
+            | InlineKind::Raw(_)
+            | InlineKind::Verbatim(_)
+            | InlineKind::StandaloneCurvedApostrophe(_)
+            | InlineKind::LineBreak(_)
+            | InlineKind::Anchor(_)
+            | InlineKind::Callout(_)
+            | InlineKind::Footnote(_)
+            | InlineKind::Icon(_)
+            | InlineKind::Image(_)
+            | InlineKind::Keyboard(_)
+            | InlineKind::Button(_)
+            | InlineKind::Menu(_)
+            | InlineKind::Url(_)
+            | InlineKind::Link(_)
+            | InlineKind::Mailto(_)
+            | InlineKind::Autolink(_)
+            | InlineKind::CrossReference(_)
+            | InlineKind::Pass(_)
+            | InlineKind::Stem(_)
+            | InlineKind::IndexTerm(_)
             | _ => return None,
         };
         // Reuse prose role handling, but attach the ID once when the code span
@@ -3646,7 +3715,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             .get_string("link")
             .filter(|target| !target.is_empty());
         if let Some(asset) = self.assets.get(&source) {
-            let width = image_width(&image.metadata.attributes, true);
+            let width = image_width(ImageRef::from(image).attributes(), true);
             let alignment = block_image_alignment(&image.metadata);
             let align_to_page = image.metadata.options.contains(&"align-to-page");
             let uses_doc_image = !align_to_page
@@ -3841,23 +3910,20 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     pub(crate) fn write_inline_image(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        image: &InlineImage<'_>,
+        image: InlineImageRef<'_>,
     ) -> Result<(), Error> {
-        let source = Self::static_media_source_target(traversal, &image.source);
-        let alt = inline_image_alt(image);
-        let link = image
-            .attributes()
-            .get_string("link")
-            .filter(|target| !target.is_empty());
+        let source = Self::static_media_target(traversal, &image.source().to_string());
+        let alt = acdc_converters_core::media::image_alt_from_content(image.source(), image.alt());
+        let link = attribute_text(image.attributes(), "link").filter(|target| !target.is_empty());
         if let Some(asset) = self.assets.get(&source) {
-            let fit = image.attributes().get_string("fit").unwrap_or_default();
+            let fit = attribute_text(image.attributes(), "fit").unwrap_or_default();
             let fit_line = fit == "line";
             if fit == "none" {
                 self.warn_unsupported_once(
                     "inline-image-fit-none",
                     "inline image `fit=none` page-height sizing is not supported by the PDF backend; rendering with normal intrinsic sizing",
                     "Use `fit=line` to constrain the image to the text line, or use Asciidoctor PDF when the image must use the full page height.",
-                    Some(&image.location),
+                    Some(&image.location().into()),
                 );
             }
             self.writer.raw("#box(");
@@ -3915,8 +3981,8 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 self.writer.string_literal(target);
                 self.writer.raw(")[");
             }
-            if let Some(content) = &image.alt {
-                self.write_inlines(traversal, content)?;
+            if let Some(content) = image.alt() {
+                self.write_content(traversal, content)?;
             } else {
                 self.write_text_expr(&inline_image_fallback_text(image));
             }
@@ -3954,10 +4020,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     fn write_icon(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        icon: &Icon<'_>,
+        icon: IconRef<'_>,
     ) -> Result<(), Error> {
-        let alt = icon_alt(&icon.target, icon.alt.as_ref());
-        let link = icon.attributes().get_string("link");
+        let alt = acdc_converters_core::icon::alt_from_content(icon.target(), icon.alt());
+        let link = attribute_text(icon.attributes(), "link");
         if let Some(target) = &link {
             self.writer.raw("#link(");
             self.writer.string_literal(target);
@@ -3965,8 +4031,8 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         }
         match IconMode::from_attributes(traversal) {
             IconMode::Font => {
-                if let Some(glyph) = builtin_icon_glyph(&icon.target.to_string()) {
-                    match icon.attributes().get_string("size").as_deref() {
+                if let Some(glyph) = builtin_icon_glyph(&icon.target().to_string()) {
+                    match attribute_text(icon.attributes(), "size") {
                         Some("2x") => self.write_sized_icon_glyph(glyph, "2em"),
                         Some("3x") => self.write_sized_icon_glyph(glyph, "3em"),
                         Some("4x") => self.write_sized_icon_glyph(glyph, "4em"),
@@ -3984,9 +4050,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 }
             }
             IconMode::Image => {
-                let source = icon.attributes().get_string("icon").map_or_else(
-                    || icon_image_source(traversal, &icon.target),
-                    |value| acdc_converters_core::icon::custom_image_source(traversal, &value),
+                let source = attribute_text(icon.attributes(), "icon").map_or_else(
+                    || icon_image_source(traversal, icon.target()),
+                    |value| acdc_converters_core::icon::custom_image_source(traversal, value),
                 );
                 if let Some(asset) = self.assets.get(&source) {
                     self.writer.raw("#box(image(");
@@ -4009,12 +4075,12 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     fn write_icon_alternative(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        icon: &Icon<'_>,
+        icon: IconRef<'_>,
         fallback: &str,
     ) -> Result<(), Error> {
         self.write_text_expr("[");
-        if let Some(content) = &icon.alt {
-            self.write_inlines(traversal, content)?;
+        if let Some(content) = icon.alt() {
+            self.write_content(traversal, content)?;
         } else {
             self.write_text_expr(fallback);
         }
@@ -4030,39 +4096,47 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         self.writer.raw("]");
     }
 
+    fn write_footnote(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        footnote: FootnoteRef<'_>,
+    ) -> Result<(), Error> {
+        if self.anchors.suspended {
+            // Copied titles display the parsed marker without defining
+            // another native footnote or duplicating the original label.
+            let _ = write!(self.writer, "#super[{}]", footnote.number());
+        } else if let Some(id) = footnote.id().filter(|_| footnote.content().is_empty()) {
+            // Typst label references reuse the definition's counter value
+            // without advancing the footnote counter.
+            let _ = write!(self.writer, "#footnote(<{}>)", encode_footnote_label(id));
+        } else {
+            let _ = write!(
+                self.writer,
+                "#counter(footnote).update({})",
+                footnote.number().saturating_sub(1)
+            );
+            self.writer.raw("#footnote[");
+            self.write_content(traversal, footnote.content())?;
+            self.writer.raw("]");
+            if let Some(id) = footnote.id() {
+                let _ = write!(self.writer, "<{}>", encode_footnote_label(id));
+            }
+        }
+
+        Ok(())
+    }
+
     pub(crate) fn write_inline_macro(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        inline_macro: &InlineMacro<'_>,
+        node: InlineRef<'_>,
     ) -> Result<(), Error> {
-        match inline_macro {
-            InlineMacro::Footnote(footnote) => {
-                if self.anchors.suspended {
-                    // Copied titles display the parsed marker without defining
-                    // another native footnote or duplicating the original label.
-                    let _ = write!(self.writer, "#super[{}]", footnote.number);
-                } else if let Some(id) = footnote.id.filter(|_| footnote.content.is_empty()) {
-                    // Typst label references reuse the definition's counter value
-                    // without advancing the footnote counter.
-                    let _ = write!(self.writer, "#footnote(<{}>)", encode_footnote_label(id));
-                } else {
-                    let _ = write!(
-                        self.writer,
-                        "#counter(footnote).update({})",
-                        footnote.number.saturating_sub(1)
-                    );
-                    self.writer.raw("#footnote[");
-                    self.write_inlines(traversal, &footnote.content)?;
-                    self.writer.raw("]");
-                    if let Some(id) = footnote.id {
-                        let _ = write!(self.writer, "<{}>", encode_footnote_label(id));
-                    }
-                }
-            }
-            InlineMacro::Icon(icon) => self.write_icon(traversal, icon)?,
-            InlineMacro::Image(image) => self.write_inline_image(traversal, image)?,
-            InlineMacro::Keyboard(keyboard) => {
-                for (index, key) in keyboard.keys.iter().enumerate() {
+        match node.kind() {
+            InlineKind::Footnote(footnote) => self.write_footnote(traversal, footnote)?,
+            InlineKind::Icon(icon) => self.write_icon(traversal, icon)?,
+            InlineKind::Image(image) => self.write_inline_image(traversal, image)?,
+            InlineKind::Keyboard(keyboard) => {
+                for (index, key) in keyboard.keys().enumerate() {
                     if index > 0 {
                         self.write_text_expr("\u{202f}+\u{202f}");
                     }
@@ -4072,67 +4146,82 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     self.writer.string_literal(&self.palette.border);
                     self.writer
                         .raw("), radius: 2pt, inset: (x: 2pt, y: 0.5pt))[");
-                    self.write_inlines(traversal, key)?;
+                    self.write_content(traversal, key)?;
                     self.writer.raw("]");
                 }
             }
-            InlineMacro::Button(button) => {
+            InlineKind::Button(button) => {
                 self.writer.raw("#strong[\\[\u{2009}");
-                self.write_inlines(traversal, &button.label)?;
+                self.write_content(traversal, button.label())?;
                 self.writer.raw("\u{2009}\\]]");
             }
-            InlineMacro::Menu(menu) => self.write_menu(traversal, menu)?,
-            InlineMacro::Url(url) => {
-                let target = url.target.to_string();
+            InlineKind::Menu(menu) => self.write_menu(traversal, menu)?,
+            InlineKind::Url(url) => {
+                let target = url.target().to_string();
                 let fallback = link_fallback(&target, url.hides_uri_scheme());
                 self.write_link(
                     traversal,
                     &target,
-                    &url.text,
-                    Some(&url.metadata),
-                    Some(&url.location),
+                    Some(url.text()),
+                    Some(url.attributes()),
+                    Some(url.location()),
                     fallback,
                 )?;
             }
-            InlineMacro::Link(link) => {
-                let target = link.target.to_string();
+            InlineKind::Link(link) => {
+                let target = link.target().to_string();
                 let fallback = link_fallback(&target, link.hides_uri_scheme());
                 self.write_link(
                     traversal,
                     &target,
-                    &link.text,
-                    Some(&link.metadata),
-                    Some(&link.location),
+                    Some(link.text()),
+                    Some(link.attributes()),
+                    Some(link.location()),
                     fallback,
                 )?;
             }
-            InlineMacro::Mailto(mailto) => {
-                let target = mailto.target.to_string();
+            InlineKind::Mailto(mailto) => {
+                let target = mailto.target().to_string();
                 let fallback = mailto_fallback(&target);
                 self.write_link(
                     traversal,
-                    &mailto_target(mailto.as_ref()),
-                    &mailto.text,
-                    Some(&mailto.metadata),
-                    Some(&mailto.location),
+                    &mailto_target(mailto),
+                    Some(mailto.text()),
+                    Some(mailto.attributes()),
+                    Some(mailto.location()),
                     fallback,
                 )?;
             }
-            InlineMacro::Autolink(autolink) => self.write_autolink(traversal, autolink)?,
-            InlineMacro::CrossReference(xref) => self.write_cross_reference(traversal, xref)?,
-            InlineMacro::Pass(pass) => {
-                if let Some(text) = pass.text {
+            InlineKind::Autolink(autolink) => self.write_autolink(traversal, autolink)?,
+            InlineKind::CrossReference(xref) => self.write_cross_reference(traversal, xref)?,
+            InlineKind::Pass(pass) => {
+                if let Some(text) = pass.text() {
                     self.write_text_expr(text);
                 }
             }
-            InlineMacro::Stem(stem) => {
-                self.write_stem_fallback(stem.content, false, Some(&stem.location));
+            InlineKind::Stem(stem) => {
+                self.write_stem_fallback(stem.text(), false, Some(&stem.location().into()));
             }
-            InlineMacro::IndexTerm(term) => {
+            InlineKind::IndexTerm(term) => {
                 self.write_index_term(traversal, term)?;
             }
-            _ => {
-                self.warn_unsupported_parser_variant("inline macro", Some(inline_macro.location()));
+            InlineKind::Plain(_)
+            | InlineKind::Raw(_)
+            | InlineKind::Verbatim(_)
+            | InlineKind::Bold(_)
+            | InlineKind::Italic(_)
+            | InlineKind::Monospace(_)
+            | InlineKind::Highlight(_)
+            | InlineKind::Subscript(_)
+            | InlineKind::Superscript(_)
+            | InlineKind::CurvedQuotation(_)
+            | InlineKind::CurvedApostrophe(_)
+            | InlineKind::StandaloneCurvedApostrophe(_)
+            | InlineKind::LineBreak(_)
+            | InlineKind::Anchor(_)
+            | InlineKind::Callout(_)
+            | _ => {
+                self.warn_unsupported_parser_variant("inline macro", Some(&node.location().into()));
             }
         }
         Ok(())
@@ -4141,7 +4230,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     fn write_index_term(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        term: &IndexTerm<'_>,
+        term: IndexTermRef<'_>,
     ) -> Result<(), Error> {
         if !self.index_catalog.is_suspended() {
             let entry = self.render_index_entry(traversal, term)?;
@@ -4151,7 +4240,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             }
         }
         if term.is_visible() {
-            self.write_inlines(traversal, term.term())?;
+            self.write_content(traversal, term.term())?;
         }
         Ok(())
     }
@@ -4161,7 +4250,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         traversal: &mut TraversalContext<'a>,
         term: &IndexTerm<'_>,
     ) -> Result<(), Error> {
-        let entry = self.render_index_entry(traversal, term)?;
+        let entry = self.render_index_entry(traversal, term.into())?;
         self.index_catalog.register(entry);
         Ok(())
     }
@@ -4169,9 +4258,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     fn render_index_entry(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        term: &IndexTerm<'_>,
+        term: IndexTermRef<'_>,
     ) -> Result<CatalogEntry, Error> {
-        let term = term.catalog_entry();
+        let term = term.catalog();
         let primary = self.render_index_catalog_term(traversal, term.term())?;
         let secondary = term
             .secondary()
@@ -4181,11 +4270,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             .tertiary()
             .map(|inlines| self.render_index_catalog_term(traversal, inlines))
             .transpose()?;
-        let relationship = match term.relationship.as_ref() {
-            Some(IndexTermRelationship::See { target }) => {
+        let relationship = match term.relationship() {
+            Some(IndexTermRelationshipRef::See { target }) => {
                 CatalogRelationship::See(self.render_index_catalog_term(traversal, target)?)
             }
-            Some(IndexTermRelationship::SeeAlso { targets }) => CatalogRelationship::SeeAlso(
+            Some(IndexTermRelationshipRef::SeeAlso { targets }) => CatalogRelationship::SeeAlso(
                 targets
                     .iter()
                     .map(|target| self.render_index_catalog_term(traversal, target))
@@ -4204,14 +4293,14 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     fn render_index_catalog_term(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        inlines: &[InlineNode<'_>],
+        inlines: ContentRef<'_>,
     ) -> Result<CatalogTerm, Error> {
-        let plain = InlineTextTransform::default().to_string(inlines);
+        let plain = InlineTextTransform::default().content_to_string(inlines);
         let output = replace(&mut self.writer, Writer::new());
         let previous = self.index_catalog.set_suspended(true);
         let boundaries = replace(&mut self.text_boundaries, TextBoundaries::BOTH);
         let in_span = replace(&mut self.in_inline_span, false);
-        let result = self.write_inlines(traversal, inlines);
+        let result = self.write_content(traversal, inlines);
         self.text_boundaries = boundaries;
         self.in_inline_span = in_span;
         self.index_catalog.set_suspended(previous);
@@ -4223,13 +4312,13 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     fn write_menu(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        menu: &Menu<'_>,
+        menu: MenuRef<'_>,
     ) -> Result<(), Error> {
-        let mut parts = Vec::with_capacity(menu.items.len() + 1);
-        parts.push(&menu.target);
-        parts.extend(menu.items.iter());
         self.writer.raw("#strong[");
-        for (index, part) in parts.into_iter().enumerate() {
+        for (index, part) in std::iter::once(menu.target())
+            .chain(menu.items())
+            .enumerate()
+        {
             if index > 0 {
                 self.write_text_expr(" ");
                 self.writer.raw("#text(size: 1.15em, fill: rgb(");
@@ -4237,7 +4326,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 self.writer.raw("))[\u{203a}]");
                 self.write_text_expr(" ");
             }
-            self.write_inlines(traversal, part)?;
+            self.write_content(traversal, part)?;
         }
         self.writer.raw("]");
         Ok(())
@@ -4246,15 +4335,18 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     fn write_autolink(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        autolink: &Autolink<'_>,
+        autolink: AutolinkRef<'_>,
     ) -> Result<(), Error> {
-        let target = autolink.url.to_string();
-        let (fallback, angle_brackets) =
-            autolink_fallback(&target, autolink.bracketed, autolink.hides_uri_scheme());
+        let target = autolink.target().to_string();
+        let (fallback, angle_brackets) = autolink_fallback(
+            &target,
+            autolink.is_bracketed(),
+            autolink.hides_uri_scheme(),
+        );
         if angle_brackets {
             self.write_text_expr("<");
         }
-        self.write_link(traversal, &target, &[], None, None, fallback)?;
+        self.write_link(traversal, &target, None, None, None, fallback)?;
         if angle_brackets {
             self.write_text_expr(">");
         }
@@ -4271,30 +4363,19 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     fn write_cross_reference(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        xref: &CrossReference<'_>,
+        xref: CrossReferenceRef<'_>,
     ) -> Result<(), Error> {
         // Clone the handles so the borrowed reference text and the resolution
         // guard both outlive the `&mut self` render calls.
         let references = Rc::clone(&self.processor.references);
         let guard = self.processor.xref_guard.clone();
-        let target = xref.target;
+        let target = xref.target();
 
-        if xref.target_is_local && target.is_empty() {
-            if guard.is_resolving() {
-                self.write_text_expr("[^top]");
-                return Ok(());
-            }
-            self.writer.raw("#link((page: 1, x: 0pt, y: 0pt))[");
-            if xref.text.is_empty() {
-                self.write_text_expr("[^top]");
-            } else {
-                self.write_inlines(traversal, &xref.text)?;
-            }
-            self.writer.raw("]");
-            return Ok(());
+        if xref.target_is_local() && target.is_empty() {
+            return self.write_document_top_reference(traversal, xref.text());
         }
 
-        if xref.text.is_empty()
+        if xref.text().is_empty()
             && references
                 .get(target)
                 .is_some_and(acdc_parser::Reference::is_bibliography)
@@ -4306,19 +4387,19 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             let _ = write!(self.writer, "#metadata(none) <{label}>");
         }
 
-        if !xref.text.is_empty() {
-            if !xref.target_is_local
+        if !xref.text().is_empty() {
+            if !xref.target_is_local()
                 && let Some((external_target, _)) = Self::interdocument_xref(traversal, target)
             {
                 self.write_external_link(&external_target, |visitor| {
-                    visitor.write_inlines(traversal, &xref.text)
+                    visitor.write_content(traversal, xref.text())
                 })?;
             } else if references.contains_key(target) {
                 self.write_labelled_link(target, |visitor| {
-                    visitor.write_inlines(traversal, &xref.text)
+                    visitor.write_content(traversal, xref.text())
                 })?;
             } else {
-                self.write_inlines(traversal, &xref.text)?;
+                self.write_content(traversal, xref.text())?;
             }
             return Ok(());
         }
@@ -4347,7 +4428,14 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                         visitor.write_text_expr(&prefix);
                         visitor.write_text_expr(", ");
                     }
-                    visitor.write_quoted_span(traversal, None, None, "#emph[", inlines, "]")?;
+                    visitor.write_quoted_span(
+                        traversal,
+                        None,
+                        None,
+                        "#emph[",
+                        inlines.iter().map(InlineRef::from),
+                        "]",
+                    )?;
                     Ok(())
                 })
             }
@@ -4374,6 +4462,25 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         self.anchors.suspended = previous_anchors;
         self.index_catalog.set_suspended(previous);
         result
+    }
+
+    fn write_document_top_reference(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        text: ContentRef<'_>,
+    ) -> Result<(), Error> {
+        if self.processor.xref_guard.is_resolving() {
+            self.write_text_expr("[^top]");
+            return Ok(());
+        }
+        self.writer.raw("#link((page: 1, x: 0pt, y: 0pt))[");
+        if text.is_empty() {
+            self.write_text_expr("[^top]");
+        } else {
+            self.write_content(traversal, text)?;
+        }
+        self.writer.raw("]");
+        Ok(())
     }
 
     fn interdocument_xref(
@@ -4426,49 +4533,61 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         &mut self,
         traversal: &mut TraversalContext<'a>,
         target: &str,
-        text: &[InlineNode<'_>],
-        metadata: Option<&acdc_parser::InlineMetadata<'_>>,
-        location: Option<&Location>,
+        text: Option<ContentRef<'_>>,
+        metadata: Option<AttributesRef<'_>>,
+        location: Option<LocationRef<'_>>,
         fallback: &str,
     ) -> Result<(), Error> {
         let id = metadata
-            .and_then(|metadata| {
-                metadata
-                    .id
-                    .as_ref()
-                    .map(|id| acdc_parser::strip_quotes(id.id))
+            .and_then(|metadata| metadata.get("id"))
+            .and_then(|value| {
+                if let AttributeValueRef::Text(id) = value {
+                    Some(acdc_parser::strip_quotes(id))
+                } else {
+                    None
+                }
             })
             .filter(|id| {
                 location.is_some_and(|location| {
                     self.processor
                         .references
                         .get(*id)
-                        .is_some_and(|reference| reference.location == *location)
+                        .is_some_and(|reference| LocationRef::from(&reference.location) == location)
                 })
             });
-        let role = metadata
-            .filter(|metadata| !metadata.roles.is_empty())
-            .map(|metadata| acdc_parser::strip_quotes(&metadata.roles.join(" ")).to_owned());
-        let state = self.write_inline_span_start(id, role.as_deref());
-
-        match text {
-            [InlineNode::Macro(InlineMacro::Image(image))]
-                if image.attributes().get_string("link").is_some() =>
+        let mut role = String::new();
+        if let Some(AttributeValueRef::Tokens(roles)) =
+            metadata.and_then(|metadata| metadata.get("role"))
+        {
+            for (index, token) in roles.iter().enumerate() {
+                if index > 0 {
+                    role.push(' ');
+                }
+                role.push_str(token);
+            }
+        }
+        let role = acdc_parser::strip_quotes(&role);
+        let state = self.write_inline_span_start(id, (!role.is_empty()).then_some(role));
+        if let Some(text) = text {
+            let mut nodes = text.inlines();
+            if let Some(node) = nodes.next()
+                && nodes.next().is_none()
+                && let InlineKind::Image(image) = node.kind()
+                && attribute_text(image.attributes(), "link").is_some()
             {
                 self.write_inline_image(traversal, image)?;
                 self.write_inline_span_end(state);
                 return Ok(());
             }
-            _ => {}
         }
 
         self.writer.raw("#link(");
         self.writer.string_literal(target);
         self.writer.raw(")[");
-        if text.is_empty() {
-            self.write_text_expr(fallback);
+        if let Some(text) = text.filter(|text| !text.is_empty()) {
+            self.write_content(traversal, text)?;
         } else {
-            self.write_inlines(traversal, text)?;
+            self.write_text_expr(fallback);
         }
         self.writer.raw("]");
         self.write_inline_span_end(state);
@@ -4753,26 +4872,13 @@ pub(crate) fn collapse_source_whitespace(text: &str) -> Cow<'_, str> {
     Cow::Owned(collapsed)
 }
 
-fn code_link_children<'n, 'a>(node: &'n InlineNode<'a>) -> Option<&'n [InlineNode<'a>]> {
-    let InlineNode::Macro(inline_macro) = node else {
-        return None;
-    };
-    match inline_macro {
-        InlineMacro::Link(link) => Some(&link.text),
-        InlineMacro::Url(link) => Some(&link.text),
-        InlineMacro::Mailto(link) => Some(&link.text),
-        InlineMacro::CrossReference(link) => Some(&link.text),
-        InlineMacro::Footnote(_)
-        | InlineMacro::Icon(_)
-        | InlineMacro::Image(_)
-        | InlineMacro::Keyboard(_)
-        | InlineMacro::Button(_)
-        | InlineMacro::Menu(_)
-        | InlineMacro::Autolink(_)
-        | InlineMacro::Pass(_)
-        | InlineMacro::Stem(_)
-        | InlineMacro::IndexTerm(_)
-        | _ => None,
+fn code_link_content(node: InlineRef<'_>) -> Option<ContentRef<'_>> {
+    if let Some(link) = node.as_hyperlink() {
+        Some(link.text())
+    } else if let InlineKind::CrossReference(xref) = node.kind() {
+        Some(xref.text())
+    } else {
+        None
     }
 }
 
@@ -5052,20 +5158,13 @@ fn transform_code_text(
     }
 }
 
-fn is_xml_callout(nodes: &[InlineNode<'_>], index: usize) -> bool {
-    matches!(nodes.get(index), Some(InlineNode::CalloutRef(_)))
-        && index.checked_sub(1).is_some_and(|previous| {
-            matches!(
-                nodes.get(previous),
-                Some(InlineNode::VerbatimText(text)) if text.content.ends_with("<!--")
-            )
-        })
-        && index.checked_add(1).is_some_and(|next| {
-            matches!(
-                nodes.get(next),
-                Some(InlineNode::VerbatimText(text)) if text.content.starts_with("-->")
-            )
-        })
+fn is_xml_callout<'inline>(
+    mut nodes: impl Iterator<Item = InlineRef<'inline>> + Clone,
+    index: usize,
+) -> bool {
+    matches!(nodes.clone().nth(index).map(InlineRef::kind), Some(InlineKind::Callout(_)))
+        && index.checked_sub(1).is_some_and(|previous| matches!(nodes.clone().nth(previous).map(InlineRef::kind), Some(InlineKind::Verbatim(text)) if text.text().ends_with("<!--")))
+        && index.checked_add(1).is_some_and(|next| matches!(nodes.nth(next).map(InlineRef::kind), Some(InlineKind::Verbatim(text)) if text.text().starts_with("-->")))
 }
 
 fn strip_pdf_callout_guard<'text>(text: &'text str, prefix: Option<&str>) -> &'text str {
@@ -5128,10 +5227,18 @@ fn asciidoctor_background_colour(role: &str) -> Option<&'static str> {
     }
 }
 
-fn inline_image_fallback_text(image: &InlineImage<'_>) -> String {
-    image.alt.as_ref().map_or_else(
-        || format!("[image: {}]", image.source),
-        |content| acdc_converters_core::inlines_to_string(content),
+fn attribute_text<'doc>(attributes: AttributesRef<'doc>, name: &str) -> Option<&'doc str> {
+    if let Some(AttributeValueRef::Text(value)) = attributes.get(name) {
+        Some(acdc_parser::strip_quotes(value))
+    } else {
+        None
+    }
+}
+
+fn inline_image_fallback_text(image: InlineImageRef<'_>) -> String {
+    image.alt().map_or_else(
+        || format!("[image: {}]", image.source()),
+        |content| InlineTextTransform::default().content_to_string(content),
     )
 }
 
@@ -5157,10 +5264,6 @@ pub(crate) fn builtin_icon_glyph(name: &str) -> Option<&'static str> {
 }
 
 fn block_image_alt<'a>(image: &'a Image<'_>) -> Cow<'a, str> {
-    acdc_converters_core::media::image_alt(&image.source, image.alt.as_ref())
-}
-
-fn inline_image_alt<'a>(image: &InlineImage<'a>) -> Cow<'a, str> {
     acdc_converters_core::media::image_alt(&image.source, image.alt.as_ref())
 }
 
@@ -5192,24 +5295,21 @@ fn block_image_float(metadata: &BlockMetadata<'_>) -> Option<BlockImageAlignment
         .filter(|alignment| *alignment != BlockImageAlignment::Center)
 }
 
-fn image_width(
-    attributes: &ElementAttributes<'_>,
-    supports_viewport_width: bool,
-) -> Option<ImageWidth> {
+fn image_width(attributes: AttributesRef<'_>, supports_viewport_width: bool) -> Option<ImageWidth> {
     if let Some(value) = attributes.get("pdfwidth") {
-        let value = if let AttributeValue::String(value) = value {
-            value.as_ref()
+        let value = if let AttributeValueRef::Text(value) = value {
+            value
         } else {
             ""
         };
         return Some(pdf_image_width(value, supports_viewport_width));
     }
 
-    if let Some(scale) = attributes.get_string("scale") {
-        return Some(ImageWidth::IntrinsicRatio(leading_number(&scale) / 100.0));
+    if let Some(scale) = attribute_text(attributes, "scale") {
+        return Some(ImageWidth::IntrinsicRatio(leading_number(scale) / 100.0));
     }
 
-    if let Some(scaledwidth) = attributes.get_string("scaledwidth") {
+    if let Some(scaledwidth) = attribute_text(attributes, "scaledwidth") {
         if let Some(percentage) = scaledwidth.strip_suffix('%') {
             return Some(ImageWidth::ContainerRatio {
                 value: leading_number(percentage) / 100.0,
@@ -5218,17 +5318,17 @@ fn image_width(
         }
         if scaledwidth.bytes().all(|byte| byte.is_ascii_digit()) {
             return Some(ImageWidth::ContainerRatio {
-                value: leading_number(&scaledwidth) / 100.0,
+                value: leading_number(scaledwidth) / 100.0,
                 constrain_to_bounds: false,
             });
         }
         return Some(ImageWidth::Points {
-            value: measurement_points(&scaledwidth),
+            value: measurement_points(scaledwidth),
             constrain_to_bounds: false,
         });
     }
 
-    let width = attributes.get_string("width")?;
+    let width = attribute_text(attributes, "width")?;
     if let Some(percentage) = width.strip_suffix('%') {
         let percentage = percentage.parse::<f64>().ok()?;
         return (percentage.is_finite() && percentage >= 0.0).then(|| ImageWidth::ContainerRatio {
@@ -5331,14 +5431,18 @@ mod tests {
         long_unbreakable_ranges, measurement_points, prose_whitespace, wrap_code_text,
         wrap_code_text_with_line_origins,
     };
-    use acdc_parser::{AttributeValue, BlockMetadata};
+    use acdc_parser::{AttributeValue, BlockMetadata, ast::ImageRef};
 
-    fn metadata_with_width(width: &'static str) -> BlockMetadata<'static> {
-        let mut metadata = BlockMetadata::default();
-        metadata
+    fn image_with_width(width: &'static str) -> acdc_parser::Image<'static> {
+        let mut image = acdc_parser::Image::new(
+            acdc_parser::Source::Name("bird"),
+            acdc_parser::Location::default(),
+        );
+        image
+            .metadata
             .attributes
             .set("width".into(), AttributeValue::String(width.into()));
-        metadata
+        image
     }
 
     fn assert_measurement(input: &str, expected: f64) {
@@ -5352,21 +5456,21 @@ mod tests {
     #[test]
     fn image_width_matches_asciidoctor_pdf_units() {
         assert_eq!(
-            image_width(&metadata_with_width("120").attributes, true),
+            image_width(ImageRef::from(&image_with_width("120")).attributes(), true),
             Some(ImageWidth::Points {
                 value: 90.0,
                 constrain_to_bounds: true,
             })
         );
         assert_eq!(
-            image_width(&metadata_with_width("40%").attributes, true),
+            image_width(ImageRef::from(&image_with_width("40%")).attributes(), true),
             Some(ImageWidth::ContainerRatio {
                 value: 0.4,
                 constrain_to_bounds: true,
             })
         );
         assert_eq!(
-            image_width(&metadata_with_width("150%").attributes, true),
+            image_width(ImageRef::from(&image_with_width("150%")).attributes(), true),
             Some(ImageWidth::ContainerRatio {
                 value: 1.0,
                 constrain_to_bounds: true,
@@ -5374,7 +5478,10 @@ mod tests {
         );
         for ignored in ["120px", "12.5", "-1", "invalid%"] {
             assert_eq!(
-                image_width(&metadata_with_width(ignored).attributes, true),
+                image_width(
+                    ImageRef::from(&image_with_width(ignored)).attributes(),
+                    true
+                ),
                 None
             );
         }
@@ -5394,12 +5501,13 @@ mod tests {
 
     #[test]
     fn pdfwidth_overrides_width_and_uses_pdf_measurements() {
-        let mut metadata = metadata_with_width("40");
-        metadata
+        let mut image = image_with_width("40");
+        image
+            .metadata
             .attributes
             .set("pdfwidth".into(), AttributeValue::String("60".into()));
         assert_eq!(
-            image_width(&metadata.attributes, true),
+            image_width(ImageRef::from(&image).attributes(), true),
             Some(ImageWidth::Points {
                 value: 60.0,
                 constrain_to_bounds: false,
@@ -5423,42 +5531,46 @@ mod tests {
 
     #[test]
     fn pdf_image_scale_attributes_follow_reference_precedence() {
-        let mut metadata = metadata_with_width("120");
-        metadata
+        let mut image = image_with_width("120");
+        image
+            .metadata
             .attributes
             .set("scaledwidth".into(), AttributeValue::String("40%".into()));
-        metadata
+        image
+            .metadata
             .attributes
             .set("scale".into(), AttributeValue::String("25".into()));
-        metadata
+        image
+            .metadata
             .attributes
             .set("pdfwidth".into(), AttributeValue::String("72pt".into()));
 
         assert_eq!(
-            image_width(&metadata.attributes, true),
+            image_width(ImageRef::from(&image).attributes(), true),
             Some(ImageWidth::Points {
                 value: 72.0,
                 constrain_to_bounds: false,
             })
         );
-        metadata.attributes.remove("pdfwidth");
+        image.metadata.attributes.remove("pdfwidth");
         assert_eq!(
-            image_width(&metadata.attributes, true),
+            image_width(ImageRef::from(&image).attributes(), true),
             Some(ImageWidth::IntrinsicRatio(0.25))
         );
-        metadata.attributes.remove("scale");
+        image.metadata.attributes.remove("scale");
         assert_eq!(
-            image_width(&metadata.attributes, true),
+            image_width(ImageRef::from(&image).attributes(), true),
             Some(ImageWidth::ContainerRatio {
                 value: 0.4,
                 constrain_to_bounds: false,
             })
         );
-        metadata
+        image
+            .metadata
             .attributes
             .set("scaledwidth".into(), AttributeValue::String("1in".into()));
         assert_eq!(
-            image_width(&metadata.attributes, true),
+            image_width(ImageRef::from(&image).attributes(), true),
             Some(ImageWidth::Points {
                 value: 72.0,
                 constrain_to_bounds: false,
@@ -5468,31 +5580,47 @@ mod tests {
 
     #[test]
     fn pdfwidth_supports_container_intrinsic_and_block_viewport_units() {
-        let metadata_with_pdfwidth = |width: &'static str| {
-            let mut metadata = BlockMetadata::default();
-            metadata
+        let image_with_pdfwidth = |width: &'static str| {
+            let mut image = acdc_parser::Image::new(
+                acdc_parser::Source::Name("bird"),
+                acdc_parser::Location::default(),
+            );
+            image
+                .metadata
                 .attributes
                 .set("pdfwidth".into(), AttributeValue::String(width.into()));
-            metadata
+            image
         };
 
         assert_eq!(
-            image_width(&metadata_with_pdfwidth("200%").attributes, true),
+            image_width(
+                ImageRef::from(&image_with_pdfwidth("200%")).attributes(),
+                true
+            ),
             Some(ImageWidth::ContainerRatio {
                 value: 2.0,
                 constrain_to_bounds: false,
             })
         );
         assert_eq!(
-            image_width(&metadata_with_pdfwidth("50iw").attributes, true),
+            image_width(
+                ImageRef::from(&image_with_pdfwidth("50iw")).attributes(),
+                true
+            ),
             Some(ImageWidth::IntrinsicRatio(0.5))
         );
         assert_eq!(
-            image_width(&metadata_with_pdfwidth("50vw").attributes, true),
+            image_width(
+                ImageRef::from(&image_with_pdfwidth("50vw")).attributes(),
+                true
+            ),
             Some(ImageWidth::ViewportRatio(0.5))
         );
         assert_eq!(
-            image_width(&metadata_with_pdfwidth("50vw").attributes, false),
+            image_width(
+                ImageRef::from(&image_with_pdfwidth("50vw")).attributes(),
+                false
+            ),
             Some(ImageWidth::Points {
                 value: 50.0,
                 constrain_to_bounds: false,

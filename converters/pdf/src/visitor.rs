@@ -10,13 +10,14 @@ use acdc_converters_core::{
     section::{
         appendix_number_prefix, effective_section_level, part_number_prefix, section_number_prefix,
     },
-    visitor::{Visitor, is_formatting_span},
+    visitor::{InlineVisitor, Visitor, is_formatting_span},
 };
 use acdc_parser::{
     Admonition, AdmonitionVariant, Audio, Block, CalloutList, Caption, DelimitedBlock,
     DescriptionList, DiscreteHeader, Document, Header, Image, InlineNode, ListItem, OrderedList,
     PageBreak, Paragraph, Section, SectionKind, Source, TableOfContents, ThematicBreak,
     UnorderedList, Video,
+    ast::{ContentRef, InlineKind, InlineRef},
 };
 
 use crate::{
@@ -660,107 +661,7 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
         traversal: &mut TraversalContext<'a>,
         node: &InlineNode<'_>,
     ) -> Result<(), Self::Error> {
-        let previous_inline_span = self.in_inline_span;
-        self.in_inline_span |= is_formatting_span(node);
-
-        let result = (|| {
-            match node {
-                InlineNode::PlainText(plain) => self.write_plain(plain.content),
-                InlineNode::RawText(raw) => self.write_raw(raw),
-                InlineNode::VerbatimText(verbatim) => self.write_text_expr(verbatim.content),
-                InlineNode::BoldText(bold) => {
-                    self.write_quoted_span(
-                        traversal,
-                        bold.id.as_ref().map(|id| id.id),
-                        bold.role,
-                        "#strong[",
-                        &bold.content,
-                        "]",
-                    )?;
-                }
-                InlineNode::ItalicText(italic) => {
-                    self.write_quoted_span(
-                        traversal,
-                        italic.id.as_ref().map(|id| id.id),
-                        italic.role,
-                        "#emph[",
-                        &italic.content,
-                        "]",
-                    )?;
-                }
-                InlineNode::MonospaceText(mono) => {
-                    let state =
-                        self.write_inline_span_start(mono.id.as_ref().map(|id| id.id), mono.role);
-                    self.write_inline_verbatim_nodes(traversal, &mono.content)?;
-                    self.write_inline_span_end(state);
-                }
-                InlineNode::HighlightText(highlight) => {
-                    let (prefix, suffix) = if highlight.id.is_some() || highlight.role.is_some() {
-                        ("", "")
-                    } else {
-                        ("#highlight[", "]")
-                    };
-                    self.write_quoted_span(
-                        traversal,
-                        highlight.id.as_ref().map(|id| id.id),
-                        highlight.role,
-                        prefix,
-                        &highlight.content,
-                        suffix,
-                    )?;
-                }
-                InlineNode::SubscriptText(sub) => {
-                    self.write_quoted_span(
-                        traversal,
-                        sub.id.as_ref().map(|id| id.id),
-                        sub.role,
-                        "#sub[",
-                        &sub.content,
-                        "]",
-                    )?;
-                }
-                InlineNode::SuperscriptText(sup) => {
-                    self.write_quoted_span(
-                        traversal,
-                        sup.id.as_ref().map(|id| id.id),
-                        sup.role,
-                        "#super[",
-                        &sup.content,
-                        "]",
-                    )?;
-                }
-                InlineNode::CurvedQuotationText(quoted) => {
-                    let state = self
-                        .write_inline_span_start(quoted.id.as_ref().map(|id| id.id), quoted.role);
-                    self.write_text_expr("\u{201C}");
-                    self.write_inlines(traversal, &quoted.content)?;
-                    self.write_text_expr("\u{201D}");
-                    self.write_inline_span_end(state);
-                }
-                InlineNode::CurvedApostropheText(quoted) => {
-                    let state = self
-                        .write_inline_span_start(quoted.id.as_ref().map(|id| id.id), quoted.role);
-                    self.write_text_expr("\u{2018}");
-                    self.write_inlines(traversal, &quoted.content)?;
-                    self.write_text_expr("\u{2019}");
-                    self.write_inline_span_end(state);
-                }
-                InlineNode::StandaloneCurvedApostrophe(_) => self.write_text_expr("\u{2019}"),
-                InlineNode::LineBreak(_) => self.writer.raw("#linebreak()"),
-                InlineNode::InlineAnchor(anchor) => self.write_inline_anchor(anchor.id),
-                InlineNode::Macro(inline_macro) => {
-                    self.write_inline_macro(traversal, inline_macro)?;
-                }
-                InlineNode::CalloutRef(callout) => {
-                    self.write_text_expr(&format!("({})", callout.number));
-                }
-                _ => self.warn_unsupported_parser_variant("inline node", Some(node.location())),
-            }
-            Ok(())
-        })();
-
-        self.in_inline_span = previous_inline_span;
-        result
+        InlineVisitor::visit_inline_node(self, traversal, node.into())
     }
 
     fn visit_text(
@@ -769,6 +670,167 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
         text: &str,
     ) -> Result<(), Self::Error> {
         self.write_plain(text);
+        Ok(())
+    }
+}
+
+impl<'a> InlineVisitor<'a> for PdfVisitor<'a, '_, '_> {
+    type Error = Error;
+
+    fn visit_inline_nodes(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        content: ContentRef<'_>,
+    ) -> Result<(), Error> {
+        self.write_inline_refs(traversal, content.inlines())
+    }
+
+    fn visit_inline_node(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        node: InlineRef<'_>,
+    ) -> Result<(), Self::Error> {
+        let previous_inline_span = self.in_inline_span;
+        let formatting = is_formatting_span(node);
+        self.in_inline_span |= formatting;
+        let result = if formatting {
+            self.write_formatting_span(traversal, node)
+        } else {
+            self.write_inline_node_content(traversal, node)
+        };
+        self.in_inline_span = previous_inline_span;
+        result
+    }
+}
+
+impl<'a> PdfVisitor<'a, '_, '_> {
+    fn write_formatting_span(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        node: InlineRef<'_>,
+    ) -> Result<(), Error> {
+        if let InlineKind::Bold(bold) = node.kind() {
+            self.write_quoted_span(
+                traversal,
+                bold.id(),
+                bold.role(),
+                "#strong[",
+                bold.content().inlines(),
+                "]",
+            )?;
+        } else if let InlineKind::Italic(italic) = node.kind() {
+            self.write_quoted_span(
+                traversal,
+                italic.id(),
+                italic.role(),
+                "#emph[",
+                italic.content().inlines(),
+                "]",
+            )?;
+        } else if let InlineKind::Monospace(mono) = node.kind() {
+            let state = self.write_inline_span_start(
+                mono.id().map(acdc_parser::ast::ElementIdRef::as_str),
+                mono.role(),
+            );
+            self.write_inline_verbatim_nodes(traversal, mono.content())?;
+            self.write_inline_span_end(state);
+        } else if let InlineKind::Highlight(highlight) = node.kind() {
+            let (prefix, suffix) = if highlight.id().is_some() || highlight.role().is_some() {
+                ("", "")
+            } else {
+                ("#highlight[", "]")
+            };
+            self.write_quoted_span(
+                traversal,
+                highlight.id(),
+                highlight.role(),
+                prefix,
+                highlight.content().inlines(),
+                suffix,
+            )?;
+        } else if let InlineKind::Subscript(sub) = node.kind() {
+            self.write_quoted_span(
+                traversal,
+                sub.id(),
+                sub.role(),
+                "#sub[",
+                sub.content().inlines(),
+                "]",
+            )?;
+        } else if let InlineKind::Superscript(sup) = node.kind() {
+            self.write_quoted_span(
+                traversal,
+                sup.id(),
+                sup.role(),
+                "#super[",
+                sup.content().inlines(),
+                "]",
+            )?;
+        } else if let InlineKind::CurvedQuotation(quoted) = node.kind() {
+            let state = self.write_inline_span_start(
+                quoted.id().map(acdc_parser::ast::ElementIdRef::as_str),
+                quoted.role(),
+            );
+            self.write_text_expr("\u{201C}");
+            self.write_inline_refs(traversal, quoted.content().inlines())?;
+            self.write_text_expr("\u{201D}");
+            self.write_inline_span_end(state);
+        } else if let InlineKind::CurvedApostrophe(quoted) = node.kind() {
+            let state = self.write_inline_span_start(
+                quoted.id().map(acdc_parser::ast::ElementIdRef::as_str),
+                quoted.role(),
+            );
+            self.write_text_expr("\u{2018}");
+            self.write_inline_refs(traversal, quoted.content().inlines())?;
+            self.write_text_expr("\u{2019}");
+            self.write_inline_span_end(state);
+        } else {
+            self.warn_unsupported_parser_variant("formatting span", Some(&node.location().into()));
+        }
+        Ok(())
+    }
+
+    fn write_inline_node_content(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        node: InlineRef<'_>,
+    ) -> Result<(), Error> {
+        match node.kind() {
+            InlineKind::Plain(plain) => self.write_plain(plain.text()),
+            InlineKind::Raw(raw) => self.write_raw(raw),
+            InlineKind::Verbatim(verbatim) => self.write_text_expr(verbatim.text()),
+            InlineKind::StandaloneCurvedApostrophe(_) => self.write_text_expr("\u{2019}"),
+            InlineKind::LineBreak(_) => self.writer.raw("#linebreak()"),
+            InlineKind::Anchor(anchor) => self.write_inline_anchor(anchor.id()),
+            InlineKind::Callout(callout) => {
+                self.write_text_expr(&format!("({})", callout.number()));
+            }
+            InlineKind::Footnote(_)
+            | InlineKind::Icon(_)
+            | InlineKind::Image(_)
+            | InlineKind::Keyboard(_)
+            | InlineKind::Button(_)
+            | InlineKind::Menu(_)
+            | InlineKind::Url(_)
+            | InlineKind::Link(_)
+            | InlineKind::Mailto(_)
+            | InlineKind::Autolink(_)
+            | InlineKind::CrossReference(_)
+            | InlineKind::Pass(_)
+            | InlineKind::Stem(_)
+            | InlineKind::IndexTerm(_) => self.write_inline_macro(traversal, node)?,
+            InlineKind::Bold(_)
+            | InlineKind::Italic(_)
+            | InlineKind::Monospace(_)
+            | InlineKind::Highlight(_)
+            | InlineKind::Subscript(_)
+            | InlineKind::Superscript(_)
+            | InlineKind::CurvedQuotation(_)
+            | InlineKind::CurvedApostrophe(_)
+            | _ => {
+                self.warn_unsupported_parser_variant("inline node", Some(&node.location().into()));
+            }
+        }
         Ok(())
     }
 }
