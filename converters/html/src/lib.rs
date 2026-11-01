@@ -11,13 +11,13 @@ use std::{
 use acdc_converters_core::substitutions::{Replacements, TextBoundaries};
 use acdc_converters_core::{
     BackendProfile, Converter, Diagnostics, Options, TraversalContext, WarningSource,
-    visitor::Visitor, xref::XrefGuard,
+    section::contains_index_section, visitor::Visitor, xref::XrefGuard,
 };
 
 use acdc_parser::{
     AttributeValue, BlockMetadata, CaptionKind, Document, DocumentAttributes, InlineNode,
     Options as ParserOptions, Reference, Substitution, TocEntry,
-    ast::{AttributeValueRef, AttributesRef, CaptionRef, InlineRef},
+    ast::{AttributeValueRef, AttributesRef, CaptionRef, DocumentRef, InlineRef},
 };
 
 mod admonition;
@@ -47,7 +47,6 @@ mod terminal;
 mod toc;
 mod video;
 
-pub(crate) use acdc_converters_core::section::has_index_section;
 pub(crate) use csp::CspFeatures;
 pub use error::Error;
 pub use html_visitor::{HtmlVisitor, uses_stem};
@@ -308,7 +307,7 @@ impl<'a> Processor<'a> {
             parser_options: ParserOptions::default()
                 .with_document_attributes(doc.attributes.clone()),
             generate_index: index_generation_enabled(&doc.attributes)
-                && has_index_section(&doc.blocks),
+                && contains_index_section(DocumentRef::from(doc).blocks()),
             options: self.options.clone(),
             example_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Example))),
             table_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Table))),

@@ -1,9 +1,29 @@
 //! Index discovery boundaries and compatibility with existing style queries.
 
-use acdc_converters_core::section::{has_index_section, last_section_has_style};
-use acdc_parser::{Options, parse};
+use acdc_converters_core::section::{
+    contains_index_section, has_index_section, last_section_has_style,
+};
+use acdc_parser::{
+    Admonition, AdmonitionVariant, Block, ColumnFormat, ColumnStyle, CompatibilityMode,
+    DelimitedBlock, DelimitedBlockType, Location, Options, Section, SectionKind, Table, TableRow,
+    Title, ast::BlockRef, parse,
+};
 
 type Error = Box<dyn std::error::Error>;
+
+fn assert_detection(blocks: &[Block<'_>], expected: bool) {
+    assert_eq!(has_index_section(blocks), expected);
+    assert_eq!(
+        contains_index_section(blocks.iter().map(BlockRef::from)),
+        expected
+    );
+}
+
+fn index_section() -> Block<'static> {
+    let mut section = Section::new(Title::default(), 1, Vec::new(), Location::default());
+    section.kind = SectionKind::Index;
+    Block::Section(section)
+}
 
 #[test]
 fn index_detection_is_independent_of_last_section_style() -> Result<(), Error> {
@@ -12,7 +32,7 @@ fn index_detection_is_independent_of_last_section_style() -> Result<(), Error> {
         &Options::default(),
     )?;
     let blocks = &parsed.document().blocks;
-    assert!(has_index_section(blocks));
+    assert_detection(blocks, true);
     assert!(!last_section_has_style(blocks, "index"));
     assert!(last_section_has_style(blocks, "bibliography"));
     Ok(())
@@ -24,7 +44,7 @@ fn index_detection_reaches_sections_inside_book_parts() -> Result<(), Error> {
         "= Manual\n:doctype: book\n\n= Part\n\n== Chapter\n\nText.\n\n[index]\n== Index\n\n= Later Part\n\n== Later Chapter\n",
         &Options::default(),
     )?;
-    assert!(has_index_section(&parsed.document().blocks));
+    assert_detection(&parsed.document().blocks, true);
     Ok(())
 }
 
@@ -36,7 +56,7 @@ fn index_detection_excludes_styled_paragraphs_and_plain_cells() -> Result<(), Er
         "= Manual\n\n[cols=l]\n|===\n| [index]\n== Cell Index\n|===\n",
     ] {
         let parsed = parse(input, &Options::default())?;
-        assert!(!has_index_section(&parsed.document().blocks), "{input}");
+        assert_detection(&parsed.document().blocks, false);
     }
     Ok(())
 }
@@ -59,8 +79,184 @@ fn index_detection_reaches_asciidoc_table_cells() -> Result<(), Error> {
                 .ok_or("missing fixture header")?;
             let input = format!("= Manual\n\n{prefix}{table}{suffix}\n");
             let parsed = parse(&input, &Options::default())?;
-            assert!(has_index_section(&parsed.document().blocks), "{input}");
+            assert_detection(&parsed.document().blocks, true);
         }
     }
+    Ok(())
+}
+
+#[test]
+fn index_detection_preserves_constructed_compound_and_list_boundaries() -> Result<(), Error> {
+    for inner in [
+        DelimitedBlockType::DelimitedExample(vec![index_section()]),
+        DelimitedBlockType::DelimitedOpen(vec![index_section()]),
+        DelimitedBlockType::DelimitedQuote(vec![index_section()]),
+        DelimitedBlockType::DelimitedSidebar(vec![index_section()]),
+    ] {
+        let block = Block::DelimitedBlock(DelimitedBlock::new(inner, "", Location::default()));
+        assert_detection(&[block], true);
+    }
+    assert_detection(
+        &[Block::Admonition(Admonition::new(
+            AdmonitionVariant::Note,
+            vec![index_section()],
+            Location::default(),
+        ))],
+        true,
+    );
+    let mut section = Section::new(
+        Title::default(),
+        1,
+        vec![index_section()],
+        Location::default(),
+    );
+    assert_detection(&[Block::Section(section.clone())], true);
+    section.content.clear();
+    section.metadata.style = Some("index");
+    assert_detection(&[Block::Section(section)], false);
+
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let options = Options::builder().with_compatibility_mode(mode).build()?;
+        for source in [
+            "* Unordered item\n",
+            ". Ordered item\n",
+            "Term:: Description\n",
+            "----\ncode <1>\n----\n\n<1> Explanation\n",
+        ] {
+            let parsed = parse(source, &options)?;
+            let mut blocks = parsed.document().blocks.clone();
+            assert_detection(&blocks, false);
+            let list = blocks.last_mut().ok_or("missing list")?;
+            let attachments = if let Block::UnorderedList(list) = list {
+                &mut list
+                    .items
+                    .first_mut()
+                    .ok_or("missing unordered item")?
+                    .blocks
+            } else if let Block::OrderedList(list) = list {
+                &mut list.items.first_mut().ok_or("missing ordered item")?.blocks
+            } else if let Block::DescriptionList(list) = list {
+                &mut list
+                    .items
+                    .first_mut()
+                    .ok_or("missing description item")?
+                    .description
+            } else if let Block::CalloutList(list) = list {
+                &mut list.items.first_mut().ok_or("missing callout item")?.blocks
+            } else {
+                return Err(format!("expected a list in {source:?}").into());
+            };
+            attachments.push(index_section());
+            assert_detection(&blocks, true);
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn index_detection_preserves_stored_cell_style_fallback_in_every_row_group() -> Result<(), Error> {
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let options = Options::builder().with_compatibility_mode(mode).build()?;
+        let parsed = parse("|===\n| First | Second\n|===\n", &options)?;
+        let Some(Block::DelimitedBlock(block)) = parsed.document().blocks.first() else {
+            return Err("missing table block".into());
+        };
+        let DelimitedBlockType::DelimitedTable(seed) = &block.inner else {
+            return Err("missing table".into());
+        };
+        let mut row = seed.rows.first().ok_or("missing table row")?.clone();
+        let [first, second] = row.columns.as_mut_slice() else {
+            return Err("expected two table cells".into());
+        };
+        first.colspan = 2;
+        first.style = Some(ColumnStyle::Default);
+        second.content = vec![index_section()];
+        for fallback in [
+            ColumnStyle::Default,
+            ColumnStyle::AsciiDoc,
+            ColumnStyle::Literal,
+        ] {
+            for local in [
+                None,
+                Some(ColumnStyle::Default),
+                Some(ColumnStyle::AsciiDoc),
+                Some(ColumnStyle::Literal),
+            ] {
+                row.columns.get_mut(1).ok_or("missing second cell")?.style = local;
+                let expected = local.unwrap_or(fallback) == ColumnStyle::AsciiDoc;
+                for group in 0..3 {
+                    let mut table = Table::new(Vec::new(), Location::default()).with_columns(vec![
+                        ColumnFormat::new().with_style(ColumnStyle::AsciiDoc),
+                        ColumnFormat::new().with_style(fallback),
+                        ColumnFormat::new().with_style(ColumnStyle::Default),
+                    ]);
+                    table.header = Some(TableRow::new(Vec::new()));
+                    table.footer = Some(TableRow::new(Vec::new()));
+                    match group {
+                        0 => table.header = Some(row.clone()),
+                        1 => table.rows.push(row.clone()),
+                        _ => table.footer = Some(row.clone()),
+                    }
+                    let block = Block::DelimitedBlock(DelimitedBlock::new(
+                        DelimitedBlockType::DelimitedTable(table),
+                        "|===",
+                        Location::default(),
+                    ));
+                    assert_detection(&[block], expected);
+                }
+            }
+        }
+        for local in [
+            None,
+            Some(ColumnStyle::Default),
+            Some(ColumnStyle::AsciiDoc),
+        ] {
+            row.columns.get_mut(1).ok_or("missing second cell")?.style = local;
+            let block = Block::DelimitedBlock(DelimitedBlock::new(
+                DelimitedBlockType::DelimitedTable(Table::new(
+                    vec![row.clone()],
+                    Location::default(),
+                )),
+                "|===",
+                Location::default(),
+            ));
+            assert_detection(&[block], local == Some(ColumnStyle::AsciiDoc));
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn typed_index_detection_accepts_short_lived_and_single_pass_inputs() -> Result<(), Error> {
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let options = Options::builder().with_compatibility_mode(mode).build()?;
+        let found = {
+            let source = String::from("= Manual\n\n[index]\n== Index\n");
+            let parsed = parse(&source, &options)?;
+            contains_index_section(parsed.document_ref().blocks())
+        };
+        assert!(found);
+    }
+    let blocks = [
+        Block::Section(Section::new(
+            Title::default(),
+            1,
+            Vec::new(),
+            Location::default(),
+        )),
+        index_section(),
+        index_section(),
+    ];
+    let mut remaining = blocks.iter().map(BlockRef::from);
+    let mut pulled = 0;
+    let input = std::iter::from_fn(|| {
+        let node = remaining.next()?;
+        pulled += 1;
+        Some(node)
+    });
+    assert!(contains_index_section(input));
+    assert_eq!(pulled, 2);
+    assert!(remaining.next().is_some());
+    assert!(!contains_index_section(std::iter::empty()));
     Ok(())
 }

@@ -49,6 +49,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Library converters can detect index sections from typed block iterators.
+  Existing slice calls keep the same search boundaries and short-circuiting.
+
 - Library converters can discover index occurrences from typed inline iterators.
   Existing owner callbacks retain their original references, occurrence order,
   plain-text byte offsets, and first-error stopping.

@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Index generation retains section discovery through nested blocks, list
+  attachments, and AsciiDoc table cells.
+
 - Highlighted source blocks retain index occurrence order and anchor positions
   across formatted text, links, and footnotes.
 

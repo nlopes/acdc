@@ -1,6 +1,9 @@
 //! Section presentation utilities shared by converters.
 
-use acdc_parser::{Block, ColumnStyle, DelimitedBlockType, SectionKind};
+use acdc_parser::{
+    Block, ColumnStyle, SectionKind,
+    ast::{BlockKind, BlockRef, ColumnFormatRef},
+};
 
 use crate::TraversalContext;
 
@@ -23,66 +26,68 @@ pub fn last_section_has_style(blocks: &[Block<'_>], style: &str) -> bool {
 /// a compound block is a paragraph, so it cannot activate an index catalog.
 #[must_use]
 pub fn has_index_section(blocks: &[Block<'_>]) -> bool {
-    blocks.iter().any(|block| match block {
-        Block::Section(section) => {
-            section.kind == SectionKind::Index || has_index_section(&section.content)
+    contains_index_section(blocks.iter().map(BlockRef::from))
+}
+
+/// Search typed blocks for an index section, stopping at the first match.
+///
+/// Descends through sections, compound blocks, admonitions, list attachments,
+/// and `AsciiDoc` table cells. Inline content and other cell styles are excluded.
+#[must_use]
+pub fn contains_index_section<'doc>(mut blocks: impl Iterator<Item = BlockRef<'doc>>) -> bool {
+    blocks.any(|block| match block.kind() {
+        BlockKind::Section(section) => {
+            section.kind() == SectionKind::Index || contains_index_section(section.blocks())
         }
-        Block::DelimitedBlock(block) => match &block.inner {
-            DelimitedBlockType::DelimitedExample(blocks)
-            | DelimitedBlockType::DelimitedOpen(blocks)
-            | DelimitedBlockType::DelimitedQuote(blocks)
-            | DelimitedBlockType::DelimitedSidebar(blocks) => has_index_section(blocks),
-            DelimitedBlockType::DelimitedTable(table) => table
-                .header
-                .iter()
-                .chain(&table.rows)
-                .chain(&table.footer)
-                .any(|row| {
-                    row.columns.iter().enumerate().any(|(index, cell)| {
-                        let style = cell.style.unwrap_or_else(|| {
-                            table
-                                .columns
-                                .get(index)
-                                .map_or(ColumnStyle::Default, |column| column.style)
-                        });
-                        style == ColumnStyle::AsciiDoc && has_index_section(&cell.content)
-                    })
-                }),
-            DelimitedBlockType::DelimitedComment(_)
-            | DelimitedBlockType::DelimitedListing(_)
-            | DelimitedBlockType::DelimitedLiteral(_)
-            | DelimitedBlockType::DelimitedPass(_)
-            | DelimitedBlockType::DelimitedVerse(_)
-            | DelimitedBlockType::DelimitedStem(_)
-            | _ => false,
-        },
-        Block::Admonition(block) => has_index_section(&block.blocks),
-        Block::OrderedList(list) => list
-            .items
-            .iter()
-            .any(|item| has_index_section(&item.blocks)),
-        Block::UnorderedList(list) => list
-            .items
-            .iter()
-            .any(|item| has_index_section(&item.blocks)),
-        Block::DescriptionList(list) => list
-            .items
-            .iter()
-            .any(|item| has_index_section(&item.description)),
-        Block::CalloutList(list) => list
-            .items
-            .iter()
-            .any(|item| has_index_section(&item.blocks)),
-        Block::Paragraph(_)
-        | Block::DiscreteHeader(_)
-        | Block::DocumentAttribute(_)
-        | Block::TableOfContents(_)
-        | Block::ThematicBreak(_)
-        | Block::PageBreak(_)
-        | Block::Comment(_)
-        | Block::Image(_)
-        | Block::Audio(_)
-        | Block::Video(_)
+        BlockKind::Example(block) => contains_index_section(block.blocks()),
+        BlockKind::Open(block) => contains_index_section(block.blocks()),
+        BlockKind::Quote(block) => contains_index_section(block.blocks()),
+        BlockKind::Sidebar(block) => contains_index_section(block.blocks()),
+        BlockKind::Table(table) => table
+            .header()
+            .into_iter()
+            .chain(table.rows())
+            .chain(table.footer())
+            .any(|row| {
+                let mut columns = table.columns();
+                row.cells().any(|cell| {
+                    // Column defaults follow stored cell positions, even after spans.
+                    let column = columns.next();
+                    let style = cell.style().unwrap_or_else(|| {
+                        column.map_or(ColumnStyle::Default, ColumnFormatRef::style)
+                    });
+                    style == ColumnStyle::AsciiDoc && contains_index_section(cell.blocks())
+                })
+            }),
+        BlockKind::Admonition(block) => contains_index_section(block.blocks()),
+        BlockKind::OrderedList(list) => list
+            .items()
+            .any(|item| contains_index_section(item.blocks())),
+        BlockKind::UnorderedList(list) => list
+            .items()
+            .any(|item| contains_index_section(item.blocks())),
+        BlockKind::DescriptionList(list) => list
+            .items()
+            .any(|item| contains_index_section(item.blocks())),
+        BlockKind::CalloutList(list) => list
+            .items()
+            .any(|item| contains_index_section(item.blocks())),
+        BlockKind::Paragraph(_)
+        | BlockKind::DiscreteHeader(_)
+        | BlockKind::DocumentAttribute(_)
+        | BlockKind::TableOfContents(_)
+        | BlockKind::ThematicBreak(_)
+        | BlockKind::PageBreak(_)
+        | BlockKind::Comment(_)
+        | BlockKind::Image(_)
+        | BlockKind::Audio(_)
+        | BlockKind::Video(_)
+        | BlockKind::DelimitedComment(_)
+        | BlockKind::Listing(_)
+        | BlockKind::Literal(_)
+        | BlockKind::Passthrough(_)
+        | BlockKind::Verse(_)
+        | BlockKind::Stem(_)
         | _ => false,
     })
 }
