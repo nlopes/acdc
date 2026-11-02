@@ -270,6 +270,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Delimited listing and literal blocks honor `[literal]`, `[listing]`, and
+  `[source,language]` styles like Asciidoctor, including source language and
+  explicit `subs=` settings. Original delimiters and source locations stay intact.
+
 - Draft mode recognizes lists, block macros, admonitions, and paragraph boundaries
   before applying `source`, `listing`, `literal`, or `verse` styles. Metadata,
   delimiters, and headings can end these paragraphs. Asciidoctor mode keeps its

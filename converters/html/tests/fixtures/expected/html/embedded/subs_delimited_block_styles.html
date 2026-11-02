@@ -1,0 +1,54 @@
+<div class="literalblock">
+<div class="title">Listing as literal</div>
+<div class="content">
+<pre>*literal* {word} footnote:unselected[Not registered]</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="title">Literal as listing</div>
+<div class="content">
+<pre>*listing* {word}</pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="title">Literal as source</div>
+<div class="content">
+<pre class="highlight"><code class="language-rust" data-lang="rust">fn main() {} // <b class="conum">(1)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<ol>
+<li><p>Callout text.</p></li>
+</ol>
+</div>
+<div class="listingblock">
+<div class="title">Open as source</div>
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text">*source* {word}</code></pre>
+</div>
+</div>
+<div class="literalblock">
+<div class="title">Open as literal</div>
+<div class="content">
+<pre>*literal* {word}</pre>
+</div>
+</div>
+<div class="literalblock">
+<div class="title">Formatted literal</div>
+<div class="content">
+<pre><strong>bold</strong> expanded <sup class="footnote" id="_footnote_literal">[<a id="_footnoteref_1" class="footnote" href="#_footnotedef_1" title="View footnote.">1</a>]</sup></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="title">Formatted source</div>
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text"><strong>bold</strong> expanded <sup class="footnote" id="_footnote_source">[<a id="_footnoteref_2" class="footnote" href="#_footnotedef_2" title="View footnote.">2</a>]</sup></code></pre>
+</div>
+</div>
+<div id="footnotes">
+<hr>
+<div class="footnote" id="_footnotedef_1">
+<a href="#_footnoteref_1">1</a>. Selected literal note</div>
+<div class="footnote" id="_footnotedef_2">
+<a href="#_footnoteref_2">2</a>. Selected source note</div>
+</div>

@@ -1,0 +1,6 @@
+// tag::selected[]
+[source,text]
+....
+Included *verbatim* {missing}
+....
+// end::selected[]

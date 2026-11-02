@@ -1,0 +1,19 @@
+= Delimited style contexts
+
+* List item
++
+[literal]
+----
+Continued *verbatim*
+----
+
+[cols="a"]
+|===
+|
+[source,text]
+....
+Cell *verbatim*
+....
+|===
+
+include::includes/delimited_style_content.adoc[tag=selected]

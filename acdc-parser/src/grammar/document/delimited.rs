@@ -80,6 +80,14 @@ pub(super) enum DelimitedKind {
 }
 
 impl DelimitedKind {
+    pub(super) fn with_style(self, style: Option<&str>) -> Self {
+        match (self, style) {
+            (Self::Open | Self::Literal, Some("source" | "listing")) => Self::Listing,
+            (Self::Open | Self::Listing, Some("literal")) => Self::Literal,
+            (kind, _) => kind,
+        }
+    }
+
     /// Block name used in the `unterminated <name> block` warning and the
     /// mismatched-delimiter error.
     fn name(self) -> &'static str {
@@ -127,6 +135,7 @@ fn parse_block_content<'input>(
 
 /// Source ranges and delimiters for a block.
 /// `close` is `None` when the block reaches end of input without a closing delimiter.
+#[derive(Clone, Copy)]
 pub(super) struct DelimitedParams<'input> {
     pub(super) kind: DelimitedKind,
     /// The opening delimiter as it appeared in source (e.g. `"===="`).
@@ -151,6 +160,11 @@ pub(super) fn build_delimited_block<'input>(
     p: &DelimitedParams<'input>,
 ) -> Result<Block<'input>, Error> {
     let close_delimiter_location = resolve_delimited_close(state, p)?;
+    let resolved = DelimitedParams {
+        kind: p.kind.with_style(block_metadata.metadata.style),
+        ..*p
+    };
+    let p = &resolved;
     let location = state.create_block_location(p.start, p.end, p.offset);
     let open_delimiter_location = state.create_location(
         p.open_start + p.offset,

@@ -609,6 +609,9 @@ pub(super) fn route_block_positions<'a>(
             }
             (metadata.style == Some("source"), false)
         }
+        AttributeBlockForm::Delimited(DelimitedKind::Literal, _) => {
+            (metadata.style == Some("source"), false)
+        }
         AttributeBlockForm::Delimited(DelimitedKind::Quote, _) => (false, true),
         AttributeBlockForm::Delimited(DelimitedKind::Open, _)
         | AttributeBlockForm::Paragraph { indented: false } => (

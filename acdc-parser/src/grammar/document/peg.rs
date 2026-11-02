@@ -1494,13 +1494,8 @@ peg::parser! {
                 source_text
             };
             let content_end = body_end - (source_text.len() - content.len());
-            let kind = match (open.0, block_metadata.metadata.style) {
-                (DelimitedKind::Open, Some("source" | "listing")) => DelimitedKind::Listing,
-                (DelimitedKind::Open, Some("literal")) => DelimitedKind::Literal,
-                (kind, _) => kind,
-            };
             build_delimited_block(state, block_metadata, &DelimitedParams {
-                kind, open_delim: open.1, content, source_text,
+                kind: open.0, open_delim: open.1, content, source_text,
                 open_start, start, content_start, content_end, end: span_end, offset, close,
             })
         }
