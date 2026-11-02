@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The Markdown visitor supports typed inline callbacks alongside its existing
+  block callbacks. GFM and CommonMark output remain unchanged.
+
 - Email subjects and message bodies retain their encoded link destinations.
 
 - Support the parser’s revised inline-image API without changing rendered output.

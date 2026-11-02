@@ -19,17 +19,20 @@ use acdc_converters_core::{
     table::{CellKind, GridRow, build_grid, determine_column_count, table_has_spans},
     toc::{Config as TocConfig, NumberingConfig, effective_level, has_real_parts, section_numbers},
     visitor::{Visitor, WritableVisitor},
-    xref::{XrefDisplay, interdocument_xref, resolve_xref},
+    xref::{XrefDisplay, interdocument_xref, resolve_reference},
 };
 use acdc_parser::{
-    Admonition, AdmonitionVariant, Anchor, Audio, Author, Block, BlockMetadata, CalloutList,
-    CaptionKind, ColumnStyle, ColumnWidth, CrossReference, DelimitedBlock, DelimitedBlockType,
-    DescriptionList, DiscreteHeader, Document, ElementAttributes, Footnote, Header,
-    HorizontalAlignment, Image, IndexTerm, IndexTermRelationship, InlineImage, InlineMacro,
-    InlineNode, Link, ListItem, ListItemCheckedStatus, Location, OrderedList, PageBreak, Paragraph,
-    Section, SectionKind, Source, SourceLocation, Substitution, Table, TableColumn,
-    TableOfContents, TableRow, ThematicBreak, Title, TocEntry, UnorderedList, VerticalAlignment,
-    Video,
+    Admonition, AdmonitionVariant, Audio, Author, Block, BlockMetadata, CalloutList, CaptionKind,
+    ColumnStyle, ColumnWidth, DelimitedBlock, DelimitedBlockType, DescriptionList, DiscreteHeader,
+    Document, Header, HorizontalAlignment, Image, InlineNode, ListItem, ListItemCheckedStatus,
+    Location, OrderedList, PageBreak, Paragraph, Section, SectionKind, Source, SourceLocation,
+    Substitution, Table, TableColumn, TableOfContents, TableRow, ThematicBreak, Title, TocEntry,
+    UnorderedList, VerticalAlignment, Video,
+    ast::{
+        AnchorRef, AttributeValueRef, AttributesRef, AutolinkRef, ContentRef, CrossReferenceRef,
+        ElementIdRef, FootnoteRef, IconRef, ImageRef, IndexTermRef, IndexTermRelationshipRef,
+        InlineImageRef, InlineKind, InlineRef, KeyboardRef, LinkRef, ReferenceRef, SourceRef,
+    },
 };
 
 use crate::{
@@ -177,16 +180,15 @@ fn block_image_alt(image: &Image<'_>) -> String {
     acdc_converters_core::media::image_alt(&image.source, image.alt.as_ref()).into_owned()
 }
 
-fn inline_image_alt(image: &InlineImage<'_>) -> String {
-    acdc_converters_core::media::image_alt(&image.source, image.alt.as_ref()).into_owned()
+fn attribute_text<'doc>(attributes: AttributesRef<'doc>, name: &str) -> Option<&'doc str> {
+    match attributes.get(name) {
+        Some(AttributeValueRef::Text(text)) => Some(acdc_parser::strip_quotes(text)),
+        _ => None,
+    }
 }
 
-fn is_linked_image(node: &InlineNode<'_>) -> bool {
-    matches!(
-        node,
-        InlineNode::Macro(InlineMacro::Image(image))
-            if image.attributes().get_string("link").is_some()
-    )
+fn is_linked_image(node: InlineRef<'_>) -> bool {
+    matches!(node.kind(), InlineKind::Image(image) if attribute_text(image.attributes(), "link").is_some())
 }
 
 fn block_location<'block>(block: &'block Block<'_>) -> Option<&'block Location> {
@@ -449,21 +451,21 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
     fn write_inline_anchor_node(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        anchor: &Anchor<'_>,
+        anchor: AnchorRef<'_>,
     ) -> Result<(), Error> {
-        self.write_inline_anchor(Some(anchor.id))?;
+        self.write_inline_anchor(Some(anchor.id()))?;
         if !anchor.is_bibliography() {
             return Ok(());
         }
 
         if let Some(label) = anchor.bibliography_label() {
             write!(self.writer, "\\[")?;
-            self.visit_inline_nodes(traversal, label)?;
+            self.write_content(traversal, label)?;
             write!(self.writer, "\\]")?;
             return Ok(());
         }
 
-        write!(self.writer, "\\[{}\\]", Self::escape_markdown(anchor.id))?;
+        write!(self.writer, "\\[{}\\]", Self::escape_markdown(anchor.id()))?;
         Ok(())
     }
 
@@ -553,7 +555,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
                 }
                 InlineNode::RawText(text) => {
                     self.write_blockquote_text(
-                        &Self::passthrough_content(text.content, &text.subs),
+                        &Self::passthrough_content(text.content, text.subs.iter().cloned()),
                         false,
                     )?;
                 }
@@ -612,7 +614,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         content: &[InlineNode<'_>],
     ) -> Result<(), Error> {
         acdc_converters_core::index::visit_index_terms(content, &mut |term, _| {
-            self.register_index_term(traversal, term)
+            self.register_index_term(traversal, term.into())
         })?;
         let language = detect_language(metadata);
         let (content, unknown) = source_content(content, language);
@@ -706,6 +708,15 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         );
     }
 
+    fn warn_unknown_inline_node_ref(&mut self, node: InlineRef<'_>) {
+        self.warn_once_at(
+            "unknown-inline-node",
+            format!("unknown inline feature is not supported by the Markdown backend; skipping content: {node:?}"),
+            "Use a backend that supports this inline feature, or replace it with portable inline content.",
+            Some(&node.location().into()),
+        );
+    }
+
     fn with_index_collection<T>(
         &mut self,
         enabled: bool,
@@ -720,7 +731,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
     fn write_emphasis(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        content: &[InlineNode<'_>],
+        content: ContentRef<'_>,
         marker: &str,
         html_tag: &str,
     ) -> Result<(), Error> {
@@ -730,7 +741,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
             write!(self.writer, "<{html_tag}></{html_tag}>")?;
         } else {
             write!(self.writer, "{marker}")?;
-            self.visit_inline_nodes(traversal, content)?;
+            self.write_content(traversal, content)?;
             write!(self.writer, "{marker}")?;
         }
         Ok(())
@@ -760,6 +771,22 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         Ok(())
     }
 
+    fn write_content(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        content: ContentRef<'_>,
+    ) -> Result<(), Error> {
+        acdc_converters_core::visitor::InlineVisitor::visit_inline_nodes(self, traversal, content)
+    }
+
+    fn write_inline(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        node: InlineRef<'_>,
+    ) -> Result<(), Error> {
+        acdc_converters_core::visitor::InlineVisitor::visit_inline_node(self, traversal, node)
+    }
+
     fn write_escaped_text(&mut self, text: &str) -> Result<(), Error> {
         write!(
             self.writer,
@@ -769,11 +796,18 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         Ok(())
     }
 
-    fn passthrough_content(text: &str, substitutions: &[Substitution]) -> String {
+    fn passthrough_content(
+        text: &str,
+        substitutions: impl Iterator<Item = Substitution>,
+    ) -> String {
         let mut output = text.to_owned();
+        let mut special_chars = false;
         for substitution in substitutions {
             match substitution {
-                Substitution::SpecialChars => output = escape_html_text(&output),
+                Substitution::SpecialChars => {
+                    special_chars = true;
+                    output = escape_html_text(&output);
+                }
                 Substitution::Replacements => {
                     output = Replacements::unicode().transform(&output, TextBoundaries::BOTH);
                 }
@@ -787,7 +821,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
                 | _ => {}
             }
         }
-        if substitutions.contains(&Substitution::SpecialChars) {
+        if special_chars {
             // Escape for Markdown after AsciiDoc substitutions to preserve literal
             // backslashes, brackets, and emphasis markers in rendered text.
             Self::escape_markdown(&output)
@@ -799,7 +833,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
     fn write_passthrough(
         &mut self,
         text: &str,
-        substitutions: &[Substitution],
+        substitutions: impl Iterator<Item = Substitution>,
     ) -> Result<(), Error> {
         write!(
             self.writer,
@@ -864,12 +898,12 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
     fn record_footnote(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        footnote: &Footnote<'_>,
+        footnote: FootnoteRef<'_>,
     ) -> Result<String, Error> {
         let id = footnote
-            .id
-            .map_or_else(|| footnote.number.to_string(), str::to_owned);
-        if footnote.content.is_empty()
+            .id()
+            .map_or_else(|| footnote.number().to_string(), str::to_owned);
+        if footnote.content().is_empty()
             || self
                 .footnotes
                 .iter()
@@ -888,23 +922,22 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
             visitor
                 .current_section_title
                 .clone_from(&self.current_section_title);
-            for node in &footnote.content {
-                visitor.visit_inline_node(traversal, node)?;
-            }
+            visitor.write_content(traversal, footnote.content())?;
         }
         let rendered = String::from_utf8(buffer).unwrap_or_default();
-        self.footnotes.push((id.clone(), footnote.number, rendered));
+        self.footnotes
+            .push((id.clone(), footnote.number(), rendered));
         Ok(id)
     }
 
     fn render_index_term_label(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        inlines: &[InlineNode<'_>],
+        inlines: ContentRef<'_>,
     ) -> Result<IndexTermLabel, Error> {
         let plain = InlineTextTransform::default()
             .references(&self.processor.references)
-            .to_string(inlines);
+            .content_to_string(inlines);
         let mut output = Vec::new();
         {
             let mut visitor =
@@ -914,7 +947,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
             visitor
                 .current_section_title
                 .clone_from(&self.current_section_title);
-            visitor.visit_inline_nodes(traversal, inlines)?;
+            visitor.write_content(traversal, inlines)?;
         }
         Ok(IndexTermLabel {
             plain,
@@ -925,9 +958,9 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
     fn register_index_term(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        term: &IndexTerm<'_>,
+        term: IndexTermRef<'_>,
     ) -> Result<(), Error> {
-        let term = term.catalog_entry();
+        let term = term.catalog();
         if self.collect_index_terms && self.processor.generate_index() {
             let primary = self.render_index_term_label(traversal, term.term())?;
             let secondary = term
@@ -938,11 +971,11 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
                 .tertiary()
                 .map(|inlines| self.render_index_term_label(traversal, inlines))
                 .transpose()?;
-            let relationship = match term.relationship.as_ref() {
-                Some(IndexTermRelationship::See { target }) => {
+            let relationship = match term.relationship() {
+                Some(IndexTermRelationshipRef::See { target }) => {
                     IndexCatalogRelationship::See(self.render_index_term_label(traversal, target)?)
                 }
-                Some(IndexTermRelationship::SeeAlso { targets }) => {
+                Some(IndexTermRelationshipRef::SeeAlso { targets }) => {
                     IndexCatalogRelationship::SeeAlso(
                         targets
                             .iter()
@@ -969,11 +1002,11 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
     fn visit_index_term(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        term: &IndexTerm<'_>,
+        term: IndexTermRef<'_>,
     ) -> Result<(), Error> {
         self.register_index_term(traversal, term)?;
         if term.is_visible() {
-            self.visit_inline_nodes(traversal, term.term())?;
+            self.write_content(traversal, term.term())?;
         }
         Ok(())
     }
@@ -1887,8 +1920,8 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
         let alt = block_image_alt(image);
         self.write_image(
             traversal,
-            &image.source,
-            &image.metadata.attributes,
+            ImageRef::from(image).source(),
+            ImageRef::from(image).attributes(),
             &alt,
             None,
         )?;
@@ -2032,95 +2065,7 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         node: &InlineNode,
     ) -> Result<(), Self::Error> {
-        match node {
-            InlineNode::PlainText(text) => {
-                self.write_escaped_text(text.content)?;
-            }
-            InlineNode::BoldText(text) => {
-                self.write_inline_anchor(text.id.as_ref().map(|id| id.id))?;
-                let role = self.write_role_start(text.role)?;
-                self.write_emphasis(traversal, &text.content, "**", "strong")?;
-                self.write_role_end(role)?;
-            }
-            InlineNode::ItalicText(text) => {
-                self.write_inline_anchor(text.id.as_ref().map(|id| id.id))?;
-                let role = self.write_role_start(text.role)?;
-                self.write_emphasis(traversal, &text.content, "*", "em")?;
-                self.write_role_end(role)?;
-            }
-            InlineNode::MonospaceText(text) => {
-                self.write_inline_anchor(text.id.as_ref().map(|id| id.id))?;
-                let role = self.write_role_start(text.role)?;
-                let content = InlineTextTransform::default()
-                    .line_break("\n")
-                    .to_string(&text.content);
-                self.write_code_span(&content)?;
-                self.write_role_end(role)?;
-            }
-            InlineNode::HighlightText(text) => {
-                self.write_inline_anchor(text.id.as_ref().map(|id| id.id))?;
-                let role = self.write_role_start(text.role)?;
-                if role.is_none() {
-                    write!(self.writer, "<mark>")?;
-                }
-                self.visit_inline_nodes(traversal, &text.content)?;
-                if role.is_none() {
-                    write!(self.writer, "</mark>")?;
-                }
-                self.write_role_end(role)?;
-            }
-            InlineNode::SubscriptText(text) => {
-                self.write_inline_anchor(text.id.as_ref().map(|id| id.id))?;
-                let role = self.write_role_start(text.role)?;
-                write!(self.writer, "<sub>")?;
-                self.visit_inline_nodes(traversal, &text.content)?;
-                write!(self.writer, "</sub>")?;
-                self.write_role_end(role)?;
-            }
-            InlineNode::SuperscriptText(text) => {
-                self.write_inline_anchor(text.id.as_ref().map(|id| id.id))?;
-                let role = self.write_role_start(text.role)?;
-                write!(self.writer, "<sup>")?;
-                self.visit_inline_nodes(traversal, &text.content)?;
-                write!(self.writer, "</sup>")?;
-                self.write_role_end(role)?;
-            }
-            InlineNode::LineBreak(_) => writeln!(self.writer, "  ")?,
-            InlineNode::RawText(text) => {
-                self.write_passthrough(text.content, &text.subs)?;
-            }
-            InlineNode::VerbatimText(text) => self.write_code_span(text.content)?,
-            InlineNode::StandaloneCurvedApostrophe(_) => {
-                write!(self.writer, "'")?;
-            }
-            InlineNode::CurvedQuotationText(text) => {
-                self.write_inline_anchor(text.id.as_ref().map(|id| id.id))?;
-                let role = self.write_role_start(text.role)?;
-                write!(self.writer, "\"")?;
-                self.visit_inline_nodes(traversal, &text.content)?;
-                write!(self.writer, "\"")?;
-                self.write_role_end(role)?;
-            }
-            InlineNode::CurvedApostropheText(text) => {
-                self.write_inline_anchor(text.id.as_ref().map(|id| id.id))?;
-                let role = self.write_role_start(text.role)?;
-                write!(self.writer, "'")?;
-                self.visit_inline_nodes(traversal, &text.content)?;
-                write!(self.writer, "'")?;
-                self.write_role_end(role)?;
-            }
-            InlineNode::InlineAnchor(anchor) => {
-                self.write_inline_anchor_node(traversal, anchor)?;
-            }
-            InlineNode::Macro(mac) => {
-                self.visit_inline_macro_inner(traversal, mac)?;
-            }
-            InlineNode::CalloutRef(callout) => {
-                write!(self.writer, "({})", callout.number)?;
-            }
-            _ => self.warn_unknown_inline_node(node),
-        }
-        Ok(())
+        self.write_inline(traversal, node.into())
     }
 
     fn visit_text(
@@ -2254,16 +2199,14 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         destination: &str,
         default_label: &str,
-        label: &[InlineNode<'_>],
-        tooltip: Option<&acdc_parser::ContentAttribute<'_>>,
+        label: ContentRef<'_>,
+        tooltip: Option<ContentRef<'_>>,
     ) -> Result<(), Error> {
         self.write_link_with_tooltip(destination, tooltip, |visitor| {
             if label.is_empty() {
                 write!(visitor.writer, "{}", Self::escape_markdown(default_label))?;
             } else {
-                for node in label {
-                    visitor.visit_inline_node(traversal, node)?;
-                }
+                visitor.write_content(traversal, label)?;
             }
             Ok(())
         })
@@ -2272,16 +2215,16 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
     fn write_link_macro_node(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        link: &Link<'_>,
+        link: LinkRef<'_>,
     ) -> Result<(), Error> {
-        let target = link.target.to_string();
-        if link.text.iter().any(is_linked_image) {
-            for node in &link.text {
+        let target = link.target().to_string();
+        if link.text().inlines().any(is_linked_image) {
+            for node in link.text().inlines() {
                 if is_linked_image(node) {
-                    self.visit_inline_node(traversal, node)?;
+                    self.write_inline(traversal, node)?;
                 } else {
-                    self.write_link_with_tooltip(&target, link.tooltip.as_ref(), |visitor| {
-                        visitor.visit_inline_node(traversal, node)
+                    self.write_link_with_tooltip(&target, link.tooltip(), |visitor| {
+                        visitor.write_inline(traversal, node)
                     })?;
                 }
             }
@@ -2289,26 +2232,20 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
         }
 
         let fallback = link_fallback(&target, link.hides_uri_scheme());
-        self.write_macro_link(
-            traversal,
-            &target,
-            fallback,
-            &link.text,
-            link.tooltip.as_ref(),
-        )
+        self.write_macro_link(traversal, &target, fallback, link.text(), link.tooltip())
     }
 
     fn write_keyboard(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        keys: &[acdc_parser::ContentAttribute<'_>],
+        keyboard: KeyboardRef<'_>,
     ) -> Result<(), Error> {
-        for (index, key) in keys.iter().enumerate() {
+        for (index, key) in keyboard.keys().enumerate() {
             if index > 0 {
                 write!(self.writer, "+")?;
             }
             write!(self.writer, "<kbd>")?;
-            self.visit_inline_nodes(traversal, key)?;
+            self.write_content(traversal, key)?;
             write!(self.writer, "</kbd>")?;
         }
         Ok(())
@@ -2317,21 +2254,20 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
     fn write_inline_image(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        image: &InlineImage<'_>,
+        image: InlineImageRef<'_>,
     ) -> Result<(), Error> {
-        let alt = inline_image_alt(image);
+        let alt = acdc_converters_core::media::image_alt_from_content(image.source(), image.alt());
         self.write_image(
             traversal,
-            &image.source,
+            image.source(),
             image.attributes(),
             &alt,
             image
-                .tooltip
-                .as_ref()
+                .tooltip()
                 .map(|value| {
                     InlineTextTransform::default()
                         .rendered_replacements(true)
-                        .to_string(value)
+                        .content_to_string(value)
                 })
                 .as_deref(),
         )?;
@@ -2341,24 +2277,24 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
     fn write_inline_icon(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        icon_macro: &acdc_parser::Icon<'_>,
+        icon_macro: IconRef<'_>,
     ) -> Result<(), Error> {
         let render = |visitor: &mut Self| {
             write!(visitor.writer, "[")?;
-            if let Some(alt) = &icon_macro.alt {
-                visitor.visit_inline_nodes(traversal, alt)?;
+            if let Some(alt) = icon_macro.alt() {
+                visitor.write_content(traversal, alt)?;
             } else {
                 write!(
                     visitor.writer,
                     "{}",
-                    Self::escape_markdown(&icon::alt(&icon_macro.target, None))
+                    Self::escape_markdown(&icon::alt_from_content(icon_macro.target(), None))
                 )?;
             }
             write!(visitor.writer, "]")?;
             Ok(())
         };
-        if let Some(link) = icon_macro.attributes().get_string("link") {
-            self.write_link_with_tooltip(&link, icon_macro.tooltip.as_ref(), render)?;
+        if let Some(link) = attribute_text(icon_macro.attributes(), "link") {
+            self.write_link_with_tooltip(link, icon_macro.tooltip(), render)?;
         } else {
             let mut render = render;
             render(self)?;
@@ -2366,108 +2302,203 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
         Ok(())
     }
 
-    fn visit_inline_macro_inner(
+    fn write_formatting_span(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        mac: &InlineMacro,
+        node: InlineRef<'_>,
     ) -> Result<(), Error> {
-        match mac {
-            InlineMacro::Link(link) => self.write_link_macro_node(traversal, link)?,
-            InlineMacro::Image(image) => self.write_inline_image(traversal, image)?,
-            InlineMacro::Icon(icon_macro) => self.write_inline_icon(traversal, icon_macro)?,
-            InlineMacro::Keyboard(keyboard) => {
-                self.write_keyboard(traversal, &keyboard.keys)?;
+        if let InlineKind::Bold(text) = node.kind() {
+            self.write_inline_anchor(text.id().map(ElementIdRef::as_str))?;
+            let role = self.write_role_start(text.role())?;
+            self.write_emphasis(traversal, text.content(), "**", "strong")?;
+            self.write_role_end(role)?;
+        } else if let InlineKind::Italic(text) = node.kind() {
+            self.write_inline_anchor(text.id().map(ElementIdRef::as_str))?;
+            let role = self.write_role_start(text.role())?;
+            self.write_emphasis(traversal, text.content(), "*", "em")?;
+            self.write_role_end(role)?;
+        } else if let InlineKind::Monospace(text) = node.kind() {
+            self.write_inline_anchor(text.id().map(ElementIdRef::as_str))?;
+            let role = self.write_role_start(text.role())?;
+            let content = InlineTextTransform::default()
+                .line_break("\n")
+                .content_to_string(text.content());
+            self.write_code_span(&content)?;
+            self.write_role_end(role)?;
+        } else if let InlineKind::Highlight(text) = node.kind() {
+            self.write_inline_anchor(text.id().map(ElementIdRef::as_str))?;
+            let role = self.write_role_start(text.role())?;
+            if role.is_none() {
+                write!(self.writer, "<mark>")?;
             }
-            InlineMacro::Button(button) => {
+            self.write_content(traversal, text.content())?;
+            if role.is_none() {
+                write!(self.writer, "</mark>")?;
+            }
+            self.write_role_end(role)?;
+        } else if let InlineKind::Subscript(text) = node.kind() {
+            self.write_inline_anchor(text.id().map(ElementIdRef::as_str))?;
+            let role = self.write_role_start(text.role())?;
+            write!(self.writer, "<sub>")?;
+            self.write_content(traversal, text.content())?;
+            write!(self.writer, "</sub>")?;
+            self.write_role_end(role)?;
+        } else if let InlineKind::Superscript(text) = node.kind() {
+            self.write_inline_anchor(text.id().map(ElementIdRef::as_str))?;
+            let role = self.write_role_start(text.role())?;
+            write!(self.writer, "<sup>")?;
+            self.write_content(traversal, text.content())?;
+            write!(self.writer, "</sup>")?;
+            self.write_role_end(role)?;
+        } else if let InlineKind::CurvedQuotation(text) = node.kind() {
+            self.write_inline_anchor(text.id().map(ElementIdRef::as_str))?;
+            let role = self.write_role_start(text.role())?;
+            write!(self.writer, "\"")?;
+            self.write_content(traversal, text.content())?;
+            write!(self.writer, "\"")?;
+            self.write_role_end(role)?;
+        } else if let InlineKind::CurvedApostrophe(text) = node.kind() {
+            self.write_inline_anchor(text.id().map(ElementIdRef::as_str))?;
+            let role = self.write_role_start(text.role())?;
+            write!(self.writer, "'")?;
+            self.write_content(traversal, text.content())?;
+            write!(self.writer, "'")?;
+            self.write_role_end(role)?;
+        } else {
+            self.warn_unknown_inline_node_ref(node);
+        }
+        Ok(())
+    }
+
+    fn write_footnote(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        footnote: FootnoteRef<'_>,
+    ) -> Result<(), Error> {
+        let id = self.record_footnote(traversal, footnote)?;
+        if self.in_link_text {
+            write!(self.writer, "[{}]", footnote.number())?;
+        } else if self.variant() == MarkdownVariant::GitHubFlavored {
+            write!(self.writer, "[^{id}]")?;
+        } else {
+            write!(self.writer, "<sup>")?;
+            self.write_anchor_link(&format!("_footnote_{id}"), |visitor| {
+                write!(visitor.writer, "[{}]", footnote.number())?;
+                Ok(())
+            })?;
+            write!(self.writer, "</sup>")?;
+        }
+        Ok(())
+    }
+
+    fn write_autolink(&mut self, autolink: AutolinkRef<'_>) -> Result<(), Error> {
+        let target = autolink.target().to_string();
+        let (fallback, angle_brackets) = autolink_fallback(
+            &target,
+            autolink.is_bracketed(),
+            autolink.hides_uri_scheme(),
+        );
+        self.write_link(&target, |visitor| {
+            if angle_brackets {
+                write!(
+                    visitor.writer,
+                    "&lt;{}&gt;",
+                    Self::escape_markdown(fallback)
+                )?;
+            } else {
+                write!(visitor.writer, "{}", Self::escape_markdown(fallback))?;
+            }
+            Ok(())
+        })?;
+        Ok(())
+    }
+
+    fn write_inline_node_content(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        node: InlineRef<'_>,
+    ) -> Result<(), Error> {
+        match node.kind() {
+            InlineKind::Plain(text) => {
+                self.write_escaped_text(text.text())?;
+            }
+            InlineKind::LineBreak(_) => writeln!(self.writer, "  ")?,
+            InlineKind::Raw(text) => {
+                self.write_passthrough(text.text(), text.substitutions())?;
+            }
+            InlineKind::Verbatim(text) => self.write_code_span(text.text())?,
+            InlineKind::StandaloneCurvedApostrophe(_) => {
+                write!(self.writer, "'")?;
+            }
+            InlineKind::Anchor(anchor) => {
+                self.write_inline_anchor_node(traversal, anchor)?;
+            }
+            InlineKind::Callout(callout) => {
+                write!(self.writer, "({})", callout.number())?;
+            }
+            InlineKind::Bold(_)
+            | InlineKind::Italic(_)
+            | InlineKind::Monospace(_)
+            | InlineKind::Highlight(_)
+            | InlineKind::Subscript(_)
+            | InlineKind::Superscript(_)
+            | InlineKind::CurvedQuotation(_)
+            | InlineKind::CurvedApostrophe(_) => {
+                self.write_formatting_span(traversal, node)?;
+            }
+            InlineKind::Link(link) => self.write_link_macro_node(traversal, link)?,
+            InlineKind::Image(image) => self.write_inline_image(traversal, image)?,
+            InlineKind::Icon(icon_macro) => self.write_inline_icon(traversal, icon_macro)?,
+            InlineKind::Keyboard(keyboard) => {
+                self.write_keyboard(traversal, keyboard)?;
+            }
+            InlineKind::Button(button) => {
                 write!(self.writer, "<strong>[")?;
-                self.visit_inline_nodes(traversal, &button.label)?;
+                self.write_content(traversal, button.label())?;
                 write!(self.writer, "]</strong>")?;
             }
-            InlineMacro::Menu(menu) => {
-                self.visit_inline_nodes(traversal, &menu.target)?;
-                for item in &menu.items {
+            InlineKind::Menu(menu) => {
+                self.write_content(traversal, menu.target())?;
+                for item in menu.items() {
                     write!(self.writer, " > ")?;
-                    self.visit_inline_nodes(traversal, item)?;
+                    self.write_content(traversal, item)?;
                 }
             }
-            InlineMacro::Footnote(footnote) => {
-                let id = self.record_footnote(traversal, footnote)?;
-                if self.in_link_text {
-                    write!(self.writer, "[{}]", footnote.number)?;
-                } else if self.variant() == MarkdownVariant::GitHubFlavored {
-                    write!(self.writer, "[^{id}]")?;
-                } else {
-                    write!(self.writer, "<sup>")?;
-                    self.write_anchor_link(&format!("_footnote_{id}"), |visitor| {
-                        write!(visitor.writer, "[{}]", footnote.number)?;
-                        Ok(())
-                    })?;
-                    write!(self.writer, "</sup>")?;
-                }
-            }
-            InlineMacro::Url(url) => {
-                let target = url.target.to_string();
+            InlineKind::Footnote(footnote) => self.write_footnote(traversal, footnote)?,
+            InlineKind::Url(url) => {
+                let target = url.target().to_string();
                 let fallback = link_fallback(&target, url.hides_uri_scheme());
-                self.write_macro_link(
-                    traversal,
-                    &target,
-                    fallback,
-                    &url.text,
-                    url.tooltip.as_ref(),
-                )?;
+                self.write_macro_link(traversal, &target, fallback, url.text(), url.tooltip())?;
             }
-            InlineMacro::Mailto(mailto) => {
-                let target = mailto.target.to_string();
-                let destination = mailto_target(mailto.as_ref());
+            InlineKind::Mailto(mailto) => {
+                let target = mailto.target().to_string();
+                let destination = mailto_target(mailto);
                 self.write_macro_link(
                     traversal,
                     &destination,
                     mailto_fallback(&target),
-                    &mailto.text,
-                    mailto.tooltip.as_ref(),
+                    mailto.text(),
+                    mailto.tooltip(),
                 )?;
             }
-            InlineMacro::Autolink(autolink) => {
-                let target = autolink.url.to_string();
-                let (fallback, angle_brackets) =
-                    autolink_fallback(&target, autolink.bracketed, autolink.hides_uri_scheme());
-                self.write_link(&target, |visitor| {
-                    if angle_brackets {
-                        write!(
-                            visitor.writer,
-                            "&lt;{}&gt;",
-                            Self::escape_markdown(fallback)
-                        )?;
-                    } else {
-                        write!(visitor.writer, "{}", Self::escape_markdown(fallback))?;
-                    }
-                    Ok(())
-                })?;
-            }
-            InlineMacro::CrossReference(xref) => self.visit_cross_reference(traversal, xref)?,
-            InlineMacro::IndexTerm(term) => self.visit_index_term(traversal, term)?,
-            InlineMacro::Pass(pass) => {
-                if let Some(text) = pass.text {
-                    self.write_passthrough(text, &pass.substitutions)?;
+            InlineKind::Autolink(autolink) => self.write_autolink(autolink)?,
+            InlineKind::CrossReference(xref) => self.visit_cross_reference(traversal, xref)?,
+            InlineKind::IndexTerm(term) => self.visit_index_term(traversal, term)?,
+            InlineKind::Pass(pass) => {
+                if let Some(text) = pass.text() {
+                    self.write_passthrough(text, pass.substitutions())?;
                 }
             }
-            InlineMacro::Stem(stem) => {
+            InlineKind::Stem(stem) => {
                 self.warn_once(
                     "inline-stem",
                     "inline STEM is not supported by the Markdown backend; preserving the expression as code",
                     "Use a Markdown renderer with a math extension, or use a backend that supports STEM rendering.",
                 );
-                self.write_code_span(stem.content)?;
+                self.write_code_span(stem.text())?;
             }
             _ => {
-                self.warn_once_at(
-                    "unknown-inline-macro",
-                    format!(
-                        "unknown inline macro feature is not supported by the Markdown backend; skipping content: {mac:?}"
-                    ),
-                    "Use a backend that supports this inline macro, or replace it with portable inline content.",
-                    Some(mac.location()),
-                );
+                self.warn_unknown_inline_node_ref(node);
             }
         }
         Ok(())
@@ -2481,24 +2512,20 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
     fn visit_cross_reference(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        xref: &CrossReference<'_>,
+        xref: CrossReferenceRef<'_>,
     ) -> Result<(), Error> {
-        let target = xref.target;
-        if !xref.text.is_empty() {
-            if !xref.target_is_local
+        let target = xref.target();
+        if !xref.text().is_empty() {
+            if !xref.target_is_local()
                 && let Some((destination, _)) = Self::interdocument_xref(traversal, target)
             {
                 return self.write_link(&destination, |visitor| {
-                    for node in &xref.text {
-                        visitor.visit_inline_node(traversal, node)?;
-                    }
+                    visitor.write_content(traversal, xref.text())?;
                     Ok(())
                 });
             }
             return self.write_anchor_link(target, |visitor| {
-                for node in &xref.text {
-                    visitor.visit_inline_node(traversal, node)?;
-                }
+                visitor.write_content(traversal, xref.text())?;
                 Ok(())
             });
         }
@@ -2508,12 +2535,10 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
         let references = Rc::clone(&self.processor.references);
         let guard = self.processor.xref_guard.clone();
         self.with_index_collection(false, |visitor| {
-            match resolve_xref(references.get(target), xref, &guard) {
+            match resolve_reference(references.get(target).map(ReferenceRef::from), xref, &guard) {
                 XrefDisplay::Title(inlines, _scope) | XrefDisplay::Label(inlines, _scope) => {
                     visitor.write_anchor_link(target, |visitor| {
-                        for node in inlines {
-                            visitor.visit_inline_node(traversal, node)?;
-                        }
+                        visitor.write_content(traversal, inlines)?;
                         Ok(())
                     })
                 }
@@ -2524,9 +2549,7 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
                 XrefDisplay::FullCaption(prefix, inlines, _scope) => {
                     visitor.write_anchor_link(target, |visitor| {
                         write!(visitor.writer, "{prefix}, “")?;
-                        for node in inlines {
-                            visitor.visit_inline_node(traversal, node)?;
-                        }
+                        visitor.write_content(traversal, inlines)?;
                         write!(visitor.writer, "”")?;
                         Ok(())
                     })
@@ -2537,9 +2560,7 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
                             write!(visitor.writer, "{prefix}, ")?;
                         }
                         write!(visitor.writer, "*")?;
-                        for node in inlines {
-                            visitor.visit_inline_node(traversal, node)?;
-                        }
+                        visitor.write_content(traversal, inlines)?;
                         write!(visitor.writer, "*")?;
                         Ok(())
                     })
@@ -2591,7 +2612,7 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
     fn write_link_with_tooltip(
         &mut self,
         destination: &str,
-        tooltip: Option<&acdc_parser::ContentAttribute<'_>>,
+        tooltip: Option<ContentRef<'_>>,
         text: impl FnOnce(&mut Self) -> Result<(), Error>,
     ) -> Result<(), Error> {
         if self.in_link_text {
@@ -2607,7 +2628,7 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
             let title = InlineTextTransform::default()
                 .rendered_replacements(true)
                 .decode_char_refs(true)
-                .to_string(tooltip);
+                .content_to_string(tooltip);
             write!(self.writer, " \"{}\"", escape_link_title(&title))?;
         }
         write!(self.writer, ")")?;
@@ -2617,13 +2638,13 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
     fn write_image(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        source: &Source<'_>,
-        attributes: &ElementAttributes<'_>,
+        source: SourceRef<'_>,
+        attributes: AttributesRef<'_>,
         alt: &str,
         title: Option<&str>,
     ) -> Result<(), Error> {
-        if let Some(link) = attributes.get_string("link") {
-            self.write_link(&link, |visitor| {
+        if let Some(link) = attribute_text(attributes, "link") {
+            self.write_link(link, |visitor| {
                 visitor.write_image_markup(traversal, source, attributes, alt, title)
             })
         } else {
@@ -2634,14 +2655,14 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
     fn write_image_markup(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        source: &Source<'_>,
-        attributes: &ElementAttributes<'_>,
+        source: SourceRef<'_>,
+        attributes: AttributesRef<'_>,
         alt: &str,
         title: Option<&str>,
     ) -> Result<(), Error> {
-        let target = Self::media_target(traversal, source);
-        let width = attributes.get_string("width");
-        let height = attributes.get_string("height");
+        let target = resolve_target(&source.to_string(), traversal);
+        let width = attribute_text(attributes, "width");
+        let height = attribute_text(attributes, "height");
         if width.is_some() || height.is_some() {
             write!(
                 self.writer,
@@ -2653,14 +2674,10 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
                 write!(self.writer, " title=\"{}\"", escape_html_attribute(title))?;
             }
             if let Some(width) = width {
-                write!(self.writer, " width=\"{}\"", escape_html_attribute(&width))?;
+                write!(self.writer, " width=\"{}\"", escape_html_attribute(width))?;
             }
             if let Some(height) = height {
-                write!(
-                    self.writer,
-                    " height=\"{}\"",
-                    escape_html_attribute(&height)
-                )?;
+                write!(self.writer, " height=\"{}\"", escape_html_attribute(height))?;
             }
             write!(self.writer, ">")?;
             return Ok(());
@@ -3014,5 +3031,17 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
             }
         }
         result
+    }
+}
+
+impl<'a, W: Write> acdc_converters_core::visitor::InlineVisitor<'a> for MarkdownVisitor<'a, '_, W> {
+    type Error = Error;
+
+    fn visit_inline_node(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        node: InlineRef<'_>,
+    ) -> Result<(), Self::Error> {
+        self.write_inline_node_content(traversal, node)
     }
 }
