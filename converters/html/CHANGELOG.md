@@ -120,6 +120,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Links, URLs, mailto links, and external cross-references honor `opts=nofollow`
+  and `opts=noopener` alongside `window=`. `_blank` windows add `noopener`;
+  local cross-references retain their existing behavior. acdc keeps `nofollow`
+  with named windows even when `noopener` is absent, unlike Asciidoctor.
+  The existing `target=` alias and empty-window fallback remain supported.
+
 - The HTML converter and live editor build for browser WASM again. File-URL
   image embedding reports a warning on platforms without local file paths.
 

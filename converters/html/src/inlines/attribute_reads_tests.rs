@@ -3,7 +3,7 @@ use acdc_parser::{
     ast::{ContentRef, ImageRef, LinkRef},
 };
 
-use super::{link_class_attr, link_id_attr, tooltip_attribute, window_attrs};
+use super::{link_class_attr, link_control_attributes, link_id_attr, tooltip_attribute};
 use crate::image::image_link_control_attributes;
 
 type TestError = Box<dyn std::error::Error>;
@@ -29,7 +29,10 @@ fn link_attributes_keep_empty_nontext_and_quoted_values_after_owner_edits() -> R
         let mut link = Link::new(Source::Name("destination"), Location::default());
         link.set_attribute("window".into(), window)?;
         link.set_attribute("target".into(), "'alias'".into())?;
-        assert_eq!(window_attrs(LinkRef::from(&link).attributes()), expected);
+        assert_eq!(
+            link_control_attributes(LinkRef::from(&link).attributes()),
+            expected
+        );
 
         link.metadata.id = Some(ElementId::new("'explicit'", Location::default()));
         link.metadata.roles = vec!["'first", "second'"];
@@ -104,4 +107,49 @@ fn tooltip_attributes_keep_absent_and_present_empty_content_distinct() {
         tooltip_attribute(Some(ContentRef::from(&empty))),
         " title=\"\""
     );
+}
+
+#[test]
+fn hyperlink_options_control_rel_without_changing_window_fallbacks() -> Result<(), TestError> {
+    for (window, options, expected) in [
+        (None, vec!["nofollow"], " rel=\"nofollow\""),
+        (None, vec!["noopener"], ""),
+        (
+            Some("_blank"),
+            vec!["nofollow"],
+            " target=\"_blank\" rel=\"nofollow noopener\"",
+        ),
+        (
+            Some("reading"),
+            vec!["noopener"],
+            " target=\"reading\" rel=\"noopener\"",
+        ),
+        (
+            Some("reading"),
+            vec!["nofollow"],
+            " target=\"reading\" rel=\"nofollow\"",
+        ),
+        (
+            Some("reading"),
+            vec!["nofollow", "noopener", "unknown"],
+            " target=\"reading\" rel=\"nofollow noopener\"",
+        ),
+        (Some(""), vec!["nofollow"], " rel=\"nofollow\""),
+        (
+            Some("review\" & <pane>"),
+            vec![],
+            " target=\"review&quot; &amp; &lt;pane&gt;\"",
+        ),
+    ] {
+        let mut link = Link::new(Source::Name("destination"), Location::default());
+        if let Some(window) = window {
+            link.set_attribute("window".into(), window.into())?;
+        }
+        *link.options_mut() = options;
+        assert_eq!(
+            link_control_attributes(LinkRef::from(&link).attributes()),
+            expected
+        );
+    }
+    Ok(())
 }

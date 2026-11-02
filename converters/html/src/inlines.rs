@@ -192,12 +192,8 @@ fn link_id_attr(id: Option<ElementIdRef<'_>>) -> String {
     })
 }
 
-/// Extract `target` and `rel` attributes from `window` or `target` attribute values.
-///
-/// Maps the `AsciiDoc` `window` (preferred) or `target` attribute to HTML:
-/// - `window=_blank` / `target=_blank` → `target="_blank" rel="noopener"`
-/// - `window=<other>` / `target=<other>` → `target="<other>"`
-fn window_attrs(attributes: AttributesRef<'_>) -> String {
+/// Apply hyperlink window and relationship controls, retaining the `target` alias.
+fn link_control_attributes(attributes: AttributesRef<'_>) -> String {
     let get_str = |key: &str| {
         attributes.get(key).and_then(|value| {
             if let AttributeValueRef::Text(s) = value {
@@ -209,11 +205,19 @@ fn window_attrs(attributes: AttributesRef<'_>) -> String {
         })
     };
     let window = get_str("window").or_else(|| get_str("target"));
-    match window {
-        Some("_blank") => " target=\"_blank\" rel=\"noopener\"".to_string(),
-        Some(w) => format!(" target=\"{w}\""),
-        None => String::new(),
+    let has_option = |name| matches!(attributes.get("opts"), Some(AttributeValueRef::Tokens(options)) if options.contains(name));
+    let nofollow = has_option("nofollow");
+    let noopener = window.is_some_and(|window| window == "_blank" || has_option("noopener"));
+    let mut controls = window.map_or_else(String::new, |window| {
+        format!(" target=\"{}\"", escape_attribute(window))
+    });
+    match (nofollow, noopener) {
+        (true, true) => controls.push_str(" rel=\"nofollow noopener\""),
+        (true, false) => controls.push_str(" rel=\"nofollow\""),
+        (false, true) => controls.push_str(" rel=\"noopener\""),
+        (false, false) => {}
     }
+    controls
 }
 
 /// Helper to write an HTML opening tag with optional id and role attributes.
@@ -943,7 +947,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         let link = l;
         let id_attr = link_id_attr(link.id());
         let class_attr = link_class_attr(link.roles(), l.text().is_empty());
-        let target_attr = window_attrs(link.attributes());
+        let target_attr = link_control_attributes(link.attributes());
         let tooltip = tooltip_attribute(link.tooltip());
         self.with_inline_link(
             InlineLink::new(
@@ -1059,7 +1063,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         let link = u;
         let id_attr = link_id_attr(link.id());
         let class_attr = link_class_attr(link.roles(), u.text().is_empty());
-        let target_attr = window_attrs(link.attributes());
+        let target_attr = link_control_attributes(link.attributes());
         let tooltip = tooltip_attribute(link.tooltip());
         self.with_inline_link(
             InlineLink::new(
@@ -1106,7 +1110,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         let link = m;
         let id_attr = link_id_attr(link.id());
         let class_attr = link_class_attr(link.roles(), false);
-        let target_attr = window_attrs(link.attributes());
+        let target_attr = link_control_attributes(link.attributes());
         let tooltip = tooltip_attribute(link.tooltip());
         self.with_inline_link(
             InlineLink::new(
@@ -1216,7 +1220,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         // An `xref:` macro's `role=` becomes the link's class, as in
         // asciidoctor, whatever the link text. An empty role adds no class,
         // matching how a `link:` macro's role is handled here.
-        let class = if xref.roles().is_empty() {
+        let mut class = if xref.roles().is_empty() {
             String::new()
         } else {
             format!(
@@ -1224,6 +1228,9 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 escape_attribute(&xref.roles().iter().collect::<Vec<_>>().join(" "))
             )
         };
+        if !xref.target_is_local() {
+            class.push_str(&link_control_attributes(xref.attributes()));
+        }
         if xref.text().is_empty() {
             // Resolve via the id -> reference map (sections + titled blocks):
             // xreflabel (from [[id,Custom Text]]) > caption style or target title >
