@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Table-of-contents rendering avoids another full copy of heading content while
+  preserving numbering, source locations, and duplicate-heading destinations.
 - Automatic cross-references retain parsed label and title content, including
   empty labels, formatting, source spans, and nested-reference fallbacks.
 - PDF metadata, page settings, heading index terms, and diagnostic source labels

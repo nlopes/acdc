@@ -513,14 +513,8 @@ impl Processor<'_> {
             .table_counter
             .set(doc.highest_caption_number(CaptionKind::Table));
         let mut traversal = TraversalContext::new(doc.attributes());
-        let mut visitor = PdfVisitor::new(
-            processor,
-            assets,
-            config,
-            doc.toc_entries().map(acdc_parser::TocEntry::from).collect(),
-            diagnostics.reborrow(),
-        )
-        .with_populated_index_sections(preparation.populated_index_sections.clone());
+        let mut visitor = PdfVisitor::new(processor, assets, config, doc, diagnostics.reborrow())
+            .with_populated_index_sections(preparation.populated_index_sections.clone());
         heading_index::visit_terms(doc, |traversal, term| {
             visitor.register_heading_index_term(traversal, term)
         })?;
@@ -2675,7 +2669,7 @@ mod tests {
                     &emit_options,
                     PageNumberingPlan::new(theme.page_numbering_start_at, false, false),
                 ),
-                Vec::new(),
+                parsed.document_ref(),
                 diagnostics,
             );
             visitor.warn_unsupported_parser_variant("block", None);

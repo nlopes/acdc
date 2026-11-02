@@ -18,21 +18,21 @@ use acdc_converters_core::{
     section::effective_section_level,
     substitutions::{Replacements, TextBoundaries, apply_passthrough_replacements_iter},
     table::{CellKind, GridRow, column_count, grid_rows},
-    toc::{Config as TocConfig, NumberingConfig, effective_level, has_real_parts, section_numbers},
+    toc::{Config as TocConfig, NumberingConfig, entry_level, has_parts, number_prefixes},
     visitor::InlineVisitor,
     xref::{XrefDisplay, interdocument_xref, resolve_reference},
 };
 use acdc_parser::{
     CaptionKind, ColumnStyle, ColumnWidth, HorizontalAlignment, Location, SectionKind,
-    Substitution, TableFrame, TableGrid, TablePresentation, TableStripes, Title, TocEntry,
+    Substitution, TableFrame, TableGrid, TablePresentation, TableStripes, TocEntry,
     VerticalAlignment,
     ast::{
         AnchorRef, AttributeValueRef, AttributesRef, AutolinkRef, BlockKind, BlockRef, CaptionRef,
         ColumnFormatRef, ContentRef, CrossReferenceRef, DescriptionListItemRef, DescriptionListRef,
-        ElementIdRef, FootnoteRef, IconRef, ImageRef, IndexTermRef, IndexTermRelationshipRef,
-        InlineImageRef, InlineKind, InlineRef, ListItemRef, LocationRef, MenuRef, PageBreakRef,
-        ParagraphRef, RawRef, ReferenceRef, SectionRef, SourceRef, TableCellRef,
-        TableOfContentsRef, TableRef, TableRowRef, TokensRef, UnorderedListRef,
+        DocumentRef, ElementIdRef, FootnoteRef, IconRef, ImageRef, IndexTermRef,
+        IndexTermRelationshipRef, InlineImageRef, InlineKind, InlineRef, ListItemRef, LocationRef,
+        MenuRef, PageBreakRef, ParagraphRef, RawRef, ReferenceRef, SectionRef, SourceRef,
+        TableCellRef, TableOfContentsRef, TableRef, TableRowRef, TokensRef, UnorderedListRef,
     },
 };
 use acdc_pdf_images::ImageMap;
@@ -275,7 +275,7 @@ pub(crate) struct PdfVisitor<'a, 'd, 'm> {
     book_page_break_state: BookPageBreakState,
     pub(crate) explicit_page_break_state: ExplicitPageBreakState,
     text_boundaries: TextBoundaries,
-    toc_entries: Vec<TocEntry<'a>>,
+    document: DocumentRef<'a>,
     toc_written: bool,
     pub(crate) page_numbering: PageNumberingState,
     populated_index_sections: HashSet<String>,
@@ -418,7 +418,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         processor: Processor<'a>,
         assets: &'m ImageMap,
         config: TypstSourceConfig<'m>,
-        toc_entries: Vec<TocEntry<'a>>,
+        document: DocumentRef<'a>,
 
         diagnostics: Diagnostics<'d>,
     ) -> Self {
@@ -467,6 +467,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         } else {
             BookPageBreakState::Disabled
         };
+        let toc_entries = document
+            .toc_entries()
+            .map(TocEntry::from)
+            .collect::<Vec<_>>();
         Self {
             writer: Writer::new(),
             anchors: Anchors::new(&toc_entries, &processor.references),
@@ -495,7 +499,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             book_page_break_state,
             explicit_page_break_state: ExplicitPageBreakState::Inactive,
             text_boundaries: TextBoundaries::BOTH,
-            toc_entries,
+            document,
             toc_written: false,
             page_numbering: PageNumberingState::new(config.page_numbering),
             populated_index_sections: HashSet::new(),
@@ -573,7 +577,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         toc_macro: Option<TableOfContentsRef<'_>>,
         placement: &str,
     ) -> Result<(), Error> {
-        if self.toc_written || self.toc_entries.is_empty() {
+        if self.toc_written || self.document.toc_entries().next().is_none() {
             return Ok(());
         }
 
@@ -618,36 +622,40 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             "#let _acdc_toc_entry(target, depth, body) = context {\n  link(\n    target,\n    pad(\n      left: depth * 1.25em,\n      grid(\n        columns: (auto, 1fr, auto),\n        column-gutter: 0.5em,\n        body,\n        repeat[.],\n        counter(page).display(at: target),\n      ),\n    ),\n  )\n}\n",
         );
 
-        let entries = self.toc_entries.clone();
-        let numbers = section_numbers(&entries, &NumberingConfig::new(traversal, None, None));
-        let has_parts = has_real_parts(&entries);
+        let document = self.document;
+        let numbers = number_prefixes(
+            document.toc_entries(),
+            &NumberingConfig::new(traversal, None, None),
+        );
+        let has_parts = has_parts(document.toc_entries());
         let mut root = TocRoot::None;
         let mut hidden_article_abstract_level = None;
-        for ((entry, number), label) in entries
-            .iter()
+        for ((entry, number), label) in document
+            .toc_entries()
             .zip(numbers)
             .zip(self.anchors.toc_labels.clone())
         {
             if let Some(abstract_level) = hidden_article_abstract_level {
-                if entry.level > abstract_level {
+                if entry.level() > abstract_level {
                     continue;
                 }
                 hidden_article_abstract_level = None;
             }
-            if self.doctype == Doctype::Article && entry.kind == SectionKind::Abstract {
-                hidden_article_abstract_level = Some(entry.level);
+            if self.doctype == Doctype::Article && entry.kind() == SectionKind::Abstract {
+                hidden_article_abstract_level = Some(entry.level());
                 continue;
             }
-            if entry.kind == SectionKind::Index && !self.populated_index_sections.contains(entry.id)
+            if entry.kind() == SectionKind::Index
+                && !self.populated_index_sections.contains(entry.id())
             {
                 continue;
             }
-            if entry.level > config.levels() {
+            if entry.level() > config.levels() {
                 continue;
             }
-            let depth = match entry.level {
+            let depth = match entry.level() {
                 0 => {
-                    root = if entry.kind == SectionKind::Normal {
+                    root = if entry.kind() == SectionKind::Normal {
                         TocRoot::Part
                     } else {
                         TocRoot::Special
@@ -655,7 +663,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     0
                 }
                 _ if !has_parts || root != TocRoot::Part => {
-                    effective_level(entry, has_parts).saturating_sub(1)
+                    entry_level(entry, has_parts).saturating_sub(1)
                 }
                 level => level,
             };
@@ -663,7 +671,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             if let Some(number) = number {
                 self.write_text_expr(&number);
             }
-            self.write_title_copy(traversal, &entry.title)?;
+            self.write_title_copy(traversal, entry.title())?;
             self.writer.raw("])\n");
         }
         self.writer.raw("#pagebreak()\n\n");
@@ -842,11 +850,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     fn write_title_copy(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &Title<'_>,
+        title: Option<ContentRef<'_>>,
     ) -> Result<(), Error> {
         let previous = self.index_catalog.set_suspended(true);
         let previous_anchors = replace(&mut self.anchors.suspended, true);
-        let result = self.write_title(traversal, title.content());
+        let result = self.write_title(traversal, title);
         self.anchors.suspended = previous_anchors;
         self.index_catalog.set_suspended(previous);
         result
@@ -2848,7 +2856,8 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         let references = Rc::clone(&self.processor.references);
         let backlink = references
             .get(anchor.id())
-            .is_some_and(acdc_parser::Reference::has_automatic_citation);
+            .map(ReferenceRef::from)
+            .is_some_and(ReferenceRef::has_automatic_citation);
         if backlink {
             let label = encode_bibliography_reference_label(anchor.id());
             let _ = write!(self.writer, "#link(<{label}>)[");
@@ -4409,7 +4418,8 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         if xref.text().is_empty()
             && references
                 .get(target)
-                .is_some_and(acdc_parser::Reference::is_bibliography)
+                .map(ReferenceRef::from)
+                .is_some_and(ReferenceRef::is_bibliography)
             && self
                 .bibliography_backlinks_written
                 .insert(target.to_string())
@@ -4584,7 +4594,8 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     self.processor
                         .references
                         .get(*id)
-                        .is_some_and(|reference| LocationRef::from(&reference.location) == location)
+                        .map(ReferenceRef::from)
+                        .is_some_and(|reference| reference.location() == location)
                 })
             });
         let mut role = String::new();

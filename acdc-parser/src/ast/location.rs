@@ -49,7 +49,9 @@ impl<'doc> LocationRef<'doc> {
 }
 
 /// A position in its original source context.
-#[derive(Clone, Copy, Debug)]
+///
+/// Equality compares line, column, and the complete include chain by value.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct PositionRef<'doc> {
     position: &'doc Position,
 }

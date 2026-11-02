@@ -1,6 +1,9 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use acdc_parser::{Reference, TocEntry, ast::SectionRef};
+use acdc_parser::{
+    Reference, TocEntry,
+    ast::{ReferenceRef, SectionRef, TocEntryRef},
+};
 
 use crate::encode_label;
 
@@ -28,9 +31,11 @@ impl<'a> Anchors<'a> {
         let mut seen = HashSet::new();
         for entry in entries {
             let first = references.get(entry.id).is_none_or(|reference| {
+                let reference_location = ReferenceRef::from(reference).location();
+                let entry_location = TocEntryRef::from(entry).location();
                 reference.title.as_ref() == Some(&entry.title)
-                    && reference.location.end == entry.location.end
-                    && reference.location.absolute_end == entry.location.absolute_end
+                    && reference_location.end() == entry_location.end()
+                    && reference_location.absolute_end() == entry_location.absolute_end()
             });
             let label = if first && seen.insert(entry.id) {
                 encode_label(entry.id)

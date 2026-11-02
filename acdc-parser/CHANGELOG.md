@@ -89,6 +89,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Library consumers can compare source endpoints by line, column, and include
+  chain without copying their source information.
 - List item iterators can be cloned to retain independent positions without
   copying their items or allocating a collection.
 - Library consumers can copy a video from a typed read, retaining its source,
