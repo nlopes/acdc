@@ -89,6 +89,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Clarified the library's attribute reuse paths: `Options::with_document_attributes`
+  retains parsed substitution behavior, while `DocumentAttributes::into_inputs`
+  exports text for fresh configuration, including numeric spelling and unsets.
+
 - Library consumers can compare source endpoints by line, column, and include
   chain without copying their source information.
 - List item iterators can be cloned to retain independent positions without

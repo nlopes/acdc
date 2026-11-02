@@ -272,7 +272,15 @@ impl<'a> From<Cow<'a, str>> for DocumentAttributeValue<'a> {
 impl<'a> From<&'a DocumentAttributeAssignment<'_>> for AttributeValue<'a> {
     fn from(assignment: &'a DocumentAttributeAssignment<'_>) -> Self {
         match assignment {
-            DocumentAttributeAssignment::Set(value) => value.as_borrowed().into_input(),
+            DocumentAttributeAssignment::Set(value) => {
+                if let Some(text) = value.text() {
+                    Self::String(Cow::Borrowed(text))
+                } else if let Some(integer) = value.as_integer() {
+                    Self::String(Cow::Owned(integer.to_string()))
+                } else {
+                    Self::Bool(true)
+                }
+            }
             DocumentAttributeAssignment::Unset => Self::Bool(false),
         }
     }
@@ -602,6 +610,9 @@ impl<'a> DocumentAttributes<'a> {
     ///
     /// Universal defaults remain implicit. Rebuilding options determines the new
     /// assignment precedence; parser-internal locks and origins are not exported.
+    /// Prepared substitution rules are discarded. Use
+    /// [`crate::Options::with_document_attributes`] to reuse a parsed snapshot
+    /// with those rules intact.
     pub fn into_inputs(self) -> impl Iterator<Item = (AttributeName<'a>, AttributeValue<'a>)> {
         self.into_input_map().into_iter()
     }
