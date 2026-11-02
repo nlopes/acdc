@@ -484,7 +484,7 @@ peg::parser! {
         = &atx_heading_prefix() document_title_token() whitespace() start:position!() title:$([^'\n']*) end:position!()
         {?
             tracing::debug!("Processing ATX document title");
-            let block_metadata = BlockParsingMetadata::default();
+            let block_metadata = BlockParsingMetadata::new(state.options.compatibility_mode);
 
             let (title_inlines, subtitle) = if let Some(colon_pos) = title.rfind(": ") {
                 let subtitle_raw = &title[colon_pos + 1..];
@@ -553,7 +553,7 @@ peg::parser! {
             }
 
             tracing::debug!("Processing setext document title");
-            let block_metadata = BlockParsingMetadata::default();
+            let block_metadata = BlockParsingMetadata::new(state.options.compatibility_mode);
 
             let (title_inlines, subtitle) = if let Some(colon_pos) = title.rfind(": ") {
                 let subtitle_raw = &title[colon_pos + 1..];
@@ -815,7 +815,7 @@ peg::parser! {
                 // substitutions without invoking document block recognition.
                 let (content, _) = process_inlines(
                     state,
-                    &BlockParsingMetadata::default(),
+                    &BlockParsingMetadata::new(state.options.compatibility_mode),
                     start,
                     end,
                     offset,
@@ -867,13 +867,13 @@ peg::parser! {
 
         rule leading_comment() -> Result<Block<'input>, Error>
         = comment_line_block(0)
-        / start:position!() block:comment_block(start, 0, &BlockParsingMetadata::default()) { block }
+        / start:position!() block:comment_block(start, 0, &BlockParsingMetadata::new(state.options.compatibility_mode)) { block }
 
         // Consume a block comment as a whole so its contents cannot become
         // header attributes, author information or revision information.
         rule header_comment()
         = comment()
-        / start:position!() result:comment_block(start, 0, &BlockParsingMetadata::default()) {?
+        / start:position!() result:comment_block(start, 0, &BlockParsingMetadata::new(state.options.compatibility_mode)) {?
             result.map(|_| ()).map_err(|_| "invalid header comment")
         }
 

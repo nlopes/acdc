@@ -203,9 +203,27 @@
       "type": "block",
       "title": [
         {
-          "name": "text",
-          "type": "string",
-          "value": "*Bold*",
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Bold",
+              "location": [
+                {
+                  "line": 15,
+                  "col": 2
+                },
+                {
+                  "line": 15,
+                  "col": 7
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 15,

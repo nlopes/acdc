@@ -450,9 +450,27 @@
           ],
           "tooltip": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "*Expanded*",
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Expanded",
+                  "location": [
+                    {
+                      "line": 10,
+                      "col": 39
+                    },
+                    {
+                      "line": 10,
+                      "col": 51
+                    }
+                  ]
+                }
+              ],
               "location": [
                 {
                   "line": 10,

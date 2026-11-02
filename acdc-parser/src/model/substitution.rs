@@ -26,7 +26,7 @@ use std::borrow::Cow;
 
 use serde::Serialize;
 
-use crate::DocumentAttributes;
+use crate::{CompatibilityMode, DocumentAttributes};
 
 const SUBSTITUTION_STAGE_COUNT: usize = 7;
 const DISABLED_SUBSTITUTION: u8 = u8::MAX;
@@ -34,6 +34,16 @@ const DEFAULT_PARSER_SUBSTITUTIONS: &[Substitution] = &[
     Substitution::SpecialChars,
     Substitution::Quotes,
     Substitution::Attributes,
+    Substitution::Replacements,
+    Substitution::Macros,
+    Substitution::PostReplacements,
+    Substitution::Callouts,
+];
+
+const DRAFT_PARSER_SUBSTITUTIONS: &[Substitution] = &[
+    Substitution::SpecialChars,
+    Substitution::Attributes,
+    Substitution::Quotes,
     Substitution::Replacements,
     Substitution::Macros,
     Substitution::PostReplacements,
@@ -75,10 +85,21 @@ impl SubstitutionPlan {
         self
     }
 
-    pub(crate) fn for_block_spec(spec: &SubstitutionSpec) -> Self {
+    fn defaults(mode: CompatibilityMode) -> &'static [Substitution] {
+        match mode {
+            CompatibilityMode::Asciidoctor => DEFAULT_PARSER_SUBSTITUTIONS,
+            CompatibilityMode::Draft => DRAFT_PARSER_SUBSTITUTIONS,
+        }
+    }
+
+    pub(crate) fn for_mode(mode: CompatibilityMode) -> Self {
+        Self::from_substitutions(Self::defaults(mode))
+    }
+
+    pub(crate) fn for_block_spec(spec: &SubstitutionSpec, mode: CompatibilityMode) -> Self {
         // Parser defaults include callout discovery for verbatim blocks. Resolve once:
         // filling missing stages afterwards would restore removed group members.
-        Self::from_substitutions(&spec.resolve(DEFAULT_PARSER_SUBSTITUTIONS))
+        Self::from_substitutions(&spec.resolve(Self::defaults(mode)))
     }
 
     pub(crate) fn enabled(self, substitution: &Substitution) -> bool {
@@ -1446,7 +1467,7 @@ mod tests {
     ) {
         let spec = parse_subs_attribute(subs_attr);
         assert_eq!(
-            !SubstitutionPlan::for_block_spec(&spec).enabled(&sub),
+            !SubstitutionPlan::for_block_spec(&spec, CompatibilityMode::Asciidoctor).enabled(&sub),
             expected,
             "spec={subs_attr:?} sub={sub:?}"
         );
@@ -1483,7 +1504,10 @@ mod tests {
             ("-normal,+quotes,-normal", "callouts"),
         ] {
             assert_eq!(
-                SubstitutionPlan::for_block_spec(&parse_subs_attribute(spec)),
+                SubstitutionPlan::for_block_spec(
+                    &parse_subs_attribute(spec),
+                    CompatibilityMode::Asciidoctor
+                ),
                 SubstitutionPlan::from_substitutions(&parse_subs_attribute(expected).resolve(&[])),
                 "{spec}"
             );

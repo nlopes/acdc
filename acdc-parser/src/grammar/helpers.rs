@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use crate::{
-    BlockMetadata, ProcessedContent, Title,
+    BlockMetadata, CompatibilityMode, ProcessedContent, Title,
     grammar::{ParserState, passthrough_processing::replace_passthrough_placeholders},
     model::{SectionLevel, substitution::SubstitutionPlan},
 };
@@ -32,6 +32,15 @@ pub(crate) struct BlockParsingMetadata<'input> {
     /// bare positional attribute (`[#id,discrete]`).
     pub(crate) discrete: bool,
     pub(crate) media_attributes: Option<Box<BlockMetadata<'input>>>,
+}
+
+impl BlockParsingMetadata<'_> {
+    pub(crate) fn new(mode: CompatibilityMode) -> Self {
+        Self {
+            substitutions: SubstitutionPlan::for_mode(mode),
+            ..Self::default()
+        }
+    }
 }
 
 pub(crate) const RESERVED_NAMED_ATTRIBUTE_ID: &str = "id";

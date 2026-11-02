@@ -246,6 +246,12 @@ Both modes use the same AST and are available in every build. The selected mode
 applies to includes and nested content. Each parse keeps its own mode.
 See link:../ARCHITECTURE.adoc#compatibility-mode-contract[the architecture document] for the reasoning.
 
+In ordinary inline content, Asciidoctor mode processes formatting before
+attribute references. Draft resolves references first, so a value such as
+`*Bold*` creates bold content when inserted. Protected passthrough text stays
+literal. Explicit substitution lists keep their requested order; incremental
+block modifiers start from the selected mode's defaults.
+
 For named block titles, Draft parses inline content only in single-quoted
 values. It also accumulates distinct block roles and options in source order. Unquoted and
 double-quoted named titles stay literal, including formatting markers,

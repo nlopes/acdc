@@ -89,6 +89,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `CompatibilityMode::Draft` resolves attribute references before ordinary
+  inline formatting, so inserted values such as `*Bold*` create bold content.
+  Asciidoctor mode retains formatting before attribute expansion. Explicit
+  substitution lists retain their requested order; incremental block modifiers
+  start from the selected mode's defaults.
+
 - Clarified the library's attribute reuse paths: `Options::with_document_attributes`
   retains parsed substitution behavior, while `DocumentAttributes::into_inputs`
   exports text for fresh configuration, including numeric spelling and unsets.

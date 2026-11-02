@@ -16,7 +16,8 @@ const DEFAULT_MAX_TOTAL_INCLUDE_BYTES: usize = 64 * 1024 * 1024;
 /// Selects the supported Asciidoctor or draft language rules for one parse.
 ///
 /// Both modes use the same AST. Reviewed differences cover named block titles,
-/// attribute lists and shorthand, anchor escapes, and repeated roles and options.
+/// attribute lists and shorthand, anchor escapes, repeated roles and options,
+/// and ordinary inline attribute ordering.
 /// Neither mode promises complete conformance. The choice does not change safe
 /// mode or output format.
 /// Explicit block `subs=` controls are shared; Draft supports them as an acdc extension.
@@ -27,7 +28,8 @@ pub enum CompatibilityMode {
     /// for bug fixes and deliberate improvements to the user experience.
     #[default]
     Asciidoctor,
-    /// Apply supported draft rules while retaining shared acdc behavior.
+    /// Resolve attribute references before ordinary inline syntax and apply
+    /// other supported draft rules while retaining shared acdc behavior.
     Draft,
 }
 

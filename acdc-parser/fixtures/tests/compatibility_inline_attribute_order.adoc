@@ -1,0 +1,34 @@
+= Ordinary inline attribute ordering
+:strong: *Strong*
+:emphasis: _Emphasis_
+:code: `Code`
+:alias: {strong}
+:empty:
+:space: {sp}
+:name: Early
+:captured: *{name}*
+:unconstrained: **Inside**
+
+:name: Late
+
+Direct: {strong} / {emphasis} / {code}.
+
+Alias: {alias} / {captured}. Joined: pre{unconstrained}post.
+
+Empty: *{empty}* / `{empty}`. Space: *{space}Word* / `Word{space}`.
+
+Escaped: \{strong}. Protected: +++{strong}+++ / pass:[{strong}].
+
+Characters: {asterisk}literal{asterisk} / {plus}literal{plus}.
+
+[subs="quotes,attributes"]
+Explicit quotes first: {strong}.
+
+[subs="attributes,quotes"]
+Explicit attributes first: {strong}.
+
+[subs="+macros"]
+Incremental defaults: {strong}.
+
+[subs="normal"]
+Explicit normal group: {strong}.

@@ -174,7 +174,7 @@ pub(super) fn resolve_title<'a>(
         TitleSource::Dot { source, start, end } => {
             process_inlines(
                 state,
-                &BlockParsingMetadata::default(),
+                &BlockParsingMetadata::new(state.options.compatibility_mode),
                 start,
                 end,
                 offset,
@@ -398,10 +398,10 @@ pub(super) fn finish_block_parsing_metadata<'input>(
     } = attributes;
     crate::grammar::reference_text::resolve_metadata(state, &mut metadata)?;
     let discrete = matches!(metadata.style, Some("discrete" | "float"));
-    let substitutions = metadata
-        .substitutions
-        .as_ref()
-        .map_or_else(SubstitutionPlan::default, SubstitutionPlan::for_block_spec);
+    let substitutions = metadata.substitutions.as_ref().map_or_else(
+        || SubstitutionPlan::for_mode(state.options.compatibility_mode),
+        |spec| SubstitutionPlan::for_block_spec(spec, state.options.compatibility_mode),
+    );
     let hardbreaks = substitutions.enabled(&Substitution::PostReplacements)
         && (state.hardbreaks || metadata.options.contains(&"hardbreaks"));
     resolve_caption_content(
@@ -1033,7 +1033,7 @@ pub(super) fn resolve_content_attribute<'a>(
     let result = if source.formatted {
         process_inlines(
             state,
-            &BlockParsingMetadata::default(),
+            &BlockParsingMetadata::new(state.options.compatibility_mode),
             source.start,
             source.end,
             offset,

@@ -563,6 +563,7 @@ impl<'a> ParserState<'a> {
     }
 
     pub(crate) fn new(input: &'a str, arena: &'a Bump, options: Rc<Options<'a>>) -> Self {
+        let substitutions = SubstitutionPlan::for_mode(options.compatibility_mode);
         let mut state = Self {
             reference_text_sources: Rc::default(),
             reference_text_context: None,
@@ -592,7 +593,10 @@ impl<'a> ParserState<'a> {
             attribute_passthroughs: Rc::default(),
             outer_constrained_delimiter: None,
             scope: ParserScope::Document,
-            inline_ctx: InlineContext::default(),
+            inline_ctx: InlineContext {
+                substitutions,
+                ..InlineContext::default()
+            },
             next_at_sign_cache: Cell::new(None),
         };
         state.initialize_hardbreaks();
