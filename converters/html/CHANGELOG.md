@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Automatic cross-reference titles and labels retain their formatting, caption
+  styles, and nested-reference fallbacks.
 - Per-document HTML configuration retains reference aliases, assigned heading
   numbers, and attribute defaults and unsets when copied from typed handles.
 

@@ -20,10 +20,10 @@ use acdc_converters_core::{
     table::{CellKind, GridRow, column_count, grid_rows},
     toc::{Config as TocConfig, NumberingConfig, effective_level, has_real_parts, section_numbers},
     visitor::InlineVisitor,
-    xref::{XrefDisplay, interdocument_xref, resolve_xref},
+    xref::{XrefDisplay, interdocument_xref, resolve_reference},
 };
 use acdc_parser::{
-    CaptionKind, ColumnStyle, ColumnWidth, HorizontalAlignment, InlineNode, Location, SectionKind,
+    CaptionKind, ColumnStyle, ColumnWidth, HorizontalAlignment, Location, SectionKind,
     Substitution, TableFrame, TableGrid, TablePresentation, TableStripes, Title, TocEntry,
     VerticalAlignment,
     ast::{
@@ -31,8 +31,8 @@ use acdc_parser::{
         ColumnFormatRef, ContentRef, CrossReferenceRef, DescriptionListItemRef, DescriptionListRef,
         ElementIdRef, FootnoteRef, IconRef, ImageRef, IndexTermRef, IndexTermRelationshipRef,
         InlineImageRef, InlineKind, InlineRef, ListItemRef, LocationRef, MenuRef, PageBreakRef,
-        ParagraphRef, RawRef, SectionRef, SourceRef, TableCellRef, TableOfContentsRef, TableRef,
-        TableRowRef, TokensRef, UnorderedListRef,
+        ParagraphRef, RawRef, ReferenceRef, SectionRef, SourceRef, TableCellRef,
+        TableOfContentsRef, TableRef, TableRowRef, TokensRef, UnorderedListRef,
     },
 };
 use acdc_pdf_images::ImageMap;
@@ -850,14 +850,6 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         self.anchors.suspended = previous_anchors;
         self.index_catalog.set_suspended(previous);
         result
-    }
-
-    pub(crate) fn write_inlines(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        nodes: &[InlineNode<'_>],
-    ) -> Result<(), Error> {
-        self.write_inline_refs(traversal, nodes.iter().map(InlineRef::from))
     }
 
     pub(crate) fn write_content(
@@ -4445,9 +4437,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
 
         let previous = self.index_catalog.set_suspended(true);
         let previous_anchors = replace(&mut self.anchors.suspended, true);
-        let result = match resolve_xref(references.get(target), xref, &guard) {
+        let reference = references.get(target).map(ReferenceRef::from);
+        let result = match resolve_reference(reference, xref, &guard) {
             XrefDisplay::Title(inlines, _scope) | XrefDisplay::Label(inlines, _scope) => self
-                .write_labelled_link(target, |visitor| visitor.write_inlines(traversal, inlines)),
+                .write_labelled_link(target, |visitor| visitor.write_content(traversal, inlines)),
             XrefDisplay::ShortCaption(prefix) => self.write_labelled_link(target, |visitor| {
                 visitor.write_text_expr(&prefix);
                 Ok(())
@@ -4456,7 +4449,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 self.write_labelled_link(target, |visitor| {
                     visitor.write_text_expr(&prefix);
                     visitor.write_text_expr(", “");
-                    visitor.write_inlines(traversal, inlines)?;
+                    visitor.write_content(traversal, inlines)?;
                     visitor.write_text_expr("”");
                     Ok(())
                 })
@@ -4472,7 +4465,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                         None,
                         None,
                         "#emph[",
-                        inlines.iter().map(InlineRef::from),
+                        inlines.inlines(),
                         "]",
                     )?;
                     Ok(())

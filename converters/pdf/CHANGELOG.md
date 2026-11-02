@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Automatic cross-references retain parsed label and title content, including
+  empty labels, formatting, source spans, and nested-reference fallbacks.
 - PDF metadata, page settings, heading index terms, and diagnostic source labels
   retain their parsed values during conversion.
 - Nested blocks, grouped description terms, and AsciiDoc table cells retain

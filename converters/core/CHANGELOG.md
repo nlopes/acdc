@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- Explicit automatic-reference display types now name their content type rather
+  than the source lifetime. Existing slice-based callers use
+  `XrefDisplay<'guard, &'catalog [InlineNode<'input>]>`; typed callers can retain
+  inline content directly. Label precedence, caption styles, and recursion
+  guards are unchanged.
 - Table grid rows now use `GridRow<Row>`; existing explicit row types become
   `GridRow<&TableRow<'_>>`. Typed table consumers can use `column_count`,
   `grid_rows`, and `has_spans` with the same span placement and row ordering.

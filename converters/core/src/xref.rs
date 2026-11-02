@@ -4,31 +4,31 @@ use std::{cell::Cell, rc::Rc};
 
 use acdc_parser::{
     InlineNode, Reference, XrefCaptionLabel, XrefSignifier, XrefStyle,
-    ast::{CaptionRef, CrossReferenceRef, ReferenceRef},
+    ast::{CaptionRef, ContentRef, CrossReferenceRef, ReferenceRef},
 };
 
 /// Display content for an automatic cross-reference.
 #[derive(Debug)]
-pub enum XrefDisplay<'r, 'a> {
+pub enum XrefDisplay<'r, Content> {
     /// The target's title, to render through the converter's inline pipeline.
     /// Backends that give a title a house style (manpage upper-cases a level-1
     /// section) apply it to this arm only.
     ///
     /// The scope marks the resolution as in progress: hold it while rendering
     /// the nodes so that a cross-reference inside them falls back to `[id]`.
-    Title(&'r [InlineNode<'a>], XrefScope<'r>),
+    Title(Content, XrefScope<'r>),
     /// The target's reference label, rendered through the converter's inline
     /// pipeline as written. Carries the same scope as [`XrefDisplay::Title`].
-    Label(&'r [InlineNode<'a>], XrefScope<'r>),
+    Label(Content, XrefScope<'r>),
     /// A caption label and number or custom prefix, without the target title.
     ShortCaption(String),
     /// A caption prefix and the target title in quotation marks. A numbered
     /// section other than a chapter or appendix takes this form too, as in
     /// `Section 1.1, "Title"`.
-    FullCaption(String, &'r [InlineNode<'a>], XrefScope<'r>),
+    FullCaption(String, Content, XrefScope<'r>),
     /// A chapter or appendix title in emphasis, optionally preceded by its
     /// signifier and number, as in `Chapter 2, _Title_` for a full reference.
-    Emphasized(Option<String>, &'r [InlineNode<'a>], XrefScope<'r>),
+    Emphasized(Option<String>, Content, XrefScope<'r>),
     /// An inter-document target as written, such as `other.adoc#section`.
     External(String),
     /// The literal `[id]` fallback for a target that is in the catalog but has
@@ -74,8 +74,8 @@ impl XrefGuard {
 
 /// Marks a cross-reference resolution as in progress for as long as it lives.
 ///
-/// Obtained from [`resolve_xref`] together with the nodes to render, so the
-/// nodes cannot be rendered without the guard in place.
+/// Hold this scope while rendering the returned content to prevent nested
+/// resolution. Dropping it enables automatic resolution again.
 #[derive(Debug)]
 pub struct XrefScope<'g>(&'g XrefGuard);
 
@@ -121,8 +121,43 @@ pub fn resolve_xref<'r, 'a, 'xref>(
     reference: Option<&'r Reference<'a>>,
     xref: impl Into<CrossReferenceRef<'xref>>,
     guard: &'r XrefGuard,
-) -> XrefDisplay<'r, 'a> {
-    let xref = xref.into();
+) -> XrefDisplay<'r, &'r [InlineNode<'a>]> {
+    resolve_content(
+        reference.map(ReferenceRef::from),
+        reference.and_then(|reference| reference.title.as_ref().map(AsRef::as_ref)),
+        reference.and_then(|reference| reference.xreflabel.as_deref()),
+        xref.into(),
+        guard,
+    )
+}
+
+/// Resolve automatic reference text from a typed catalog target.
+///
+/// Uses the same precedence, caption styles, and fallback distinctions as
+/// [`resolve_xref`]. Content borrows the catalog; the resolution scope borrows
+/// the guard independently. Occurrence controls need not outlive the result.
+#[must_use]
+pub fn resolve_reference<'doc, 'guard, 'xref>(
+    reference: Option<ReferenceRef<'doc>>,
+    xref: impl Into<CrossReferenceRef<'xref>>,
+    guard: &'guard XrefGuard,
+) -> XrefDisplay<'guard, ContentRef<'doc>> {
+    resolve_content(
+        reference,
+        reference.and_then(ReferenceRef::title),
+        reference.and_then(ReferenceRef::xreflabel),
+        xref.into(),
+        guard,
+    )
+}
+
+fn resolve_content<'guard, Content: Copy>(
+    reference: Option<ReferenceRef<'_>>,
+    title: Option<Content>,
+    label: Option<Content>,
+    xref: CrossReferenceRef<'_>,
+    guard: &'guard XrefGuard,
+) -> XrefDisplay<'guard, Content> {
     let target = xref.target();
     if !xref.target_is_local() {
         return XrefDisplay::External(target.to_string());
@@ -134,42 +169,40 @@ pub fn resolve_xref<'r, 'a, 'xref>(
     if guard.is_resolving() {
         return XrefDisplay::Nested(format!("[{fallback}]"));
     }
-    if let Some(label) = &reference.xreflabel {
+    if let Some(label) = label {
         XrefDisplay::Label(label, guard.enter())
-    } else if let (Some(title), Some(name), Some(number)) = (
-        &reference.title,
-        reference.section_name(),
-        reference.section_number(),
-    ) && matches!(xref.xrefstyle(), XrefStyle::Short | XrefStyle::Full)
+    } else if let (Some(title), Some(name), Some(number)) =
+        (title, reference.section_name(), reference.section_number())
+        && matches!(xref.xrefstyle(), XrefStyle::Short | XrefStyle::Full)
     {
         let prefix = section_prefix(name, number, xref.signifier());
         if xref.xrefstyle() == XrefStyle::Short {
             XrefDisplay::ShortCaption(prefix)
         } else if matches!(name, "chapter" | "appendix") {
-            XrefDisplay::Emphasized(Some(prefix), title.as_ref(), guard.enter())
+            XrefDisplay::Emphasized(Some(prefix), title, guard.enter())
         } else {
-            XrefDisplay::FullCaption(prefix, title.as_ref(), guard.enter())
+            XrefDisplay::FullCaption(prefix, title, guard.enter())
         }
-    } else if let Some(title) = &reference.title
+    } else if let Some(title) = title
         && xref.xrefstyle() != XrefStyle::Default
         && matches!(reference.section_name(), Some("chapter" | "appendix"))
     {
-        XrefDisplay::Emphasized(None, title.as_ref(), guard.enter())
+        XrefDisplay::Emphasized(None, title, guard.enter())
     } else if let (Some(title), Some(prefix)) = (
-        &reference.title,
-        ReferenceRef::from(reference)
+        title,
+        reference
             .caption()
             .and_then(|caption| caption_prefix(caption, xref)),
     ) {
         if xref.xrefstyle() == XrefStyle::Short {
             XrefDisplay::ShortCaption(prefix)
         } else if xref.xrefstyle() == XrefStyle::Full {
-            XrefDisplay::FullCaption(prefix, title.as_ref(), guard.enter())
+            XrefDisplay::FullCaption(prefix, title, guard.enter())
         } else {
-            XrefDisplay::Title(title.as_ref(), guard.enter())
+            XrefDisplay::Title(title, guard.enter())
         }
-    } else if let Some(title) = &reference.title {
-        XrefDisplay::Title(title.as_ref(), guard.enter())
+    } else if let Some(title) = title {
+        XrefDisplay::Title(title, guard.enter())
     } else {
         XrefDisplay::Fallback(format!("[{fallback}]"))
     }

@@ -1305,7 +1305,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     fn render_xref_display(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        display: XrefDisplay<'_, '_>,
+        display: XrefDisplay<'_, &[acdc_parser::InlineNode<'_>]>,
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
