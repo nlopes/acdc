@@ -1085,9 +1085,11 @@
               ]
             },
             {
-              "name": "raw",
-              "type": "string",
-              "value": "**",
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "constrained",
+              "inlines": [],
               "location": [
                 {
                   "line": 44,

@@ -19,7 +19,7 @@ Alias: **Bold** / **Early** / [^1] / **Body** / [^2] / [^3].
 
 Macros: [Site](https://example.org) / <a id="_indexterm_0"></a>Term / [^n] / [^n].
 
-Empty: ** / **. Escaped: **{name}**.
+Empty: ** / <strong></strong>. Escaped: **{name}**.
 
 Order: pass:q,c\[\*Escaped\*\] / pass:m,c\[https://example.org\[Escaped site\]\]. Partial: prefix pass:q\[\*Literal\*\].
 

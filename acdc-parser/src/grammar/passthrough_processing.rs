@@ -1,9 +1,10 @@
 use bumpalo::Bump;
-use std::mem::take;
+use std::{mem::take, rc::Rc};
 
 use crate::{
     InlineMacro, InlineNode, LineBreak, Location, ParseInlineResult, Pass, PassthroughKind, Plain,
     ProcessedContent, Raw, Substitution,
+    document_attribute::AssignmentState,
     model::substitution::{
         SubstitutionPlan, character_reference_end, escape_attribute_characters,
         is_restorable_character_reference, resolve_passthrough_substitutions,
@@ -68,12 +69,12 @@ fn process_passthrough<'a>(
                     state,
                 ));
             }
-            nodes.extend(process_raw_substitutions(
+            nodes.extend(process_attribute_fragment(
                 Raw {
                     content: &content[fragment.range.clone()],
                     ..raw.clone()
                 },
-                &fragment.substitutions,
+                fragment,
                 state,
             ));
             cursor = fragment.range.end;
@@ -124,6 +125,41 @@ fn process_passthrough<'a>(
         state,
     );
     process_inline_nodes(fragments, &substitutions, state)
+}
+
+fn process_attribute_fragment<'a>(
+    raw: Raw<'a>,
+    fragment: &crate::model::AttributeInlineFragment,
+    state: &ParserState<'a>,
+) -> Vec<InlineNode<'a>> {
+    let Some(source) = &fragment.source else {
+        return process_raw_substitutions(raw, &fragment.substitutions, state);
+    };
+    let text = state.intern_str(&source.text);
+    let mut child = ParserState::for_inline_parsing(text, state, state.inline_ctx);
+    for (name, value) in &source.references {
+        if child.document_attributes.get(name) == value.as_ref() {
+            continue;
+        }
+        let assignment = value.clone().map_or(
+            crate::DocumentAttributeAssignment::Unset,
+            crate::DocumentAttributeAssignment::Set,
+        );
+        Rc::make_mut(&mut child.document_attributes).set_entry(
+            name.to_string().into(),
+            assignment,
+            AssignmentState::PROCESSOR,
+        );
+    }
+    process_raw_substitutions(
+        Raw {
+            content: text,
+            location: child.create_block_location(0, text.len(), 0),
+            subs: Vec::new(),
+        },
+        &fragment.substitutions,
+        &child,
+    )
 }
 
 fn passthrough_content_location(

@@ -16,7 +16,7 @@ prepared-attributes - formatted document attributes
 Frozen: [1mEarly[22m / [1mEarly[22m / [1mEarly[22m © / [1mLate[22m.
 Alias: [1mBold[22m / [1mEarly[22m / [38;5;14m[1m[1][0m / [1mBody[22m / [38;5;14m[1m[2][0m / [38;5;14m[1m[3][0m.
 Macros: [38;5;12m]8;;https://example.org\Site]8;;\[39m / Term / [38;5;14m[1m[4][0m / [38;5;14m[1m[4][0m.
-Empty: ** / **. Escaped: [1m{name}[22m.
+Empty: ** / [1m[22m. Escaped: [1m{name}[22m.
 Order: pass:q,c[*Escaped*] / pass:m,c[https://example.org[Escaped site]]. Partial: prefix pass:q[*Literal*].
 ╭───────────────────────────────────┬─────────────────────╮
 │ Cell: [1mEarly[22m / [1mBold[22m / [1mEarly[22m / [38;5;14m[1m[5][0m. ┆ Other: Late / [1mBody[22m.[0m │

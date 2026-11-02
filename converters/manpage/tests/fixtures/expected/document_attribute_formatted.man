@@ -42,7 +42,7 @@ Macros: \c
 .URL "https://example.org" "Site" "\fR\c"
  / Term / [4] / [4]\&.
 .sp
-Empty: ** / **\&. Escaped: \fB{name}\fR\&.
+Empty: ** / \fB\fR\&. Escaped: \fB{name}\fR\&.
 .sp
 Order: pass:q,c[*Escaped*] / pass:m,c[https://example.org[Escaped site]]\&. Partial: prefix pass:q[*Literal*].
 .TS

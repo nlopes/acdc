@@ -1,0 +1,401 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Formatted attribute source locations",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 38
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 3,
+        "col": 28
+      }
+    ]
+  },
+  "attributes": {
+    "name": "Éva",
+    "wrapped": "*Éva*"
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Earlier.",
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 8
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 8
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Unicode café: ",
+          "location": [
+            {
+              "line": 7,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "Éva",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 15
+                },
+                {
+                  "line": 7,
+                  "col": 23
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 7,
+              "col": 15
+            },
+            {
+              "line": 7,
+              "col": 23
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 7,
+              "col": 24
+            },
+            {
+              "line": 7,
+              "col": 24
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 24
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "Cell: ",
+                        "location": [
+                          {
+                            "line": 11,
+                            "col": 2
+                          },
+                          {
+                            "line": 11,
+                            "col": 7
+                          }
+                        ]
+                      },
+                      {
+                        "name": "span",
+                        "type": "inline",
+                        "variant": "strong",
+                        "form": "constrained",
+                        "inlines": [
+                          {
+                            "name": "raw",
+                            "type": "string",
+                            "value": "Éva",
+                            "location": [
+                              {
+                                "line": 11,
+                                "col": 8
+                              },
+                              {
+                                "line": 11,
+                                "col": 16
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 11,
+                            "col": 8
+                          },
+                          {
+                            "line": 11,
+                            "col": 16
+                          }
+                        ]
+                      },
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": ".",
+                        "location": [
+                          {
+                            "line": 11,
+                            "col": 17
+                          },
+                          {
+                            "line": 11,
+                            "col": 17
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 11,
+                        "col": 2
+                      },
+                      {
+                        "line": 11,
+                        "col": 17
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 10,
+            "col": 1
+          },
+          {
+            "line": 12,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 9,
+          "col": 1
+        },
+        {
+          "line": 12,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Included café: ",
+          "location": [
+            {
+              "line": 3,
+              "col": 5,
+              "file": [
+                "includes/compatibility_formatted_attribute_locations.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 19,
+              "file": [
+                "includes/compatibility_formatted_attribute_locations.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "Éva",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 20,
+                  "file": [
+                    "includes/compatibility_formatted_attribute_locations.adoc"
+                  ]
+                },
+                {
+                  "line": 3,
+                  "col": 28,
+                  "file": [
+                    "includes/compatibility_formatted_attribute_locations.adoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 3,
+              "col": 20,
+              "file": [
+                "includes/compatibility_formatted_attribute_locations.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 28,
+              "file": [
+                "includes/compatibility_formatted_attribute_locations.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 3,
+              "col": 29,
+              "file": [
+                "includes/compatibility_formatted_attribute_locations.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 29,
+              "file": [
+                "includes/compatibility_formatted_attribute_locations.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 5,
+          "file": [
+            "includes/compatibility_formatted_attribute_locations.adoc"
+          ]
+        },
+        {
+          "line": 3,
+          "col": 29,
+          "file": [
+            "includes/compatibility_formatted_attribute_locations.adoc"
+          ]
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 3,
+      "col": 29,
+      "file": [
+        "includes/compatibility_formatted_attribute_locations.adoc"
+      ]
+    }
+  ]
+}

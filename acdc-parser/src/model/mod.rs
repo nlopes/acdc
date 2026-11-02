@@ -28,8 +28,8 @@ pub use admonition::{Admonition, AdmonitionVariant};
 pub use anchor::{Anchor, Reference, TocEntry, UNNUMBERED_SECTION_STYLES};
 pub(crate) use attributes::RawAttributes;
 pub(crate) use attributes::{
-    AttributeInlineFragment, DocumentAttributeStatus, canonical_attribute_name,
-    default_document_attribute_values,
+    AttributeInlineFragment, AttributeInlineSource, DocumentAttributeStatus,
+    canonical_attribute_name, default_document_attribute_values,
 };
 pub use attributes::{
     AttributeName, AttributeValue, DocumentAttributeAssignment, DocumentAttributeValue,

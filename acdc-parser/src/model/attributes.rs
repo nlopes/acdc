@@ -67,6 +67,15 @@ pub(crate) struct AttributeInlineFragment {
     // never store rendered markup or declaration-specific AST locations.
     pub(crate) range: Range<usize>,
     pub(crate) substitutions: Box<[crate::Substitution]>,
+    // Earlier stages see authored references; their values stay frozen.
+    pub(crate) source: Option<Arc<AttributeInlineSource>>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct AttributeInlineSource {
+    pub(crate) text: Box<str>,
+    // An absent value keeps a later definition from capturing an unresolved name.
+    pub(crate) references: Box<[(Box<str>, Option<DocumentAttributeValue<'static>>)]>,
 }
 
 impl<'a> DocumentAttributeValue<'a> {
@@ -246,6 +255,7 @@ impl<'a> DocumentAttributeValue<'a> {
                     fragments.push(AttributeInlineFragment {
                         range: range.clone(),
                         substitutions: Box::default(),
+                        source: None,
                     });
                 }
             }

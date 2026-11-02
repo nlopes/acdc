@@ -256,6 +256,18 @@ generated markup or ignore unknown names. acdc keeps backend markup out of the
 parser. Disabled macro substitutions and escaped or protected passthroughs do
 not trigger these warnings.
 
+Formatted document attributes honor explicit substitution order. With
+`:word: *Bold*`, `:value: pass:q,a[{word}]` keeps the asterisks literal;
+`pass:a,q[{word}]` produces bold content. References use the values available
+at definition time, including when the value is reused through an alias.
+Later definitions do not fill previously missing references. If formatting
+runs before an empty reference expands, the empty formatted span remains.
+
+Explicit formatted-attribute lists run once. Asciidoctor may apply surrounding
+macro and replacement substitutions again when a value is inserted into normal
+prose. acdc preserves the explicit list's interpretation without generating
+backend markup or nested links.
+
 For named block titles, Draft parses inline content only in single-quoted
 values. It also accumulates distinct block roles and options in source order. Unquoted and
 double-quoted named titles stay literal, including formatting markers,
@@ -766,8 +778,8 @@ retains `*Bold*` for `text()`, JSON, conditions, and include paths, while its
 references can produce bold inline content. Asciidoctor instead stores generated
 backend markup at definition time; acdc deliberately does not adopt that behavior.
 
-References selected by `a` freeze at definition time. Both `a,q` and `q,a` parse
-that frozen source at use. Aliases retain their profiles and protect raw text.
+References selected by `a` freeze at definition time. Explicit lists keep their
+declared order when that source is used. Aliases retain their profiles and protect raw text.
 An explicit `a` list imports profiles while keeping surrounding text literal;
 an explicit structural list controls the complete expanded source.
 Unused values register no macros; anonymous footnotes register separately at each

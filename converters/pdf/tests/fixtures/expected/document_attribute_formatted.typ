@@ -94,7 +94,7 @@
 
 #text("Macros: ")#link("https://example.org")[#text("Site")]#text(" / ")#metadata(none)<__indexterm-1>#text("Term")#text(" / ")#counter(footnote).update(3)#footnote[#text("Named body.")]<id-666f6f746e6f74653a6e>#text(" / ")#footnote(<id-666f6f746e6f74653a6e>)#text(".")
 
-#text("Empty: ")#text("**")#text(" / ")#text("**")#text(". Escaped: ")#strong[#text("{name}")]#text(".")
+#text("Empty: ")#text("**")#text(" / ")#strong[]#text(". Escaped: ")#strong[#text("{name}")]#text(".")
 
 #text("Order: ")#text("pass:q,c[*Escaped*]")#text(" / ")#text("pass:m,c[https://example.org[Escaped site]]")#text(". Partial: prefix pass:q[*Literal*].")
 

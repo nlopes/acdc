@@ -1,0 +1,14 @@
+= Formatted attribute source locations
+:name: Éva
+:wrapped: pass:q,a[*{name}*]
+
+Earlier.
+
+Unicode café: {wrapped}.
+
+[cols="a"]
+|===
+|Cell: {wrapped}.
+|===
+
+include::includes/compatibility_formatted_attribute_locations.adoc[tag=selected,indent=0]

@@ -89,6 +89,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Formatted document attributes now honor the declared order of quotes,
+  replacements, macros, and attributes. `pass:q,a[{word}]` keeps formatting
+  introduced by `{word}` literal, while `pass:a,q[{word}]` parses it, matching
+  Asciidoctor. Aliases retain definition-time values and unresolved references;
+  expanding an empty value after formatting preserves the empty span.
+  Explicit lists run once; Asciidoctor may apply macros and replacements again
+  when the value is inserted into normal prose.
+
 - Inline `pass:` lists now preserve unsupported source and report
   `ContentRecovery`, matching formatted attribute values. This covers unknown
   substitution names, callouts, and escaping after formatting or macros.

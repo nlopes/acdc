@@ -1,0 +1,21 @@
+= Frozen formatted attribute references
+:name: Éva
+:empty:
+:empty-after: pass:q,a[*{empty}*]
+:empty-before: pass:a,q[*{empty}*]
+:missing: pass:q,a[*{future}*]
+:escaped: pass:q,a[*\{name}*]
+:note: pass:m,a[footnote:n[{name}]]
+:unused: pass:m,a[footnote:unused[{name}] anchor:unused[]]
+:alias: {missing} / {escaped} / {note}
+
+:name: Later
+:future: Defined later
+
+Empty after: {empty-after}. Before: {empty-before}.
+
+Frozen references: {missing} / {escaped}.
+
+Named note: {note} / footnote:n[].
+
+Alias: {alias}.

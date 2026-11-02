@@ -22,7 +22,7 @@
 //! when their substitution is active. Each converter decides how those nodes
 //! appear in its output.
 
-use std::borrow::Cow;
+use std::{borrow::Cow, sync::Arc};
 
 use serde::Serialize;
 
@@ -1573,17 +1573,19 @@ pub(crate) fn resolve_attribute_entry_text<'text>(
     if let Some(profile) = attribute_inline_profile(text, attributes) {
         return match profile {
             Ok((inner, mut substitutions)) => {
+                let source = ordered_attribute_source(inner, &substitutions, attributes);
                 let inner = if substitutions.contains(&Substitution::Attributes) {
                     expand_attribute_entry_references(inner, attributes, false).into()
                 } else {
                     Cow::Borrowed(inner)
                 };
-                // References are frozen at assignment. Structural rules run at
-                // the use site and must not expand those references again.
-                substitutions.retain(|stage| *stage != Substitution::Attributes);
+                if source.is_none() {
+                    substitutions.retain(|stage| *stage != Substitution::Attributes);
+                }
                 let fragment = super::AttributeInlineFragment {
                     range: 0..inner.len(),
                     substitutions: substitutions.into_boxed_slice(),
+                    source,
                 };
                 (
                     super::DocumentAttributeValue::with_inline_fragments(
@@ -1601,6 +1603,7 @@ pub(crate) fn resolve_attribute_entry_text<'text>(
                     vec![super::AttributeInlineFragment {
                         range: 0..text.len(),
                         substitutions: vec![Substitution::SpecialChars].into_boxed_slice(),
+                        source: None,
                     }],
                 ),
                 Some(message),
@@ -1636,6 +1639,45 @@ pub(crate) fn resolve_attribute_entry_text<'text>(
         );
     }
     (resolve_attribute_references(text, attributes, false), None)
+}
+
+fn ordered_attribute_source(
+    text: &str,
+    substitutions: &[Substitution],
+    attributes: &DocumentAttributes<'_>,
+) -> Option<Arc<super::AttributeInlineSource>> {
+    let position = substitutions
+        .iter()
+        .position(|stage| *stage == Substitution::Attributes)?;
+    if !text.contains('{')
+        || !substitutions.iter().take(position).any(|stage| {
+            matches!(
+                stage,
+                Substitution::Quotes
+                    | Substitution::Macros
+                    | Substitution::Replacements
+                    | Substitution::PostReplacements
+            )
+        })
+    {
+        return None;
+    }
+    let mut references = rustc_hash::FxHashMap::default();
+    let _ = substitute_attributes(text, |name| {
+        let value = attributes.get(name);
+        references.entry(Box::<str>::from(name)).or_insert_with(|| {
+            value
+                .cloned()
+                .map(super::DocumentAttributeValue::into_static)
+        });
+        value
+    });
+    let mut references: Vec<_> = references.into_iter().collect();
+    references.sort_by(|(left, _), (right, _)| left.cmp(right));
+    Some(Arc::new(super::AttributeInlineSource {
+        text: text.into(),
+        references: references.into_boxed_slice(),
+    }))
 }
 
 fn resolve_attribute_references<'text>(
@@ -1686,6 +1728,7 @@ fn resolve_attribute_references<'text>(
                 .map(|range| super::AttributeInlineFragment {
                     range,
                     substitutions: Box::default(),
+                    source: None,
                 }),
         );
     }
