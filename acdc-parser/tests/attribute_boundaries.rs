@@ -92,7 +92,11 @@ fn rejected_attribute_lines_start_source_paragraph_content() -> Result<(), Error
         assert_eq!(block.metadata.style, Some("source"));
         assert_eq!(
             block.source_text(),
-            Some("[ literal body]\n// source comment")
+            Some(if mode == CompatibilityMode::Asciidoctor {
+                "[ literal body]\n// source comment"
+            } else {
+                "[ literal body]"
+            })
         );
     }
     Ok(())

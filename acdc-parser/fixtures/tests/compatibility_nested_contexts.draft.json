@@ -85,7 +85,7 @@
         {
           "name": "text",
           "type": "string",
-          "value": "code\n// visible",
+          "value": "code",
           "location": [
             {
               "line": 5,
@@ -95,8 +95,8 @@
               ]
             },
             {
-              "line": 6,
-              "col": 10,
+              "line": 5,
+              "col": 4,
               "file": [
                 "includes/compatibility_nested_contexts.adoc"
               ]
@@ -116,8 +116,8 @@
           ]
         },
         {
-          "line": 6,
-          "col": 10,
+          "line": 5,
+          "col": 4,
           "file": [
             "includes/compatibility_nested_contexts.adoc"
           ]

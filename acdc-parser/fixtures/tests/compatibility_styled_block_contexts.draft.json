@@ -1,0 +1,618 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Styled block contexts",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 23
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 3,
+        "col": 9
+      }
+    ]
+  },
+  "attributes": {
+    "enabled": true,
+    "kind": "source"
+  },
+  "blocks": [
+    {
+      "name": "list",
+      "type": "block",
+      "variant": "unordered",
+      "marker": "*",
+      "metadata": {
+        "attributes": {
+          "language": "text"
+        },
+        "style": "source"
+      },
+      "items": [
+        {
+          "name": "listItem",
+          "type": "block",
+          "marker": "*",
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "List item",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 3
+                },
+                {
+                  "line": 6,
+                  "col": 11
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 6,
+              "col": 1
+            },
+            {
+              "line": 6,
+              "col": 11
+            }
+          ]
+        },
+        {
+          "name": "listItem",
+          "type": "block",
+          "marker": "*",
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Second item",
+              "location": [
+                {
+                  "line": 8,
+                  "col": 3
+                },
+                {
+                  "line": 8,
+                  "col": 13
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 8,
+              "col": 1
+            },
+            {
+              "line": 8,
+              "col": 13
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 8,
+          "col": 13
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Ordinary paragraph before a delimiter",
+          "location": [
+            {
+              "line": 11,
+              "col": 1
+            },
+            {
+              "line": 11,
+              "col": 37
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "language": "text"
+        },
+        "style": "source"
+      },
+      "location": [
+        {
+          "line": 10,
+          "col": 1
+        },
+        {
+          "line": 11,
+          "col": 37
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Separate listing body\n// Preserved inside listing",
+          "location": [
+            {
+              "line": 14,
+              "col": 1
+            },
+            {
+              "line": 15,
+              "col": 27
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 13,
+          "col": 1
+        },
+        {
+          "line": 16,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Included café before metadata",
+          "location": [
+            {
+              "line": 4,
+              "col": 1,
+              "file": [
+                "includes/compatibility_styled_block_contexts.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 29,
+              "file": [
+                "includes/compatibility_styled_block_contexts.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "style": "verse"
+      },
+      "location": [
+        {
+          "line": 3,
+          "col": 1,
+          "file": [
+            "includes/compatibility_styled_block_contexts.adoc"
+          ]
+        },
+        {
+          "line": 4,
+          "col": 29,
+          "file": [
+            "includes/compatibility_styled_block_contexts.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Included second paragraph",
+          "location": [
+            {
+              "line": 6,
+              "col": 1,
+              "file": [
+                "includes/compatibility_styled_block_contexts.adoc"
+              ]
+            },
+            {
+              "line": 6,
+              "col": 25,
+              "file": [
+                "includes/compatibility_styled_block_contexts.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "style": "quote"
+      },
+      "location": [
+        {
+          "line": 5,
+          "col": 1,
+          "file": [
+            "includes/compatibility_styled_block_contexts.adoc"
+          ]
+        },
+        {
+          "line": 6,
+          "col": 25,
+          "file": [
+            "includes/compatibility_styled_block_contexts.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "list",
+      "type": "block",
+      "variant": "unordered",
+      "marker": "*",
+      "items": [
+        {
+          "name": "listItem",
+          "type": "block",
+          "marker": "*",
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Parent item",
+              "location": [
+                {
+                  "line": 21,
+                  "col": 3
+                },
+                {
+                  "line": 21,
+                  "col": 13
+                }
+              ]
+            }
+          ],
+          "blocks": [
+            {
+              "name": "list",
+              "type": "block",
+              "variant": "ordered",
+              "marker": ".",
+              "metadata": {
+                "style": "literal"
+              },
+              "items": [
+                {
+                  "name": "listItem",
+                  "type": "block",
+                  "marker": ".",
+                  "principal": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Continued ordered item",
+                      "location": [
+                        {
+                          "line": 24,
+                          "col": 3
+                        },
+                        {
+                          "line": 24,
+                          "col": 24
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 24,
+                      "col": 1
+                    },
+                    {
+                      "line": 24,
+                      "col": 24
+                    }
+                  ]
+                },
+                {
+                  "name": "listItem",
+                  "type": "block",
+                  "marker": ".",
+                  "principal": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Second continued item",
+                      "location": [
+                        {
+                          "line": 25,
+                          "col": 3
+                        },
+                        {
+                          "line": 25,
+                          "col": 23
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 25,
+                      "col": 1
+                    },
+                    {
+                      "line": 25,
+                      "col": 23
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 23,
+                  "col": 1
+                },
+                {
+                  "line": 25,
+                  "col": 23
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 21,
+              "col": 1
+            },
+            {
+              "line": 25,
+              "col": 23
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 21,
+          "col": 1
+        },
+        {
+          "line": 25,
+          "col": 23
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "list",
+                    "type": "block",
+                    "variant": "unordered",
+                    "marker": "*",
+                    "metadata": {
+                      "style": "literal"
+                    },
+                    "items": [
+                      {
+                        "name": "listItem",
+                        "type": "block",
+                        "marker": "*",
+                        "principal": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell item",
+                            "location": [
+                              {
+                                "line": 31,
+                                "col": 3
+                              },
+                              {
+                                "line": 31,
+                                "col": 11
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 31,
+                            "col": 1
+                          },
+                          {
+                            "line": 31,
+                            "col": 11
+                          }
+                        ]
+                      },
+                      {
+                        "name": "listItem",
+                        "type": "block",
+                        "marker": "*",
+                        "principal": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Second cell item",
+                            "location": [
+                              {
+                                "line": 32,
+                                "col": 3
+                              },
+                              {
+                                "line": 32,
+                                "col": 18
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 32,
+                            "col": 1
+                          },
+                          {
+                            "line": 32,
+                            "col": 18
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 30,
+                        "col": 1
+                      },
+                      {
+                        "line": 32,
+                        "col": 18
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 28,
+            "col": 1
+          },
+          {
+            "line": 33,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 27,
+          "col": 1
+        },
+        {
+          "line": 33,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Parent paragraph ending inside an include\nIncluded final café line",
+          "location": [
+            {
+              "line": 36,
+              "col": 1
+            },
+            {
+              "line": 11,
+              "col": 24,
+              "file": [
+                "includes/compatibility_styled_block_contexts.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "language": "text"
+        },
+        "style": "source"
+      },
+      "location": [
+        {
+          "line": 35,
+          "col": 1
+        },
+        {
+          "line": 11,
+          "col": 24,
+          "file": [
+            "includes/compatibility_styled_block_contexts.adoc"
+          ]
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 11,
+      "col": 24,
+      "file": [
+        "includes/compatibility_styled_block_contexts.adoc"
+      ]
+    }
+  ]
+}

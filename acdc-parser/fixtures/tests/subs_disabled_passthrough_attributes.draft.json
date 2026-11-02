@@ -2805,7 +2805,7 @@
           "col": 1
         },
         {
-          "line": 16,
+          "line": 2,
           "col": 29,
           "file": [
             "includes/disabled_passthrough_attributes.adoc"

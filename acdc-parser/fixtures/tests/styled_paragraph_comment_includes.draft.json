@@ -136,15 +136,18 @@
             {
               "name": "text",
               "type": "string",
-              "value": "I01 parent before include\n// I02 included first comment\nI03 included body\n// I04 included last comment\n// I05 parent after include",
+              "value": "I01 parent before include\n// I02 included first comment\nI03 included body",
               "location": [
                 {
                   "line": 13,
                   "col": 1
                 },
                 {
-                  "line": 15,
-                  "col": 27
+                  "line": 2,
+                  "col": 17,
+                  "file": [
+                    "includes/styled_comment_part.adoc"
+                  ]
                 }
               ]
             }
@@ -161,8 +164,11 @@
               "col": 1
             },
             {
-              "line": 15,
-              "col": 27
+              "line": 2,
+              "col": 17,
+              "file": [
+                "includes/styled_comment_part.adoc"
+              ]
             }
           ]
         },
@@ -173,15 +179,18 @@
             {
               "name": "text",
               "type": "string",
-              "value": "I06 before selected include\nI03 included body\n// I04 included last comment\n// I07 after selected include",
+              "value": "I06 before selected include\nI03 included body",
               "location": [
                 {
                   "line": 18,
                   "col": 1
                 },
                 {
-                  "line": 20,
-                  "col": 29
+                  "line": 2,
+                  "col": 17,
+                  "file": [
+                    "includes/styled_comment_part.adoc"
+                  ]
                 }
               ]
             }
@@ -195,8 +204,11 @@
               "col": 1
             },
             {
-              "line": 20,
-              "col": 29
+              "line": 2,
+              "col": 17,
+              "file": [
+                "includes/styled_comment_part.adoc"
+              ]
             }
           ]
         },
@@ -214,7 +226,7 @@
                   "col": 1
                 },
                 {
-                  "line": 23,
+                  "line": 1,
                   "col": 28,
                   "file": [
                     "includes/styled_comment_boundary.adoc"
@@ -232,7 +244,7 @@
               "col": 1
             },
             {
-              "line": 22,
+              "line": 1,
               "col": 28,
               "file": [
                 "includes/styled_comment_boundary.adoc"
@@ -305,7 +317,7 @@
             {
               "name": "text",
               "type": "string",
-              "value": "I13 included opening\n// I14 parent after included style",
+              "value": "I13 included opening",
               "location": [
                 {
                   "line": 3,
@@ -315,8 +327,11 @@
                   ]
                 },
                 {
-                  "line": 29,
-                  "col": 34
+                  "line": 3,
+                  "col": 20,
+                  "file": [
+                    "includes/styled_comment_open.adoc"
+                  ]
                 }
               ]
             }
@@ -336,8 +351,11 @@
               ]
             },
             {
-              "line": 29,
-              "col": 34
+              "line": 3,
+              "col": 20,
+              "file": [
+                "includes/styled_comment_open.adoc"
+              ]
             }
           ]
         },
@@ -348,15 +366,18 @@
             {
               "name": "text",
               "type": "string",
-              "value": "I15 before included metadata\n:included-kind: source\n[{included-kind},text]\nI13 included opening\n// I16 still in parent code",
+              "value": "I15 before included metadata\n:included-kind: source",
               "location": [
                 {
                   "line": 32,
                   "col": 1
                 },
                 {
-                  "line": 34,
-                  "col": 27
+                  "line": 1,
+                  "col": 22,
+                  "file": [
+                    "includes/styled_comment_open.adoc"
+                  ]
                 }
               ]
             }
@@ -373,8 +394,11 @@
               "col": 1
             },
             {
-              "line": 34,
-              "col": 27
+              "line": 1,
+              "col": 22,
+              "file": [
+                "includes/styled_comment_open.adoc"
+              ]
             }
           ]
         },
@@ -385,15 +409,68 @@
             {
               "name": "text",
               "type": "string",
-              "value": "I17 before nested include\n// I02 included first comment\nI03 included body\n// I04 included last comment\n// I18 after nested include",
+              "value": "I13 included opening",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 1,
+                  "file": [
+                    "includes/styled_comment_open.adoc"
+                  ]
+                },
+                {
+                  "line": 3,
+                  "col": 20,
+                  "file": [
+                    "includes/styled_comment_open.adoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "attributes": {
+              "language": "text"
+            },
+            "style": "source"
+          },
+          "location": [
+            {
+              "line": 2,
+              "col": 1,
+              "file": [
+                "includes/styled_comment_open.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 20,
+              "file": [
+                "includes/styled_comment_open.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "I17 before nested include\n// I02 included first comment\nI03 included body",
               "location": [
                 {
                   "line": 37,
                   "col": 1
                 },
                 {
-                  "line": 39,
-                  "col": 27
+                  "line": 2,
+                  "col": 17,
+                  "file": [
+                    "includes/styled_comment_nested.adoc",
+                    "styled_comment_part.adoc"
+                  ]
                 }
               ]
             }
@@ -410,8 +487,12 @@
               "col": 1
             },
             {
-              "line": 39,
-              "col": 27
+              "line": 2,
+              "col": 17,
+              "file": [
+                "includes/styled_comment_nested.adoc",
+                "styled_comment_part.adoc"
+              ]
             }
           ]
         },

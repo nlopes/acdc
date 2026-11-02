@@ -360,15 +360,15 @@
         {
           "name": "text",
           "type": "string",
-          "value": "[ literal body]\n// This comment belongs to the source paragraph.",
+          "value": "[ literal body]",
           "location": [
             {
               "line": 28,
               "col": 1
             },
             {
-              "line": 29,
-              "col": 48
+              "line": 28,
+              "col": 15
             }
           ]
         }
@@ -382,8 +382,8 @@
           "col": 1
         },
         {
-          "line": 29,
-          "col": 48
+          "line": 28,
+          "col": 15
         }
       ]
     },

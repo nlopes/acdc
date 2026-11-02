@@ -308,6 +308,12 @@ quote positions override named values, while media dimensions and video posters
 come from the macro itself. A preceding image style is only a fallback for alt
 text. Both modes retain positional slots for callers after mapping.
 
+Draft matches block boundaries before applying a style. For example, `[literal]`
+above `* Item` produces a list; Asciidoctor mode keeps a literal paragraph.
+Draft also lets block metadata, delimiters, and headings end styled paragraphs.
+This follows [SDR-3](https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/sdrs/sdr-003-block-parsing-and-style.adoc); discrete headings remain the explicit exception. The
+Asciidoctor rules for styled code and verse paragraphs stay unchanged.
+
 Heading styles follow the first positional value in Asciidoctor mode. For
 example, `[discrete]` followed by `[style=normal]` stays discrete, while
 `[style=discrete]` alone remains a section. Draft uses the last selected style,
@@ -317,7 +323,7 @@ Asciidoctor mode ignores an unquoted named `None` entry, preserving any earlier
 value. Draft treats it as ordinary text. Quoted and positional `None` remain
 text in both modes. This policy also applies to inline-image attributes.
 
-These differences follow SDR-2 and SDR-6 at revision
+The attribute-list differences follow SDR-2 and SDR-6 at revision
 `68ed0b22e8d9b919897542d8ae14f03e7dbdd2e4`; Draft does not mean complete draft
 specification conformance. Custom `subs=` settings and Setext still use their
 existing controls. Safe mode, network access, and output format stay separate.

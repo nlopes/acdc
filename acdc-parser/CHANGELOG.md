@@ -270,6 +270,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Draft mode recognizes lists, block macros, admonitions, and paragraph boundaries
+  before applying `source`, `listing`, `literal`, or `verse` styles. Metadata,
+  delimiters, and headings can end these paragraphs. Asciidoctor mode keeps its
+  style-dependent boundaries and code-comment preservation.
+- A block that ends in an included file keeps that file's actual end line, even
+  when it is lower than the start line in the parent file.
+
 - Positional image alt text expands document attributes once, matching named
   macro alt text and Asciidoctor. Literal references retained by an alias stay
   literal instead of resolving to a later body value, including in table cells

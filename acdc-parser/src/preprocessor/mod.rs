@@ -810,7 +810,9 @@ impl Preprocessor {
             self.include_context.block_context.clone(),
             options.compatibility_mode,
         );
-        let mut style_options = (text.contains('{')
+        let mut style_options = (options.compatibility_mode
+            == crate::CompatibilityMode::Asciidoctor
+            && text.contains('{')
             && text
                 .lines()
                 .any(|line| line.starts_with('[') && line.contains('{')))
@@ -2215,7 +2217,10 @@ endif::inner[]";
                 .with_attribute("untouched", "caller")
                 .build()?;
             let fast = Preprocessor::process(&source, &options, Rc::default())?;
-            assert!(matches!(fast.text, Cow::Borrowed(_)));
+            assert_eq!(
+                matches!(fast.text, Cow::Borrowed(_)),
+                mode == crate::CompatibilityMode::Asciidoctor
+            );
             let mut slow_options = options.clone();
             let preprocessor = Preprocessor::new(&options, Rc::default());
             let slow = preprocessor.process_slow_path(
@@ -2226,7 +2231,12 @@ endif::inner[]";
                 Vec::new(),
                 None,
             )?;
-            assert_eq!(fast.text, source);
+            let expected = if mode == crate::CompatibilityMode::Draft {
+                source.replace("// visible", "")
+            } else {
+                source.to_string()
+            };
+            assert_eq!(fast.text.trim_end(), expected.trim_end());
             assert_eq!(fast.text, slow.text);
             assert_eq!(slow_options.compatibility_mode, mode);
             assert_eq!(
@@ -2234,6 +2244,43 @@ endif::inner[]";
                 Some("caller")
             );
             assert!(!options.document_attributes.contains_key("kind"));
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn styled_boundaries_keep_fast_and_slow_preprocessing_in_agreement() -> Result<(), Error> {
+        for mode in [
+            crate::CompatibilityMode::Asciidoctor,
+            crate::CompatibilityMode::Draft,
+        ] {
+            let options = Options::builder().with_compatibility_mode(mode).build()?;
+            for content in [
+                "* List item",
+                "Ordinary paragraph before a delimiter",
+                " indented paragraph",
+            ] {
+                let source =
+                    format!("[source,text]\n{content}\n// comment\n----\nlisting body\n----");
+                let expected = if mode == crate::CompatibilityMode::Draft {
+                    source.replace("// comment\n", "")
+                } else {
+                    source.clone()
+                };
+                let fast = Preprocessor::process(&source, &options, Rc::default())?;
+                let mut slow_options = options.clone();
+                let preprocessor = Preprocessor::new(&options, Rc::default());
+                let slow = preprocessor.process_slow_path(
+                    &Cow::Borrowed(source.as_str()),
+                    None,
+                    &mut slow_options,
+                    comment::setext_enabled(&options),
+                    Vec::new(),
+                    None,
+                )?;
+                assert_eq!(fast.text, expected, "{mode:?}: {content}");
+                assert_eq!(slow.text, expected, "{mode:?}: {content}");
+            }
         }
         Ok(())
     }

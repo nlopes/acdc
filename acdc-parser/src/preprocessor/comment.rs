@@ -1,8 +1,8 @@
 //! Comment context tracking for the preprocessor.
 //!
 //! `////` block comments bypass preprocessing on both paths. Other verbatim
-//! blocks and explicitly styled verbatim paragraphs keep slash lines literal
-//! while still processing directives.
+//! blocks keep slash lines literal while still processing directives.
+//! Asciidoctor mode extends this rule to explicitly styled verbatim paragraphs.
 //! Tables are buffered before their cell styles are parsed, so their slash
 //! lines do not start comment blocks during outer preprocessing.
 //!

@@ -241,7 +241,11 @@ impl<'a> Remapper<'a> {
         // constant for re-indented includes; untransformed ranges (shift 0) leave
         // them unchanged.
         loc.start.line = start_line;
-        loc.end.line = end_line.max(start_line);
+        loc.end.line = if start_range.file_chain == end_range.file_chain {
+            end_line.max(start_line)
+        } else {
+            end_line
+        };
         loc.start.column = shift_column(loc.start.column, start_range.column_shift);
         loc.end.column = shift_column(loc.end.column, end_range.column_shift);
         // `range_file` hashes the include chain, so resolve once and reuse when start and
@@ -318,6 +322,33 @@ mod tests {
             source_start_offset: 0,
             column_shift: 0,
         }
+    }
+
+    #[test]
+    fn cross_file_endpoints_keep_independent_source_lines() {
+        let input = "one\ntwo";
+        let line_map = LineMap::new(input);
+        let mut parent = range(0, 4);
+        parent.start_line = 20;
+        let mut included = range(4, input.len());
+        included.start_line = 2;
+        included.file_chain.push("part.adoc".into());
+        let ranges = [parent, included];
+        let remapper = Remapper::new(&ranges, input, &line_map);
+        let mut location = Location {
+            absolute_start: 0,
+            absolute_end: input.len() - 1,
+            start: line_map.offset_to_position(0, input),
+            end: line_map.offset_to_position(input.len() - 1, input),
+        };
+        remapper.remap_one(&mut location);
+        assert_eq!(location.start.line, 20);
+        assert_eq!(location.end.line, 2);
+        assert!(location.start.file.is_none());
+        assert_eq!(
+            location.end.file.as_deref().map(Vec::as_slice),
+            Some(["part.adoc".to_string()].as_slice())
+        );
     }
 
     /// The segment-cover lookup must resolve the same innermost (last-recorded)

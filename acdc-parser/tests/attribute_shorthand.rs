@@ -162,11 +162,7 @@ fn preprocessing_and_block_matching_share_shorthand_rules() -> Result<(), Error>
             return Err("expected a source paragraph".into());
         };
         assert_eq!(block.metadata.style, Some("source"));
-        assert!(
-            block
-                .source_text()
-                .is_some_and(|text| text.contains("// source comment"))
-        );
+        assert_eq!(block.source_text(), Some("printf 'café'"));
     }
     Ok(())
 }

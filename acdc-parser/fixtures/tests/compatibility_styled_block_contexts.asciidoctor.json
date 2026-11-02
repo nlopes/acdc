@@ -1,0 +1,377 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Styled block contexts",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 23
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 3,
+        "col": 9
+      }
+    ]
+  },
+  "attributes": {
+    "enabled": true,
+    "kind": "source"
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "* List item\n// Removed from a Draft list\n* Second item",
+          "location": [
+            {
+              "line": 6,
+              "col": 1
+            },
+            {
+              "line": 8,
+              "col": 13
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "language": "text"
+        },
+        "style": "source"
+      },
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 8,
+          "col": 13
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Ordinary paragraph before a delimiter\n----\nSeparate listing body\n// Preserved inside listing\n----",
+          "location": [
+            {
+              "line": 11,
+              "col": 1
+            },
+            {
+              "line": 16,
+              "col": 4
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "language": "text"
+        },
+        "style": "source"
+      },
+      "location": [
+        {
+          "line": 10,
+          "col": 1
+        },
+        {
+          "line": 16,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Included café before metadata\n[quote]\nIncluded second paragraph",
+          "location": [
+            {
+              "line": 4,
+              "col": 1,
+              "file": [
+                "includes/compatibility_styled_block_contexts.adoc"
+              ]
+            },
+            {
+              "line": 6,
+              "col": 25,
+              "file": [
+                "includes/compatibility_styled_block_contexts.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "style": "verse"
+      },
+      "location": [
+        {
+          "line": 3,
+          "col": 1,
+          "file": [
+            "includes/compatibility_styled_block_contexts.adoc"
+          ]
+        },
+        {
+          "line": 6,
+          "col": 25,
+          "file": [
+            "includes/compatibility_styled_block_contexts.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "list",
+      "type": "block",
+      "variant": "unordered",
+      "marker": "*",
+      "items": [
+        {
+          "name": "listItem",
+          "type": "block",
+          "marker": "*",
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Parent item",
+              "location": [
+                {
+                  "line": 21,
+                  "col": 3
+                },
+                {
+                  "line": 21,
+                  "col": 13
+                }
+              ]
+            }
+          ],
+          "blocks": [
+            {
+              "name": "paragraph",
+              "type": "block",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": ". Continued ordered item\n. Second continued item",
+                  "location": [
+                    {
+                      "line": 24,
+                      "col": 1
+                    },
+                    {
+                      "line": 25,
+                      "col": 23
+                    }
+                  ]
+                }
+              ],
+              "metadata": {
+                "style": "literal"
+              },
+              "location": [
+                {
+                  "line": 23,
+                  "col": 1
+                },
+                {
+                  "line": 25,
+                  "col": 23
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 21,
+              "col": 1
+            },
+            {
+              "line": 25,
+              "col": 23
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 21,
+          "col": 1
+        },
+        {
+          "line": 25,
+          "col": 23
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "* Cell item\n* Second cell item",
+                        "location": [
+                          {
+                            "line": 31,
+                            "col": 1
+                          },
+                          {
+                            "line": 32,
+                            "col": 18
+                          }
+                        ]
+                      }
+                    ],
+                    "metadata": {
+                      "style": "literal"
+                    },
+                    "location": [
+                      {
+                        "line": 30,
+                        "col": 1
+                      },
+                      {
+                        "line": 32,
+                        "col": 18
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 28,
+            "col": 1
+          },
+          {
+            "line": 33,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 27,
+          "col": 1
+        },
+        {
+          "line": 33,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Parent paragraph ending inside an include\nIncluded final café line\n// Preserved only in Asciidoctor mode",
+          "location": [
+            {
+              "line": 36,
+              "col": 1
+            },
+            {
+              "line": 38,
+              "col": 37
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "language": "text"
+        },
+        "style": "source"
+      },
+      "location": [
+        {
+          "line": 35,
+          "col": 1
+        },
+        {
+          "line": 38,
+          "col": 37
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 38,
+      "col": 37
+    }
+  ]
+}

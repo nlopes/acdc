@@ -15,6 +15,7 @@ use crate::{
         ParserState,
         attributes::{
             BlockAttributeMode, block_attribute_list_allowed, resolve_block_anchor_reftext,
+            style_overrides_block_form,
         },
         document::{
             author::{derive_author_attrs, register_author_attrs},
@@ -1259,7 +1260,7 @@ peg::parser! {
                     }
                 }
             }
-            let media_ahead = media_ahead && !matches!(attributes.metadata.style, Some("listing" | "source" | "literal" | "verse"));
+            let media_ahead = media_ahead && !style_overrides_block_form(state.options.compatibility_mode, attributes.metadata.style);
             let media_attributes = if media_ahead {
                 media_attributes_ahead(state, block_start, offset).map(|raw| -> Result<_, Error> {
                     let parsed = parse_block_attribute_list(
@@ -1270,7 +1271,9 @@ peg::parser! {
                 }).transpose()?
             } else { None };
             if parse_title {
-                route_block_positions(state, &mut attributes, form);
+                if !media_ahead {
+                    route_block_positions(state, &mut attributes, form);
+                }
             } else {
                 attributes.metadata.style = select_heading_style(
                     attributes.metadata.first_source.as_ref().map(|source| source.source),
@@ -1768,12 +1771,9 @@ peg::parser! {
             }))
         }
 
-        rule normal_paragraph_style(block_metadata: &BlockParsingMetadata<'input>)
+        rule structural_block_boundaries(block_metadata: &BlockParsingMetadata<'input>)
         = {?
-            if matches!(
-                block_metadata.metadata.style,
-                Some("listing" | "source" | "literal" | "verse")
-            ) {
+            if style_overrides_block_form(state.options.compatibility_mode, block_metadata.metadata.style) {
                 Err("verbatim paragraph style")
             } else {
                 Ok(())
@@ -1791,7 +1791,7 @@ peg::parser! {
         / path_match()
 
         rule image(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
-        = normal_paragraph_style(block_metadata)
+        = structural_block_boundaries(block_metadata)
           "image::" source:source() attributes:cached_macro_attributes(block_metadata) end:position!()
           trailing:$([^'\n']*)
         {
@@ -2787,8 +2787,8 @@ peg::parser! {
         }
 
         rule callout_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
-        // Match the item prefix and style before changing callout scope.
-        = at_callout_list_item() normal_paragraph_style(block_metadata)
+        // Check the item boundary before changing callout scope.
+        = at_callout_list_item() structural_block_boundaries(block_metadata)
         context:enter_callout_list(offset)
         first:callout_list_item(offset, block_metadata)
         rest:(callout_list_rest_item(offset, block_metadata))*
@@ -3433,13 +3433,13 @@ peg::parser! {
             (author.trim().to_string(), author_start, None)
         }
 
-        // Explicit verbatim styles take precedence over list and macro syntax,
-        // but an opening block delimiter still selects a delimited block.
+        // Asciidoctor lets verbatim styles override list and macro syntax.
+        // Draft matches those forms before interpreting the style.
         rule styled_verbatim_paragraph(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
-        = !normal_paragraph_style(block_metadata) block:paragraph(start, offset, block_metadata) { block }
+        = !structural_block_boundaries(block_metadata) block:paragraph(start, offset, block_metadata) { block }
 
-        // Once started, only a blank line, list continuation, or EOF ends this
-        // paragraph. Apparent headings, delimiters, and metadata are its content.
+        // Asciidoctor keeps apparent headings, delimiters, and metadata inside
+        // a styled verbatim paragraph until a blank line or list continuation.
         rule verbatim_paragraph_content() -> &'input str
         = content:$((!(
             eol()*<2,>
@@ -3448,10 +3448,10 @@ peg::parser! {
         ) [_])+) { content }
 
         rule paragraph(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
-        = admonition:(normal_paragraph_style(block_metadata) value:admonition() { value })?
+        = admonition:(structural_block_boundaries(block_metadata) value:admonition() { value })?
         content_start:position!()
         content:(
-          !normal_paragraph_style(block_metadata) text:verbatim_paragraph_content() { text }
+          !structural_block_boundaries(block_metadata) text:verbatim_paragraph_content() { text }
           / $((
             "[[" (!eol() [_])*
             / !(
