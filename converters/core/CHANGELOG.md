@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Typed automatic-reference resolution can apply the manpage policy of using
+  matching local labels for interdocument syntax. The source target classification
+  and other backends' reference behavior stay unchanged.
+
 ### Breaking changes
 
 - Explicit automatic-reference display types now name their content type rather

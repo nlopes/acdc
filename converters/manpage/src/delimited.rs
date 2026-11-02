@@ -296,9 +296,9 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             InlineNode::Macro(InlineMacro::IndexTerm(term)) if term.is_visible() => {
                 ("", term.term(), "")
             }
-            InlineNode::Macro(_) if contains_link(node) => {
+            InlineNode::Macro(_) if contains_link(node.into()) => {
                 // Link commands need their renderer; flattening keeps only the label.
-                return self.render_inline_node(traversal, node);
+                return self.render_inline_node(traversal, node.into());
             }
             InlineNode::RawText(_)
             | InlineNode::StandaloneCurvedApostrophe(_)

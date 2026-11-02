@@ -151,6 +151,27 @@ pub fn resolve_reference<'doc, 'guard, 'xref>(
     )
 }
 
+/// Resolve reference text as local content, regardless of the occurrence's locality.
+///
+/// Manpages use matching local labels even for interdocument syntax. This keeps
+/// their display policy separate from the parser's retained target classification.
+/// Label precedence, styles, fallbacks, and recursion guards follow
+/// [`resolve_reference`]; the occurrence remains unchanged.
+#[must_use]
+pub fn resolve_local_reference<'doc, 'guard, 'xref>(
+    reference: Option<ReferenceRef<'doc>>,
+    xref: impl Into<CrossReferenceRef<'xref>>,
+    guard: &'guard XrefGuard,
+) -> XrefDisplay<'guard, ContentRef<'doc>> {
+    resolve_local_content(
+        reference,
+        reference.and_then(ReferenceRef::title),
+        reference.and_then(ReferenceRef::xreflabel),
+        xref.into(),
+        guard,
+    )
+}
+
 fn resolve_content<'guard, Content: Copy>(
     reference: Option<ReferenceRef<'_>>,
     title: Option<Content>,
@@ -162,6 +183,17 @@ fn resolve_content<'guard, Content: Copy>(
     if !xref.target_is_local() {
         return XrefDisplay::External(target.to_string());
     }
+    resolve_local_content(reference, title, label, xref, guard)
+}
+
+fn resolve_local_content<'guard, Content: Copy>(
+    reference: Option<ReferenceRef<'_>>,
+    title: Option<Content>,
+    label: Option<Content>,
+    xref: CrossReferenceRef<'_>,
+    guard: &'guard XrefGuard,
+) -> XrefDisplay<'guard, Content> {
+    let target = xref.target();
     let fallback = if target.is_empty() { "^top" } else { target };
     let Some(reference) = reference else {
         return XrefDisplay::Unresolved(format!("[{fallback}]"));
@@ -316,7 +348,10 @@ mod tests {
         ParseResult, SectionKind, XrefCaptionLabel, XrefSignifier, XrefStyle, parse,
     };
 
-    use super::{XrefDisplay, XrefGuard, interdocument_xref, resolve_xref};
+    use super::{
+        XrefDisplay, XrefGuard, interdocument_xref, resolve_local_reference, resolve_reference,
+        resolve_xref,
+    };
 
     /// Parse a document whose catalog holds `labelled` (an explicit label),
     /// `titled` (a title), and `untitled` (neither).
@@ -824,6 +859,62 @@ mod tests {
             XrefDisplay::External(target) if target == "titled"
         ));
         Ok(())
+    }
+
+    #[test]
+    fn local_display_preserves_label_precedence_and_occurrence_locality()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = catalog()?;
+        let references = parsed.document_ref().references();
+        for (target, expected) in [("labelled", "A label"), ("titled", "A title")] {
+            let mut external = xref(target, XrefStyle::Full);
+            external.target_is_local = false;
+            let guard = XrefGuard::default();
+            assert!(
+                matches!(resolve_reference(references.get(target), &external, &guard), XrefDisplay::External(value) if value == target)
+            );
+            let display = resolve_local_reference(references.get(target), &external, &guard);
+            let content = if let XrefDisplay::Label(content, _) = &display {
+                assert_eq!(target, "labelled");
+                *content
+            } else if let XrefDisplay::FullCaption(prefix, content, _) = &display {
+                assert_eq!(target, "titled");
+                assert_eq!(prefix, "Example 1");
+                *content
+            } else {
+                return Err(format!("expected local content: {display:?}").into());
+            };
+            assert_eq!(
+                crate::InlineTextTransform::default().content_to_string(content),
+                expected
+            );
+            assert!(guard.is_resolving());
+            assert!(
+                matches!(resolve_local_reference(references.get(target), &external, &guard), XrefDisplay::Nested(value) if value == format!("[{target}]"))
+            );
+            drop(display);
+            assert!(!guard.is_resolving());
+            assert!(!external.target_is_local);
+            assert_eq!(external.xrefstyle, XrefStyle::Full);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn local_display_keeps_unresolved_and_top_fallbacks() {
+        let guard = XrefGuard::default();
+        for (target, expected) in [
+            ("", "[^top]"),
+            ("missing", "[missing]"),
+            ("other.adoc#part", "[other.adoc#part]"),
+        ] {
+            let mut external = xref(target, XrefStyle::Basic);
+            external.target_is_local = false;
+            assert!(
+                matches!(resolve_local_reference(None, &external, &guard), XrefDisplay::Unresolved(value) if value == expected)
+            );
+            assert!(!guard.is_resolving());
+        }
     }
 
     #[test]

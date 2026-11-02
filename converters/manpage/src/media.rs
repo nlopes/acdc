@@ -6,9 +6,12 @@ use acdc_converters_core::{
     InlineTextTransform, TraversalContext,
     media::{resolve_target, with_time_range},
     video::TryUrl,
-    visitor::{Visitor, WritableVisitor},
+    visitor::WritableVisitor,
 };
-use acdc_parser::{Audio, Image, InlineImage, Source, Video};
+use acdc_parser::{
+    Audio, Image, Source, Video,
+    ast::{AttributeValueRef, ContentRef, InlineImageRef},
+};
 
 use crate::{
     Error, ManpageVisitor,
@@ -16,10 +19,6 @@ use crate::{
 };
 
 fn block_image_alt(image: &Image<'_>) -> String {
-    acdc_converters_core::media::image_alt(&image.source, image.alt.as_ref()).into_owned()
-}
-
-fn inline_image_alt(image: &InlineImage<'_>) -> String {
     acdc_converters_core::media::image_alt(&image.source, image.alt.as_ref()).into_owned()
 }
 
@@ -53,7 +52,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         let alt = block_image_alt(image);
         self.render_media_label(
             traversal,
-            image.alt.as_ref(),
+            image.alt.as_ref().map(ContentRef::from),
             &alt,
             image.metadata.attributes.get_string("link").as_deref(),
             false,
@@ -63,14 +62,17 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     pub(crate) fn render_inline_image(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        image: &InlineImage<'_>,
+        image: InlineImageRef<'_>,
     ) -> Result<(), Error> {
-        let alt = inline_image_alt(image);
+        let alt = acdc_converters_core::media::image_alt_from_content(image.source(), image.alt());
         self.render_media_label(
             traversal,
-            image.alt.as_ref(),
+            image.alt(),
             &alt,
-            image.attributes().get_string("link").as_deref(),
+            match image.attributes().get("link") {
+                Some(AttributeValueRef::Text(link)) => Some(acdc_parser::strip_quotes(link)),
+                _ => None,
+            },
             true,
         )
     }
@@ -78,7 +80,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     pub(crate) fn render_media_label(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        content: Option<&acdc_parser::ContentAttribute<'_>>,
+        content: Option<ContentRef<'_>>,
         fallback: &str,
         target: Option<&str>,
         inline: bool,
@@ -89,7 +91,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         };
         let mut render = |visitor: &mut Self| {
             write!(visitor.writer_mut(), "[")?;
-            visitor.visit_inline_nodes(traversal, content)?;
+            visitor.write_content(traversal, content)?;
             write!(visitor.writer_mut(), "]")?;
             Ok(())
         };

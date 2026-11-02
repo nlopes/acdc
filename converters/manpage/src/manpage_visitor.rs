@@ -12,8 +12,9 @@ use acdc_converters_core::{
 };
 use acdc_parser::{
     Admonition, Audio, Block, BlockMetadata, CalloutList, Caption, DelimitedBlock, DescriptionList,
-    DiscreteHeader, Document, Header, Image, InlineMacro, InlineNode, ListItem, OrderedList,
-    PageBreak, Paragraph, Section, TableOfContents, ThematicBreak, UnorderedList, Video,
+    DiscreteHeader, Document, Header, Image, InlineNode, ListItem, OrderedList, PageBreak,
+    Paragraph, Section, TableOfContents, ThematicBreak, UnorderedList, Video,
+    ast::{ContentRef, InlineKind, InlineRef},
 };
 
 use crate::{
@@ -86,6 +87,72 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
             first_section_title: None,
             second_section_title: None,
         }
+    }
+
+    pub(crate) fn write_content(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        content: ContentRef<'_>,
+    ) -> Result<(), Error> {
+        acdc_converters_core::visitor::InlineVisitor::visit_inline_nodes(self, traversal, content)
+    }
+
+    pub(crate) fn write_inline(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        node: InlineRef<'_>,
+    ) -> Result<(), Error> {
+        acdc_converters_core::visitor::InlineVisitor::visit_inline_node(self, traversal, node)
+    }
+
+    pub(crate) fn write_inlines<'inline>(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        nodes: impl DoubleEndedIterator<Item = InlineRef<'inline>> + ExactSizeIterator + Clone,
+    ) -> Result<(), Error> {
+        let previous_boundaries = self.text_boundaries;
+        #[cfg(feature = "pre-spec-subs")]
+        let replacements = self
+            .processor
+            .current_subs
+            .get()
+            .contains(SubsFlags::REPLACEMENTS);
+        #[cfg(not(feature = "pre-spec-subs"))]
+        let replacements = true;
+
+        let context_nodes = nodes.clone();
+        let result = (|| {
+            let mut after_hard_break = false;
+            for (i, node) in nodes.enumerate() {
+                let boundaries = if self.in_inline_span {
+                    TextBoundaries::NONE
+                } else {
+                    previous_boundaries
+                };
+                self.text_boundaries = boundaries
+                    .with_ordinary_replacements(replacements)
+                    .for_inline_refs(
+                        Some(node),
+                        context_nodes.clone().take(i).rev(),
+                        context_nodes.clone().skip(i + 1),
+                    );
+                if after_hard_break
+                    && !matches!(self.text_escape_mode, EscapeMode::Preserve)
+                    && matches!(node.kind(), InlineKind::Plain(_) | InlineKind::Raw(_))
+                {
+                    self.strip_next_leading_space = true;
+                }
+                let invisible = matches!(node.kind(), InlineKind::Anchor(_))
+                    || matches!(node.kind(), InlineKind::IndexTerm(term) if !term.is_visible());
+                after_hard_break = matches!(node.kind(), InlineKind::LineBreak(_))
+                    || (after_hard_break && invisible);
+
+                self.write_inline(traversal, node)?;
+            }
+            Ok(())
+        })();
+        self.text_boundaries = previous_boundaries;
+        result
     }
 
     /// Render `content` with the given casing, restoring the previous casing
@@ -468,44 +535,7 @@ impl<'a, W: Write> Visitor<'a> for ManpageVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         nodes: &[InlineNode],
     ) -> Result<(), Self::Error> {
-        let previous_boundaries = self.text_boundaries;
-        #[cfg(feature = "pre-spec-subs")]
-        let replacements = self
-            .processor
-            .current_subs
-            .get()
-            .contains(SubsFlags::REPLACEMENTS);
-        #[cfg(not(feature = "pre-spec-subs"))]
-        let replacements = true;
-
-        let result = (|| {
-            let mut after_hard_break = false;
-            for (i, node) in nodes.iter().enumerate() {
-                let boundaries = if self.in_inline_span {
-                    TextBoundaries::NONE
-                } else {
-                    previous_boundaries
-                };
-                self.text_boundaries = boundaries
-                    .with_ordinary_replacements(replacements)
-                    .for_inline(nodes, i);
-                if after_hard_break
-                    && !matches!(self.text_escape_mode, EscapeMode::Preserve)
-                    && matches!(node, InlineNode::PlainText(_) | InlineNode::RawText(_))
-                {
-                    self.strip_next_leading_space = true;
-                }
-                let invisible = matches!(node, InlineNode::InlineAnchor(_))
-                    || matches!(node, InlineNode::Macro(InlineMacro::IndexTerm(term)) if !term.is_visible());
-                after_hard_break =
-                    matches!(node, InlineNode::LineBreak(_)) || (after_hard_break && invisible);
-
-                self.visit_inline_node(traversal, node)?;
-            }
-            Ok(())
-        })();
-        self.text_boundaries = previous_boundaries;
-        result
+        self.write_inlines(traversal, nodes.iter().map(InlineRef::from))
     }
 
     fn visit_inline_node(
@@ -513,15 +543,7 @@ impl<'a, W: Write> Visitor<'a> for ManpageVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         node: &InlineNode,
     ) -> Result<(), Self::Error> {
-        let saved = self.in_inline_span;
-        if acdc_converters_core::visitor::is_formatting_span(node) {
-            self.in_inline_span = true;
-        }
-
-        let result = self.render_inline_node(traversal, node);
-
-        self.in_inline_span = saved;
-        result
+        self.write_inline(traversal, node.into())
     }
 
     fn visit_text(
@@ -541,5 +563,33 @@ impl<'a, W: Write> WritableVisitor<'a> for ManpageVisitor<'a, '_, W> {
             Some(label) => &mut label.content,
             None => &mut self.writer,
         }
+    }
+}
+
+impl<'a, W: Write> acdc_converters_core::visitor::InlineVisitor<'a> for ManpageVisitor<'a, '_, W> {
+    type Error = Error;
+
+    fn visit_inline_nodes(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        content: ContentRef<'_>,
+    ) -> Result<(), Error> {
+        self.write_inlines(traversal, content.inlines())
+    }
+
+    fn visit_inline_node(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        node: InlineRef<'_>,
+    ) -> Result<(), Self::Error> {
+        let saved = self.in_inline_span;
+        if acdc_converters_core::visitor::is_formatting_span(node) {
+            self.in_inline_span = true;
+        }
+
+        let result = self.render_inline_node(traversal, node);
+
+        self.in_inline_span = saved;
+        result
     }
 }

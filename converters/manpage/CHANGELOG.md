@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The manpage visitor supports typed inline callbacks. Font scopes, typography,
+  local reference labels, and portable roff output remain unchanged.
+
 ### Fixed
 
 - Visible image/icon alternatives, UI labels, and custom `caption=` values retain

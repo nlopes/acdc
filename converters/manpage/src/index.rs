@@ -5,11 +5,11 @@ use std::{
     io::Write,
 };
 
-use acdc_converters_core::{
-    InlineTextTransform, TraversalContext,
-    visitor::{Visitor, WritableVisitor},
+use acdc_converters_core::{InlineTextTransform, TraversalContext, visitor::WritableVisitor};
+use acdc_parser::{
+    InlineNode,
+    ast::{ContentRef, IndexTermRef, IndexTermRelationshipRef},
 };
-use acdc_parser::{IndexTerm, IndexTermRelationship, InlineNode};
 
 use crate::{
     Error, IndexCatalogRelationship, IndexTermEntry, IndexTermLabel, ManpageVisitor, Processor,
@@ -127,18 +127,18 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     fn render_index_term_label(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        inlines: &[InlineNode<'_>],
+        inlines: ContentRef<'_>,
     ) -> Result<IndexTermLabel, Error> {
         let plain = InlineTextTransform::default()
             .references(&self.processor.references)
-            .to_string(inlines);
+            .content_to_string(inlines);
         let mut output = Vec::new();
         {
             let mut visitor = self.nested_visitor(&mut output);
             visitor.index_collection = IndexCollection::Disabled;
             // Catalog labels render outside the term's original formatting scope.
             visitor.current_font = "\\fR";
-            visitor.visit_inline_nodes(traversal, inlines)?;
+            visitor.write_content(traversal, inlines)?;
         }
         Ok(IndexTermLabel {
             plain,
@@ -149,9 +149,9 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     pub(crate) fn register_index_term(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        term: &IndexTerm<'_>,
+        term: IndexTermRef<'_>,
     ) -> Result<(), Error> {
-        let term = term.catalog_entry();
+        let term = term.catalog();
         if self.index_collection == IndexCollection::Enabled
             && self.processor.has_valid_index_section
         {
@@ -164,11 +164,11 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
                 .tertiary()
                 .map(|inlines| self.render_index_term_label(traversal, inlines))
                 .transpose()?;
-            let relationship = match term.relationship.as_ref() {
-                Some(IndexTermRelationship::See { target }) => {
+            let relationship = match term.relationship() {
+                Some(IndexTermRelationshipRef::See { target }) => {
                     IndexCatalogRelationship::See(self.render_index_term_label(traversal, target)?)
                 }
-                Some(IndexTermRelationship::SeeAlso { targets }) => {
+                Some(IndexTermRelationshipRef::SeeAlso { targets }) => {
                     IndexCatalogRelationship::SeeAlso(
                         targets
                             .iter()
@@ -192,13 +192,13 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     pub(crate) fn render_index_term(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        term: &IndexTerm<'_>,
+        term: IndexTermRef<'_>,
     ) -> Result<(), Error> {
         self.register_index_term(traversal, term)?;
         if term.is_visible() {
             let previous = self.index_collection;
             self.index_collection = IndexCollection::Disabled;
-            let result = self.visit_inline_nodes(traversal, term.term());
+            let result = self.write_content(traversal, term.term());
             self.index_collection = previous;
             result?;
         }
@@ -214,7 +214,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             return Ok(());
         }
         acdc_converters_core::index::visit_index_terms(inlines, &mut |term, _| {
-            self.register_index_term(traversal, term)
+            self.register_index_term(traversal, term.into())
         })
     }
 
