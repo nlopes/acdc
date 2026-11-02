@@ -12,6 +12,7 @@
 - **Compact imports**: merge imports from the same crate/module into one `use` with braces, e.g. `use std::{borrow::Cow, io::Write};` — not separate `use std::borrow::Cow;` / `use std::io::Write;` lines
 - **Update changelogs**: each crate has its own `CHANGELOG.md`; update `[Unreleased]` for affected crates. Entries describe what a user sees or is affected by — the new behavior, the attribute/option to reach it, and any divergence from `asciidoctor`. Never regurgitate internal mechanics (function/field names, struct changes, control flow); those belong in code/commits, not the changelog.
 - **Surface converter warnings structurally**: user-relevant converter warnings should use `Warning` / `Diagnostics`, not `tracing::warn!`
+- **Fixture expectations**: generate new expectations without asking. Ask before regenerating or changing existing expectations. Use scoped generators and review every generated file.
 - **Never use CLI for fixtures**: use the examples directly (CLI adds `last_updated` timestamps)
 - **asciidoctor is reference**: compare one source using the built `acdc` CLI and the matching asciidoctor backend first. Compare observable behavior, not byte-identical output, and avoid temporary Rust harnesses. Use the `compare-asciidoc-output` agent only after a direct comparison confirms a divergence or deeper research is needed. For PDF comparisons, keep clearly named `*-acdc.pdf` and `*-asciidoctor.pdf` outputs; do not create raster previews unless the user asks.
 
@@ -92,7 +93,7 @@ Parser substitution behavior must not depend on Cargo features. Converter substi
 
 When tests fail, identify the category and follow the appropriate path:
 
-- **Fixture mismatches** → run the `regen-fixtures` skill (ask first). If the skill is unavailable, ask before using the documented scoped generator.
+- **Fixture mismatches** → get approval before changing existing expectations, then use the `regen-fixtures` skill or the documented scoped generator.
 - **Parser / grammar / preprocessor failures** → `acdc-parser/AGENTS.md`
 - **Converter failures** → `converters/AGENTS.md`
 

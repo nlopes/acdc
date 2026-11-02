@@ -1,0 +1,33 @@
+= Media attribute insertion
+:name: Early
+:literal: \{name}
+:alias: {literal}
+:captured: {name}
+:slots: "{alias}",80,40
+:empty: pass:[]
+:note-text: footnote:unused[Ignored.]
+
+:name: Late
+
+image::unquoted.png[{alias}]
+
+image::double.png["{alias}"]
+
+image::single.png['{alias}']
+
+image::named.png[alt="{alias}"]
+
+image::expanded-slots.png[{slots}]
+
+image::captured.png["{captured}"]
+
+image::empty.png["{empty}"]
+
+image::literal-markup.png["*{alias}* & <tag>"]
+
+image::macro-text.png["{note-text}"]
+
+[alt="{alias}"]
+image::metadata.png[]
+
+image:control.png[alt="{alias}",title="{alias}"]

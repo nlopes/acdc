@@ -23,7 +23,6 @@ use crate::{
     },
     model::{
         AttributePosition, Caption, CaptionKind, PositionalAttribute, SectionLevel, Substitution,
-        substitute,
         substitution::{SubstitutionPlan, parse_subs_attribute},
     },
 };
@@ -901,13 +900,12 @@ fn capture_block_content<'a>(
         source: if formatted {
             source.get(from..to).unwrap_or(value)
         } else {
-            original.map_or(value, |original| state.intern_str(&original.value))
+            value
         },
         start: content_start + from,
         end: content_start + to,
         formatted,
-        attributes: source
-            .contains('{')
+        attributes: (formatted && source.contains('{'))
             .then(|| Box::new((*state.document_attributes).clone())),
     }
 }
@@ -961,9 +959,7 @@ fn store_first_block_slot<'a>(
                     start: content_start + span.start,
                     end: content_start + span.end,
                     formatted: false,
-                    attributes: value
-                        .contains('{')
-                        .then(|| Box::new((*state.document_attributes).clone())),
+                    attributes: None,
                 },
             ));
             Ok(())
@@ -1045,12 +1041,8 @@ pub(super) fn resolve_content_attribute<'a>(
         )
         .map(|(nodes, _)| ContentAttribute::new(nodes))
     } else {
-        let text = substitute(
-            source.source,
-            &[Substitution::Attributes],
-            &state.document_attributes,
-        );
-        let text = state.intern_str(&text.replace("\\]", "]"));
+        // Literal values already passed through attribute-list expansion.
+        let text = state.intern_str(&source.source.replace("\\]", "]"));
         Ok(ContentAttribute::new(if text.is_empty() {
             Vec::new()
         } else {

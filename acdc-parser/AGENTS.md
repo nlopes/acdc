@@ -65,7 +65,9 @@ Put supporting include inputs in `fixtures/tests/includes/` with the `.adoc`
 extension. Fixture discovery excludes that folder; test documents include them
 using relative paths.
 
-Ask before regenerating expected output. From the workspace root, select exact paths relative to `fixtures/tests`:
+Generate new expectations without asking. Get approval before regenerating or
+changing existing expectations. From the workspace root, select exact paths
+relative to `fixtures/tests`:
 ```bash
 cargo run -p acdc-parser --example generate_parser_fixtures --all-features -- example.adoc
 ```

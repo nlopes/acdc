@@ -56,11 +56,11 @@ Shared utilities in `core/`:
 ## Debugging
 
 - Compare the same source with the built `acdc` CLI and the matching asciidoctor backend before using the `compare-asciidoc-output` agent. Compare observable behavior rather than byte-identical output.
-- For fixture mismatches, run `regen-fixtures` skill (ask first)
+- For fixture mismatches, get approval before changing existing expectations, then use the `regen-fixtures` skill or the documented scoped generator.
 
 ## Fixture regeneration
 
-- Get approval before regenerating fixtures.
+- Generate new expectations without asking. Get approval before regenerating or changing existing expectations.
 - Record `git status --short` before regeneration.
 - Run one generator at a time. Each generator may rewrite its full fixture corpus.
 - Inspect status and the diff immediately afterward. Keep only intended changes or explicitly approved new baselines, and reject environment-only changes.
@@ -87,5 +87,5 @@ cargo run -p acdc-converters-markdown --example generate_markdown_fixtures --no-
 - The terminal fixture harness pins capabilities instead of reading `TERM`. It
   checks the plain variant for every fixture and both variants for each fixture
   marked with an OSC 8 variant.
-- Do not copy or edit OSC 8 expected files by hand; run the terminal fixture
-  generator after approval.
+- Do not copy or edit OSC 8 expected files by hand; use the terminal fixture
+  generator. Get approval before changing existing expectations.

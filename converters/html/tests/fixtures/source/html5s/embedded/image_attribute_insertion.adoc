@@ -1,0 +1,22 @@
+= Image attribute insertion
+:name: Early
+:literal: \{name}
+:alias: {literal}
+:slots: "{alias}",80,40
+:empty: pass:[]
+
+:name: Late
+
+image::unquoted.png[{alias}]
+
+image::double.png["{alias}"]
+
+image::single.png['{alias}']
+
+image::named.png[alt="{alias}"]
+
+image::expanded-slots.png[{slots}]
+
+image::empty.png["{empty}"]
+
+image::literal.png["*{alias}* & <tag>"]

@@ -250,6 +250,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Positional image alt text expands document attributes once, matching named
+  macro alt text and Asciidoctor. Literal references retained by an alias stay
+  literal instead of resolving to a later body value, including in table cells
+  and selected includes.
+
 - Replacing delimited-block metadata with `with_metadata` or `set_metadata` keeps
   table `frame`, `grid`, and `stripes` in sync with rendered decoration. Removing
   an override restores the document defaults active at that table, including

@@ -18,7 +18,8 @@ when `pre-spec-subs` is disabled.
 The generator follows the same selection rules. With highlighting disabled,
 it writes only the plain alternatives, preserving canonical expectations.
 With highlighting enabled, it writes canonical expectations. Create source
-fixtures directly and get approval before updating existing expectations.
+fixtures and generate new expectations without asking. Get approval before
+updating existing expectations.
 From the workspace root, scope regeneration by source stem:
 
 ```console

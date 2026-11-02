@@ -1,0 +1,18 @@
+= Media insertion contexts
+:name: Header
+:literal: \{name}
+:alias: {literal}
+
+:name: Body
+
+image::unicode.png["α {alias} café"]
+
+include::includes/document_attribute_media_contexts.adoc[tag=selected,indent=0]
+
+[cols=a]
+|===
+|
+:name: Cell
+
+image::cell.png["{alias}"]
+|===
