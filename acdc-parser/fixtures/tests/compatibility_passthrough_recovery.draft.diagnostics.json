@@ -1,0 +1,202 @@
+{
+  "recovery": {
+    "location": {
+      "absolute_end": 47,
+      "absolute_start": 23,
+      "file": "compatibility_passthrough_recovery.adoc",
+      "location": [
+        {
+          "col": 1,
+          "line": 2
+        },
+        {
+          "col": 25,
+          "line": 2
+        }
+      ]
+    },
+    "message": "attribute-value escaping after formatting or macros requires backend markup; value retained literally"
+  },
+  "warnings": [
+    {
+      "location": {
+        "absolute_end": 47,
+        "absolute_start": 23,
+        "file": "compatibility_passthrough_recovery.adoc",
+        "location": [
+          {
+            "col": 1,
+            "line": 2
+          },
+          {
+            "col": 25,
+            "line": 2
+          }
+        ]
+      },
+      "message": "attribute-value escaping after formatting or macros requires backend markup; value retained literally"
+    },
+    {
+      "location": {
+        "absolute_end": 94,
+        "absolute_start": 49,
+        "file": "compatibility_passthrough_recovery.adoc",
+        "location": [
+          {
+            "col": 1,
+            "line": 3
+          },
+          {
+            "col": 46,
+            "line": 3
+          }
+        ]
+      },
+      "message": "attribute-value escaping after formatting or macros requires backend markup; value retained literally"
+    },
+    {
+      "location": {
+        "absolute_end": 124,
+        "absolute_start": 96,
+        "file": "compatibility_passthrough_recovery.adoc",
+        "location": [
+          {
+            "col": 1,
+            "line": 4
+          },
+          {
+            "col": 29,
+            "line": 4
+          }
+        ]
+      },
+      "message": "attribute-value callout substitution is unsupported; value retained literally"
+    },
+    {
+      "location": {
+        "absolute_end": 155,
+        "absolute_start": 126,
+        "file": "compatibility_passthrough_recovery.adoc",
+        "location": [
+          {
+            "col": 1,
+            "line": 5
+          },
+          {
+            "col": 30,
+            "line": 5
+          }
+        ]
+      },
+      "message": "unknown attribute-value substitution: typo; value retained literally"
+    },
+    {
+      "location": {
+        "absolute_end": 268,
+        "absolute_start": 239,
+        "file": "compatibility_passthrough_recovery.adoc",
+        "location": [
+          {
+            "col": 23,
+            "line": 9
+          },
+          {
+            "col": 52,
+            "line": 9
+          }
+        ]
+      },
+      "message": "inline passthrough escaping after formatting or macros requires backend markup; value retained literally"
+    },
+    {
+      "location": {
+        "absolute_end": 345,
+        "absolute_start": 293,
+        "file": "compatibility_passthrough_recovery.adoc",
+        "location": [
+          {
+            "col": 23,
+            "line": 11
+          },
+          {
+            "col": 75,
+            "line": 11
+          }
+        ]
+      },
+      "message": "inline passthrough escaping after formatting or macros requires backend markup; value retained literally"
+    },
+    {
+      "location": {
+        "absolute_end": 380,
+        "absolute_start": 357,
+        "file": "compatibility_passthrough_recovery.adoc",
+        "location": [
+          {
+            "col": 10,
+            "line": 13
+          },
+          {
+            "col": 33,
+            "line": 13
+          }
+        ]
+      },
+      "message": "unknown inline passthrough substitution: typo; value retained literally"
+    },
+    {
+      "location": {
+        "absolute_end": 411,
+        "absolute_start": 393,
+        "file": "compatibility_passthrough_recovery.adoc",
+        "location": [
+          {
+            "col": 11,
+            "line": 15
+          },
+          {
+            "col": 29,
+            "line": 15
+          }
+        ]
+      },
+      "message": "inline passthrough callout substitution is unsupported; value retained literally"
+    },
+    {
+      "location": {
+        "absolute_end": 445,
+        "absolute_start": 422,
+        "file": "compatibility_passthrough_recovery.adoc",
+        "location": [
+          {
+            "col": 9,
+            "line": 17
+          },
+          {
+            "col": 32,
+            "line": 17
+          }
+        ]
+      },
+      "message": "inline passthrough escaping after formatting or macros requires backend markup; value retained literally"
+    },
+    {
+      "location": {
+        "absolute_end": 490,
+        "absolute_start": 463,
+        "file": "compatibility_passthrough_recovery.adoc",
+        "location": [
+          {
+            "col": 15,
+            "line": 19
+          },
+          {
+            "col": 40,
+            "line": 19
+          }
+        ]
+      },
+      "message": "inline passthrough escaping after formatting or macros requires backend markup; value retained literally"
+    }
+  ]
+}

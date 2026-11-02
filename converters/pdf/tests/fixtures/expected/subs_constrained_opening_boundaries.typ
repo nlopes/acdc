@@ -94,7 +94,7 @@
 
 #text("P05 ")#text(">")#strong[#text("Bold")]#text(" <")#emph[#text("Italic")]#text(" &")#raw("Code")#text(".")
 
-#text("P06 ")#text(">")#strong[#text("Bold")]#text(" <")#emph[#text("Italic")]#text(" &")#raw("Code")#text(".")
+#text("P06 ")#text("pass:q,c[>*Bold* <_Italic_ &`Code`]")#text(".")
 
 #text("P07 ")#text("<del>")#strong[#text("Bold")]#text("</del>")#text(" ")#text("<del>")#text("*literal*")#text("</del>")#text(".")
 

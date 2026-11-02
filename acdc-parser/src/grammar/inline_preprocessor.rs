@@ -18,7 +18,8 @@ use std::{
 
 use crate::{
     DocumentAttributes, Error, Location, Pass, PassthroughKind, Position, SourceLocation,
-    Substitution, Warning, grammar::LineMap, model::substitution::parse_substitution,
+    Substitution, Warning, WarningKind, grammar::LineMap,
+    model::substitution::parse_passthrough_substitutions,
 };
 
 /// Parser state for the inline preprocessor.
@@ -189,21 +190,50 @@ impl<'a> InlinePreprocessorParserState<'a> {
         take(&mut *self.warnings.borrow_mut())
     }
 
-    /// Extract the subs-spec string, content, and parsed substitutions from
-    /// a matched `pass:SUBS[CONTENT]` string.
-    fn parse_pass_macro_parts(full: &str) -> (&str, &str, Vec<Substitution>) {
+    fn extract_pass_macro(&self, full: &'a str, start: Position) -> String {
         let subs_end = full[5..].find('[').unwrap_or(0);
         let subs_str = &full[5..5 + subs_end];
         let content = &full[5 + subs_end + 1..full.len() - 1];
-        let substitutions = if subs_str.is_empty() {
-            Vec::new()
-        } else {
-            subs_str
-                .split(',')
-                .filter_map(|s| parse_substitution(s.trim()))
-                .collect()
-        };
-        (subs_str, content, substitutions)
+        let location = self.calculate_location(start, full, 0);
+        let (content, substitutions, kind) =
+            match parse_passthrough_substitutions(subs_str, "inline passthrough") {
+                Ok(substitutions) => (content, substitutions, PassthroughKind::Macro),
+                Err(message) => {
+                    self.add_warning(Warning::new(
+                        WarningKind::ContentRecovery {
+                            message: message.into(),
+                        },
+                        Some(
+                            self.source_location_for(
+                                location.absolute_start,
+                                location.absolute_end,
+                            ),
+                        ),
+                    ));
+                    // Protect the complete source, including bracket escapes and nested macros.
+                    (
+                        full,
+                        vec![Substitution::SpecialChars],
+                        PassthroughKind::Triple,
+                    )
+                }
+            };
+        let placeholder = format!("���{}���", self.pass_found_count.get());
+        self.source_map.borrow_mut().add_replacement(
+            location.absolute_start,
+            location.absolute_end,
+            placeholder.len(),
+            ProcessedKind::Passthrough,
+        );
+        self.passthroughs.borrow_mut().push(Pass {
+            attribute_fragments: Box::default(),
+            text: Some(content),
+            substitutions,
+            location,
+            kind,
+        });
+        self.pass_found_count.set(self.pass_found_count.get() + 1);
+        placeholder
     }
 
     fn expand_escaped_passthrough(

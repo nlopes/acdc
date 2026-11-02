@@ -5,7 +5,6 @@ use std::{borrow::Cow, mem::take};
 use crate::{
     DocumentAttributes, Pass, PassthroughKind, Position, Substitution, Warning, WarningKind,
     grammar::inline_boundaries::check_constrained_opening_boundary,
-    model::substitution::parse_substitution,
 };
 
 use super::{
@@ -295,48 +294,16 @@ peg::parser! {
 
         rule pass_macro() -> String
         = start:position() full:$(pass_macro_pattern()) {
-            let (subs_str, content, substitutions) =
-                InlinePreprocessorParserState::parse_pass_macro_parts(full);
-
-            // For pass macro: "pass:" (5) + substitutions + "[" (1) + "]" (1)
-            let padding = 5 + subs_str.len() + 1 + 1; // "pass:" + subs + "[" + "]"
-            let location = state.calculate_location(start, content, padding);
-                state.passthroughs.borrow_mut().push(Pass {
-                attribute_fragments: Box::default(),
-                    text: Some(content),
-                    substitutions: substitutions.clone(),
-                    location: location.clone(),
-                    kind: PassthroughKind::Macro,
-                });
-                let new_content = format!("\u{FFFD}\u{FFFD}\u{FFFD}{}\u{FFFD}\u{FFFD}\u{FFFD}", state.pass_found_count.get());
-                state.source_map.borrow_mut().add_replacement(
-                    location.absolute_start,
-                    location.absolute_end,
-                    new_content.len(),
-                    ProcessedKind::Passthrough,
-                );
-                state.pass_found_count.set(state.pass_found_count.get() + 1);
-                new_content
-            }
-
-        rule substitutions() -> Vec<Substitution>
-            = subs:$(substitution_value() ** ",") {
-                if subs.is_empty() {
-                    Vec::new()
-                } else {
-                    subs.split(',')
-                        .filter_map(|s| parse_substitution(s.trim()))
-                        .collect()
-                }
+            state.extract_pass_macro(full, start)
             }
 
         // An escaped closing bracket belongs to the content, even after another
         // backslash. Share this boundary with extraction and its lookaheads.
         rule pass_macro_pattern()
-            = "pass:" substitutions() "[" ("\\]" / [^']'])* "]"
+            = "pass:" (substitution_value() ** ",") "[" ("\\]" / [^']'])* "]"
 
         rule substitution_value() -> &'input str
-            = $(['a'..='z' | 'A'..='Z' | '0'..='9']+)
+            = $(['a'..='z' | 'A'..='Z' | '0'..='9' | '_']+)
 
         rule unprocessed_text() -> String
             = text:$((

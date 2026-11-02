@@ -1,0 +1,32 @@
+= Supported passthrough substitutions
+:name: Early
+:word: *Bold*
+:quoted: pass:q[*Prepared*]
+:prepared: pass:c,a,q[*{name}*]
+:alias: before {quoted} after
+:unused: pass:m[footnote:unused[Unused.] anchor:unused[]]
+
+:name: Late
+
+Short aliases: pass:c,a,q[<{name}> *Bold*].
+
+Long names: pass:specialcharacters,attributes,quotes[<{name}> *Bold*].
+
+Quotes first: pass:q,a[{word}]. Attributes first: pass:a,q[{word}].
+
+Replacements first: pass:r,a[{word}]. Attributes first: pass:a,r[{word}].
+
+No substitutions: pass:[{name} *Bold*]. None: pass:none[{name} *Bold*].
+
+Normal: pass:normal[<{name}> *Bold* (C)]. Duplicates: pass:normal,c[*Bold*].
+
+Verbatim: pass:verbatim[<{name}> *Bold* (C)].
+
+Post replacements: pass:post_replacements[first +
+second].
+
+Prepared values: {prepared}. Alias: {alias}.
+
+Protected: +pass:q,c[*Bold*]+ / +++pass:typo[{name}]+++.
+
+Escaped: \pass:q,c[*Bold*].

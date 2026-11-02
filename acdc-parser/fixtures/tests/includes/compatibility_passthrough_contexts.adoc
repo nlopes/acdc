@@ -1,0 +1,5 @@
+Outside selection.
+// tag::selected[]
+    Included café: pass:typo[α <tag>].
+// end::selected[]
+Outside selection.

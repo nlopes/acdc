@@ -532,7 +532,9 @@ impl<'a> ParserState<'a> {
         // A locked or invalid assignment must not warn about a value that was ignored.
         if let Some(message) = profile_warning {
             self.add_warning(Warning::new(
-                WarningKind::Other(message.into()),
+                WarningKind::ContentRecovery {
+                    message: message.into(),
+                },
                 Some(self.create_error_source_location(location.clone())),
             ));
         }

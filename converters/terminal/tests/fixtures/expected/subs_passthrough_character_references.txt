@@ -30,9 +30,9 @@ P14 ©
 P15 &#169;
 P16 ©
 P17 [1m©[22m
-P18 [1m©[22m
+P18 pass:q,c,r[*&#169;*]
 P19 [38;5;12mhttps://example.org[39m[©]
-P20 [38;5;12mhttps://example.org[39m[©]
+P20 pass:m,c,r[https://example.org[&#169;]]
 P21 café ©Ω ©©
 P22 © — tail
 P23 head — ©

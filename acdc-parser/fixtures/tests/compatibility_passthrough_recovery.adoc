@@ -1,0 +1,24 @@
+= Passthrough recovery
+:q-c: pass:q,c[*Escaped*]
+:m-c: pass:m,c[footnote:discarded[Discarded.]]
+:callouts: pass:callouts[<1>]
+:unknown: pass:typo[*Unknown*]
+
+Attribute values: {q-c} / {m-c} / {callouts} / {unknown}.
+
+Quotes then escaping: pass:q,c[<mark>*Bold*</mark>].
+
+Macros then escaping: pass:m,c[footnote:unused[Unused.\] anchor:unused[\]].
+
+Unknown: pass:typo[<tag> *Bold*].
+
+Callouts: pass:callouts[<1>].
+
+Groups: pass:q,verbatim[*Bold*].
+
+Unicode café: pass:q,c[α *Éva* \] tail] after.
+
+Valid later macro: footnote:n[Kept.].
+
+[subs="specialcharacters,attributes"]
+Disabled macros: pass:q,c[*Literal*].

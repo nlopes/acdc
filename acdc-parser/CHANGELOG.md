@@ -89,6 +89,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Inline `pass:` lists now preserve unsupported source and report
+  `ContentRecovery`, matching formatted attribute values. This covers unknown
+  substitution names, callouts, and escaping after formatting or macros.
+  Asciidoctor may instead discard unknown names or display generated markup.
+  Escaped, protected, and macro-disabled source remains literal without warnings.
+
 - `CompatibilityMode::Draft` resolves attribute references before ordinary
   inline formatting, so inserted values such as `*Bold*` create bold content.
   Asciidoctor mode retains formatting before attribute expansion. Explicit

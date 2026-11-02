@@ -1793,35 +1793,17 @@
               ]
             },
             {
-              "name": "span",
-              "type": "inline",
-              "variant": "strong",
-              "form": "constrained",
-              "inlines": [
-                {
-                  "name": "raw",
-                  "type": "string",
-                  "value": "&#169;",
-                  "location": [
-                    {
-                      "line": 50,
-                      "col": 17
-                    },
-                    {
-                      "line": 50,
-                      "col": 22
-                    }
-                  ]
-                }
-              ],
+              "name": "raw",
+              "type": "string",
+              "value": "pass:q,c,r[*&#169;*]",
               "location": [
                 {
                   "line": 50,
-                  "col": 16
+                  "col": 5
                 },
                 {
                   "line": 50,
-                  "col": 23
+                  "col": 24
                 }
               ]
             }
@@ -1952,51 +1934,17 @@
               ]
             },
             {
-              "name": "ref",
-              "type": "inline",
-              "variant": "autolink",
-              "target": {
-                "type": "url",
-                "value": "https://example.org"
-              },
-              "location": [
-                {
-                  "line": 54,
-                  "col": 16
-                },
-                {
-                  "line": 54,
-                  "col": 34
-                }
-              ]
-            },
-            {
               "name": "raw",
               "type": "string",
-              "value": "[",
+              "value": "pass:m,c,r[https://example.org[&#169;]",
               "location": [
                 {
                   "line": 54,
-                  "col": 35
+                  "col": 5
                 },
                 {
                   "line": 54,
-                  "col": 35
-                }
-              ]
-            },
-            {
-              "name": "raw",
-              "type": "string",
-              "value": "&#169;",
-              "location": [
-                {
-                  "line": 54,
-                  "col": 36
-                },
-                {
-                  "line": 54,
-                  "col": 41
+                  "col": 42
                 }
               ]
             },

@@ -989,144 +989,15 @@
             {
               "name": "raw",
               "type": "string",
-              "value": ">",
+              "value": "pass:q,c[>*Bold* <_Italic_ &`Code`]",
               "location": [
                 {
                   "line": 24,
-                  "col": 14
+                  "col": 5
                 },
                 {
                   "line": 24,
-                  "col": 14
-                }
-              ]
-            },
-            {
-              "name": "span",
-              "type": "inline",
-              "variant": "strong",
-              "form": "constrained",
-              "inlines": [
-                {
-                  "name": "raw",
-                  "type": "string",
-                  "value": "Bold",
-                  "location": [
-                    {
-                      "line": 24,
-                      "col": 16
-                    },
-                    {
-                      "line": 24,
-                      "col": 19
-                    }
-                  ]
-                }
-              ],
-              "location": [
-                {
-                  "line": 24,
-                  "col": 15
-                },
-                {
-                  "line": 24,
-                  "col": 20
-                }
-              ]
-            },
-            {
-              "name": "raw",
-              "type": "string",
-              "value": " <",
-              "location": [
-                {
-                  "line": 24,
-                  "col": 21
-                },
-                {
-                  "line": 24,
-                  "col": 22
-                }
-              ]
-            },
-            {
-              "name": "span",
-              "type": "inline",
-              "variant": "emphasis",
-              "form": "constrained",
-              "inlines": [
-                {
-                  "name": "raw",
-                  "type": "string",
-                  "value": "Italic",
-                  "location": [
-                    {
-                      "line": 24,
-                      "col": 24
-                    },
-                    {
-                      "line": 24,
-                      "col": 29
-                    }
-                  ]
-                }
-              ],
-              "location": [
-                {
-                  "line": 24,
-                  "col": 23
-                },
-                {
-                  "line": 24,
-                  "col": 30
-                }
-              ]
-            },
-            {
-              "name": "raw",
-              "type": "string",
-              "value": " &",
-              "location": [
-                {
-                  "line": 24,
-                  "col": 31
-                },
-                {
-                  "line": 24,
-                  "col": 32
-                }
-              ]
-            },
-            {
-              "name": "span",
-              "type": "inline",
-              "variant": "code",
-              "form": "constrained",
-              "inlines": [
-                {
-                  "name": "raw",
-                  "type": "string",
-                  "value": "Code",
-                  "location": [
-                    {
-                      "line": 24,
-                      "col": 34
-                    },
-                    {
-                      "line": 24,
-                      "col": 37
-                    }
-                  ]
-                }
-              ],
-              "location": [
-                {
-                  "line": 24,
-                  "col": 33
-                },
-                {
-                  "line": 24,
-                  "col": 38
+                  "col": 39
                 }
               ]
             },

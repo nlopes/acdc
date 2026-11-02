@@ -47,11 +47,11 @@ P16 &#169;
 
 P17 **&#169;**
 
-P18 **&#169;**
+P18 pass:q,c,r\[\*&amp;#169;\*\]
 
 P19 [https://example.org](https://example.org)\[&#169;\]
 
-P20 [https://example.org](https://example.org)\[&#169;\]
+P20 pass:m,c,r\[https://example.org\[&amp;#169;\]\]
 
 P21 café &#169;Ω &#169;&#xA9;
 

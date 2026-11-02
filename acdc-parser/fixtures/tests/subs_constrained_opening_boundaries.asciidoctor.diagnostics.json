@@ -1,0 +1,40 @@
+{
+  "recovery": {
+    "location": {
+      "absolute_end": 538,
+      "absolute_start": 503,
+      "file": "subs_constrained_opening_boundaries.adoc",
+      "location": [
+        {
+          "col": 5,
+          "line": 24
+        },
+        {
+          "col": 40,
+          "line": 24
+        }
+      ]
+    },
+    "message": "inline passthrough escaping after formatting or macros requires backend markup; value retained literally"
+  },
+  "warnings": [
+    {
+      "location": {
+        "absolute_end": 538,
+        "absolute_start": 503,
+        "file": "subs_constrained_opening_boundaries.adoc",
+        "location": [
+          {
+            "col": 5,
+            "line": 24
+          },
+          {
+            "col": 40,
+            "line": 24
+          }
+        ]
+      },
+      "message": "inline passthrough escaping after formatting or macros requires backend markup; value retained literally"
+    }
+  ]
+}

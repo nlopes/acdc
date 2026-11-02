@@ -300,7 +300,10 @@ fn formatted_attribute_warnings_follow_assignment_policy() -> Result<(), Error> 
                 let [warning] = parsed.warnings() else {
                     return Err(format!("expected one warning: {:?}", parsed.warnings()).into());
                 };
-                assert!(matches!(warning.kind, acdc_parser::WarningKind::Other(_)));
+                assert!(matches!(
+                    warning.kind,
+                    acdc_parser::WarningKind::ContentRecovery { .. }
+                ));
                 let location = warning
                     .source_location()
                     .ok_or("missing warning location")?;

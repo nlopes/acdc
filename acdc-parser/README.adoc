@@ -252,6 +252,14 @@ attribute references. Draft resolves references first, so a value such as
 literal. Explicit substitution lists keep their requested order; incremental
 block modifiers start from the selected mode's defaults.
 
+Unsupported inline `pass:` lists use the same recovery rules as formatted
+attribute values. Unknown names, callouts, and escaping after formatting or
+macros retain the complete source and report `ContentRecovery`. For example,
+`pass:q,c[*Bold*]` stays literal. Asciidoctor can instead display escaped
+generated markup or ignore unknown names. acdc keeps backend markup out of the
+parser. Disabled macro substitutions and escaped or protected passthroughs do
+not trigger these warnings.
+
 For named block titles, Draft parses inline content only in single-quoted
 values. It also accumulates distinct block roles and options in source order. Unquoted and
 double-quoted named titles stay literal, including formatting markers,
@@ -898,8 +906,8 @@ meaning no substitutions. Absent metadata uses block defaults. Mixed lists keep
 adds quotes to block defaults.
 
 This fixes stage ordering without changing acdc's separation of parsing and
-conversion under SDR-5. If special-character escaping runs after quotes or
-macros, acdc retains their structured formatting and links. Asciidoctor may
+conversion under SDR-5. In block substitution lists, if special-character
+escaping runs after quotes or macros, acdc retains their structured formatting and links. Asciidoctor may
 instead display escaped generated markup. This rendering difference remains
 separate from resolving the requested stage order.
 

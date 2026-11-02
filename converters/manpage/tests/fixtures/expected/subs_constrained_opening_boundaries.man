@@ -41,7 +41,7 @@ P04 &\fBBold\fR <\fIItalic\fR >\f(CRCode\fR =\fBMark\fR\&.
 .sp
 P05 >\fBBold\fR <\fIItalic\fR &\f(CRCode\fR\&.
 .sp
-P06 >\fBBold\fR <\fIItalic\fR &\f(CRCode\fR\&.
+P06 pass:q,c[>*Bold* <_Italic_ &`Code`]\&.
 .sp
 P07 <del>\fBBold\fR</del> <del>*literal*</del>\&.
 .sp

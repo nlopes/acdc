@@ -122,11 +122,11 @@
 
 #text("P17 ")#strong[#text("©")]
 
-#text("P18 ")#strong[#text("©")]
+#text("P18 ")#text("pass:q,c,r[*&#169;*]")
 
 #text("P19 ")#link("https://example.org")[#text("https://example.org")]#text("[")#text("©")#text("]")
 
-#text("P20 ")#link("https://example.org")[#text("https://example.org")]#text("[")#text("©")#text("]")
+#text("P20 ")#text("pass:m,c,r[https://example.org[&#169;]")#text("]")
 
 #text("P21 ")#text("café ")#text("©")#text("Ω ")#text("©")#text("©")
 

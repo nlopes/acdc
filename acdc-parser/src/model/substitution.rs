@@ -294,6 +294,40 @@ pub(crate) fn resolve_passthrough_substitutions(
     resolved
 }
 
+pub(crate) fn parse_passthrough_substitutions(
+    names: &str,
+    context: &str,
+) -> Result<Vec<Substitution>, String> {
+    let mut substitutions = Vec::new();
+    for name in names
+        .split(',')
+        .filter(|name| !name.is_empty() && *name != "none")
+    {
+        let Some(stage) = substitution_named(name) else {
+            return Err(format!(
+                "unknown {context} substitution: {name}; value retained literally"
+            ));
+        };
+        substitutions.push(stage);
+    }
+    let substitutions = resolve_passthrough_substitutions(&substitutions);
+    let mut structural = false;
+    for stage in &substitutions {
+        if *stage == Substitution::Callouts {
+            return Err(format!(
+                "{context} callout substitution is unsupported; value retained literally"
+            ));
+        }
+        if *stage == Substitution::SpecialChars && structural {
+            return Err(format!(
+                "{context} escaping after formatting or macros requires backend markup; value retained literally"
+            ));
+        }
+        structural |= matches!(stage, Substitution::Quotes | Substitution::Macros);
+    }
+    Ok(substitutions)
+}
+
 /// A substitution operation to apply to a default substitution list.
 ///
 /// Used when the `subs` attribute contains modifier syntax (`+quotes`, `-callouts`, `quotes+`).
@@ -1665,19 +1699,10 @@ fn attribute_inline_profile<'text>(
 ) -> Option<Result<(&'text str, Vec<Substitution>), String>> {
     let (names, inner) = text.trim().strip_prefix("pass:")?.split_once('[')?;
     let inner = inner.strip_suffix(']')?;
-    let mut substitutions = Vec::new();
-    for name in names
-        .split(',')
-        .filter(|name| !name.is_empty() && *name != "none")
-    {
-        let Some(stage) = parse_substitution(name) else {
-            return Some(Err(format!(
-                "unknown attribute-value substitution: {name}; value retained literally"
-            )));
-        };
-        substitutions.push(stage);
-    }
-    let substitutions = resolve_passthrough_substitutions(&substitutions);
+    let substitutions = match parse_passthrough_substitutions(names, "attribute-value") {
+        Ok(substitutions) => substitutions,
+        Err(message) => return Some(Err(message)),
+    };
     if !substitutions.iter().any(|stage| {
         matches!(
             stage,
@@ -1696,13 +1721,6 @@ fn attribute_inline_profile<'text>(
             return Some(Err("attribute-value escaping combined with formatted references is unsupported; value retained literally".into()));
         }
         return None;
-    }
-    let mut structural = false;
-    for stage in &substitutions {
-        if *stage == Substitution::SpecialChars && structural {
-            return Some(Err("attribute-value escaping after formatting or macros requires backend markup; value retained literally".into()));
-        }
-        structural |= matches!(stage, Substitution::Quotes | Substitution::Macros);
     }
     Some(Ok((inner, substitutions)))
 }

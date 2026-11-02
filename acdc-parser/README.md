@@ -248,6 +248,14 @@ attribute references. Draft resolves references first, so a value such as
 literal. Explicit substitution lists keep their requested order; incremental
 block modifiers start from the selected mode's defaults.
 
+Unsupported inline `pass:` lists use the same recovery rules as formatted
+attribute values. Unknown names, callouts, and escaping after formatting or
+macros retain the complete source and report `ContentRecovery`. For example,
+`pass:q,c[*Bold*]` stays literal. Asciidoctor can instead display escaped
+generated markup or ignore unknown names. acdc keeps backend markup out of the
+parser. Disabled macro substitutions and escaped or protected passthroughs do
+not trigger these warnings.
+
 For named block titles, Draft parses inline content only in single-quoted
 values. It also accumulates distinct block roles and options in source order. Unquoted and
 double-quoted named titles stay literal, including formatting markers,
@@ -732,7 +740,7 @@ produce output markup and apply the escaping required by their output format.
 The parser may use explicit `backend` conditions, but must not render an attribute
 to HTML or roff to decide its value.
 
-Custom substitution order also retains structured formatting and links when
+Block substitution order also retains structured formatting and links when
 escaping runs last, where Asciidoctor can display generated markup as text.
 In source blocks with `subs="quotes,+attributes"`, acdc PDF keeps formatted text;
 Asciidoctor PDF displays generated tags when special-character substitution is
