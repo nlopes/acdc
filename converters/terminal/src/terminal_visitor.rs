@@ -15,6 +15,7 @@ use acdc_parser::{
     DescriptionList, DiscreteHeader, Document, Header, Image, InlineNode, ListItem, OrderedList,
     PageBreak, Paragraph, Section, SectionKind, TableOfContents, ThematicBreak, UnorderedList,
     Video,
+    ast::{ContentRef, InlineKind, InlineRef},
 };
 use crossterm::{
     QueueableCommand,
@@ -59,6 +60,59 @@ impl<'a, 'd, W: Write> TerminalVisitor<'a, 'd, W> {
             colors: Vec::new(),
             applied_colors: (None, None),
         }
+    }
+
+    pub(crate) fn write_content(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        content: ContentRef<'_>,
+    ) -> Result<(), Error> {
+        acdc_converters_core::visitor::InlineVisitor::visit_inline_nodes(self, traversal, content)
+    }
+
+    fn write_inline(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        node: InlineRef<'_>,
+    ) -> Result<(), Error> {
+        acdc_converters_core::visitor::InlineVisitor::visit_inline_node(self, traversal, node)
+    }
+
+    pub(crate) fn write_inlines<'inline>(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        nodes: impl DoubleEndedIterator<Item = InlineRef<'inline>> + ExactSizeIterator + Clone,
+    ) -> Result<(), Error> {
+        let previous_boundaries = self.text_boundaries;
+        #[cfg(feature = "pre-spec-subs")]
+        let replacements = self
+            .processor
+            .current_subs
+            .get()
+            .contains(SubsFlags::REPLACEMENTS);
+        #[cfg(not(feature = "pre-spec-subs"))]
+        let replacements = true;
+        let siblings = nodes.clone();
+        let result = (|| {
+            for (index, node) in nodes.enumerate() {
+                let boundaries = if self.in_inline_span {
+                    TextBoundaries::NONE
+                } else {
+                    previous_boundaries
+                };
+                self.text_boundaries = boundaries
+                    .with_ordinary_replacements(replacements)
+                    .for_inline_refs(
+                        Some(node),
+                        siblings.clone().take(index).rev(),
+                        siblings.clone().skip(index + 1),
+                    );
+                self.write_inline(traversal, node)?;
+            }
+            Ok(())
+        })();
+        self.text_boundaries = previous_boundaries;
+        result
     }
 
     pub(crate) fn render_captioned_title_with_wrapper(
@@ -360,15 +414,7 @@ impl<'a, W: Write> Visitor<'a> for TerminalVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         node: &InlineNode,
     ) -> Result<(), Self::Error> {
-        let saved = self.in_inline_span;
-        if acdc_converters_core::visitor::is_formatting_span(node) {
-            self.in_inline_span = true;
-        }
-
-        let result = self.render_inline_node(traversal, node);
-
-        self.in_inline_span = saved;
-        result
+        self.write_inline(traversal, node.into())
     }
 
     fn visit_inline_nodes(
@@ -376,32 +422,7 @@ impl<'a, W: Write> Visitor<'a> for TerminalVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         nodes: &[InlineNode],
     ) -> Result<(), Self::Error> {
-        let previous_boundaries = self.text_boundaries;
-        #[cfg(feature = "pre-spec-subs")]
-        let replacements = self
-            .processor
-            .current_subs
-            .get()
-            .contains(SubsFlags::REPLACEMENTS);
-        #[cfg(not(feature = "pre-spec-subs"))]
-        let replacements = true;
-
-        let result = (|| {
-            for (index, node) in nodes.iter().enumerate() {
-                let boundaries = if self.in_inline_span {
-                    TextBoundaries::NONE
-                } else {
-                    previous_boundaries
-                };
-                self.text_boundaries = boundaries
-                    .with_ordinary_replacements(replacements)
-                    .for_inline(nodes, index);
-                self.visit_inline_node(traversal, node)?;
-            }
-            Ok(())
-        })();
-        self.text_boundaries = previous_boundaries;
-        result
+        self.write_inlines(traversal, nodes.iter().map(InlineRef::from))
     }
 
     fn visit_text(
@@ -417,5 +438,39 @@ impl<'a, W: Write> Visitor<'a> for TerminalVisitor<'a, '_, W> {
 impl<'a, W: Write> WritableVisitor<'a> for TerminalVisitor<'a, '_, W> {
     fn writer_mut(&mut self) -> &mut dyn Write {
         &mut self.writer
+    }
+}
+
+impl<'a, W: Write> acdc_converters_core::visitor::InlineVisitor<'a> for TerminalVisitor<'a, '_, W> {
+    type Error = Error;
+    fn visit_inline_nodes(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        content: ContentRef<'_>,
+    ) -> Result<(), Error> {
+        self.write_inlines(traversal, content.inlines())
+    }
+    fn visit_inline_node(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        node: InlineRef<'_>,
+    ) -> Result<(), Error> {
+        let saved = self.in_inline_span;
+        if matches!(
+            node.kind(),
+            InlineKind::Bold(_)
+                | InlineKind::Italic(_)
+                | InlineKind::Monospace(_)
+                | InlineKind::Highlight(_)
+                | InlineKind::Superscript(_)
+                | InlineKind::Subscript(_)
+                | InlineKind::CurvedQuotation(_)
+                | InlineKind::CurvedApostrophe(_)
+        ) {
+            self.in_inline_span = true;
+        }
+        let result = self.render_inline_node(traversal, node);
+        self.in_inline_span = saved;
+        result
     }
 }

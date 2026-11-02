@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The terminal visitor supports typed inline callbacks. ANSI styling, OSC 8
+  links, typography, and visible inline fallbacks remain unchanged.
+
 - Source blocks and HTML terminal previews retain nested formatting, highlight
   roles, callout guards, and per-fragment substitutions through typed reads.
 

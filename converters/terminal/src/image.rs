@@ -40,8 +40,8 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
 
         if !rendered_protocol_image || link.is_some() {
             let rendered_alt = match &image.alt {
-                Some(content) => inlines::render_inline_nodes_with_styles_to_owned(
-                    content,
+                Some(content) => inlines::render_content_with_styles_to_owned(
+                    content.into(),
                     self.processor,
                     traversal,
                 )?,

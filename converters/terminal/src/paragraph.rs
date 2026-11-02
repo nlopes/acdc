@@ -201,7 +201,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         )?;
 
         acdc_converters_core::index::visit_index_terms(&para.content, &mut |term, _| {
-            crate::inlines::register_index_term(term, self.processor, traversal)
+            crate::inlines::register_index_term(term.into(), self.processor, traversal)
         })?;
 
         let separator = "─"
