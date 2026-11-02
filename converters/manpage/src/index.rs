@@ -5,11 +5,8 @@ use std::{
     io::Write,
 };
 
-use acdc_converters_core::{InlineTextTransform, TraversalContext, visitor::WritableVisitor};
-use acdc_parser::{
-    InlineNode,
-    ast::{ContentRef, IndexTermRef, IndexTermRelationshipRef},
-};
+use acdc_converters_core::{InlineTextTransform, TraversalContext};
+use acdc_parser::ast::{ContentRef, IndexTermRef, IndexTermRelationshipRef};
 
 use crate::{
     Error, IndexCatalogRelationship, IndexTermEntry, IndexTermLabel, ManpageVisitor, Processor,
@@ -208,13 +205,13 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     pub(crate) fn collect_index_terms_from_inlines(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        inlines: &[InlineNode<'_>],
+        inlines: ContentRef<'_>,
     ) -> Result<(), Error> {
         if !self.processor.has_valid_index_section {
             return Ok(());
         }
-        acdc_converters_core::index::visit_index_terms(inlines, &mut |term, _| {
-            self.register_index_term(traversal, term.into())
+        acdc_converters_core::index::visit_index_inlines(inlines.inlines(), &mut |term, _| {
+            self.register_index_term(traversal, term)
         })
     }
 

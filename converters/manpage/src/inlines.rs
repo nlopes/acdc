@@ -10,7 +10,6 @@ use acdc_converters_core::{
     TraversalContext, decode_numeric_char_refs,
     link::{link_fallback, mailto_fallback, mailto_target},
     substitutions::{Replacements, TextBoundaries, apply_passthrough_replacements_iter},
-    visitor::WritableVisitor,
     xref::{XrefDisplay, resolve_local_reference},
 };
 use acdc_parser::{

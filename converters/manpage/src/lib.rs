@@ -44,11 +44,12 @@ use std::{
 use acdc_converters_core::substitutions::SubsFlags;
 use acdc_converters_core::{
     BackendProfile, Converter, Diagnostics, Doctype, Options, TraversalContext,
-    section::has_index_section, visitor::Visitor, xref::XrefGuard,
+    section::contains_index_section, visitor::DocumentVisitor, xref::XrefGuard,
 };
 
 use acdc_parser::{
     AttributeValue, Document, DocumentAttributes, Options as ParserOptions, Reference,
+    ast::{DocumentRef, TocEntryRef},
 };
 
 mod admonition;
@@ -123,14 +124,15 @@ impl Processor<'_> {
     /// # Errors
     ///
     /// Returns an error if conversion or writing fails.
-    pub fn write_document<'doc, W: Write>(
+    pub fn write_document<W: Write>(
         &self,
-        doc: &Document<'doc>,
+        doc: &Document<'_>,
         writer: W,
         source_file: Option<&Path>,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Error> {
-        let mut attrs: DocumentAttributes<'doc> = doc.attributes.clone();
+        let document = DocumentRef::from(doc);
+        let mut attrs: DocumentAttributes<'_> = document.attributes().into();
 
         if attrs.get("revdate").is_none()
             && let Some(date_str) = source_file.and_then(file_modified_date)
@@ -143,35 +145,37 @@ impl Processor<'_> {
         }
 
         // Per-conversion processor borrows from `doc`; lifetime independent of `self`.
-        let processor: Processor<'doc> = Processor {
+        let processor: Processor<'_> = Processor {
             options: self.options.clone(),
             parser_options: ParserOptions::default().with_document_attributes(attrs),
             references: Rc::new(doc.references.clone()),
             xref_guard: XrefGuard::default(),
             top_level_section_ids: Rc::new(
-                doc.toc_entries
-                    .iter()
-                    .filter(|entry| entry.level == 1)
-                    .map(|entry| entry.id)
+                document
+                    .toc_entries()
+                    .filter(|entry| entry.level() == 1)
+                    .map(TocEntryRef::id)
                     .collect(),
             ),
             static_media_warning: Rc::new(Cell::new(false)),
             inline_role_warning: Rc::new(Cell::new(false)),
             index_entries: Rc::new(RefCell::new(Vec::new())),
-            has_valid_index_section: has_index_section(&doc.blocks),
+            has_valid_index_section: contains_index_section(document.blocks()),
             #[cfg(feature = "pre-spec-subs")]
             current_subs: Rc::new(Cell::new(SubsFlags::all())),
         };
-        let mut traversal = TraversalContext::new(&doc.attributes);
+        let mut traversal = TraversalContext::new(document.attributes());
         let mut visitor = ManpageVisitor::new(writer, &processor, diagnostics.reborrow());
-        visitor.visit_document(&mut traversal, doc)
+        visitor.visit_document(&mut traversal, document)
     }
 
     /// Determine the output file extension based on the volume number.
     fn output_extension(doc: &Document<'_>) -> String {
         // Read manvolnum from document attributes (set by parser)
-        acdc_converters_core::document_attribute_text((doc.attributes).get("manvolnum"))
-            .map_or_else(|| String::from("1"), str::to_owned)
+        acdc_converters_core::document_attribute_text(
+            DocumentRef::from(doc).attributes().get("manvolnum"),
+        )
+        .map_or_else(|| String::from("1"), str::to_owned)
     }
 }
 

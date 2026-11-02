@@ -4,14 +4,13 @@
 
 use std::io::Write;
 
+use acdc_converters_core::TraversalContext;
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::effective_subs_flags;
-use acdc_converters_core::{
-    TraversalContext,
-    visitor::{Visitor, WritableVisitor},
-};
-use acdc_parser::{BlockMetadata, InlineNode, Paragraph};
+use acdc_parser::ast::{AttributesRef, ContentRef, ParagraphRef};
 
+#[cfg(feature = "pre-spec-subs")]
+use crate::manpage_visitor::substitutions;
 use crate::{Error, ManpageVisitor, escape::EscapeMode};
 
 impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
@@ -19,7 +18,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     pub(crate) fn render_paragraph(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        para: &Paragraph,
+        para: ParagraphRef<'_>,
     ) -> Result<(), Error> {
         #[cfg(feature = "pre-spec-subs")]
         {
@@ -28,9 +27,9 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             // verbatim substitutions; verse keeps normal substitutions.
             // Snapshot/restore via the processor's shared cell so nested renders
             // (and sub-visitors that clone the processor) don't leak state.
-            let is_verbatim = matches!(para.metadata.style, Some("literal" | "listing" | "source"));
+            let is_verbatim = matches!(para.style(), Some("literal" | "listing" | "source"));
             let previous_subs = self.processor.current_subs.replace(effective_subs_flags(
-                para.metadata.substitutions.as_ref().map(Into::into),
+                substitutions(para.attributes()),
                 is_verbatim,
             ));
 
@@ -46,9 +45,9 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     fn render_paragraph_inner(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        para: &Paragraph,
+        para: ParagraphRef<'_>,
     ) -> Result<(), Error> {
-        if let Some(style) = para.metadata.style {
+        if let Some(style) = para.style() {
             match style {
                 "quote" => return self.render_quote_paragraph(traversal, para),
                 "verse" => return self.render_verse_paragraph(traversal, para),
@@ -67,10 +66,10 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             writeln!(w, ".sp")?;
         }
 
-        self.render_captioned_title(traversal, &para.title, &para.metadata)?;
+        self.render_captioned_title(traversal, para.title(), para.attributes())?;
 
         // Paragraph content
-        self.visit_inline_nodes(traversal, &para.content)?;
+        self.write_content(traversal, para.content())?;
 
         let w = self.writer_mut();
         writeln!(w)?;
@@ -81,15 +80,15 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     fn render_example_paragraph(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        para: &Paragraph,
+        para: ParagraphRef<'_>,
     ) -> Result<(), Error> {
         self.write_sp()?;
-        self.render_captioned_title(traversal, &para.title, &para.metadata)?;
+        self.render_captioned_title(traversal, para.title(), para.attributes())?;
 
         let w = self.writer_mut();
         writeln!(w, ".RS 4")?;
         writeln!(w, ".sp")?;
-        self.visit_inline_nodes(traversal, &para.content)?;
+        self.write_content(traversal, para.content())?;
         let w = self.writer_mut();
         writeln!(w)?;
         writeln!(w, ".RE")?;
@@ -116,11 +115,11 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     fn render_quote_paragraph(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        para: &Paragraph,
+        para: ParagraphRef<'_>,
     ) -> Result<(), Error> {
-        if para.title.is_present() {
+        if para.title().is_some() {
             self.write_sp()?;
-            self.render_captioned_title(traversal, &para.title, &para.metadata)?;
+            self.render_captioned_title(traversal, para.title(), para.attributes())?;
         }
         let w = self.writer_mut();
 
@@ -130,7 +129,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         writeln!(w, ".sp")?;
 
         // Render content
-        self.visit_inline_nodes(traversal, &para.content)?;
+        self.write_content(traversal, para.content())?;
 
         let w = self.writer_mut();
         writeln!(w)?;
@@ -141,7 +140,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         // Render attribution if present
         self.render_attribution(
             traversal,
-            &para.metadata,
+            para.attributes(),
             &[".RS 5", ".ll -.10i"],
             &[".RE", ".ll"],
         )?;
@@ -168,16 +167,16 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     fn render_verse_paragraph(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        para: &Paragraph,
+        para: ParagraphRef<'_>,
     ) -> Result<(), Error> {
         self.write_sp()?;
-        self.render_captioned_title(traversal, &para.title, &para.metadata)?;
-        self.render_verse_content(traversal, &para.content, &para.metadata)?;
+        self.render_captioned_title(traversal, para.title(), para.attributes())?;
+        self.render_verse_content(traversal, para.content(), para.attributes())?;
 
         // Render attribution if present
         self.render_attribution(
             traversal,
-            &para.metadata,
+            para.attributes(),
             &[".br", ".in +.5i", ".ll -.5i"],
             &[".in", ".ll"],
         )?;
@@ -189,20 +188,20 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     pub(crate) fn render_verse_content(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        nodes: &[InlineNode<'_>],
-        metadata: &BlockMetadata<'_>,
+        nodes: ContentRef<'_>,
+        attributes: AttributesRef<'_>,
     ) -> Result<(), Error> {
         #[cfg(feature = "pre-spec-subs")]
-        let previous_subs = self.processor.current_subs.replace(effective_subs_flags(
-            metadata.substitutions.as_ref().map(Into::into),
-            false,
-        ));
+        let previous_subs = self
+            .processor
+            .current_subs
+            .replace(effective_subs_flags(substitutions(attributes), false));
         #[cfg(not(feature = "pre-spec-subs"))]
-        let _ = metadata;
+        let _ = attributes;
         let mut output = Vec::new();
         let mut visitor = self.nested_visitor(&mut output);
         visitor.text_escape_mode = EscapeMode::Preserve;
-        let result = visitor.visit_inline_nodes(traversal, nodes);
+        let result = visitor.write_content(traversal, nodes);
         #[cfg(feature = "pre-spec-subs")]
         visitor.processor.current_subs.set(previous_subs);
         result?;
@@ -233,12 +232,12 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     fn render_literal_paragraph(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        para: &Paragraph,
+        para: ParagraphRef<'_>,
     ) -> Result<(), Error> {
-        self.collect_index_terms_from_inlines(traversal, &para.content)?;
+        self.collect_index_terms_from_inlines(traversal, para.content())?;
         self.write_sp()?;
-        self.render_captioned_title(traversal, &para.title, &para.metadata)?;
-        let content = self.verbatim_content(traversal, &para.content, &para.metadata)?;
+        self.render_captioned_title(traversal, para.title(), para.attributes())?;
+        let content = self.verbatim_content(traversal, para.content(), para.attributes())?;
         let w = self.writer_mut();
         writeln!(w, ".if n .RS 4")?;
         writeln!(w, ".nf")?;
@@ -261,11 +260,13 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     pub(crate) fn render_attribution(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        metadata: &BlockMetadata<'_>,
+        attributes: AttributesRef<'_>,
         preamble: &[&str],
         postamble: &[&str],
     ) -> Result<(), Error> {
-        let Some(attribution) = metadata.attribution.as_ref() else {
+        let Some(acdc_parser::ast::AttributeValueRef::Content(attribution)) =
+            attributes.get("attribution")
+        else {
             return Ok(());
         };
 
@@ -274,12 +275,14 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             writeln!(w, "{line}")?;
         }
 
-        if let Some(citation) = metadata.citetitle.as_ref() {
-            self.visit_inline_nodes(traversal, citation)?;
+        if let Some(acdc_parser::ast::AttributeValueRef::Content(citation)) =
+            attributes.get("citetitle")
+        {
+            self.write_content(traversal, citation)?;
             write!(self.writer_mut(), " ")?;
         }
         write!(self.writer_mut(), "\\(em ")?;
-        self.visit_inline_nodes(traversal, attribution)?;
+        self.write_content(traversal, attribution)?;
         writeln!(self.writer_mut())?;
 
         let w = self.writer_mut();

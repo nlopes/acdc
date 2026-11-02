@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Direct users of `ManpageVisitor` must use the shared `DocumentVisitor`,
+  `BlockVisitor`, and `InlineVisitor` callbacks. Portable roff output, caption
+  numbering, table layouts, and diagnostic locations remain unchanged.
+
 - The manpage visitor supports typed inline callbacks. Font scopes, typography,
   local reference labels, and portable roff output remain unchanged.
 

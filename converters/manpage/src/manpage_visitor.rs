@@ -8,13 +8,11 @@ use acdc_converters_core::substitutions::{SubsFlags, effective_subs_flags};
 use acdc_converters_core::{
     Diagnostics, TraversalContext, document_attribute_text,
     substitutions::TextBoundaries,
-    visitor::{Visitor, WritableVisitor},
+    visitor::{BlockVisitor, DocumentVisitor},
 };
-use acdc_parser::{
-    Admonition, Audio, Block, BlockMetadata, CalloutList, Caption, DelimitedBlock, DescriptionList,
-    DiscreteHeader, Document, Header, Image, InlineNode, ListItem, OrderedList, PageBreak,
-    Paragraph, Section, TableOfContents, ThematicBreak, UnorderedList, Video,
-    ast::{ContentRef, InlineKind, InlineRef},
+use acdc_parser::ast::{
+    AttributeValueRef, AttributesRef, BlockKind, BlockRef, CaptionRef, ContentRef, DocumentRef,
+    InlineKind, InlineRef,
 };
 
 use crate::{
@@ -22,6 +20,26 @@ use crate::{
     escape::{EscapeMode, escape_roff_macro_argument, manify},
     inlines::LinkLabel,
 };
+
+pub(super) fn attribute_text<'doc>(
+    attributes: AttributesRef<'doc>,
+    name: &str,
+) -> Option<&'doc str> {
+    match attributes.get(name) {
+        Some(AttributeValueRef::Text(value)) => Some(acdc_parser::strip_quotes(value)),
+        _ => None,
+    }
+}
+
+#[cfg(feature = "pre-spec-subs")]
+pub(super) fn substitutions(
+    attributes: AttributesRef<'_>,
+) -> Option<acdc_parser::ast::SubstitutionSpecRef<'_>> {
+    match attributes.get("subs") {
+        Some(AttributeValueRef::Substitutions(spec)) => Some(spec),
+        _ => None,
+    }
+}
 
 #[derive(Clone, Copy)]
 pub(crate) enum TextCase {
@@ -87,6 +105,27 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
             first_section_title: None,
             second_section_title: None,
         }
+    }
+
+    pub(crate) fn writer_mut(&mut self) -> &mut dyn Write {
+        match self.link_label.as_mut() {
+            Some(label) => &mut label.content,
+            None => &mut self.writer,
+        }
+    }
+
+    /// Warn that a block could not be rendered.
+    ///
+    /// # Errors
+    ///
+    /// This callback always succeeds after recording its warning.
+    pub fn visit_unhandled_block(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        _block: BlockRef<'a>,
+    ) -> Result<(), Error> {
+        self.warn_unsupported_parser_variant("block");
+        Ok(())
     }
 
     pub(crate) fn write_content(
@@ -218,11 +257,11 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
     pub(crate) fn render_title_inlines(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &acdc_parser::Title<'_>,
+        title: Option<ContentRef<'_>>,
     ) -> Result<(), Error> {
         // Titles use collapsed whitespace; their bodies retain authored spacing.
         let previous = replace(&mut self.text_escape_mode, EscapeMode::Collapse);
-        let result = self.visit_inline_nodes(traversal, title);
+        let result = title.map_or(Ok(()), |title| self.write_content(traversal, title));
         self.text_escape_mode = previous;
         result
     }
@@ -231,25 +270,29 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
     pub(crate) fn render_captioned_title(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &acdc_parser::Title<'_>,
-        metadata: &BlockMetadata<'_>,
+        title: Option<ContentRef<'_>>,
+        attributes: AttributesRef<'_>,
     ) -> Result<(), Error> {
-        if !title.is_present() {
+        if title.is_none() {
             return Ok(());
         }
 
-        let prefix = match metadata.caption.as_ref() {
-            Some(Caption::Numbered {
+        let prefix = match CaptionRef::resolve(
+            attributes,
+            self.processor.parser_options.document_attributes().into(),
+            None,
+        ) {
+            Some(CaptionRef::Numbered {
                 label,
                 number: Some(number),
                 ..
             }) => Some(format!("{label} {number}. ")),
-            Some(Caption::Custom(prefix)) => Some(prefix.to_string()),
+            Some(CaptionRef::Custom(prefix)) => Some(prefix.to_string()),
             Some(_) | None => None,
         };
         self.render_font("\\fB", false, |visitor| {
-            if let Some(content) = metadata.caption_content() {
-                visitor.visit_inline_nodes(traversal, content)?;
+            if let Some(AttributeValueRef::Content(content)) = attributes.get("caption") {
+                visitor.write_content(traversal, content)?;
             } else if let Some(prefix) = prefix {
                 write!(
                     visitor.writer_mut(),
@@ -274,22 +317,68 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
     }
 }
 
-impl<'a, W: Write> Visitor<'a> for ManpageVisitor<'a, '_, W> {
+impl<'a, W: Write> BlockVisitor<'a> for ManpageVisitor<'a, '_, W> {
     type Error = Error;
 
-    fn visit_unhandled_block(
+    fn visit_block(
         &mut self,
-        _traversal: &mut TraversalContext<'a>,
-        _block: &'a Block<'a>,
-    ) -> Result<(), Self::Error> {
-        self.warn_unsupported_parser_variant("block");
-        Ok(())
+        traversal: &mut TraversalContext<'a>,
+        block: BlockRef<'a>,
+    ) -> Result<(), Error> {
+        match block.kind() {
+            BlockKind::Section(node) => self.render_section(traversal, node),
+            BlockKind::Paragraph(node) => self.render_paragraph(traversal, node),
+            BlockKind::OrderedList(node) => self.render_ordered_list(traversal, node),
+            BlockKind::UnorderedList(node) => self.render_unordered_list(traversal, node),
+            BlockKind::DescriptionList(node) => self.render_description_list(traversal, node),
+            BlockKind::CalloutList(node) => self.render_callout_list(traversal, node),
+            BlockKind::Admonition(node) => self.render_admonition(traversal, node),
+            BlockKind::Image(node) => self.render_image(traversal, node),
+            BlockKind::Audio(node) => self.render_audio(traversal, node),
+            BlockKind::Video(node) => self.render_video(traversal, node),
+            BlockKind::DiscreteHeader(node) => {
+                self.write_sp()?;
+                self.render_font("\\fB", false, |visitor| {
+                    visitor.render_title_inlines(traversal, node.title())
+                })?;
+                writeln!(self.writer)?;
+                Ok(())
+            }
+            BlockKind::ThematicBreak(_) => {
+                self.write_sp()?;
+                writeln!(self.writer, ".ce")?;
+                writeln!(self.writer, "* * *")?;
+                writeln!(self.writer, ".ce 0")?;
+                Ok(())
+            }
+            BlockKind::PageBreak(_) => {
+                writeln!(self.writer, ".bp")?;
+                Ok(())
+            }
+            BlockKind::TableOfContents(_)
+            | BlockKind::DocumentAttribute(_)
+            | BlockKind::Comment(_) => Ok(()),
+            BlockKind::Example(_)
+            | BlockKind::Open(_)
+            | BlockKind::Sidebar(_)
+            | BlockKind::Quote(_)
+            | BlockKind::Verse(_)
+            | BlockKind::Listing(_)
+            | BlockKind::Literal(_)
+            | BlockKind::Passthrough(_)
+            | BlockKind::Table(_)
+            | BlockKind::Stem(_)
+            | BlockKind::DelimitedComment(_) => self.render_delimited_block(traversal, block),
+            _ => self.visit_unhandled_block(traversal, block),
+        }
     }
+}
 
+impl<'a, W: Write> DocumentVisitor<'a> for ManpageVisitor<'a, '_, W> {
     fn visit_document_start(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        doc: &'a Document<'a>,
+        doc: DocumentRef<'a>,
     ) -> Result<(), Self::Error> {
         self.render_document_start(traversal, doc)
     }
@@ -297,7 +386,7 @@ impl<'a, W: Write> Visitor<'a> for ManpageVisitor<'a, '_, W> {
     fn visit_document_supplements(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        doc: &'a Document<'a>,
+        doc: DocumentRef<'a>,
     ) -> Result<(), Self::Error> {
         // In embedded mode, skip NOTES and AUTHOR(S) sections (matches asciidoctor --embedded)
         if self.processor.options.embedded() {
@@ -305,35 +394,35 @@ impl<'a, W: Write> Visitor<'a> for ManpageVisitor<'a, '_, W> {
         }
 
         // Render footnotes as NOTES section (matching asciidoctor)
-        if !doc.footnotes.is_empty() {
+        if doc.footnotes().next().is_some() {
             let w = self.writer_mut();
             writeln!(w, ".SH \"NOTES\"")?;
 
-            for footnote in &doc.footnotes {
+            for footnote in doc.footnotes() {
                 let w = self.writer_mut();
-                writeln!(w, ".IP [{}] 4", footnote.number)?;
-                self.visit_inline_nodes(traversal, &footnote.content)?;
+                writeln!(w, ".IP [{}] 4", footnote.number())?;
+                self.write_content(traversal, footnote.content())?;
                 let w = self.writer_mut();
                 writeln!(w)?;
             }
         }
 
         // Render AUTHOR(S) section if document has authors
-        if let Some(header) = &doc.header
-            && !header.authors.is_empty()
+        if let Some(header) = doc.header()
+            && header.authors().next().is_some()
         {
             let w = self.writer_mut();
-            if header.authors.len() == 1 {
+            if header.authors().count() == 1 {
                 writeln!(w, ".SH \"AUTHOR\"")?;
             } else {
                 writeln!(w, ".SH \"AUTHORS\"")?;
             }
-            for author in &header.authors {
+            for author in header.authors() {
                 let w = self.writer_mut();
                 writeln!(w, ".sp")?;
                 let name = crate::document::format_author_name(author);
                 write!(w, "\\fB{}\\fP", manify(&name, EscapeMode::Normalize))?;
-                if let Some(email) = &author.email {
+                if let Some(email) = author.email() {
                     let escaped_email = escape_roff_macro_argument(email).replace('@', "\\(at");
                     writeln!(w, " \\c\n.MTO \"{escaped_email}\" \"\" \"\"")?;
                 } else {
@@ -348,7 +437,7 @@ impl<'a, W: Write> Visitor<'a> for ManpageVisitor<'a, '_, W> {
     fn visit_document_end(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        _doc: &'a Document<'a>,
+        _doc: DocumentRef<'a>,
     ) -> Result<(), Self::Error> {
         // Validate manpage section order conventions
         const SECTION_ORDER_ADVICE: &str =
@@ -375,194 +464,6 @@ impl<'a, W: Write> Visitor<'a> for ManpageVisitor<'a, '_, W> {
             );
         }
         Ok(())
-    }
-
-    fn visit_header(
-        &mut self,
-        _traversal: &mut TraversalContext<'a>,
-        _header: &Header,
-    ) -> Result<(), Self::Error> {
-        // Header is handled in visit_document_start for manpages
-        // The .TH macro contains all header information
-        Ok(())
-    }
-
-    fn visit_section(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        section: &'a Section<'a>,
-    ) -> Result<(), Self::Error> {
-        self.render_section(traversal, section)
-    }
-
-    fn visit_paragraph(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        para: &Paragraph,
-    ) -> Result<(), Self::Error> {
-        self.render_paragraph(traversal, para)
-    }
-
-    fn visit_delimited_block(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        block: &'a DelimitedBlock<'a>,
-    ) -> Result<(), Self::Error> {
-        self.render_delimited_block(traversal, block)
-    }
-
-    fn visit_ordered_list(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        list: &'a OrderedList<'a>,
-    ) -> Result<(), Self::Error> {
-        self.render_ordered_list(traversal, list)
-    }
-
-    fn visit_unordered_list(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        list: &'a UnorderedList<'a>,
-    ) -> Result<(), Self::Error> {
-        self.render_unordered_list(traversal, list)
-    }
-
-    fn visit_description_list(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        list: &'a DescriptionList<'a>,
-    ) -> Result<(), Self::Error> {
-        self.render_description_list(traversal, list)
-    }
-
-    fn visit_callout_list(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        list: &'a CalloutList<'a>,
-    ) -> Result<(), Self::Error> {
-        self.render_callout_list(traversal, list)
-    }
-
-    fn visit_list_item(
-        &mut self,
-        _traversal: &mut TraversalContext<'a>,
-        _item: &'a ListItem<'a>,
-    ) -> Result<(), Self::Error> {
-        // List items are handled by their parent list visitors
-        Ok(())
-    }
-
-    fn visit_admonition(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        admon: &'a Admonition<'a>,
-    ) -> Result<(), Self::Error> {
-        self.render_admonition(traversal, admon)
-    }
-
-    fn visit_image(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        img: &Image,
-    ) -> Result<(), Self::Error> {
-        self.render_image(traversal, img)
-    }
-
-    fn visit_video(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        video: &Video,
-    ) -> Result<(), Self::Error> {
-        self.render_video(traversal, video)
-    }
-
-    fn visit_audio(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        audio: &Audio,
-    ) -> Result<(), Self::Error> {
-        self.render_audio(traversal, audio)
-    }
-
-    fn visit_thematic_break(
-        &mut self,
-        _traversal: &mut TraversalContext<'a>,
-        _br: &ThematicBreak,
-    ) -> Result<(), Self::Error> {
-        // Thematic break as a centered line of dashes
-        self.write_sp()?;
-        writeln!(self.writer, ".ce")?;
-        writeln!(self.writer, "* * *")?;
-        writeln!(self.writer, ".ce 0")?;
-        Ok(())
-    }
-
-    fn visit_page_break(
-        &mut self,
-        _traversal: &mut TraversalContext<'a>,
-        _br: &PageBreak,
-    ) -> Result<(), Self::Error> {
-        // Page break in roff
-        writeln!(self.writer, ".bp")?;
-        Ok(())
-    }
-
-    fn visit_table_of_contents(
-        &mut self,
-        _traversal: &mut TraversalContext<'a>,
-        _toc: &TableOfContents,
-    ) -> Result<(), Self::Error> {
-        // Man pages do not include a table of contents.
-        Ok(())
-    }
-
-    fn visit_discrete_header(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        header: &DiscreteHeader,
-    ) -> Result<(), Self::Error> {
-        // Discrete headers are rendered as bold text, not as sections
-        self.write_sp()?;
-        self.render_font("\\fB", false, |visitor| {
-            visitor.render_title_inlines(traversal, &header.title)
-        })?;
-        writeln!(self.writer)?;
-        Ok(())
-    }
-
-    fn visit_inline_nodes(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        nodes: &[InlineNode],
-    ) -> Result<(), Self::Error> {
-        self.write_inlines(traversal, nodes.iter().map(InlineRef::from))
-    }
-
-    fn visit_inline_node(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        node: &InlineNode,
-    ) -> Result<(), Self::Error> {
-        self.write_inline(traversal, node.into())
-    }
-
-    fn visit_text(
-        &mut self,
-        _traversal: &mut TraversalContext<'a>,
-        text: &str,
-    ) -> Result<(), Self::Error> {
-        let escaped = manify(text, EscapeMode::Normalize);
-        write!(self.writer, "{escaped}")?;
-        Ok(())
-    }
-}
-
-impl<'a, W: Write> WritableVisitor<'a> for ManpageVisitor<'a, '_, W> {
-    fn writer_mut(&mut self) -> &mut dyn Write {
-        match self.link_label.as_mut() {
-            Some(label) => &mut label.content,
-            None => &mut self.writer,
-        }
     }
 }
 
