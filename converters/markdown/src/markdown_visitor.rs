@@ -4,34 +4,34 @@ use std::{borrow::Cow, collections::HashSet, fmt::Write as _, io::Write, mem::ta
 
 use acdc_converters_core::{
     Converter, Diagnostics, TraversalContext, Warning,
-    code::{SourceLineOptions, default_line_comment, detect_language},
+    code::{SourceLineOptions, default_line_comment, source_language},
     document_attribute_text, icon,
     inline_text::InlineTextTransform,
     link::{autolink_fallback, link_fallback, mailto_fallback, mailto_target},
     list::OrderedListNumbering,
-    media::{resolve_target, with_time_range},
+    media::{resolve_target, with_time_range_from_attributes},
     section::{
         appendix_number_prefix, book_chapter_signifier, effective_section_level,
         part_number_prefix, section_number_prefix,
     },
-    shows_block_title,
     substitutions::{Replacements, TextBoundaries, strip_backslash_escapes},
-    table::{CellKind, GridRow, build_grid, determine_column_count, table_has_spans},
-    toc::{Config as TocConfig, NumberingConfig, effective_level, has_real_parts, section_numbers},
-    visitor::{Visitor, WritableVisitor},
+    table::{CellKind, GridRow, column_count, grid_rows, has_spans},
+    toc::{Config as TocConfig, NumberingConfig, entry_level, has_parts, number_prefixes},
+    visitor::{BlockVisitor, DocumentVisitor},
     xref::{XrefDisplay, interdocument_xref, resolve_reference},
 };
 use acdc_parser::{
-    Admonition, AdmonitionVariant, Audio, Author, Block, BlockMetadata, CalloutList, CaptionKind,
-    ColumnStyle, ColumnWidth, DelimitedBlock, DelimitedBlockType, DescriptionList, DiscreteHeader,
-    Document, Header, HorizontalAlignment, Image, InlineNode, ListItem, ListItemCheckedStatus,
-    Location, OrderedList, PageBreak, Paragraph, Section, SectionKind, Source, SourceLocation,
-    Substitution, Table, TableColumn, TableOfContents, TableRow, ThematicBreak, Title, TocEntry,
-    UnorderedList, VerticalAlignment, Video,
+    AdmonitionVariant, CaptionKind, ColumnStyle, ColumnWidth, HorizontalAlignment,
+    ListItemCheckedStatus, Location, SectionKind, SourceLocation, Substitution, VerticalAlignment,
     ast::{
-        AnchorRef, AttributeValueRef, AttributesRef, AutolinkRef, ContentRef, CrossReferenceRef,
-        ElementIdRef, FootnoteRef, IconRef, ImageRef, IndexTermRef, IndexTermRelationshipRef,
-        InlineImageRef, InlineKind, InlineRef, KeyboardRef, LinkRef, ReferenceRef, SourceRef,
+        AdmonitionRef, AnchorRef, AttributeValueRef, AttributesRef, AudioRef, AuthorRef,
+        AutolinkRef, BlockKind, BlockRef, CalloutListRef, ColumnFormatRef, ContentRef,
+        CrossReferenceRef, DescriptionListRef, DiscreteHeaderRef, DocumentRef, ElementIdRef,
+        FootnoteRef, HeaderRef, IconRef, ImageRef, IndexTermRef, IndexTermRelationshipRef,
+        InlineImageRef, InlineKind, InlineRef, KeyboardRef, LinkRef, ListItemRef, OrderedListRef,
+        PageBreakRef, ParagraphRef, ReferenceRef, SectionRef, SourceRef, TableCellRef,
+        TableOfContentsRef, TableRef, TableRowRef, ThematicBreakRef, TocEntryRef, UnorderedListRef,
+        VideoRef,
     },
 };
 
@@ -124,26 +124,22 @@ fn suppresses_list_marker(style: Option<&str>, ordered: bool) -> bool {
         || (ordered && style == Some("unnumbered"))
 }
 
-fn list_sequence(metadata: &BlockMetadata<'_>, item_count: usize) -> (usize, bool) {
-    let reversed = metadata.options.contains(&"reversed");
-    let start = metadata
-        .attributes
-        .get_string("start")
+fn list_sequence(attributes: AttributesRef<'_>, item_count: usize) -> (usize, bool) {
+    let reversed = has_option(attributes, "reversed");
+    let start = attribute_text(attributes, "start")
         .and_then(|start| start.parse::<usize>().ok())
         .filter(|start| *start > 0)
         .unwrap_or(if reversed { item_count } else { 1 });
     (start, reversed)
 }
 
-fn table_cells<'table, 'source>(
-    table: &'table Table<'source>,
-) -> impl Iterator<Item = &'table TableColumn<'source>> {
+fn table_cells(table: TableRef<'_>) -> impl Iterator<Item = TableCellRef<'_>> {
     table
-        .header
-        .iter()
-        .chain(table.rows.iter())
-        .chain(table.footer.iter())
-        .flat_map(|row| row.columns.iter())
+        .header()
+        .into_iter()
+        .chain(table.rows())
+        .chain(table.footer())
+        .flat_map(TableRowRef::cells)
 }
 
 fn escape_unescaped_table_pipes(text: &str) -> String {
@@ -176,8 +172,25 @@ fn flatten_table_cell(text: &str) -> String {
         .join("<br>")
 }
 
-fn block_image_alt(image: &Image<'_>) -> String {
-    acdc_converters_core::media::image_alt(&image.source, image.alt.as_ref()).into_owned()
+fn attribute_content<'doc>(
+    attributes: AttributesRef<'doc>,
+    name: &str,
+) -> Option<ContentRef<'doc>> {
+    match attributes.get(name) {
+        Some(AttributeValueRef::Content(content)) => Some(content),
+        _ => None,
+    }
+}
+
+fn has_option(attributes: AttributesRef<'_>, name: &str) -> bool {
+    matches!(attributes.get("options"), Some(AttributeValueRef::Tokens(tokens)) if tokens.contains(name))
+}
+
+fn block_style(attributes: AttributesRef<'_>) -> Option<&str> {
+    match attributes.get("style") {
+        Some(AttributeValueRef::Text(text)) => Some(text),
+        _ => None,
+    }
 }
 
 fn attribute_text<'doc>(attributes: AttributesRef<'doc>, name: &str) -> Option<&'doc str> {
@@ -191,57 +204,45 @@ fn is_linked_image(node: InlineRef<'_>) -> bool {
     matches!(node.kind(), InlineKind::Image(image) if attribute_text(image.attributes(), "link").is_some())
 }
 
-fn block_location<'block>(block: &'block Block<'_>) -> Option<&'block Location> {
-    match block {
-        Block::TableOfContents(block) => Some(&block.location),
-        Block::Admonition(block) => Some(&block.location),
-        Block::DiscreteHeader(block) => Some(&block.location),
-        Block::DocumentAttribute(block) => Some(&block.location),
-        Block::ThematicBreak(block) => Some(&block.location),
-        Block::PageBreak(block) => Some(&block.location),
-        Block::UnorderedList(block) => Some(&block.location),
-        Block::OrderedList(block) => Some(&block.location),
-        Block::CalloutList(block) => Some(&block.location),
-        Block::DescriptionList(block) => Some(&block.location),
-        Block::Section(block) => Some(&block.location),
-        Block::DelimitedBlock(block) => Some(&block.location),
-        Block::Paragraph(block) => Some(&block.location),
-        Block::Image(block) => Some(&block.location),
-        Block::Audio(block) => Some(&block.location),
-        Block::Video(block) => Some(&block.location),
-        Block::Comment(block) => Some(&block.location),
-        _ => None,
-    }
-}
-
-fn raw_content<'nodes, 'source>(
-    nodes: &'nodes [InlineNode<'source>],
-) -> (String, Option<&'nodes InlineNode<'source>>) {
+fn raw_content(content: ContentRef<'_>) -> (String, Option<InlineRef<'_>>) {
     let mut output = String::new();
     let mut unknown = None;
-    for node in nodes {
-        match node {
-            InlineNode::VerbatimText(text) => output.push_str(text.content),
-            InlineNode::RawText(text) => output.push_str(text.content),
-            InlineNode::PlainText(text) => output.push_str(text.content),
-            InlineNode::LineBreak(_) => output.push('\n'),
-            InlineNode::CalloutRef(callout) => {
-                let _ = write!(output, "({})", callout.number);
+    for node in content.inlines() {
+        match node.kind() {
+            InlineKind::Verbatim(text) => output.push_str(text.text()),
+            InlineKind::Raw(text) => output.push_str(text.text()),
+            InlineKind::Plain(text) => output.push_str(text.text()),
+            InlineKind::LineBreak(_) => output.push('\n'),
+            InlineKind::Callout(callout) => {
+                let _ = write!(output, "({})", callout.number());
             }
-            InlineNode::BoldText(_)
-            | InlineNode::ItalicText(_)
-            | InlineNode::MonospaceText(_)
-            | InlineNode::HighlightText(_)
-            | InlineNode::SubscriptText(_)
-            | InlineNode::SuperscriptText(_)
-            | InlineNode::CurvedQuotationText(_)
-            | InlineNode::CurvedApostropheText(_)
-            | InlineNode::StandaloneCurvedApostrophe(_)
-            | InlineNode::InlineAnchor(_)
-            | InlineNode::Macro(_) => {
+            InlineKind::Bold(_)
+            | InlineKind::Italic(_)
+            | InlineKind::Monospace(_)
+            | InlineKind::Highlight(_)
+            | InlineKind::Subscript(_)
+            | InlineKind::Superscript(_)
+            | InlineKind::CurvedQuotation(_)
+            | InlineKind::CurvedApostrophe(_)
+            | InlineKind::StandaloneCurvedApostrophe(_)
+            | InlineKind::Anchor(_)
+            | InlineKind::Footnote(_)
+            | InlineKind::Icon(_)
+            | InlineKind::Image(_)
+            | InlineKind::Keyboard(_)
+            | InlineKind::Button(_)
+            | InlineKind::Menu(_)
+            | InlineKind::Url(_)
+            | InlineKind::Link(_)
+            | InlineKind::Mailto(_)
+            | InlineKind::Autolink(_)
+            | InlineKind::CrossReference(_)
+            | InlineKind::Pass(_)
+            | InlineKind::Stem(_)
+            | InlineKind::IndexTerm(_) => {
                 let _ = InlineTextTransform::default()
                     .line_break("\n")
-                    .write(&mut output, std::slice::from_ref(node));
+                    .write_inlines(&mut output, std::iter::once(node));
             }
             _ => {
                 unknown.get_or_insert(node);
@@ -251,82 +252,78 @@ fn raw_content<'nodes, 'source>(
     (output, unknown)
 }
 
-fn source_content<'nodes, 'source>(
-    nodes: &'nodes [InlineNode<'source>],
+fn source_content<'inline>(
+    content: ContentRef<'inline>,
     language: Option<&str>,
-) -> (String, Option<&'nodes InlineNode<'source>>) {
+) -> (String, Option<InlineRef<'inline>>) {
     let mut output = String::new();
     let mut unknown = None;
     let comment_prefix = default_line_comment(language);
-    for (index, node) in nodes.iter().enumerate() {
-        match node {
-            InlineNode::VerbatimText(text) => {
-                let mut content = text.content.to_owned();
-                if index.checked_sub(1).is_some_and(|previous| {
-                    matches!(nodes.get(previous), Some(InlineNode::CalloutRef(_)))
-                }) {
-                    let stripped = content.strip_prefix("-->").unwrap_or(&content).to_owned();
-                    content = stripped;
+    let mut nodes = content.inlines().peekable();
+    let mut previous_callout = false;
+    while let Some(node) = nodes.next() {
+        match node.kind() {
+            InlineKind::Verbatim(text) => {
+                let mut text = text.text();
+                if previous_callout {
+                    text = text.strip_prefix("-->").unwrap_or(text);
                 }
-                if index
-                    .checked_add(1)
-                    .is_some_and(|next| matches!(nodes.get(next), Some(InlineNode::CalloutRef(_))))
-                {
-                    let stripped = if index
-                        .checked_add(1)
-                        .is_some_and(|next| is_xml_callout(nodes, next))
-                    {
-                        content.strip_suffix("<!--").unwrap_or(&content).to_owned()
+                let next_callout = nodes
+                    .peek()
+                    .is_some_and(|next| matches!(next.kind(), InlineKind::Callout(_)));
+                let text = if next_callout {
+                    let xml = text.ends_with("<!--") && nodes.clone().nth(1).is_some_and(|next| matches!(next.kind(), InlineKind::Verbatim(text) if text.text().starts_with("-->")));
+                    if xml {
+                        Cow::Borrowed(text.strip_suffix("<!--").unwrap_or(text))
                     } else {
-                        strip_callout_guard(&content, comment_prefix).into_owned()
-                    };
-                    content = stripped;
-                }
-                output.push_str(&content);
+                        strip_callout_guard(text, comment_prefix)
+                    }
+                } else {
+                    Cow::Borrowed(text)
+                };
+                output.push_str(&text);
             }
-            InlineNode::RawText(text) => output.push_str(text.content),
-            InlineNode::PlainText(text) => output.push_str(text.content),
-            InlineNode::LineBreak(_) => output.push('\n'),
-            InlineNode::CalloutRef(callout) => {
-                let _ = write!(output, "({})", callout.number);
+            InlineKind::Raw(text) => output.push_str(text.text()),
+            InlineKind::Plain(text) => output.push_str(text.text()),
+            InlineKind::LineBreak(_) => output.push('\n'),
+            InlineKind::Callout(callout) => {
+                let _ = write!(output, "({})", callout.number());
             }
-            InlineNode::BoldText(_)
-            | InlineNode::ItalicText(_)
-            | InlineNode::MonospaceText(_)
-            | InlineNode::HighlightText(_)
-            | InlineNode::SubscriptText(_)
-            | InlineNode::SuperscriptText(_)
-            | InlineNode::CurvedQuotationText(_)
-            | InlineNode::CurvedApostropheText(_)
-            | InlineNode::StandaloneCurvedApostrophe(_)
-            | InlineNode::InlineAnchor(_)
-            | InlineNode::Macro(_) => {
+            InlineKind::Bold(_)
+            | InlineKind::Italic(_)
+            | InlineKind::Monospace(_)
+            | InlineKind::Highlight(_)
+            | InlineKind::Subscript(_)
+            | InlineKind::Superscript(_)
+            | InlineKind::CurvedQuotation(_)
+            | InlineKind::CurvedApostrophe(_)
+            | InlineKind::StandaloneCurvedApostrophe(_)
+            | InlineKind::Anchor(_)
+            | InlineKind::Footnote(_)
+            | InlineKind::Icon(_)
+            | InlineKind::Image(_)
+            | InlineKind::Keyboard(_)
+            | InlineKind::Button(_)
+            | InlineKind::Menu(_)
+            | InlineKind::Url(_)
+            | InlineKind::Link(_)
+            | InlineKind::Mailto(_)
+            | InlineKind::Autolink(_)
+            | InlineKind::CrossReference(_)
+            | InlineKind::Pass(_)
+            | InlineKind::Stem(_)
+            | InlineKind::IndexTerm(_) => {
                 let _ = InlineTextTransform::default()
                     .line_break("\n")
-                    .write(&mut output, std::slice::from_ref(node));
+                    .write_inlines(&mut output, std::iter::once(node));
             }
             _ => {
                 unknown.get_or_insert(node);
             }
         }
+        previous_callout = matches!(node.kind(), InlineKind::Callout(_));
     }
     (output, unknown)
-}
-
-fn is_xml_callout(nodes: &[InlineNode<'_>], index: usize) -> bool {
-    matches!(nodes.get(index), Some(InlineNode::CalloutRef(_)))
-        && index.checked_sub(1).is_some_and(|previous| {
-            matches!(
-                nodes.get(previous),
-                Some(InlineNode::VerbatimText(text)) if text.content.ends_with("<!--")
-            )
-        })
-        && index.checked_add(1).is_some_and(|next| {
-            matches!(
-                nodes.get(next),
-                Some(InlineNode::VerbatimText(text)) if text.content.starts_with("-->")
-            )
-        })
 }
 
 fn strip_callout_guard<'a>(text: &'a str, language_prefix: Option<&str>) -> Cow<'a, str> {
@@ -389,24 +386,20 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         self.processor.variant()
     }
 
-    fn media_target(traversal: &TraversalContext<'a>, source: &Source<'_>) -> String {
-        resolve_target(&source.to_string(), traversal)
-    }
-
-    fn section_prefix(traversal: &TraversalContext<'a>, section: &'a Section<'a>) -> String {
+    fn section_prefix(traversal: &TraversalContext<'a>, section: SectionRef<'a>) -> String {
         section.number().map_or_else(String::new, |number| {
-            if section.kind == SectionKind::Appendix {
+            if section.kind() == SectionKind::Appendix {
                 let caption = traversal
                     .get("appendix-caption")
                     .and_then(|value| value.text());
                 appendix_number_prefix(number, caption)
-            } else if section.level == 0 && section.kind == SectionKind::Normal {
+            } else if section.level() == 0 && section.kind() == SectionKind::Normal {
                 let signifier = traversal
                     .get("part-signifier")
                     .and_then(|value| value.text());
                 part_number_prefix(number, signifier)
             } else {
-                let signifier = (section.level == 1 && section.kind == SectionKind::Normal)
+                let signifier = (section.level() == 1 && section.kind() == SectionKind::Normal)
                     .then(|| book_chapter_signifier(traversal, None))
                     .flatten();
                 section_number_prefix(number, signifier)
@@ -469,9 +462,9 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         Ok(())
     }
 
-    fn write_metadata_anchor(&mut self, metadata: &BlockMetadata<'_>) -> Result<(), Error> {
-        if let Some(anchor) = metadata.id.as_ref().or_else(|| metadata.anchors.first()) {
-            self.write_block_anchor(anchor.id)?;
+    fn write_metadata_anchor(&mut self, anchor: Option<AnchorRef<'_>>) -> Result<(), Error> {
+        if let Some(anchor) = anchor {
+            self.write_block_anchor(anchor.id())?;
         }
         Ok(())
     }
@@ -479,21 +472,23 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
     fn write_block_title_line(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &Title<'_>,
-        metadata: &BlockMetadata<'_>,
+        title: Option<ContentRef<'_>>,
+        attributes: AttributesRef<'_>,
         fallback: Option<CaptionKind>,
     ) -> Result<(), Error> {
-        if !title.is_present() {
+        if title.is_none() {
             return Ok(());
         }
-        let caption = self.processor.caption_prefix(metadata, fallback);
+        let caption = self.processor.caption_prefix(attributes, fallback);
         write!(self.writer, "<strong>")?;
-        if let Some(content) = metadata.caption_content() {
-            self.visit_inline_nodes(traversal, content)?;
+        if let Some(content) = attribute_content(attributes, "caption") {
+            self.write_content(traversal, content)?;
         } else if let Some(caption) = caption {
             write!(self.writer, "{}", Self::escape_markdown(&caption))?;
         }
-        self.visit_inline_nodes(traversal, title.as_ref())?;
+        if let Some(title) = title {
+            self.write_content(traversal, title)?;
+        }
         writeln!(self.writer, "</strong>")?;
         Ok(())
     }
@@ -501,14 +496,14 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
     fn write_block_title(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &Title<'_>,
-        metadata: &BlockMetadata<'_>,
+        title: Option<ContentRef<'_>>,
+        attributes: AttributesRef<'_>,
         fallback: Option<CaptionKind>,
     ) -> Result<(), Error> {
-        if !title.is_present() {
+        if title.is_none() {
             return Ok(());
         }
-        self.write_block_title_line(traversal, title, metadata, fallback)?;
+        self.write_block_title_line(traversal, title, attributes, fallback)?;
         writeln!(self.writer)?;
         Ok(())
     }
@@ -516,11 +511,11 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
     fn write_attribution(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        metadata: &BlockMetadata<'_>,
+        attributes: AttributesRef<'_>,
         line_prefix: &str,
     ) -> Result<(), Error> {
-        let attribution = metadata.attribution.as_ref();
-        let citation = metadata.citetitle.as_ref();
+        let attribution = attribute_content(attributes, "attribution");
+        let citation = attribute_content(attributes, "citetitle");
         if attribution.is_none() && citation.is_none() {
             return Ok(());
         }
@@ -528,14 +523,14 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         write!(self.writer, "{line_prefix}")?;
         if let Some(attribution) = attribution {
             write!(self.writer, "— ")?;
-            self.visit_inline_nodes(traversal, attribution)?;
+            self.write_content(traversal, attribution)?;
         }
         if let Some(citation) = citation {
             if attribution.is_some() {
                 write!(self.writer, ", ")?;
             }
             write!(self.writer, "<cite>")?;
-            self.visit_inline_nodes(traversal, citation)?;
+            self.write_content(traversal, citation)?;
             write!(self.writer, "</cite>")?;
         }
         writeln!(self.writer)?;
@@ -545,37 +540,50 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
     fn write_blockquote_inlines(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        content: &[InlineNode<'_>],
+        content: ContentRef<'_>,
     ) -> Result<(), Error> {
         write!(self.writer, "> ")?;
-        for node in content {
-            match node {
-                InlineNode::PlainText(text) => {
-                    self.write_blockquote_text(text.content, true)?;
+        for node in content.inlines() {
+            match node.kind() {
+                InlineKind::Plain(text) => {
+                    self.write_blockquote_text(text.text(), true)?;
                 }
-                InlineNode::RawText(text) => {
+                InlineKind::Raw(text) => {
                     self.write_blockquote_text(
-                        &Self::passthrough_content(text.content, text.subs.iter().cloned()),
+                        &Self::passthrough_content(text.text(), text.substitutions()),
                         false,
                     )?;
                 }
-                InlineNode::VerbatimText(text) => {
-                    self.write_blockquote_text(text.content, false)?;
+                InlineKind::Verbatim(text) => {
+                    self.write_blockquote_text(text.text(), false)?;
                 }
-                InlineNode::LineBreak(_) => self.write_blockquote_break()?,
-                InlineNode::BoldText(_)
-                | InlineNode::ItalicText(_)
-                | InlineNode::MonospaceText(_)
-                | InlineNode::HighlightText(_)
-                | InlineNode::SubscriptText(_)
-                | InlineNode::SuperscriptText(_)
-                | InlineNode::CurvedQuotationText(_)
-                | InlineNode::CurvedApostropheText(_)
-                | InlineNode::StandaloneCurvedApostrophe(_)
-                | InlineNode::InlineAnchor(_)
-                | InlineNode::Macro(_)
-                | InlineNode::CalloutRef(_)
-                | _ => self.visit_inline_node(traversal, node)?,
+                InlineKind::LineBreak(_) => self.write_blockquote_break()?,
+                InlineKind::Bold(_)
+                | InlineKind::Italic(_)
+                | InlineKind::Monospace(_)
+                | InlineKind::Highlight(_)
+                | InlineKind::Subscript(_)
+                | InlineKind::Superscript(_)
+                | InlineKind::CurvedQuotation(_)
+                | InlineKind::CurvedApostrophe(_)
+                | InlineKind::StandaloneCurvedApostrophe(_)
+                | InlineKind::Anchor(_)
+                | InlineKind::Footnote(_)
+                | InlineKind::Icon(_)
+                | InlineKind::Image(_)
+                | InlineKind::Keyboard(_)
+                | InlineKind::Button(_)
+                | InlineKind::Menu(_)
+                | InlineKind::Url(_)
+                | InlineKind::Link(_)
+                | InlineKind::Mailto(_)
+                | InlineKind::Autolink(_)
+                | InlineKind::CrossReference(_)
+                | InlineKind::Pass(_)
+                | InlineKind::Stem(_)
+                | InlineKind::IndexTerm(_)
+                | InlineKind::Callout(_)
+                | _ => self.write_inline(traversal, node)?,
             }
         }
         writeln!(self.writer)?;
@@ -610,18 +618,18 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
     fn write_fenced_code_block(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        metadata: &BlockMetadata<'_>,
-        content: &[InlineNode<'_>],
+        attributes: AttributesRef<'_>,
+        content: ContentRef<'_>,
     ) -> Result<(), Error> {
-        acdc_converters_core::index::visit_index_terms(content, &mut |term, _| {
-            self.register_index_term(traversal, term.into())
+        acdc_converters_core::index::visit_index_inlines(content.inlines(), &mut |term, _| {
+            self.register_index_term(traversal, term)
         })?;
-        let language = detect_language(metadata);
+        let language = source_language(attributes);
         let (content, unknown) = source_content(content, language);
         if let Some(node) = unknown {
-            self.warn_unknown_inline_node(node);
+            self.warn_unknown_inline_node_ref(node);
         }
-        self.warn_source_options(metadata, &content, language);
+        self.warn_source_options(attributes, &content, language);
 
         self.write_raw_fenced_code_block(language, &content)
     }
@@ -643,11 +651,11 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
 
     fn warn_source_options(
         &mut self,
-        metadata: &BlockMetadata<'_>,
+        attributes: AttributesRef<'_>,
         content: &str,
         language: Option<&str>,
     ) {
-        let options = SourceLineOptions::resolve(metadata, content);
+        let options = SourceLineOptions::from_attributes(attributes, content);
         if options.line_number_start.is_some() {
             self.warn_once(
                 "source-line-numbers",
@@ -662,9 +670,9 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
                 "Use a Markdown renderer extension for selected-line highlighting, or use a backend that supports this source presentation option.",
             );
         }
-        if metadata.style == Some("source")
+        if block_style(attributes) == Some("source")
             && language == Some("php")
-            && metadata.options.contains(&"mixed")
+            && has_option(attributes, "mixed")
         {
             self.warn_once(
                 "php-mixed-highlighting",
@@ -695,17 +703,6 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
             }
             self.diagnostics.emit(warning);
         }
-    }
-
-    fn warn_unknown_inline_node(&mut self, node: &InlineNode<'_>) {
-        self.warn_once_at(
-            "unknown-inline-node",
-            format!(
-                "unknown inline feature is not supported by the Markdown backend; skipping content: {node:?}"
-            ),
-            "Use a backend that supports this inline feature, or replace it with portable inline content.",
-            Some(node.location()),
-        );
     }
 
     fn warn_unknown_inline_node_ref(&mut self, node: InlineRef<'_>) {
@@ -1011,10 +1008,10 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         Ok(())
     }
 
-    fn write_raw_block_content(&mut self, content: &[InlineNode<'_>]) -> Result<(), Error> {
+    fn write_raw_block_content(&mut self, content: ContentRef<'_>) -> Result<(), Error> {
         let (content, unknown) = raw_content(content);
         if let Some(node) = unknown {
-            self.warn_unknown_inline_node(node);
+            self.warn_unknown_inline_node_ref(node);
         }
         write!(self.writer, "{content}")?;
         if !content.ends_with('\n') {
@@ -1023,13 +1020,17 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         Ok(())
     }
 
-    fn write_author(&mut self, author: &Author<'_>) -> Result<(), Error> {
-        write!(self.writer, "{} ", Self::escape_markdown(author.first_name))?;
-        if let Some(middle_name) = author.middle_name {
+    fn write_author(&mut self, author: AuthorRef<'_>) -> Result<(), Error> {
+        write!(
+            self.writer,
+            "{} ",
+            Self::escape_markdown(author.first_name())
+        )?;
+        if let Some(middle_name) = author.middle_name() {
             write!(self.writer, "{} ", Self::escape_markdown(middle_name))?;
         }
-        write!(self.writer, "{}", Self::escape_markdown(author.last_name))?;
-        if let Some(email) = author.email {
+        write!(self.writer, "{}", Self::escape_markdown(author.last_name()))?;
+        if let Some(email) = author.email() {
             write!(self.writer, " <{}>", Self::escape_markdown(email))?;
         }
         Ok(())
@@ -1098,7 +1099,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
     fn write_collapsible<F>(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &acdc_parser::Title<'_>,
+        title: Option<ContentRef<'_>>,
         is_open: bool,
         write_body: F,
     ) -> Result<(), Error>
@@ -1111,8 +1112,8 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
             writeln!(self.writer, "<details>")?;
         }
         write!(self.writer, "<summary>")?;
-        if title.is_present() {
-            self.visit_inline_nodes(traversal, title.as_ref())?;
+        if let Some(title) = title {
+            self.write_content(traversal, title)?;
         } else {
             write!(self.writer, "Details")?;
         }
@@ -1126,11 +1127,15 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         Ok(())
     }
 
-    fn toc_will_render(&self, toc_macro: Option<&TableOfContents<'_>>, placement: &str) -> bool {
-        if self.processor.toc_entries.is_empty() {
+    fn toc_will_render(&self, toc_macro: Option<TableOfContentsRef<'_>>, placement: &str) -> bool {
+        if self
+            .processor
+            .document
+            .is_none_or(|document| document.toc_entries().next().is_none())
+        {
             return false;
         }
-        let config = TocConfig::from_attributes(
+        let config = TocConfig::resolve(
             toc_macro,
             &TraversalContext::new(self.processor.document_attributes()),
         );
@@ -1146,7 +1151,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
     fn render_toc_entries(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        entries: &[TocEntry<'_>],
+        entries: &[TocEntryRef<'_>],
         config: &TocRenderConfig<'_>,
         position: TocRenderPosition,
     ) -> Result<(), Error> {
@@ -1157,7 +1162,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         let first_real_part = if position.parts_at_current_level {
             entries
                 .iter()
-                .position(|entry| entry.level == 0 && entry.kind == SectionKind::Normal)
+                .position(|entry| entry.level() == 0 && entry.kind() == SectionKind::Normal)
         } else {
             None
         };
@@ -1165,26 +1170,29 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
             .iter()
             .enumerate()
             .filter(|(index, entry)| {
-                let level = effective_level(entry, config.has_real_parts);
+                let level = entry_level(**entry, config.has_real_parts);
                 if level == position.current_level {
                     first_real_part
-                        .is_none_or(|part| *index < part || entry.level != position.current_level)
+                        .is_none_or(|part| *index < part || entry.level() != position.current_level)
                 } else {
-                    position.parts_at_current_level && entry.level == 0 && level == 0
+                    position.parts_at_current_level && entry.level() == 0 && level == 0
                 }
             })
             .collect::<Vec<_>>();
 
         for (entry_position, (entry_index, entry)) in current_entries.iter().enumerate() {
             write!(self.writer, "{:indent$}- ", "", indent = position.indent)?;
-            self.write_anchor_link(entry.id, |visitor| {
+            self.write_anchor_link(entry.id(), |visitor| {
                 if let Some(Some(number)) = config
                     .section_numbers
                     .get(position.base_index + entry_index)
                 {
                     write!(visitor.writer, "{number}")?;
                 }
-                visitor.visit_inline_nodes(traversal, &entry.title)
+                if let Some(title) = entry.title() {
+                    visitor.write_content(traversal, title)?;
+                }
+                Ok(())
             })?;
             writeln!(self.writer)?;
 
@@ -1192,14 +1200,14 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
             let child_end = current_entries
                 .get(entry_position + 1)
                 .map_or(entries.len(), |next| next.0);
-            let child_level = if entry.level == 0 && entry.kind.is_special() {
+            let child_level = if entry.level() == 0 && entry.kind().is_special() {
                 2
             } else {
-                effective_level(entry, config.has_real_parts) + 1
+                entry_level(**entry, config.has_real_parts) + 1
             };
             if let Some(children) = entries.get(child_start..child_end)
                 && child_level <= config.max_level
-                && children.iter().any(|child| child.level == child_level)
+                && children.iter().any(|child| child.level() == child_level)
             {
                 self.render_toc_entries(
                     traversal,
@@ -1220,7 +1228,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
     fn render_toc(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        toc_macro: Option<&TableOfContents<'_>>,
+        toc_macro: Option<TableOfContentsRef<'_>>,
         placement: &str,
     ) -> Result<(), Error> {
         if !self.toc_will_render(toc_macro, placement) {
@@ -1228,7 +1236,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         }
 
         let processor = self.processor;
-        let config = TocConfig::from_attributes(
+        let config = TocConfig::resolve(
             toc_macro,
             &TraversalContext::new(processor.document_attributes()),
         );
@@ -1246,12 +1254,16 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
             .and_then(|value| value.text());
         let chapter_signifier = book_chapter_signifier(traversal, None);
         let numbering_config = NumberingConfig::new(traversal, part_signifier, chapter_signifier);
-        let numbers = section_numbers(&processor.toc_entries, &numbering_config);
-        let real_parts = has_real_parts(&processor.toc_entries);
-        let first_level = processor
-            .toc_entries
+        let entries: Vec<_> = processor
+            .document
+            .into_iter()
+            .flat_map(DocumentRef::toc_entries)
+            .collect();
+        let numbers = number_prefixes(entries.iter().copied(), &numbering_config);
+        let real_parts = has_parts(entries.iter().copied());
+        let first_level = entries
             .first()
-            .map_or(1, |entry| effective_level(entry, real_parts));
+            .map_or(1, |entry| entry_level(*entry, real_parts));
         let parts_at_current_level = first_level > 0 && real_parts;
         let start_level = if parts_at_current_level {
             1
@@ -1260,7 +1272,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         };
         self.render_toc_entries(
             traversal,
-            &processor.toc_entries,
+            &entries,
             &TocRenderConfig {
                 max_level: config.levels(),
                 section_numbers: &numbers,
@@ -1279,7 +1291,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
     fn render_placed_toc(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        toc_macro: Option<&TableOfContents<'_>>,
+        toc_macro: Option<TableOfContentsRef<'_>>,
         placement: &str,
         has_output: bool,
     ) -> Result<bool, Error> {
@@ -1295,50 +1307,42 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         Ok(true)
     }
 
-    fn block_has_output(&self, block: &'a Block<'a>) -> bool {
-        match block {
-            Block::DelimitedBlock(block) => match &block.inner {
-                DelimitedBlockType::DelimitedOpen(blocks) => {
-                    blocks.iter().any(|block| self.block_has_output(block))
-                }
-                DelimitedBlockType::DelimitedQuote(blocks) => {
-                    blocks.iter().any(|block| self.block_has_output(block))
-                }
-                DelimitedBlockType::DelimitedTable(table) => {
-                    self.variant() == MarkdownVariant::CommonMark
-                        || table.header.is_some()
-                        || !table.rows.is_empty()
-                        || table.footer.is_some()
-                }
-                DelimitedBlockType::DelimitedComment(_) => false,
-                DelimitedBlockType::DelimitedExample(_)
-                | DelimitedBlockType::DelimitedListing(_)
-                | DelimitedBlockType::DelimitedLiteral(_)
-                | DelimitedBlockType::DelimitedSidebar(_)
-                | DelimitedBlockType::DelimitedPass(_)
-                | DelimitedBlockType::DelimitedVerse(_)
-                | DelimitedBlockType::DelimitedStem(_)
-                | _ => true,
-            },
-            Block::TableOfContents(toc) => {
-                toc.metadata.id.is_some()
-                    || !toc.metadata.anchors.is_empty()
-                    || self.toc_will_render(Some(toc), "macro")
+    fn block_has_output(&self, block: BlockRef<'a>) -> bool {
+        match block.kind() {
+            BlockKind::Open(node) => node.blocks().any(|block| self.block_has_output(block)),
+            BlockKind::Quote(node) => node.blocks().any(|block| self.block_has_output(block)),
+            BlockKind::Table(table) => {
+                self.variant() == MarkdownVariant::CommonMark
+                    || table.header().is_some()
+                    || table.rows().next().is_some()
+                    || table.footer().is_some()
             }
-            Block::Comment(_) | Block::DocumentAttribute(_) => false,
-            Block::Admonition(_)
-            | Block::DiscreteHeader(_)
-            | Block::ThematicBreak(_)
-            | Block::PageBreak(_)
-            | Block::UnorderedList(_)
-            | Block::OrderedList(_)
-            | Block::CalloutList(_)
-            | Block::DescriptionList(_)
-            | Block::Section(_)
-            | Block::Paragraph(_)
-            | Block::Image(_)
-            | Block::Audio(_)
-            | Block::Video(_)
+            BlockKind::TableOfContents(toc) => {
+                toc.primary_anchor().is_some() || self.toc_will_render(Some(toc), "macro")
+            }
+            BlockKind::Comment(_)
+            | BlockKind::DocumentAttribute(_)
+            | BlockKind::DelimitedComment(_) => false,
+            BlockKind::Admonition(_)
+            | BlockKind::DiscreteHeader(_)
+            | BlockKind::ThematicBreak(_)
+            | BlockKind::PageBreak(_)
+            | BlockKind::UnorderedList(_)
+            | BlockKind::OrderedList(_)
+            | BlockKind::CalloutList(_)
+            | BlockKind::DescriptionList(_)
+            | BlockKind::Section(_)
+            | BlockKind::Paragraph(_)
+            | BlockKind::Image(_)
+            | BlockKind::Audio(_)
+            | BlockKind::Video(_)
+            | BlockKind::Example(_)
+            | BlockKind::Listing(_)
+            | BlockKind::Literal(_)
+            | BlockKind::Sidebar(_)
+            | BlockKind::Passthrough(_)
+            | BlockKind::Verse(_)
+            | BlockKind::Stem(_)
             | _ => true,
         }
     }
@@ -1346,11 +1350,11 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
     fn visit_separated_blocks(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        blocks: &'a [Block<'a>],
+        blocks: impl Iterator<Item = BlockRef<'a>>,
         mut has_output: bool,
     ) -> Result<bool, Error> {
         for block in blocks {
-            if matches!(block, Block::DocumentAttribute(_)) {
+            if matches!(block.kind(), BlockKind::DocumentAttribute(_)) {
                 traversal.visit_block(self, block)?;
                 continue;
             }
@@ -1369,11 +1373,11 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
     fn visit_blockquote_blocks(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        blocks: &'a [Block<'a>],
+        blocks: impl Iterator<Item = BlockRef<'a>>,
     ) -> Result<(), Error> {
         let mut has_output = false;
         for block in blocks {
-            if matches!(block, Block::DocumentAttribute(_)) {
+            if matches!(block.kind(), BlockKind::DocumentAttribute(_)) {
                 traversal.visit_block(self, block)?;
                 continue;
             }
@@ -1391,74 +1395,61 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
     }
 }
 
-impl<'a, W: Write> WritableVisitor<'a> for MarkdownVisitor<'a, '_, W> {
-    fn writer_mut(&mut self) -> &mut dyn Write {
-        &mut self.writer
-    }
-}
-
-impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
-    type Error = Error;
-
-    fn visit_unhandled_block(
+impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
+    /// Skip a block and report its source range once per conversion.
+    ///
+    /// # Errors
+    ///
+    /// This fallback always succeeds.
+    pub fn visit_unhandled_block(
         &mut self,
         _traversal: &mut TraversalContext<'a>,
-        block: &'a Block<'a>,
-    ) -> Result<(), Self::Error> {
+        block: BlockRef<'a>,
+    ) -> Result<(), Error> {
         self.warn_once_at(
             "unknown-parser-block",
             format!(
                 "unknown parser block feature is not supported by the Markdown backend; skipping content: {block:?}"
             ),
             "Use a backend that supports this block feature, or replace it with a portable AsciiDoc construct.",
-            block_location(block),
+            Some(&block.location().into()),
         );
         Ok(())
     }
 
-    fn visit_document(
+    fn render_document(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        doc: &'a Document<'a>,
-    ) -> Result<(), Self::Error> {
-        self.visit_document_start(traversal, doc)?;
-
+        doc: DocumentRef<'a>,
+    ) -> Result<(), Error> {
         let mut has_output = false;
-        if let Some(header) = &doc.header
-            && !header.title.is_empty()
+        if let Some(header) = doc
+            .header()
+            .filter(|header| header.title().is_some_and(|title| !title.is_empty()))
         {
             self.visit_header(traversal, header)?;
             has_output = true;
         }
-
-        self.visit_body_content_start(traversal, doc)?;
         has_output = self.render_placed_toc(traversal, None, "auto", has_output)?;
-
         let first_section = doc
-            .blocks
-            .iter()
-            .position(|block| matches!(block, Block::Section(_)));
-        let (preamble, remaining) = first_section.map_or_else(
-            || (doc.blocks.as_slice(), &[][..]),
-            |index| doc.blocks.split_at(index),
-        );
-        let emit_preamble = doc.header.is_some()
+            .blocks()
+            .position(|block| matches!(block.kind(), BlockKind::Section(_)));
+        let split = first_section.unwrap_or_else(|| doc.blocks().count());
+        let emit_preamble = doc.header().is_some()
             && first_section.is_some()
-            && preamble
-                .iter()
-                .any(|block| !matches!(block, Block::Comment(_) | Block::DocumentAttribute(_)));
-
+            && doc.blocks().take(split).any(|block| {
+                !matches!(
+                    block.kind(),
+                    BlockKind::Comment(_) | BlockKind::DocumentAttribute(_)
+                )
+            });
+        has_output =
+            self.visit_separated_blocks(traversal, doc.blocks().take(split), has_output)?;
         if emit_preamble {
-            self.visit_preamble_start(traversal, doc)?;
-        }
-        has_output = self.visit_separated_blocks(traversal, preamble, has_output)?;
-        if emit_preamble {
-            self.visit_preamble_end(traversal, doc)?;
             has_output = self.render_placed_toc(traversal, None, "preamble", has_output)?;
         }
-        has_output = self.visit_separated_blocks(traversal, remaining, has_output)?;
-
-        self.visit_document_supplements(traversal, doc)?;
+        has_output =
+            self.visit_separated_blocks(traversal, doc.blocks().skip(split), has_output)?;
         if !self.footnotes.is_empty() {
             if has_output {
                 writeln!(self.writer)?;
@@ -1469,8 +1460,7 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
                     writeln!(self.writer, "[^{id}]: {content}")?;
                 }
             } else {
-                writeln!(self.writer, "<strong>Footnotes</strong>")?;
-                writeln!(self.writer)?;
+                writeln!(self.writer, "<strong>Footnotes</strong>\n")?;
                 for (id, number, content) in footnotes {
                     write!(self.writer, "{number}. ")?;
                     self.write_anchor(&format!("_footnote_{id}"))?;
@@ -1479,55 +1469,36 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
             }
             has_output = true;
         }
-
         if !has_output {
             writeln!(self.writer)?;
         }
-        self.visit_document_end(traversal, doc)
-    }
-
-    fn visit_document_start(
-        &mut self,
-        _traversal: &mut TraversalContext<'a>,
-        _doc: &'a Document<'a>,
-    ) -> Result<(), Self::Error> {
-        // No document-level preamble needed for Markdown
-        // Title will be rendered as level-1 heading if present
         Ok(())
     }
 
     fn visit_header(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        header: &Header,
-    ) -> Result<(), Self::Error> {
-        if let Some(anchor) = header
-            .metadata
-            .id
-            .as_ref()
-            .or_else(|| header.metadata.anchors.last())
-        {
-            self.write_block_anchor(anchor.id)?;
-        }
-        if !header.title.is_empty() {
+        header: HeaderRef<'_>,
+    ) -> Result<(), Error> {
+        self.write_metadata_anchor(header.primary_anchor())?;
+        if let Some(title) = header.title().filter(|title| !title.is_empty()) {
             write!(self.writer, "# ")?;
-            self.visit_inline_nodes(traversal, header.title.as_ref())?;
-            if let Some(subtitle) = &header.subtitle {
+            self.write_content(traversal, title)?;
+            if let Some(subtitle) = header.subtitle() {
                 write!(self.writer, ": ")?;
-                self.visit_inline_nodes(traversal, subtitle)?;
+                self.write_content(traversal, subtitle)?;
             }
             writeln!(self.writer)?;
         }
-
         let has_revision = ["revnumber", "revdate", "revremark"]
             .iter()
-            .any(|name| document_attribute_text((traversal).get(name)).is_some());
-        if !header.authors.is_empty() || has_revision {
+            .any(|name| document_attribute_text(traversal.get(name)).is_some());
+        if header.authors().next().is_some() || has_revision {
             writeln!(self.writer)?;
         }
-        if !header.authors.is_empty() {
+        if header.authors().next().is_some() {
             write!(self.writer, "By ")?;
-            for (index, author) in header.authors.iter().enumerate() {
+            for (index, author) in header.authors().enumerate() {
                 if index > 0 {
                     write!(self.writer, "; ")?;
                 }
@@ -1542,17 +1513,19 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
     fn visit_section(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        section: &'a Section<'a>,
-    ) -> Result<(), Self::Error> {
-        let section_title = InlineTextTransform::default()
-            .references(&self.processor.references)
-            .to_string(section.title.as_ref());
+        section: SectionRef<'a>,
+    ) -> Result<(), Error> {
+        let section_title = section.title().map_or_else(String::new, |title| {
+            InlineTextTransform::default()
+                .references(&self.processor.references)
+                .content_to_string(title)
+        });
         let previous_section_title = self.current_section_title.replace(section_title);
 
         let result = (|| {
-            self.write_block_anchor(&section.id())?;
+            self.write_block_anchor(&section.resolve_id())?;
 
-            let effective_level = effective_section_level(section.level, section.kind);
+            let effective_level = effective_section_level(section.level(), section.kind());
             let level = effective_level + 1; // AsciiDoc levels are 0-indexed, Markdown uses 1-6
             let level = level.min(6); // Markdown only supports 6 heading levels
 
@@ -1564,14 +1537,16 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
             );
             }
 
-            if !section.metadata.options.contains(&"notitle") {
+            if !section.options().contains("notitle") {
                 let hashes = "#".repeat(level as usize);
                 write!(
                     self.writer,
                     "{hashes} {}",
                     Self::section_prefix(traversal, section)
                 )?;
-                self.visit_inline_nodes(traversal, section.title.as_ref())?;
+                if let Some(title) = section.title() {
+                    self.write_content(traversal, title)?;
+                }
                 writeln!(self.writer)?;
             }
 
@@ -1580,10 +1555,10 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
             self.heading_level = level as usize;
 
             // Keep authored content before the generated catalog.
-            self.visit_separated_blocks(traversal, &section.content, true)?;
-            if section.kind == SectionKind::Index && self.processor.generate_index() {
+            self.visit_separated_blocks(traversal, section.blocks(), true)?;
+            if section.kind() == SectionKind::Index && self.processor.generate_index() {
                 let processor = self.processor;
-                crate::index::render(self, processor, self.heading_level + 1)?;
+                crate::index::render(&mut self.writer, processor, self.heading_level + 1)?;
             }
 
             self.heading_level = prev_level;
@@ -1596,35 +1571,42 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
     fn visit_paragraph(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        paragraph: &Paragraph,
-    ) -> Result<(), Self::Error> {
-        self.write_metadata_anchor(&paragraph.metadata)?;
+        paragraph: ParagraphRef<'_>,
+    ) -> Result<(), Error> {
+        self.write_metadata_anchor(paragraph.primary_anchor())?;
 
-        if paragraph.metadata.style == Some("example")
-            && paragraph.metadata.options.contains(&"collapsible")
-        {
-            let is_open = paragraph.metadata.options.contains(&"open");
-            return self.write_collapsible(traversal, &paragraph.title, is_open, |v, traversal| {
-                v.visit_inline_nodes(traversal, &paragraph.content)?;
-                writeln!(v.writer)?;
-                Ok(true)
-            });
+        if paragraph.style() == Some("example") && paragraph.options().contains("collapsible") {
+            let is_open = paragraph.options().contains("open");
+            return self.write_collapsible(
+                traversal,
+                paragraph.title(),
+                is_open,
+                |v, traversal| {
+                    v.write_content(traversal, paragraph.content())?;
+                    writeln!(v.writer)?;
+                    Ok(true)
+                },
+            );
         }
 
         self.write_block_title(
             traversal,
-            &paragraph.title,
-            &paragraph.metadata,
-            CaptionKind::for_style(paragraph.metadata.style),
+            paragraph.title(),
+            paragraph.attributes(),
+            CaptionKind::for_style(paragraph.style()),
         )?;
-        match paragraph.metadata.style {
+        match paragraph.style() {
             Some("quote" | "verse") => {
-                self.write_blockquote_inlines(traversal, &paragraph.content)?;
-                self.write_attribution(traversal, &paragraph.metadata, "> ")?;
+                self.write_blockquote_inlines(traversal, paragraph.content())?;
+                self.write_attribution(traversal, paragraph.attributes(), "> ")?;
             }
-            Some("abstract") => self.write_blockquote_inlines(traversal, &paragraph.content)?,
+            Some("abstract") => self.write_blockquote_inlines(traversal, paragraph.content())?,
             Some("literal" | "listing" | "source") => {
-                self.write_fenced_code_block(traversal, &paragraph.metadata, &paragraph.content)?;
+                self.write_fenced_code_block(
+                    traversal,
+                    paragraph.attributes(),
+                    paragraph.content(),
+                )?;
             }
             Some("example") => {
                 self.write_warning(
@@ -1632,10 +1614,10 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
                     "example paragraphs",
                     "using blockquote",
                 )?;
-                self.write_blockquote_inlines(traversal, &paragraph.content)?;
+                self.write_blockquote_inlines(traversal, paragraph.content())?;
             }
             _ => {
-                self.visit_inline_nodes(traversal, &paragraph.content)?;
+                self.write_content(traversal, paragraph.content())?;
                 writeln!(self.writer)?;
             }
         }
@@ -1645,34 +1627,33 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
     fn visit_unordered_list(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        list: &'a UnorderedList<'a>,
-    ) -> Result<(), Self::Error> {
-        self.write_metadata_anchor(&list.metadata)?;
-        self.write_block_title(traversal, &list.title, &list.metadata, None)?;
+        list: UnorderedListRef<'a>,
+    ) -> Result<(), Error> {
+        self.write_metadata_anchor(list.primary_anchor())?;
+        self.write_block_title(traversal, list.title(), list.attributes(), None)?;
         self.visit_list_items(
             traversal,
-            &list.items,
+            list.items(),
             "-",
             1,
             false,
-            suppresses_list_marker(list.metadata.style, false),
+            suppresses_list_marker(list.style(), false),
         )
     }
 
     fn visit_ordered_list(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        list: &'a OrderedList<'a>,
-    ) -> Result<(), Self::Error> {
-        self.write_metadata_anchor(&list.metadata)?;
-        self.write_block_title(traversal, &list.title, &list.metadata, None)?;
+        list: OrderedListRef<'a>,
+    ) -> Result<(), Error> {
+        self.write_metadata_anchor(list.primary_anchor())?;
+        self.write_block_title(traversal, list.title(), list.attributes(), None)?;
 
         // Markdown (CommonMark/GFM) can only express numeric ordered markers.
         // An explicit numbering style that isn't already numeric (arabic/decimal)
         // is rendered numerically, with a warning.
         if let Some(numbering) = list
-            .metadata
-            .style
+            .style()
             .and_then(OrderedListNumbering::from_explicit_style)
             && !matches!(
                 numbering,
@@ -1686,33 +1667,24 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
                 "rendering numerically",
             )?;
         }
-        let (start, reversed) = list_sequence(&list.metadata, list.items.len());
+        let (start, reversed) = list_sequence(list.attributes(), list.items().count());
         self.visit_list_items(
             traversal,
-            &list.items,
+            list.items(),
             "1.",
             start,
             reversed,
-            suppresses_list_marker(list.metadata.style, true),
+            suppresses_list_marker(list.style(), true),
         )
-    }
-
-    fn visit_list_item(
-        &mut self,
-        _traversal: &mut TraversalContext<'a>,
-        _item: &'a ListItem<'a>,
-    ) -> Result<(), Self::Error> {
-        // This is handled by visit_list_items
-        Ok(())
     }
 
     fn visit_thematic_break(
         &mut self,
         _traversal: &mut TraversalContext<'a>,
-        br: &ThematicBreak,
-    ) -> Result<(), Self::Error> {
-        if let Some(anchor) = br.anchors.first() {
-            self.write_block_anchor(anchor.id)?;
+        br: ThematicBreakRef<'_>,
+    ) -> Result<(), Error> {
+        if let Some(anchor) = br.anchors().next() {
+            self.write_block_anchor(anchor.id())?;
         }
         writeln!(self.writer, "---")?;
         Ok(())
@@ -1721,9 +1693,9 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
     fn visit_page_break(
         &mut self,
         _traversal: &mut TraversalContext<'a>,
-        page_break: &PageBreak,
-    ) -> Result<(), Self::Error> {
-        self.write_metadata_anchor(&page_break.metadata)?;
+        page_break: PageBreakRef<'_>,
+    ) -> Result<(), Error> {
+        self.write_metadata_anchor(page_break.primary_anchor())?;
         // Page breaks don't exist in Markdown; use thematic break as fallback
         self.write_warning("page-breaks", "page breaks", "using horizontal rule")?;
         writeln!(self.writer, "---")?;
@@ -1733,104 +1705,109 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
     fn visit_table_of_contents(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        toc: &TableOfContents,
-    ) -> Result<(), Self::Error> {
-        self.write_metadata_anchor(&toc.metadata)?;
+        toc: TableOfContentsRef<'_>,
+    ) -> Result<(), Error> {
+        self.write_metadata_anchor(toc.primary_anchor())?;
         self.with_index_collection(false, |visitor| {
             visitor.render_toc(traversal, Some(toc), "macro")
         })?;
         Ok(())
     }
 
-    fn visit_delimited_block(
+    fn visit_compound_block(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        block: &'a DelimitedBlock<'a>,
-    ) -> Result<(), Self::Error> {
-        self.write_metadata_anchor(&block.metadata)?;
-
-        let collapsible = matches!(block.inner, DelimitedBlockType::DelimitedExample(_))
-            && block.metadata.options.contains(&"collapsible");
+        block: BlockRef<'a>,
+    ) -> Result<(), Error> {
+        self.write_metadata_anchor(block.primary_anchor())?;
+        let kind = block.kind();
+        let fallback = if matches!(kind, BlockKind::Example(_)) {
+            Some(CaptionKind::Example)
+        } else if let BlockKind::Listing(node) = kind {
+            (node.style() != Some("literal")).then_some(CaptionKind::Listing)
+        } else if let BlockKind::Literal(node) = kind {
+            matches!(node.style(), Some("listing" | "source")).then_some(CaptionKind::Listing)
+        } else if let BlockKind::Open(node) = kind {
+            CaptionKind::for_style(node.style())
+        } else if matches!(kind, BlockKind::Table(_)) {
+            Some(CaptionKind::Table)
+        } else {
+            None
+        };
+        let collapsible =
+            matches!(kind, BlockKind::Example(node) if node.options().contains("collapsible"));
         if !collapsible
-            && !matches!(block.inner, DelimitedBlockType::DelimitedComment(_))
-            && shows_block_title(&block.inner)
+            && !matches!(
+                kind,
+                BlockKind::Passthrough(_) | BlockKind::DelimitedComment(_)
+            )
+            && let Some(attributes) = block.attributes()
         {
-            self.write_block_title(
-                traversal,
-                &block.title,
-                &block.metadata,
-                CaptionKind::for_delimited(&block.inner, block.metadata.style),
-            )?;
+            self.write_block_title(traversal, block.title(), attributes, fallback)?;
         }
-
-        match &block.inner {
-            DelimitedBlockType::DelimitedListing(content)
-            | DelimitedBlockType::DelimitedLiteral(content) => {
-                self.write_fenced_code_block(traversal, &block.metadata, content)?;
+        match kind {
+            BlockKind::Listing(node) => {
+                self.write_fenced_code_block(traversal, node.attributes(), node.content())?;
             }
-            DelimitedBlockType::DelimitedQuote(blocks) => {
-                self.visit_blockquote_blocks(traversal, blocks)?;
-                self.write_attribution(traversal, &block.metadata, "> ")?;
+            BlockKind::Literal(node) => {
+                self.write_fenced_code_block(traversal, node.attributes(), node.content())?;
             }
-            DelimitedBlockType::DelimitedExample(blocks) => {
-                if block.metadata.options.contains(&"collapsible") {
-                    let is_open = block.metadata.options.contains(&"open");
-                    self.write_collapsible(traversal, &block.title, is_open, |v, traversal| {
-                        v.visit_separated_blocks(traversal, blocks, false)
-                    })?;
+            BlockKind::Quote(node) => {
+                self.visit_blockquote_blocks(traversal, node.blocks())?;
+                self.write_attribution(traversal, node.attributes(), "> ")?;
+            }
+            BlockKind::Example(node) => {
+                if collapsible {
+                    self.write_collapsible(
+                        traversal,
+                        node.title(),
+                        node.options().contains("open"),
+                        |v, traversal| v.visit_separated_blocks(traversal, node.blocks(), false),
+                    )?;
                 } else {
-                    // Examples don't have a direct Markdown equivalent
-                    // Use blockquote as fallback
                     self.write_warning(
                         "example-blockquotes",
                         "example blocks",
                         "using blockquote",
                     )?;
-                    self.visit_blockquote_blocks(traversal, blocks)?;
+                    self.visit_blockquote_blocks(traversal, node.blocks())?;
                 }
             }
-            DelimitedBlockType::DelimitedSidebar(blocks) => {
-                // Sidebars don't have a direct Markdown equivalent
+            BlockKind::Sidebar(node) => {
                 self.write_warning("sidebar-blocks", "sidebar blocks", "using blockquote")?;
-                self.visit_blockquote_blocks(traversal, blocks)?;
+                self.visit_blockquote_blocks(traversal, node.blocks())?;
             }
-            DelimitedBlockType::DelimitedOpen(blocks) => {
-                // Open blocks are just containers, render contents normally
-                self.visit_separated_blocks(traversal, blocks, false)?;
+            BlockKind::Open(node) => {
+                self.visit_separated_blocks(traversal, node.blocks(), false)?;
             }
-            DelimitedBlockType::DelimitedPass(content) => {
-                self.write_raw_block_content(content)?;
+            BlockKind::Passthrough(node) => self.write_raw_block_content(node.content())?,
+            BlockKind::Table(node) => self.visit_table_inner(traversal, node, node.attributes())?,
+            BlockKind::Verse(node) => {
+                self.write_blockquote_inlines(traversal, node.content())?;
+                self.write_attribution(traversal, node.attributes(), "> ")?;
             }
-            DelimitedBlockType::DelimitedTable(table) => {
-                self.visit_table_inner(traversal, table, &block.metadata)?;
+            BlockKind::Stem(node) => {
+                self.warn_once("stem-blocks", "block STEM is not supported by the Markdown backend; preserving the expression as fenced code", "Use a Markdown renderer with a math extension, or use a backend that supports STEM rendering.");
+                self.write_raw_fenced_code_block(Some(&node.notation().to_string()), node.text())?;
             }
-            DelimitedBlockType::DelimitedVerse(content) => {
-                self.write_blockquote_inlines(traversal, content)?;
-                self.write_attribution(traversal, &block.metadata, "> ")?;
-            }
-            DelimitedBlockType::DelimitedComment(_) => {
-                // Comments don't get rendered
-            }
-            DelimitedBlockType::DelimitedStem(stem) => {
-                self.warn_once(
-                    "stem-blocks",
-                    "block STEM is not supported by the Markdown backend; preserving the expression as fenced code",
-                    "Use a Markdown renderer with a math extension, or use a backend that supports STEM rendering.",
-                );
-                let notation = stem.notation.to_string();
-                self.write_raw_fenced_code_block(Some(&notation), stem.content)?;
-            }
-            _ => {
-                self.warn_once_at(
-                    "unknown-delimited-block",
-                    format!(
-                        "unknown delimited block feature is not supported by the Markdown backend; skipping content: {:?}",
-                        block.inner
-                    ),
-                    "Use a backend that supports this block type, or replace it with a portable AsciiDoc construct.",
-                    Some(&block.location),
-                );
-            }
+            BlockKind::DelimitedComment(_) => {}
+            BlockKind::TableOfContents(_)
+            | BlockKind::Admonition(_)
+            | BlockKind::DiscreteHeader(_)
+            | BlockKind::DocumentAttribute(_)
+            | BlockKind::ThematicBreak(_)
+            | BlockKind::PageBreak(_)
+            | BlockKind::UnorderedList(_)
+            | BlockKind::OrderedList(_)
+            | BlockKind::CalloutList(_)
+            | BlockKind::DescriptionList(_)
+            | BlockKind::Section(_)
+            | BlockKind::Paragraph(_)
+            | BlockKind::Image(_)
+            | BlockKind::Audio(_)
+            | BlockKind::Video(_)
+            | BlockKind::Comment(_)
+            | _ => self.visit_unhandled_block(traversal, block)?,
         }
         Ok(())
     }
@@ -1838,14 +1815,14 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
     fn visit_admonition(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        admonition: &'a Admonition<'a>,
-    ) -> Result<(), Self::Error> {
-        self.write_metadata_anchor(&admonition.metadata)?;
-        self.write_block_title(traversal, &admonition.title, &admonition.metadata, None)?;
+        admonition: AdmonitionRef<'a>,
+    ) -> Result<(), Error> {
+        self.write_metadata_anchor(admonition.primary_anchor())?;
+        self.write_block_title(traversal, admonition.title(), admonition.attributes(), None)?;
 
         // GitHub Flavored Markdown supports Alerts syntax (> [!TYPE])
         // CommonMark falls back to blockquote with bold label
-        let alert_type = match admonition.variant {
+        let alert_type = match admonition.variant() {
             AdmonitionVariant::Note => "NOTE",
             AdmonitionVariant::Tip => "TIP",
             AdmonitionVariant::Important => "IMPORTANT",
@@ -1853,16 +1830,16 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
             AdmonitionVariant::Caution => "CAUTION",
         };
 
-        if let Some(content) = admonition.metadata.caption_content() {
+        if let Some(content) = admonition.caption_content() {
             write!(self.writer, "> **")?;
-            self.visit_inline_nodes(traversal, content)?;
+            self.write_content(traversal, content)?;
             writeln!(self.writer, "**")?;
         } else if self.variant() == MarkdownVariant::GitHubFlavored {
             // Use GitHub Alerts syntax (native support, no warning needed)
             writeln!(self.writer, "> [!{alert_type}]")?;
         } else {
             // CommonMark: use blockquote with bold label
-            let label = match admonition.variant {
+            let label = match admonition.variant() {
                 AdmonitionVariant::Note => "Note",
                 AdmonitionVariant::Tip => "Tip",
                 AdmonitionVariant::Important => "Important",
@@ -1878,7 +1855,7 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
         }
 
         let mut has_body = false;
-        for block in &admonition.blocks {
+        for block in admonition.blocks() {
             if !self.block_has_output(block) {
                 continue;
             }
@@ -1895,18 +1872,17 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
     fn visit_discrete_header(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        header: &DiscreteHeader,
-    ) -> Result<(), Self::Error> {
-        self.write_block_anchor(&Section::generate_id_string(
-            &header.metadata,
-            &header.title,
-        ))?;
+        header: DiscreteHeaderRef<'_>,
+    ) -> Result<(), Error> {
+        self.write_block_anchor(&header.resolve_id())?;
 
         // Discrete headers are just headings without section structure
-        let level = (header.level + 1).min(6);
+        let level = (header.level() + 1).min(6);
         let hashes = "#".repeat(level as usize);
         write!(self.writer, "{hashes} ")?;
-        self.visit_inline_nodes(traversal, header.title.as_ref())?;
+        if let Some(title) = header.title() {
+            self.write_content(traversal, title)?;
+        }
         writeln!(self.writer)?;
         Ok(())
     }
@@ -1914,24 +1890,18 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
     fn visit_image(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        image: &Image,
-    ) -> Result<(), Self::Error> {
-        self.write_metadata_anchor(&image.metadata)?;
-        let alt = block_image_alt(image);
-        self.write_image(
-            traversal,
-            ImageRef::from(image).source(),
-            ImageRef::from(image).attributes(),
-            &alt,
-            None,
-        )?;
+        image: ImageRef<'_>,
+    ) -> Result<(), Error> {
+        self.write_metadata_anchor(image.primary_anchor())?;
+        let alt = acdc_converters_core::media::image_alt_from_content(image.source(), image.alt());
+        self.write_image(traversal, image.source(), image.attributes(), &alt, None)?;
         writeln!(self.writer)?;
-        if image.title.is_present() {
+        if image.title().is_some() {
             writeln!(self.writer)?;
             self.write_block_title_line(
                 traversal,
-                &image.title,
-                &image.metadata,
+                image.title(),
+                image.attributes(),
                 Some(CaptionKind::Figure),
             )?;
         }
@@ -1941,27 +1911,24 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
     fn visit_video(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        video: &Video,
-    ) -> Result<(), Self::Error> {
-        self.write_metadata_anchor(&video.metadata)?;
-        self.write_block_title(traversal, &video.title, &video.metadata, None)?;
+        video: VideoRef<'_>,
+    ) -> Result<(), Error> {
+        self.write_metadata_anchor(video.primary_anchor())?;
+        self.write_block_title(traversal, video.title(), video.attributes(), None)?;
         self.warn_static_media_fallback();
 
-        let title = if video.title.is_present() {
-            InlineTextTransform::default().to_string(video.title.as_ref())
+        let title = if let Some(title) = video.title() {
+            InlineTextTransform::default().content_to_string(title)
         } else {
             video
-                .source
-                .get_filename()
+                .source()
+                .file_name()
                 .map_or_else(|| "video".to_owned(), str::to_owned)
         };
-        if let Some(poster) = video
-            .metadata
-            .attributes
-            .get_string("poster")
-            .filter(|value| !matches!(value.as_ref(), "youtube" | "vimeo"))
+        if let Some(poster) = attribute_text(video.attributes(), "poster")
+            .filter(|value| !matches!(*value, "youtube" | "vimeo"))
         {
-            let poster = resolve_target(&poster, traversal);
+            let poster = resolve_target(poster, traversal);
             write!(
                 self.writer,
                 "![{}]({})",
@@ -1969,12 +1936,12 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
                 escape_link_destination(&poster)
             )?;
             writeln!(self.writer)?;
-            if !video.source.to_string().is_empty() {
+            if !video.source().to_string().is_empty() {
                 writeln!(self.writer)?;
             }
         }
         let target = resolve_target(
-            &acdc_converters_core::video::TryUrl::try_url(video, false)?,
+            &acdc_converters_core::video::TryUrl::try_url(&video, false)?,
             traversal,
         );
         self.write_link(&target, |visitor| {
@@ -1988,22 +1955,22 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
     fn visit_audio(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        audio: &Audio,
-    ) -> Result<(), Self::Error> {
-        self.write_metadata_anchor(&audio.metadata)?;
-        self.write_block_title(traversal, &audio.title, &audio.metadata, None)?;
+        audio: AudioRef<'_>,
+    ) -> Result<(), Error> {
+        self.write_metadata_anchor(audio.primary_anchor())?;
+        self.write_block_title(traversal, audio.title(), audio.attributes(), None)?;
         self.warn_static_media_fallback();
-        let target = with_time_range(
-            &Self::media_target(traversal, &audio.source),
-            &audio.metadata.attributes,
+        let target = with_time_range_from_attributes(
+            &resolve_target(&audio.source().to_string(), traversal),
+            audio.attributes(),
         );
-        let title = if audio.title.is_present() {
-            InlineTextTransform::default().to_string(audio.title.as_ref())
+        let title = if let Some(title) = audio.title() {
+            InlineTextTransform::default().content_to_string(title)
         } else {
             audio
-                .source
-                .get_filename()
-                .map_or_else(|| audio.source.to_string(), str::to_owned)
+                .source()
+                .file_name()
+                .map_or_else(|| audio.source().to_string(), str::to_owned)
         };
         self.write_link(&target, |visitor| {
             write!(visitor.writer, "Audio: {}", Self::escape_markdown(&title))?;
@@ -2016,11 +1983,11 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
     fn visit_description_list(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        list: &'a DescriptionList<'a>,
-    ) -> Result<(), Self::Error> {
-        self.write_metadata_anchor(&list.metadata)?;
-        self.write_block_title(traversal, &list.title, &list.metadata, None)?;
-        match list.metadata.style {
+        list: DescriptionListRef<'a>,
+    ) -> Result<(), Error> {
+        self.write_metadata_anchor(list.primary_anchor())?;
+        self.write_block_title(traversal, list.title(), list.attributes(), None)?;
+        match list.style() {
             Some("horizontal") => self.visit_horizontal_description_list(traversal, list),
             Some("qanda") => self.visit_qanda_description_list(traversal, list),
             _ => self.visit_regular_description_list(traversal, list),
@@ -2030,21 +1997,21 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
     fn visit_callout_list(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        list: &'a CalloutList<'a>,
-    ) -> Result<(), Self::Error> {
-        self.write_metadata_anchor(&list.metadata)?;
-        self.write_block_title(traversal, &list.title, &list.metadata, None)?;
-        for item in &list.items {
+        list: CalloutListRef<'a>,
+    ) -> Result<(), Error> {
+        self.write_metadata_anchor(list.primary_anchor())?;
+        self.write_block_title(traversal, list.title(), list.attributes(), None)?;
+        for item in list.items() {
             self.write_list_indent()?;
-            write!(self.writer, "- **({})** ", item.callout.number)?;
-            self.visit_inline_nodes(traversal, &item.principal)?;
+            write!(self.writer, "- **({})** ", item.callout().number())?;
+            self.write_content(traversal, item.principal())?;
             writeln!(self.writer)?;
 
-            if !item.blocks.is_empty() {
+            if item.blocks().next().is_some() {
                 writeln!(self.writer)?;
                 self.list_depth += 1;
                 let result: Result<(), Error> = (|| {
-                    for (index, block) in item.blocks.iter().enumerate() {
+                    for (index, block) in item.blocks().enumerate() {
                         if index > 0 {
                             writeln!(self.writer)?;
                         }
@@ -2059,29 +2026,13 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
         }
         Ok(())
     }
-
-    fn visit_inline_node(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        node: &InlineNode,
-    ) -> Result<(), Self::Error> {
-        self.write_inline(traversal, node.into())
-    }
-
-    fn visit_text(
-        &mut self,
-        _traversal: &mut TraversalContext<'a>,
-        text: &str,
-    ) -> Result<(), Self::Error> {
-        self.write_escaped_text(text)
-    }
 }
 
 impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
     fn visit_regular_description_list(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        list: &'a DescriptionList<'a>,
+        list: DescriptionListRef<'a>,
     ) -> Result<(), Error> {
         self.write_list_indent()?;
         self.write_warning(
@@ -2089,19 +2040,19 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
             "description lists",
             "using regular list",
         )?;
-        for item in &list.items {
+        for item in list.items() {
             self.write_list_indent()?;
             write!(self.writer, "- **")?;
-            self.visit_inline_nodes(traversal, &item.term)?;
+            self.write_content(traversal, item.term())?;
             writeln!(self.writer, "**")?;
 
-            if !item.principal_text.is_empty() {
+            if !item.principal().is_empty() {
                 self.write_list_indent()?;
                 write!(self.writer, "  ")?;
-                self.visit_inline_nodes(traversal, &item.principal_text)?;
+                self.write_content(traversal, item.principal())?;
                 writeln!(self.writer)?;
             }
-            self.visit_description_blocks(traversal, &item.description)?;
+            self.visit_description_blocks(traversal, item.blocks())?;
         }
         Ok(())
     }
@@ -2109,23 +2060,25 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
     fn visit_horizontal_description_list(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        list: &'a DescriptionList<'a>,
+        list: DescriptionListRef<'a>,
     ) -> Result<(), Error> {
-        for item in &list.items {
+        for item in list.items() {
             self.write_list_indent()?;
             write!(self.writer, "**")?;
-            self.visit_inline_nodes(traversal, &item.term)?;
+            self.write_content(traversal, item.term())?;
             write!(self.writer, "**")?;
-            if !item.principal_text.is_empty() {
+            if !item.principal().is_empty() {
                 write!(self.writer, " — ")?;
-                self.visit_inline_nodes(traversal, &item.principal_text)?;
+                self.write_content(traversal, item.principal())?;
             }
             writeln!(self.writer, "  ")?;
 
-            for block in &item.description {
+            for block in item.blocks() {
                 if !matches!(
-                    block,
-                    Block::DescriptionList(_) | Block::OrderedList(_) | Block::UnorderedList(_)
+                    block.kind(),
+                    BlockKind::DescriptionList(_)
+                        | BlockKind::OrderedList(_)
+                        | BlockKind::UnorderedList(_)
                 ) {
                     self.write_list_indent()?;
                 }
@@ -2138,10 +2091,11 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
     fn visit_qanda_description_list(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        list: &'a DescriptionList<'a>,
+        list: DescriptionListRef<'a>,
     ) -> Result<(), Error> {
-        let (start, reversed) = list_sequence(&list.metadata, list.items.len());
-        for (index, item) in list.items.iter().enumerate() {
+        let item_count = list.items().count();
+        let (start, reversed) = list_sequence(list.attributes(), item_count);
+        for (index, item) in list.items().enumerate() {
             let number = if reversed {
                 start.saturating_sub(index)
             } else {
@@ -2149,23 +2103,23 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
             };
             self.write_list_indent()?;
             write!(self.writer, "{number}. <em>")?;
-            self.visit_inline_nodes(traversal, &item.term)?;
+            self.write_content(traversal, item.term())?;
             writeln!(self.writer, "</em>")?;
 
-            if !item.principal_text.is_empty() {
+            if !item.principal().is_empty() {
                 writeln!(self.writer)?;
                 self.write_list_indent()?;
                 write!(self.writer, "    ")?;
-                self.visit_inline_nodes(traversal, &item.principal_text)?;
+                self.write_content(traversal, item.principal())?;
                 writeln!(self.writer)?;
             }
-            if !item.description.is_empty() {
-                if item.principal_text.is_empty() {
+            if item.blocks().next().is_some() {
+                if item.principal().is_empty() {
                     writeln!(self.writer)?;
                 }
-                self.visit_description_blocks(traversal, &item.description)?;
+                self.visit_description_blocks(traversal, item.blocks())?;
             }
-            if index + 1 < list.items.len() {
+            if index + 1 < item_count {
                 writeln!(self.writer)?;
             }
         }
@@ -2175,14 +2129,16 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
     fn visit_description_blocks(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        blocks: &'a [Block<'a>],
+        blocks: impl Iterator<Item = BlockRef<'a>>,
     ) -> Result<(), Error> {
         for block in blocks {
             self.list_depth += 1;
             let result = (|| {
                 if !matches!(
-                    block,
-                    Block::DescriptionList(_) | Block::OrderedList(_) | Block::UnorderedList(_)
+                    block.kind(),
+                    BlockKind::DescriptionList(_)
+                        | BlockKind::OrderedList(_)
+                        | BlockKind::UnorderedList(_)
                 ) {
                     self.write_list_indent()?;
                 }
@@ -2731,13 +2687,13 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
     fn visit_list_items(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        items: &'a [ListItem<'a>],
+        items: impl Iterator<Item = ListItemRef<'a>>,
         marker: &str,
         start: usize,
         reversed: bool,
         markerless: bool,
     ) -> Result<(), Error> {
-        for (index, item) in items.iter().enumerate() {
+        for (index, item) in items.enumerate() {
             self.write_list_indent()?;
             let number = if reversed {
                 start.saturating_sub(index)
@@ -2750,8 +2706,8 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
                 marker.to_owned()
             };
 
-            let is_task = item.checked.is_some();
-            let is_checked = matches!(item.checked, Some(ListItemCheckedStatus::Checked));
+            let is_task = item.checked().is_some();
+            let is_checked = matches!(item.checked(), Some(ListItemCheckedStatus::Checked));
 
             if !markerless {
                 write!(self.writer, "{item_marker} ")?;
@@ -2766,15 +2722,18 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
                 write!(self.writer, "\\[{checkbox}\\] ")?;
             }
 
-            self.visit_inline_nodes(traversal, &item.principal)?;
+            self.write_content(traversal, item.principal())?;
             if markerless {
                 writeln!(self.writer, "  ")?;
             } else {
                 writeln!(self.writer)?;
             }
 
-            for block in &item.blocks {
-                if matches!(block, Block::OrderedList(_) | Block::UnorderedList(_)) {
+            for block in item.blocks() {
+                if matches!(
+                    block.kind(),
+                    BlockKind::OrderedList(_) | BlockKind::UnorderedList(_)
+                ) {
                     if markerless {
                         writeln!(self.writer)?;
                     } else {
@@ -2803,8 +2762,8 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
     fn visit_table_inner(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        table: &'a Table<'a>,
-        metadata: &BlockMetadata<'_>,
+        table: TableRef<'a>,
+        attributes: AttributesRef<'_>,
     ) -> Result<(), Error> {
         if self.variant() == MarkdownVariant::CommonMark {
             self.write_warning(
@@ -2815,26 +2774,26 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
             return Ok(());
         }
 
-        self.warn_gfm_table_fallbacks(table, metadata);
+        self.warn_gfm_table_fallbacks(table, attributes);
         self.render_gfm_table(traversal, table)
     }
 
-    fn warn_gfm_table_fallbacks(&mut self, table: &'a Table<'a>, metadata: &BlockMetadata<'_>) {
-        if table.header.is_none() && (!table.rows.is_empty() || table.footer.is_some()) {
+    fn warn_gfm_table_fallbacks(&mut self, table: TableRef<'a>, attributes: AttributesRef<'_>) {
+        if table.header().is_none() && (table.rows().next().is_some() || table.footer().is_some()) {
             self.warn_once(
                 "gfm-headerless-tables",
                 "headerless tables are not supported by GFM; adding an empty header row and preserving every source row as data",
                 "Use an explicit header row when the destination requires strict GFM table semantics.",
             );
         }
-        if table.footer.is_some() {
+        if table.footer().is_some() {
             self.warn_once(
                 "gfm-table-footers",
                 "table footers are not supported by GFM; rendering each footer as the final body row",
                 "Use an HTML-capable backend when the footer must remain structurally distinct.",
             );
         }
-        if table_has_spans(table) {
+        if has_spans(table) {
             self.warn_once(
                 "gfm-table-spans",
                 "table cell spans are not supported by GFM; leaving spanned positions empty while preserving cell text",
@@ -2842,11 +2801,10 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
             );
         }
         if table
-            .columns
-            .iter()
-            .any(|column| column.style != ColumnStyle::Default)
+            .columns()
+            .any(|column| column.style() != ColumnStyle::Default)
             || table_cells(table).any(|cell| {
-                cell.style
+                cell.style()
                     .is_some_and(|style| style != ColumnStyle::Default)
             })
         {
@@ -2857,11 +2815,10 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
             );
         }
         if table_cells(table).any(|cell| {
-            cell.content.len() > 1
+            cell.blocks().count() > 1
                 || cell
-                    .content
-                    .iter()
-                    .any(|block| !matches!(block, Block::Paragraph(_)))
+                    .blocks()
+                    .any(|block| !matches!(block.kind(), BlockKind::Paragraph(_)))
         }) {
             self.warn_once(
                 "gfm-nested-table-blocks",
@@ -2869,12 +2826,11 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
                 "Use an HTML-capable backend when cells must retain nested block structure.",
             );
         }
-        if metadata.attributes.get("width").is_some()
-            || metadata.options.contains(&"autowidth")
+        if attributes.get("width").is_some()
+            || has_option(attributes, "autowidth")
             || table
-                .columns
-                .iter()
-                .any(|column| column.width != ColumnWidth::default())
+                .columns()
+                .any(|column| column.width() != ColumnWidth::default())
         {
             self.warn_once(
                 "gfm-table-widths",
@@ -2882,13 +2838,12 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
                 "Use an HTML-capable backend when table or column widths must remain exact.",
             );
         }
-        if metadata.attributes.get("align").is_some()
-            || metadata.attributes.get("float").is_some()
+        if attributes.get("align").is_some()
+            || attributes.get("float").is_some()
             || table
-                .columns
-                .iter()
-                .any(|column| column.valign != VerticalAlignment::Top)
-            || table_cells(table).any(|cell| cell.halign.is_some() || cell.valign.is_some())
+                .columns()
+                .any(|column| column.valign() != VerticalAlignment::Top)
+            || table_cells(table).any(|cell| cell.halign().is_some() || cell.valign().is_some())
         {
             self.warn_once(
                 "gfm-table-local-alignment",
@@ -2901,14 +2856,14 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
     fn render_gfm_table(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        table: &'a Table<'a>,
+        table: TableRef<'a>,
     ) -> Result<(), Error> {
-        if table.header.is_none() && table.rows.is_empty() && table.footer.is_none() {
+        if table.header().is_none() && table.rows().next().is_none() && table.footer().is_none() {
             return Ok(());
         }
 
-        let column_count = determine_column_count(table);
-        let grid = build_grid(table, column_count);
+        let column_count = column_count(table);
+        let grid = grid_rows(table, column_count);
         if let Some(header) = grid.iter().find(|row| row.is_header) {
             self.write_gfm_table_row(traversal, header, table)?;
         } else {
@@ -2920,11 +2875,11 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
         }
 
         write!(self.writer, "|")?;
-        for column_index in 0..column_count {
-            let alignment = table
-                .columns
-                .get(column_index)
-                .map_or(HorizontalAlignment::Left, |column| column.halign);
+        let mut columns = table.columns();
+        for _ in 0..column_count {
+            let alignment = columns
+                .next()
+                .map_or(HorizontalAlignment::Left, ColumnFormatRef::halign);
             let marker = match alignment {
                 HorizontalAlignment::Left => ":---",
                 HorizontalAlignment::Center => ":---:",
@@ -2943,18 +2898,21 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
     fn write_gfm_table_row(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        row: &GridRow<&'a TableRow<'a>>,
-        table: &'a Table<'a>,
+        row: &GridRow<TableRowRef<'a>>,
+        table: TableRef<'a>,
     ) -> Result<(), Error> {
         write!(self.writer, "|")?;
-        for (column_index, cell_kind) in row.cells.iter().enumerate() {
+        let mut columns = table.columns();
+        let mut cells = row.ast_row.cells().enumerate();
+        for cell_kind in &row.cells {
+            let column = columns.next();
             write!(self.writer, " ")?;
             if let CellKind::Content { cell_index } = cell_kind
-                && let Some(cell) = row.ast_row.columns.get(*cell_index)
+                && let Some((_, cell)) = cells.find(|(index, _)| index == cell_index)
             {
-                let style = cell.style.or_else(|| {
-                    table.columns.get(column_index).and_then(|column| {
-                        (column.style != ColumnStyle::Default).then_some(column.style)
+                let style = cell.style().or_else(|| {
+                    column.and_then(|column| {
+                        (column.style() != ColumnStyle::Default).then_some(column.style())
                     })
                 });
                 self.write_gfm_table_cell(traversal, cell, style)?;
@@ -2968,7 +2926,7 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
     fn write_gfm_table_cell(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        cell: &'a TableColumn<'a>,
+        cell: TableCellRef<'a>,
         style: Option<ColumnStyle>,
     ) -> Result<(), Error> {
         let mut buffer = Vec::new();
@@ -2985,10 +2943,10 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
             let scoped = style == Some(ColumnStyle::AsciiDoc);
             let result = if scoped {
                 traversal.with_table_cell(cell, |traversal| {
-                    visitor.visit_separated_blocks(traversal, &cell.content, false)
+                    visitor.visit_separated_blocks(traversal, cell.blocks(), false)
                 })
             } else {
-                visitor.visit_separated_blocks(traversal, &cell.content, false)
+                visitor.visit_separated_blocks(traversal, cell.blocks(), false)
             };
             (result, visitor.emitted_anchors, visitor.footnotes)
         };
@@ -3041,7 +2999,57 @@ impl<'a, W: Write> acdc_converters_core::visitor::InlineVisitor<'a> for Markdown
         &mut self,
         traversal: &mut TraversalContext<'a>,
         node: InlineRef<'_>,
-    ) -> Result<(), Self::Error> {
+    ) -> Result<(), Error> {
         self.write_inline_node_content(traversal, node)
+    }
+}
+
+impl<'a, W: Write> BlockVisitor<'a> for MarkdownVisitor<'a, '_, W> {
+    type Error = Error;
+
+    fn visit_block(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        block: BlockRef<'a>,
+    ) -> Result<(), Error> {
+        match block.kind() {
+            BlockKind::Section(node) => self.visit_section(traversal, node),
+            BlockKind::Paragraph(node) => self.visit_paragraph(traversal, node),
+            BlockKind::UnorderedList(node) => self.visit_unordered_list(traversal, node),
+            BlockKind::OrderedList(node) => self.visit_ordered_list(traversal, node),
+            BlockKind::DescriptionList(node) => self.visit_description_list(traversal, node),
+            BlockKind::CalloutList(node) => self.visit_callout_list(traversal, node),
+            BlockKind::Admonition(node) => self.visit_admonition(traversal, node),
+            BlockKind::DiscreteHeader(node) => self.visit_discrete_header(traversal, node),
+            BlockKind::Image(node) => self.visit_image(traversal, node),
+            BlockKind::Audio(node) => self.visit_audio(traversal, node),
+            BlockKind::Video(node) => self.visit_video(traversal, node),
+            BlockKind::ThematicBreak(node) => self.visit_thematic_break(traversal, node),
+            BlockKind::PageBreak(node) => self.visit_page_break(traversal, node),
+            BlockKind::TableOfContents(node) => self.visit_table_of_contents(traversal, node),
+            BlockKind::DocumentAttribute(_) | BlockKind::Comment(_) => Ok(()),
+            BlockKind::DelimitedComment(_)
+            | BlockKind::Example(_)
+            | BlockKind::Listing(_)
+            | BlockKind::Literal(_)
+            | BlockKind::Open(_)
+            | BlockKind::Sidebar(_)
+            | BlockKind::Table(_)
+            | BlockKind::Passthrough(_)
+            | BlockKind::Quote(_)
+            | BlockKind::Verse(_)
+            | BlockKind::Stem(_) => self.visit_compound_block(traversal, block),
+            _ => self.visit_unhandled_block(traversal, block),
+        }
+    }
+}
+
+impl<'a, W: Write> DocumentVisitor<'a> for MarkdownVisitor<'a, '_, W> {
+    fn visit_document(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        document: DocumentRef<'a>,
+    ) -> Result<(), Error> {
+        self.render_document(traversal, document)
     }
 }

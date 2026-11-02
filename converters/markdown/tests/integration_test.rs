@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use acdc_converters_core::{
     Converter, Diagnostics, GeneratorMetadata, Options as ConverterOptions, TraversalContext,
-    Warning, WarningSource, visitor::Visitor,
+    Warning, WarningSource,
 };
 use acdc_converters_dev::output::remove_lines_trailing_whitespace;
 use acdc_converters_html::Processor as HtmlProcessor;
@@ -1208,7 +1208,7 @@ fn unhandled_blocks_emit_a_structured_warning_with_source_context() -> Result<()
             acdc_converters_core::Converter::document_attributes(&processor).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = MarkdownVisitor::new(&mut output, &processor, diagnostics.reborrow());
-        visitor.visit_unhandled_block(&mut traversal, block)?;
+        visitor.visit_unhandled_block(&mut traversal, block.into())?;
     }
 
     assert_eq!(output, [] as [u8; 0]);
