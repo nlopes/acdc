@@ -246,6 +246,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Replacing delimited-block metadata with `with_metadata` or `set_metadata` keeps
+  table `frame`, `grid`, and `stripes` in sync with rendered decoration. Removing
+  an override restores the document defaults active at that table, including
+  defaults set in the body or an AsciiDoc cell.
+
 - Custom caption content in the reference catalog retains its original source
   locations through includes, including selected regions and table cells.
 

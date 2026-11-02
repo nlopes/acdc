@@ -75,8 +75,10 @@ pub(super) fn parse_table_block_impl<'input>(
 
     let mut metadata = block_metadata.metadata.clone();
     metadata.move_positional_attributes_to_attributes();
-    let presentation =
-        TablePresentation::from_attributes(&metadata, |name| (state.document_attributes).get(name));
+    let presentation_defaults = TablePresentation::from_attribute_values(
+        |_| None,
+        |name| state.document_attributes.get(name),
+    );
     let location = state.create_block_location(start, end, offset);
     let table_location = state.create_block_location(table_start, end, offset);
     let open_delimiter_location = state.create_location(
@@ -458,7 +460,7 @@ pub(super) fn parse_table_block_impl<'input>(
         .with_header(header)
         .with_footer(footer)
         .with_columns(column_formats)
-        .with_presentation(presentation);
+        .with_presentation(&metadata, presentation_defaults);
 
     Ok(Block::DelimitedBlock(DelimitedBlock {
         source_text: None,

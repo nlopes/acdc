@@ -803,15 +803,36 @@ impl<'a> DelimitedBlock<'a> {
 
     /// Replace metadata without shadowing dedicated fields.
     ///
+    /// Table decoration is refreshed using the defaults at the table's source position.
+    ///
     /// # Errors
     /// Rejects scalar attributes for dedicated metadata or title fields.
     pub fn with_metadata(
         mut self,
         metadata: BlockMetadata<'a>,
     ) -> Result<Self, crate::ReservedAttribute> {
-        metadata.validate_attributes(&["title"])?;
-        self.metadata = metadata;
+        self.set_metadata(metadata)?;
         Ok(self)
+    }
+
+    /// Replace metadata, retaining a table's source-position decoration defaults.
+    ///
+    /// Column formats and cell content keep their parsed values. Caller-built tables
+    /// without stored defaults remain unresolved for the converter to resolve.
+    ///
+    /// # Errors
+    /// Rejects scalar attributes for dedicated metadata or title fields,
+    /// leaving the block unchanged.
+    pub fn set_metadata(
+        &mut self,
+        metadata: BlockMetadata<'a>,
+    ) -> Result<(), crate::ReservedAttribute> {
+        metadata.validate_attributes(&["title"])?;
+        if let DelimitedBlockType::DelimitedTable(table) = &mut self.inner {
+            table.refresh_presentation(&metadata);
+        }
+        self.metadata = metadata;
+        Ok(())
     }
 
     /// Set the title.

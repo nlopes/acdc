@@ -109,6 +109,27 @@ impl TablePresentation {
         }
     }
 
+    fn with_local_attributes(self, metadata: &BlockMetadata<'_>) -> Self {
+        let local = Self::from_attributes(metadata, |_| None);
+        Self {
+            frame: if metadata.attributes.contains_key("frame") {
+                local.frame
+            } else {
+                self.frame
+            },
+            grid: if metadata.attributes.contains_key("grid") {
+                local.grid
+            } else {
+                self.grid
+            },
+            stripes: if metadata.attributes.contains_key("stripes") {
+                local.stripes
+            } else {
+                self.stripes
+            },
+        }
+    }
+
     /// The outer border applied to the table.
     #[must_use]
     pub const fn frame(self) -> TableFrame {
@@ -301,8 +322,14 @@ pub struct Table<'a> {
     #[serde(default, skip_serializing_if = "are_all_columns_default")]
     pub columns: Vec<ColumnFormat>,
     #[serde(skip)]
-    presentation: Option<TablePresentation>,
+    presentation: Option<ResolvedTablePresentation>,
     pub location: Location,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct ResolvedTablePresentation {
+    defaults: TablePresentation,
+    value: TablePresentation,
 }
 
 impl<'a> Table<'a> {
@@ -341,15 +368,31 @@ impl<'a> Table<'a> {
     }
 
     #[must_use]
-    pub(crate) fn with_presentation(mut self, presentation: TablePresentation) -> Self {
-        self.presentation = Some(presentation);
+    pub(crate) fn with_presentation(
+        mut self,
+        metadata: &BlockMetadata<'_>,
+        defaults: TablePresentation,
+    ) -> Self {
+        self.presentation = Some(ResolvedTablePresentation {
+            defaults,
+            value: defaults.with_local_attributes(metadata),
+        });
         self
+    }
+
+    pub(crate) fn refresh_presentation(&mut self, metadata: &BlockMetadata<'_>) {
+        if let Some(presentation) = &mut self.presentation {
+            presentation.value = presentation.defaults.with_local_attributes(metadata);
+        }
     }
 
     /// Table decoration that overrides converter defaults, if present.
     #[must_use]
     pub const fn presentation(&self) -> Option<TablePresentation> {
-        self.presentation
+        match &self.presentation {
+            Some(presentation) => Some(presentation.value),
+            None => None,
+        }
     }
 }
 

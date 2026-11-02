@@ -3219,3 +3219,65 @@ fn unresolved_table_decoration_matches_the_parsed_presentation() -> Result<(), E
     }
     Ok(())
 }
+
+#[rstest::rstest]
+fn checked_table_metadata_edits_reach_rendered_decoration(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    let parsed = parse(
+        "= Tables\n:table-frame: ends\n:table-grid: cols\n:table-stripes: odd\n\n\
+         :table-frame: sides\n:table-grid: rows\n:table-stripes: even\n\n\
+         [frame=none,grid=none,stripes=none]\n|===\n|Cell\n|===\n",
+        &ParserOptions::builder()
+            .with_compatibility_mode(mode)
+            .build()?,
+    )?;
+    let mut document = acdc_parser::Document::default();
+    document.attributes = parsed.document().attributes.clone();
+    document.blocks = parsed.document().blocks.clone();
+    for (declarations, classes) in [
+        (Some(("none", "none", "none")), "frame-none grid-none"),
+        (
+            Some(("all", "cols", "odd")),
+            "frame-all grid-cols stripes-odd",
+        ),
+        (None, "frame-sides grid-rows stripes-even"),
+    ] {
+        let block = document
+            .blocks
+            .iter_mut()
+            .find_map(|block| {
+                if let Block::DelimitedBlock(block) = block {
+                    Some(block)
+                } else {
+                    None
+                }
+            })
+            .ok_or("missing table")?;
+        let mut metadata = block.metadata.clone();
+        for (name, value) in ["frame", "grid", "stripes"].into_iter().zip(
+            declarations.map_or([None; 3], |(frame, grid, stripes)| {
+                [Some(frame), Some(grid), Some(stripes)]
+            }),
+        ) {
+            if let Some(value) = value {
+                metadata.attributes.set(name.into(), value.into());
+            } else {
+                metadata.attributes.remove(name);
+            }
+        }
+        block.set_metadata(metadata)?;
+        for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+            let output = render_fixture_document(&document, variant, true)?;
+            let prefix = match variant {
+                HtmlVariant::Standard => "tableblock ",
+                HtmlVariant::Semantic => "",
+            };
+            assert!(
+                output.contains(&format!("<table class=\"{prefix}{classes} stretch\">")),
+                "{mode:?} {variant:?}: {output}"
+            );
+        }
+    }
+    Ok(())
+}
