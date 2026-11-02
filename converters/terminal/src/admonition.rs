@@ -1,11 +1,7 @@
 use std::io::Write;
 
-use acdc_converters_core::{
-    TraversalContext,
-    icon::IconMode,
-    visitor::{Visitor, WritableVisitor},
-};
-use acdc_parser::{Admonition, AdmonitionVariant};
+use acdc_converters_core::{TraversalContext, icon::IconMode};
+use acdc_parser::{AdmonitionVariant, ast::AdmonitionRef};
 use crossterm::{
     QueueableCommand,
     style::{PrintStyledContent, Stylize},
@@ -20,14 +16,14 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     pub(crate) fn render_admonition(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        admon: &'a Admonition<'a>,
+        admon: AdmonitionRef<'a>,
     ) -> Result<(), Error> {
         use std::io::BufWriter;
 
         let processor = self.processor;
 
         // Get icon, caption attribute, and theme color for this admonition type
-        let (glyph, caption_attr, color) = match admon.variant {
+        let (glyph, caption_attr, color) = match admon.variant() {
             AdmonitionVariant::Note => {
                 ("ℹ️", "note-caption", processor.appearance.colors.admon_note)
             }
@@ -58,10 +54,10 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
             .ok_or(Error::InvalidAdmonitionCaption(caption_attr.to_string()))?
             .to_string();
 
-        let caption = if let Some(content) = admon.metadata.caption_content() {
+        let caption = if let Some(content) = admon.caption_content() {
             let mut visitor =
                 TerminalVisitor::new(Vec::new(), processor, self.diagnostics.reborrow());
-            visitor.visit_inline_nodes(traversal, content)?;
+            visitor.write_content(traversal, content)?;
             String::from_utf8(visitor.into_writer())?
         } else {
             caption
@@ -85,7 +81,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         QueueableCommand::queue(w, PrintStyledContent(styled_caption))?;
 
         // Title on same line if present
-        if admon.title.is_present() {
+        if admon.title().is_some() {
             write!(w, " ")?;
             let mut title_buffer = Vec::new();
             let title_processor = processor;
@@ -94,7 +90,9 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
                 title_processor,
                 self.diagnostics.reborrow(),
             );
-            title_visitor.visit_inline_nodes(traversal, &admon.title)?;
+            if let Some(title) = admon.title() {
+                title_visitor.write_content(traversal, title)?;
+            }
 
             let title_text = String::from_utf8_lossy(&title_buffer);
             let w = self.writer_mut();
@@ -104,7 +102,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         }
 
         // Render content blocks with left border
-        for block in &admon.blocks {
+        for block in admon.blocks() {
             let buffer = Vec::new();
             let inner = BufWriter::new(buffer);
             let mut temp_visitor =

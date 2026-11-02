@@ -1,10 +1,7 @@
 use std::io::{self, BufWriter, Write};
 
-use acdc_converters_core::{
-    Converter, TraversalContext,
-    visitor::{Visitor, WritableVisitor},
-};
-use acdc_parser::Author;
+use acdc_converters_core::{Converter, TraversalContext};
+use acdc_parser::ast::{AuthorRef, ContentRef, HeaderRef};
 use crossterm::{
     QueueableCommand,
     style::{Print, PrintStyledContent, Stylize},
@@ -16,7 +13,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     pub(crate) fn render_header(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        header: &acdc_parser::Header,
+        header: HeaderRef<'_>,
     ) -> Result<(), Error> {
         let cloned_processor = self.processor;
         let buffer = Vec::new();
@@ -24,13 +21,13 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         let mut temp_visitor =
             TerminalVisitor::new(inner, cloned_processor, self.diagnostics.reborrow());
 
-        for node in &header.title {
-            temp_visitor.visit_inline_node(traversal, node)?;
+        for node in header.title().into_iter().flat_map(ContentRef::inlines) {
+            temp_visitor.write_inline(traversal, node)?;
         }
-        if let Some(subtitle) = &header.subtitle {
+        if let Some(subtitle) = header.subtitle() {
             write!(temp_visitor.writer, ": ")?;
-            for node in subtitle {
-                temp_visitor.visit_inline_node(traversal, node)?;
+            for node in subtitle.inlines() {
+                temp_visitor.write_inline(traversal, node)?;
             }
         }
 
@@ -51,21 +48,16 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         let w = self.writer_mut();
         w.queue(PrintStyledContent(title_content.bold().underlined()))?;
 
-        if !header.authors.is_empty() {
+        let mut authors = header.authors().peekable();
+        if authors.peek().is_some() {
             writeln!(w)?;
             w.queue(PrintStyledContent("by ".italic()))?;
-            // Join the authors with commas, except for the last one, using a functional approach
-            header
-                .authors
-                .iter()
-                .enumerate()
-                .try_for_each(|(i, author)| {
-                    visit_author(author, w)?;
-                    if i != header.authors.len() - 1 {
-                        w.queue(Print(", "))?;
-                    }
-                    Ok::<(), io::Error>(())
-                })?;
+            while let Some(author) = authors.next() {
+                visit_author(author, w)?;
+                if authors.peek().is_some() {
+                    w.queue(Print(", "))?;
+                }
+            }
             writeln!(w)?;
         }
 
@@ -111,15 +103,15 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     }
 }
 
-fn visit_author<W: Write + ?Sized>(author: &Author, w: &mut W) -> Result<(), io::Error> {
+fn visit_author<W: Write + ?Sized>(author: AuthorRef<'_>, w: &mut W) -> Result<(), io::Error> {
     w.queue(PrintStyledContent(
-        format!("{} ", author.first_name).italic(),
+        format!("{} ", author.first_name()).italic(),
     ))?;
-    if let Some(middle_name) = &author.middle_name {
+    if let Some(middle_name) = author.middle_name() {
         w.queue(PrintStyledContent(format!("{middle_name} ").italic()))?;
     }
-    w.queue(PrintStyledContent(author.last_name.italic()))?;
-    if let Some(email) = &author.email {
+    w.queue(PrintStyledContent(author.last_name().italic()))?;
+    if let Some(email) = author.email() {
         w.queue(PrintStyledContent(format!(" <{email}>").italic()))?;
     }
     Ok(())
@@ -129,7 +121,7 @@ fn visit_author<W: Write + ?Sized>(author: &Author, w: &mut W) -> Result<(), io:
 mod tests {
     use super::*;
     use crate::create_test_processor_with;
-    use acdc_converters_core::{Diagnostics, WarningSource};
+    use acdc_converters_core::{Diagnostics, WarningSource, visitor::DocumentVisitor};
     use acdc_parser::{
         Author, Block, Document, Header, InlineNode, Location, Paragraph, Plain, Section, Title,
     };
@@ -145,7 +137,7 @@ mod tests {
         let attribute_header = Converter::document_attributes(&processor).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
-        visitor.visit_document(&mut traversal, &doc)?;
+        visitor.visit_document(&mut traversal, (&doc).into())?;
         let buffer = visitor.into_writer();
         assert_eq!(buffer, b"");
         Ok(())
@@ -171,7 +163,7 @@ mod tests {
         let attribute_header = Converter::document_attributes(&processor).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
-        visitor.visit_document(&mut traversal, &doc)?;
+        visitor.visit_document(&mut traversal, (&doc).into())?;
         let buffer = visitor.into_writer();
         assert_eq!(buffer, b"\x1b[1m\x1b[4mTitle\x1b[0m\n\x1b[3mby \x1b[0m\x1b[3mJohn \x1b[0m\x1b[3mM \x1b[0m\x1b[3mDoe\x1b[0m\x1b[3m <johndoe@example.com>\x1b[0m\n\n");
         Ok(())
@@ -215,7 +207,7 @@ mod tests {
         let attribute_header = Converter::document_attributes(&processor).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
-        visitor.visit_document(&mut traversal, &doc)?;
+        visitor.visit_document(&mut traversal, (&doc).into())?;
         let buffer = visitor.into_writer();
         let output = String::from_utf8_lossy(&buffer);
 

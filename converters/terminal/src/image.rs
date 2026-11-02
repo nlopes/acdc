@@ -1,7 +1,10 @@
 use std::io::Write;
 
-use acdc_converters_core::{TraversalContext, media::resolve_target, visitor::WritableVisitor};
-use acdc_parser::{CaptionKind, Image};
+use acdc_converters_core::{TraversalContext, media::resolve_target};
+use acdc_parser::{
+    CaptionKind,
+    ast::{ImageRef, SourceKind},
+};
 use crossterm::{
     QueueableCommand,
     style::{PrintStyledContent, Stylize},
@@ -13,13 +16,13 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     pub(crate) fn render_image(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        image: &Image,
+        image: ImageRef<'_>,
     ) -> Result<(), Error> {
-        let alt = inlines::block_image_alt(image);
-        let link = image.metadata.attributes.get_string("link");
+        let alt = acdc_converters_core::media::image_alt_from_content(image.source(), image.alt());
+        let link = super::terminal_visitor::attribute_text(image.attributes(), "link");
 
         #[cfg(feature = "images")]
-        let rendered_protocol_image = if let acdc_parser::Source::Path(path) = &image.source {
+        let rendered_protocol_image = if let SourceKind::Path(path) = image.source().kind() {
             let config = image_config(image, self.processor.terminal_width);
             let path = resolve_target(&path.to_string_lossy(), traversal);
             self.writer_mut().flush()?;
@@ -39,9 +42,9 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         let rendered_protocol_image = false;
 
         if !rendered_protocol_image || link.is_some() {
-            let rendered_alt = match &image.alt {
+            let rendered_alt = match image.alt() {
                 Some(content) => inlines::render_content_with_styles_to_owned(
-                    content.into(),
+                    content,
                     self.processor,
                     traversal,
                 )?,
@@ -50,10 +53,10 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
             let text = format!("[Image: {rendered_alt}]");
             if let Some(target) = link {
                 let processor = self.processor;
-                inlines::maybe_render_osc8_link(&target, &text, self.writer_mut(), processor)?;
+                inlines::maybe_render_osc8_link(target, &text, self.writer_mut(), processor)?;
             } else {
                 self.writer_mut().queue(PrintStyledContent(text.italic()))?;
-                let source = resolve_target(&image.source.to_string(), traversal);
+                let source = resolve_target(&image.source().to_string(), traversal);
                 if source != alt {
                     self.writer_mut()
                         .queue(PrintStyledContent(format!(" ({source})").dim()))?;
@@ -64,8 +67,8 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
 
         self.render_captioned_title_with_wrapper(
             traversal,
-            &image.title,
-            &image.metadata,
+            image.title(),
+            image.attributes(),
             Some(CaptionKind::Figure),
             "  ",
             "\n",
@@ -74,15 +77,12 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
 }
 
 #[cfg(feature = "images")]
-fn image_config(image: &Image<'_>, terminal_width: usize) -> viuer::Config {
+fn image_config(image: ImageRef<'_>, terminal_width: usize) -> viuer::Config {
     let width = dimension(image, "width");
     let height = dimension(image, "height");
-    let alignment = image
-        .metadata
-        .attributes
-        .get_string("float")
-        .or_else(|| image.metadata.attributes.get_string("align"));
-    let x = match (alignment.as_deref(), width) {
+    let alignment = super::terminal_visitor::attribute_text(image.attributes(), "float")
+        .or_else(|| super::terminal_visitor::attribute_text(image.attributes(), "align"));
+    let x = match (alignment, width) {
         (Some("center"), Some(width)) => terminal_width.saturating_sub(width as usize) / 2,
         (Some("right"), Some(width)) => terminal_width.saturating_sub(width as usize),
         _ => 0,
@@ -96,11 +96,8 @@ fn image_config(image: &Image<'_>, terminal_width: usize) -> viuer::Config {
 }
 
 #[cfg(feature = "images")]
-fn dimension(image: &Image<'_>, name: &str) -> Option<u32> {
-    image
-        .metadata
-        .attributes
-        .get_string(name)
+fn dimension(image: ImageRef<'_>, name: &str) -> Option<u32> {
+    super::terminal_visitor::attribute_text(image.attributes(), name)
         .and_then(|value| value.parse().ok())
         .filter(|value| *value > 0)
 }
@@ -109,7 +106,7 @@ fn dimension(image: &Image<'_>, name: &str) -> Option<u32> {
 mod tests {
     use std::borrow::Cow;
 
-    use acdc_parser::{AttributeValue, BlockMetadata, ElementAttributes, Location, Source};
+    use acdc_parser::{AttributeValue, BlockMetadata, ElementAttributes, Image, Location, Source};
 
     use super::*;
 
@@ -131,7 +128,7 @@ mod tests {
     fn protocol_image_uses_integer_dimensions_and_alignment()
     -> Result<(), Box<dyn std::error::Error>> {
         let image = image(&[("width", "20"), ("height", "10"), ("align", "right")])?;
-        let config = image_config(&image, 80);
+        let config = image_config((&image).into(), 80);
 
         assert_eq!(config.width, Some(20));
         assert_eq!(config.height, Some(10));
@@ -142,7 +139,7 @@ mod tests {
     #[test]
     fn protocol_image_ignores_percentage_dimensions() -> Result<(), Box<dyn std::error::Error>> {
         let image = image(&[("width", "50%"), ("align", "center")])?;
-        let config = image_config(&image, 80);
+        let config = image_config((&image).into(), 80);
 
         assert_eq!(config.width, None);
         assert_eq!(config.x, 0);

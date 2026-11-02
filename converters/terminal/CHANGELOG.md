@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- Direct users of `TerminalVisitor` must use the shared `DocumentVisitor`,
+  `BlockVisitor`, and `InlineVisitor` callbacks. Terminal output, table layouts,
+  caption numbering, and diagnostic locations remain unchanged.
+
 - `render_listing_to_ansi` now takes typed content and element attributes. Source
   language aliases and line decoration retain their existing behavior.
 

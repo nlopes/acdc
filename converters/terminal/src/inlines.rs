@@ -9,11 +9,10 @@ use acdc_converters_core::{
     Diagnostics, InlineTextTransform, TraversalContext, WarningSource, decode_numeric_char_refs,
     link::{autolink_fallback, link_fallback, mailto_fallback, mailto_target},
     substitutions::{Replacements, TextBoundaries, apply_passthrough_replacements_iter},
-    visitor::WritableVisitor,
     xref::{XrefDisplay, resolve_reference},
 };
 use acdc_parser::{
-    Image, Substitution,
+    Substitution,
     ast::{
         AttributeValueRef, ButtonRef, ContentRef, CrossReferenceRef, IconRef, IndexTermRef,
         IndexTermRelationshipRef, InlineImageRef, InlineKind, InlineRef, KeyboardRef, LinkRef,
@@ -555,13 +554,13 @@ impl<'a, W: Write> crate::TerminalVisitor<'a, '_, W> {
                 w.queue(SetAttribute(Attribute::NormalIntensity))?;
             }
             InlineKind::Highlight(h) => {
-                if h.roles().iter().eq(["underline"]) {
+                if h.role() == Some("underline") {
                     let w = self.writer_mut();
                     w.queue(SetAttribute(Attribute::Underlined))?;
                     self.write_content(traversal, h.content())?;
                     let w = self.writer_mut();
                     w.queue(SetAttribute(Attribute::NoUnderline))?;
-                } else if h.roles().iter().eq(["line-through"]) {
+                } else if h.role() == Some("line-through") {
                     let w = self.writer_mut();
                     w.queue(SetAttribute(Attribute::CrossedOut))?;
                     self.write_content(traversal, h.content())?;
@@ -881,10 +880,6 @@ fn is_self_linked_image(node: InlineRef<'_>) -> bool {
     matches!(node.kind(), InlineKind::Image(image) if attribute_text(image.attributes(), "link").is_some())
 }
 
-pub(crate) fn block_image_alt(image: &Image<'_>) -> String {
-    acdc_converters_core::media::image_alt(&image.source, image.alt.as_ref()).into_owned()
-}
-
 fn render_inline_image<'a, W: Write + ?Sized>(
     image: InlineImageRef<'_>,
     w: &mut W,
@@ -1027,7 +1022,6 @@ mod tests {
     use super::*;
     use crate::{TerminalVisitor, create_test_processor};
 
-    use acdc_converters_core::visitor::Visitor;
     use acdc_parser::{
         Anchor, Bold, CrossReference, CurvedApostrophe, CurvedQuotation, Form, Highlight,
         InlineImage, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, Location,
@@ -1056,7 +1050,7 @@ mod tests {
             acdc_converters_core::Converter::document_attributes(&processor).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
-        visitor.visit_paragraph(&mut traversal, &paragraph)?;
+        visitor.render_paragraph(&mut traversal, (&paragraph).into())?;
         let output = visitor.into_writer();
 
         Ok(String::from_utf8_lossy(&output).to_string())

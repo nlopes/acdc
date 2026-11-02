@@ -10,16 +10,12 @@ use std::{
 use acdc_converters_core::substitutions::SubsFlags;
 use acdc_converters_core::{
     BackendProfile, Converter, Diagnostics, InlineTextTransform, Options, TraversalContext,
-    section::has_index_section, visitor::Visitor, xref::XrefGuard,
+    section::contains_index_section, visitor::DocumentVisitor, xref::XrefGuard,
 };
 #[cfg(any(test, feature = "emulator"))]
 use acdc_parser::DocumentAttributes;
-#[cfg(feature = "emulator")]
-use acdc_parser::ast::{AttributesRef, ContentRef};
-use acdc_parser::{
-    BlockMetadata, Caption, CaptionKind, Document, InlineNode, Options as ParserOptions, Reference,
-    TocEntry,
-};
+use acdc_parser::ast::{AttributesRef, CaptionRef, ContentRef, DocumentRef};
+use acdc_parser::{CaptionKind, Document, Options as ParserOptions, Reference};
 
 pub(crate) use appearance::Appearance;
 
@@ -54,7 +50,7 @@ pub(crate) enum IndexCatalogRelationship {
 pub struct Processor<'a> {
     pub(crate) options: Options,
     pub(crate) parser_options: ParserOptions<'a>,
-    pub(crate) toc_entries: Vec<TocEntry<'a>>,
+    pub(crate) document: Option<DocumentRef<'a>>,
     pub(crate) references: Rc<HashMap<&'a str, Reference<'a>>>,
     /// Keeps a cross-reference inside a resolved target's text from recursing.
     pub(crate) xref_guard: XrefGuard,
@@ -111,7 +107,7 @@ pub(crate) fn create_test_processor_with(
     Processor {
         options: Options::default(),
         parser_options: ParserOptions::default().with_document_attributes(document_attributes),
-        toc_entries: vec![],
+        document: None,
         references: Rc::new(HashMap::new()),
         xref_guard: XrefGuard::default(),
         example_counter: Rc::new(Cell::new(0)),
@@ -161,7 +157,7 @@ impl<'a> Converter<'a> for Processor<'a> {
         Ok(Self {
             options,
             parser_options,
-            toc_entries: vec![],
+            document: None,
             references: Rc::new(HashMap::new()),
             xref_guard: XrefGuard::default(),
             example_counter: Rc::new(Cell::new(0)),
@@ -205,29 +201,38 @@ impl<'a> Converter<'a> for Processor<'a> {
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Self::Error> {
         // Per-conversion processor borrows from `doc`; lifetime independent of `self`.
+        let document = DocumentRef::from(doc);
         let processor = Processor {
             parser_options: ParserOptions::default()
-                .with_document_attributes(doc.attributes.clone()),
-            toc_entries: doc.toc_entries.clone(),
-            references: Rc::new(doc.references.clone()),
+                .with_document_attributes(document.attributes().into()),
+            document: Some(document),
+            references: Rc::new(document.references().into()),
             xref_guard: XrefGuard::default(),
             options: self.options.clone(),
-            example_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Example))),
-            figure_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Figure))),
-            listing_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Listing))),
-            table_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Table))),
+            example_counter: Rc::new(Cell::new(
+                document.highest_caption_number(CaptionKind::Example),
+            )),
+            figure_counter: Rc::new(Cell::new(
+                document.highest_caption_number(CaptionKind::Figure),
+            )),
+            listing_counter: Rc::new(Cell::new(
+                document.highest_caption_number(CaptionKind::Listing),
+            )),
+            table_counter: Rc::new(Cell::new(
+                document.highest_caption_number(CaptionKind::Table),
+            )),
             appearance: self.appearance.clone(),
             terminal_width: self.terminal_width,
             index_entries: Rc::new(RefCell::new(Vec::new())),
-            has_valid_index_section: has_index_section(&doc.blocks),
+            has_valid_index_section: contains_index_section(document.blocks()),
             list_indent: Rc::new(Cell::new(0)),
             warned_fallbacks: Rc::new(RefCell::new(HashSet::new())),
             #[cfg(feature = "pre-spec-subs")]
             current_subs: Rc::new(Cell::new(SubsFlags::all())),
         };
-        let mut traversal = TraversalContext::new(&doc.attributes);
+        let mut traversal = TraversalContext::new(document.attributes());
         let mut visitor = TerminalVisitor::new(writer, &processor, diagnostics.reborrow());
-        visitor.visit_document(&mut traversal, doc)
+        visitor.visit_document(&mut traversal, document)
     }
 
     fn name(&self) -> &'static str {
@@ -239,18 +244,16 @@ impl Processor<'_> {
     /// Return the caption prefix for a titled block.
     pub(crate) fn caption_prefix(
         &self,
-        metadata: &BlockMetadata<'_>,
+        attributes: AttributesRef<'_>,
         fallback: Option<CaptionKind>,
     ) -> Option<String> {
-        let resolved = match (&metadata.caption, fallback) {
-            (Some(caption), _) => caption.clone(),
-            (None, Some(kind)) => {
-                Caption::resolve_owned(metadata, self.parser_options.document_attributes(), kind)
-            }
-            (None, None) => return None,
-        };
+        let resolved = CaptionRef::resolve(
+            attributes,
+            self.parser_options.document_attributes().into(),
+            fallback,
+        )?;
         match resolved {
-            Caption::Numbered {
+            CaptionRef::Numbered {
                 label,
                 number,
                 kind,
@@ -259,11 +262,11 @@ impl Processor<'_> {
                     .map_or_else(|| self.next_caption_number(kind), std::num::NonZeroU32::get);
                 Some(format!("{label} {number}. "))
             }
-            Caption::Custom(prefix) => Some(prefix.into_owned()),
-            Caption::CustomContent(content) => {
-                Some(acdc_converters_core::inlines_to_string(&content))
+            CaptionRef::Custom(prefix) => Some(prefix.to_owned()),
+            CaptionRef::CustomContent(content) => {
+                Some(InlineTextTransform::default().content_to_string(content))
             }
-            Caption::Unnumbered | _ => None,
+            CaptionRef::Unnumbered | _ => None,
         }
     }
 
@@ -501,19 +504,16 @@ impl Drop for ColorOutputGuard {
     }
 }
 
-/// Plain text for a heading or caption.
-///
-/// Every node contributes its text: a link contributes its link text, and a
-/// cross-reference contributes its target's reference text, matching
-/// `asciidoctor`.
-pub(crate) fn extract_heading_text(
-    nodes: &[InlineNode],
+fn extract_heading_content(
+    nodes: Option<ContentRef<'_>>,
     references: &HashMap<&str, Reference<'_>>,
 ) -> String {
-    InlineTextTransform::default()
-        .decode_char_refs(true)
-        .references(references)
-        .to_string(nodes)
+    nodes.map_or_else(String::new, |content| {
+        InlineTextTransform::default()
+            .decode_char_refs(true)
+            .references(references)
+            .content_to_string(content)
+    })
 }
 
 mod admonition;

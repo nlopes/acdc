@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use acdc_converters_core::{
     Converter, Diagnostics, Options as ConverterOptions, TraversalContext, WarningSource,
-    visitor::Visitor,
+    visitor::DocumentVisitor,
 };
 use acdc_converters_dev::output::remove_lines_trailing_whitespace;
 use acdc_converters_terminal::{Capabilities, Processor, TerminalVisitor};
@@ -78,7 +78,7 @@ fn buffered_blocks_share_attributes_but_asciidoc_cells_restore_them() -> Result<
         let mut warnings = Vec::new();
         let diagnostics = Diagnostics::new(&source, &mut warnings);
         let mut visitor = TerminalVisitor::new(Vec::new(), &processor, diagnostics);
-        visitor.visit_document(&mut traversal, document)?;
+        visitor.visit_document(&mut traversal, document.into())?;
         drop(visitor);
         assert_eq!(
             traversal.get("imagesdir").and_then(|value| value.text()),
@@ -107,7 +107,7 @@ fn unhandled_parser_block_warning_is_structured() -> Result<(), Error> {
             acdc_converters_core::Converter::document_attributes(&processor).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = TerminalVisitor::new(&mut output, &processor, diagnostics.reborrow());
-        visitor.visit_unhandled_block(&mut traversal, block)?;
+        visitor.visit_unhandled_block(&mut traversal, block.into())?;
     }
 
     assert_eq!(output, [] as [u8; 0]);
