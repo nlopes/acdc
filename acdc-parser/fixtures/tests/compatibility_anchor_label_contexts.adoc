@@ -1,0 +1,10 @@
+= Bracket anchor contexts
+
+include::includes/anchor_labels_selected.adoc[lines=2..4,indent=0]
+
+[cols="a"]
+|===
+|Cell [[cell-label,Cell [nested] label (R)]] after.
+|===
+
+See <<included-label>> and <<cell-label>>.

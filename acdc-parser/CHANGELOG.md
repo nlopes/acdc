@@ -335,6 +335,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Inline `[[id,label]]` anchors accept single closing brackets inside their
+  labels, matching Asciidoctor. Nested macro syntax stays in the reference label
+  instead of rendering or registering as body content.
+
 - Reference labels resolve copyright and trademark signs, punctuation, and
   escaped tokens in the parser. Asciidoctor-mode labels keep macros literal;
   Draft's unquoted and double-quoted named `reftext` values remain literal.
