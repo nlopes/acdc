@@ -460,6 +460,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Documented shared block extensions in both compatibility modes: nestable tilde
+  open blocks, longer backtick fences, and uppercase checklist markers. The
+  `paragraph` style on indented text remains specific to Draft mode.
+
 - Draft mode recognizes keyboard, button, and menu macros without
   `experimental`. This is an acdc choice inspired by the unfinished draft
   outline. Asciidoctor mode still requires explicit activation.

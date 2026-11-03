@@ -339,6 +339,20 @@ have been removed. Select `CompatibilityMode::Asciidoctor` for legacy
 underlined headings, or `CompatibilityMode::Draft` for ATX-only headings.
 The `setext` Cargo feature remains as a compatibility alias with no effect.
 
+Both modes support Markdown-style hash headings, `>` blockquotes, and fenced
+code blocks. acdc accepts fences of three or more backticks with a matching
+closing length; Asciidoctor recognizes three-backtick fences. Both modes also
+support nestable open blocks with four or more tildes, as proposed by [SDR-1](https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/sdrs/sdr-001-open-block-delimiter.adoc).
+These shared extensions do not require Draft mode. The legacy `--` open-block
+form stays available in both modes without a deprecation warning.
+
+`[float]` remains an alias for `[discrete]` in both modes and reports
+`WarningKind::LegacyFloatDiscreteHeading`; use `[discrete]` for new documents.
+`[normal]` turns indented text into a paragraph in both modes. `[paragraph]`
+does the same in Draft; Asciidoctor mode keeps it literal, matching Asciidoctor.
+Uppercase `[X]` marks an unordered item as checked in both modes, alongside
+`[x]` and `[*]`. Ordered items keep these bracketed markers as ordinary text.
+
 Asciidoctor mode requires `:experimental:` for `kbd:[]`, `btn:[]`, and
 `menu:` macros. Draft recognizes them without that attribute. This is an acdc
 choice inspired by the unfinished draft outline, not a settled draft rule.

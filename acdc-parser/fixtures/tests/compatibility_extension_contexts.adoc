@@ -1,0 +1,23 @@
+= Extension contexts
+
+include::includes/compatibility_extension_selected.adoc[tag=selected]
+
+[cols="a"]
+|===
+|* [X] Checked cell item
+* [x] Checked lowercase item
+* [*] Checked star item
+* [ ] Unchecked item
+
+//-
+
+. [X] Literal ordered marker
+
+~~~~
+Cell open content.
+~~~~
+
+```text
+Cell source.
+```
+|===

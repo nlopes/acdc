@@ -1,0 +1,642 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Extension contexts",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 20
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 20
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Included heading",
+          "location": [
+            {
+              "line": 3,
+              "col": 4,
+              "file": [
+                "includes/compatibility_extension_selected.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 19,
+              "file": [
+                "includes/compatibility_extension_selected.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "open",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "~~~~",
+          "blocks": [
+            {
+              "name": "paragraph",
+              "type": "block",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Included π paragraph with ",
+                  "location": [
+                    {
+                      "line": 6,
+                      "col": 1,
+                      "file": [
+                        "includes/compatibility_extension_selected.adoc"
+                      ]
+                    },
+                    {
+                      "line": 6,
+                      "col": 26,
+                      "file": [
+                        "includes/compatibility_extension_selected.adoc"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "footnote",
+                  "type": "inline",
+                  "id": null,
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "One note",
+                      "location": [
+                        {
+                          "line": 6,
+                          "col": 37,
+                          "file": [
+                            "includes/compatibility_extension_selected.adoc"
+                          ]
+                        },
+                        {
+                          "line": 6,
+                          "col": 44,
+                          "file": [
+                            "includes/compatibility_extension_selected.adoc"
+                          ]
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 6,
+                      "col": 27,
+                      "file": [
+                        "includes/compatibility_extension_selected.adoc"
+                      ]
+                    },
+                    {
+                      "line": 6,
+                      "col": 45,
+                      "file": [
+                        "includes/compatibility_extension_selected.adoc"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": ".",
+                  "location": [
+                    {
+                      "line": 6,
+                      "col": 46,
+                      "file": [
+                        "includes/compatibility_extension_selected.adoc"
+                      ]
+                    },
+                    {
+                      "line": 6,
+                      "col": 46,
+                      "file": [
+                        "includes/compatibility_extension_selected.adoc"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 6,
+                  "col": 1,
+                  "file": [
+                    "includes/compatibility_extension_selected.adoc"
+                  ]
+                },
+                {
+                  "line": 6,
+                  "col": 46,
+                  "file": [
+                    "includes/compatibility_extension_selected.adoc"
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "open",
+              "type": "block",
+              "form": "delimited",
+              "delimiter": "~~~~~~",
+              "blocks": [
+                {
+                  "name": "paragraph",
+                  "type": "block",
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Nested included paragraph.",
+                      "location": [
+                        {
+                          "line": 9,
+                          "col": 1,
+                          "file": [
+                            "includes/compatibility_extension_selected.adoc"
+                          ]
+                        },
+                        {
+                          "line": 9,
+                          "col": 26,
+                          "file": [
+                            "includes/compatibility_extension_selected.adoc"
+                          ]
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 9,
+                      "col": 1,
+                      "file": [
+                        "includes/compatibility_extension_selected.adoc"
+                      ]
+                    },
+                    {
+                      "line": 9,
+                      "col": 26,
+                      "file": [
+                        "includes/compatibility_extension_selected.adoc"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 8,
+                  "col": 1,
+                  "file": [
+                    "includes/compatibility_extension_selected.adoc"
+                  ]
+                },
+                {
+                  "line": 10,
+                  "col": 6,
+                  "file": [
+                    "includes/compatibility_extension_selected.adoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 5,
+              "col": 1,
+              "file": [
+                "includes/compatibility_extension_selected.adoc"
+              ]
+            },
+            {
+              "line": 11,
+              "col": 4,
+              "file": [
+                "includes/compatibility_extension_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "table",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "|===",
+          "metadata": {
+            "attributes": {
+              "cols": "a"
+            }
+          },
+          "content": {
+            "header": null,
+            "footer": null,
+            "rows": [
+              {
+                "columns": [
+                  {
+                    "content": [
+                      {
+                        "name": "list",
+                        "type": "block",
+                        "variant": "unordered",
+                        "marker": "*",
+                        "items": [
+                          {
+                            "name": "listItem",
+                            "type": "block",
+                            "marker": "*",
+                            "checked": true,
+                            "principal": [
+                              {
+                                "name": "text",
+                                "type": "string",
+                                "value": "Checked cell item",
+                                "location": [
+                                  {
+                                    "line": 7,
+                                    "col": 8
+                                  },
+                                  {
+                                    "line": 7,
+                                    "col": 24
+                                  }
+                                ]
+                              }
+                            ],
+                            "location": [
+                              {
+                                "line": 7,
+                                "col": 2
+                              },
+                              {
+                                "line": 7,
+                                "col": 24
+                              }
+                            ]
+                          },
+                          {
+                            "name": "listItem",
+                            "type": "block",
+                            "marker": "*",
+                            "checked": true,
+                            "principal": [
+                              {
+                                "name": "text",
+                                "type": "string",
+                                "value": "Checked lowercase item",
+                                "location": [
+                                  {
+                                    "line": 8,
+                                    "col": 7
+                                  },
+                                  {
+                                    "line": 8,
+                                    "col": 28
+                                  }
+                                ]
+                              }
+                            ],
+                            "location": [
+                              {
+                                "line": 8,
+                                "col": 1
+                              },
+                              {
+                                "line": 8,
+                                "col": 28
+                              }
+                            ]
+                          },
+                          {
+                            "name": "listItem",
+                            "type": "block",
+                            "marker": "*",
+                            "checked": true,
+                            "principal": [
+                              {
+                                "name": "text",
+                                "type": "string",
+                                "value": "Checked star item",
+                                "location": [
+                                  {
+                                    "line": 9,
+                                    "col": 7
+                                  },
+                                  {
+                                    "line": 9,
+                                    "col": 23
+                                  }
+                                ]
+                              }
+                            ],
+                            "location": [
+                              {
+                                "line": 9,
+                                "col": 1
+                              },
+                              {
+                                "line": 9,
+                                "col": 23
+                              }
+                            ]
+                          },
+                          {
+                            "name": "listItem",
+                            "type": "block",
+                            "marker": "*",
+                            "checked": false,
+                            "principal": [
+                              {
+                                "name": "text",
+                                "type": "string",
+                                "value": "Unchecked item",
+                                "location": [
+                                  {
+                                    "line": 10,
+                                    "col": 7
+                                  },
+                                  {
+                                    "line": 10,
+                                    "col": 20
+                                  }
+                                ]
+                              }
+                            ],
+                            "location": [
+                              {
+                                "line": 10,
+                                "col": 1
+                              },
+                              {
+                                "line": 10,
+                                "col": 20
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 7,
+                            "col": 2
+                          },
+                          {
+                            "line": 10,
+                            "col": 20
+                          }
+                        ]
+                      },
+                      {
+                        "name": "comment",
+                        "type": "block",
+                        "content": "-",
+                        "location": [
+                          {
+                            "line": 12,
+                            "col": 1
+                          },
+                          {
+                            "line": 12,
+                            "col": 4
+                          }
+                        ]
+                      },
+                      {
+                        "name": "list",
+                        "type": "block",
+                        "variant": "ordered",
+                        "marker": ".",
+                        "items": [
+                          {
+                            "name": "listItem",
+                            "type": "block",
+                            "marker": ".",
+                            "principal": [
+                              {
+                                "name": "text",
+                                "type": "string",
+                                "value": "[X] Literal ordered marker",
+                                "location": [
+                                  {
+                                    "line": 14,
+                                    "col": 3
+                                  },
+                                  {
+                                    "line": 14,
+                                    "col": 28
+                                  }
+                                ]
+                              }
+                            ],
+                            "location": [
+                              {
+                                "line": 14,
+                                "col": 1
+                              },
+                              {
+                                "line": 14,
+                                "col": 28
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 14,
+                            "col": 1
+                          },
+                          {
+                            "line": 14,
+                            "col": 28
+                          }
+                        ]
+                      },
+                      {
+                        "name": "open",
+                        "type": "block",
+                        "form": "delimited",
+                        "delimiter": "~~~~",
+                        "blocks": [
+                          {
+                            "name": "paragraph",
+                            "type": "block",
+                            "inlines": [
+                              {
+                                "name": "text",
+                                "type": "string",
+                                "value": "Cell open content.",
+                                "location": [
+                                  {
+                                    "line": 17,
+                                    "col": 1
+                                  },
+                                  {
+                                    "line": 17,
+                                    "col": 18
+                                  }
+                                ]
+                              }
+                            ],
+                            "location": [
+                              {
+                                "line": 17,
+                                "col": 1
+                              },
+                              {
+                                "line": 17,
+                                "col": 18
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 16,
+                            "col": 1
+                          },
+                          {
+                            "line": 18,
+                            "col": 4
+                          }
+                        ]
+                      },
+                      {
+                        "name": "listing",
+                        "type": "block",
+                        "form": "delimited",
+                        "delimiter": "```",
+                        "metadata": {
+                          "attributes": {
+                            "language": "text"
+                          },
+                          "style": "source"
+                        },
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell source.",
+                            "location": [
+                              {
+                                "line": 21,
+                                "col": 1
+                              },
+                              {
+                                "line": 21,
+                                "col": 12
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 20,
+                            "col": 1
+                          },
+                          {
+                            "line": 22,
+                            "col": 3
+                          }
+                        ]
+                      }
+                    ],
+                    "style": "asciidoc"
+                  }
+                ]
+              }
+            ],
+            "columns": [
+              {
+                "style": "asciidoc"
+              }
+            ],
+            "location": [
+              {
+                "line": 6,
+                "col": 1
+              },
+              {
+                "line": 23,
+                "col": 4
+              }
+            ]
+          },
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 23,
+              "col": 4
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1,
+          "file": [
+            "includes/compatibility_extension_selected.adoc"
+          ]
+        },
+        {
+          "line": 23,
+          "col": 4
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 23,
+      "col": 4
+    }
+  ]
+}
