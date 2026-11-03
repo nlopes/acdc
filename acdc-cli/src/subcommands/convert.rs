@@ -39,6 +39,10 @@ type RawAttributes<'a> = std::collections::HashMap<Cow<'a, str>, AttributeValue<
 #[cfg_attr(feature = "pdf", command(group(clap::ArgGroup::new("theme_or_export").args(["theme", "emit_theme_config"]).multiple(true))))]
 #[allow(clippy::struct_excessive_bools)] // CLI flags are naturally booleans
 pub struct Args {
+    /// Language rules: asciidoctor or draft
+    #[arg(long, value_name = "MODE", default_value_t = acdc_parser::CompatibilityMode::default())]
+    pub compatibility_mode: acdc_parser::CompatibilityMode,
+
     /// Input from stdin
     #[arg(long, conflicts_with = "files")]
     pub stdin: bool,
@@ -1714,6 +1718,7 @@ fn parse_attribute(raw_attr: &str) -> ParsedAttribute {
 fn build_parser_options(args: &Args, base_options: &Options) -> OptionsBuilder<'static> {
     let mut builder = ParserOptions::builder()
         .with_safe_mode(base_options.safe_mode())
+        .with_compatibility_mode(args.compatibility_mode)
         .with_max_total_include_bytes(args.max_total_include_bytes)
         .with_attributes(build_attribute_overrides(&args.attributes))
         .with_defaults(build_attributes_map(&args.attributes));

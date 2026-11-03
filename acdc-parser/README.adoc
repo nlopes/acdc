@@ -271,6 +271,7 @@ let parsed = acdc_parser::parse("A *bold* paragraph.", &options)?;
 The same options work with string, file, reader, and inline entry points.
 Document attributes cannot select a different mode. Safe mode, include loaders,
 resource limits, and output format stay separate.
+Use `asciidoctor` and `draft` when parsing or serializing the mode as a string.
 
 See link:../ARCHITECTURE.adoc#compatibility-mode-contract[the architecture document] for the reasoning.
 

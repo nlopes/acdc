@@ -1,7 +1,11 @@
 use std::{
     borrow::Cow,
+    fmt,
     path::{Path, PathBuf},
+    str::FromStr,
 };
+
+use serde::{Deserialize, Serialize};
 
 pub use crate::safe_mode::SafeMode;
 
@@ -21,7 +25,9 @@ const DEFAULT_MAX_TOTAL_INCLUDE_BYTES: usize = 64 * 1024 * 1024;
 /// Neither mode promises complete conformance. The choice does not change safe
 /// mode or output format.
 /// Explicit block `subs=` controls are shared; Draft supports them as an acdc extension.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+/// String parsing, display, and Serde use `asciidoctor` and `draft`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
 #[non_exhaustive]
 pub enum CompatibilityMode {
     /// Aim for maximum compatibility with Asciidoctor, with documented exceptions
@@ -31,6 +37,29 @@ pub enum CompatibilityMode {
     /// Resolve attribute references before ordinary inline syntax and apply
     /// other supported draft rules while retaining shared acdc behavior.
     Draft,
+}
+
+impl fmt::Display for CompatibilityMode {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::Asciidoctor => "asciidoctor",
+            Self::Draft => "draft",
+        })
+    }
+}
+
+impl FromStr for CompatibilityMode {
+    type Err = String;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "asciidoctor" => Ok(Self::Asciidoctor),
+            "draft" => Ok(Self::Draft),
+            _ => Err(format!(
+                "invalid compatibility mode: '{value}', expected asciidoctor or draft"
+            )),
+        }
+    }
 }
 
 impl CompatibilityMode {

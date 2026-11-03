@@ -151,6 +151,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Applications can parse, display, and serialize `CompatibilityMode` using the
+  canonical names `asciidoctor` and `draft`. Unknown names are rejected.
+
 - Formatted document attributes now honor the declared order of quotes,
   replacements, macros, and attributes. `pass:q,a[{word}]` keeps formatting
   introduced by `{word}` literal, while `pass:a,q[{word}]` parses it, matching

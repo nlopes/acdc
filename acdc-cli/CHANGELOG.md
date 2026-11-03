@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `convert`, `inspect`, `lint`, and `execute` accept `--compatibility-mode
+  asciidoctor|draft`. Asciidoctor remains the default. The selected rules apply
+  to every input and nested include/table cell; safety and resource limits
+  remain separate.
+
 - `convert --force-local-file-xrefs` resolves file-qualified references by their
   local anchors in combined or partially included documents. It preserves URLs
   and custom text and requires a nonempty fragment. This opt-in override can

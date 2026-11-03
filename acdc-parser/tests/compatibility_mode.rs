@@ -390,3 +390,25 @@ fn document_attributes_cannot_select_the_compatibility_mode() -> Result<(), Erro
     }
     Ok(())
 }
+
+#[test]
+fn compatibility_mode_has_one_configuration_spelling() -> Result<(), Error> {
+    for (mode, name) in [
+        (CompatibilityMode::Asciidoctor, "asciidoctor"),
+        (CompatibilityMode::Draft, "draft"),
+    ] {
+        assert_eq!(name.parse::<CompatibilityMode>()?, mode);
+        assert_eq!(mode.to_string(), name);
+        assert_eq!(serde_json::to_value(mode)?, serde_json::json!(name));
+        assert_eq!(
+            serde_json::from_value::<CompatibilityMode>(serde_json::json!(name))?,
+            mode
+        );
+    }
+    for name in ["", "Draft", "spec-only", "draft ", "html"] {
+        assert!(name.parse::<CompatibilityMode>().is_err());
+        assert!(serde_json::from_value::<CompatibilityMode>(serde_json::json!(name)).is_err());
+    }
+    assert!(serde_json::from_value::<CompatibilityMode>(serde_json::Value::Null).is_err());
+    Ok(())
+}

@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `LintOptions::with_compatibility_mode()` selects Asciidoctor or Draft parsing
+  rules for file and string inputs. Asciidoctor remains the default, with the
+  existing Secure include policy.
+
 - `LintOptions::with_max_total_include_bytes()` sets the total selected include
   text allowed per parse, in bytes. The default is 64 MiB. Safe modes and the
   10 MiB per-include limit still apply.

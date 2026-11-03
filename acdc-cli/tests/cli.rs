@@ -2342,3 +2342,162 @@ fn legacy_underlined_headings_need_no_conversion_flag() -> Result<(), Box<dyn Er
     assert!(!output_text(&help.stdout).contains("--setext"));
     Ok(())
 }
+
+#[cfg(feature = "html")]
+#[test]
+fn compatibility_mode_reaches_conversion_files_stdin_includes_and_cells()
+-> Result<(), Box<dyn Error>> {
+    let directory = tempfile::tempdir()?;
+    let path = directory.path().join("main.adoc");
+    let source = ":word: *Bold*\n:compatibility-mode: asciidoctor\n\ninclude::part.adoc[]\n\n[cols=a]\n|===\n|Cell {word}.\n|===\n";
+    fs::write(&path, source)?;
+    fs::write(directory.path().join("part.adoc"), "Included {word}.\n")?;
+    for mode in [None, Some("asciidoctor"), Some("draft")] {
+        for stdin in [false, true] {
+            let mut args = vec![
+                "convert",
+                "--backend",
+                "html",
+                "--embedded",
+                "--out-file",
+                "-",
+            ];
+            if let Some(mode) = mode {
+                args.extend(["--compatibility-mode", mode]);
+            }
+            let path_text = path.to_string_lossy();
+            if stdin {
+                args.push("--stdin");
+            } else {
+                args.push(&path_text);
+            }
+            let output = run_acdc_in(directory.path(), &args, stdin.then_some(source))?;
+            assert!(output.status.success(), "{}", output_text(&output.stderr));
+            assert!(output.stderr.is_empty(), "{}", output_text(&output.stderr));
+            let text = output_text(&output.stdout);
+            for prefix in ["Included", "Cell"] {
+                let word = if mode == Some("draft") {
+                    "<strong>Bold</strong>"
+                } else {
+                    "*Bold*"
+                };
+                assert!(text.contains(&format!("{prefix} {word}.")), "{text}");
+            }
+        }
+    }
+    Ok(())
+}
+
+#[cfg(feature = "inspect")]
+#[test]
+fn compatibility_mode_reaches_inspect() -> Result<(), Box<dyn Error>> {
+    let directory = tempfile::tempdir()?;
+    let path = directory.path().join("main.adoc");
+    fs::write(&path, "= Tool\n:word: *Task*\n\n== {word}\n\nBody.\n")?;
+    for mode in ["asciidoctor", "draft"] {
+        let output = run_acdc(
+            &[
+                "inspect",
+                "--compatibility-mode",
+                mode,
+                &path.to_string_lossy(),
+            ],
+            None,
+        )?;
+        assert!(output.status.success(), "{}", output_text(&output.stderr));
+        let text = output_text(&output.stdout);
+        assert!(text.contains("Task"), "{text}");
+        assert_eq!(text.contains("*Task*"), mode == "asciidoctor", "{text}");
+    }
+    Ok(())
+}
+
+#[cfg(feature = "execute")]
+#[test]
+fn compatibility_mode_reaches_execute_without_running_commands() -> Result<(), Box<dyn Error>> {
+    let directory = tempfile::tempdir()?;
+    let path = directory.path().join("main.adoc");
+    fs::write(
+        &path,
+        "= Tool\n:word: *Task*\n\n== {word}\n\n[.command,id=selected]\n----\ntouch marker\n----\n",
+    )?;
+    for mode in ["asciidoctor", "draft"] {
+        let output = spawn_acdc(
+            Some(directory.path()),
+            &[
+                "execute",
+                "--list",
+                "--compatibility-mode",
+                mode,
+                &path.to_string_lossy(),
+            ],
+            None,
+        )?;
+        assert!(output.status.success(), "{}", output_text(&output.stderr));
+        let text = output_text(&output.stdout);
+        let title = if mode == "draft" { "Task" } else { "*Task*" };
+        assert!(text.contains(&format!("section=\"{title}\"")), "{text}");
+        assert!(!directory.path().join("marker").exists());
+    }
+    Ok(())
+}
+
+#[cfg(feature = "lint")]
+#[test]
+fn compatibility_mode_reaches_lint_files_and_stdin() -> Result<(), Box<dyn Error>> {
+    let directory = tempfile::tempdir()?;
+    let path = directory.path().join("main.adoc");
+    let source = "Legacy\n------\n\nBody.\n";
+    fs::write(&path, source)?;
+    for mode in ["asciidoctor", "draft"] {
+        for stdin in [false, true] {
+            let mut args = vec![
+                "lint",
+                "--output-style",
+                "compact",
+                "--deny",
+                "unterminated-delimited-block",
+                "--compatibility-mode",
+                mode,
+            ];
+            let path_text = path.to_string_lossy();
+            if stdin {
+                args.push("--stdin");
+            } else {
+                args.push(&path_text);
+            }
+            let output = run_acdc(&args, stdin.then_some(source))?;
+            assert_eq!(
+                output.status.success(),
+                mode == "asciidoctor",
+                "{}",
+                output_text(&output.stderr)
+            );
+            assert_eq!(
+                output_text(&output.stderr).contains("unterminated-delimited-block"),
+                mode == "draft"
+            );
+        }
+    }
+    Ok(())
+}
+
+#[cfg(any(
+    feature = "html",
+    feature = "lint",
+    feature = "inspect",
+    feature = "execute"
+))]
+#[test]
+fn compatibility_mode_rejects_unknown_names_before_reading_input() -> Result<(), Box<dyn Error>> {
+    for command in include_budget_commands() {
+        let mut args = command.to_vec();
+        args.extend(["--compatibility-mode", "spec-only", "does-not-exist.adoc"]);
+        let output = run_acdc(&args, None)?;
+        assert_eq!(output.status.code(), Some(2));
+        let error = output_text(&output.stderr);
+        assert!(error.contains("expected asciidoctor or draft"), "{error}");
+        assert_eq!(output.stdout.as_slice(), b"");
+    }
+    Ok(())
+}

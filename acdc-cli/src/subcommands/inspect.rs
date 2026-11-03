@@ -16,6 +16,10 @@ use crossterm::style::Stylize;
 /// Show a human-readable structural outline of an `AsciiDoc` document
 #[derive(clap::Args)]
 pub struct Args {
+    /// Language rules: asciidoctor or draft
+    #[arg(long, value_name = "MODE", default_value_t = acdc_parser::CompatibilityMode::default())]
+    pub compatibility_mode: acdc_parser::CompatibilityMode,
+
     /// Safe mode to use while parsing the document
     #[arg(short = 'S', long, default_value = "unsafe")]
     pub safe_mode: acdc_parser::SafeMode,
@@ -470,6 +474,7 @@ impl<'a, W: Write> Visitor<'a> for TreeVisitor<W> {
 pub fn run(args: &Args) -> Result<(), Box<dyn Error>> {
     let options = Options::builder()
         .with_safe_mode(args.safe_mode)
+        .with_compatibility_mode(args.compatibility_mode)
         .with_max_total_include_bytes(args.max_total_include_bytes)
         .build()?;
     let parsed = parse_file(&args.file, &options)?;

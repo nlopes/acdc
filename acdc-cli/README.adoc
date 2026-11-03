@@ -136,6 +136,17 @@ printf '= Title\n\nBody.\n' | acdc convert --stdin -o -
 When `--out-file` is combined with several inputs, only the first input is processed.
 `--open` opens converter-reported output files with the system's default application and is ignored for stdout.
 
+`convert`, `inspect`, `lint`, and `execute` accept `--compatibility-mode asciidoctor|draft`.
+Asciidoctor is the default; Draft selects the parser's supported draft rules.
+The choice applies to the whole input, including includes and table cells.
+For example:
+
+[source,console]
+----
+acdc convert --compatibility-mode draft --embedded -o - guide.adoc
+acdc lint --compatibility-mode draft guide.adoc
+----
+
 `convert`, `lint`, and `inspect` default to Unsafe mode for trusted local documents.
 Use `-S secure` or `--safe-mode secure` to prevent include reads.
 `execute` defaults to Safe. This mode restricts include paths but does not sandbox commands.
