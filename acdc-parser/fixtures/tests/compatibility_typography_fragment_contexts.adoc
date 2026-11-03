@@ -1,0 +1,19 @@
+= Fragment source contexts
+:tail: s
+:join: --
+:dots: ..
+:close: )
+:empty:
+
+Earlier paragraph.
+
+α🚀 *pass:a,r[(C{close}]* and link:guide.html[pass:a,r[.{dots}]].
+
+π footnote:n[pass:a,r[Sam'{tail}].] and footnote:n[].
+
+[cols="1a"]
+|===
+|α pass:a,r[left{join}right] and pass:r,a[left{join}right].
+|===
+
+include::includes/compatibility_typography_fragments.adoc[tag=selected,indent=0]

@@ -101,12 +101,12 @@ fn has_candidate(text: &str) -> bool {
         || text.contains('\'')
 }
 
-struct Replacement {
-    range: Range<usize>,
-    value: ReplacementValue,
+pub(crate) struct Replacement {
+    pub(crate) range: Range<usize>,
+    pub(crate) value: ReplacementValue,
 }
 
-enum ReplacementValue {
+pub(crate) enum ReplacementValue {
     Symbol(SymbolKind),
     Literal(Range<usize>),
 }
@@ -128,7 +128,7 @@ fn late_boundary(state: &ParserState<'_>, position: usize) -> bool {
             .any(|(range, _)| range.start == position && range.end == position)
 }
 
-fn replacements(
+pub(crate) fn replacements(
     text: &str,
     edges: Edges,
     allowed: impl Fn(Range<usize>) -> bool,
@@ -142,6 +142,10 @@ fn replacements(
             cursor += text[cursor..].chars().next().map_or(1, char::len_utf8);
             continue;
         };
+        if escaped && !allowed(cursor..start + 1) {
+            cursor = start;
+            continue;
+        }
         let end = range.end;
         if edits
             .last()

@@ -1,0 +1,154 @@
+use std::ops::Range;
+
+use crate::{
+    InlineNode, Location, Raw, Substitution, Symbol,
+    grammar::{
+        ParserState,
+        inlines::typography::{Edges, ReplacementValue, replacements},
+        utf8_utils::{RoundDirection, step_char},
+    },
+};
+
+use super::fragment_offset;
+
+type Fragment<'raw, 'input> = (Range<usize>, &'raw Raw<'input>);
+
+pub(super) fn resolve_fragments<'a>(
+    fragments: Vec<Raw<'a>>,
+    state: &ParserState<'a>,
+    edges: Edges,
+    late_attributes: bool,
+) -> Vec<InlineNode<'a>> {
+    if !fragments.iter().any(|raw| {
+        raw.subs.contains(&Substitution::Replacements)
+            && raw
+                .content
+                .bytes()
+                .any(|byte| matches!(byte, b'(' | b'.' | b'\'' | b'-'))
+    }) {
+        return fragments.into_iter().map(InlineNode::RawText).collect();
+    }
+    let text: String = fragments.iter().map(|raw| raw.content).collect();
+    let mut offset = 0;
+    let spans = fragments
+        .iter()
+        .map(|raw| {
+            let start = offset;
+            offset += raw.content.len();
+            (start..offset, raw)
+        })
+        .collect::<Vec<_>>();
+    let edits = replacements(&text, edges, |range| {
+        let first = spans.partition_point(|(span, _)| span.end <= range.start);
+        let end = spans.partition_point(|(span, _)| span.start < range.end);
+        spans.get(first..end).is_some_and(|covered| {
+            !covered.is_empty()
+                && covered
+                    .iter()
+                    .all(|(_, raw)| raw.subs.contains(&Substitution::Replacements))
+                && (!late_attributes
+                    || !covered.windows(2).any(|pair| {
+                        let [(_, left), (right_span, right)] = pair else {
+                            return false;
+                        };
+                        range.start < right_span.start
+                            && right_span.start < range.end
+                            && left.location.absolute_end + 1 < right.location.absolute_start
+                    }))
+        })
+    });
+    if edits.is_empty() {
+        return fragments.into_iter().map(InlineNode::RawText).collect();
+    }
+    let text = state.intern_str(&text);
+    let mut result = Vec::new();
+    let mut cursor = 0;
+    for edit in edits {
+        append_fragments(
+            &mut result,
+            text,
+            &spans,
+            cursor..edit.range.start,
+            None,
+            state,
+        );
+        match edit.value {
+            ReplacementValue::Symbol(kind) => result.push(InlineNode::Symbol(Symbol {
+                kind,
+                location: locate(text, &spans, edit.range.clone(), state),
+            })),
+            ReplacementValue::Literal(range) => append_fragments(
+                &mut result,
+                text,
+                &spans,
+                range,
+                Some(edit.range.start),
+                state,
+            ),
+        }
+        cursor = edit.range.end;
+    }
+    append_fragments(&mut result, text, &spans, cursor..text.len(), None, state);
+    result
+}
+
+fn append_fragments<'a>(
+    result: &mut Vec<InlineNode<'a>>,
+    text: &'a str,
+    fragments: &[Fragment<'_, 'a>],
+    range: Range<usize>,
+    literal_start: Option<usize>,
+    state: &ParserState<'a>,
+) {
+    if range.is_empty() {
+        return;
+    }
+    let begin = fragments.partition_point(|(span, _)| span.end <= range.start);
+    let mut first = true;
+    for (span, raw) in fragments
+        .get(begin..)
+        .unwrap_or_default()
+        .iter()
+        .take_while(|(span, _)| span.start < range.end)
+    {
+        let left = range.start.max(span.start);
+        let right = range.end.min(span.end);
+        if left >= right {
+            continue;
+        }
+        let start = if first {
+            literal_start.unwrap_or(left)
+        } else {
+            left
+        };
+        first = false;
+        result.push(InlineNode::RawText(Raw {
+            content: &text[left..right],
+            location: locate(text, fragments, start..right, state),
+            subs: raw
+                .subs
+                .iter()
+                .filter(|substitution| {
+                    literal_start.is_none() || **substitution != Substitution::Replacements
+                })
+                .cloned()
+                .collect(),
+        }));
+    }
+}
+
+fn locate(
+    text: &str,
+    fragments: &[Fragment<'_, '_>],
+    range: Range<usize>,
+    state: &ParserState<'_>,
+) -> Location {
+    let start = fragment_offset(range.start, fragments, false, state);
+    let end = fragment_offset(
+        step_char(text, range.end, RoundDirection::Backward),
+        fragments,
+        true,
+        state,
+    );
+    state.create_location(start, end)
+}

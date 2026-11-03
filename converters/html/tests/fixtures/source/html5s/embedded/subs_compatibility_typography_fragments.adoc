@@ -1,0 +1,28 @@
+= Typography across attribute fragments
+:tail: s
+:join: --
+:dots: ..
+:close: )
+:empty:
+
+pass:a,r[(C{close}] and pass:a,r[.{dots}] and pass:a,r[left{join}right].
+
+pass:r,a[(C{close}] and pass:r,a[.{dots}] and pass:r,a[left{join}right].
+
+pass:a,r[Sam'{tail}] and pass:r,a[Sam'{tail}].
+
+pass:a,r[Sam'{empty}s] and pass:r,a[Sam'{empty}s].
+
+pass:a,r[Sam{empty}'s] and pass:r,a[Sam{empty}'s].
+
+pass:a,r[left{empty}--right] and pass:r,a[left{empty}--right].
+
+pass:a,r[left--{empty}right] and pass:r,a[left--{empty}right].
+
+pass:a,r[(C{empty})] and pass:r,a[(C{empty})].
+
+pass:a,r[\(C{close}] and pass:a,r[\.{dots}].
+
+pass:q,r[*left*--right] and pass:r,q[left--*right*].
+
+pass:a,r[{backslash}(C)] and pass:r,a[{backslash}(C)].

@@ -18,7 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   replacements no longer introduce new symbols or word context, matching
   Asciidoctor. Empty attribute references do not take the source spans of
   following symbols. Dash locations include their consumed whitespace. Earlier callout comment
-  guards stay literal during later replacements. Interior `left--right` and `left -- right` dashes also
+  guards stay literal during later replacements. Raw passthroughs resolve tokens
+  formed across earlier attribute expansions; later expansions cannot create
+  tokens, word context, or replacement escapes. Interior `left--right` and `left -- right` dashes also
   resolve in the parser, including their consumed whitespace and source spans.
 
 - Draft mode keeps block image alt text literal, including single-quoted values,

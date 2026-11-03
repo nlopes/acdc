@@ -1,3 +1,5 @@
+mod typography;
+
 use bumpalo::Bump;
 use std::{mem::take, rc::Rc};
 
@@ -63,31 +65,55 @@ fn process_passthrough<'a>(
                 .last()
                 .is_some_and(|node| node.location().absolute_end == location.absolute_end),
     };
-    finish_raw_nodes(nodes, state, edges)
+    finish_raw_nodes(nodes, state, edges, late_attributes)
 }
 
 fn finish_raw_nodes<'a>(
     nodes: Vec<InlineNode<'a>>,
     state: &ParserState<'a>,
     edges: Edges,
+    late_attributes: bool,
 ) -> Vec<InlineNode<'a>> {
     if state.inline_ctx.rules.contains(InlineRules::INDEX_CATALOG) {
         return nodes;
     }
     let mut result = Vec::with_capacity(nodes.len());
     let count = nodes.len();
-    for (index, mut node) in nodes.into_iter().enumerate() {
+    let mut nodes = nodes.into_iter().enumerate().peekable();
+    while let Some((index, mut node)) = nodes.next() {
         if let InlineNode::RawText(raw) = node {
-            let edges = Edges {
-                start: edges.start && index == 0,
-                end: edges.end && index + 1 == count,
-            };
-            result.extend(super::inlines::typography::resolve_raw(raw, state, edges));
+            let mut last = index;
+            if matches!(nodes.peek(), Some((_, InlineNode::RawText(_)))) {
+                let mut fragments = vec![raw];
+                while matches!(nodes.peek(), Some((_, InlineNode::RawText(_)))) {
+                    if let Some((next, InlineNode::RawText(raw))) = nodes.next() {
+                        last = next;
+                        fragments.push(raw);
+                    }
+                }
+                let edges = Edges {
+                    start: edges.start && index == 0,
+                    end: edges.end && last + 1 == count,
+                };
+                result.extend(typography::resolve_fragments(
+                    fragments,
+                    state,
+                    edges,
+                    late_attributes,
+                ));
+            } else {
+                let edges = Edges {
+                    start: edges.start && index == 0,
+                    end: edges.end && index + 1 == count,
+                };
+                result.extend(super::inlines::typography::resolve_raw(raw, state, edges));
+            }
         } else {
             if let InlineNode::Macro(InlineMacro::IndexTerm(index)) = &mut node {
                 let original = index.catalog.is_none().then(|| Box::new((**index).clone()));
                 index.for_each_label_mut(|nodes| {
-                    *nodes = finish_raw_nodes(take(nodes), state, Edges::default());
+                    *nodes =
+                        finish_raw_nodes(take(nodes), state, Edges::default(), late_attributes);
                 });
                 if let Some(original) = original
                     && (index.kind != original.kind || index.relationship != original.relationship)
@@ -96,7 +122,8 @@ fn finish_raw_nodes<'a>(
                 }
             } else if !matches!(node, InlineNode::Macro(InlineMacro::Footnote(_))) {
                 for_each_inline_children(&mut node, &mut |nodes| {
-                    *nodes = finish_raw_nodes(take(nodes), state, Edges::default());
+                    *nodes =
+                        finish_raw_nodes(take(nodes), state, Edges::default(), late_attributes);
                 });
             }
             result.push(node);
@@ -952,11 +979,8 @@ fn fragment_offset(
     end: bool,
     state: &ParserState<'_>,
 ) -> usize {
-    let Some((span, raw)) = fragments
-        .iter()
-        .find(|(span, _)| offset < span.end)
-        .or_else(|| fragments.last())
-    else {
+    let index = fragments.partition_point(|(span, _)| span.end <= offset);
+    let Some((span, raw)) = fragments.get(index).or_else(|| fragments.last()) else {
         return offset;
     };
     let relative = offset.saturating_sub(span.start).min(span.len());

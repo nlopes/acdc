@@ -171,7 +171,8 @@ spaced em dashes. Its `kind()` is semantic, its `text()` is Unicode, and its loc
 Enabled replacements resolve copyright and trademark signs, ellipses, and
 word-internal apostrophes before a converter reads the tree.
 Replacement escapes produce protected literal text. Later attribute expansion
-cannot introduce a token or word context for an earlier replacement stage.
+cannot introduce a token, word context, or escape for an earlier replacement stage.
+Raw passthroughs also resolve tokens split across earlier attribute expansions.
 `pass:r,c[(C)]` keeps the resolved copyright symbol; Asciidoctor instead
 escapes its generated HTML entity. acdc does not put backend markup in the tree.
 
