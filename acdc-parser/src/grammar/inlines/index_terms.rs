@@ -120,26 +120,7 @@ fn parse_index_term_inlines<'a>(
         return Ok(Vec::new());
     }
 
-    let mut source_map = SourceMap::default();
-    if let Some(quote) = segment.quote {
-        for (offset, _) in segment.text.match_indices(&format!("\\{quote}")) {
-            if structural_token_allowed(state, &Substitution::Macros, segment.start + offset, 2) {
-                source_map.add_replacement(offset, offset + 2, 1, ProcessedKind::Escape);
-            }
-        }
-    }
-    let text = if source_map.replacements.is_empty() && !segment.text.contains('\n') {
-        segment.text
-    } else {
-        let mut decoded = String::with_capacity(segment.text.len());
-        let mut cursor = 0;
-        for replacement in &source_map.replacements {
-            decoded.push_str(&segment.text[cursor..replacement.absolute_start]);
-            cursor = replacement.absolute_start + 1;
-        }
-        decoded.push_str(&segment.text[cursor..]);
-        state.intern_str(&decoded.replace('\n', " "))
-    };
+    let (text, source_map) = index_term_source(state, &segment);
     let unescaped_offset = |position: usize| {
         position
             - source_map
@@ -197,8 +178,22 @@ fn parse_index_term_inlines<'a>(
         })
         .collect();
 
-    let parsed = inline_parser::inlines(text, &mut child)
-        .map_err(|_| "could not parse index term content")?;
+    let parsed = inline_parser::inlines(text, &mut child);
+    for mut warning in child.take_inline_warnings() {
+        if let Some(source) = &mut warning.location {
+            let start = segment.start
+                + source_map
+                    .map_position(source.location.absolute_start)
+                    .map_err(|_| "could not map index label diagnostic")?;
+            let end = segment.start
+                + source_map
+                    .map_end_position(source.location.absolute_end)
+                    .map_err(|_| "could not map index label diagnostic")?;
+            *source = state.create_error_source_location(state.create_location(start, end));
+        }
+        state.add_warning(warning);
+    }
+    let parsed = parsed.map_err(|_| "could not parse index term content")?;
 
     let mut parsed = parsed;
     for inline in &mut parsed {
@@ -211,6 +206,33 @@ fn parse_index_term_inlines<'a>(
         .map_err(|_| "could not map index label content")?;
     }
     Ok(parsed)
+}
+
+fn index_term_source<'a>(
+    state: &ParserState<'a>,
+    segment: &IndexTermLabel<'a>,
+) -> (&'a str, SourceMap) {
+    let mut source_map = SourceMap::default();
+    if let Some(quote) = segment.quote {
+        for (offset, _) in segment.text.match_indices(&format!("\\{quote}")) {
+            if structural_token_allowed(state, &Substitution::Macros, segment.start + offset, 2) {
+                source_map.add_replacement(offset, offset + 2, 1, ProcessedKind::Escape);
+            }
+        }
+    }
+    let text = if source_map.replacements.is_empty() && !segment.text.contains('\n') {
+        segment.text
+    } else {
+        let mut decoded = String::with_capacity(segment.text.len());
+        let mut cursor = 0;
+        for replacement in &source_map.replacements {
+            decoded.push_str(&segment.text[cursor..replacement.absolute_start]);
+            cursor = replacement.absolute_start + 1;
+        }
+        decoded.push_str(&segment.text[cursor..]);
+        state.intern_str(&decoded.replace('\n', " "))
+    };
+    (text, source_map)
 }
 
 fn index_term_node(mut term: IndexTerm<'_>, plan: SubstitutionPlan) -> InlineNode<'_> {

@@ -58,6 +58,7 @@ pub(super) fn process_mapped_inlines<'a>(
     let mut child = ParserState::for_inline_parsing(text, state, InlineContext::default());
     child.document_attributes = Rc::clone(attributes);
     child.warnings = Rc::default();
+    child.warnings_start = 0;
     let parsed = process_inlines(&mut child, metadata, 0, text.len(), 0, text);
     for mut warning in std::mem::take(&mut *child.warnings.borrow_mut()) {
         if let Some(location) = &mut warning.location {
@@ -418,29 +419,39 @@ fn parse_processed_inlines<'a>(
         inline_parser::inlines(text, &mut inline_peg_state)
     };
 
-    let mut inlines = match inlines {
-        Ok(inlines) => inlines,
-        Err(err) => {
-            return Err(adjust_peg_error_position(
-                &err,
-                text,
-                location.absolute_start,
-                state,
-            ));
-        }
-    };
+    let warnings = inline_peg_state.take_inline_warnings();
+    let mut inlines = inlines
+        .map_err(|error| adjust_peg_error_position(&error, text, location.absolute_start, state))?;
 
     inlines = super::inlines::typography::resolve_plain(
         inlines,
         &inline_peg_state,
         state.scope == ParserScope::Document,
     );
-    for inline in &mut inlines {
-        if let InlineNode::InlineAnchor(anchor) = inline {
-            anchor.bibliography_label =
-                parse_bibliography_label(&inline_peg_state, &anchor.location)?;
+    let labels = inlines
+        .iter_mut()
+        .try_for_each(|inline| -> Result<(), Error> {
+            if let InlineNode::InlineAnchor(anchor) = inline {
+                anchor.bibliography_label =
+                    parse_bibliography_label(&inline_peg_state, &anchor.location)?;
+            }
+            Ok(())
+        });
+    let warnings = warnings
+        .into_iter()
+        .chain(inline_peg_state.take_inline_warnings());
+    let context = super::location_mapping::LocationMappingContext {
+        state,
+        processed,
+        base_location: location,
+    };
+    for mut warning in warnings {
+        if let Some(source) = &mut warning.location {
+            *source = state.create_error_source_location(context.map_location(&source.location)?);
         }
+        state.add_warning(warning);
     }
+    labels?;
     Ok(inlines)
 }
 
@@ -528,8 +539,19 @@ fn parse_bibliography_label<'a>(
         .collect();
     // Passthroughs and attributes were already processed with the list item.
     // Keep their placeholders and ranges until the enclosing location mapping.
-    let mut content = inline_parser::inlines(label, &mut child)
-        .map_err(|error| adjust_peg_error_position(&error, label, offset, state))?;
+    let parsed = inline_parser::inlines(label, &mut child);
+    for mut warning in child.take_inline_warnings() {
+        if let Some(source) = &mut warning.location {
+            let location = state.create_location(
+                offset + source.location.absolute_start,
+                offset + source.location.absolute_end,
+            );
+            *source = state.create_error_source_location(location);
+        }
+        state.add_warning(warning);
+    }
+    let mut content =
+        parsed.map_err(|error| adjust_peg_error_position(&error, label, offset, state))?;
     for inline in &mut content {
         super::location_walk::walk_inline_locations_mut(inline, &mut |location| {
             location.absolute_start += offset;

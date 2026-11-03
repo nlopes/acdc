@@ -554,7 +554,12 @@ peg::parser! {
             };
             if !state.footnote_tracker.borrow_mut().push(&mut footnote) {
                 let id = id.unwrap_or_default();
-                state.add_generic_warning(format!("invalid footnote reference: {id}"));
+                state.add_warning(crate::Warning::new(
+                    crate::WarningKind::ContentRecovery {
+                        message: format!("invalid footnote reference: {id}").into(),
+                    },
+                    Some(state.create_error_source_location(footnote.location.clone())),
+                ));
                 return Ok(InlineNode::PlainText(Plain {
                     content: state.intern_fmt(format_args!("[{id}]")),
                     location: footnote.location,

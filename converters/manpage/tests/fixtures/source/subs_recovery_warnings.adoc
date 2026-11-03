@@ -1,0 +1,48 @@
+= recovery-warnings(1)
+:doctype: manpage
+:docdate: 2026-01-01
+:revdate: 2026-01-01
+
+== Name
+recovery-warnings - located source recovery
+
+== Description
+Earlier.
+
+α🚀 footnote:missing[] and footnote:missing[].
+
+**Bold footnote:bold[] and footnote:bold[].**
+
+link:manual.html[Before footnote:link[] and footnote:link[] after.]
+
+pass:m[footnote:raw[\] and footnote:raw[\]]
+
+pass:c,m[footnote:escaped[\] and footnote:escaped[\]]
+
+:missing-id: expanded
+pass:a,m[footnote:{missing-id}[\] and footnote:{missing-id}[\]]
+
+.Title footnote:caption[]
+Paragraph.
+
+[title='Chosen footnote:selected[]']
+Paragraph.
+
+[title='Ignored footnote:ignored[]',title='Chosen']
+Paragraph.
+
+image:photo.png[Alt footnote:alt[]]
+
+Escaped \footnote:literal[] and \stem:quotes[x].
+
+[subs=none]
+footnote:literal[]
+
+[subs="-macros"]
+footnote:literal[]
+
+* [[[book,Before footnote:bibliography[] after]]]
+
+**Before [[bad id]] after.**
+
+See <<unresolved>>.

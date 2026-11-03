@@ -1290,7 +1290,12 @@ peg::parser! {
                 match resolve_title(state, source, offset) {
                     Ok(title) => title,
                     Err(error) => {
-                        state.add_generic_warning(format!("failed to parse block title, skipping: {error:?}"));
+                        state.add_warning(crate::Warning::new(
+                            crate::WarningKind::ContentRecovery {
+                                message: format!("failed to parse block title, skipping: {error:?}").into(),
+                            },
+                            error.source_location().cloned(),
+                        ));
                         Title::default()
                     }
                 }

@@ -769,7 +769,8 @@ acdc keeps these differences from Asciidoctor 2.0.26:
 - Inline substitution lists such as `stem:attributes[...]` are not supported.
   Their complete source is retained with a content-recovery warning; nested
   formatting, attribute references, and macros stay literal. Asciidoctor accepts
-  these lists. STEM block substitutions can expand attributes; quote and macro
+  these lists. Escaping an unsupported form keeps its leading backslash and
+  does not warn. STEM block substitutions can expand attributes; quote and macro
   substitutions inside a block formula are not interpreted as inline nodes.
 - HTML character escaping runs on the final formula text, including text from
   nested passthroughs. Asciidoctor keeps the escaping rules of nested
@@ -990,8 +991,8 @@ offsets remain in preprocessed coordinates. Do not use them to slice the origina
 file.
 
 `ParseResult::source_recovery()` returns the first warning about omitted or
-recovered content, including disabled includes, incomplete tables, and unmatched
-block delimiters. It remains available after `take_warnings()` and excludes
+recovered content, including disabled includes, incomplete tables, unmatched
+block delimiters, and unresolved footnotes rendered as text. It remains available after `take_warnings()` and excludes
 presentation warnings. Applications that need complete input must check it before
 acting on recovered content. Rendering can continue with the recovered document.
 

@@ -317,6 +317,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Each unresolved footnote now reports its authored source range and marks the
+  document as recovered. Repeated references report separate warnings, including
+  inside links, passthroughs, selected titles, includes, and table cells. Their
+  existing `[id]` fallback text is unchanged.
+
 - Block image, audio, video, and TOC macros with text after their closing bracket
   stay paragraph text instead of discarding the trailing content, matching
   Asciidoctor. Whitespace after a complete macro remains valid.

@@ -5,7 +5,7 @@ use std::{mem::take, rc::Rc};
 
 use crate::{
     InlineMacro, InlineNode, LineBreak, Location, ParseInlineResult, Pass, PassthroughKind, Plain,
-    ProcessedContent, Raw, Substitution, Symbol, SymbolKind,
+    ProcessedContent, Raw, Substitution, Symbol, SymbolKind, Warning,
     document_attribute::AssignmentState,
     model::substitution::{
         SubstitutionPlan, character_reference_end, escape_attribute_characters,
@@ -981,12 +981,24 @@ fn parse_raw_stage<'a>(
         return Vec::new();
     }
 
-    let Some(mut parsed) = parse_raw_inlines(raw.content, plan, state) else {
+    let Some((mut parsed, warnings)) = parse_raw_inlines(raw.content, plan, state) else {
         return vec![InlineNode::RawText(raw)];
     };
     for node in &mut parsed {
         convert_plain_to_raw_with_source(node, &raw.subs, Some(raw.content));
         map_stage_locations(node, &raw, state);
+    }
+    for mut warning in warnings {
+        if let Some(source) = &mut warning.location {
+            let end = step_char(
+                raw.content,
+                source.location.absolute_end,
+                RoundDirection::Forward,
+            );
+            let location = raw_segment_location(&raw, source.location.absolute_start, end, state);
+            *source = state.create_error_source_location(location);
+        }
+        state.add_warning(warning);
     }
     parsed
 }
@@ -995,7 +1007,7 @@ fn parse_raw_inlines<'a>(
     content: &'a str,
     plan: SubstitutionPlan,
     state: &ParserState<'a>,
-) -> Option<Vec<InlineNode<'a>>> {
+) -> Option<(Vec<InlineNode<'a>>, Vec<Warning>)> {
     let mut rules = state.inline_ctx.rules;
     rules.set(InlineRules::AUTOLINKS, plan.enabled(&Substitution::Macros));
     rules.remove(InlineRules::HARD_BREAKS);
@@ -1015,7 +1027,8 @@ fn parse_raw_inlines<'a>(
     } else {
         inline_parser::inlines(content, &mut child)
     };
-    parsed.ok()
+    let warnings = child.take_inline_warnings();
+    parsed.ok().map(|nodes| (nodes, warnings))
 }
 
 fn map_stage_locations(node: &mut InlineNode<'_>, raw: &Raw<'_>, state: &ParserState<'_>) {
@@ -1046,7 +1059,7 @@ fn parse_raw_fragments<'a>(
         .map(|fragment| fragment.as_raw().content)
         .collect();
     let text = state.intern_str(&text);
-    let Some(mut nodes) = parse_raw_inlines(text, plan, state) else {
+    let Some((mut nodes, warnings)) = parse_raw_inlines(text, plan, state) else {
         return fragments.into_iter().map(TextFragment::into_node).collect();
     };
     for node in &mut nodes {
@@ -1075,6 +1088,14 @@ fn parse_raw_fragments<'a>(
                 .line_map
                 .offset_to_position(location.absolute_end, state.input);
         });
+    }
+    for mut warning in warnings {
+        if let Some(source) = &mut warning.location {
+            let start = fragment_offset(source.location.absolute_start, &spans, false, state);
+            let end = fragment_offset(source.location.absolute_end, &spans, true, state);
+            *source = state.create_error_source_location(state.create_location(start, end));
+        }
+        state.add_warning(warning);
     }
     nodes
 }

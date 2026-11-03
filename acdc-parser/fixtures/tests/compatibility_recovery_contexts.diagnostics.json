@@ -1,0 +1,130 @@
+{
+  "recovery": {
+    "location": {
+      "absolute_end": 56,
+      "absolute_start": 38,
+      "file": "includes/compatibility_recovery_selected.adoc",
+      "location": [
+        {
+          "col": 8,
+          "line": 2
+        },
+        {
+          "col": 26,
+          "line": 2
+        }
+      ]
+    },
+    "message": "invalid footnote reference: included"
+  },
+  "warnings": [
+    {
+      "location": {
+        "absolute_end": 56,
+        "absolute_start": 38,
+        "file": "includes/compatibility_recovery_selected.adoc",
+        "location": [
+          {
+            "col": 8,
+            "line": 2
+          },
+          {
+            "col": 26,
+            "line": 2
+          }
+        ]
+      },
+      "message": "invalid footnote reference: included"
+    },
+    {
+      "location": {
+        "absolute_end": 80,
+        "absolute_start": 62,
+        "file": "includes/compatibility_recovery_selected.adoc",
+        "location": [
+          {
+            "col": 32,
+            "line": 2
+          },
+          {
+            "col": 50,
+            "line": 2
+          }
+        ]
+      },
+      "message": "invalid footnote reference: included"
+    },
+    {
+      "location": {
+        "absolute_end": 134,
+        "absolute_start": 120,
+        "file": "includes/compatibility_recovery_selected.adoc",
+        "location": [
+          {
+            "col": 10,
+            "line": 8
+          },
+          {
+            "col": 24,
+            "line": 8
+          }
+        ]
+      },
+      "message": "invalid footnote reference: cell"
+    },
+    {
+      "location": {
+        "absolute_end": 154,
+        "absolute_start": 140,
+        "file": "includes/compatibility_recovery_selected.adoc",
+        "location": [
+          {
+            "col": 30,
+            "line": 8
+          },
+          {
+            "col": 44,
+            "line": 8
+          }
+        ]
+      },
+      "message": "invalid footnote reference: cell"
+    },
+    {
+      "location": {
+        "absolute_end": 186,
+        "absolute_start": 167,
+        "file": "includes/compatibility_recovery_selected.adoc",
+        "location": [
+          {
+            "col": 12,
+            "line": 10
+          },
+          {
+            "col": 31,
+            "line": 10
+          }
+        ]
+      },
+      "message": "invalid footnote reference: cell-raw"
+    },
+    {
+      "location": {
+        "absolute_end": 211,
+        "absolute_start": 192,
+        "file": "includes/compatibility_recovery_selected.adoc",
+        "location": [
+          {
+            "col": 37,
+            "line": 10
+          },
+          {
+            "col": 56,
+            "line": 10
+          }
+        ]
+      },
+      "message": "invalid footnote reference: cell-raw"
+    }
+  ]
+}

@@ -122,14 +122,11 @@ pub(crate) struct ParserState<'a> {
     pub(crate) source_ranges: Vec<SourceRange>,
     /// Full include names used by document-level cross-reference resolution.
     pub(crate) included_files: HashSet<String>,
-    /// Warnings collected during PEG parsing. Shared across the top-level state and any
-    /// `for_inline_parsing` sub-states via `Rc`, so warnings raised during nested inline
-    /// parses (author lines, revision lines, substituted inline content) reach the
-    /// top-level `ParseResult` alongside everything else. The outer `parse_input` /
-    /// `parse_inline` keeps a clone of this `Rc` and recovers the final `Vec<Warning>`
-    /// after the self-cell builder closure drops the `ParserState`. Deduplicated on
-    /// insertion because PEG backtracking can re-fire the same warning multiple times.
+    /// Inline owners share this buffer, map their newly collected diagnostics,
+    /// then reinsert them in their parent's coordinates.
     pub(crate) warnings: Rc<RefCell<Vec<Warning>>>,
+    // Earlier warnings may use a different substring's coordinates.
+    pub(crate) warnings_start: usize,
     /// When true, inline parsing uses a reduced rule set that only matches formatting
     /// markup (bold, italic, monospace, highlight, superscript, subscript, curved quotes)
     /// and plain text. Used by `parse_text_for_quotes` to apply "quotes" substitution
@@ -607,6 +604,7 @@ impl<'a> ParserState<'a> {
             source_ranges: Vec::new(),
             included_files: HashSet::new(),
             warnings: Rc::new(RefCell::new(Vec::new())),
+            warnings_start: 0,
             quotes_only: false,
             attribute_passthroughs: Rc::default(),
             outer_constrained_delimiter: None,
@@ -656,6 +654,7 @@ impl<'a> ParserState<'a> {
             source_ranges: Vec::new(),
             included_files: HashSet::new(),
             warnings: Rc::new(RefCell::new(Vec::new())),
+            warnings_start: 0,
             quotes_only: true,
             attribute_passthroughs: Rc::default(),
             outer_constrained_delimiter: None,
@@ -706,10 +705,9 @@ impl<'a> ParserState<'a> {
             leveloffset_ranges: Vec::new(),
             source_ranges: Vec::new(),
             included_files: HashSet::new(),
-            // Share the parent's warnings vec so anything raised during a
-            // nested inline sub-parse reaches the top-level `ParseResult`
-            // without a separate drain step.
+            // Each inline owner maps only the diagnostics appended in its scope.
             warnings: Rc::clone(&parent.warnings),
+            warnings_start: parent.warnings.borrow().len(),
             quotes_only: parent.quotes_only,
             attribute_passthroughs: Rc::clone(&parent.attribute_passthroughs),
             outer_constrained_delimiter: parent.outer_constrained_delimiter,
@@ -747,9 +745,19 @@ impl<'a> ParserState<'a> {
             && warnings
                 .iter()
                 .any(|previous| matches!(previous.kind, WarningKind::DeprecatedToc2Attribute));
-        if !repeated_toc2 && !warnings.contains(&warning) {
+        if !repeated_toc2
+            && !warnings
+                .iter()
+                .skip(self.warnings_start)
+                .any(|previous| previous == &warning)
+        {
             warnings.push(warning);
         }
+    }
+
+    /// Remove this inline parse's diagnostics before mapping them into its parent.
+    pub(crate) fn take_inline_warnings(&self) -> Vec<Warning> {
+        self.warnings.borrow_mut().split_off(self.warnings_start)
     }
 
     /// Collect a warning raised by the inline preprocessor, first resolving its
