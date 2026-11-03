@@ -1,7 +1,6 @@
 //! Admonition types for `AsciiDoc` documents.
 
-use std::fmt::Display;
-use std::str::FromStr;
+use std::{fmt::Display, mem, str::FromStr};
 
 use serde::{
     Serialize,
@@ -10,10 +9,10 @@ use serde::{
 
 use crate::{Error, SourceLocation};
 
-use super::Block;
 use super::location::{Location, Position};
 use super::metadata::BlockMetadata;
 use super::title::Title;
+use super::{Block, Paragraph};
 
 /// An `Admonition` represents an admonition in a document.
 #[derive(Clone, Debug, PartialEq)]
@@ -24,6 +23,7 @@ pub struct Admonition<'a> {
     pub blocks: Vec<Block<'a>>,
     pub title: Title<'a>,
     pub location: Location,
+    pub(crate) paragraph_form: bool,
 }
 
 /// The variant/type of an admonition block.
@@ -71,7 +71,7 @@ impl FromStr for AdmonitionVariant {
 }
 
 impl<'a> Admonition<'a> {
-    /// Create a new admonition with the given variant, blocks, and location.
+    /// Create a compound admonition with the given variant, blocks, and location.
     #[must_use]
     pub fn new(variant: AdmonitionVariant, blocks: Vec<Block<'a>>, location: Location) -> Self {
         Self {
@@ -80,6 +80,29 @@ impl<'a> Admonition<'a> {
             blocks,
             title: Title::default(),
             location,
+            paragraph_form: false,
+        }
+    }
+
+    /// Create a paragraph-form admonition with the paragraph's title and attributes.
+    /// Body substitution settings remain on the paragraph as well.
+    #[must_use]
+    pub fn from_paragraph(
+        variant: AdmonitionVariant,
+        mut paragraph: Paragraph<'a>,
+        location: Location,
+    ) -> Self {
+        let metadata = mem::take(&mut paragraph.metadata);
+        let title = mem::take(&mut paragraph.title);
+        paragraph
+            .metadata
+            .substitutions
+            .clone_from(&metadata.substitutions);
+        Self {
+            metadata,
+            title,
+            paragraph_form: true,
+            ..Self::new(variant, vec![Block::Paragraph(paragraph)], location)
         }
     }
 
@@ -113,6 +136,9 @@ impl Serialize for Admonition<'_> {
         state.serialize_entry("name", "admonition")?;
         state.serialize_entry("type", "block")?;
         state.serialize_entry("variant", &self.variant)?;
+        if self.paragraph_form {
+            state.serialize_entry("form", "paragraph")?;
+        }
         if !self.metadata.is_default() {
             state.serialize_entry("metadata", &self.metadata)?;
         }

@@ -403,42 +403,12 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 }
             }
             BlockKind::Sidebar(data) => {
-                if processor.variant() == HtmlVariant::Semantic {
-                    write_semantic_tag_open(
-                        &mut self.writer,
-                        "aside",
-                        Some(data.attributes()),
-                        "sidebar",
-                    )?;
-                    self.render_title_content(
-                        traversal,
-                        data.title(),
-                        "<h6 class=\"block-title\">",
-                        "</h6>\n",
-                    )?;
-                    for nested_block in data.blocks() {
-                        traversal.visit_block(self, nested_block)?;
-                    }
-                    writeln!(self.writer, "</aside>")?;
-                } else {
-                    write_block_div_open(
-                        &mut self.writer,
-                        Some(data.attributes()),
-                        "sidebarblock",
-                    )?;
-                    writeln!(self.writer, "<div class=\"content\">")?;
-                    self.render_title_content(
-                        traversal,
-                        data.title(),
-                        "<div class=\"title\">",
-                        "</div>\n",
-                    )?;
-                    for nested_block in data.blocks() {
-                        traversal.visit_block(self, nested_block)?;
-                    }
-                    writeln!(self.writer, "</div>")?;
-                    writeln!(self.writer, "</div>")?;
-                }
+                self.render_sidebar_content(
+                    traversal,
+                    data.title(),
+                    data.attributes(),
+                    |visitor, traversal| traversal.visit_blocks(visitor, data.blocks()),
+                )?;
             }
             // Handle tables
             BlockKind::Table(data) => {
@@ -446,15 +416,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 crate::table::render_table(traversal, data, self, &processor)?;
             }
             BlockKind::Passthrough(data) => {
-                #[cfg(feature = "pre-spec-subs")]
-                if let Some(AttributeValueRef::Substitutions(spec)) = data.attributes().get("subs")
-                {
-                    self.render_pass_block_with_subs(traversal, data.content(), spec)?;
-                } else {
-                    self.visit_content(traversal, data.content())?;
-                }
-                #[cfg(not(feature = "pre-spec-subs"))]
-                self.visit_content(traversal, data.content())?;
+                self.render_passthrough_content(traversal, data.content(), data.attributes())?;
             }
             BlockKind::Listing(data) => {
                 self.render_listing_block(traversal, data, caption_kind)?;
@@ -880,6 +842,44 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             writeln!(self.writer, "</div>")?;
         }
         Ok(())
+    }
+
+    pub(crate) fn render_sidebar_content(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        title: Option<ContentRef<'_>>,
+        attributes: AttributesRef<'_>,
+        body: impl FnOnce(&mut Self, &mut TraversalContext<'a>) -> Result<(), Error>,
+    ) -> Result<(), Error> {
+        if self.processor.variant() == HtmlVariant::Semantic {
+            write_semantic_tag_open(&mut self.writer, "aside", Some(attributes), "sidebar")?;
+            self.render_title_content(traversal, title, "<h6 class=\"block-title\">", "</h6>\n")?;
+            body(self, traversal)?;
+            writeln!(self.writer, "</aside>")?;
+        } else {
+            write_block_div_open(&mut self.writer, Some(attributes), "sidebarblock")?;
+            writeln!(self.writer, "<div class=\"content\">")?;
+            self.render_title_content(traversal, title, "<div class=\"title\">", "</div>\n")?;
+            body(self, traversal)?;
+            writeln!(self.writer, "</div>")?;
+            writeln!(self.writer, "</div>")?;
+        }
+        Ok(())
+    }
+
+    pub(crate) fn render_passthrough_content(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        body: ContentRef<'_>,
+        attributes: AttributesRef<'_>,
+    ) -> Result<(), Error> {
+        #[cfg(feature = "pre-spec-subs")]
+        if let Some(AttributeValueRef::Substitutions(spec)) = attributes.get("subs") {
+            return self.render_pass_block_with_subs(traversal, body, spec);
+        }
+        #[cfg(not(feature = "pre-spec-subs"))]
+        let _ = attributes;
+        self.visit_content(traversal, body)
     }
 
     /// Render a passthrough block with `subs=` override applied.

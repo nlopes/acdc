@@ -441,6 +441,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `[pass]` paragraphs retain raw content without interpreting inline macros.
+  Simple admonitions own their title and attributes once; native JSON marks
+  their source form with `form: "paragraph"`. Use `Admonition::from_paragraph`
+  to construct that form and `AdmonitionRef::simple_paragraph()` to read it.
+  `Admonition::new` constructs a compound block.
+
 - All includes in one parse now share a budget, with a default of 64 MiB. Each include counts
   its selected UTF-8 text after `indent=`, plus a separating newline for nonempty
   text. Nested and repeated includes use the same budget. Exceeding it stops

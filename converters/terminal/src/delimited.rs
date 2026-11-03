@@ -397,6 +397,20 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         title: Option<ContentRef<'_>>,
         blocks: impl Iterator<Item = BlockRef<'a>>,
     ) -> Result<(), Error> {
+        self.render_sidebar_content(traversal, title, |visitor, traversal| {
+            traversal.visit_blocks(visitor, blocks)
+        })
+    }
+
+    pub(crate) fn render_sidebar_content(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        title: Option<ContentRef<'_>>,
+        body: impl FnOnce(
+            &mut TerminalVisitor<'a, '_, BufWriter<Vec<u8>>>,
+            &mut TraversalContext<'a>,
+        ) -> Result<(), Error>,
+    ) -> Result<(), Error> {
         let processor = self.processor;
 
         let label = if title.is_some() {
@@ -409,9 +423,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         let buffer = Vec::new();
         let inner = BufWriter::new(buffer);
         let mut temp_visitor = TerminalVisitor::new(inner, processor, self.diagnostics.reborrow());
-        for nested_block in blocks {
-            traversal.visit_block(&mut temp_visitor, nested_block)?;
-        }
+        body(&mut temp_visitor, traversal)?;
         let buffer = temp_visitor
             .into_writer()
             .into_inner()

@@ -1359,6 +1359,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         write_title: bool,
         automatic_lead: bool,
     ) -> Result<(), Error> {
+        if para.style() == Some("pass") {
+            self.write_passthrough_block(para.content());
+            return Ok(());
+        }
         #[cfg(feature = "pre-spec-subs")]
         let previous_subs = self.processor.current_subs.replace(effective_subs_flags(
             attribute_substitutions(Some(para.attributes())),
@@ -1366,6 +1370,18 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         ));
 
         let result = (|| {
+            if para.style() == Some("sidebar") {
+                return self.write_sidebar_content(
+                    traversal,
+                    para.title(),
+                    |visitor, traversal| {
+                        visitor.write_paragraph_alignment(Some(para.attributes()), |visitor| {
+                            visitor.write_content(traversal, para.content())
+                        })
+                    },
+                );
+            }
+
             let fallback = CaptionKind::for_style(para.style());
             if is_collapsible_example(Some(para.attributes()), fallback) {
                 return self.write_disclosure(traversal, para.title(), |visitor, traversal| {
@@ -1724,13 +1740,24 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         title: Option<ContentRef<'_>>,
         blocks: impl Iterator<Item = BlockRef<'a>>,
     ) -> Result<(), Error> {
+        self.write_sidebar_content(traversal, title, |visitor, traversal| {
+            visitor.write_blocks(traversal, blocks)
+        })
+    }
+
+    fn write_sidebar_content(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        title: Option<ContentRef<'_>>,
+        body: impl FnOnce(&mut Self, &mut TraversalContext<'a>) -> Result<(), Error>,
+    ) -> Result<(), Error> {
         self.writer.raw("#sidebarbox[\n");
         if let Some(title) = title {
             self.writer.raw("#sidebartitle[");
             self.write_title(traversal, Some(title))?;
             self.writer.raw("]\n");
         }
-        self.write_blocks(traversal, blocks)?;
+        body(self, traversal)?;
         self.writer.raw("]\n\n");
         Ok(())
     }

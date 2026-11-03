@@ -1067,6 +1067,7 @@
       "name": "admonition",
       "type": "block",
       "variant": "note",
+      "form": "paragraph",
       "metadata": {
         "reftext": [
           {
@@ -1120,38 +1121,6 @@
               ]
             }
           ],
-          "metadata": {
-            "reftext": [
-              {
-                "name": "raw",
-                "type": "string",
-                "value": "Named untitled Ada",
-                "location": [
-                  {
-                    "line": 43,
-                    "col": 23
-                  },
-                  {
-                    "line": 43,
-                    "col": 45
-                  }
-                ]
-              }
-            ],
-            "id": {
-              "id": "untitled",
-              "location": [
-                {
-                  "line": 43,
-                  "col": 5
-                },
-                {
-                  "line": 43,
-                  "col": 12
-                }
-              ]
-            }
-          },
           "location": [
             {
               "line": 44,

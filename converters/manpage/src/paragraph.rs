@@ -11,7 +11,7 @@ use acdc_parser::ast::{AttributesRef, ContentRef, ParagraphRef};
 
 #[cfg(feature = "pre-spec-subs")]
 use crate::manpage_visitor::substitutions;
-use crate::{Error, ManpageVisitor, escape::EscapeMode};
+use crate::{Error, ManpageVisitor, document::extract_verbatim_text, escape::EscapeMode};
 
 impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     /// Render a paragraph with its style-specific manpage layout.
@@ -51,7 +51,15 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             match style {
                 "quote" => return self.render_quote_paragraph(traversal, para),
                 "verse" => return self.render_verse_paragraph(traversal, para),
-                "example" => return self.render_example_paragraph(traversal, para),
+                "example" | "sidebar" => return self.render_example_paragraph(traversal, para),
+                "pass" => {
+                    writeln!(
+                        self.writer_mut(),
+                        "{}",
+                        extract_verbatim_text(para.content())
+                    )?;
+                    return Ok(());
+                }
                 "literal" | "listing" | "source" => {
                     return self.render_literal_paragraph(traversal, para);
                 }

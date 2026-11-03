@@ -60,6 +60,18 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
                 "quote" => return self.render_quote_paragraph(traversal, para),
                 "verse" => return self.render_verse_paragraph(traversal, para),
                 "example" => return self.render_example_paragraph(traversal, para),
+                "sidebar" => {
+                    return self.render_sidebar_content(
+                        traversal,
+                        para.title(),
+                        |visitor, traversal| visitor.write_content(traversal, para.content()),
+                    );
+                }
+                "pass" => {
+                    self.write_content(traversal, para.content())?;
+                    writeln!(self.writer_mut())?;
+                    return Ok(());
+                }
                 "abstract" => return self.render_abstract_paragraph(traversal, para),
                 "literal" | "listing" | "source" => {
                     return self.render_literal_paragraph(traversal, para);

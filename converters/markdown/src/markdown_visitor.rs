@@ -1574,6 +1574,9 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
         paragraph: ParagraphRef<'_>,
     ) -> Result<(), Error> {
         self.write_metadata_anchor(paragraph.primary_anchor())?;
+        if paragraph.style() == Some("pass") {
+            return self.write_raw_block_content(paragraph.content());
+        }
 
         if paragraph.style() == Some("example") && paragraph.options().contains("collapsible") {
             let is_open = paragraph.options().contains("open");
@@ -1601,6 +1604,10 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
                 self.write_attribution(traversal, paragraph.attributes(), "> ")?;
             }
             Some("abstract") => self.write_blockquote_inlines(traversal, paragraph.content())?,
+            Some("sidebar") => {
+                self.write_warning("sidebar-blocks", "sidebar blocks", "using blockquote")?;
+                self.write_blockquote_inlines(traversal, paragraph.content())?;
+            }
             Some("literal" | "listing" | "source") => {
                 self.write_fenced_code_block(
                     traversal,

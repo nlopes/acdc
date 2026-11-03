@@ -283,6 +283,7 @@
       "name": "admonition",
       "type": "block",
       "variant": "note",
+      "form": "paragraph",
       "metadata": {
         "caption": [
           {
@@ -342,44 +343,6 @@
               ]
             }
           ],
-          "metadata": {
-            "caption": [
-              {
-                "name": "span",
-                "type": "inline",
-                "variant": "strong",
-                "form": "constrained",
-                "inlines": [
-                  {
-                    "name": "text",
-                    "type": "string",
-                    "value": "Care",
-                    "location": [
-                      {
-                        "line": 15,
-                        "col": 17
-                      },
-                      {
-                        "line": 15,
-                        "col": 20
-                      }
-                    ]
-                  }
-                ],
-                "location": [
-                  {
-                    "line": 15,
-                    "col": 16
-                  },
-                  {
-                    "line": 15,
-                    "col": 21
-                  }
-                ]
-              }
-            ],
-            "style": "NOTE"
-          },
           "location": [
             {
               "line": 16,

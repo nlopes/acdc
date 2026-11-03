@@ -821,6 +821,7 @@
       "name": "admonition",
       "type": "block",
       "variant": "note",
+      "form": "paragraph",
       "metadata": {
         "style": "NOTE"
       },
@@ -940,9 +941,6 @@
               ]
             }
           ],
-          "metadata": {
-            "style": "NOTE"
-          },
           "location": [
             {
               "line": 28,

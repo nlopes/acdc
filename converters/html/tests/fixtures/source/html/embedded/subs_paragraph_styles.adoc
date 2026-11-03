@@ -1,0 +1,35 @@
+= Paragraph styles
+
+:word: expanded
+
+.Sidebar title
+[sidebar#side.role]
+Sidebar *Bold* {word}.
+
+[sidebar]
+  Indented *Bold*.
+
+[pass]
+<span>*unparsed* {word}</span>
+
+[pass]
+  Indented *RAW*.
+
+.Note title
+[NOTE#note.role]
+Note *Bold*.
+
+.Tip title
+[#tip.role,subs=none]
+TIP: *Raw* {word}.
+
+[NOTE]
+--
+Compound *Body*.
+--
+
+[quote,Author,Citation]
+Quote *Bold*.
+
+[pass,subs=attributes]
+<span>{word}</span>

@@ -161,6 +161,11 @@ fn render_admonition_body<'a, W: Write>(
     if let BlockKind::Paragraph(paragraph) = first.kind()
         && blocks.peek().is_none()
     {
+        if admon.simple_paragraph().is_some() && !semantic {
+            visitor.visit_content(traversal, paragraph.content())?;
+            writeln!(visitor.writer_mut())?;
+            return Ok(());
+        }
         if !semantic {
             writeln!(visitor.writer_mut(), "<div class=\"paragraph\">")?;
         }

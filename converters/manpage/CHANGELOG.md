@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Paragraph-style sidebars use the backend's sidebar layout. `[pass]` paragraphs
+  use the same raw-content path as delimited passthrough blocks.
+
 - Visible image/icon alternatives, UI labels, and custom `caption=` values retain
   supported formatting. Literal quote attributions and citation titles retain
   their dashes; single-quoted values still apply normal substitutions.

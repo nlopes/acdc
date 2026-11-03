@@ -127,6 +127,7 @@
               "name": "admonition",
               "type": "block",
               "variant": "note",
+              "form": "paragraph",
               "blocks": [
                 {
                   "name": "paragraph",

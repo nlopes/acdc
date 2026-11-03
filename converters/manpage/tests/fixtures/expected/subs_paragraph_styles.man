@@ -1,0 +1,79 @@
+'\" t
+.\"     Title: STYLED-PARAGRAPHS
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-11-03
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "STYLED\-PARAGRAPHS" "1" "2026-11-03" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+styled\-paragraphs \- style tests
+.SH "SYNOPSIS"
+.sp
+\fBstyled\-paragraphs\fR
+.SH "DESCRIPTION"
+.sp
+\fBSidebar title\fR
+.br
+.RS 4
+.sp
+Sidebar \fBBold\fR expanded.
+.RE
+.sp
+.RS 4
+.sp
+  Indented \fBBold\fR\&.
+.RE
+RAW *unparsed* {word}.
+  Indented *RAW*.
+.sp
+\fBNOTE:\fP Note title
+.RS 4
+.sp
+Note \fBBold\fR\&.
+.RE
+.sp
+\fBTIP:\fP Tip title
+.RS 4
+.sp
+*Raw* {word}.
+.RE
+.sp
+\fBNOTE:\fP
+.RS 4
+.sp
+Compound \fBBody\fR\&.
+.RE
+.RS 3
+.ll -.6i
+.sp
+Quote \fBBold\fR\&.
+.br
+.RE
+.ll
+.RS 5
+.ll -.10i
+Citation \(em Author
+.RE
+.ll

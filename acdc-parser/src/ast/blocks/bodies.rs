@@ -182,11 +182,11 @@ impl<'doc> StemBlockRef<'doc> {
 }
 
 impl<'doc> AdmonitionRef<'doc> {
-    /// The sole paragraph, if its block metadata matches the admonition's.
+    /// The body paragraph of a paragraph-form admonition.
     #[must_use]
     pub fn simple_paragraph(self) -> Option<ParagraphRef<'doc>> {
-        if let [Block::Paragraph(paragraph)] = self.node.blocks.as_slice()
-            && paragraph.metadata == self.node.metadata
+        if self.node.paragraph_form
+            && let [Block::Paragraph(paragraph)] = self.node.blocks.as_slice()
         {
             Some(ParagraphRef::from(paragraph))
         } else {

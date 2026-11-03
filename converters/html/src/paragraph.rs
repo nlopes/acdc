@@ -26,6 +26,22 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         para: ParagraphRef<'_>,
     ) -> Result<(), Error> {
         let data = para;
+        if data.style() == Some("pass") {
+            self.render_passthrough_content(traversal, data.content(), data.attributes())?;
+            writeln!(self.writer)?;
+            return Ok(());
+        }
+        if data.style() == Some("sidebar") {
+            return self.render_sidebar_content(
+                traversal,
+                data.title(),
+                data.attributes(),
+                |visitor, traversal| {
+                    visitor.visit_content(traversal, data.content())?;
+                    writeln!(visitor.writer).map_err(Error::from)
+                },
+            );
+        }
         // Check if this paragraph should be rendered as a literal block
         if let Some(style) = data.style()
             && style == "literal"

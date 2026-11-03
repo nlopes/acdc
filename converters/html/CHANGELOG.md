@@ -120,6 +120,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Paragraph-style sidebars use the backend's sidebar layout. `[pass]` paragraphs
+  use the same raw-content path as delimited passthrough blocks.
+- Simple admonitions omit the extra paragraph wrapper in standard HTML,
+  matching Asciidoctor. Delimited admonitions keep their block structure.
+
 - Links, URLs, mailto links, and external cross-references honor `opts=nofollow`
   and `opts=noopener` alongside `window=`. `_blank` windows add `noopener`;
   local cross-references retain their existing behavior. acdc keeps `nofollow`

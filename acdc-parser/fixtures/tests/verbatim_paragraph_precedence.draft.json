@@ -1098,6 +1098,7 @@
           "name": "admonition",
           "type": "block",
           "variant": "note",
+          "form": "paragraph",
           "metadata": {
             "attributes": {
               "language": "text"
@@ -1141,12 +1142,6 @@
                   ]
                 }
               ],
-              "metadata": {
-                "attributes": {
-                  "language": "text"
-                },
-                "style": "source"
-              },
               "location": [
                 {
                   "line": 56,

@@ -28,8 +28,10 @@ fn simple_admonitions_keep_paragraph_attributes_content_and_locations(
     });
     let note = admonitions.next().ok_or("note")?;
     let paragraph = note.simple_paragraph().ok_or("simple paragraph")?;
-    assert_eq!(paragraph.id().ok_or("paragraph ID")?.as_str(), "note");
-    assert!(paragraph.roles().contains("alert"));
+    assert_eq!(note.id().ok_or("admonition ID")?.as_str(), "note");
+    assert!(note.roles().contains("alert"));
+    assert!(paragraph.id().is_none());
+    assert!(paragraph.roles().is_empty());
     assert!(paragraph.attributes().get("subs").is_some());
     let BlockKind::Paragraph(original) = note.blocks().next().ok_or("body")?.kind() else {
         return Err("expected paragraph".into());
@@ -51,25 +53,29 @@ fn simple_admonitions_keep_paragraph_attributes_content_and_locations(
 }
 
 #[test]
-fn constructed_admonitions_require_one_paragraph_with_matching_metadata() -> Result<(), Error> {
+fn constructed_admonitions_require_an_explicit_paragraph_form() -> Result<(), Error> {
     let metadata = BlockMetadata::new()
-        .with_roles(vec!["alert".into()])
+        .with_roles(vec!["alert"])
         .with_options(vec!["unbreakable"]);
     let paragraph = Paragraph::new(Vec::new(), Location::default())
         .with_metadata(metadata.clone())?
         .with_title(Title::new(Vec::new()));
-    let admonition = Admonition::new(
+    let admonition = Admonition::from_paragraph(
         AdmonitionVariant::Tip,
-        vec![Block::Paragraph(paragraph.clone())],
+        paragraph.clone(),
         Location::default(),
-    )
-    .with_metadata(metadata.clone())?;
+    );
     let selected = AdmonitionRef::from(&admonition)
         .simple_paragraph()
         .ok_or("constructed simple paragraph")?;
     assert!(selected.content().is_empty());
-    assert!(selected.title().is_some_and(ContentRef::is_empty));
-    assert!(selected.roles().contains("alert"));
+    assert!(selected.title().is_none());
+    assert!(
+        AdmonitionRef::from(&admonition)
+            .title()
+            .is_some_and(ContentRef::is_empty)
+    );
+    assert!(AdmonitionRef::from(&admonition).roles().contains("alert"));
 
     for blocks in [
         Vec::new(),
