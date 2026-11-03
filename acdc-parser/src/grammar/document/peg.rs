@@ -1428,7 +1428,23 @@ peg::parser! {
 
         // Block parsing for continuation context - lists inside continuations cannot consume
         // further continuations (those belong to the parent item that started the continuation)
+        // Comments before attached content do not consume its continuation.
+        // Keep comment-only and next-item cases on the existing path.
         rule block_in_continuation(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block<'input>, Error>
+        = continuation_comments() !eol() !at_list_item_start()
+          !at_callout_list_item() !check_line_is_description_list(offset)
+          !("+" whitespace()* (eol() / ![_]))
+          block:continuation_block(offset, parent_section_level) { block }
+        / block:continuation_block(offset, parent_section_level) { block }
+
+        rule continuation_comments()
+        = eol()* (
+            comment_line()+
+            / delimiter:comment_delimiter() eol()
+              until_block_close(delimiter) eol()? block_close_delim(delimiter) eol()?
+        )
+
+        rule continuation_block(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block<'input>, Error>
         = !trailing_block_metadata_match() start:position!()
         block_metadata:(bm:block_metadata(offset, parent_section_level) {?
             bm.map_err(|_| {

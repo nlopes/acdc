@@ -1,0 +1,491 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Included continuation comments",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 32
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 32
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "list",
+      "type": "block",
+      "variant": "unordered",
+      "marker": "*",
+      "items": [
+        {
+          "name": "listItem",
+          "type": "block",
+          "marker": "*",
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "First",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 3
+                },
+                {
+                  "line": 3,
+                  "col": 7
+                }
+              ]
+            }
+          ],
+          "blocks": [
+            {
+              "name": "paragraph",
+              "type": "block",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Included ",
+                  "location": [
+                    {
+                      "line": 4,
+                      "col": 1,
+                      "file": [
+                        "includes/list_continuation_comment_selected.adoc"
+                      ]
+                    },
+                    {
+                      "line": 4,
+                      "col": 9,
+                      "file": [
+                        "includes/list_continuation_comment_selected.adoc"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "span",
+                  "type": "inline",
+                  "variant": "strong",
+                  "form": "constrained",
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "body",
+                      "location": [
+                        {
+                          "line": 4,
+                          "col": 11,
+                          "file": [
+                            "includes/list_continuation_comment_selected.adoc"
+                          ]
+                        },
+                        {
+                          "line": 4,
+                          "col": 14,
+                          "file": [
+                            "includes/list_continuation_comment_selected.adoc"
+                          ]
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 4,
+                      "col": 10,
+                      "file": [
+                        "includes/list_continuation_comment_selected.adoc"
+                      ]
+                    },
+                    {
+                      "line": 4,
+                      "col": 15,
+                      "file": [
+                        "includes/list_continuation_comment_selected.adoc"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": " with ",
+                  "location": [
+                    {
+                      "line": 4,
+                      "col": 16,
+                      "file": [
+                        "includes/list_continuation_comment_selected.adoc"
+                      ]
+                    },
+                    {
+                      "line": 4,
+                      "col": 21,
+                      "file": [
+                        "includes/list_continuation_comment_selected.adoc"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "footnote",
+                  "type": "inline",
+                  "id": null,
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Included note",
+                      "location": [
+                        {
+                          "line": 4,
+                          "col": 32,
+                          "file": [
+                            "includes/list_continuation_comment_selected.adoc"
+                          ]
+                        },
+                        {
+                          "line": 4,
+                          "col": 44,
+                          "file": [
+                            "includes/list_continuation_comment_selected.adoc"
+                          ]
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 4,
+                      "col": 22,
+                      "file": [
+                        "includes/list_continuation_comment_selected.adoc"
+                      ]
+                    },
+                    {
+                      "line": 4,
+                      "col": 45,
+                      "file": [
+                        "includes/list_continuation_comment_selected.adoc"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": ".",
+                  "location": [
+                    {
+                      "line": 4,
+                      "col": 46,
+                      "file": [
+                        "includes/list_continuation_comment_selected.adoc"
+                      ]
+                    },
+                    {
+                      "line": 4,
+                      "col": 46,
+                      "file": [
+                        "includes/list_continuation_comment_selected.adoc"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 4,
+                  "col": 1,
+                  "file": [
+                    "includes/list_continuation_comment_selected.adoc"
+                  ]
+                },
+                {
+                  "line": 4,
+                  "col": 46,
+                  "file": [
+                    "includes/list_continuation_comment_selected.adoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 3,
+              "col": 1
+            },
+            {
+              "line": 4,
+              "col": 46,
+              "file": [
+                "includes/list_continuation_comment_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "listItem",
+          "type": "block",
+          "marker": "*",
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Second",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 3
+                },
+                {
+                  "line": 7,
+                  "col": 8
+                }
+              ]
+            }
+          ],
+          "blocks": [
+            {
+              "name": "admonition",
+              "type": "block",
+              "variant": "note",
+              "blocks": [
+                {
+                  "name": "paragraph",
+                  "type": "block",
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Nested note.",
+                      "location": [
+                        {
+                          "line": 11,
+                          "col": 1
+                        },
+                        {
+                          "line": 11,
+                          "col": 12
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 11,
+                      "col": 1
+                    },
+                    {
+                      "line": 11,
+                      "col": 12
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 9,
+                  "col": 1
+                },
+                {
+                  "line": 12,
+                  "col": 4
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 7,
+              "col": 1
+            },
+            {
+              "line": 12,
+              "col": 4
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 12,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "list",
+                    "type": "block",
+                    "variant": "unordered",
+                    "marker": "*",
+                    "items": [
+                      {
+                        "name": "listItem",
+                        "type": "block",
+                        "marker": "*",
+                        "principal": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell item",
+                            "location": [
+                              {
+                                "line": 16,
+                                "col": 4
+                              },
+                              {
+                                "line": 16,
+                                "col": 12
+                              }
+                            ]
+                          }
+                        ],
+                        "blocks": [
+                          {
+                            "name": "paragraph",
+                            "type": "block",
+                            "inlines": [
+                              {
+                                "name": "text",
+                                "type": "string",
+                                "value": "Cell paragraph.",
+                                "location": [
+                                  {
+                                    "line": 19,
+                                    "col": 1
+                                  },
+                                  {
+                                    "line": 19,
+                                    "col": 15
+                                  }
+                                ]
+                              }
+                            ],
+                            "location": [
+                              {
+                                "line": 19,
+                                "col": 1
+                              },
+                              {
+                                "line": 19,
+                                "col": 15
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 16,
+                            "col": 2
+                          },
+                          {
+                            "line": 19,
+                            "col": 15
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 16,
+                        "col": 2
+                      },
+                      {
+                        "line": 19,
+                        "col": 15
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 15,
+            "col": 1
+          },
+          {
+            "line": 20,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 14,
+          "col": 1
+        },
+        {
+          "line": 20,
+          "col": 4
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 20,
+      "col": 4
+    }
+  ]
+}

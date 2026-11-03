@@ -275,6 +275,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A list continuation keeps the next block attached when line or block
+  comments precede it, including comments from selected includes. Comment-only
+  continuations still retain their source. This matches Asciidoctor in both modes.
+
 - Legacy heading underlines must differ from their title by at most one
   character, matching Asciidoctor. Metadata and punctuation-only lines no
   longer become accidental underlined headings.

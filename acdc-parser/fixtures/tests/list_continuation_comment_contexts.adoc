@@ -1,0 +1,20 @@
+= Included continuation comments
+
+* First
++
+include::includes/list_continuation_comment_selected.adoc[tag=selected]
+
+* Second
++
+[NOTE]
+====
+Nested note.
+====
+
+[cols="a"]
+|===
+|* Cell item
++
+// Cell comment.
+Cell paragraph.
+|===
