@@ -1049,6 +1049,7 @@
                 "type": "url",
                 "value": "https://example.org/u20"
               },
+              "bracketed": true,
               "location": [
                 {
                   "line": 57,

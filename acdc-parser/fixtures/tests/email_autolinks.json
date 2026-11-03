@@ -621,6 +621,7 @@
                 "type": "url",
                 "value": "mailto:admin@example.com"
               },
+              "bracketed": true,
               "location": [
                 {
                   "line": 25,

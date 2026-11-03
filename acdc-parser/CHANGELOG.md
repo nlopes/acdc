@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- Serializing an `InlineMacro` or its concrete owner now produces the same native
+  JSON node as serializing its enclosing `InlineNode`, instead of enum wrappers
+  or owner-specific layouts. Direct `LineBreak` serialization now uses the same
+  `break` node too. Angle-bracketed autolinks retain `bracketed: true`; its absence
+  means `false`. Native JSON also accepts standalone passthrough nodes, retaining
+  their text and requested substitutions independently of strict ASG export.
+
 - Enabled replacements now resolve copyright and trademark signs, ellipses,
   word-internal apostrophes, and em dashes in the parser. Inline trees
   represent this typography with `InlineNode::Symbol` and

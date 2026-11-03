@@ -1,0 +1,38 @@
+= Native macro projection
+:experimental:
+
+<https://example.com/path> and https://example.com/path.
+
+<team@example.com> and team@example.com.
+
+mailto:team@example.com[Team,Subject,Body]
+
+mailto:team@example.com[Team,"",""]
+
+mailto:team@example.com[Team]
+
+link:manual.html[Label,title='A *tooltip*',role=reference,opts=nofollow,data-owner=manual]
+
+https://example.com[URL label,title="Tooltip"]
+
+image:photo.png[Alt,title="Tooltip",width=40,role=large,id=photo]
+
+image:empty.png["",title=""]
+
+icon:heart[Alt,title='A *tooltip*',size=2x,role=large]
+
+kbd:[Ctrl+C] and btn:[Save] and menu:File[Open > Recent].
+
+footnote:note[Body.] and footnote:note[].
+
+[[chapter]]
+== Chapter
+
+xref:chapter[Label] and <<chapter>>.
+
+stem:[x^2] and pass:[<b>Raw</b>] and pass:c[<b>Escaped</b>].
+
+indexterm:[Primary,Secondary] and ((Visible)).
+
+Line break +
+continues.

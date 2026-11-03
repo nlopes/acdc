@@ -468,6 +468,15 @@ Native JSON uses the same node form for an index term and its enclosing inline n
 == Native AST JSON
 
 Native JSON preserves acdc's model; it is not a claim of ASG conformance.
+An inline macro uses the same node shape when serialized directly, through its
+concrete owner, or inside an `InlineNode`. Mail links retain unencoded `subject`
+and `body` values, including explicit empty strings. An angle-bracketed autolink
+sets `bracketed` to `true`; omission means `false`.
+
+Standalone passthrough nodes use `name: "pass"`, their optional text, and any
+requested substitutions. Document parsing normally resolves passthroughs into
+inline content first. Native serialization does not interpret their text or
+apply ASG restrictions.
 
 == Migrating from 0.11
 

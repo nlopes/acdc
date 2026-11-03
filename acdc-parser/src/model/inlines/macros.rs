@@ -11,17 +11,13 @@ use crate::{
 pub const ICON_SIZES: &[&str] = &["1x", "2x", "3x", "4x", "5x", "lg", "fw"];
 
 /// A `Pass` represents a passthrough macro in a document.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Pass<'a> {
-    #[serde(skip)]
     pub(crate) attribute_fragments: Box<[crate::model::AttributeInlineFragment]>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub text: Option<&'a str>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub substitutions: Vec<Substitution>,
     pub location: Location,
-    #[serde(skip)]
     pub kind: PassthroughKind,
 }
 
@@ -38,26 +34,21 @@ pub enum PassthroughKind {
 }
 
 /// A `Footnote` represents an inline footnote in a document.
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Footnote<'a> {
     /// Keep discarded named bodies available for conflict diagnostics.
-    #[serde(skip)]
     pub(crate) definition_source: Option<&'a str>,
     /// Capture the body before later substitutions; consumed after source mapping.
-    #[serde(skip)]
     pub(crate) registration_substitutions: Option<crate::model::substitution::SubstitutionPlan>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<&'a str>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub content: Vec<InlineNode<'a>>,
-    #[serde(skip)]
     pub number: u32,
     pub location: Location,
 }
 
 /// A `Button` represents an inline button in a document.
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Button<'a> {
     pub label: ContentAttribute<'a>,
@@ -65,17 +56,16 @@ pub struct Button<'a> {
 }
 
 /// A `Menu` represents an inline menu in a document.
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Menu<'a> {
     pub target: ContentAttribute<'a>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub items: Vec<ContentAttribute<'a>>,
     pub location: Location,
 }
 
 /// A `Keyboard` represents an inline keyboard shortcut in a document.
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Keyboard<'a> {
     pub keys: Vec<Key<'a>>,
@@ -383,16 +373,14 @@ impl XrefStyle {
 }
 
 /// An `Autolink` represents an inline autolink in a document.
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Autolink<'a> {
     pub url: Source<'a>,
     /// Whether the autolink was written with angle brackets (e.g., `<user@example.com>`).
-    /// When true, the renderer should preserve the brackets in the output.
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    /// Email autolinks retain these brackets in their visible text.
     pub bracketed: bool,
     pub location: Location,
-    #[serde(skip)]
     pub(crate) hide_uri_scheme: bool,
 }
 
@@ -405,7 +393,7 @@ impl Autolink<'_> {
 }
 
 /// A `Stem` represents an inline mathematical expression.
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Stem<'a> {
     pub content: &'a str,

@@ -113,8 +113,8 @@ impl Serialize for LineBreak {
         S: Serializer,
     {
         let mut state = serializer.serialize_map(Some(3))?;
-        state.serialize_entry("name", "linebreak")?;
-        state.serialize_entry("type", "string")?;
+        state.serialize_entry("name", "break")?;
+        state.serialize_entry("type", "inline")?;
         state.serialize_entry("location", &self.location)?;
         state.end()
     }

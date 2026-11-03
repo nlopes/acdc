@@ -1337,6 +1337,7 @@
                 "type": "url",
                 "value": "https://angle.example"
               },
+              "bracketed": true,
               "location": [
                 {
                   "line": 50,
@@ -1387,6 +1388,7 @@
                 "type": "url",
                 "value": "https://angle.example"
               },
+              "bracketed": true,
               "location": [
                 {
                   "line": 52,

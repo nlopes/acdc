@@ -2,7 +2,7 @@ use std::convert::Infallible;
 
 use serde::{
     Serialize,
-    ser::{Error as _, SerializeMap, Serializer},
+    ser::{SerializeMap, Serializer},
 };
 
 mod hyperlinks;
@@ -162,7 +162,7 @@ impl InlineMacro<'_> {
 /// }
 /// ```
 #[non_exhaustive]
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum InlineMacro<'a> {
     /// Footnote reference: `footnote:[content]` or `footnote:id[content]`
     Footnote(Footnote<'a>),
@@ -186,7 +186,7 @@ pub enum InlineMacro<'a> {
     Autolink(Autolink<'a>),
     /// Cross-reference: `<<id,text>>` or `xref:id[text]`
     CrossReference(Box<CrossReference<'a>>),
-    /// Inline passthrough: `pass:[content]` - not serialized to ASG
+    /// Inline passthrough: `pass:[content]`
     Pass(Pass<'a>),
     /// Inline math: `stem:[formula]` or `latexmath:[...]` / `asciimath:[...]`
     Stem(Stem<'a>),
@@ -258,7 +258,6 @@ impl Serialize for InlineNode<'_> {
                 map.serialize_entry("location", &raw.location)?;
             }
             InlineNode::VerbatimText(verbatim) => {
-                // ASG represents verbatim leaf content as text rather than raw content.
                 map.serialize_entry("name", "text")?;
                 map.serialize_entry("type", "string")?;
                 map.serialize_entry("value", &verbatim.content)?;
@@ -328,6 +327,36 @@ impl Serialize for InlineNode<'_> {
     }
 }
 
+macro_rules! serialize_inline_owner {
+    ($($owner:ident => $function:ident),+ $(,)?) => { $(
+        impl Serialize for $owner<'_> {
+            fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+                let mut map = serializer.serialize_map(None)?;
+                $function::<S>(self, &mut map)?;
+                map.end()
+            }
+        }
+    )+ };
+}
+
+serialize_inline_owner! {
+    InlineMacro => serialize_inline_macro,
+    Footnote => serialize_footnote,
+    Icon => serialize_icon,
+    InlineImage => serialize_image,
+    Keyboard => serialize_keyboard,
+    Button => serialize_button,
+    Menu => serialize_menu,
+    Url => serialize_url,
+    Link => serialize_link,
+    Mailto => serialize_mailto,
+    Autolink => serialize_autolink,
+    CrossReference => serialize_xref,
+    Stem => serialize_stem,
+    IndexTerm => serialize_indexterm,
+    Pass => serialize_pass,
+}
+
 fn serialize_inline_macro<S>(
     macro_node: &InlineMacro<'_>,
     map: &mut S::SerializeMap,
@@ -349,9 +378,7 @@ where
         InlineMacro::CrossReference(x) => serialize_xref::<S>(x, map),
         InlineMacro::Stem(s) => serialize_stem::<S>(s, map),
         InlineMacro::IndexTerm(i) => serialize_indexterm::<S>(i, map),
-        InlineMacro::Pass(_) => Err(S::Error::custom(
-            "inline passthrough macros are not part of the ASG specification and cannot be serialized",
-        )),
+        InlineMacro::Pass(pass) => serialize_pass::<S>(pass, map),
     }
 }
 
@@ -364,14 +391,6 @@ where
     map.serialize_entry("id", &f.id)?;
     map.serialize_entry("inlines", &f.content)?;
     map.serialize_entry("location", &f.location)
-}
-
-impl Serialize for Icon<'_> {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut map = serializer.serialize_map(None)?;
-        serialize_icon::<S>(self, &mut map)?;
-        map.end()
-    }
 }
 
 fn serialize_icon<S>(i: &Icon<'_>, map: &mut S::SerializeMap) -> Result<(), S::Error>
@@ -391,14 +410,6 @@ where
     }
     map.serialize_entry("target", &i.target)?;
     map.serialize_entry("location", &i.location)
-}
-
-impl Serialize for InlineImage<'_> {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut map = serializer.serialize_map(None)?;
-        serialize_image::<S>(self, &mut map)?;
-        map.end()
-    }
 }
 
 fn serialize_image<S>(i: &InlineImage<'_>, map: &mut S::SerializeMap) -> Result<(), S::Error>
@@ -455,14 +466,6 @@ where
 
 macro_rules! serialize_hyperlink {
     ($owner:ident, $function:ident, $variant:literal $(, $field:ident)*) => {
-        impl Serialize for $owner<'_> {
-            fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-                let mut map = serializer.serialize_map(None)?;
-                $function::<S>(self, &mut map)?;
-                map.end()
-            }
-        }
-
         fn $function<S: Serializer>(node: &$owner<'_>, map: &mut S::SerializeMap) -> Result<(), S::Error> {
             map.serialize_entry("name", "ref")?;
             map.serialize_entry("type", "inline")?;
@@ -491,15 +494,10 @@ where
     map.serialize_entry("type", "inline")?;
     map.serialize_entry("variant", "autolink")?;
     map.serialize_entry("target", &a.url)?;
-    map.serialize_entry("location", &a.location)
-}
-
-impl Serialize for CrossReference<'_> {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut map = serializer.serialize_map(None)?;
-        serialize_xref::<S>(self, &mut map)?;
-        map.end()
+    if a.bracketed {
+        map.serialize_entry("bracketed", &a.bracketed)?;
     }
+    map.serialize_entry("location", &a.location)
 }
 
 fn serialize_xref<S>(x: &CrossReference<'_>, map: &mut S::SerializeMap) -> Result<(), S::Error>
@@ -522,6 +520,21 @@ where
     map.serialize_entry("location", &x.location)
 }
 
+fn serialize_pass<S: Serializer>(
+    pass: &Pass<'_>,
+    map: &mut S::SerializeMap,
+) -> Result<(), S::Error> {
+    map.serialize_entry("name", "pass")?;
+    map.serialize_entry("type", "inline")?;
+    if let Some(text) = pass.text {
+        map.serialize_entry("text", text)?;
+    }
+    if !pass.substitutions.is_empty() {
+        map.serialize_entry("substitutions", &pass.substitutions)?;
+    }
+    map.serialize_entry("location", &pass.location)
+}
+
 fn serialize_stem<S>(s: &Stem<'_>, map: &mut S::SerializeMap) -> Result<(), S::Error>
 where
     S: Serializer,
@@ -531,14 +544,6 @@ where
     map.serialize_entry("content", &s.content)?;
     map.serialize_entry("notation", &s.notation)?;
     map.serialize_entry("location", &s.location)
-}
-
-impl Serialize for IndexTerm<'_> {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut map = serializer.serialize_map(None)?;
-        serialize_indexterm::<S>(self, &mut map)?;
-        map.end()
-    }
 }
 
 #[derive(Serialize)]

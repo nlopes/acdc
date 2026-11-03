@@ -183,7 +183,20 @@ fn standalone_pass_reads_preserve_unprocessed_content_and_empty_values(
         PassRef::from(&absent).substitutions().collect::<Vec<_>>(),
         absent.substitutions
     );
-    assert!(serde_json::to_value(parsed.inlines()).is_err());
+    let serialized = serde_json::to_value(parsed.inlines())?;
+    let owner_json = serde_json::to_value(owner)?;
+    let empty_json = serde_json::to_value(empty)?;
+    assert_eq!(serialized.get(0), Some(&owner_json));
+    assert_eq!(serialized.get(2), Some(&empty_json));
+    assert_eq!(owner_json.get("name"), Some(&serde_json::json!("pass")));
+    assert_eq!(owner_json.get("text"), Some(&serde_json::json!("*bold*")));
+    assert_eq!(empty_json.get("text"), Some(&serde_json::json!("")));
+    let absent_json = serde_json::to_value(&absent)?;
+    assert!(absent_json.get("text").is_none());
+    assert_eq!(
+        absent_json.get("substitutions"),
+        Some(&serde_json::to_value(&absent.substitutions)?)
+    );
     Ok(())
 }
 

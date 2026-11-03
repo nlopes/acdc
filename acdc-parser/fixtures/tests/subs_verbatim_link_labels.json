@@ -514,6 +514,7 @@
             "type": "url",
             "value": "mailto:dev@example.org"
           },
+          "bracketed": true,
           "location": [
             {
               "line": 15,
