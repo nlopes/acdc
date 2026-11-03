@@ -1,4 +1,5 @@
 = Resolved typography
+:value: (C) ...
 
 (C) (R) (TM), Wait... Sam's text; left--right and left -- right.
 

@@ -1,0 +1,17 @@
+= Typography word contexts
+:lead: Sam
+:tail: s
+:empty:
+
+Earlier.
+
+[cols=a]
+|===
+|[subs="specialchars,replacements,attributes"]
+π {lead}'s and Sam'{tail} and Sam{empty}'s.
+
+[subs="specialchars,attributes,replacements"]
+π {lead}'s and Sam'{tail} and Sam{empty}'s.
+|===
+
+include::includes/compatibility_typography_word_context.adoc[tag=selected,indent=0]

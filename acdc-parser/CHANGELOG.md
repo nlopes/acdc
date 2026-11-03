@@ -15,7 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ast::InlineKind::Symbol`. Read `SymbolRef::kind()` or `text()` for its meaning
   and `location()` for its authored span. Native JSON and text reads expose the
   resolved value. Escaped tokens stay literal, and attributes expanded after
-  replacements no longer introduce new symbols, matching Asciidoctor.
+  replacements no longer introduce new symbols or word context, matching
+  Asciidoctor. Empty attribute references do not take the source spans of
+  following symbols.
 
 - Draft mode keeps block image alt text literal, including single-quoted values,
   and does not register macros from it. Attribute references still expand.

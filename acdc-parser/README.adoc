@@ -168,9 +168,10 @@ Text reads keep ordinary, raw, and verbatim content distinct. `text()` returns
 parsed text without rendering; `PlainRef::is_escaped()` retains escape protection.
 `SymbolRef` represents resolved typography. Its `kind()` is semantic, its `text()`
 is Unicode, and its location still covers the authored replacement token.
-Enabled replacements resolve copyright and trademark signs, ellipses, word-internal apostrophes before a converter reads the tree.
+Enabled replacements resolve copyright and trademark signs, ellipses, and
+word-internal apostrophes before a converter reads the tree.
 Replacement escapes produce protected literal text. Later attribute expansion
-cannot introduce a token for an earlier replacement stage.
+cannot introduce a token or word context for an earlier replacement stage.
 `pass:r,c[(C)]` keeps the resolved copyright symbol; Asciidoctor instead
 escapes its generated HTML entity. acdc does not put backend markup in the tree.
 

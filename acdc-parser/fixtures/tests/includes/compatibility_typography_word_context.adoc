@@ -1,0 +1,8 @@
+Ignored.
+// tag::selected[]
+  [subs="specialchars,replacements,attributes"]
+  π {lead}'s and Sam'{tail} and Sam{empty}'s.
+
+  [subs="specialchars,attributes,replacements"]
+  π {lead}'s and Sam'{tail} and Sam{empty}'s.
+// end::selected[]

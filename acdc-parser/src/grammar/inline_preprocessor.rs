@@ -630,6 +630,27 @@ impl SourceMap {
         self.map_position_with_bias(pos, false)
     }
 
+    /// Map a token start past empty attributes, retaining nonempty reference spans.
+    pub(crate) fn map_token_position(&self, pos: usize) -> Result<usize, Error> {
+        let mut mapped = self.map_local_position(pos, false)?;
+        for replacement in &self.replacements {
+            if replacement.absolute_start > mapped {
+                break;
+            }
+            if replacement.absolute_start == mapped
+                && replacement.byte_len == 0
+                && replacement.kind.is_attribute()
+            {
+                mapped = replacement.absolute_end;
+            }
+        }
+        if let Some(origin) = &self.origin {
+            origin.map.map_token_position(mapped + origin.offset)
+        } else {
+            Ok(mapped)
+        }
+    }
+
     /// Map an inclusive end position in the processed text back to the original source.
     pub(crate) fn map_end_position(&self, pos: usize) -> Result<usize, Error> {
         self.map_position_with_bias(pos, true)

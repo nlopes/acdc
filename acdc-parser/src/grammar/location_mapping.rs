@@ -62,6 +62,20 @@ impl<'a> LocationMappingContext<'_, 'a> {
         })
     }
 
+    fn map_symbol_location(&self, loc: &Location) -> Result<Location, Error> {
+        let mapped = self.map_location(loc)?;
+        let start = self
+            .processed
+            .source_map
+            .map_token_position(self.base_location.absolute_start + loc.absolute_start)?;
+        let start = snap_to_boundary(
+            self.state.input,
+            start.min(self.state.input.len()),
+            RoundDirection::Backward,
+        );
+        Ok(self.state.create_location(start, mapped.absolute_end))
+    }
+
     /// Map an inclusive preprocessed span to source coordinates, preserving
     /// the end bias of substitutions.
     pub(crate) fn map_location(&self, loc: &Location) -> Result<Location, Error> {
@@ -180,11 +194,13 @@ pub(crate) fn map_inner_content_locations<'a>(
             | InlineNode::CurvedApostropheText(_)) => map_marked_text_locations(marked_text, ctx)?,
             InlineNode::Macro(inline_macro) => map_inline_macro(inline_macro, ctx)?,
             InlineNode::InlineAnchor(anchor) => map_anchor_locations(anchor, ctx)?,
+            InlineNode::Symbol(symbol) => {
+                symbol.location = ctx.map_symbol_location(&symbol.location)?;
+            }
             // Invisible nodes and resolved escapes still use the enclosing text's local coordinates.
             InlineNode::RawText(_)
             | InlineNode::VerbatimText(_)
             | InlineNode::StandaloneCurvedApostrophe(_)
-            | InlineNode::Symbol(_)
             | InlineNode::LineBreak(_)
             | InlineNode::CalloutRef(_) => {
                 *node.location_mut() = ctx.map_location(node.location())?;
@@ -266,7 +282,7 @@ pub(crate) fn map_inline_locations<'a>(
                 standalone.location = ctx.map_location(&standalone.location)?;
             }
             InlineNode::Symbol(symbol) => {
-                symbol.location = ctx.map_location(&symbol.location)?;
+                symbol.location = ctx.map_symbol_location(&symbol.location)?;
             }
             InlineNode::Macro(inline_macro) => map_inline_macro(inline_macro, &ctx)?,
             InlineNode::LineBreak(lb) => lb.location = ctx.map_location(&lb.location)?,

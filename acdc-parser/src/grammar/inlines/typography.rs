@@ -120,7 +120,15 @@ fn replacements(text: &str, allowed: impl Fn(Range<usize>) -> bool) -> Vec<Repla
         if escaped {
             range.start = cursor;
         }
-        let value = if !allowed(range.clone()) {
+        let mut context = range.clone();
+        if kind == SymbolKind::CurvedApostrophe {
+            context.start -= text[..range.start]
+                .chars()
+                .next_back()
+                .map_or(0, char::len_utf8);
+            context.end += text[range.end..].chars().next().map_or(0, char::len_utf8);
+        }
+        let value = if !allowed(context) {
             ReplacementValue::Literal(range.clone())
         } else if escaped {
             ReplacementValue::Literal(start..end)
