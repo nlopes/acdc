@@ -317,6 +317,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Escaped counter references stay literal instead of being removed. Unsupported
+  active counters still warn and omit their value, and now set
+  `ParseResult::source_recovery()` so callers can detect the loss. Match
+  `WarningKind::UnsupportedCounter` to identify these warnings.
+- Inline-preprocessor warning ranges end at the last authored character instead
+  of the following character, including passthrough, STEM, and counter warnings.
+
 - Inline passthroughs finish replacements before later attributes or macros.
   In `pass:r,a[...]`, a later value cannot introduce signs, dashes, or apostrophe
   context for the earlier stage. In `pass:r,m[footnote:n[(C)\]]`, the footnote

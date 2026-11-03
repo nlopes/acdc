@@ -1,0 +1,58 @@
+{
+  "recovery": {
+    "location": {
+      "absolute_end": 59,
+      "absolute_start": 40,
+      "file": "includes/compatibility_diagnostic_selected.adoc",
+      "location": [
+        {
+          "col": 8,
+          "line": 3
+        },
+        {
+          "col": 27,
+          "line": 3
+        }
+      ]
+    },
+    "message": "inline passthrough escaping after formatting or macros requires backend markup; value retained literally"
+  },
+  "warnings": [
+    {
+      "location": {
+        "absolute_end": 59,
+        "absolute_start": 40,
+        "file": "includes/compatibility_diagnostic_selected.adoc",
+        "location": [
+          {
+            "col": 8,
+            "line": 3
+          },
+          {
+            "col": 27,
+            "line": 3
+          }
+        ]
+      },
+      "message": "inline passthrough escaping after formatting or macros requires backend markup; value retained literally"
+    },
+    {
+      "location": {
+        "absolute_end": 87,
+        "absolute_start": 70,
+        "file": "includes/compatibility_diagnostic_selected.adoc",
+        "location": [
+          {
+            "col": 12,
+            "line": 5
+          },
+          {
+            "col": 29,
+            "line": 5
+          }
+        ]
+      },
+      "message": "Counters ({counter:included}) are not supported and will be removed from output"
+    }
+  ]
+}

@@ -44,11 +44,7 @@ fn lint_for_warning(kind: &WarningKind) -> Option<LintId> {
         WarningKind::SectionLevelOutOfSequence { .. } => Some(LintId::SectionLevelSequence),
         WarningKind::UnterminatedDelimitedBlock { .. } => Some(LintId::UnterminatedDelimitedBlock),
         WarningKind::UnterminatedTable { .. } => Some(LintId::UnterminatedTable),
-        WarningKind::Other(message)
-            if message.contains("Counters (") && message.contains("not supported") =>
-        {
-            Some(LintId::CounterSyntax)
-        }
+        WarningKind::UnsupportedCounter { .. } => Some(LintId::CounterSyntax),
         WarningKind::NonStandardAuthorLine { .. }
         | WarningKind::UnresolvedReference { .. }
         | WarningKind::LegacyFloatDiscreteHeading

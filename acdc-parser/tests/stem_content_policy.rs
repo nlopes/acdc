@@ -56,7 +56,7 @@ fn unsupported_inline_substitutions_preserve_the_complete_source(
     let start = source.find(&authored).ok_or("missing authored source")?;
     assert_eq!(
         (location.absolute_start, location.absolute_end),
-        (start, start + authored.len())
+        (start, start + authored.len() - 1)
     );
     Ok(())
 }

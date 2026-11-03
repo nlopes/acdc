@@ -133,6 +133,7 @@ impl ParseResult {
                 matches!(
                     warning.kind,
                     WarningKind::ContentRecovery { .. }
+                        | WarningKind::UnsupportedCounter { .. }
                         | WarningKind::UnterminatedDelimitedBlock { .. }
                         | WarningKind::UnterminatedTable { .. }
                         | WarningKind::TableUnknownFormat { .. }

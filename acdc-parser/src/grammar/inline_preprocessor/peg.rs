@@ -151,9 +151,9 @@ peg::parser! {
                 let end_offset = start_offset + end - start;
                 let source_location = state.source_location_for(start_offset, end_offset);
                 state.add_warning(Warning::new(
-                    WarningKind::Other(Cow::Owned(format!(
-                        "Counters ({{{counter_type}:{name}}}) are not supported and will be removed from output"
-                    ))),
+                    WarningKind::UnsupportedCounter {
+                        reference: format!("{{{counter_type}:{name}}}"),
+                    },
                     Some(source_location),
                 ));
 
@@ -197,8 +197,8 @@ peg::parser! {
         // Escape recognition and the text lookahead must consume the same span.
         // Opening escapes also stay literal when attribute substitutions are disabled.
         rule escaped_attribute_reference_pattern()
-            = "\\{" attribute_name_pattern() "}"
-            / "\\"? "{" attribute_name_pattern() "\\}"
+            = "\\{" (counter_body_pattern() / attribute_name_pattern()) "}"
+            / "\\"? "{" (counter_body_pattern() / attribute_name_pattern()) "\\}"
                 {? state.attributes_enabled.get().then_some(()).ok_or("attribute substitutions disabled") }
 
         rule attribute_reference() -> String
@@ -348,8 +348,12 @@ peg::parser! {
 
         /// Pattern for counter references: {counter:name} or {counter:name:initial} or {counter2:...}
         rule counter_reference_pattern()
-            = "{" ("counter2" / "counter") ":" ['a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-']+ (":" ['a'..='z' | 'A'..='Z' | '0'..='9']+)? "}"
+            = "{" counter_body_pattern() "}"
               {? state.attributes_enabled.get().then_some(()).ok_or("attribute substitutions disabled") }
+
+        rule counter_body_pattern()
+            = ("counter2" / "counter") ":" ['a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-']+
+              (":" ['a'..='z' | 'A'..='Z' | '0'..='9']+)?
 
         rule attribute_reference_pattern() = "{" attribute_name_pattern() "}"
 

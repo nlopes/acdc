@@ -19,7 +19,11 @@ use std::{
 
 use crate::{
     DocumentAttributes, Error, Location, Pass, PassthroughKind, Position, SourceLocation,
-    Substitution, Warning, WarningKind, grammar::LineMap,
+    Substitution, Warning, WarningKind,
+    grammar::{
+        LineMap,
+        utf8_utils::{RoundDirection, step_char},
+    },
     model::substitution::parse_passthrough_substitutions,
 };
 
@@ -215,14 +219,17 @@ impl<'a> InlinePreprocessorParserState<'a> {
         }
     }
 
-    /// Build a `SourceLocation` pointing at `[start_offset, end_offset)`
-    /// within the full document input. Uses the shared `LineMap` for
-    /// line/column resolution.
+    /// Build an inclusive diagnostic span from a half-open source range.
     pub(crate) fn source_location_for(
         &self,
         start_offset: usize,
         end_offset: usize,
     ) -> SourceLocation {
+        let end_offset = if start_offset < end_offset {
+            step_char(self.full_input, end_offset, RoundDirection::Backward)
+        } else {
+            start_offset
+        };
         let start = self
             .line_map
             .offset_to_position(start_offset, self.full_input);

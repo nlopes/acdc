@@ -1,7 +1,7 @@
 {
   "recovery": {
     "location": {
-      "absolute_end": 538,
+      "absolute_end": 537,
       "absolute_start": 503,
       "file": "subs_constrained_opening_boundaries.adoc",
       "location": [
@@ -10,7 +10,7 @@
           "line": 24
         },
         {
-          "col": 40,
+          "col": 39,
           "line": 24
         }
       ]
@@ -20,7 +20,7 @@
   "warnings": [
     {
       "location": {
-        "absolute_end": 538,
+        "absolute_end": 537,
         "absolute_start": 503,
         "file": "subs_constrained_opening_boundaries.adoc",
         "location": [
@@ -29,7 +29,7 @@
             "line": 24
           },
           {
-            "col": 40,
+            "col": 39,
             "line": 24
           }
         ]

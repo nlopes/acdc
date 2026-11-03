@@ -1,7 +1,7 @@
 {
   "recovery": {
     "location": {
-      "absolute_end": 89,
+      "absolute_end": 88,
       "absolute_start": 70,
       "file": "compatibility_passthrough_contexts.adoc",
       "location": [
@@ -10,7 +10,7 @@
           "line": 7
         },
         {
-          "col": 30,
+          "col": 29,
           "line": 7
         }
       ]
@@ -20,7 +20,7 @@
   "warnings": [
     {
       "location": {
-        "absolute_end": 89,
+        "absolute_end": 88,
         "absolute_start": 70,
         "file": "compatibility_passthrough_contexts.adoc",
         "location": [
@@ -29,7 +29,7 @@
             "line": 7
           },
           {
-            "col": 30,
+            "col": 29,
             "line": 7
           }
         ]
@@ -38,7 +38,7 @@
     },
     {
       "location": {
-        "absolute_end": 132,
+        "absolute_end": 131,
         "absolute_start": 113,
         "file": "includes/compatibility_passthrough_contexts.adoc",
         "location": [
@@ -47,7 +47,7 @@
             "line": 3
           },
           {
-            "col": 38,
+            "col": 37,
             "line": 3
           }
         ]

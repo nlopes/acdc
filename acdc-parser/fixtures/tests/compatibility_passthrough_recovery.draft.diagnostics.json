@@ -92,7 +92,7 @@
     },
     {
       "location": {
-        "absolute_end": 268,
+        "absolute_end": 267,
         "absolute_start": 239,
         "file": "compatibility_passthrough_recovery.adoc",
         "location": [
@@ -101,7 +101,7 @@
             "line": 9
           },
           {
-            "col": 52,
+            "col": 51,
             "line": 9
           }
         ]
@@ -110,7 +110,7 @@
     },
     {
       "location": {
-        "absolute_end": 345,
+        "absolute_end": 344,
         "absolute_start": 293,
         "file": "compatibility_passthrough_recovery.adoc",
         "location": [
@@ -119,7 +119,7 @@
             "line": 11
           },
           {
-            "col": 75,
+            "col": 74,
             "line": 11
           }
         ]
@@ -128,7 +128,7 @@
     },
     {
       "location": {
-        "absolute_end": 380,
+        "absolute_end": 379,
         "absolute_start": 357,
         "file": "compatibility_passthrough_recovery.adoc",
         "location": [
@@ -137,7 +137,7 @@
             "line": 13
           },
           {
-            "col": 33,
+            "col": 32,
             "line": 13
           }
         ]
@@ -146,7 +146,7 @@
     },
     {
       "location": {
-        "absolute_end": 411,
+        "absolute_end": 410,
         "absolute_start": 393,
         "file": "compatibility_passthrough_recovery.adoc",
         "location": [
@@ -155,7 +155,7 @@
             "line": 15
           },
           {
-            "col": 29,
+            "col": 28,
             "line": 15
           }
         ]
@@ -164,7 +164,7 @@
     },
     {
       "location": {
-        "absolute_end": 445,
+        "absolute_end": 444,
         "absolute_start": 422,
         "file": "compatibility_passthrough_recovery.adoc",
         "location": [
@@ -173,7 +173,7 @@
             "line": 17
           },
           {
-            "col": 32,
+            "col": 31,
             "line": 17
           }
         ]
@@ -182,7 +182,7 @@
     },
     {
       "location": {
-        "absolute_end": 490,
+        "absolute_end": 489,
         "absolute_start": 463,
         "file": "compatibility_passthrough_recovery.adoc",
         "location": [
@@ -191,7 +191,7 @@
             "line": 19
           },
           {
-            "col": 40,
+            "col": 39,
             "line": 19
           }
         ]

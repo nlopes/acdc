@@ -184,9 +184,8 @@ fn disabled_passthrough_counters_use_the_existing_warning_policy() -> Result<(),
                     .source_location()
                     .ok_or("missing counter location")?
                     .location;
-                // Counter diagnostics use an exclusive source endpoint.
                 assert_eq!(
-                    source.get(location.absolute_start..location.absolute_end),
+                    source.get(location.absolute_start..=location.absolute_end),
                     Some("{counter:n}"),
                     "{source}"
                 );

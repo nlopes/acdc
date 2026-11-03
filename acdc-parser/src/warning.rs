@@ -44,6 +44,7 @@ impl Warning {
             WarningKind::LegacyFloatDiscreteHeading => "legacy-float-discrete-heading",
             WarningKind::DeprecatedToc2Attribute => "deprecated-toc2-attribute",
             WarningKind::UnsupportedCompatMode => "unsupported-compat-mode",
+            WarningKind::UnsupportedCounter { .. } => "unsupported-counter",
             WarningKind::InvalidDocumentAttribute { .. } => "invalid-document-attribute",
             WarningKind::ContentRecovery { .. } => "content-recovery",
             WarningKind::Other(_) => "other",
@@ -125,7 +126,9 @@ impl Warning {
             WarningKind::InvalidDocumentAttribute { .. } => {
                 Some("Use a value in the attribute's documented domain")
             }
-            WarningKind::ContentRecovery { .. } | WarningKind::Other(_) => None,
+            WarningKind::ContentRecovery { .. }
+            | WarningKind::UnsupportedCounter { .. }
+            | WarningKind::Other(_) => None,
         }
     }
 }
@@ -316,6 +319,13 @@ pub enum WarningKind {
         value: String,
         /// Short description of the registered value domain.
         expected: &'static str,
+    },
+
+    /// An unsupported counter reference was omitted from the output.
+    #[error("Counters ({reference}) are not supported and will be removed from output")]
+    UnsupportedCounter {
+        /// Counter kind and name, such as `{counter:items}`.
+        reference: String,
     },
 
     /// Requested source content or substitutions were omitted, replaced, or recovered.

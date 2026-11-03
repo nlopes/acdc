@@ -52,6 +52,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Escaped counter references no longer trigger the counter-syntax lint. Active
+  counter diagnostics now stop at the closing brace.
+
 - Image-alt checks read parsed alternative content, including formatted labels.
   Resource checks also traverse media alternatives, tooltips, and UI labels.
 

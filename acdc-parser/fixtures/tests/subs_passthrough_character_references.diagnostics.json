@@ -1,7 +1,7 @@
 {
   "recovery": {
     "location": {
-      "absolute_end": 899,
+      "absolute_end": 898,
       "absolute_start": 879,
       "file": "subs_passthrough_character_references.adoc",
       "location": [
@@ -10,7 +10,7 @@
           "line": 50
         },
         {
-          "col": 25,
+          "col": 24,
           "line": 50
         }
       ]
@@ -20,7 +20,7 @@
   "warnings": [
     {
       "location": {
-        "absolute_end": 899,
+        "absolute_end": 898,
         "absolute_start": 879,
         "file": "subs_passthrough_character_references.adoc",
         "location": [
@@ -29,7 +29,7 @@
             "line": 50
           },
           {
-            "col": 25,
+            "col": 24,
             "line": 50
           }
         ]
@@ -38,7 +38,7 @@
     },
     {
       "location": {
-        "absolute_end": 988,
+        "absolute_end": 987,
         "absolute_start": 950,
         "file": "subs_passthrough_character_references.adoc",
         "location": [
@@ -47,7 +47,7 @@
             "line": 54
           },
           {
-            "col": 43,
+            "col": 42,
             "line": 54
           }
         ]
