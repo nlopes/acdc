@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Set `compatibilityMode` to `asciidoctor` (the default) or `draft` in initialization
+  options or resource-scoped workspace settings. Changing the mode refreshes analysis
+  and workspace symbols; previews use the same mode, including unsaved includes.
+  Backend selection and include access limits remain independent.
+
 - Keep source selection and inline scanning available around resolved typography.
 
 - Document outlines and workspace search retain formatted titles, media

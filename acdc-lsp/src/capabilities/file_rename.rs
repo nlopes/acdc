@@ -546,7 +546,13 @@ mod tests {
 
         let workspace = Workspace::new();
         let root_url = Uri::from_file_path(&tmp).ok_or("bad path")?;
-        workspace.initialize_analysis(crate::config::AnalysisBackend::Html5, vec![root_url]);
+        workspace.initialize_analysis(
+            crate::config::ServerOptions {
+                backend: crate::config::AnalysisBackend::Html5,
+                ..Default::default()
+            },
+            vec![root_url],
+        );
 
         // Do NOT open any documents — test the disk scan path
         let old_uri = Uri::from_file_path(tmp.join("readme.adoc")).ok_or("bad old path")?;
@@ -602,7 +608,13 @@ mod tests {
         let old_uri = Uri::from_file_path(directory.join("guide.adoc")).ok_or("bad old URI")?;
         let new_uri = Uri::from_file_path(directory.join("renamed.adoc")).ok_or("bad new URI")?;
         let workspace = Workspace::new();
-        workspace.initialize_analysis(crate::config::AnalysisBackend::Html5, vec![root]);
+        workspace.initialize_analysis(
+            crate::config::ServerOptions {
+                backend: crate::config::AnalysisBackend::Html5,
+                ..Default::default()
+            },
+            vec![root],
+        );
         let edits = compute_file_rename_edits(
             &workspace,
             &[FileRename {

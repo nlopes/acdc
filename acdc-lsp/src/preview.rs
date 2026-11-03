@@ -124,6 +124,7 @@ pub(crate) struct RenderedPreview {
 }
 
 pub(crate) struct PreviewInput {
+    pub(crate) compatibility_mode: acdc_parser::CompatibilityMode,
     pub(crate) format: PreviewFormat,
     pub(crate) source_uri: Uri,
     pub(crate) text: Arc<String>,
@@ -178,6 +179,7 @@ impl PreviewStore {
 fn parser_options(input: &PreviewInput) -> acdc_parser::OptionsBuilder<'static> {
     let mut parser_options = acdc_parser::Options::builder()
         .with_safe_mode(SafeMode::Server)
+        .with_compatibility_mode(input.compatibility_mode)
         .with_include_loader(input.include_loader.clone());
     if let Some(directory) = &input.base_dir {
         parser_options = parser_options.with_base_dir(directory);

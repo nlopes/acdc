@@ -16,7 +16,7 @@ use crate::{
         definition, diagnostics, media,
         workspace_symbols::{IndexedSymbol, extract_workspace_symbols},
     },
-    config::{AnalysisBackend, AnalysisConfiguration, ParserProfiles},
+    config::{AnalysisBackend, AnalysisConfiguration, ParserProfiles, ServerOptions},
     convert::{file_path_to_uri, location_to_utf16_range, source_uri},
     limits::{MAX_INDEXABLE_FILE_BYTES, read_bounded},
     state::{DocumentState, document::ParsedText},
@@ -44,7 +44,7 @@ pub(crate) struct Workspace {
     include_dependencies: DashMap<Uri, HashSet<PathBuf>>,
     /// Resource-scoped analysis configuration.
     analysis_configuration: RwLock<AnalysisConfiguration>,
-    /// Prebuilt parser options for every supported analysis backend.
+    /// Prebuilt parser options for each backend and compatibility mode.
     parser_profiles: ParserProfiles,
 }
 
@@ -69,12 +69,12 @@ impl Workspace {
     }
 
     /// Set the initialization fallback and initial workspace roots.
-    pub(crate) fn initialize_analysis(&self, backend: AnalysisBackend, roots: Vec<Uri>) {
+    pub(crate) fn initialize_analysis(&self, settings: ServerOptions, roots: Vec<Uri>) {
         let mut configuration = self
             .analysis_configuration
             .write()
             .unwrap_or_else(PoisonError::into_inner);
-        *configuration = AnalysisConfiguration::new(backend, roots);
+        *configuration = AnalysisConfiguration::new(settings, roots);
     }
 
     /// Return a snapshot of the current analysis configuration.
@@ -96,7 +96,7 @@ impl Workspace {
     }
 
     /// Apply configuration and refresh diagnostics against the final indexes.
-    /// Reparse open documents only when their effective backend changes.
+    /// Reparse open documents only when their effective settings change.
     pub(crate) fn apply_analysis_configuration(
         &self,
         configuration: &AnalysisConfiguration,
@@ -113,7 +113,7 @@ impl Workspace {
             .documents
             .iter()
             .filter(|entry| {
-                previous.backend_for(entry.key()) != configuration.backend_for(entry.key())
+                previous.settings_for(entry.key()) != configuration.settings_for(entry.key())
             })
             .map(|entry| {
                 (
@@ -143,7 +143,7 @@ impl Workspace {
         for uri in indexed_documents {
             if !configuration.contains(&uri) {
                 self.symbol_index.remove(&uri);
-            } else if previous.backend_for(&uri) != configuration.backend_for(&uri) {
+            } else if previous.settings_for(&uri) != configuration.settings_for(&uri) {
                 self.reindex_file_from_disk(&uri);
             }
         }
@@ -156,7 +156,7 @@ impl Workspace {
         }
         self.scan_roots(&added_roots);
 
-        // Unchanged documents can refer to anchors that the new backend hides
+        // Unchanged documents can refer to anchors that the new settings hide
         // or exposes. Check every open document without reparsing its source.
         let uris: Vec<_> = self
             .documents
@@ -175,16 +175,20 @@ impl Workspace {
         }
     }
 
-    fn backend_for(&self, uri: &Uri) -> AnalysisBackend {
+    fn settings_for(&self, uri: &Uri) -> ServerOptions {
         self.analysis_configuration
             .read()
             .unwrap_or_else(PoisonError::into_inner)
-            .backend_for(uri)
+            .settings_for(uri)
+    }
+
+    fn backend_for(&self, uri: &Uri) -> AnalysisBackend {
+        self.settings_for(uri).backend
     }
 
     /// Return resource-scoped parser options with include loading disabled.
     pub(crate) fn parser_options_for(&self, uri: &Uri) -> &Options<'static> {
-        self.parser_profiles.get(self.backend_for(uri))
+        self.parser_profiles.get(self.settings_for(uri))
     }
 
     /// Update document state and return files whose diagnostics must be published.
@@ -540,8 +544,7 @@ impl Workspace {
         let path = uri.to_file_path()?;
         tracing::info!(?path, anchor_id, "reading file from disk for anchor lookup");
         let text = read_bounded(path.as_ref())?;
-        let backend = self.backend_for(uri);
-        let parsed = parse(&text, self.parser_profiles.get(backend)).ok()?;
+        let parsed = parse(&text, self.parser_options_for(uri)).ok()?;
         let anchors = definition::collect_anchors(parsed.document_ref());
         let result = anchors.get(anchor_id).cloned();
         tracing::info!(
@@ -589,7 +592,7 @@ impl Workspace {
                 continue;
             }
             if let Some(text) = read_bounded(&path)
-                && let Ok(parsed) = parse(&text, self.parser_profiles.get(self.backend_for(&uri)))
+                && let Ok(parsed) = parse(&text, self.parser_options_for(&uri))
             {
                 let symbols = extract_workspace_symbols(parsed.document_ref());
                 self.symbol_index.insert(uri, symbols);
@@ -696,8 +699,7 @@ impl Workspace {
             && self.analysis_configuration().contains(uri)
             && let Some(text) = read_bounded(path.as_ref())
         {
-            let backend = self.backend_for(uri);
-            if let Ok(parsed) = parse(&text, self.parser_profiles.get(backend)) {
+            if let Ok(parsed) = parse(&text, self.parser_options_for(uri)) {
                 let symbols = extract_workspace_symbols(parsed.document_ref());
                 self.symbol_index.insert(uri.clone(), symbols);
             }
@@ -1043,7 +1045,13 @@ mod tests {
     #[test]
     fn configured_pdf_backend_activates_reported_or_conditional() -> Result<(), Box<dyn Error>> {
         let workspace = Workspace::new();
-        workspace.initialize_analysis(AnalysisBackend::Pdf, Vec::new());
+        workspace.initialize_analysis(
+            crate::config::ServerOptions {
+                backend: AnalysisBackend::Pdf,
+                ..Default::default()
+            },
+            Vec::new(),
+        );
         let uri = "file:///backend-pdf.adoc".parse::<Uri>()?;
         let content = "= Document\nifdef::backend-pdf,backend-docbook5[]\n:title-page:\nendif::backend-pdf,backend-docbook5[]\n\nifdef::backend-pdf,backend-docbook5[]\n[[pdf-or-docbook]]\n== PDF or DocBook\nendif::backend-pdf,backend-docbook5[]\n";
 
@@ -1088,15 +1096,27 @@ mod tests {
         let pdf_root = "file:///workspace/pdf".parse::<Uri>()?;
         let html_uri = "file:///workspace/html/index.adoc".parse::<Uri>()?;
         let pdf_uri = "file:///workspace/pdf/index.adoc".parse::<Uri>()?;
-        let mut configuration = AnalysisConfiguration::new(AnalysisBackend::Html5, Vec::new());
+        let mut configuration = AnalysisConfiguration::new(
+            crate::config::ServerOptions {
+                backend: AnalysisBackend::Html5,
+                ..Default::default()
+            },
+            Vec::new(),
+        );
         configuration.replace_roots(vec![
             RootConfiguration {
                 uri: html_root.clone(),
-                backend: Some(AnalysisBackend::Html5),
+                settings: crate::config::WorkspaceSettings {
+                    backend: Some(AnalysisBackend::Html5),
+                    ..Default::default()
+                },
             },
             RootConfiguration {
                 uri: pdf_root.clone(),
-                backend: Some(AnalysisBackend::Pdf),
+                settings: crate::config::WorkspaceSettings {
+                    backend: Some(AnalysisBackend::Pdf),
+                    ..Default::default()
+                },
             },
         ]);
         workspace.apply_analysis_configuration(&configuration);
@@ -1107,11 +1127,17 @@ mod tests {
         configuration.replace_roots(vec![
             RootConfiguration {
                 uri: html_root,
-                backend: Some(AnalysisBackend::Markdown),
+                settings: crate::config::WorkspaceSettings {
+                    backend: Some(AnalysisBackend::Markdown),
+                    ..Default::default()
+                },
             },
             RootConfiguration {
                 uri: pdf_root,
-                backend: Some(AnalysisBackend::Pdf),
+                settings: crate::config::WorkspaceSettings {
+                    backend: Some(AnalysisBackend::Pdf),
+                    ..Default::default()
+                },
             },
         ]);
         let result = workspace.apply_analysis_configuration(&configuration);
@@ -1131,10 +1157,19 @@ mod tests {
         let workspace = Workspace::new();
         let root = "file:///workspace/pdf".parse::<Uri>()?;
         let uri = "file:///workspace/pdf/index.adoc".parse::<Uri>()?;
-        let mut configuration = AnalysisConfiguration::new(AnalysisBackend::Html5, Vec::new());
+        let mut configuration = AnalysisConfiguration::new(
+            crate::config::ServerOptions {
+                backend: AnalysisBackend::Html5,
+                ..Default::default()
+            },
+            Vec::new(),
+        );
         configuration.replace_roots(vec![RootConfiguration {
             uri: root,
-            backend: Some(AnalysisBackend::Pdf),
+            settings: crate::config::WorkspaceSettings {
+                backend: Some(AnalysisBackend::Pdf),
+                ..Default::default()
+            },
         }]);
         workspace.apply_analysis_configuration(&configuration);
         workspace.update_document(
@@ -1191,7 +1226,13 @@ mod tests {
         )?;
         let root = Uri::from_file_path(&directory).ok_or("temporary path should become a URI")?;
         let workspace = Workspace::new();
-        workspace.initialize_analysis(AnalysisBackend::Html5, vec![root]);
+        workspace.initialize_analysis(
+            crate::config::ServerOptions {
+                backend: AnalysisBackend::Html5,
+                ..Default::default()
+            },
+            vec![root],
+        );
         workspace.scan_workspace_files();
         assert!(
             workspace
@@ -1201,7 +1242,10 @@ mod tests {
         );
 
         let mut configuration = workspace.analysis_configuration();
-        configuration.set_unscoped(Some(AnalysisBackend::Pdf));
+        configuration.set_unscoped(crate::config::WorkspaceSettings {
+            backend: Some(AnalysisBackend::Pdf),
+            ..Default::default()
+        });
         let result = workspace.apply_analysis_configuration(&configuration);
 
         assert!(result.changed);
@@ -1266,7 +1310,13 @@ mod tests {
 
         let workspace = Workspace::new();
         let root_url = Uri::from_file_path(&tmp).ok_or("bad path")?;
-        workspace.initialize_analysis(AnalysisBackend::Html5, vec![root_url]);
+        workspace.initialize_analysis(
+            crate::config::ServerOptions {
+                backend: AnalysisBackend::Html5,
+                ..Default::default()
+            },
+            vec![root_url],
+        );
 
         // Scan workspace — should populate symbol_index
         workspace.scan_workspace_files();
@@ -1520,7 +1570,13 @@ mod tests {
     #[test]
     fn oversized_open_document_is_gated() -> Result<(), Box<dyn Error>> {
         let workspace = Workspace::new();
-        workspace.initialize_analysis(AnalysisBackend::Pdf, Vec::new());
+        workspace.initialize_analysis(
+            crate::config::ServerOptions {
+                backend: AnalysisBackend::Pdf,
+                ..Default::default()
+            },
+            Vec::new(),
+        );
         let uri = "file:///huge.adoc".parse::<Uri>()?;
 
         let size = usize::try_from(MAX_INDEXABLE_FILE_BYTES).unwrap_or(usize::MAX) + 1;

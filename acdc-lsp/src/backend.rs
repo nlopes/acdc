@@ -48,8 +48,8 @@ use crate::{
         rename, selection_range, semantic_tokens, signature_help, symbols,
     },
     config::{
-        AnalysisConfiguration, BackendUpdate, RootConfiguration, ServerOptions, WorkspaceSettings,
-        parse_backend_update,
+        AnalysisConfiguration, RootConfiguration, ServerOptions, SettingsUpdate, WorkspaceSettings,
+        parse_settings_update,
     },
     state::Workspace,
 };
@@ -214,7 +214,7 @@ impl Backend {
 
         if let Some(value) = values.first() {
             match parse_workspace_settings(value) {
-                Ok(settings) => configuration.set_unscoped(settings.backend),
+                Ok(settings) => configuration.set_unscoped(settings),
                 Err(error) => self.client.log_message(MessageType::WARNING, error).await,
             }
         } else {
@@ -228,10 +228,10 @@ impl Backend {
 
         let mut root_configurations = Vec::with_capacity(roots.len());
         for (index, uri) in roots.into_iter().enumerate() {
-            let previous = configuration.root_backend(&uri);
-            let backend = if let Some(value) = values.get(index + 1) {
+            let previous = configuration.root_settings(&uri);
+            let settings = if let Some(value) = values.get(index + 1) {
                 match parse_workspace_settings(value) {
-                    Ok(settings) => settings.backend,
+                    Ok(settings) => settings,
                     Err(error) => {
                         self.client
                             .log_message(
@@ -254,7 +254,7 @@ impl Backend {
                     .await;
                 previous
             };
-            root_configurations.push(RootConfiguration { uri, backend });
+            root_configurations.push(RootConfiguration { uri, settings });
         }
         configuration.replace_roots(root_configurations);
         Some(configuration)
@@ -331,7 +331,7 @@ impl LanguageServer for Backend {
             .transpose()
             .map_err(|error| Error::invalid_params(error.to_string()))?
             .unwrap_or_default();
-        tracing::info!(backend = ?options.backend, "configured analysis backend");
+        tracing::info!(backend = ?options.backend, mode = ?options.compatibility_mode, "configured analysis settings");
 
         // Capture workspace roots for cross-file resolution
         let mut roots = Vec::new();
@@ -342,7 +342,7 @@ impl LanguageServer for Backend {
         } else if let Some(root_uri) = params.root_uri {
             roots.push(root_uri);
         }
-        self.workspace.initialize_analysis(options.backend, roots);
+        self.workspace.initialize_analysis(options, roots);
 
         let file_renames = FileOperationRegistrationOptions {
             filters: vec![FileOperationFilter {
@@ -612,7 +612,7 @@ impl LanguageServer for Backend {
             return;
         }
 
-        let update = match parse_backend_update(&params.settings) {
+        let update = match parse_settings_update(&params.settings) {
             Ok(update) => update,
             Err(error) => {
                 self.client.log_message(MessageType::WARNING, error).await;
@@ -620,11 +620,10 @@ impl LanguageServer for Backend {
             }
         };
         let mut configuration = self.workspace.analysis_configuration();
-        match update {
-            BackendUpdate::Unchanged => return,
-            BackendUpdate::Set(backend) => configuration.set_unscoped(Some(backend)),
-            BackendUpdate::Reset => configuration.set_unscoped(None),
+        if update == SettingsUpdate::default() {
+            return;
         }
+        configuration.apply_update(update);
         self.apply_configuration(configuration).await;
     }
 
@@ -642,7 +641,7 @@ impl LanguageServer for Backend {
             .into_iter()
             .filter(|root| !removed.contains(root))
             .map(|uri| RootConfiguration {
-                backend: configuration.root_backend(&uri),
+                settings: configuration.root_settings(&uri),
                 uri,
             })
             .collect();
@@ -650,7 +649,10 @@ impl LanguageServer for Backend {
             if !roots.iter().any(|root| root.uri == folder.uri) {
                 roots.push(RootConfiguration {
                     uri: folder.uri,
-                    backend: None,
+                    settings: crate::config::WorkspaceSettings {
+                        backend: None,
+                        ..Default::default()
+                    },
                 });
             }
         }

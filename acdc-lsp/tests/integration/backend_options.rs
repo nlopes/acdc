@@ -607,3 +607,39 @@ fn closed_file_rename_finds_content_xrefs_in_the_selected_backend() -> TestResul
     client.shutdown();
     Ok(())
 }
+
+#[test]
+fn compatibility_mode_initialization_push_and_reset_keep_backend_independent() -> TestResult {
+    let mut client = LspTestClient::new()?;
+    client.initialize_with_params(json!({
+        "processId": null,
+        "capabilities": {},
+        "initializationOptions": {"backend":"pdf", "compatibilityMode":"draft"}
+    }))?;
+    let uri = "file:///compatibility-mode.adoc";
+    client.open_document(uri, ":word: *Selected*\n\nifdef::backend-pdf[]\n== {word} PDF\nendif::[]\n\nifdef::backend-html5[]\n== {word} HTML\nendif::[]\n")?;
+    client.wait_for_diagnostics(uri)?;
+    let symbols = client.send_request(
+        "textDocument/documentSymbol",
+        json!({"textDocument":{"uri":uri}}),
+    )?;
+    assert!(contains_symbol_named(&symbols, "Selected PDF"), "{symbols}");
+    for (settings, expected) in [
+        (json!({"compatibilityMode":"asciidoctor"}), "*Selected* PDF"),
+        (json!({"backend":"html5"}), "*Selected* HTML"),
+        (json!({"compatibilityMode":null}), "Selected HTML"),
+    ] {
+        client.send_notification(
+            "workspace/didChangeConfiguration",
+            json!({"settings":{"acdc-lsp":settings}}),
+        )?;
+        client.wait_for_diagnostics(uri)?;
+        let symbols = client.send_request(
+            "textDocument/documentSymbol",
+            json!({"textDocument":{"uri":uri}}),
+        )?;
+        assert!(contains_symbol_named(&symbols, expected), "{symbols}");
+    }
+    client.shutdown();
+    Ok(())
+}

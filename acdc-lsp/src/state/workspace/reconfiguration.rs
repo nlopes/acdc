@@ -25,7 +25,13 @@ fn closing_a_document_after_root_removal_does_not_restore_disk_symbols() -> Test
     fs::write(project.0.join("doc.adoc"), "== Disk\n")?;
     let workspace = Workspace::new();
     let uri = project.uri("doc.adoc")?;
-    workspace.initialize_analysis(AnalysisBackend::Html5, vec![project.uri("")?]);
+    workspace.initialize_analysis(
+        crate::config::ServerOptions {
+            backend: AnalysisBackend::Html5,
+            ..Default::default()
+        },
+        vec![project.uri("")?],
+    );
     workspace.update_document(uri.clone(), "== Buffer\n".into(), 3);
     let mut configuration = workspace.analysis_configuration();
     configuration.replace_roots(Vec::new());
@@ -49,14 +55,20 @@ fn closing_a_document_reindexes_when_either_overlapping_root_remains() -> TestRe
         let uri = project.uri("nested/doc.adoc")?;
         let workspace = Workspace::new();
         workspace.initialize_analysis(
-            AnalysisBackend::Html5,
+            crate::config::ServerOptions {
+                backend: AnalysisBackend::Html5,
+                ..Default::default()
+            },
             vec![root.clone(), nested_root.clone()],
         );
         workspace.update_document(uri.clone(), "== Buffer\n".into(), 4);
         let mut configuration = workspace.analysis_configuration();
         configuration.replace_roots(vec![RootConfiguration {
             uri: if keep_nested { nested_root } else { root },
-            backend: None,
+            settings: crate::config::WorkspaceSettings {
+                backend: None,
+                ..Default::default()
+            },
         }]);
         workspace.apply_analysis_configuration(&configuration);
         workspace.remove_document(&uri);
@@ -84,7 +96,13 @@ fn closed_file_moves_reindex_only_destinations_in_active_roots() -> TestResult {
     let inside = project.uri("active/doc.adoc")?;
     let outside = project.uri("outside/doc.adoc")?;
     let workspace = Workspace::new();
-    workspace.initialize_analysis(AnalysisBackend::Html5, vec![project.uri("active")?]);
+    workspace.initialize_analysis(
+        crate::config::ServerOptions {
+            backend: AnalysisBackend::Html5,
+            ..Default::default()
+        },
+        vec![project.uri("active")?],
+    );
     workspace.scan_workspace_files();
     assert_eq!(workspace.symbol_index_len(), 1);
     fs::rename(&inside_path, &outside_path)?;
@@ -121,7 +139,13 @@ fn closing_an_included_buffer_after_root_removal_still_refreshes_its_parent() ->
     let project = Project::new()?;
     fs::write(project.0.join("child.adoc"), "== Disk\n")?;
     let workspace = Workspace::new();
-    workspace.initialize_analysis(AnalysisBackend::Html5, vec![project.uri("")?]);
+    workspace.initialize_analysis(
+        crate::config::ServerOptions {
+            backend: AnalysisBackend::Html5,
+            ..Default::default()
+        },
+        vec![project.uri("")?],
+    );
     let child = project.uri("child.adoc")?;
     let book = project.uri("book.adoc")?;
     workspace.update_document(child.clone(), "== Buffer\n".into(), 3);
@@ -165,7 +189,13 @@ fn closing_non_file_uris_does_not_index_a_matching_disk_path() -> TestResult {
     )
     .parse()?;
     let workspace = Workspace::new();
-    workspace.initialize_analysis(AnalysisBackend::Html5, vec![virtual_root]);
+    workspace.initialize_analysis(
+        crate::config::ServerOptions {
+            backend: AnalysisBackend::Html5,
+            ..Default::default()
+        },
+        vec![virtual_root],
+    );
     for uri in [virtual_file, "untitled:notes".parse()?] {
         workspace.update_document(uri.clone(), "== Buffer\n".into(), 1);
         workspace.remove_document(&uri);
@@ -241,7 +271,10 @@ fn scoped_backend_change_refreshes_unchanged_reference_sources() -> TestResult {
     let mut configuration = workspace.analysis_configuration();
     configuration.replace_roots(vec![RootConfiguration {
         uri: root,
-        backend: Some(AnalysisBackend::Pdf),
+        settings: crate::config::WorkspaceSettings {
+            backend: Some(AnalysisBackend::Pdf),
+            ..Default::default()
+        },
     }]);
     let result = workspace.apply_analysis_configuration(&configuration);
     assert_eq!(result.diagnostic_uris, [source.clone(), target.clone()]);
@@ -292,7 +325,10 @@ fn global_backend_change_checks_mutual_references_after_all_anchors_change() -> 
             AnalysisBackend::Html5,
             AnalysisBackend::Pdf,
         ] {
-            configuration.set_unscoped(Some(backend));
+            configuration.set_unscoped(crate::config::WorkspaceSettings {
+                backend: Some(backend),
+                ..Default::default()
+            });
             let result = workspace.apply_analysis_configuration(&configuration);
             assert_eq!(result.diagnostic_uris, [first.clone(), second.clone()]);
             let expected = usize::from(backend == AnalysisBackend::Html5);
@@ -326,11 +362,17 @@ fn configuration_refreshes_included_buffer_diagnostics_and_clears_old_sources() 
     configuration.replace_roots(vec![
         RootConfiguration {
             uri: project.uri("target")?,
-            backend: Some(AnalysisBackend::Pdf),
+            settings: crate::config::WorkspaceSettings {
+                backend: Some(AnalysisBackend::Pdf),
+                ..Default::default()
+            },
         },
         RootConfiguration {
             uri: project.uri("target/fragments")?,
-            backend: Some(AnalysisBackend::Html5),
+            settings: crate::config::WorkspaceSettings {
+                backend: Some(AnalysisBackend::Html5),
+                ..Default::default()
+            },
         },
     ]);
     let result = workspace.apply_analysis_configuration(&configuration);
@@ -383,7 +425,10 @@ fn configuration_refresh_retains_parser_warnings_without_duplicates() -> TestRes
     for name in ["first", "second"] {
         configuration.replace_roots(vec![RootConfiguration {
             uri: project.uri(name)?,
-            backend: Some(AnalysisBackend::Pdf),
+            settings: crate::config::WorkspaceSettings {
+                backend: Some(AnalysisBackend::Pdf),
+                ..Default::default()
+            },
         }]);
         workspace.apply_analysis_configuration(&configuration);
         assert_eq!(workspace.diagnostics_for(&source), before);
@@ -411,7 +456,10 @@ fn adding_a_scoped_root_refreshes_closed_targets_before_diagnostics() -> TestRes
     let mut configuration = workspace.analysis_configuration();
     configuration.replace_roots(vec![RootConfiguration {
         uri: project.uri("target")?,
-        backend: Some(AnalysisBackend::Pdf),
+        settings: crate::config::WorkspaceSettings {
+            backend: Some(AnalysisBackend::Pdf),
+            ..Default::default()
+        },
     }]);
     workspace.apply_analysis_configuration(&configuration);
     assert_eq!(cross_file_diagnostics(&workspace, &source), 0);
@@ -426,5 +474,144 @@ fn adding_a_scoped_root_refreshes_closed_targets_before_diagnostics() -> TestRes
     workspace.apply_analysis_configuration(&configuration);
     assert_eq!(cross_file_diagnostics(&workspace, &source), 1);
     assert!(workspace.query_workspace_symbols("Closed PDF").is_empty());
+    Ok(())
+}
+
+#[test]
+fn compatibility_mode_changes_only_affected_open_and_closed_documents() -> TestResult {
+    use crate::config::{ServerOptions, WorkspaceSettings};
+    use acdc_parser::CompatibilityMode;
+
+    let project = Project::new()?;
+    fs::create_dir(project.0.join("changed"))?;
+    fs::create_dir(project.0.join("unchanged"))?;
+    let content = ":word: *Selected*\n\n== {word}\n";
+    for folder in ["changed", "unchanged"] {
+        fs::write(project.0.join(folder).join("closed.adoc"), content)?;
+    }
+    let changed = project.uri("changed/open.adoc")?;
+    let unchanged = project.uri("unchanged/open.adoc")?;
+    let workspace = Workspace::new();
+    workspace.initialize_analysis(ServerOptions::default(), vec![project.uri("")?]);
+    workspace.scan_workspace_files();
+    workspace.update_document(changed.clone(), content.into(), 7);
+    workspace.update_document(unchanged.clone(), content.into(), 9);
+    let unchanged_text = workspace
+        .get_document(&unchanged)
+        .ok_or("missing document")?
+        .parsed
+        .text_snapshot();
+    let changed_text = workspace
+        .get_document(&changed)
+        .ok_or("missing document")?
+        .parsed
+        .text_snapshot();
+    let mut configuration = workspace.analysis_configuration();
+    configuration.replace_roots(vec![
+        RootConfiguration {
+            uri: project.uri("")?,
+            settings: WorkspaceSettings::default(),
+        },
+        RootConfiguration {
+            uri: project.uri("changed")?,
+            settings: WorkspaceSettings {
+                compatibility_mode: Some(CompatibilityMode::Draft),
+                ..WorkspaceSettings::default()
+            },
+        },
+    ]);
+    workspace.apply_analysis_configuration(&configuration);
+    let updated = workspace
+        .get_document(&changed)
+        .ok_or("missing changed document")?;
+    assert!(!Arc::ptr_eq(&changed_text, &updated.parsed.text_snapshot()));
+    assert_eq!(updated.version, 7);
+    assert!(updated.anchors.contains_key("_selected"));
+    let same = workspace
+        .get_document(&unchanged)
+        .ok_or("missing unchanged document")?;
+    assert!(Arc::ptr_eq(&unchanged_text, &same.parsed.text_snapshot()));
+    assert_eq!(same.version, 9);
+    drop(updated);
+    drop(same);
+    for (path, expected) in [
+        ("changed/closed.adoc", "Selected"),
+        ("unchanged/closed.adoc", "*Selected*"),
+    ] {
+        let uri = project.uri(path)?;
+        assert!(
+            workspace
+                .query_workspace_symbols("")
+                .iter()
+                .any(|(file, symbol)| file == &uri && symbol.name == expected)
+        );
+    }
+    assert!(
+        !workspace
+            .apply_analysis_configuration(&configuration)
+            .changed
+    );
+    Ok(())
+}
+
+#[cfg(feature = "preview")]
+#[test]
+fn compatibility_mode_reaches_unsaved_includes_cells_and_forced_html_preview() -> TestResult {
+    use crate::{
+        config::{ServerOptions, WorkspaceSettings},
+        preview::PreviewStore,
+    };
+    use acdc_parser::CompatibilityMode;
+
+    let project = Project::new()?;
+    fs::write(project.0.join("child.adoc"), "== Disk\n")?;
+    let workspace = Workspace::new();
+    workspace.initialize_analysis(
+        ServerOptions {
+            backend: AnalysisBackend::Pdf,
+            ..ServerOptions::default()
+        },
+        vec![project.uri("")?],
+    );
+    let child = project.uri("child.adoc")?;
+    let book = project.uri("book.adoc")?;
+    workspace.update_document(
+        child,
+        ":word: *Buffer*\n\n== {word}\n\n[cols=\"a\"]\n|===\n|\n== {word} Cell\n|===\n".into(),
+        3,
+    );
+    workspace.update_document(book.clone(), "include::child.adoc[]\n".into(), 7);
+    let mut previews = PreviewStore::default();
+    for (mode, heading) in [
+        (CompatibilityMode::Draft, "<strong>Buffer</strong>"),
+        (CompatibilityMode::Asciidoctor, "*Buffer*"),
+    ] {
+        let mut configuration = workspace.analysis_configuration();
+        configuration.set_unscoped(WorkspaceSettings {
+            compatibility_mode: Some(mode),
+            ..WorkspaceSettings::default()
+        });
+        workspace.apply_analysis_configuration(&configuration);
+        let normal = workspace.preview_input(book.clone(), false)?;
+        assert_eq!(normal.compatibility_mode, mode);
+        assert!(matches!(normal.format, crate::preview::PreviewFormat::Pdf));
+        let input = workspace.preview_input(book.clone(), true)?;
+        assert_eq!(input.compatibility_mode, mode);
+        assert!(matches!(input.format, crate::preview::PreviewFormat::Html));
+        let rendered = previews.render(&input)?;
+        let html = fs::read_to_string(rendered.uri.to_file_path().ok_or("missing preview path")?)?;
+        assert!(html.contains(&format!(">{heading}</h2>")), "{html}");
+        assert!(html.contains(&format!(">{heading} Cell</h2>")), "{html}");
+        assert!(!html.contains(">Disk</h2>"));
+        assert_eq!(workspace.parser_options_for(&book).compatibility_mode, mode);
+        assert_eq!(
+            workspace
+                .parser_options_for(&book)
+                .document_attributes()
+                .get("backend")
+                .and_then(|value| value.text()),
+            Some("pdf")
+        );
+    }
     Ok(())
 }
