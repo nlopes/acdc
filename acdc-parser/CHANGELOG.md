@@ -309,13 +309,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in both modes; a shared expectation requires identical results.
 
 - Select `CompatibilityMode::Draft` through `OptionsBuilder::with_compatibility_mode()`
-  to keep unquoted and double-quoted named titles literal, parse single-quoted
-  titles, and accumulate distinct roles/options. `Asciidoctor` remains the default;
-  this API change leaves default parsing behavior unchanged. Both modes are
-  available in every build and use the same AST. The selected mode applies to
-  includes and nested content without affecting other parses. Image alt/tooltip behavior,
-  custom substitutions, and Setext controls are unchanged. Draft supports these
-  reviewed rules, not the entire unfinished specification.
+  for the supported draft rules, including attribute expansion before ordinary
+  inline formatting and literal unquoted/double-quoted named titles. Asciidoctor
+  mode is the default, with documented fixes and deliberate extensions. Both
+  modes use the same AST in every build. Includes and nested content retain the
+  caller's mode, while safe mode and resource controls stay independent. The
+  parser READMEs describe supported rules, recovery, and migration from the
+  released API without claiming complete draft-specification conformance.
 
 - `OptionsBuilder::with_force_local_file_xrefs()` resolves file-qualified
   references by their local anchors in combined or partially included documents.
