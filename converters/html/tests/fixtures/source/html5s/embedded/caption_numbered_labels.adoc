@@ -1,0 +1,25 @@
+:figure-caption: <Figure> &copy; "quoted"
+:table-caption: <Table> &copy;
+:listing-caption: <Listing> &copy;
+:example-caption: <Example> &copy;
+
+.Image title
+image::sample.svg[Alt]
+
+.Table title
+|===
+|Cell
+|===
+
+.Listing title
+----
+Body.
+----
+
+.Example title
+====
+Body.
+====
+
+.Second image title
+image::sample.svg[Alt]

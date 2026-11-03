@@ -19,9 +19,9 @@ use acdc_parser::{
     OrderedList, PageBreak, Paragraph, Section, Substitution, TableOfContents, ThematicBreak,
     UnorderedList, Video,
     ast::{
-        AttributeValueRef, AttributesRef, BlockKind, BlockRef, ColumnFormatRef, ContentRef,
-        DocumentAttributesRef, DocumentRef, FootnoteDefinitionRef, HeaderRef, InlineRef,
-        ParagraphRef, SectionRef, StructuralRef, TableRef, ThematicBreakRef,
+        AttributeValueRef, AttributesRef, BlockKind, BlockRef, CaptionRef, ColumnFormatRef,
+        ContentRef, DocumentAttributesRef, DocumentRef, FootnoteDefinitionRef, HeaderRef,
+        InlineRef, ParagraphRef, SectionRef, StructuralRef, TableRef, ThematicBreakRef,
     },
 };
 
@@ -349,14 +349,38 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
         if title.is_none() {
             return Ok(());
         }
-        let caption = match attributes.and_then(|attributes| attributes.get("caption")) {
-            Some(AttributeValueRef::Content(content)) => self.content_html(traversal, content)?,
-            _ => self
-                .processor
-                .caption_prefix(attributes, fallback)
-                .unwrap_or_default(),
-        };
-        self.render_title_content(traversal, title, &format!("{prefix}{caption}"), suffix)
+        let processor = Rc::clone(&self.processor);
+        let caption = attributes.and_then(|attributes| {
+            CaptionRef::resolve(attributes, processor.document_attributes().into(), fallback)
+        });
+        write!(self.writer, "{prefix}")?;
+        match caption {
+            Some(CaptionRef::CustomContent(content)) => {
+                self.visit_title(traversal, Some(content))?;
+            }
+            Some(CaptionRef::Custom(text)) => {
+                write!(self.writer, "{}", crate::inlines::escape_pcdata(text))?;
+            }
+            Some(CaptionRef::Numbered {
+                label,
+                number,
+                kind,
+            }) => {
+                let number = number.map_or_else(
+                    || processor.next_caption_number(kind),
+                    std::num::NonZeroU32::get,
+                );
+                write!(
+                    self.writer,
+                    "{} {number}. ",
+                    crate::inlines::escape_pcdata(label)
+                )?;
+            }
+            Some(_) | None => {}
+        }
+        self.visit_title(traversal, title)?;
+        write!(self.writer, "{suffix}")?;
+        Ok(())
     }
 
     pub(crate) fn render_title_content(
@@ -2067,6 +2091,78 @@ mod title_media_tests {
             );
             assert_eq!(warnings, [] as [acdc_converters_core::Warning; 0]);
         }
+        Ok(())
+    }
+    #[test]
+    fn caption_values_escape_literal_text_and_preserve_counter_ownership() -> Result<(), TestError>
+    {
+        use acdc_parser::{Caption, ContentAttribute, Paragraph, ast::ParagraphRef};
+        let processor = Rc::new(Processor::new(
+            ConverterOptions::default(),
+            ParserOptions::builder(),
+        )?);
+        let source = WarningSource::new("html");
+        let mut warnings = Vec::new();
+        let mut context = TraversalContext::new(processor.document_attributes());
+        let mut visitor = HtmlVisitor::new(
+            Vec::new(),
+            Rc::clone(&processor),
+            RenderOptions::default(),
+            Diagnostics::new(&source, &mut warnings),
+        );
+        let mut paragraph = Paragraph::new(Vec::new(), Location::default());
+        for (caption, expected, counter) in [
+            (
+                Caption::Custom("<tag>&copy;".into()),
+                "&lt;tag&gt;&amp;copy;",
+                0,
+            ),
+            (Caption::Custom("".into()), "", 0),
+            (Caption::CustomContent(ContentAttribute::default()), "", 0),
+            (Caption::Unnumbered, "", 0),
+            (
+                Caption::Numbered {
+                    kind: CaptionKind::Figure,
+                    label: "<Figure>&copy;".into(),
+                    number: std::num::NonZeroU32::new(7),
+                },
+                "&lt;Figure&gt;&amp;copy; 7. ",
+                0,
+            ),
+            (
+                Caption::Numbered {
+                    kind: CaptionKind::Figure,
+                    label: "Figure".into(),
+                    number: None,
+                },
+                "Figure 1. ",
+                1,
+            ),
+        ] {
+            paragraph.metadata.caption = Some(caption);
+            visitor.render_captioned_title_with_wrapper(
+                &mut context,
+                Title::new(Vec::new()).content(),
+                Some(ParagraphRef::from(&paragraph).attributes()),
+                Some(CaptionKind::Figure),
+                "",
+                "",
+            )?;
+            assert_eq!(std::str::from_utf8(&visitor.writer)?, expected);
+            assert_eq!(processor.figure_counter.get(), counter);
+            visitor.writer.clear();
+        }
+        paragraph.metadata.caption = None;
+        visitor.render_captioned_title_with_wrapper(
+            &mut context,
+            Title::new(Vec::new()).content(),
+            Some(ParagraphRef::from(&paragraph).attributes()),
+            Some(CaptionKind::Figure),
+            "",
+            "",
+        )?;
+        assert_eq!(std::str::from_utf8(&visitor.writer)?, "Figure 2. ");
+        assert_eq!(processor.figure_counter.get(), 2);
         Ok(())
     }
 }

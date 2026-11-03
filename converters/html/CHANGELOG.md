@@ -124,6 +124,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Custom captions keep formatting and escape literal angle brackets even when
+  the block body uses `subs=none`. Both HTML variants apply the same caption
+  rules to images, tables, listings, and examples. Numbered caption labels
+  escape literal text, matching Asciidoctor, while explicit passthroughs in
+  custom captions remain active. Literal prefixes stay escaped text where
+  Asciidoctor can emit their characters as HTML.
+
 - Paragraph-style sidebars use the backend's sidebar layout. `[pass]` paragraphs
   use the same raw-content path as delimited passthrough blocks.
 - Simple admonitions omit the extra paragraph wrapper in standard HTML,

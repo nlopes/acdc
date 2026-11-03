@@ -18,8 +18,8 @@ use acdc_parser::{
     AttributeValue, CaptionKind, Document, DocumentAttributes, InlineNode,
     Options as ParserOptions, Reference, Substitution, TocEntry,
     ast::{
-        AttributeValueRef, AttributesRef, CaptionRef, ContentRef, DocumentAttributesRef,
-        DocumentRef, ElementIdRef, InlineRef,
+        AttributeValueRef, AttributesRef, ContentRef, DocumentAttributesRef, DocumentRef,
+        ElementIdRef, InlineRef,
     },
 };
 
@@ -223,35 +223,6 @@ impl<'a> Processor<'a> {
             )
             .build()?;
         Ok(self)
-    }
-
-    /// Return the caption prefix for a titled block.
-    pub(crate) fn caption_prefix(
-        &self,
-        attributes: Option<AttributesRef<'_>>,
-        fallback: Option<CaptionKind>,
-    ) -> Option<String> {
-        let resolved = CaptionRef::resolve(
-            attributes?,
-            self.parser_options.document_attributes().into(),
-            fallback,
-        )?;
-        match resolved {
-            CaptionRef::Numbered {
-                label,
-                number,
-                kind,
-            } => {
-                let number = number
-                    .map_or_else(|| self.next_caption_number(kind), std::num::NonZeroU32::get);
-                Some(format!("{label} {number}. "))
-            }
-            CaptionRef::Custom(prefix) => Some(prefix.to_owned()),
-            CaptionRef::CustomContent(content) => Some(
-                acdc_converters_core::InlineTextTransform::default().content_to_string(content),
-            ),
-            CaptionRef::Unnumbered | _ => None,
-        }
     }
 
     fn next_caption_number(&self, kind: CaptionKind) -> u32 {
@@ -1283,48 +1254,6 @@ mod tests {
     use std::error::Error as StdError;
 
     type TestResult = Result<(), Box<dyn StdError>>;
-
-    #[test]
-    fn caption_fallback_counters_skip_retained_ordinals_and_empty_prefixes() -> TestResult {
-        use acdc_parser::{Caption, Location, Paragraph, ast::ParagraphRef};
-        let processor = Processor::new(Options::default(), ParserOptions::builder())?;
-        let mut paragraph = Paragraph::new(Vec::new(), Location::default());
-        let prefix = |paragraph: &Paragraph<'_>, kind| {
-            processor.caption_prefix(Some(ParagraphRef::from(paragraph).attributes()), kind)
-        };
-        assert_eq!(prefix(&paragraph, None), None);
-        assert_eq!(processor.figure_counter.get(), 0);
-        for caption in [
-            Caption::Custom("".into()),
-            Caption::CustomContent(acdc_parser::ContentAttribute::default()),
-            Caption::Unnumbered,
-        ] {
-            paragraph.metadata.caption = Some(caption);
-            let _ = prefix(&paragraph, Some(CaptionKind::Figure));
-            assert_eq!(processor.figure_counter.get(), 0);
-        }
-        paragraph.metadata.caption = Some(Caption::Numbered {
-            kind: CaptionKind::Figure,
-            label: "Figure".into(),
-            number: std::num::NonZeroU32::new(7),
-        });
-        assert_eq!(prefix(&paragraph, None).as_deref(), Some("Figure 7. "));
-        assert_eq!(processor.figure_counter.get(), 0);
-        paragraph.metadata.caption = Some(Caption::Numbered {
-            kind: CaptionKind::Figure,
-            label: "Figure".into(),
-            number: None,
-        });
-        assert_eq!(prefix(&paragraph, None).as_deref(), Some("Figure 1. "));
-        assert_eq!(processor.figure_counter.get(), 1);
-        paragraph.metadata.caption = None;
-        assert_eq!(
-            prefix(&paragraph, Some(CaptionKind::Figure)).as_deref(),
-            Some("Figure 2. ")
-        );
-        assert_eq!(processor.figure_counter.get(), 2);
-        Ok(())
-    }
 
     #[test]
     fn new_defaults_to_standard() -> Result<(), Box<dyn StdError>> {

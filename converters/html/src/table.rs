@@ -226,31 +226,6 @@ fn render_styled_content<'a, W: Write>(
     Ok(())
 }
 
-fn render_table_caption<'a, W: Write>(
-    traversal: &mut TraversalContext<'a>,
-    visitor: &mut HtmlVisitor<'a, '_, W>,
-    title: Option<ContentRef<'_>>,
-    processor: &Processor<'_>,
-    attributes: Option<AttributesRef<'_>>,
-) -> Result<(), Error> {
-    if title.is_some() {
-        let prefix = processor
-            .caption_prefix(attributes, Some(CaptionKind::Table))
-            .unwrap_or_default();
-
-        write!(visitor.writer_mut(), "<caption class=\"title\">")?;
-        if let Some(AttributeValueRef::Content(content)) =
-            attributes.and_then(|attributes| attributes.get("caption"))
-        {
-            visitor.visit_content(traversal, content)?;
-        } else {
-            write!(visitor.writer_mut(), "{prefix}")?;
-        }
-        visitor.render_title_content(traversal, title, "", "</caption>\n")?;
-    }
-    Ok(())
-}
-
 /// Render colgroup with column width styles
 fn render_colgroup<W: Write + ?Sized>(writer: &mut W, table: TableRef<'_>) -> Result<(), Error> {
     // Generate colgroup - either from cols attribute or inferred from table structure
@@ -444,7 +419,14 @@ pub(crate) fn render_table<'a, W: Write>(
 
     // Render caption with table number if title exists
     let _ = writer;
-    render_table_caption(traversal, visitor, table.title(), processor, attributes)?;
+    visitor.render_captioned_title_with_wrapper(
+        traversal,
+        table.title(),
+        attributes,
+        Some(CaptionKind::Table),
+        "<caption class=\"title\">",
+        "</caption>\n",
+    )?;
 
     // Render colgroup with column widths
     render_colgroup(visitor.writer_mut(), table)?;
