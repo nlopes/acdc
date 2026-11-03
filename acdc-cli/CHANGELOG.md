@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking changes
+
+- Conversion recognizes legacy underlined headings by default, matching
+  Asciidoctor. The redundant `convert --setext` and
+  `--enable-setext-compatibility` flags have been removed; the `setext` Cargo
+  feature is a compatibility alias.
+
 ### Added
 
 - `convert --force-local-file-xrefs` resolves file-qualified references by their

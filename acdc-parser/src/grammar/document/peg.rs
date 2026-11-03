@@ -340,7 +340,7 @@ peg::parser! {
                 .then_some(title.trim())
                 .ok_or("not a level-one manpage name section")
         }
-        / title:$([^'\n']+) eol()
+        / title:setext_title_text() eol()
           level:setext_section_level(title.trim().chars().count(), None) {?
             (level == 1 && !title_looks_like_description_list(title))
                 .then_some(title.trim())
@@ -520,6 +520,11 @@ peg::parser! {
             Ok((Title::new(title_inlines), subtitle))
         }
 
+        rule setext_title_text() -> &'input str
+        = !block_metadata_line_match() title:$([^'\n']+) {?
+            setext::is_title(title).then_some(title).ok_or("not a Setext title")
+        }
+
         /// Setext-style document title: Title underlined with `=` characters
         ///
         /// ```text
@@ -527,14 +532,13 @@ peg::parser! {
         /// ==============
         /// ```
         ///
-        /// The underline must be within ±2 characters of the title width.
-        /// Only enabled when the setext feature is compiled in AND the runtime
-        /// option is enabled.
+        /// The underline must be within one character of the title width.
+        /// Recognized in Asciidoctor mode.
         rule document_title_setext() -> (Title<'input>, Option<Subtitle<'input>>)
-        = title:$([^'\n']+) end:position!() eol()
+        = title:setext_title_text() end:position!() eol()
           underline:$("="+) &(eol() / ![_])
         {?
-            if !setext::is_enabled(state) {
+            if !setext::is_enabled(state.options.compatibility_mode) {
                 return Err("setext mode not enabled");
             }
 
@@ -843,7 +847,7 @@ peg::parser! {
             // to `section`/`block_generic` when the metadata isn't a discrete marker.
             &"[" dh:discrete_header(offset) { dh } /
             section:section(offset, parent_section_level, direct_parent_section_kind) { section } /
-            // Try setext-style sections (only enabled with setext feature + runtime flag)
+            // Legacy underlined sections are recognized in Asciidoctor mode.
             section_setext:section_setext(offset, parent_section_level, direct_parent_section_kind) { section_setext } /
             block_generic(offset, parent_section_level)
         )
@@ -928,12 +932,12 @@ peg::parser! {
         /// Excludes description list items (e.g., `term:: content`) which would otherwise
         /// match as setext titles.
         rule setext_section_lookahead(parent_section_level: Option<SectionLevel>) -> ()
-        = title:$([^'\n']+) eol() underline:$(['-' | '~' | '^' | '+']+) &(eol() / ![_])
+        = title:setext_title_text() eol() underline:$(['-' | '~' | '^' | '+']+) &(eol() / ![_])
         {?
             if title_looks_like_description_list(title) {
                 return Err("title looks like a description list item");
             }
-            if !setext::is_enabled(state) {
+            if !setext::is_enabled(state.options.compatibility_mode) {
                 return Err("setext mode not enabled");
             }
 
@@ -1121,15 +1125,14 @@ peg::parser! {
         /// - `^` = Level 3
         /// - `+` = Level 4
         ///
-        /// The underline must be within ±2 characters of the title width.
-        /// Only enabled when the setext feature is compiled in AND the runtime
-        /// option is enabled.
+        /// The underline must be within one character of the title width.
+        /// Recognized in Asciidoctor mode.
         /// Parse a setext section level from the underline character.
         /// Returns the level (1-4) corresponding to -, ~, ^, +
         rule setext_section_level(title_width: usize, parent_section_level: Option<SectionLevel>) -> u8
         = underline:$(['-' | '~' | '^' | '+']+) &(eol() / ![_])
         {?
-            if !setext::is_enabled(state) {
+            if !setext::is_enabled(state.options.compatibility_mode) {
                 return Err("setext mode not enabled");
             }
 
@@ -1158,7 +1161,7 @@ peg::parser! {
 
         rule setext_section_match(parent_section_level: Option<SectionLevel>)
         = (block_metadata_line_match() eol()*)*
-          title:$([^'\n']+) eol()
+          title:setext_title_text() eol()
           setext_section_level(title.trim().chars().count(), parent_section_level)
 
         /// Parse a setext-style section (title followed by underline).
@@ -1173,7 +1176,7 @@ peg::parser! {
                 "block metadata parse error"
             })
         })
-        title_start:position!() title:$([^'\n']+) title_end:position!() eol()
+        title_start:position!() title:setext_title_text() title_end:position!() eol()
         setext_level:setext_section_level(title.trim().chars().count(), parent_section_level)
         section_header:({
             let (processed_title, natural_title) =

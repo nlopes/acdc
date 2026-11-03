@@ -321,9 +321,8 @@ fn substitution_fixtures_are_available_in_every_build() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(not(feature = "setext"))]
 #[test]
-fn disabled_setext_cannot_regenerate_a_selected_fixture() -> Result<(), Error> {
+fn setext_fixtures_require_mode_partners_in_every_build() -> Result<(), Error> {
     let dir = tempfile::tempdir()?;
     write(dir.path(), "title_with_setext.adoc", "Heading\n=======\n")?;
     assert!(
@@ -332,5 +331,16 @@ fn disabled_setext_cannot_regenerate_a_selected_fixture() -> Result<(), Error> {
             .is_err()
     );
     assert!(!dir.path().join("title_with_setext.json").exists());
+    assert_eq!(
+        Generation::from_args(["--pair", "title_with_setext.adoc"])?.generate(dir.path())?,
+        1
+    );
+    for mode in ["asciidoctor", "draft"] {
+        assert!(
+            dir.path()
+                .join(format!("title_with_setext.{mode}.json"))
+                .exists()
+        );
+    }
     Ok(())
 }

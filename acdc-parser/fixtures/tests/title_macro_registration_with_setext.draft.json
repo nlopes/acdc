@@ -1,0 +1,238 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Setext title registration",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 27
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 27
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Ignored metadata ",
+          "location": [
+            {
+              "line": 3,
+              "col": 2
+            },
+            {
+              "line": 3,
+              "col": 18
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": null,
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Ignored heading metadata note.",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 29
+                },
+                {
+                  "line": 3,
+                  "col": 58
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 3,
+              "col": 19
+            },
+            {
+              "line": 3,
+              "col": 59
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " ",
+          "location": [
+            {
+              "line": 3,
+              "col": 60
+            },
+            {
+              "line": 3,
+              "col": 60
+            }
+          ]
+        },
+        {
+          "name": "indexterm",
+          "type": "inline",
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Ignored heading metadata term",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 63
+                },
+                {
+                  "line": 3,
+                  "col": 91
+                }
+              ]
+            }
+          ],
+          "visible": true,
+          "location": [
+            {
+              "line": 3,
+              "col": 61
+            },
+            {
+              "line": 3,
+              "col": 93
+            }
+          ]
+        }
+      ],
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Heading ",
+          "location": [
+            {
+              "line": 4,
+              "col": 1
+            },
+            {
+              "line": 4,
+              "col": 8
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": null,
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Heading note.",
+              "location": [
+                {
+                  "line": 4,
+                  "col": 19
+                },
+                {
+                  "line": 4,
+                  "col": 31
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 4,
+              "col": 9
+            },
+            {
+              "line": 4,
+              "col": 32
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 4,
+          "col": 32
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "-------------------------------",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "\n[#target]\n.Title footnote:named[Named title note.] ((Named term))\nParagraph.\n\n.Anonymous footnote:[Anonymous title note.]\nParagraph.\n\n.Malformed footnote:[Malformed underline note.]\nNot a heading\n~~\n\nBody footnote:[Body note.] and reused footnote:named[].\n\n[discrete]\n=== Discrete heading footnote:[Discrete note.]\n\nAfter footnote:[After note.].",
+          "location": [
+            {
+              "line": 6,
+              "col": 1
+            },
+            {
+              "line": 23,
+              "col": 29
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 23,
+          "col": 29
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 23,
+      "col": 29
+    }
+  ]
+}

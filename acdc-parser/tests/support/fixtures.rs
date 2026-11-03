@@ -182,38 +182,11 @@ impl Case {
         format!("{}::{}", self.name, expectation.variant.name())
     }
 
-    pub fn unavailable_feature(&self) -> Option<&'static str> {
-        let stem = self.source.file_stem()?.to_str()?;
-        if !cfg!(feature = "setext") && stem.contains("with_setext") {
-            Some("setext")
-        } else {
-            None
-        }
-    }
-
-    fn options(&self, mode: CompatibilityMode) -> Result<Options<'static>, Error> {
-        if let Some(feature) = self.unavailable_feature() {
-            return Err(format!("{}: requires the {feature} feature", self.name).into());
-        }
-        let builder = Options::builder()
-            .with_compatibility_mode(mode)
-            .with_safe_mode(SafeMode::Unsafe);
-        #[cfg(feature = "setext")]
-        let builder = if self
-            .source
-            .file_stem()
-            .and_then(|stem| stem.to_str())
-            .is_some_and(|stem| stem.contains("with_setext"))
-        {
-            builder.with_setext()
-        } else {
-            builder
-        };
-        Ok(builder.build()?)
-    }
-
     pub fn observe(&self, mode: CompatibilityMode) -> Result<Observation, Error> {
-        let options = self.options(mode)?;
+        let options = Options::builder()
+            .with_compatibility_mode(mode)
+            .with_safe_mode(SafeMode::Unsafe)
+            .build()?;
         match parse_file(&self.source, &options) {
             Ok(parsed) => Ok(Observation {
                 kind: OutcomeKind::Json,
@@ -383,13 +356,6 @@ impl Generation {
                 continue;
             }
             let case = Case::load(root, &source, true)?;
-            if let Some(feature) = case.unavailable_feature() {
-                if !self.requested.is_empty() {
-                    return Err(format!("{}: requires the {feature} feature", case.name).into());
-                }
-                eprintln!("Skipping {}: requires the {feature} feature", case.name);
-                continue;
-            }
             let variant = self.variant.unwrap_or(Variant::Shared);
             let variants = if self.pair {
                 &[Variant::Asciidoctor, Variant::Draft]

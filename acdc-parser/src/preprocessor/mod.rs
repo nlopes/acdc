@@ -1326,7 +1326,7 @@ impl Preprocessor {
         options: &mut Options<'_>,
     ) -> Result<PreprocessorResult<'input>, Error> {
         let normalized = Preprocessor::normalize(input);
-        let setext = comment::setext_enabled(options);
+        let setext = crate::grammar::setext::is_enabled(options.compatibility_mode);
         let front_matter = options
             .document_attributes
             .contains_key("skip-front-matter")
@@ -1371,7 +1371,7 @@ impl Preprocessor {
     ) -> Result<NestedPreprocessorResult, Error> {
         let mut options = options.clone();
         let normalized = Preprocessor::normalize(&input);
-        let setext = comment::setext_enabled(&options);
+        let setext = crate::grammar::setext::is_enabled(options.compatibility_mode);
         let front_matter = options
             .document_attributes
             .contains_key("skip-front-matter")
@@ -2262,7 +2262,7 @@ endif::inner[]";
                 &source,
                 None,
                 &mut slow_options,
-                comment::setext_enabled(&options),
+                crate::grammar::setext::is_enabled(options.compatibility_mode),
                 Vec::new(),
                 None,
             )?;
@@ -2309,7 +2309,7 @@ endif::inner[]";
                     &Cow::Borrowed(source.as_str()),
                     None,
                     &mut slow_options,
-                    comment::setext_enabled(&options),
+                    crate::grammar::setext::is_enabled(options.compatibility_mode),
                     Vec::new(),
                     None,
                 )?;
@@ -2362,15 +2362,20 @@ endif::inner[]";
     }
 
     #[test]
-    #[cfg(feature = "setext")]
     fn styled_paragraph_comments_respect_setext_headings() -> Result<(), Error> {
-        let options = Options::builder().with_setext().build()?;
+        let options = Options::builder().build()?;
         for title in ["= Title", "Title\n====="] {
             let source =
                 format!("{title}\n\n[source]\nHeading\n-------\nordinary\n// hidden\ntail");
             let result = Preprocessor::process(&source, &options, Rc::default())?;
             assert_eq!(result.text, source.replace("// hidden\n", ""));
-            let result = Preprocessor::process(&source, &Options::default(), Rc::default())?;
+            let result = Preprocessor::process(
+                &source,
+                &Options::builder()
+                    .with_compatibility_mode(crate::CompatibilityMode::Draft)
+                    .build()?,
+                Rc::default(),
+            )?;
             assert_eq!(result.text, source);
         }
         for source in [
@@ -2737,10 +2742,12 @@ code line
     }
 
     #[test]
-    fn test_line_comment_after_equals_run_dropped_without_setext() -> Result<(), Error> {
+    fn test_line_comment_after_equals_run_dropped_in_draft() -> Result<(), Error> {
         // Without Setext, `=====` is ordinary content, so an adjacent comment
         // after it is dropped like any other mid-paragraph comment.
-        let options = Options::default();
+        let options = Options::builder()
+            .with_compatibility_mode(crate::CompatibilityMode::Draft)
+            .build()?;
         let input = "Title
 =====
 // a comment
@@ -2750,12 +2757,11 @@ body";
         Ok(())
     }
 
-    #[cfg(feature = "setext")]
     #[test]
     fn test_line_comment_after_setext_underline_is_preserved() -> Result<(), Error> {
         // With Setext enabled, `=====` is a heading underline (a block
         // boundary), so a comment after it is preserved rather than absorbed.
-        let options = Options::builder().with_setext().build()?;
+        let options = Options::builder().build()?;
         let input = "Title
 =====
 // a comment

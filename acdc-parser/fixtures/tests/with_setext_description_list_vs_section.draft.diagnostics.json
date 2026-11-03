@@ -1,0 +1,40 @@
+{
+  "recovery": {
+    "location": {
+      "absolute_end": 143,
+      "absolute_start": 134,
+      "file": "with_setext_description_list_vs_section.adoc",
+      "location": [
+        {
+          "col": 1,
+          "line": 9
+        },
+        {
+          "col": 10,
+          "line": 9
+        }
+      ]
+    },
+    "message": "unterminated listing block (opened by `----------`)"
+  },
+  "warnings": [
+    {
+      "location": {
+        "absolute_end": 143,
+        "absolute_start": 134,
+        "file": "with_setext_description_list_vs_section.adoc",
+        "location": [
+          {
+            "col": 1,
+            "line": 9
+          },
+          {
+            "col": 10,
+            "line": 9
+          }
+        ]
+      },
+      "message": "unterminated listing block (opened by `----------`)"
+    }
+  ]
+}

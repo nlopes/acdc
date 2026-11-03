@@ -185,14 +185,6 @@ pub struct Args {
     )]
     pub attributes: Vec<String>,
 
-    /// Enable Setext-style (underlined) header parsing
-    ///
-    /// When enabled, headers can use the legacy two-line syntax where
-    /// the title is underlined with `=`, `-`, `~`, `^`, or `+` characters.
-    #[cfg(feature = "setext")]
-    #[arg(long = "setext", alias = "enable-setext-compatibility")]
-    pub enable_setext_compatibility: bool,
-
     /// Force file-qualified cross-references to resolve within this document
     ///
     /// Use for combined or partial sources that keep references to the original
@@ -1736,11 +1728,6 @@ fn build_parser_options(args: &Args, base_options: &Options) -> OptionsBuilder<'
 
     if args.force_local_file_xrefs {
         builder = builder.with_force_local_file_xrefs();
-    }
-
-    #[cfg(feature = "setext")]
-    if args.enable_setext_compatibility {
-        builder = builder.with_setext();
     }
 
     builder

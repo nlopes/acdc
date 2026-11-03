@@ -204,11 +204,10 @@ fn manpage_traces_omit_titles_and_filenames() -> TestResult {
     Ok(())
 }
 
-#[cfg(feature = "setext")]
 #[test]
 #[tracing_test::traced_test]
 fn setext_traces_omit_titles() -> TestResult {
-    let options = Options::builder().with_setext().build()?;
+    let options = Options::builder().build()?;
     let parsed = parse("PRIVATE_TITLE\n=============\n\nPRIVATE_BODY\n", &options)?;
     assert!(parsed.document().header.is_some());
     assert!(logs_contain("Processing setext document title"));

@@ -15,16 +15,12 @@ fn trials() -> Result<Vec<Trial>, Error> {
         for expected in &case.expectations {
             for mode in expected.variant.modes() {
                 let name = format!("{}::{}", case.name, format!("{mode:?}").to_lowercase());
-                let ignored = case.unavailable_feature().is_some();
                 let case = case.clone();
                 let expected = expected.clone();
-                tests.push(
-                    Trial::test(name, move || {
-                        case.verify_mode(&expected, *mode)
-                            .map_err(|error| error.to_string().into())
-                    })
-                    .with_ignored_flag(ignored),
-                );
+                tests.push(Trial::test(name, move || {
+                    case.verify_mode(&expected, *mode)
+                        .map_err(|error| error.to_string().into())
+                }));
             }
         }
     }

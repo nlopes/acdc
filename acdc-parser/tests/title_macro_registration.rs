@@ -141,7 +141,6 @@ fn selected_heading_macros_register_once() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "setext")]
 #[test]
 fn title_macros_register_once_with_setext_enabled() -> Result<(), Error> {
     let title = "Heading footnote:[Heading note.]";
@@ -149,7 +148,7 @@ fn title_macros_register_once_with_setext_enabled() -> Result<(), Error> {
         "= T\n\n.Unused footnote:[Unused note.]\n{title}\n{}\n\n[#target]\n.Title footnote:named[Title note.]\nParagraph.\n\n.Malformed footnote:[Malformed underline note.]\nNot a heading\n~~\n\nBody footnote:[Body note.]\n",
         "-".repeat(title.chars().count())
     );
-    let parsed = parse(&source, &Options::builder().with_setext().build()?)?;
+    let parsed = parse(&source, &Options::builder().build()?)?;
     assert_eq!(parsed.document().footnotes.len(), 4);
     assert!(matches!(
         parsed.document().blocks.first(),

@@ -31,12 +31,11 @@ fn generated_section_ids_include_preceding_included_sections() -> Result<(), Err
     Ok(())
 }
 
-#[cfg(feature = "setext")]
 #[test]
 fn generated_section_ids_include_setext_headings() -> Result<(), Error> {
     let parsed = parse(
         "= T\n\nSame\n----\n\n== Same\n",
-        &Options::builder().with_setext().build()?,
+        &Options::builder().build()?,
     )?;
     assert_eq!(
         parsed

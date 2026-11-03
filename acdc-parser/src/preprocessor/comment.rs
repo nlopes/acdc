@@ -24,23 +24,9 @@
 
 use super::Preprocessor;
 use crate::{
-    CompatibilityMode, DocumentAttributes, Options,
+    CompatibilityMode, DocumentAttributes,
     grammar::{block_attribute_line, block_attribute_style, style_overrides_block_form},
 };
-
-/// Whether Setext (two-line, underlined) titles are active: the `setext` feature
-/// is compiled in *and* the runtime option is set. Mirrors
-/// [`crate::grammar::setext::is_enabled`], but reads the flag from [`Options`]
-/// (the preprocessor runs before a `ParserState` exists).
-#[cfg(feature = "setext")]
-pub(super) fn setext_enabled(options: &Options) -> bool {
-    options.setext
-}
-
-#[cfg(not(feature = "setext"))]
-pub(super) fn setext_enabled(_options: &Options) -> bool {
-    false
-}
 
 /// A `//`-prefixed line comment, but not `///` (literal text) or `////` (a
 /// block-comment delimiter). Un-trimmed on purpose: an indented `  //` is a
@@ -51,8 +37,7 @@ fn is_line_comment(line: &str) -> bool {
 
 /// A Setext underline: a uniform run of a single Setext underline character
 /// (`=`, `-`, `~`, `^`, `+`). The char set comes from
-/// [`crate::grammar::setext::char_to_level`], which yields `None` (so this is
-/// always `false`) when the `setext` feature is not compiled in.
+/// [`crate::grammar::setext::char_to_level`].
 fn is_setext_underline(line: &str) -> bool {
     let mut chars = line.chars();
     match chars.next() {
@@ -119,7 +104,7 @@ pub(super) struct CommentScanner {
     /// Whether the previous emitted line is content a comment would merge into.
     prev_attaches: bool,
     /// Whether Setext titles are active, so their underlines count as a heading
-    /// boundary (see [`setext_enabled`]).
+    /// boundary (see [`crate::grammar::setext::is_enabled`]).
     setext: bool,
     compatibility_mode: CompatibilityMode,
 }
@@ -274,7 +259,7 @@ impl CommentScanner {
             || self.blocks.paragraph == ParagraphContext::None && !self.prev_attaches;
         self.blocks.title_width = (self.setext
             && first_content
-            && !line.is_empty()
+            && crate::grammar::setext::is_title(line)
             && !line.starts_with(['[', ':', '.', '/', '=', '#'])
             && !crate::grammar::helpers::title_looks_like_description_list(line))
         .then(|| line.trim().chars().count());

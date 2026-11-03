@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Legacy underlined headings are recognized in every build, following the
+  default Asciidoctor mode. The `setext` feature no longer changes document
+  structure.
+
 - Document rendering reads image alternative text and formatted UI labels from
   the current parser API. Video playlists retain their source text.
 - The workspace manifest can be read by the parser's minimum supported Rust

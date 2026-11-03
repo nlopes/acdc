@@ -89,7 +89,7 @@ fn inline_images_preserve_alt_text_in_both_formats() {
 }
 
 #[test]
-fn setext_headings_follow_the_server_feature() {
+fn setext_headings_follow_the_default_compatibility_mode() {
     let root = TempDir::new().unwrap();
     write(
         root.path(),
@@ -98,7 +98,7 @@ fn setext_headings_follow_the_server_feature() {
     );
     let tree = records(&engine(root.path()).tree(&file("setext.adoc")).unwrap());
     let has_installation = tree.iter().any(|item| item["title"] == "Installation");
-    assert_eq!(has_installation, cfg!(feature = "setext"), "{tree:?}");
+    assert!(has_installation, "{tree:?}");
 }
 
 #[test]

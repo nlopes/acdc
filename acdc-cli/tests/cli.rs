@@ -2327,3 +2327,18 @@ fn asciidoctor_theme_cli_rejects_missing_theme_and_invalid_format() -> Result<()
     }
     Ok(())
 }
+
+#[test]
+#[cfg(feature = "html")]
+fn legacy_underlined_headings_need_no_conversion_flag() -> Result<(), Box<dyn Error>> {
+    let output = run_acdc(
+        &["convert", "--stdin", "--embedded", "--out-file", "-"],
+        Some("Guide\n=====\n\nInstallation\n------------\n\nBody.\n"),
+    )?;
+    assert!(output.status.success(), "{}", output_text(&output.stderr));
+    assert!(output_text(&output.stdout).contains("<h2 id=\"_installation\">Installation</h2>"));
+    let help = run_acdc(&["convert", "--help"], None)?;
+    assert!(help.status.success());
+    assert!(!output_text(&help.stdout).contains("--setext"));
+    Ok(())
+}

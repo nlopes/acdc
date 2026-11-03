@@ -123,7 +123,8 @@ Full-text search, backlinks, graph queries, Antora resource resolution, persiste
 
 The default features are `pre-spec-subs` and `setext`, matching the standalone server's parsing behavior.
 `pre-spec-subs`, `setext`, and `network` forward to the parser's corresponding features.
-Setext headings are recognized only when the server's `setext` feature is enabled.
+Setext headings follow the default Asciidoctor mode in every build; the
+`setext` feature is a compatibility alias.
 Remote includes remain disabled for every feature combination.
 
 == Development checks

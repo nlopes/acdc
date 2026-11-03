@@ -1524,12 +1524,10 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "setext")]
     fn test_setext_header_highlight() -> Result<(), Box<dyn std::error::Error>> {
         // Setext header: title line + underline line
         let input = "Setext Header\n-------------";
-        // Enable setext in options for this test
-        let options = acdc_parser::Options::builder().with_setext().build()?;
+        let options = acdc_parser::Options::builder().build()?;
         let parsed = acdc_parser::parse(input, &options).expect("failed to parse setext");
         let result = highlight_from_ast(input, parsed.document());
 

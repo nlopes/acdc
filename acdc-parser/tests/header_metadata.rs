@@ -207,11 +207,10 @@ fn header_metadata_without_optional_lines_applies_entries_once() -> Result<(), E
     Ok(())
 }
 
-#[cfg(feature = "setext")]
 #[test]
 fn header_metadata_setext_titles_keep_interleaved_slots() -> Result<(), Error> {
     let source = "Metadata Title\n==============\n:kept: header\nAlice Smith\n:capture: {author}\nv1.0, 2026-10-04\n\nBody";
-    let options = Options::builder().with_setext().build()?;
+    let options = Options::builder().build()?;
     let parsed = parse(source, &options)?;
     for (name, expected) in [
         ("author", "Alice Smith"),

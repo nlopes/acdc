@@ -17,7 +17,7 @@ const DEFAULT_MAX_TOTAL_INCLUDE_BYTES: usize = 64 * 1024 * 1024;
 ///
 /// Both modes use the same AST. Reviewed differences cover named block titles,
 /// attribute lists and shorthand, anchor escapes, repeated roles and options,
-/// and ordinary inline attribute ordering.
+/// ordinary inline attribute ordering, and legacy underlined headings.
 /// Neither mode promises complete conformance. The choice does not change safe
 /// mode or output format.
 /// Explicit block `subs=` controls are shared; Draft supports them as an acdc extension.
@@ -69,15 +69,6 @@ pub struct Options<'a> {
     /// [`crate::ParseResult::source_recovery`] to detect recovered content.
     pub strict: bool,
     pub(crate) file_xref_mode: FileXrefMode,
-    /// Enable Setext-style (underlined) header parsing.
-    ///
-    /// When enabled, headers can use the legacy two-line syntax:
-    /// ```text
-    /// Document Title
-    /// ==============
-    /// ```
-    #[cfg(feature = "setext")]
-    pub setext: bool,
 }
 
 impl<'a> Options<'a> {
@@ -173,8 +164,6 @@ impl<'a> Options<'a> {
             base_dir: self.base_dir,
             strict: self.strict,
             file_xref_mode: self.file_xref_mode,
-            #[cfg(feature = "setext")]
-            setext: self.setext,
         }
     }
 
@@ -196,8 +185,6 @@ impl<'a> Options<'a> {
             base_dir: self.base_dir,
             strict: self.strict,
             file_xref_mode: self.file_xref_mode,
-            #[cfg(feature = "setext")]
-            setext: self.setext,
         }
     }
 }
@@ -232,8 +219,6 @@ pub struct OptionsBuilder<'a> {
     base_dir: Option<PathBuf>,
     strict: bool,
     file_xref_mode: FileXrefMode,
-    #[cfg(feature = "setext")]
-    setext: bool,
 }
 
 impl<'a> OptionsBuilder<'a> {
@@ -476,28 +461,6 @@ impl<'a> OptionsBuilder<'a> {
             .or_else(|| self.defaults.get(name))
     }
 
-    /// Enable Setext-style (underlined) header parsing.
-    ///
-    /// When enabled, headers can use the legacy two-line syntax where
-    /// the title is underlined with `=`, `-`, `~`, `^`, or `+` characters.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use acdc_parser::Options;
-    ///
-    /// let options = Options::builder()
-    ///     .with_setext()
-    ///     .build()?;
-    /// # Ok::<(), acdc_parser::Error>(())
-    /// ```
-    #[cfg(feature = "setext")]
-    #[must_use]
-    pub fn with_setext(mut self) -> Self {
-        self.setext = true;
-        self
-    }
-
     /// Build the `Options` from this builder.
     ///
     /// # Example
@@ -526,8 +489,6 @@ impl<'a> OptionsBuilder<'a> {
             base_dir: self.base_dir,
             strict: self.strict,
             file_xref_mode: self.file_xref_mode,
-            #[cfg(feature = "setext")]
-            setext: self.setext,
         })
     }
 }

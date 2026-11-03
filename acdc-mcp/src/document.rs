@@ -67,10 +67,6 @@ impl Document {
             .with_base_dir(path.parent().expect("absolute file has a parent"))
             .with_include_loader(loader)
             .with_max_total_include_bytes(MAX_ASSEMBLED_BYTES);
-        #[cfg(feature = "setext")]
-        {
-            options = options.with_setext();
-        }
         let timestamp = i64::try_from(timestamp)
             .ok()
             .and_then(|seconds| chrono::DateTime::from_timestamp(seconds, 0))

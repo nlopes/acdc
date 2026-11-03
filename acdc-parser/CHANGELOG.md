@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- Legacy underlined headings now follow `CompatibilityMode` in every build:
+  Asciidoctor recognizes them by default; Draft uses ATX headings. The `setext`
+  Cargo feature is a compatibility alias. Remove `Options::setext` and
+  `OptionsBuilder::with_setext()` from callers and select the mode instead.
+
 - Block metadata builders reject attributes that shadow dedicated fields,
   including aliases and fields that are absent. `BlockMetadata::with_attributes`
   and block `with_metadata` builders now return `Result`; propagate the error
@@ -269,6 +274,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Asciidoctor accepts the deprecated alias without this warning.
 
 ### Fixed
+
+- Legacy heading underlines must differ from their title by at most one
+  character, matching Asciidoctor. Metadata and punctuation-only lines no
+  longer become accidental underlined headings.
 
 - Indented paragraphs honor `normal`, quote, verse, example, sidebar, and
   admonition styles instead of falling back to literal text. `normal` removes

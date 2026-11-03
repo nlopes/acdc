@@ -8,7 +8,8 @@ This guide focuses on common workflows and build-time features.
 
 == Build and run
 
-The default build includes HTML conversion, linting, pre-spec `subs=` compatibility, and the runtime `convert --setext` compatibility flag.
+The default build includes HTML conversion, linting, and pre-spec `subs=` compatibility.
+Legacy underlined headings work without an extra flag.
 
 [source,console]
 ....
@@ -439,7 +440,7 @@ echo '{"contents":"= Hello","path":"test.adoc","type":"block"}' \
 
 | `setext`
 | yes
-| Compiles Setext header support; parsing is enabled per run with `convert --setext`.
+| Compatibility alias with no effect. Conversion recognizes legacy underlined headings by default, matching Asciidoctor.
 
 | `manpage`, `markdown`, `pdf`, `terminal`
 | no

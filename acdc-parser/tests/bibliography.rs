@@ -221,12 +221,11 @@ fn bibliography_sections_warn_for_each_direct_child_section() -> Result<(), Erro
     Ok(())
 }
 
-#[cfg(feature = "setext")]
 #[test]
 fn bibliography_sections_warn_for_setext_child_sections() -> Result<(), Error> {
     let parsed = parse(
         "[bibliography]\nReferences\n----------\n\nChild\n~~~~~\n",
-        &Options::builder().with_setext().build()?,
+        &Options::builder().build()?,
     )?;
     let warning = parsed
         .warnings()

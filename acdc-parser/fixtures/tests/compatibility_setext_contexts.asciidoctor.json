@@ -1,0 +1,434 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Setext contexts",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 17
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 17
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Included heading",
+          "location": [
+            {
+              "line": 3,
+              "col": 1,
+              "file": [
+                "includes/compatibility_setext_selected.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 16,
+              "file": [
+                "includes/compatibility_setext_selected.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "comment",
+          "type": "block",
+          "content": " Included comment.",
+          "location": [
+            {
+              "line": 5,
+              "col": 1,
+              "file": [
+                "includes/compatibility_setext_selected.adoc"
+              ]
+            },
+            {
+              "line": 5,
+              "col": 21,
+              "file": [
+                "includes/compatibility_setext_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Included body.",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 1,
+                  "file": [
+                    "includes/compatibility_setext_selected.adoc"
+                  ]
+                },
+                {
+                  "line": 7,
+                  "col": 14,
+                  "file": [
+                    "includes/compatibility_setext_selected.adoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 7,
+              "col": 1,
+              "file": [
+                "includes/compatibility_setext_selected.adoc"
+              ]
+            },
+            {
+              "line": 7,
+              "col": 14,
+              "file": [
+                "includes/compatibility_setext_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "table",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "|===",
+          "metadata": {
+            "attributes": {
+              "cols": "a"
+            }
+          },
+          "content": {
+            "header": null,
+            "footer": null,
+            "rows": [
+              {
+                "columns": [
+                  {
+                    "content": [
+                      {
+                        "name": "section",
+                        "type": "block",
+                        "title": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell heading",
+                            "location": [
+                              {
+                                "line": 7,
+                                "col": 2
+                              },
+                              {
+                                "line": 7,
+                                "col": 13
+                              }
+                            ]
+                          }
+                        ],
+                        "level": 1,
+                        "blocks": [
+                          {
+                            "name": "paragraph",
+                            "type": "block",
+                            "inlines": [
+                              {
+                                "name": "text",
+                                "type": "string",
+                                "value": "Cell body.",
+                                "location": [
+                                  {
+                                    "line": 10,
+                                    "col": 1
+                                  },
+                                  {
+                                    "line": 10,
+                                    "col": 10
+                                  }
+                                ]
+                              }
+                            ],
+                            "location": [
+                              {
+                                "line": 10,
+                                "col": 1
+                              },
+                              {
+                                "line": 10,
+                                "col": 10
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 7,
+                            "col": 2
+                          },
+                          {
+                            "line": 10,
+                            "col": 10
+                          }
+                        ]
+                      }
+                    ],
+                    "style": "asciidoc"
+                  }
+                ]
+              }
+            ],
+            "columns": [
+              {
+                "style": "asciidoc"
+              }
+            ],
+            "location": [
+              {
+                "line": 6,
+                "col": 1
+              },
+              {
+                "line": 11,
+                "col": 4
+              }
+            ]
+          },
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 11,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "example",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "====",
+          "metadata": {
+            "style": "example"
+          },
+          "blocks": [
+            {
+              "name": "paragraph",
+              "type": "block",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Nested heading",
+                  "location": [
+                    {
+                      "line": 15,
+                      "col": 1
+                    },
+                    {
+                      "line": 15,
+                      "col": 14
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 15,
+                  "col": 1
+                },
+                {
+                  "line": 15,
+                  "col": 14
+                }
+              ]
+            },
+            {
+              "name": "listing",
+              "type": "block",
+              "form": "delimited",
+              "delimiter": "--------------",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "\nNested body.",
+                  "location": [
+                    {
+                      "line": 17,
+                      "col": 1
+                    },
+                    {
+                      "line": 18,
+                      "col": 12
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 16,
+                  "col": 1
+                },
+                {
+                  "line": 18,
+                  "col": 12
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 13,
+              "col": 1
+            },
+            {
+              "line": 19,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "compat-mode",
+          "type": "attribute",
+          "value": true,
+          "location": [
+            {
+              "line": 21,
+              "col": 1
+            },
+            {
+              "line": 21,
+              "col": 13
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1,
+          "file": [
+            "includes/compatibility_setext_selected.adoc"
+          ]
+        },
+        {
+          "line": 21,
+          "col": 13
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Still mode owned",
+          "location": [
+            {
+              "line": 23,
+              "col": 1
+            },
+            {
+              "line": 23,
+              "col": 16
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "End.",
+              "location": [
+                {
+                  "line": 26,
+                  "col": 1
+                },
+                {
+                  "line": 26,
+                  "col": 4
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 26,
+              "col": 1
+            },
+            {
+              "line": 26,
+              "col": 4
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 23,
+          "col": 1
+        },
+        {
+          "line": 26,
+          "col": 4
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 26,
+      "col": 4
+    }
+  ]
+}

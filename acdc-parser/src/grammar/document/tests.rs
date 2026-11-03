@@ -1,14 +1,12 @@
 use super::document_parser;
 use crate::{
-    Anchor, AttributeValue, Block, CommentKind, DelimitedBlock, DelimitedBlockType, Document,
-    Error, Image, InlineMacro, InlineNode, Location, Options, Plain, Position, Section, Subtitle,
-    Title, WarningKind, XrefCaptionLabel, XrefStyle,
+    Anchor, AttributeValue, Block, CommentKind, CompatibilityMode, DelimitedBlock,
+    DelimitedBlockType, Document, Error, Image, InlineMacro, InlineNode, Location, Options, Plain,
+    Position, Section, Subtitle, Title, WarningKind, XrefCaptionLabel, XrefStyle,
     grammar::ParserState,
     model::{Caption, CaptionKind, SectionKind},
     parse,
 };
-#[cfg(feature = "setext")]
-use std::rc::Rc;
 
 #[test]
 #[tracing_test::traced_test]
@@ -692,7 +690,6 @@ fn test_toc_empty_document() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "setext")]
 #[test]
 #[tracing_test::traced_test]
 fn test_setext_document_title() -> Result<(), Error> {
@@ -702,7 +699,6 @@ fn test_setext_document_title() -> Result<(), Error> {
 Some content.
 ";
     let mut state = ParserState::new_for_test(input);
-    Rc::make_mut(&mut state.options).setext = true;
     let result = document_parser::document(input, &mut state)??;
     let header = result.header.expect("document has a header");
     assert_eq!(header.title.len(), 1);
@@ -712,7 +708,6 @@ Some content.
     Ok(())
 }
 
-#[cfg(feature = "setext")]
 #[test]
 #[tracing_test::traced_test]
 fn test_setext_section() -> Result<(), Error> {
@@ -724,7 +719,6 @@ Section One
 Content.
 ";
     let mut state = ParserState::new_for_test(input);
-    Rc::make_mut(&mut state.options).setext = true;
     let result = document_parser::document(input, &mut state)??;
 
     let section = result.blocks.iter().find_map(|b| {
@@ -742,29 +736,18 @@ Content.
     Ok(())
 }
 
-#[cfg(feature = "setext")]
 #[test]
 #[tracing_test::traced_test]
-fn test_setext_disabled_by_default() {
-    let input = "Document Title
-==============
-
-Some content.
-";
-    let mut state = ParserState::new_for_test(input);
-    // setext is disabled by default
-    assert!(!state.options.setext);
-    // Should not parse as setext title when disabled
-    let result = document_parser::document(input, &mut state);
-    // The document will be parsed but without recognizing the setext title
-    // The title line will be parsed as a paragraph or similar
-    if let Ok(Ok(doc)) = result {
-        // No header should be found when setext is disabled
-        assert!(doc.header.is_none());
-    }
+fn test_setext_disabled_in_draft() -> Result<(), Error> {
+    let input = "Document Title\n==============\n\nSome content.\n";
+    let options = Options::builder()
+        .with_compatibility_mode(CompatibilityMode::Draft)
+        .build()?;
+    let parsed = parse(input, &options)?;
+    assert!(parsed.document().header.is_none());
+    Ok(())
 }
 
-#[cfg(feature = "setext")]
 #[test]
 #[tracing_test::traced_test]
 fn test_setext_single_section_per_level() -> Result<(), Error> {
@@ -777,7 +760,6 @@ Section One
 Content here.
 ";
     let mut state = ParserState::new_for_test(input);
-    Rc::make_mut(&mut state.options).setext = true;
     let result = document_parser::document(input, &mut state)??;
 
     let header = result.header.expect("document has a header");
@@ -805,7 +787,6 @@ Content here.
     Ok(())
 }
 
-#[cfg(feature = "setext")]
 #[test]
 #[tracing_test::traced_test]
 fn test_setext_sibling_sections() -> Result<(), Error> {
@@ -829,7 +810,6 @@ Section C
 Content C.
 ";
     let mut state = ParserState::new_for_test(input);
-    Rc::make_mut(&mut state.options).setext = true;
     let result = document_parser::document(input, &mut state)??;
 
     let header = result.header.expect("document has a header");
@@ -873,7 +853,6 @@ Content C.
     Ok(())
 }
 
-#[cfg(feature = "setext")]
 #[test]
 #[tracing_test::traced_test]
 fn test_setext_all_underline_characters() -> Result<(), Error> {
@@ -887,7 +866,6 @@ fn test_setext_all_underline_characters() -> Result<(), Error> {
     // Test level 1 with -
     let input = "= Doc\n\nLevel One\n---------\n\nContent.\n";
     let mut state = ParserState::new_for_test(input);
-    Rc::make_mut(&mut state.options).setext = true;
     let result = document_parser::document(input, &mut state)??;
     let section = result
         .blocks
@@ -905,7 +883,6 @@ fn test_setext_all_underline_characters() -> Result<(), Error> {
     // Test level 2 with ~
     let input = "= Doc\n\nLevel Two\n~~~~~~~~~\n\nContent.\n";
     let mut state = ParserState::new_for_test(input);
-    Rc::make_mut(&mut state.options).setext = true;
     let result = document_parser::document(input, &mut state)??;
     let section = result
         .blocks
@@ -923,7 +900,6 @@ fn test_setext_all_underline_characters() -> Result<(), Error> {
     // Test level 3 with ^
     let input = "= Doc\n\nLevel Three\n^^^^^^^^^^^\n\nContent.\n";
     let mut state = ParserState::new_for_test(input);
-    Rc::make_mut(&mut state.options).setext = true;
     let result = document_parser::document(input, &mut state)??;
     let section = result
         .blocks
@@ -941,7 +917,6 @@ fn test_setext_all_underline_characters() -> Result<(), Error> {
     // Test level 4 with +
     let input = "= Doc\n\nLevel Four\n++++++++++\n\nContent.\n";
     let mut state = ParserState::new_for_test(input);
-    Rc::make_mut(&mut state.options).setext = true;
     let result = document_parser::document(input, &mut state)??;
     let section = result
         .blocks
@@ -959,13 +934,11 @@ fn test_setext_all_underline_characters() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "setext")]
 #[test]
 #[tracing_test::traced_test]
 fn test_setext_manpage_style_document() -> Result<(), Error> {
     let input = "gitdatamodel(7)\n===============\n\nNAME\n----\ngitdatamodel - Git's core data model\n\nSYNOPSIS\n--------\ngitdatamodel\n";
     let mut state = ParserState::new_for_test(input);
-    Rc::make_mut(&mut state.options).setext = true;
     let result = document_parser::document(input, &mut state)??;
 
     let header = result.header.expect("document has a header");
@@ -1003,7 +976,6 @@ fn test_setext_manpage_style_document() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "setext")]
 #[test]
 #[tracing_test::traced_test]
 fn test_setext_with_description_lists() -> Result<(), Error> {
@@ -1033,7 +1005,7 @@ REFERENCES
 
 References.
 ";
-    let options = Options::builder().with_setext().build()?;
+    let options = Options::builder().build()?;
     let parsed = parse(input, &options)?;
     let result = parsed.document();
 
@@ -2030,12 +2002,10 @@ fn interdocument_xref_macro_targets_are_not_naturally_resolved() -> Result<(), E
     Ok(())
 }
 
-#[cfg(feature = "setext")]
 #[test]
 fn natural_title_cross_references_resolve_setext_section_ids() -> Result<(), Error> {
     let input = "See <<Setext Title>>.\n\nSetext Title\n------------\n";
     let mut state = ParserState::new_for_test(input);
-    Rc::make_mut(&mut state.options).setext = true;
     let doc = document_parser::document(input, &mut state)??;
     let xrefs = doc
         .blocks

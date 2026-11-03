@@ -23,7 +23,7 @@ exclude = [
 [features]
 default = ["pre-spec-subs"]
 network = ["dep:ureq"]
-setext = []  # Enable Setext-style (underlined) header parsing
+setext = []  # Compatibility alias; headings follow CompatibilityMode
 # Compatibility alias. Block subs= processing is always available.
 pre-spec-subs = []
 

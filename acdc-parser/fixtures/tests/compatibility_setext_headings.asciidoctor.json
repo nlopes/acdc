@@ -1,0 +1,369 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Legacy guide",
+        "location": [
+          {
+            "line": 1,
+            "col": 1
+          },
+          {
+            "line": 1,
+            "col": 12
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 2,
+        "col": 12
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "First level",
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 11
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "metadata": {
+        "anchors": [
+          {
+            "id": "legacy",
+            "location": [
+              {
+                "line": 4,
+                "col": 1
+              },
+              {
+                "line": 4,
+                "col": 10
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "comment",
+          "type": "block",
+          "content": " Comment after a heading.",
+          "location": [
+            {
+              "line": 7,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 28
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "First body and ",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 1
+                },
+                {
+                  "line": 9,
+                  "col": 15
+                }
+              ]
+            },
+            {
+              "name": "xref",
+              "type": "inline",
+              "target": "legacy",
+              "target_is_local": true,
+              "location": [
+                {
+                  "line": 9,
+                  "col": 16
+                },
+                {
+                  "line": 9,
+                  "col": 25
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 26
+                },
+                {
+                  "line": 9,
+                  "col": 26
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 9,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 26
+            }
+          ]
+        },
+        {
+          "name": "section",
+          "type": "block",
+          "title": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Second level",
+              "location": [
+                {
+                  "line": 11,
+                  "col": 1
+                },
+                {
+                  "line": 11,
+                  "col": 12
+                }
+              ]
+            }
+          ],
+          "level": 2,
+          "blocks": [
+            {
+              "name": "paragraph",
+              "type": "block",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Second body.",
+                  "location": [
+                    {
+                      "line": 14,
+                      "col": 1
+                    },
+                    {
+                      "line": 14,
+                      "col": 12
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 14,
+                  "col": 1
+                },
+                {
+                  "line": 14,
+                  "col": 12
+                }
+              ]
+            },
+            {
+              "name": "section",
+              "type": "block",
+              "title": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Third level",
+                  "location": [
+                    {
+                      "line": 16,
+                      "col": 1
+                    },
+                    {
+                      "line": 16,
+                      "col": 11
+                    }
+                  ]
+                }
+              ],
+              "level": 3,
+              "blocks": [
+                {
+                  "name": "paragraph",
+                  "type": "block",
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Third body.",
+                      "location": [
+                        {
+                          "line": 19,
+                          "col": 1
+                        },
+                        {
+                          "line": 19,
+                          "col": 11
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 19,
+                      "col": 1
+                    },
+                    {
+                      "line": 19,
+                      "col": 11
+                    }
+                  ]
+                },
+                {
+                  "name": "section",
+                  "type": "block",
+                  "title": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Fourth level",
+                      "location": [
+                        {
+                          "line": 21,
+                          "col": 1
+                        },
+                        {
+                          "line": 21,
+                          "col": 12
+                        }
+                      ]
+                    }
+                  ],
+                  "level": 4,
+                  "blocks": [
+                    {
+                      "name": "paragraph",
+                      "type": "block",
+                      "inlines": [
+                        {
+                          "name": "text",
+                          "type": "string",
+                          "value": "Fourth body.",
+                          "location": [
+                            {
+                              "line": 24,
+                              "col": 1
+                            },
+                            {
+                              "line": 24,
+                              "col": 12
+                            }
+                          ]
+                        }
+                      ],
+                      "location": [
+                        {
+                          "line": 24,
+                          "col": 1
+                        },
+                        {
+                          "line": 24,
+                          "col": 12
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 21,
+                      "col": 1
+                    },
+                    {
+                      "line": 24,
+                      "col": 12
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 16,
+                  "col": 1
+                },
+                {
+                  "line": 24,
+                  "col": 12
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 11,
+              "col": 1
+            },
+            {
+              "line": 24,
+              "col": 12
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 4,
+          "col": 1
+        },
+        {
+          "line": 24,
+          "col": 12
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 24,
+      "col": 12
+    }
+  ]
+}

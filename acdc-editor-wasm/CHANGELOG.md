@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Legacy underlined headings are recognized and highlighted in builds without
+  the `setext` feature, following the default Asciidoctor mode.
+
 - Highlighting skips included-file ranges and ranges that cross source files.
   These ranges no longer apply styles to unrelated entry text. Entry-file
   children still receive highlighting. Include loading remains disabled.

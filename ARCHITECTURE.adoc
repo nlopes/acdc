@@ -428,7 +428,7 @@ A single-quoted named title supports formatting in both modes.
 
 Both modes honor explicit block `subs=` settings, including in minimal builds.
 Draft supports these controls as an acdc extension.
-Setext still has its own control.
+Asciidoctor mode recognizes legacy underlined headings; Draft uses ATX headings.
 The link:acdc-parser/README.adoc[parser README] describes what the mode supports today and how to select it.
 
 === One choice for the whole parse

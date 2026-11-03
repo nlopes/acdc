@@ -223,7 +223,7 @@ already been processed; these reads do not reconstruct consumed source.
 | Feature | Default | Effect |
 | --- | --- | --- |
 | `pre-spec-subs` | On | Compatibility alias; has no effect on parsing. |
-| `setext` | Off | Compiles support for legacy underlined headings; enable it with `OptionsBuilder::with_setext()`. |
+| `setext` | Off | Compatibility alias with no effect. Underlined headings follow `CompatibilityMode`. |
 | `network` | Off | Compiles built-in HTTP(S) include support outside bare WebAssembly. Caller permission and safe mode still apply. |
 
 Block `subs=` settings work in every parser build and both compatibility modes.
@@ -325,13 +325,19 @@ text in both modes. This policy also applies to inline-image attributes.
 
 The attribute-list differences follow SDR-2 and SDR-6 at revision
 `68ed0b22e8d9b919897542d8ae14f03e7dbdd2e4`; Draft does not mean complete draft
-specification conformance. Custom `subs=` settings and Setext still use their
-existing controls. Safe mode, network access, and output format stay separate.
+specification conformance. Both modes honor explicit block `subs=` settings.
+Asciidoctor mode recognizes legacy underlined headings; Draft requires ATX
+headings. Safe mode, network access, and output format stay separate.
 
 If you used the unreleased `AttributeSyntax` prototype, replace it with
 `CompatibilityMode`, `with_attribute_syntax()` with `with_compatibility_mode()`,
 and `Options::attribute_syntax` with `Options::compatibility_mode`.
 There is no second attribute-interpretation selector.
+
+The former `Options::setext` field and `OptionsBuilder::with_setext()` method
+have been removed. Select `CompatibilityMode::Asciidoctor` for legacy
+underlined headings, or `CompatibilityMode::Draft` for ATX-only headings.
+The `setext` Cargo feature remains as a compatibility alias with no effect.
 
 Named titles parse the expanded attribute value. For example, with
 `:word: *Bold*`, `[title='{word}']` produces bold text in both modes.
@@ -528,7 +534,7 @@ The `ParseResult` ownership model is unchanged from 0.9.
     * [x] Revision info
 * [x] Section
     * [x] ATX-style (`=` markers)
-    * [x] Setext-style (underlined, optional feature)
+    * [x] Setext-style (underlined, Asciidoctor mode)
     * [x] Discrete headers
 * [x] Delimited Block
     * [x] Comment
@@ -689,7 +695,7 @@ acdc keeps these differences from Asciidoctor 2.0.26:
 * **Document attributes** - `with_attribute` and `with_attributes` set application
   overrides; `with_default_attribute` and `with_defaults` set values the document
   can replace. Built-in read-only and API-only names remain protected.
-* **Setext headers** - Optional feature flag for two-line underlined headers
+* **Setext headers** - Two-line underlined headers in Asciidoctor mode
 * **Manpage doctype** - `doctype=manpage` with derived attributes
 
 Document configuration accepts standard Rust iterators. Application overrides
