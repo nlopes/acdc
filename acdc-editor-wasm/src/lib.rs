@@ -8,7 +8,7 @@ use wasm_bindgen::prelude::*;
 
 use acdc_converters_core::{Converter, Diagnostics, Options, WarningSource};
 use acdc_converters_html::{HtmlVariant, Processor, RenderOptions};
-use acdc_parser::AttributeValue;
+use acdc_parser::{AttributeValue, CompatibilityMode};
 
 /// Result of a single parse operation: highlighted source + rendered preview.
 pub struct ParseResult {
@@ -77,11 +77,29 @@ pub fn init() -> Result<(), JsValue> {
 ///
 /// Returns an error string if parsing or conversion fails.
 pub fn parse_and_render(input: &str) -> Result<ParseResult, String> {
-    parse_and_render_with_attributes(input, [("source-highlighter", AttributeValue::Bool(true))])
+    parse_and_render_with_mode(input, CompatibilityMode::default())
+}
+
+/// Render highlighted source and a preview using the selected parser compatibility mode.
+/// Include loading remains disabled.
+///
+/// # Errors
+///
+/// Returns an error string if parsing or conversion fails.
+pub fn parse_and_render_with_mode(
+    input: &str,
+    mode: CompatibilityMode,
+) -> Result<ParseResult, String> {
+    parse_and_render_with_attributes(
+        input,
+        mode,
+        [("source-highlighter", AttributeValue::Bool(true))],
+    )
 }
 
 fn parse_and_render_with_attributes<'a, N, V>(
     input: &str,
+    mode: CompatibilityMode,
     document_attributes: impl IntoIterator<Item = (N, V)>,
 ) -> Result<ParseResult, String>
 where
@@ -90,7 +108,9 @@ where
 {
     let processor = Processor::new_with_variant(
         Options::builder().embedded(true).build(),
-        acdc_parser::Options::builder().with_attributes(document_attributes),
+        acdc_parser::Options::builder()
+            .with_compatibility_mode(mode)
+            .with_attributes(document_attributes),
         HtmlVariant::Semantic,
     )
     .map_err(|e| e.to_string())?;
@@ -281,6 +301,7 @@ mod tests {
 
         let result = parse_and_render_with_attributes(
             "depth={max-include-depth}",
+            CompatibilityMode::default(),
             attributes.into_inputs(),
         )?;
         assert!(result.preview_html.contains("depth=064"));
@@ -293,6 +314,50 @@ mod tests {
         )?;
         assert!(result.preview_html.contains("Semantic preview."));
         assert!(result.preview_html.contains("backend=html5s"));
+        Ok(())
+    }
+    #[test]
+    fn compatibility_mode_keeps_preview_highlighting_and_diagnostics_together() -> Result<(), String>
+    {
+        let source = ":word: *Selected*\n:compatibility-mode: draft\n\n== {word}\n\n[cols=\"a\"]\n|===\n|\n== {word} Cell\n|===\n\ninclude::missing.adoc[]\n";
+        let default = parse_and_render(source)?;
+        let explicit = parse_and_render_with_mode(source, CompatibilityMode::Asciidoctor)?;
+        assert_eq!(default.preview_html, explicit.preview_html);
+        assert_eq!(default.highlight_html, explicit.highlight_html);
+        for (mode, expected, unexpected) in [
+            (
+                CompatibilityMode::Asciidoctor,
+                "*Selected*",
+                "<strong>Selected</strong>",
+            ),
+            (
+                CompatibilityMode::Draft,
+                "<strong>Selected</strong>",
+                "*Selected*",
+            ),
+        ] {
+            let result = parse_and_render_with_mode(source, mode)?;
+            assert!(
+                result.preview_html.contains(&format!(">{expected}</h2>")),
+                "{}",
+                result.preview_html
+            );
+            assert!(
+                result
+                    .preview_html
+                    .contains(&format!(">{expected} Cell</h2>")),
+                "{}",
+                result.preview_html
+            );
+            assert!(!result.preview_html.contains(unexpected));
+            assert!(result.highlight_html.contains("adoc-heading"));
+            assert!(
+                result
+                    .warnings
+                    .iter()
+                    .any(|warning| warning.message.contains("include"))
+            );
+        }
         Ok(())
     }
 }

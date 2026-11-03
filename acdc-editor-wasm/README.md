@@ -24,6 +24,10 @@ Use `www/index.html` as the host template. These elements are required:
 - `#line-numbers` - Container with a `pre` element for line numbers
 - `#resize-handle` - Handle between the two panes
 
+An optional `#compatibility-mode` select chooses `asciidoctor` or `draft` and
+updates highlighting, warnings, and the preview together. Without it, the editor
+uses Asciidoctor compatibility. The supplied template includes this control.
+
 ### JavaScript initialization
 
 ```javascript
@@ -115,6 +119,9 @@ Sanitize or isolate the output if users can supply content you do not trust.
 Rust callers can use `parse_and_render(input: &str)` to get highlighted source
 HTML, unsanitized preview HTML, the resolved STEM flag, and parser/converter
 warnings in a `ParseResult`. The function returns `Result<ParseResult, String>`.
+The default is Asciidoctor compatibility. Use
+`parse_and_render_with_mode(input, acdc_parser::CompatibilityMode::Draft)` to
+select the supported draft rules. Both functions keep include loading disabled.
 Parsing or conversion failures return an error string. The WASM entry point is
 `init()`, which sets up the editor DOM.
 

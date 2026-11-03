@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Choose Asciidoctor or Draft compatibility in the live editor. Changing the
+  selection updates highlighting, diagnostics, and the preview together. Rust
+  callers can select the same mode with `parse_and_render_with_mode`; the
+  existing API keeps its Asciidoctor default and disabled include loading.
+
 - Keep source highlighting available around resolved typography.
 
 - A note in the editor pane explains that embedded HTML can run code or

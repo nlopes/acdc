@@ -7,7 +7,8 @@ use std::{cell::Cell, fmt::Write as _, rc::Rc};
 
 use wasm_bindgen::{closure::Closure, prelude::*};
 use web_sys::{
-    Document, Element, Event, HtmlElement, HtmlTextAreaElement, KeyboardEvent, MouseEvent, Window,
+    Document, Element, Event, HtmlElement, HtmlSelectElement, HtmlTextAreaElement, KeyboardEvent,
+    MouseEvent, Window,
 };
 
 use crate::EditorWarning;
@@ -33,6 +34,7 @@ const MIN_PANE_WIDTH: f64 = 300.0;
 struct EditorState {
     window: Window,
     editor: HtmlTextAreaElement,
+    compatibility_mode: Option<HtmlSelectElement>,
     highlight: Element,
     backdrop: Element,
     preview: Element,
@@ -58,6 +60,10 @@ impl EditorState {
             .get_element_by_id("editor")
             .ok_or("missing #editor")?
             .dyn_into()?;
+        let compatibility_mode = doc
+            .get_element_by_id("compatibility-mode")
+            .map(JsCast::dyn_into::<HtmlSelectElement>)
+            .transpose()?;
         let highlight = doc
             .get_element_by_id("highlight")
             .ok_or("missing #highlight")?;
@@ -97,6 +103,7 @@ impl EditorState {
         Ok(Self {
             window,
             editor,
+            compatibility_mode,
             highlight,
             backdrop,
             preview,
@@ -280,7 +287,15 @@ const fn digit_count(n: usize) -> u32 {
 fn parse_and_update_both(state: &EditorState) {
     let input = state.editor.value();
 
-    match crate::parse_and_render(&input) {
+    let result = state
+        .compatibility_mode
+        .as_ref()
+        .map_or_else(
+            || Ok(acdc_parser::CompatibilityMode::default()),
+            |select| select.value().parse::<acdc_parser::CompatibilityMode>(),
+        )
+        .and_then(|mode| crate::parse_and_render_with_mode(&input, mode));
+    match result {
         Ok(result) => {
             // Trailing newline keeps the pre height in sync with the textarea
             // when the last line is empty.
@@ -666,6 +681,14 @@ pub fn setup() -> Result<(), JsValue> {
         apply_pane_ratio(&state, ratio);
     }
 
+    if let Some(select) = &state.compatibility_mode {
+        let mode_state = Rc::clone(&state);
+        let mode_cb: Closure<dyn Fn()> = Closure::new(move || {
+            parse_and_update_both(&mode_state);
+        });
+        select.add_event_listener_with_callback("change", mode_cb.as_ref().unchecked_ref())?;
+        mode_cb.forget();
+    }
     attach_editor_listeners(&state, &parse_cb)?;
     attach_resize_listeners(&state)?;
     attach_copy_listener(&state, &doc)?;
