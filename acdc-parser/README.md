@@ -272,7 +272,20 @@ For named block titles, Draft parses inline content only in single-quoted
 values. It also accumulates distinct block roles and options in source order. Unquoted and
 double-quoted named titles stay literal, including formatting markers,
 typography, character references, and macro text. Dot titles continue to support
-inline formatting in both modes. Image alt and tooltip rules are unchanged.
+inline formatting in both modes.
+
+Draft keeps block image alt text literal, including single-quoted values. Attribute
+references still expand, but formatting, typography, character references, and
+macro-like text are preserved without registering macros. In Asciidoctor mode,
+single-quoted alt in a preceding block attribute list supports inline content;
+other preceding alt values and alt inside `image::...[]` remain scalar.
+
+Inline image and icon alt text and tooltips support rich content in both modes
+as a shared acdc extension; the draft has not settled these inline rules. Alt and
+tooltip fields retain their existing content types. In native JSON, Draft block
+alt uses protected literal nodes instead of formatted nodes or ordinary text.
+Absent and explicitly empty alt values stay distinct, and converters choose any
+filename fallback. A block image's title is its caption, not a tooltip.
 
 Draft block attribute lists reject leading and trailing spaces or tabs, including
 whitespace introduced by attribute references. A closing quote must be followed

@@ -10,10 +10,13 @@ fn literal(content: ContentRef<'_>) -> Result<String, Error> {
     content
         .inlines()
         .map(|node| {
-            let InlineKind::Plain(text) = node.kind() else {
-                return Err("expected literal text".into());
-            };
-            Ok(text.text())
+            if let InlineKind::Plain(text) = node.kind() {
+                Ok(text.text())
+            } else if let InlineKind::Raw(text) = node.kind() {
+                Ok(text.text())
+            } else {
+                Err("expected literal text".into())
+            }
         })
         .collect()
 }

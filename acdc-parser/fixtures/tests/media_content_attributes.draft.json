@@ -57,46 +57,13 @@
       ],
       "alt": [
         {
-          "name": "span",
-          "type": "inline",
-          "variant": "strong",
-          "form": "constrained",
-          "inlines": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "Block",
-              "location": [
-                {
-                  "line": 4,
-                  "col": 8
-                },
-                {
-                  "line": 4,
-                  "col": 12
-                }
-              ]
-            }
-          ],
+          "name": "raw",
+          "type": "string",
+          "value": "*Block* description",
           "location": [
             {
               "line": 4,
               "col": 7
-            },
-            {
-              "line": 4,
-              "col": 13
-            }
-          ]
-        },
-        {
-          "name": "text",
-          "type": "string",
-          "value": " description",
-          "location": [
-            {
-              "line": 4,
-              "col": 14
             },
             {
               "line": 4,

@@ -1,0 +1,257 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Media insertion contexts",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 26
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 4,
+        "col": 17
+      }
+    ]
+  },
+  "attributes": {
+    "alias": "{name}",
+    "literal": "{name}",
+    "name": "Header"
+  },
+  "blocks": [
+    {
+      "name": "name",
+      "type": "attribute",
+      "value": "Body",
+      "location": [
+        {
+          "line": 6,
+          "col": 1
+        },
+        {
+          "line": 6,
+          "col": 11
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "alt": [
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "α {name} café",
+          "location": [
+            {
+              "line": 8,
+              "col": 21
+            },
+            {
+              "line": 8,
+              "col": 34
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "unicode.png"
+      },
+      "location": [
+        {
+          "line": 8,
+          "col": 1
+        },
+        {
+          "line": 8,
+          "col": 36
+        }
+      ]
+    },
+    {
+      "name": "name",
+      "type": "attribute",
+      "value": "Include",
+      "location": [
+        {
+          "line": 3,
+          "col": 5,
+          "file": [
+            "includes/document_attribute_media_contexts.adoc"
+          ]
+        },
+        {
+          "line": 3,
+          "col": 18,
+          "file": [
+            "includes/document_attribute_media_contexts.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "alt": [
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "β {name}",
+          "location": [
+            {
+              "line": 5,
+              "col": 26,
+              "file": [
+                "includes/document_attribute_media_contexts.adoc"
+              ]
+            },
+            {
+              "line": 5,
+              "col": 34,
+              "file": [
+                "includes/document_attribute_media_contexts.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "included.png"
+      },
+      "location": [
+        {
+          "line": 5,
+          "col": 5,
+          "file": [
+            "includes/document_attribute_media_contexts.adoc"
+          ]
+        },
+        {
+          "line": 5,
+          "col": 36,
+          "file": [
+            "includes/document_attribute_media_contexts.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "image",
+                    "type": "block",
+                    "form": "macro",
+                    "alt": [
+                      {
+                        "name": "raw",
+                        "type": "string",
+                        "value": "{name}",
+                        "location": [
+                          {
+                            "line": 17,
+                            "col": 18
+                          },
+                          {
+                            "line": 17,
+                            "col": 24
+                          }
+                        ]
+                      }
+                    ],
+                    "source": {
+                      "type": "path",
+                      "value": "cell.png"
+                    },
+                    "location": [
+                      {
+                        "line": 17,
+                        "col": 1
+                      },
+                      {
+                        "line": 17,
+                        "col": 26
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 13,
+            "col": 1
+          },
+          {
+            "line": 18,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 12,
+          "col": 1
+        },
+        {
+          "line": 18,
+          "col": 4
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 18,
+      "col": 4
+    }
+  ]
+}

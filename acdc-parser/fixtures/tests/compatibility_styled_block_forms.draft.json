@@ -297,7 +297,7 @@
       ],
       "alt": [
         {
-          "name": "text",
+          "name": "raw",
           "type": "string",
           "value": "Sample",
           "location": [

@@ -41,6 +41,7 @@ struct XrefCaptionLabelSnapshots<'a> {
 
 #[derive(Debug)]
 pub(crate) struct ParserState<'a> {
+    pub(super) attribute_sources: Rc<RefCell<Vec<super::attributes::ResolvedContentAttribute<'a>>>>,
     // Natural lookup matches expanded markup, which cannot be recovered from display nodes.
     // These inputs stay in parser state until the reference catalog is complete.
     pub(super) reference_text_sources:
@@ -581,6 +582,7 @@ impl<'a> ParserState<'a> {
     pub(crate) fn new(input: &'a str, arena: &'a Bump, options: Rc<Options<'a>>) -> Self {
         let substitutions = SubstitutionPlan::for_mode(options.compatibility_mode);
         let mut state = Self {
+            attribute_sources: Rc::default(),
             reference_text_sources: Rc::default(),
             reference_text_context: None,
             document_attributes: Rc::new(options.document_attributes.clone()),
@@ -630,6 +632,7 @@ impl<'a> ParserState<'a> {
         });
         Self {
             options: Rc::new(EMPTY_OPTIONS.clone()),
+            attribute_sources: Rc::default(),
             reference_text_sources: Rc::default(),
             reference_text_context: None,
             document_attributes: Rc::new(DocumentAttributes::empty()),
@@ -674,6 +677,7 @@ impl<'a> ParserState<'a> {
     ) -> Self {
         Self {
             options: parent.options.clone(),
+            attribute_sources: Rc::clone(&parent.attribute_sources),
             reference_text_sources: Rc::clone(&parent.reference_text_sources),
             reference_text_context: parent.reference_text_context.clone(),
             document_attributes: Rc::clone(&parent.document_attributes),

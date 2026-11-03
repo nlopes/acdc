@@ -57,7 +57,7 @@
       ],
       "alt": [
         {
-          "name": "text",
+          "name": "raw",
           "type": "string",
           "value": "Listing alt",
           "location": [
@@ -115,7 +115,7 @@
       ],
       "alt": [
         {
-          "name": "text",
+          "name": "raw",
           "type": "string",
           "value": "Source alt",
           "location": [
@@ -168,7 +168,7 @@
       ],
       "alt": [
         {
-          "name": "text",
+          "name": "raw",
           "type": "string",
           "value": "Literal alt",
           "location": [
@@ -221,7 +221,7 @@
       ],
       "alt": [
         {
-          "name": "text",
+          "name": "raw",
           "type": "string",
           "value": "Verse alt",
           "location": [
@@ -274,7 +274,7 @@
       ],
       "alt": [
         {
-          "name": "text",
+          "name": "raw",
           "type": "string",
           "value": "Explicit alt",
           "location": [
@@ -327,7 +327,7 @@
       ],
       "alt": [
         {
-          "name": "text",
+          "name": "raw",
           "type": "string",
           "value": "Explicit alt",
           "location": [
@@ -380,7 +380,7 @@
       ],
       "alt": [
         {
-          "name": "text",
+          "name": "raw",
           "type": "string",
           "value": "custom",
           "location": [
@@ -440,7 +440,7 @@
       "form": "macro",
       "alt": [
         {
-          "name": "text",
+          "name": "raw",
           "type": "string",
           "value": "Untitled listing alt",
           "location": [
@@ -544,7 +544,7 @@
       ],
       "alt": [
         {
-          "name": "text",
+          "name": "raw",
           "type": "string",
           "value": "Final alt",
           "location": [

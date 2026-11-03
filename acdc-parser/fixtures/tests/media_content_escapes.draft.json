@@ -585,78 +585,13 @@
       "form": "macro",
       "alt": [
         {
-          "name": "span",
-          "type": "inline",
-          "variant": "strong",
-          "form": "constrained",
-          "inlines": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "Selected",
-              "location": [
-                {
-                  "line": 15,
-                  "col": 8
-                },
-                {
-                  "line": 15,
-                  "col": 15
-                }
-              ]
-            }
-          ],
+          "name": "raw",
+          "type": "string",
+          "value": "*Selected* footnote:[Selected block.]",
           "location": [
             {
               "line": 15,
               "col": 7
-            },
-            {
-              "line": 15,
-              "col": 16
-            }
-          ]
-        },
-        {
-          "name": "text",
-          "type": "string",
-          "value": " ",
-          "location": [
-            {
-              "line": 15,
-              "col": 17
-            },
-            {
-              "line": 15,
-              "col": 17
-            }
-          ]
-        },
-        {
-          "name": "footnote",
-          "type": "inline",
-          "id": null,
-          "inlines": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "Selected block.",
-              "location": [
-                {
-                  "line": 15,
-                  "col": 28
-                },
-                {
-                  "line": 15,
-                  "col": 42
-                }
-              ]
-            }
-          ],
-          "location": [
-            {
-              "line": 15,
-              "col": 18
             },
             {
               "line": 15,
@@ -686,7 +621,7 @@
       "form": "macro",
       "alt": [
         {
-          "name": "text",
+          "name": "raw",
           "type": "string",
           "value": "Selected macro",
           "location": [
@@ -862,7 +797,7 @@
       "form": "macro",
       "alt": [
         {
-          "name": "text",
+          "name": "raw",
           "type": "string",
           "value": "A \"quote\"",
           "location": [
@@ -898,7 +833,7 @@
       "form": "macro",
       "alt": [
         {
-          "name": "text",
+          "name": "raw",
           "type": "string",
           "value": "A \"quote\"",
           "location": [
@@ -939,7 +874,7 @@
       },
       "alt": [
         {
-          "name": "text",
+          "name": "raw",
           "type": "string",
           "value": "custom",
           "location": [
@@ -980,7 +915,7 @@
       },
       "alt": [
         {
-          "name": "text",
+          "name": "raw",
           "type": "string",
           "value": "Named",
           "location": [
@@ -1016,27 +951,9 @@
       "form": "macro",
       "alt": [
         {
-          "name": "span",
-          "type": "inline",
-          "variant": "strong",
-          "form": "constrained",
-          "inlines": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "Formatted",
-              "location": [
-                {
-                  "line": 40,
-                  "col": 4
-                },
-                {
-                  "line": 40,
-                  "col": 12
-                }
-              ]
-            }
-          ],
+          "name": "raw",
+          "type": "string",
+          "value": "*Formatted*",
           "location": [
             {
               "line": 40,

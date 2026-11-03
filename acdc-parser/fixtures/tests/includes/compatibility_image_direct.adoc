@@ -1,0 +1,2 @@
+[alt='Direct π {empty}*label*']
+image::direct.png[]

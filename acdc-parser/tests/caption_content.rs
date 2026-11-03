@@ -156,6 +156,23 @@ fn selected_caption_and_alt_content_registers_footnotes_in_source_order(
         root.join("compatibility_caption_snapshots.adoc"),
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
+    let expected = if mode == CompatibilityMode::Draft {
+        vec![
+            Some("selected"),
+            Some("body"),
+            Some("caption_first"),
+            Some("caption_second"),
+        ]
+    } else {
+        vec![
+            Some("selected"),
+            Some("body"),
+            Some("caption_first"),
+            Some("alt_second"),
+            Some("alt_first"),
+            Some("caption_second"),
+        ]
+    };
     assert_eq!(
         parsed
             .document()
@@ -163,14 +180,7 @@ fn selected_caption_and_alt_content_registers_footnotes_in_source_order(
             .iter()
             .map(|note| note.id)
             .collect::<Vec<_>>(),
-        [
-            Some("selected"),
-            Some("body"),
-            Some("caption_first"),
-            Some("alt_second"),
-            Some("alt_first"),
-            Some("caption_second")
-        ]
+        expected
     );
     Ok(())
 }
@@ -260,10 +270,12 @@ fn expanded_caption_and_alt_keep_attribute_order_when_source_spans_coincide(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let expected = if caption_first {
-        [Some("caption"), Some("alt")]
+    let expected = if mode == CompatibilityMode::Draft {
+        vec![Some("caption")]
+    } else if caption_first {
+        vec![Some("caption"), Some("alt")]
     } else {
-        [Some("alt"), Some("caption")]
+        vec![Some("alt"), Some("caption")]
     };
     assert_eq!(
         parsed

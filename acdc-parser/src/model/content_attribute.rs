@@ -56,11 +56,9 @@ impl<'a, 'b> IntoIterator for &'b ContentAttribute<'a> {
 }
 
 /// Deferred element content, consumed only after attribute precedence is settled.
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub(crate) struct PendingContentAttribute<'a> {
     pub(crate) source: &'a str,
-    pub(crate) start: usize,
-    pub(crate) end: usize,
-    pub(crate) formatted: bool,
-    pub(crate) attributes: Option<Box<crate::DocumentAttributes<'a>>>,
+    pub(crate) input: usize,
+    pub(crate) mode: crate::grammar::BlockAttributeMode,
 }

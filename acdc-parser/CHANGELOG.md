@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- Draft mode keeps block image alt text literal, including single-quoted values,
+  and does not register macros from it. Attribute references still expand.
+  Native JSON now uses protected literal nodes for this text. Asciidoctor mode
+  retains formatted alt from preceding single-quoted attributes; inline image
+  and icon alt/tooltips remain rich content in both modes.
+
 - Legacy underlined headings now follow `CompatibilityMode` in every build:
   Asciidoctor recognizes them by default; Draft uses ATX headings. The `setext`
   Cargo feature is a compatibility alias. Remove `Options::setext` and
@@ -274,6 +280,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Asciidoctor accepts the deprecated alias without this warning.
 
 ### Fixed
+
+- Image alt content introduced by an attribute reference now points to that
+  reference, including selected includes and table cells. In Asciidoctor mode,
+  preceding single-quoted alt values parse introduced formatting and resolve
+  nested references using the attributes available when declared, matching
+  Asciidoctor.
 
 - A description-list term and its marker must be on the same line. Ordinary
   wrapped paragraphs that contain a later `Term::` line stay paragraphs in both

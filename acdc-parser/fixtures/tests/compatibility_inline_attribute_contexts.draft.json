@@ -581,7 +581,7 @@
       "form": "macro",
       "alt": [
         {
-          "name": "text",
+          "name": "raw",
           "type": "string",
           "value": "*Strong*",
           "location": [

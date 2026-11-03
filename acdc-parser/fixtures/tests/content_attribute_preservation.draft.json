@@ -150,7 +150,7 @@
       ],
       "alt": [
         {
-          "name": "text",
+          "name": "raw",
           "type": "string",
           "value": "Alt",
           "location": [
@@ -386,7 +386,7 @@
       "title": [],
       "alt": [
         {
-          "name": "text",
+          "name": "raw",
           "type": "string",
           "value": "Alt",
           "location": [
@@ -422,7 +422,7 @@
       "form": "macro",
       "alt": [
         {
-          "name": "text",
+          "name": "raw",
           "type": "string",
           "value": "Alt",
           "location": [

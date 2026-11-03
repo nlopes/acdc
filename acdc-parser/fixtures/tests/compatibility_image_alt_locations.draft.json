@@ -1,0 +1,327 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Image locations",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 17
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 2,
+        "col": 32
+      }
+    ]
+  },
+  "attributes": {
+    "media": "alt='Expanded π *label*'"
+  },
+  "blocks": [
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "alt": [
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "Expanded π *label*",
+          "location": [
+            {
+              "line": 4,
+              "col": 2
+            },
+            {
+              "line": 4,
+              "col": 8
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "expanded.png"
+      },
+      "location": [
+        {
+          "line": 4,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 21
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "alt": [
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "π *Positional* label",
+          "location": [
+            {
+              "line": 7,
+              "col": 3
+            },
+            {
+              "line": 7,
+              "col": 22
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "positional.png"
+      },
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 8,
+          "col": 23
+        }
+      ]
+    },
+    {
+      "name": "included-alt",
+      "type": "attribute",
+      "value": "Included π *label*",
+      "location": [
+        {
+          "line": 3,
+          "col": 5,
+          "file": [
+            "includes/compatibility_image_selected.adoc"
+          ]
+        },
+        {
+          "line": 3,
+          "col": 37,
+          "file": [
+            "includes/compatibility_image_selected.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "alt": [
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "Included π *label*",
+          "location": [
+            {
+              "line": 4,
+              "col": 11,
+              "file": [
+                "includes/compatibility_image_selected.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 24,
+              "file": [
+                "includes/compatibility_image_selected.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "included.png"
+      },
+      "location": [
+        {
+          "line": 4,
+          "col": 5,
+          "file": [
+            "includes/compatibility_image_selected.adoc"
+          ]
+        },
+        {
+          "line": 5,
+          "col": 25,
+          "file": [
+            "includes/compatibility_image_selected.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "image",
+                    "type": "block",
+                    "form": "macro",
+                    "alt": [
+                      {
+                        "name": "raw",
+                        "type": "string",
+                        "value": "Cell π *label*",
+                        "location": [
+                          {
+                            "line": 14,
+                            "col": 8
+                          },
+                          {
+                            "line": 14,
+                            "col": 21
+                          }
+                        ]
+                      }
+                    ],
+                    "source": {
+                      "type": "path",
+                      "value": "cell.png"
+                    },
+                    "location": [
+                      {
+                        "line": 14,
+                        "col": 2
+                      },
+                      {
+                        "line": 15,
+                        "col": 17
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 13,
+            "col": 1
+          },
+          {
+            "line": 16,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 12,
+          "col": 1
+        },
+        {
+          "line": 16,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "alt": [
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "Direct π *label*",
+          "location": [
+            {
+              "line": 1,
+              "col": 7,
+              "file": [
+                "includes/compatibility_image_direct.adoc"
+              ]
+            },
+            {
+              "line": 1,
+              "col": 29,
+              "file": [
+                "includes/compatibility_image_direct.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "direct.png"
+      },
+      "location": [
+        {
+          "line": 1,
+          "col": 1,
+          "file": [
+            "includes/compatibility_image_direct.adoc"
+          ]
+        },
+        {
+          "line": 2,
+          "col": 19,
+          "file": [
+            "includes/compatibility_image_direct.adoc"
+          ]
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 2,
+      "col": 19,
+      "file": [
+        "includes/compatibility_image_direct.adoc"
+      ]
+    }
+  ]
+}

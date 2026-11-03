@@ -1,0 +1,7 @@
+Excluded.
+// tag::selected[]
+    :included-alt: Included π *label*
+    [alt='{included-alt}']
+    image::included.png[]
+// end::selected[]
+Excluded tail.

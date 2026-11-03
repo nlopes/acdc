@@ -142,7 +142,7 @@
       },
       "alt": [
         {
-          "name": "text",
+          "name": "raw",
           "type": "string",
           "value": "Photo",
           "location": [

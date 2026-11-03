@@ -317,27 +317,9 @@
       ],
       "alt": [
         {
-          "name": "span",
-          "type": "inline",
-          "variant": "strong",
-          "form": "constrained",
-          "inlines": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "Outer",
-              "location": [
-                {
-                  "line": 18,
-                  "col": 25
-                },
-                {
-                  "line": 18,
-                  "col": 30
-                }
-              ]
-            }
-          ],
+          "name": "raw",
+          "type": "string",
+          "value": "*Outer*",
           "location": [
             {
               "line": 18,

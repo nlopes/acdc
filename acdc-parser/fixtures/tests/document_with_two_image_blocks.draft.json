@@ -1,0 +1,100 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "height": "400",
+          "width": "300"
+        }
+      },
+      "alt": [
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "Sunset",
+          "location": [
+            {
+              "line": 1,
+              "col": 23
+            },
+            {
+              "line": 1,
+              "col": 28
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "sunset.jpg"
+      },
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 1,
+          "col": 50
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "height": "600",
+          "width": "500"
+        }
+      },
+      "alt": [
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "Mountain",
+          "location": [
+            {
+              "line": 3,
+              "col": 25
+            },
+            {
+              "line": 3,
+              "col": 32
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "mountain.png"
+      },
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 3,
+          "col": 54
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 3,
+      "col": 54
+    }
+  ]
+}

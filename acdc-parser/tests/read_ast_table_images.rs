@@ -313,16 +313,24 @@ fn images_preserve_independent_content_and_identity(
         return Err("missing block image".into());
     };
     assert_eq!(plain(image.title().ok_or("missing caption")?)?, "Caption");
-    let Some(InlineKind::Bold(alt)) = image
+    let alt = image
         .alt()
         .ok_or("missing alt")?
         .inlines()
         .next()
         .map(InlineRef::kind)
-    else {
-        return Err("expected bold alt".into());
-    };
-    assert_eq!(bold_word(alt)?, "Bird");
+        .ok_or("empty alt")?;
+    if mode == CompatibilityMode::Draft {
+        let InlineKind::Raw(alt) = alt else {
+            return Err("expected literal alt".into());
+        };
+        assert_eq!(alt.text(), "*Bird*");
+    } else {
+        let InlineKind::Bold(alt) = alt else {
+            return Err("expected bold alt".into());
+        };
+        assert_eq!(bold_word(alt)?, "Bird");
+    }
     assert_eq!(image.id().ok_or("missing block ID")?.as_str(), "block");
     assert_eq!(
         image

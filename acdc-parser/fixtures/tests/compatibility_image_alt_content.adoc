@@ -1,0 +1,36 @@
+= Image content policy
+
+[alt='*Bold* &amp; -> footnote:alt[Alt note]']
+image::preceding-single.png[]
+
+[alt="*Literal* &amp; ->"]
+image::preceding-double.png[]
+
+['*Positional* label']
+image::preceding-positional.png[]
+
+image::macro-positional.png['*Scalar* label']
+
+image::macro-named.png[alt='*Scalar* label']
+
+[alt=*Unquoted*]
+image::unquoted.png[]
+
+[alt='Escaped \*stars* pass:q[marked] &amp; ->']
+image::protected.png[]
+
+image::absent.png[]
+
+image::empty.png[alt=""]
+
+image::empty-position.png[""]
+
+[alt='Discarded footnote:discarded[Hidden]']
+[alt='Selected *label*']
+image::selected.png[]
+
+Inline image:inline.png[alt='*Inline* &amp; ->',title="*Tooltip*"].
+
+:icons: image
+
+Icon icon:heart[alt='*Icon* &amp; ->',title='*Tooltip*'].

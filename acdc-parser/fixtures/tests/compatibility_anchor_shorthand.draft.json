@@ -724,7 +724,7 @@
       "form": "macro",
       "alt": [
         {
-          "name": "text",
+          "name": "raw",
           "type": "string",
           "value": "[id,label]note#literal.role",
           "location": [

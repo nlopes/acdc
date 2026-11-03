@@ -792,12 +792,8 @@ pub(super) fn parse_block_attribute_list<'input>(
         &state.document_attributes,
         state.options.compatibility_mode,
     );
-    let substituted = &expanded.text;
-    let positions_exact = matches!(substituted, Cow::Borrowed(_));
-    let scan_list = |text| scan_block_attribute_list(text, state.options.compatibility_mode, mode);
-    let authored = (!positions_exact).then(|| scan_list(source));
     let mut parsed = ParsedAttributeList::default();
-    let scanned = scan_list(substituted);
+    let scanned = scan_block_attribute_list(&expanded.text, state.options.compatibility_mode, mode);
     for (slot, attribute) in
         block_attribute_entries(&scanned, state.options.compatibility_mode, mode)
     {
@@ -821,15 +817,13 @@ pub(super) fn parse_block_attribute_list<'input>(
         if name == Some("alt") {
             let value = state.intern_str(&attribute.value);
             record_attribute_position(&mut parsed.metadata, name, position);
-            let original = authored.as_ref().and_then(|attributes| {
-                attributes.iter().find(|a| {
-                    a.name.as_deref() == name
-                        && a.value_start <= span.start
-                        && span.end <= a.value_end
-                })
-            });
-            let pending =
-                capture_block_content(state, source, content_start, attribute, original, mode);
+            let value_source = attribute.resolve_content(
+                value,
+                &expanded.source_map,
+                content_start + offset,
+                Rc::clone(&state.document_attributes),
+            )?;
+            let pending = capture_content_input(state, value_source, mode);
             parsed.metadata.attributes.set("alt".into(), value.into());
             parsed.metadata.alt_source = Some(Box::new(pending));
             continue;
@@ -884,34 +878,6 @@ pub(super) fn parse_block_attribute_list<'input>(
     parsed.finish(state, mode)
 }
 
-fn capture_block_content<'a>(
-    state: &ParserState<'a>,
-    source: &'a str,
-    content_start: usize,
-    attribute: &ScannedAttribute,
-    original: Option<&ScannedAttribute>,
-    mode: BlockAttributeMode,
-) -> crate::model::content_attribute::PendingContentAttribute<'a> {
-    let value = state.intern_str(&attribute.value);
-    let (from, to) = original.map_or((attribute.value_start, attribute.value_end), |a| {
-        (a.value_start, a.value_end)
-    });
-    let formatted =
-        matches!(mode, BlockAttributeMode::Block) && attribute.quote == AttributeQuote::Single;
-    crate::model::content_attribute::PendingContentAttribute {
-        source: if formatted {
-            source.get(from..to).unwrap_or(value)
-        } else {
-            value
-        },
-        start: content_start + from,
-        end: content_start + to,
-        formatted,
-        attributes: (formatted && source.contains('{'))
-            .then(|| Box::new((*state.document_attributes).clone())),
-    }
-}
-
 fn store_first_block_slot<'a>(
     state: &ParserState<'a>,
     metadata: &mut BlockMetadata<'a>,
@@ -938,15 +904,18 @@ fn store_first_block_slot<'a>(
                     .find(|part| matches!(part.kind, ShorthandKind::Style))
             {
                 let span = attribute.source_range(source_map, part.range.clone())?;
-                metadata.first_source = Some(Box::new(
-                    crate::model::content_attribute::PendingContentAttribute {
-                        source: &value[part.range],
-                        start: content_start + span.start,
-                        end: content_start + span.end,
-                        formatted: attribute.quote == AttributeQuote::Single,
-                        attributes: None,
-                    },
-                ));
+                let mut source = attribute.resolve_content(
+                    value,
+                    source_map,
+                    content_start + offset,
+                    Rc::clone(&state.document_attributes),
+                )?;
+                source.text = &value[part.range.clone()];
+                source.source_map =
+                    SourceMap::default().with_origin(source.source_map, part.range.start);
+                source.source_range =
+                    content_start + offset + span.start..content_start + offset + span.end;
+                metadata.first_source = Some(Box::new(capture_content_input(state, source, mode)));
             }
             Ok(())
         }
@@ -954,16 +923,13 @@ fn store_first_block_slot<'a>(
             if !value.is_empty() || attribute.quote != AttributeQuote::Unquoted =>
         {
             metadata.style = Some(value);
-            let span = attribute.source_range(source_map, 0..value.len())?;
-            metadata.first_source = Some(Box::new(
-                crate::model::content_attribute::PendingContentAttribute {
-                    source: value,
-                    start: content_start + span.start,
-                    end: content_start + span.end,
-                    formatted: false,
-                    attributes: None,
-                },
-            ));
+            let source = attribute.resolve_content(
+                value,
+                source_map,
+                content_start + offset,
+                Rc::clone(&state.document_attributes),
+            )?;
+            metadata.first_source = Some(Box::new(capture_content_input(state, source, mode)));
             Ok(())
         }
         BlockAttributeMode::Macro => Ok(()),
@@ -1024,41 +990,60 @@ fn resolve_quoted_content<'a>(
     Ok(ContentAttribute::new(inlines))
 }
 
-pub(super) fn resolve_content_attribute<'a>(
+fn capture_content_input<'a>(
+    state: &ParserState<'a>,
+    value: ResolvedContentAttribute<'a>,
+    mode: BlockAttributeMode,
+) -> crate::model::content_attribute::PendingContentAttribute<'a> {
+    let source = value.text;
+    let mut inputs = state.attribute_sources.borrow_mut();
+    let input = inputs.len();
+    inputs.push(value);
+    crate::model::content_attribute::PendingContentAttribute {
+        source,
+        input,
+        mode,
+    }
+}
+
+fn resolve_image_alt<'a>(
     state: &mut ParserState<'a>,
     source: crate::model::content_attribute::PendingContentAttribute<'a>,
-    offset: usize,
 ) -> Result<ContentAttribute<'a>, Error> {
-    let current = source
-        .attributes
-        .map(|attributes| std::mem::replace(&mut state.document_attributes, Rc::new(*attributes)));
-    let result = if source.formatted {
-        process_inlines(
-            state,
-            &BlockParsingMetadata::new(state.options.compatibility_mode),
-            source.start,
-            source.end,
-            offset,
-            source.source,
-        )
-        .map(|(nodes, _)| ContentAttribute::new(nodes))
+    let value = state
+        .attribute_sources
+        .borrow()
+        .get(source.input)
+        .cloned()
+        .ok_or_else(|| {
+            Error::Parse(
+                Box::new(state.create_error_source_location(state.create_location(0, 0))),
+                "missing captured attribute input".into(),
+            )
+        })?;
+    let nodes = if state.options.compatibility_mode == CompatibilityMode::Draft {
+        literal_attribute_inlines(state, &value)
+    } else if matches!(source.mode, BlockAttributeMode::Block)
+        && value.quote == AttributeQuote::Single
+    {
+        process_attribute_inlines(state, &value)?
     } else {
-        // Literal values already passed through attribute-list expansion.
-        let text = state.intern_str(&source.source.replace("\\]", "]"));
-        Ok(ContentAttribute::new(if text.is_empty() {
+        let text = state.intern_str(&value.text.replace("\\]", "]"));
+        if text.is_empty() {
             Vec::new()
         } else {
             vec![InlineNode::PlainText(Plain {
                 content: text,
-                location: state.create_block_location(source.start, source.end, offset),
+                location: state.create_block_location(
+                    value.source_range.start,
+                    value.source_range.end,
+                    0,
+                ),
                 escaped: false,
             })]
-        }))
+        }
     };
-    if let Some(current) = current {
-        state.document_attributes = current;
-    }
-    result
+    Ok(ContentAttribute::new(nodes))
 }
 
 fn resolve_caption_content<'a>(
@@ -1080,7 +1065,6 @@ pub(super) fn resolve_block_content_attributes<'a>(
     attributes: &mut ParsedAttributeList<'a>,
     media: Option<&BlockMetadata<'a>>,
     image: bool,
-    offset: usize,
 ) -> Result<Option<ContentAttribute<'a>>, Error> {
     let metadata = &mut attributes.metadata;
     if let Some(media) = media
@@ -1148,7 +1132,7 @@ pub(super) fn resolve_block_content_attributes<'a>(
         )?;
     }
     let alt = alt
-        .map(|source| resolve_content_attribute(state, *source, offset))
+        .map(|source| resolve_image_alt(state, *source))
         .transpose()?;
     if !caption_first {
         resolve_caption_content(

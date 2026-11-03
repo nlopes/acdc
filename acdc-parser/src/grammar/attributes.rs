@@ -48,8 +48,8 @@ pub(super) fn resolve_block_anchor_reftext<'a>(
     }
 }
 
-#[derive(Clone, Copy)]
-pub(super) enum BlockAttributeMode {
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum BlockAttributeMode {
     Block,
     Macro,
 }

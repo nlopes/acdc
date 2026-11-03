@@ -569,7 +569,7 @@
       "form": "macro",
       "alt": [
         {
-          "name": "text",
+          "name": "raw",
           "type": "string",
           "value": "note#literal.role%ready",
           "location": [

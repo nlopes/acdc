@@ -1,0 +1,747 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Image snapshots",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 17
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 2,
+        "col": 14
+      }
+    ]
+  },
+  "attributes": {
+    "word": "*Early*"
+  },
+  "blocks": [
+    {
+      "name": "word",
+      "type": "attribute",
+      "value": "*Later*",
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 14
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "alt": [
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Early",
+              "location": [
+                {
+                  "line": 4,
+                  "col": 7
+                },
+                {
+                  "line": 4,
+                  "col": 12
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 4,
+              "col": 7
+            },
+            {
+              "line": 4,
+              "col": 12
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "snapshot.png"
+      },
+      "location": [
+        {
+          "line": 4,
+          "col": 1
+        },
+        {
+          "line": 6,
+          "col": 21
+        }
+      ]
+    },
+    {
+      "name": "media",
+      "type": "attribute",
+      "value": "alt='Alt footnote:alt[Alt note]',caption='Caption footnote:caption[Caption note]: '",
+      "location": [
+        {
+          "line": 8,
+          "col": 1
+        },
+        {
+          "line": 8,
+          "col": 91
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "caption": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Caption ",
+            "location": [
+              {
+                "line": 11,
+                "col": 2
+              },
+              {
+                "line": 11,
+                "col": 8
+              }
+            ]
+          },
+          {
+            "name": "footnote",
+            "type": "inline",
+            "id": "caption",
+            "inlines": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Caption note",
+                "location": [
+                  {
+                    "line": 11,
+                    "col": 2
+                  },
+                  {
+                    "line": 11,
+                    "col": 8
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 11,
+                "col": 2
+              },
+              {
+                "line": 11,
+                "col": 8
+              }
+            ]
+          },
+          {
+            "name": "text",
+            "type": "string",
+            "value": ": ",
+            "location": [
+              {
+                "line": 11,
+                "col": 2
+              },
+              {
+                "line": 11,
+                "col": 8
+              }
+            ]
+          }
+        ]
+      },
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Title",
+          "location": [
+            {
+              "line": 10,
+              "col": 2
+            },
+            {
+              "line": 10,
+              "col": 6
+            }
+          ]
+        }
+      ],
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Alt ",
+          "location": [
+            {
+              "line": 11,
+              "col": 2
+            },
+            {
+              "line": 11,
+              "col": 8
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": "alt",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Alt note",
+              "location": [
+                {
+                  "line": 11,
+                  "col": 2
+                },
+                {
+                  "line": 11,
+                  "col": 8
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 11,
+              "col": 2
+            },
+            {
+              "line": 11,
+              "col": 8
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "expanded-list.png"
+      },
+      "location": [
+        {
+          "line": 10,
+          "col": 1
+        },
+        {
+          "line": 12,
+          "col": 26
+        }
+      ]
+    },
+    {
+      "name": "media",
+      "type": "attribute",
+      "value": "caption='First footnote:first[First note]: ',alt='Alt footnote:second[Second note]'",
+      "location": [
+        {
+          "line": 14,
+          "col": 1
+        },
+        {
+          "line": 14,
+          "col": 91
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "caption": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "First ",
+            "location": [
+              {
+                "line": 17,
+                "col": 2
+              },
+              {
+                "line": 17,
+                "col": 8
+              }
+            ]
+          },
+          {
+            "name": "footnote",
+            "type": "inline",
+            "id": "first",
+            "inlines": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "First note",
+                "location": [
+                  {
+                    "line": 17,
+                    "col": 2
+                  },
+                  {
+                    "line": 17,
+                    "col": 8
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 17,
+                "col": 2
+              },
+              {
+                "line": 17,
+                "col": 8
+              }
+            ]
+          },
+          {
+            "name": "text",
+            "type": "string",
+            "value": ": ",
+            "location": [
+              {
+                "line": 17,
+                "col": 2
+              },
+              {
+                "line": 17,
+                "col": 8
+              }
+            ]
+          }
+        ]
+      },
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Title",
+          "location": [
+            {
+              "line": 16,
+              "col": 2
+            },
+            {
+              "line": 16,
+              "col": 6
+            }
+          ]
+        }
+      ],
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Alt ",
+          "location": [
+            {
+              "line": 17,
+              "col": 2
+            },
+            {
+              "line": 17,
+              "col": 8
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": "second",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Second note",
+              "location": [
+                {
+                  "line": 17,
+                  "col": 2
+                },
+                {
+                  "line": 17,
+                  "col": 8
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 17,
+              "col": 2
+            },
+            {
+              "line": 17,
+              "col": 8
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "caption-first.png"
+      },
+      "location": [
+        {
+          "line": 16,
+          "col": 1
+        },
+        {
+          "line": 18,
+          "col": 26
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Selected",
+          "location": [
+            {
+              "line": 21,
+              "col": 7
+            },
+            {
+              "line": 21,
+              "col": 14
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "selected.png"
+      },
+      "location": [
+        {
+          "line": 20,
+          "col": 1
+        },
+        {
+          "line": 22,
+          "col": 21
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Inline ",
+          "location": [
+            {
+              "line": 24,
+              "col": 1
+            },
+            {
+              "line": 24,
+              "col": 7
+            }
+          ]
+        },
+        {
+          "name": "image",
+          "type": "inline",
+          "alt": [
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Inline",
+                  "location": [
+                    {
+                      "line": 24,
+                      "col": 31
+                    },
+                    {
+                      "line": 24,
+                      "col": 36
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 24,
+                  "col": 30
+                },
+                {
+                  "line": 24,
+                  "col": 37
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " ",
+              "location": [
+                {
+                  "line": 24,
+                  "col": 38
+                },
+                {
+                  "line": 24,
+                  "col": 38
+                }
+              ]
+            },
+            {
+              "name": "footnote",
+              "type": "inline",
+              "id": "inline",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Inline note",
+                  "location": [
+                    {
+                      "line": 24,
+                      "col": 55
+                    },
+                    {
+                      "line": 24,
+                      "col": 65
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 24,
+                  "col": 39
+                },
+                {
+                  "line": 24,
+                  "col": 66
+                }
+              ]
+            }
+          ],
+          "tooltip": [
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Tip",
+                  "location": [
+                    {
+                      "line": 24,
+                      "col": 77
+                    },
+                    {
+                      "line": 24,
+                      "col": 79
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 24,
+                  "col": 76
+                },
+                {
+                  "line": 24,
+                  "col": 80
+                }
+              ]
+            }
+          ],
+          "target": {
+            "type": "path",
+            "value": "inline.png"
+          },
+          "location": [
+            {
+              "line": 24,
+              "col": 8
+            },
+            {
+              "line": 24,
+              "col": 82
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 24,
+              "col": 83
+            },
+            {
+              "line": 24,
+              "col": 83
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 24,
+          "col": 1
+        },
+        {
+          "line": 24,
+          "col": 83
+        }
+      ]
+    },
+    {
+      "name": "other",
+      "type": "attribute",
+      "value": "Before",
+      "location": [
+        {
+          "line": 26,
+          "col": 1
+        },
+        {
+          "line": 26,
+          "col": 14
+        }
+      ]
+    },
+    {
+      "name": "nested",
+      "type": "attribute",
+      "value": "{other}",
+      "location": [
+        {
+          "line": 27,
+          "col": 1
+        },
+        {
+          "line": 27,
+          "col": 17
+        }
+      ]
+    },
+    {
+      "name": "other",
+      "type": "attribute",
+      "value": "After",
+      "location": [
+        {
+          "line": 30,
+          "col": 1
+        },
+        {
+          "line": 30,
+          "col": 13
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Before",
+          "location": [
+            {
+              "line": 29,
+              "col": 7
+            },
+            {
+              "line": 29,
+              "col": 14
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "nested-snapshot.png"
+      },
+      "location": [
+        {
+          "line": 29,
+          "col": 1
+        },
+        {
+          "line": 31,
+          "col": 28
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 31,
+      "col": 28
+    }
+  ]
+}

@@ -14,8 +14,15 @@ fn role_only_lists_do_not_move_an_earlier_positional_value() -> Result<(), Error
         let Some(Block::Image(image)) = parsed.document().blocks.first() else {
             return Err("missing image".into());
         };
-        assert!(
-            matches!(image.alt.as_ref().and_then(|alt| alt.first()), Some(InlineNode::PlainText(text)) if text.content == "Named")
+        assert_eq!(
+            attribute_text(
+                image
+                    .alt
+                    .as_ref()
+                    .and_then(|alt| alt.first())
+                    .ok_or("missing alt")?
+            )?,
+            "Named"
         );
     }
     Ok(())
@@ -176,11 +183,9 @@ fn draft_maps_preceding_media_positions_after_aggregation() -> Result<(), Error>
             return Err("missing image".into());
         };
         let alt = image.alt.as_ref().ok_or("missing alt")?;
-        let Some(InlineNode::PlainText(text)) = alt.first() else {
-            return Err("expected plain alt".into());
-        };
+        let text = attribute_text(alt.first().ok_or("missing alt text")?)?;
         assert_eq!(
-            text.content,
+            text,
             if mode == CompatibilityMode::Draft {
                 "Positional"
             } else {

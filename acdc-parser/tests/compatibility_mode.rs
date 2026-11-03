@@ -117,10 +117,12 @@ fn includes_and_cells_inherit_mode_without_leaking_local_attributes() -> Result<
             );
             assert!(!parsed.document().attributes.contains_key("cell-word"));
             assert_named_title(&image.title, mode, "Outer")?;
-            assert!(matches!(
-                image.alt.as_ref().ok_or("missing alt")?.as_ref(),
-                [InlineNode::BoldText(_)]
-            ));
+            let alt = image.alt.as_ref().ok_or("missing alt")?.as_ref();
+            if mode == CompatibilityMode::Draft {
+                assert!(matches!(alt, [InlineNode::RawText(text)] if text.content == "*Outer*"));
+            } else {
+                assert!(matches!(alt, [InlineNode::BoldText(_)]));
+            }
             assert!(matches!(link.content.as_slice(), [InlineNode::Macro(_)]));
             assert_eq!(parsed.warnings(), []);
         }
