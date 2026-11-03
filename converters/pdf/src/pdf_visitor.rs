@@ -884,7 +884,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         let replacements = true;
         let siblings = nodes.clone();
         let result = (|| {
+            let mut previous_plain_space = false;
             for (index, node) in nodes.enumerate() {
+                let continuation = previous_plain_space;
+                previous_plain_space = matches!(node.kind(), InlineKind::Plain(text)
+                    if text.text().ends_with([' ', '\t', '\n', '\r']));
                 let boundaries = if self.in_inline_span {
                     TextBoundaries::NONE
                 } else {
@@ -897,7 +901,18 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                         siblings.clone().take(index).rev(),
                         siblings.clone().skip(index + 1),
                     );
-                InlineVisitor::visit_inline_node(self, traversal, node)?;
+                if let InlineKind::Plain(plain) = node.kind()
+                    && matches!(self.text_whitespace, TextWhitespace::Collapse)
+                    && self.pre_wrap_depth == 0
+                    && continuation
+                {
+                    let text = plain.text().trim_start_matches([' ', '\t', '\n', '\r']);
+                    if !text.is_empty() {
+                        self.write_plain(text);
+                    }
+                } else {
+                    InlineVisitor::visit_inline_node(self, traversal, node)?;
+                }
             }
             Ok(())
         })();

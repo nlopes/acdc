@@ -1,0 +1,6 @@
+Excluded.
+// tag::content[]
+    α🚀 left-pass:[]-right
+
+    Sam'pass:[]s
+// end::content[]

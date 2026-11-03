@@ -759,13 +759,28 @@
           ]
         },
         {
-          "name": "text",
+          "name": "symbol",
           "type": "string",
-          "value": "-- Second line.",
+          "value": " — ",
           "location": [
             {
               "line": 44,
               "col": 1
+            },
+            {
+              "line": 44,
+              "col": 3
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Second line.",
+          "location": [
+            {
+              "line": 44,
+              "col": 4
             },
             {
               "line": 44,
@@ -858,13 +873,28 @@
           ]
         },
         {
-          "name": "text",
+          "name": "symbol",
           "type": "string",
-          "value": "-- Second line.",
+          "value": " — ",
           "location": [
             {
               "line": 49,
               "col": 1
+            },
+            {
+              "line": 49,
+              "col": 3
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Second line.",
+          "location": [
+            {
+              "line": 49,
+              "col": 4
             },
             {
               "line": 49,

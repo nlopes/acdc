@@ -208,7 +208,7 @@ pub(crate) fn map_inner_content_locations<'a>(
         }
         Ok(None)
     })?;
-    Ok(resolve_profile_context(mapped, ctx))
+    Ok(resolve_profile_context(mapped, ctx, false))
 }
 
 /// Keep the original buffer unless a node expands into a replacement sequence.
@@ -260,6 +260,31 @@ pub(crate) fn map_inline_locations<'a>(
     content: Vec<InlineNode<'a>>,
     location: &Location,
 ) -> Result<Vec<InlineNode<'a>>, Error> {
+    map_locations(state, processed, content, location, false)
+}
+
+pub(crate) fn map_paragraph_locations<'a>(
+    state: &ParserState<'a>,
+    processed: &ProcessedContent<'a>,
+    content: Vec<InlineNode<'a>>,
+    location: &Location,
+) -> Result<Vec<InlineNode<'a>>, Error> {
+    map_locations(
+        state,
+        processed,
+        content,
+        location,
+        state.scope == super::state::ParserScope::Document,
+    )
+}
+
+fn map_locations<'a>(
+    state: &ParserState<'a>,
+    processed: &ProcessedContent<'a>,
+    content: Vec<InlineNode<'a>>,
+    location: &Location,
+    paragraph: bool,
+) -> Result<Vec<InlineNode<'a>>, Error> {
     let ctx = LocationMappingContext {
         state,
         processed,
@@ -298,14 +323,20 @@ pub(crate) fn map_inline_locations<'a>(
         }
         Ok(None)
     })?;
-    Ok(resolve_profile_context(mapped, &ctx))
+    Ok(resolve_profile_context(mapped, &ctx, paragraph))
 }
 
 fn resolve_profile_context<'a>(
     nodes: Vec<InlineNode<'a>>,
     ctx: &LocationMappingContext<'_, 'a>,
+    paragraph: bool,
 ) -> Vec<InlineNode<'a>> {
-    if !super::inlines::typography::needs_profile_context(&nodes) {
+    let empty_profile = ctx
+        .processed
+        .passthroughs
+        .iter()
+        .any(|pass| pass.text.is_some_and(str::is_empty));
+    if !super::inlines::typography::needs_profile_context(&nodes, empty_profile) {
         return nodes;
     }
     let mut inline_ctx = ctx.state.inline_ctx;
@@ -332,7 +363,7 @@ fn resolve_profile_context<'a>(
     state
         .attribute_value_ranges
         .sort_unstable_by_key(|range| range.start);
-    super::inlines::typography::resolve_plain(nodes, &state, false)
+    super::inlines::typography::resolve_plain(nodes, &state, paragraph && empty_profile)
 }
 
 fn map_anchor_locations<'a>(

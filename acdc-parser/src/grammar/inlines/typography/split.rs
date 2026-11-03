@@ -37,10 +37,18 @@ pub(super) fn resolve<'a>(
             .inline_ctx
             .substitutions
             .enabled(&Substitution::Replacements)
-        || !nodes.iter().any(|node| {
-            matches!(node, InlineNode::InlineAnchor(anchor) if !anchor.is_bibliography())
-                || matches!(node, InlineNode::Macro(InlineMacro::IndexTerm(_)))
-        })
+        || !(paragraph
+            && nodes.iter().any(
+                |node| matches!(node, InlineNode::PlainText(plain) if plain.content.contains("--")),
+            )
+            || nodes
+                .windows(2)
+                .any(|pair| matches!(pair, [InlineNode::PlainText(_), InlineNode::PlainText(_)]))
+            || nodes.iter().any(|node| {
+                matches!(node, InlineNode::InlineAnchor(anchor) if !anchor.is_bibliography())
+                    || matches!(node, InlineNode::Macro(InlineMacro::IndexTerm(_)))
+                    || matches!(node, InlineNode::RawText(raw) if raw.content.is_empty())
+            }))
     {
         return nodes;
     }
@@ -112,7 +120,9 @@ impl<'tree, 'source> Planner<'tree, 'source, '_> {
                 }
                 continue;
             }
-            if matches!(node, InlineNode::InlineAnchor(anchor) if !anchor.is_bibliography()) {
+            if matches!(node, InlineNode::InlineAnchor(anchor) if !anchor.is_bibliography())
+                || matches!(node, InlineNode::RawText(raw) if raw.content.is_empty())
+            {
                 continue;
             }
             let line_break = matches!(node, InlineNode::LineBreak(_));

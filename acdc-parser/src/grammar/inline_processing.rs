@@ -639,7 +639,7 @@ fn process_inline_content<'a>(
     )?;
     processed.attribute_substitutions = block_metadata.substitutions;
     let inlines =
-        super::location_mapping::map_inline_locations(state, &processed, content, &location)?;
+        super::location_mapping::map_paragraph_locations(state, &processed, content, &location)?;
     let source = if processed.passthroughs.is_empty() {
         source
     } else {

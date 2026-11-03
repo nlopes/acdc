@@ -1226,7 +1226,7 @@ pub(crate) fn process_passthrough_placeholders<'a>(
     // full of passthroughs doesn't trigger log-N reallocs.
     let mut result = Vec::with_capacity(processed.passthroughs.len() * 2 + 1);
     let mut remaining = content;
-    let mut processed_offset = 0; // Position in the processed content (with placeholders)
+    let mut source_offset = 0;
 
     // Process each passthrough placeholder in order
     for (index, passthrough) in processed.passthroughs.iter().enumerate() {
@@ -1243,13 +1243,7 @@ pub(crate) fn process_passthrough_placeholders<'a>(
             if let Some(before) = before_content
                 && !before.is_empty()
             {
-                result.push(plain_text_at(
-                    before,
-                    base_location,
-                    processed_offset,
-                    state,
-                ));
-                processed_offset += before.len();
+                result.push(plain_text_at(before, base_location, source_offset, state));
             }
 
             // Process the passthrough content using original string positions from passthrough.location
@@ -1268,33 +1262,21 @@ pub(crate) fn process_passthrough_placeholders<'a>(
             // Move past the placeholder in the processed content
             let skip_len = placeholder_pos + placeholder.len();
             remaining = &remaining[skip_len..];
-            // Update processed_offset to account for the original passthrough macro length
-            processed_offset +=
-                passthrough.location.absolute_end - passthrough.location.absolute_start;
+            source_offset = passthrough
+                .location
+                .absolute_end
+                .saturating_sub(base_location.absolute_start);
         }
     }
 
     // Add any remaining content as plain text
     if !remaining.is_empty() {
-        // Check if the last node is PlainText and merge if so
-        if let Some(InlineNode::PlainText(last_plain)) = result.last_mut() {
-            // Merge remaining content with the last plain text node
-            last_plain.content =
-                state.intern_fmt(format_args!("{}{remaining}", last_plain.content));
-            // Extend the location to include the remaining content
-            last_plain.location.absolute_end = base_location.absolute_end;
-            last_plain.location.end = base_location.end.clone();
-        } else {
-            // Add as separate node if last node is not plain text. Extend
-            // the end to cover `base_location.end` (this is the final
-            // trailing segment).
-            let mut node = plain_text_at(remaining, base_location, processed_offset, state);
-            if let InlineNode::PlainText(ref mut p) = node {
-                p.location.absolute_end = base_location.absolute_end;
-                p.location.end = base_location.end.clone();
-            }
-            result.push(node);
-        }
+        result.push(plain_text_at(
+            remaining,
+            base_location,
+            source_offset,
+            state,
+        ));
     }
 
     // Clamp all locations to valid bounds within the input string
@@ -1306,7 +1288,7 @@ pub(crate) fn process_passthrough_placeholders<'a>(
     merge_adjacent_plain_text_nodes(state, result)
 }
 
-/// Merge adjacent plain text nodes into single nodes to simplify the output.
+/// Merge plain text only when its source ranges are contiguous.
 /// Arena-interns the concatenated content so the merged node keeps lifetime `'a`.
 pub(crate) fn merge_adjacent_plain_text_nodes<'a>(
     state: &ParserState<'a>,
@@ -1317,7 +1299,14 @@ pub(crate) fn merge_adjacent_plain_text_nodes<'a>(
 
     for node in nodes {
         match (result.last_mut(), node) {
-            (Some(InlineNode::PlainText(last_plain)), InlineNode::PlainText(current_plain)) => {
+            (Some(InlineNode::PlainText(last_plain)), InlineNode::PlainText(current_plain))
+                if last_plain.escaped == current_plain.escaped
+                    && step_char(
+                        state.input,
+                        last_plain.location.absolute_end,
+                        RoundDirection::Forward,
+                    ) == current_plain.location.absolute_start =>
+            {
                 // Merge current plain text with the last one
                 last_plain.content = state.intern_fmt(format_args!(
                     "{}{}",

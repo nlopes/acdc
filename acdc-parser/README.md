@@ -934,7 +934,9 @@ surrounding text disables replacements. Formatting remains a boundary. Later att
 and catalog labels retain their registration-time content. Enabled signs and
 ellipses in visible index labels are also resolved before conversion. Dash pairs split across ordinary text, anchors, and index labels also resolve in
 the parser. Each symbol stays with the first dash's owner. Its source range covers
-only the text consumed from that owner; other owners retain their own ranges.
+only the text consumed from that owner; other owners retain their own ranges. Empty
+passthroughs also preserve this context without contributing source characters.
+Asciidoctor retains more passthrough boundaries.
 
 Converters retain neighboring text across visible index labels,
 hidden index terms, and ordinary anchors. With replacements enabled,

@@ -1,0 +1,24 @@
+= empty-profiles(1)
+:doctype: manpage
+:revdate: 2026-01-01
+:docdate: 2026-01-01
+
+== Name
+empty-profiles - empty profile context
+
+== Description
+--pass:[]
+
+pass:[]--
+
+indexterm2:[--]pass:[]
+
+pass:[]indexterm2:[--]
+
+left-pass:[]-right
+
+left --pass:[] right
+
+left pass:[]-- right
+
+Sam'pass:[]s

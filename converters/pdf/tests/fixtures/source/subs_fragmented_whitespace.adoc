@@ -1,0 +1,11 @@
+= Fragmented whitespace
+
+pass:[] pass:[] ] End.
+
+word pass:[]  tail.
+
+[verse]
+pass:[] pass:[] ] End.
+
+[.pre-wrap]
+pass:[] pass:[] ] End.

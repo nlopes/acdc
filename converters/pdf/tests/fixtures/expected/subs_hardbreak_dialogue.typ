@@ -106,10 +106,10 @@
 #text(" — ")#text("First line. +")#text(" — ")#text("Second line.")
 
 #blocktitle[#text("Post replacements before replacements")]
-#text(" — ")#text("First line.")#linebreak()#text(" — Second line.")
+#text(" — ")#text("First line.")#linebreak()#text(" — ")#text("Second line.")
 
 #blocktitle[#text("Replacements moved after post replacements")]
-#text(" — ")#text("First line.")#linebreak()#text(" — Second line.")
+#text(" — ")#text("First line.")#linebreak()#text(" — ")#text("Second line.")
 
 #blocktitle[#text("Paragraph boundaries")]
 #text(" — ")#text("alpha")

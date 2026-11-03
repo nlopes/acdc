@@ -16,8 +16,8 @@ use crate::{
 
 use super::recognition::structural_token_allowed;
 
-pub(crate) fn needs_profile_context(nodes: &[InlineNode<'_>]) -> bool {
-    contains_raw(nodes) && nodes.iter().any(neighbors::needs_word_context)
+pub(crate) fn needs_profile_context(nodes: &[InlineNode<'_>], empty_profile: bool) -> bool {
+    (empty_profile || contains_raw(nodes)) && nodes.iter().any(neighbors::needs_word_context)
 }
 
 fn contains_raw(nodes: &[InlineNode<'_>]) -> bool {

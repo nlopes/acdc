@@ -317,6 +317,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Typography around empty passthroughs is available in the parsed tree, with
+  each symbol located only in the source text that owns it. Rendered behavior
+  follows acdc's existing parsed-context policy in both modes; Asciidoctor keeps
+  more passthrough boundaries.
+
 - Warning byte offsets now refer to the original file after includes and
   preprocessing edits, including selected and nested includes. Cross-file
   diagnostics retain each endpoint's source context. Reindented includes keep

@@ -48,6 +48,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Prose keeps the same spacing when attributes or passthroughs split adjacent
+  text fragments. Verse and `pre-wrap` retain authored whitespace.
+
 - Paragraph-style sidebars use the backend's sidebar layout. `[pass]` paragraphs
   use the same raw-content path as delimited passthrough blocks.
 

@@ -296,7 +296,7 @@
               "location": [
                 {
                   "line": 24,
-                  "col": 38
+                  "col": 39
                 },
                 {
                   "line": 24,
@@ -1231,7 +1231,7 @@
               "location": [
                 {
                   "line": 62,
-                  "col": 22
+                  "col": 23
                 },
                 {
                   "line": 62,
@@ -1292,7 +1292,7 @@
               "location": [
                 {
                   "line": 64,
-                  "col": 23
+                  "col": 24
                 },
                 {
                   "line": 64,
@@ -1368,7 +1368,7 @@
               "location": [
                 {
                   "line": 66,
-                  "col": 26
+                  "col": 27
                 },
                 {
                   "line": 66,
@@ -1459,7 +1459,7 @@
               "location": [
                 {
                   "line": 68,
-                  "col": 27
+                  "col": 28
                 },
                 {
                   "line": 68,
@@ -2370,7 +2370,7 @@
               "location": [
                 {
                   "line": 3,
-                  "col": 38,
+                  "col": 39,
                   "file": [
                     "includes/single-plus.adoc"
                   ]

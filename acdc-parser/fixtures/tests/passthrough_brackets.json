@@ -1276,11 +1276,26 @@
         {
           "name": "text",
           "type": "string",
-          "value": "  ",
+          "value": " ",
           "location": [
             {
               "line": 35,
               "col": 8
+            },
+            {
+              "line": 35,
+              "col": 8
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " ",
+          "location": [
+            {
+              "line": 35,
+              "col": 17
             },
             {
               "line": 35,
