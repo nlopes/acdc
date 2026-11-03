@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Render resolved typography through the existing Typst text encoding.
+
 - Table-of-contents rendering avoids another full copy of heading content while
   preserving numbering, source locations, and duplicate-heading destinations.
 - Automatic cross-references retain parsed label and title content, including

@@ -166,6 +166,9 @@ number through `callout()`; that number belongs to its local callout sequence.
 
 Text reads keep ordinary, raw, and verbatim content distinct. `text()` returns
 parsed text without rendering; `PlainRef::is_escaped()` retains escape protection.
+`SymbolRef` represents resolved typography. Its `kind()` is semantic, its `text()`
+is Unicode, and its location still covers the authored replacement token.
+
 `RawRef::substitutions()` gives the remaining substitutions in order, including
 repeated entries. These replace the enclosing block's rules. The reads do not
 decode character references; source locations still identify authored input.

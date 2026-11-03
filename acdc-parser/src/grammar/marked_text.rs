@@ -125,6 +125,7 @@ pub(crate) fn map_marked_text_locations<'a>(
         | InlineNode::InlineAnchor(_)
         | InlineNode::CalloutRef(_)
         | InlineNode::Macro(_)
-        | InlineNode::StandaloneCurvedApostrophe(_) => Ok(()),
+        | InlineNode::StandaloneCurvedApostrophe(_)
+        | InlineNode::Symbol(_) => Ok(()),
     }
 }

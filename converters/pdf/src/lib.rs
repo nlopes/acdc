@@ -1720,6 +1720,7 @@ fn collect_inline_preparation(
             | InlineKind::CurvedQuotation(_)
             | InlineKind::CurvedApostrophe(_)
             | InlineKind::StandaloneCurvedApostrophe(_)
+            | InlineKind::Symbol(_)
             | InlineKind::LineBreak(_)
             | InlineKind::Anchor(_)
             | InlineKind::Callout(_)

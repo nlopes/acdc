@@ -201,6 +201,7 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
             InlineKind::Superscript(span) => self.write_content(w, span.content()),
             InlineKind::CurvedQuotation(span) => self.write_content(w, span.content()),
             InlineKind::CurvedApostrophe(span) => self.write_content(w, span.content()),
+            InlineKind::Symbol(symbol) => w.write_str(symbol.text()),
             InlineKind::StandaloneCurvedApostrophe(_) => w.write_char('\u{2019}'),
             InlineKind::LineBreak(_) => w.write_str(self.line_break),
             InlineKind::Callout(callout) => write!(w, "<{}>", callout.number()),

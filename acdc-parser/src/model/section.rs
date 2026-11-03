@@ -879,6 +879,9 @@ impl<'a> Section<'a> {
                 InlineNode::CurvedApostropheText(text) => {
                     Self::append_id_from_inlines(&text.content, out, last_was_underscore);
                 }
+                InlineNode::Symbol(symbol) => {
+                    Self::append_id_text(symbol.kind.text(), out, last_was_underscore);
+                }
                 InlineNode::StandaloneCurvedApostrophe(_) => {
                     Self::append_id_text("'", out, last_was_underscore);
                 }

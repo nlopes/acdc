@@ -216,6 +216,7 @@ pub(crate) fn contains_link(node: InlineRef<'_>) -> bool {
         | InlineKind::Raw(_)
         | InlineKind::Verbatim(_)
         | InlineKind::StandaloneCurvedApostrophe(_)
+        | InlineKind::Symbol(_)
         | InlineKind::LineBreak(_)
         | InlineKind::Anchor(_)
         | InlineKind::Callout(_)
@@ -521,6 +522,9 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     ) -> Result<(), Error> {
         match node.kind() {
             InlineKind::Plain(text) => self.render_plain_text(text.text())?,
+            InlineKind::Symbol(symbol) => {
+                self.render_plain_text(replacements().symbol(symbol.kind()))?;
+            }
 
             InlineKind::Raw(text) => self.render_raw_inline(text)?,
 

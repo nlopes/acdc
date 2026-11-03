@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Keep source highlighting available around resolved typography.
+
 - A note in the editor pane explains that embedded HTML can run code or
   change the page. Use content you trust.
 

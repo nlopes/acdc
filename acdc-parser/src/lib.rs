@@ -187,11 +187,11 @@ pub use model::{
     Monospace, NORMAL, OrderedList, PageBreak, Paragraph, Pass, PassthroughKind, Plain, Position,
     Raw, Reference, ReservedAttribute, Role, Section, SectionKind, Source, SourceUrl,
     StandaloneCurvedApostrophe, Stem, StemContent, StemNotation, Subscript, Substitution,
-    SubstitutionOp, SubstitutionSpec, Subtitle, Superscript, Table, TableColumn, TableFrame,
-    TableGrid, TableOfContents, TablePresentation, TableRow, TableStripes, ThematicBreak, Title,
-    TocEntry, UNNUMBERED_SECTION_STYLES, UnorderedList, Url, VERBATIM, Verbatim, VerticalAlignment,
-    Video, XrefCaptionLabel, XrefSignifier, XrefStyle, strip_quotes, substitute,
-    substitute_attributes,
+    SubstitutionOp, SubstitutionSpec, Subtitle, Superscript, Symbol, SymbolKind, Table,
+    TableColumn, TableFrame, TableGrid, TableOfContents, TablePresentation, TableRow, TableStripes,
+    ThematicBreak, Title, TocEntry, UNNUMBERED_SECTION_STYLES, UnorderedList, Url, VERBATIM,
+    Verbatim, VerticalAlignment, Video, XrefCaptionLabel, XrefSignifier, XrefStyle, strip_quotes,
+    substitute, substitute_attributes,
 };
 pub use options::{CompatibilityMode, Options, OptionsBuilder, SafeMode};
 pub use parsed::{OwnedSource, ParseInlineResult, ParseResult};

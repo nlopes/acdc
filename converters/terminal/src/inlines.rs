@@ -317,6 +317,7 @@ fn render_inline_node_to_writer<'a, W: Write + ?Sized>(
             }
             write!(w, "\u{2019}")?;
         }
+        InlineKind::Symbol(symbol) => write!(w, "{}", symbol.text())?,
         InlineKind::StandaloneCurvedApostrophe(_) => {
             write!(w, "\u{2019}")?;
         }
@@ -415,6 +416,7 @@ impl<'a, W: Write> crate::TerminalVisitor<'a, '_, W> {
                 let w = self.writer_mut();
                 write!(w, "\u{2019}")?;
             }
+            InlineKind::Symbol(symbol) => write!(self.writer_mut(), "{}", symbol.text())?,
             InlineKind::StandaloneCurvedApostrophe(_) => {
                 let w = self.writer_mut();
                 write!(w, "\u{2019}")?;
@@ -585,6 +587,7 @@ impl<'a, W: Write> crate::TerminalVisitor<'a, '_, W> {
             | InlineKind::CurvedQuotation(_)
             | InlineKind::CurvedApostrophe(_)
             | InlineKind::StandaloneCurvedApostrophe(_)
+            | InlineKind::Symbol(_)
             | InlineKind::LineBreak(_)
             | InlineKind::Anchor(_)
             | InlineKind::Url(_)
@@ -649,6 +652,7 @@ impl<'a, W: Write> crate::TerminalVisitor<'a, '_, W> {
             | InlineKind::CurvedQuotation(_)
             | InlineKind::CurvedApostrophe(_)
             | InlineKind::StandaloneCurvedApostrophe(_)
+            | InlineKind::Symbol(_)
             | InlineKind::LineBreak(_)
             | InlineKind::Anchor(_)
             | InlineKind::Url(_)
@@ -812,6 +816,7 @@ fn render_inline_macro_to_writer<'a, W: Write + ?Sized>(
         }
         InlineKind::Plain(_)
         | InlineKind::Raw(_)
+        | InlineKind::Symbol(_)
         | InlineKind::Verbatim(_)
         | InlineKind::Italic(_)
         | InlineKind::Bold(_)
@@ -826,11 +831,7 @@ fn render_inline_macro_to_writer<'a, W: Write + ?Sized>(
         | InlineKind::Anchor(_)
         | InlineKind::Callout(_)
         | _ => {
-            return Err(IoError::new(
-                ErrorKind::Unsupported,
-                format!("Unsupported inline macro in terminal: {node:?}"),
-            )
-            .into());
+            return Err(unsupported_inline_macro(node));
         }
     }
     Ok(())
@@ -1015,6 +1016,14 @@ fn render_cross_reference_to_writer<'a, W: Write + ?Sized>(
         text.with(processor.appearance.colors.link).underlined(),
     ))?;
     Ok(())
+}
+
+fn unsupported_inline_macro(node: InlineRef<'_>) -> Error {
+    IoError::new(
+        ErrorKind::Unsupported,
+        format!("Unsupported inline macro in terminal: {node:?}"),
+    )
+    .into()
 }
 
 #[cfg(test)]

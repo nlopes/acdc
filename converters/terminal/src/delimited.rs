@@ -692,6 +692,7 @@ fn formatted_code_text(node: InlineRef<'_>, processor: &Processor<'_>) -> Option
         | InlineKind::Raw(_)
         | InlineKind::Verbatim(_)
         | InlineKind::StandaloneCurvedApostrophe(_)
+        | InlineKind::Symbol(_)
         | InlineKind::LineBreak(_)
         | InlineKind::Anchor(_)
         | InlineKind::Footnote(_)

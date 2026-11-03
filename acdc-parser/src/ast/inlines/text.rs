@@ -3,7 +3,9 @@ use crate::{
     Verbatim,
 };
 
-use super::{LineBreakRef, PassRef, PlainRef, RawRef, StandaloneCurvedApostropheRef, VerbatimRef};
+use super::{
+    LineBreakRef, PassRef, PlainRef, RawRef, StandaloneCurvedApostropheRef, SymbolRef, VerbatimRef,
+};
 
 impl<'doc> PlainRef<'doc> {
     /// The parsed text, without rendering or reconstructing source escapes.
@@ -96,6 +98,26 @@ impl<'doc> From<&'doc LineBreak> for LineBreakRef<'doc> {
 
 impl<'doc> From<&'doc StandaloneCurvedApostrophe> for StandaloneCurvedApostropheRef<'doc> {
     fn from(owner: &'doc StandaloneCurvedApostrophe) -> Self {
+        Self::new(owner)
+    }
+}
+
+impl SymbolRef<'_> {
+    /// The resolved typographic meaning.
+    #[must_use]
+    pub fn kind(self) -> crate::SymbolKind {
+        self.node.kind
+    }
+
+    /// The resolved Unicode text, without backend encoding.
+    #[must_use]
+    pub fn text(self) -> &'static str {
+        self.node.kind.text()
+    }
+}
+
+impl<'doc> From<&'doc crate::Symbol> for SymbolRef<'doc> {
+    fn from(owner: &'doc crate::Symbol) -> Self {
         Self::new(owner)
     }
 }

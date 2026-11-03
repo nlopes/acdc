@@ -329,3 +329,51 @@ fn typed_content_can_be_dropped_before_the_visitor_in_each_render_mode() -> Resu
     }
     Ok(())
 }
+
+#[test]
+fn resolved_symbols_keep_html_encoding_without_reinterpreting_source() -> Result<(), TestError> {
+    use acdc_parser::{Symbol, SymbolKind};
+
+    let document = Document::default();
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        let processor = Rc::new(Processor::new_with_variant(
+            ConverterOptions::default(),
+            Options::builder(),
+            variant,
+        )?);
+        let source = WarningSource::new("html");
+        let mut warnings = Vec::new();
+        let mut visitor = HtmlVisitor::new(
+            Vec::new(),
+            processor,
+            RenderOptions::default(),
+            Diagnostics::new(&source, &mut warnings),
+        );
+        let mut traversal = TraversalContext::new(&document.attributes);
+        let options = RenderOptions::default();
+        let mut expected_output = String::new();
+        for (kind, expected) in [
+            (SymbolKind::SpacedEmDash, "&thinsp;&mdash;&thinsp;"),
+            (SymbolKind::WordBoundedEmDash, "&#8212;&#8203;"),
+            (SymbolKind::Ellipsis, "&#8230;&#8203;"),
+            (SymbolKind::Copyright, "&#169;"),
+            (SymbolKind::RegisteredTrademark, "&#174;"),
+            (SymbolKind::Trademark, "&#8482;"),
+            (SymbolKind::CurvedApostrophe, "&#8217;"),
+            (SymbolKind::RightArrow, "&#8594;"),
+            (SymbolKind::LeftArrow, "&#8592;"),
+            (SymbolKind::RightDoubleArrow, "&#8658;"),
+            (SymbolKind::LeftDoubleArrow, "&#8656;"),
+        ] {
+            let node = InlineNode::Symbol(Symbol {
+                kind,
+                location: Location::default(),
+            });
+            expected_output.push_str(expected);
+            visitor.render_inline_node_content(&mut traversal, (&node).into(), &options, &[])?;
+        }
+        assert_eq!(String::from_utf8(visitor.into_writer())?, expected_output);
+        assert!(warnings.is_empty(), "{warnings:?}");
+    }
+    Ok(())
+}

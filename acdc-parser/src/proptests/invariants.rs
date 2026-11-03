@@ -405,6 +405,7 @@ fn walk_inline_locations(inline: &InlineNode, visitor: &mut impl FnMut(&Location
         | InlineNode::RawText(_)
         | InlineNode::VerbatimText(_)
         | InlineNode::StandaloneCurvedApostrophe(_)
+        | InlineNode::Symbol(_)
         | InlineNode::LineBreak(_)
         | InlineNode::InlineAnchor(_)
         | InlineNode::Macro(_)

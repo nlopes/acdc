@@ -114,6 +114,7 @@ pub(super) fn inline_text(nodes: &[InlineNode<'_>], format: Format) -> String {
             InlineNode::SuperscriptText(t) => wrap(&t.content, "^", format),
             InlineNode::CurvedQuotationText(t) => format!("“{}”", inline_text(&t.content, format)),
             InlineNode::CurvedApostropheText(t) => format!("‘{}’", inline_text(&t.content, format)),
+            InlineNode::Symbol(symbol) => symbol.kind.text().into(),
             InlineNode::StandaloneCurvedApostrophe(_) => "’".into(),
             InlineNode::LineBreak(_) => {
                 if format == Format::Asciidoc {

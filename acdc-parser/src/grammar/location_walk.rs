@@ -334,6 +334,7 @@ where
             | InlineNode::RawText(_)
             | InlineNode::VerbatimText(_)
             | InlineNode::StandaloneCurvedApostrophe(_)
+            | InlineNode::Symbol(_)
             | InlineNode::LineBreak(_)
             | InlineNode::CalloutRef(_) => {}
         }

@@ -225,6 +225,7 @@ fn raw_content(content: ContentRef<'_>) -> (String, Option<InlineRef<'_>>) {
             | InlineKind::CurvedQuotation(_)
             | InlineKind::CurvedApostrophe(_)
             | InlineKind::StandaloneCurvedApostrophe(_)
+            | InlineKind::Symbol(_)
             | InlineKind::Anchor(_)
             | InlineKind::Footnote(_)
             | InlineKind::Icon(_)
@@ -298,6 +299,7 @@ fn source_content<'inline>(
             | InlineKind::CurvedQuotation(_)
             | InlineKind::CurvedApostrophe(_)
             | InlineKind::StandaloneCurvedApostrophe(_)
+            | InlineKind::Symbol(_)
             | InlineKind::Anchor(_)
             | InlineKind::Footnote(_)
             | InlineKind::Icon(_)
@@ -567,6 +569,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
                 | InlineKind::CurvedQuotation(_)
                 | InlineKind::CurvedApostrophe(_)
                 | InlineKind::StandaloneCurvedApostrophe(_)
+                | InlineKind::Symbol(_)
                 | InlineKind::Anchor(_)
                 | InlineKind::Footnote(_)
                 | InlineKind::Icon(_)
@@ -2385,6 +2388,7 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
             InlineKind::Plain(text) => {
                 self.write_escaped_text(text.text())?;
             }
+            InlineKind::Symbol(symbol) => self.write_escaped_text(symbol.text())?,
             InlineKind::LineBreak(_) => writeln!(self.writer, "  ")?,
             InlineKind::Raw(text) => {
                 self.write_passthrough(text.text(), text.substitutions())?;

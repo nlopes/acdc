@@ -732,6 +732,7 @@ fn collect_single_inline_span(input: &str, node: &InlineNode, spans: &mut Vec<Sp
         | InlineNode::VerbatimText(_)
         | InlineNode::CurvedApostropheText(_)
         | InlineNode::StandaloneCurvedApostrophe(_)
+        | InlineNode::Symbol(_)
         | InlineNode::LineBreak(_)
         | _ => {}
     }

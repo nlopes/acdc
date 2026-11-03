@@ -880,6 +880,7 @@ fn is_formatted_code_inline(node: InlineRef<'_>) -> bool {
             | InlineKind::CurvedQuotation(_)
             | InlineKind::CurvedApostrophe(_)
             | InlineKind::StandaloneCurvedApostrophe(_)
+            | InlineKind::Symbol(_)
     )
 }
 

@@ -131,6 +131,7 @@ fn extract_plain_text(nodes: &[InlineNode]) -> String {
     for node in nodes {
         match node {
             InlineNode::PlainText(text) => result.push_str(text.content),
+            InlineNode::Symbol(symbol) => result.push_str(symbol.kind.text()),
             InlineNode::RawText(text) => result.push_str(text.content),
             InlineNode::VerbatimText(text) => result.push_str(text.content),
             InlineNode::BoldText(bold) => result.push_str(&extract_plain_text(&bold.content)),

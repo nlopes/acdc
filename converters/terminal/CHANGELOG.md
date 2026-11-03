@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- Preserve resolved typography in terminal text output.
+
 - Direct users of `TerminalVisitor` must use the shared `DocumentVisitor`,
   `BlockVisitor`, and `InlineVisitor` callbacks. Terminal output, table layouts,
   caption numbering, and diagnostic locations remain unchanged.

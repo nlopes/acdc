@@ -6,7 +6,7 @@
 use std::borrow::Cow;
 
 use acdc_parser::{
-    InlineNode, NORMAL, Substitution, VERBATIM,
+    InlineNode, NORMAL, Substitution, SymbolKind, VERBATIM,
     ast::{InlineKind, InlineRef},
 };
 
@@ -454,6 +454,7 @@ impl TextNeighbors {
                 }
                 InlineKind::Verbatim(text) => (text.text(), ordinary_replacements),
                 InlineKind::Raw(text) => (text.text(), false),
+                InlineKind::Symbol(symbol) => (symbol.text(), false),
                 InlineKind::LineBreak(_) => return NeighborStop::LineBreak,
                 InlineKind::Anchor(anchor) if !anchor.is_bibliography() => continue,
                 InlineKind::IndexTerm(term) => {
@@ -959,6 +960,25 @@ impl Replacements<'static> {
 }
 
 impl Replacements<'_> {
+    /// Encode an already resolved symbol using this output's replacement values.
+    #[must_use]
+    pub fn symbol(&self, kind: SymbolKind) -> &str {
+        match kind {
+            SymbolKind::SpacedEmDash => self.em_dash_spaced,
+            SymbolKind::WordBoundedEmDash => self.em_dash_word_bounded,
+            SymbolKind::Ellipsis => self.ellipsis,
+            SymbolKind::Copyright => self.copyright,
+            SymbolKind::RegisteredTrademark => self.registered,
+            SymbolKind::Trademark => self.trademark,
+            SymbolKind::CurvedApostrophe => self.apostrophe,
+            SymbolKind::RightArrow => self.arrow_right,
+            SymbolKind::LeftArrow => self.arrow_left,
+            SymbolKind::RightDoubleArrow => self.double_arrow_right,
+            SymbolKind::LeftDoubleArrow => self.double_arrow_left,
+            _ => kind.text(),
+        }
+    }
+
     /// Full typography pipeline: strip escapes, apply replacements, restore escaped patterns.
     #[must_use]
     pub fn transform(&self, text: &str, text_boundaries: TextBoundaries) -> String {

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Preserve resolved typography in extracted document text.
+
 - Legacy underlined headings are recognized in every build, following the
   default Asciidoctor mode. The `setext` feature no longer changes document
   structure.

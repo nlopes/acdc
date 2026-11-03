@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Preserve resolved typography when writing Markdown text.
+
 - **Breaking:** direct Markdown visitor users now use the shared typed document,
   block, and inline callbacks. The legacy visitor traits are no longer implemented.
   GFM and CommonMark output remain unchanged.

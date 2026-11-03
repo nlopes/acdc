@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Render resolved typography with roff escaping and the existing manpage dash spacing.
+
 - Direct users of `ManpageVisitor` must use the shared `DocumentVisitor`,
   `BlockVisitor`, and `InlineVisitor` callbacks. Portable roff output, caption
   numbering, table layouts, and diagnostic locations remain unchanged.

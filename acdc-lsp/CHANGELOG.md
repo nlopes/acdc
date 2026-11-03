@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Keep source selection and inline scanning available around resolved typography.
+
 - Document outlines and workspace search retain formatted titles, media
   alternatives, anchor aliases, and source locations across includes. Outlines
   keep their existing hierarchy and empty-title fallbacks.

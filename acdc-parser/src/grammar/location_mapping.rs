@@ -184,6 +184,7 @@ pub(crate) fn map_inner_content_locations<'a>(
             InlineNode::RawText(_)
             | InlineNode::VerbatimText(_)
             | InlineNode::StandaloneCurvedApostrophe(_)
+            | InlineNode::Symbol(_)
             | InlineNode::LineBreak(_)
             | InlineNode::CalloutRef(_) => {
                 *node.location_mut() = ctx.map_location(node.location())?;
@@ -263,6 +264,9 @@ pub(crate) fn map_inline_locations<'a>(
             | InlineNode::CurvedApostropheText(_)) => map_marked_text_locations(marked_text, &ctx)?,
             InlineNode::StandaloneCurvedApostrophe(standalone) => {
                 standalone.location = ctx.map_location(&standalone.location)?;
+            }
+            InlineNode::Symbol(symbol) => {
+                symbol.location = ctx.map_location(&symbol.location)?;
             }
             InlineNode::Macro(inline_macro) => map_inline_macro(inline_macro, &ctx)?,
             InlineNode::LineBreak(lb) => lb.location = ctx.map_location(&lb.location)?,

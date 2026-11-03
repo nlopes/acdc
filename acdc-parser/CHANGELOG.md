@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- Inline trees can represent resolved typography with `InlineNode::Symbol` and
+  `ast::InlineKind::Symbol`. Read `SymbolRef::kind()` or `text()` for its meaning
+  and `location()` for its authored span. Native JSON projects the resolved value.
+
 - Draft mode keeps block image alt text literal, including single-quoted values,
   and does not register macros from it. Attribute references still expand.
   Native JSON now uses protected literal nodes for this text. Asciidoctor mode

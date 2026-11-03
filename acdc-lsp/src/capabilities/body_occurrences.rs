@@ -91,6 +91,7 @@ fn visit_content<'doc, B>(
             | InlineKind::CurvedQuotation(_)
             | InlineKind::CurvedApostrophe(_)
             | InlineKind::StandaloneCurvedApostrophe(_)
+            | InlineKind::Symbol(_)
             | InlineKind::LineBreak(_)
             | InlineKind::Anchor(_)
             | InlineKind::Callout(_)

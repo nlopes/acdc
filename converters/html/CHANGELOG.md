@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Render resolved typography with the existing HTML entities and spacing in both backends.
+
 - Automatic cross-reference titles and labels retain their formatting, caption
   styles, and nested-reference fallbacks.
 - Per-document HTML configuration retains reference aliases, assigned heading

@@ -285,6 +285,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             }
             InlineKind::Raw(_)
             | InlineKind::StandaloneCurvedApostrophe(_)
+            | InlineKind::Symbol(_)
             | InlineKind::LineBreak(_)
             | InlineKind::Anchor(_)
             | InlineKind::Footnote(_)

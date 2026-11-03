@@ -399,6 +399,7 @@ pub(crate) fn extract_text_and_callouts<'inline>(
             InlineKind::Plain(plain) => {
                 result.push_str(plain.text());
             }
+            InlineKind::Symbol(symbol) => result.push_str(symbol.text()),
             InlineKind::LineBreak(_) => {
                 result.push('\n');
             }
