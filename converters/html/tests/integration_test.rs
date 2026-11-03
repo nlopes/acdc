@@ -599,6 +599,7 @@ fn index_dash_context_keeps_highlighted_link_offsets_and_catalog_targets() -> Re
                     _ => !in_tag,
                 })
                 .collect::<String>();
+            let visible = acdc_converters_core::decode_numeric_char_refs(&visible);
             assert!(visible.contains("prefix--Tail"), "{mode}: {output}");
             assert!(visible.contains("Before--tail"), "{mode}: {output}");
             assert!(

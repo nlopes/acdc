@@ -18,7 +18,7 @@ fn text_policy_preserves_content_and_fragment_context() -> Result<(), Error> {
         for (source, semantic, rendered) in [
             (
                 "A *bold* image:bird.svg[Bird] indexterm2:[--] end.",
-                "A bold [Bird] -- end.",
+                "A bold [Bird]\u{2009}—\u{2009}end.",
                 "A bold [Bird]\u{2009}—\u{2009}end.",
             ),
             (

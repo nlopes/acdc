@@ -87,7 +87,8 @@ pub(super) fn append_edits(
             });
             edits.push(Replacement { range, value });
         }
-        value @ (ReplacementValue::Symbol(_)
+        value @ (ReplacementValue::Remove
+        | ReplacementValue::Symbol(_)
         | ReplacementValue::Literal(_)
         | ReplacementValue::EncodedLiteral { .. }) => edits.push(Replacement { range, value }),
     }

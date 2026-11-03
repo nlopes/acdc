@@ -365,7 +365,7 @@ mod tests {
         let transform = super::InlineTextTransform::default();
         assert_eq!(
             transform.content_to_string(content),
-            "A bold [Bird] -- end."
+            "A bold [Bird]\u{2009}—\u{2009}end."
         );
         assert_eq!(
             transform
@@ -639,8 +639,8 @@ mod tests {
     fn index_replacement_context_cannot_disable_resolved_symbols()
     -> Result<(), Box<dyn std::error::Error>> {
         for (input, expected) in [
-            ("prefix indexterm2:[--] tail", "prefix -- tail"),
-            ("prefix-indexterm2:[-]tail", "prefix--tail"),
+            ("prefix indexterm2:[--] tail", "prefix\u{2009}—\u{2009}tail"),
+            ("prefix-indexterm2:[-]tail", "prefix—\u{200b}tail"),
             ("Saindexterm2:[m]'s", "Sam’s"),
             (
                 "prefixindexterm2:[pass:r[--]]tail",

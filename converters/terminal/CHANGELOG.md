@@ -10,7 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Breaking changes
 
 - Render parsed copyright and trademark signs, ellipses, word-internal
-  apostrophes, and em dashes while keeping escaped tokens literal.
+  apostrophes, and em dashes while keeping escaped tokens literal. Dash pairs
+  and adjacent spaces now resolve consistently across index labels, including
+  highlighted code. Protected passthroughs keep their own spacing and
+  substitution settings. This retains acdc's parsed-text context policy, which
+  can differ from Asciidoctor's default macro order.
 
 - Direct users of `TerminalVisitor` must use the shared `DocumentVisitor`,
   `BlockVisitor`, and `InlineVisitor` callbacks. Terminal output, table layouts,

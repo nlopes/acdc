@@ -86,6 +86,7 @@ pub(super) fn resolve_fragments<'a>(
             state,
         );
         match edit.value {
+            ReplacementValue::Remove => {}
             ReplacementValue::Symbol(kind) => result.push(InlineNode::Symbol(Symbol {
                 kind,
                 location: locate(text, &spans, edit.range.clone(), state),

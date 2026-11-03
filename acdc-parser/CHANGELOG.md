@@ -40,6 +40,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Protected passthrough text now supplies neighboring word context in the
   parser too, so `Sam'pass:[s]` exposes a resolved apostrophe. A passthrough's
   own replacement settings stay independent of the surrounding text.
+  Dash pairs and consumed spaces split across ordinary text, anchors, and index
+  labels now resolve in the parser. Symbols belong to the first dash's owner;
+  their source ranges cover only that owner's consumed text. Catalog labels and
+  earlier replacements stay intact.
 
 - Draft mode keeps block image alt text literal, including single-quoted values,
   and does not register macros from it. Attribute references still expand.

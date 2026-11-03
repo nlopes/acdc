@@ -48,7 +48,10 @@ impl SymbolKind {
     }
 }
 
-/// A resolved typographic symbol and its authored source span.
+/// A resolved typographic symbol and its owner's consumed source span.
+///
+/// Split dash pairs stay with the first dash's owner. Their spans cover only
+/// text consumed from that owner.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Symbol {
     pub kind: SymbolKind,

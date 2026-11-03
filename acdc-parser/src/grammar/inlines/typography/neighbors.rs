@@ -29,7 +29,7 @@ pub(super) fn needs_word_context(node: &InlineNode<'_>) -> bool {
 }
 
 fn needs_context(text: &str) -> bool {
-    ["'", "--"]
+    ["'", "-"]
         .iter()
         .any(|token| text.starts_with(token) || text.ends_with(token))
 }
@@ -142,4 +142,19 @@ fn text_edge(text: &str, location: &Location, first: bool, state: &ParserState<'
             )
         });
     Edge::Text(character, allowed)
+}
+
+pub(super) fn protected_edge(
+    node: &InlineNode<'_>,
+    first: bool,
+    state: &ParserState<'_>,
+) -> Option<(char, bool)> {
+    if !matches!(node, InlineNode::RawText(_) | InlineNode::PlainText(_)) {
+        return None;
+    }
+    if let Edge::Text(character, allowed) = edge(node, first, state) {
+        Some((character, allowed))
+    } else {
+        None
+    }
 }

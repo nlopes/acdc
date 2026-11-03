@@ -376,9 +376,9 @@
 
 #text("S59 Sa")#metadata(none)<__indexterm-66>#text("m")#text("'s")
 
-#text("S60 prefix—​")#metadata(none)<__indexterm-67>#text("")#text("tail")
+#text("S60 prefix")#text("—​")#metadata(none)<__indexterm-67>#text("tail")
 
-#text("S61 prefix—​")#metadata(none)<__indexterm-68>#text("")#text("tail")
+#text("S61 prefix")#text("—​")#metadata(none)<__indexterm-68>#text("tail")
 
 #text("S62 prefix-")#metadata(none)<__indexterm-69>#text("-")#text("tail")
 

@@ -37,7 +37,7 @@ S06 prefix--tail
 [39m[38;2;131;148;150mS20  — tail Next20
 [39m[38;2;131;148;150mS21 prefix. — tail Next21
 [39m[38;2;131;148;150mS22 prefix — .tail Next22
-[39m[38;2;131;148;150mS23 prefix  —  tail Next23
+[39m[38;2;131;148;150mS23 prefix — tail Next23
 [39m[38;2;131;148;150mS24 prefix--tail Next24
 [39m[38;2;131;148;150mS25 prefix — tail Next25
 [39m[38;2;131;148;150mS26 prefix--tail Next26
@@ -61,12 +61,12 @@ S06 prefix--tail
 [38;2;131;148;150mprefix — [39m
 [38;5;8m────────────────────────────────────────────────────────────────────────────────[39m
 [38;5;8m────────────────────────────────────[ text ]────────────────────────────────────[39m
-[38;2;131;148;150mS33 prefix--tail Next33
-[39m[38;2;131;148;150mS34 prefix--tail Next34
-[39m[38;2;131;148;150mS35 prefix--tail Next35
-[39m[38;2;131;148;150mS36 prefix  —  tail Next36
-[39m[38;2;131;148;150mS37 prefix  —  tail Next37
-[39m[38;2;131;148;150mS38 prefix   —   tail Next38
+[38;2;131;148;150mS33 prefix—​tail Next33
+[39m[38;2;131;148;150mS34 prefix—​tail Next34
+[39m[38;2;131;148;150mS35 prefix—​tail Next35
+[39m[38;2;131;148;150mS36 prefix — tail Next36
+[39m[38;2;131;148;150mS37 prefix — tail Next37
+[39m[38;2;131;148;150mS38 prefix  —  tail Next38
 [39m[38;2;131;148;150mS39 Sam’s Next39
 [39m[38;2;131;148;150mS40 Sam’s Next40
 [39m[38;2;131;148;150mS41 Sam’s Next41
@@ -81,7 +81,7 @@ S06 prefix--tail
 [39m[38;2;131;148;150mS50 prefix  —  tail Next50
 [39m[38;2;131;148;150mS51 prefix  —  tail Next51
 [39m[38;2;131;148;150mS52 prefix  —  —  —  tail Next52
-[39m[38;2;131;148;150mS53 prefix  —    —  tail Next53[39m
+[39m[38;2;131;148;150mS53 prefix —  — tail Next53[39m
 [38;5;8m────────────────────────────────────────────────────────────────────────────────[39m
 S54 prefix — tail
 S55 prefix — tail

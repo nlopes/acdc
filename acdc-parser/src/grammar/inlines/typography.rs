@@ -1,5 +1,6 @@
 mod encoded_arrows;
 mod neighbors;
+mod split;
 
 use std::{mem::take, ops::Range};
 
@@ -36,7 +37,8 @@ pub(crate) fn resolve_plain<'a>(
     state: &ParserState<'a>,
     paragraph: bool,
 ) -> Vec<InlineNode<'a>> {
-    resolve_plain_with_context(nodes, state, paragraph, WordContext::default())
+    let nodes = resolve_plain_with_context(nodes, state, paragraph, WordContext::default());
+    split::resolve(nodes, state, paragraph)
 }
 
 fn resolve_plain_with_context<'a>(
@@ -208,6 +210,7 @@ pub(crate) struct Replacement {
 }
 
 pub(crate) enum ReplacementValue {
+    Remove,
     Symbol(SymbolKind),
     Literal(Range<usize>),
     EncodedLiteral {
@@ -454,6 +457,10 @@ fn append_resolved<'a>(
         }
         let node_location = locate(edit.range.clone());
         result.push(match edit.value {
+            ReplacementValue::Remove => {
+                cursor = edit.range.end;
+                continue;
+            }
             ReplacementValue::Symbol(kind) => InlineNode::Symbol(Symbol {
                 kind,
                 location: node_location,

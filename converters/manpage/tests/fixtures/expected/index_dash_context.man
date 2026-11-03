@@ -88,11 +88,11 @@ P25 prefix\-\- \c
 .sp
 \fBStandalone control\fR
 .br
- \(em
+ \(em \&
 .sp
 \fBHidden standalone control\fR
 .br
- \(em
+ \(em \&
 .sp
 P26 prefix\(emtail
 .sp
