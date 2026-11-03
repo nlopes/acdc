@@ -61,11 +61,86 @@
             {
               "name": "text",
               "type": "string",
-              "value": "Copyright (C) A -- B ...",
+              "value": "Copyright ",
               "location": [
                 {
                   "line": 6,
                   "col": 8
+                },
+                {
+                  "line": 6,
+                  "col": 17
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 18
+                },
+                {
+                  "line": 6,
+                  "col": 20
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " A",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 21
+                },
+                {
+                  "line": 6,
+                  "col": 22
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": " — ",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 23
+                },
+                {
+                  "line": 6,
+                  "col": 26
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B ",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 27
+                },
+                {
+                  "line": 6,
+                  "col": 28
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "…",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 29
                 },
                 {
                   "line": 6,
@@ -177,11 +252,86 @@
             {
               "name": "text",
               "type": "string",
-              "value": "Copyright (C) A -- B ...",
+              "value": "Copyright ",
               "location": [
                 {
                   "line": 9,
                   "col": 9
+                },
+                {
+                  "line": 9,
+                  "col": 18
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 19
+                },
+                {
+                  "line": 9,
+                  "col": 21
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " A",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 22
+                },
+                {
+                  "line": 9,
+                  "col": 23
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": " — ",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 24
+                },
+                {
+                  "line": 9,
+                  "col": 27
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B ",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 28
+                },
+                {
+                  "line": 9,
+                  "col": 29
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "…",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 30
                 },
                 {
                   "line": 9,
@@ -190,6 +340,37 @@
               ]
             }
           ],
+          "catalog": {
+            "kind": {
+              "Flow": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Copyright (C) A -- B ...",
+                  "location": [
+                    {
+                      "line": 9,
+                      "col": 9
+                    },
+                    {
+                      "line": 9,
+                      "col": 32
+                    }
+                  ]
+                }
+              ]
+            },
+            "location": [
+              {
+                "line": 9,
+                "col": 7
+              },
+              {
+                "line": 9,
+                "col": 34
+              }
+            ]
+          },
           "visible": true,
           "location": [
             {
@@ -275,11 +456,86 @@
             {
               "name": "text",
               "type": "string",
-              "value": "Copyright (C) A -- B ...",
+              "value": "Copyright ",
               "location": [
                 {
                   "line": 13,
                   "col": 8
+                },
+                {
+                  "line": 13,
+                  "col": 17
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 18
+                },
+                {
+                  "line": 13,
+                  "col": 20
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " A",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 21
+                },
+                {
+                  "line": 13,
+                  "col": 22
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": " — ",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 23
+                },
+                {
+                  "line": 13,
+                  "col": 26
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B ",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 27
+                },
+                {
+                  "line": 13,
+                  "col": 28
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "…",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 29
                 },
                 {
                   "line": 13,

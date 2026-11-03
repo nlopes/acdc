@@ -145,11 +145,26 @@
             {
               "name": "text",
               "type": "string",
-              "value": "Term (R)",
+              "value": "Term ",
               "location": [
                 {
                   "line": 10,
                   "col": 7
+                },
+                {
+                  "line": 10,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "®",
+              "location": [
+                {
+                  "line": 10,
+                  "col": 12
                 },
                 {
                   "line": 10,
@@ -260,11 +275,26 @@
             {
               "name": "text",
               "type": "string",
-              "value": "Term (R)",
+              "value": "Term ",
               "location": [
                 {
                   "line": 13,
                   "col": 7
+                },
+                {
+                  "line": 13,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "®",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 12
                 },
                 {
                   "line": 13,
@@ -273,6 +303,37 @@
               ]
             }
           ],
+          "catalog": {
+            "kind": {
+              "Flow": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Term (R)",
+                  "location": [
+                    {
+                      "line": 13,
+                      "col": 7
+                    },
+                    {
+                      "line": 13,
+                      "col": 14
+                    }
+                  ]
+                }
+              ]
+            },
+            "location": [
+              {
+                "line": 13,
+                "col": 5
+              },
+              {
+                "line": 13,
+                "col": 16
+              }
+            ]
+          },
           "visible": true,
           "location": [
             {
@@ -473,11 +534,26 @@
             {
               "name": "text",
               "type": "string",
-              "value": "Code (R)",
+              "value": "Code ",
               "location": [
                 {
                   "line": 22,
                   "col": 7
+                },
+                {
+                  "line": 22,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "®",
+              "location": [
+                {
+                  "line": 22,
+                  "col": 12
                 },
                 {
                   "line": 22,
@@ -486,6 +562,37 @@
               ]
             }
           ],
+          "catalog": {
+            "kind": {
+              "Flow": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Code (R)",
+                  "location": [
+                    {
+                      "line": 22,
+                      "col": 7
+                    },
+                    {
+                      "line": 22,
+                      "col": 14
+                    }
+                  ]
+                }
+              ]
+            },
+            "location": [
+              {
+                "line": 22,
+                "col": 5
+              },
+              {
+                "line": 22,
+                "col": 16
+              }
+            ]
+          },
           "visible": true,
           "location": [
             {
@@ -669,11 +776,26 @@
             {
               "name": "text",
               "type": "string",
-              "value": "Code (R)",
+              "value": "Code ",
               "location": [
                 {
                   "line": 24,
                   "col": 7
+                },
+                {
+                  "line": 24,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "®",
+              "location": [
+                {
+                  "line": 24,
+                  "col": 12
                 },
                 {
                   "line": 24,
@@ -682,6 +804,37 @@
               ]
             }
           ],
+          "catalog": {
+            "kind": {
+              "Flow": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Code (R)",
+                  "location": [
+                    {
+                      "line": 24,
+                      "col": 7
+                    },
+                    {
+                      "line": 24,
+                      "col": 14
+                    }
+                  ]
+                }
+              ]
+            },
+            "location": [
+              {
+                "line": 24,
+                "col": 5
+              },
+              {
+                "line": 24,
+                "col": 16
+              }
+            ]
+          },
           "visible": true,
           "location": [
             {
@@ -791,11 +944,26 @@
             {
               "name": "text",
               "type": "string",
-              "value": "Late (R)",
+              "value": "Late ",
               "location": [
                 {
                   "line": 29,
                   "col": 7
+                },
+                {
+                  "line": 29,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "®",
+              "location": [
+                {
+                  "line": 29,
+                  "col": 12
                 },
                 {
                   "line": 29,
@@ -1263,11 +1431,26 @@
             {
               "name": "text",
               "type": "string",
-              "value": "Attribute (R)",
+              "value": "Attribute ",
               "location": [
                 {
                   "line": 36,
                   "col": 7
+                },
+                {
+                  "line": 36,
+                  "col": 16
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "®",
+              "location": [
+                {
+                  "line": 36,
+                  "col": 17
                 },
                 {
                   "line": 36,
@@ -1417,11 +1600,26 @@
             {
               "name": "text",
               "type": "string",
-              "value": "Late attribute (R)",
+              "value": "Late attribute ",
               "location": [
                 {
                   "line": 41,
                   "col": 7
+                },
+                {
+                  "line": 41,
+                  "col": 21
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "®",
+              "location": [
+                {
+                  "line": 41,
+                  "col": 22
                 },
                 {
                   "line": 41,
@@ -1908,11 +2106,26 @@
                 {
                   "name": "text",
                   "type": "string",
-                  "value": "Footnote (R)",
+                  "value": "Footnote ",
                   "location": [
                     {
                       "line": 51,
                       "col": 19
+                    },
+                    {
+                      "line": 51,
+                      "col": 27
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "®",
+                  "location": [
+                    {
+                      "line": 51,
+                      "col": 28
                     },
                     {
                       "line": 51,
@@ -1921,6 +2134,37 @@
                   ]
                 }
               ],
+              "catalog": {
+                "kind": {
+                  "Flow": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Footnote (R)",
+                      "location": [
+                        {
+                          "line": 51,
+                          "col": 19
+                        },
+                        {
+                          "line": 51,
+                          "col": 30
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "location": [
+                  {
+                    "line": 51,
+                    "col": 17
+                  },
+                  {
+                    "line": 51,
+                    "col": 32
+                  }
+                ]
+              },
               "visible": true,
               "location": [
                 {

@@ -10,6 +10,8 @@ fn label(nodes: &[InlineNode<'_>]) -> Result<String, Error> {
                 Ok(text.content)
             } else if let InlineNode::RawText(text) = node {
                 Ok(text.content)
+            } else if let InlineNode::Symbol(symbol) = node {
+                Ok(symbol.kind.text())
             } else {
                 Err(format!("unexpected index label node: {node:?}").into())
             }
@@ -17,8 +19,7 @@ fn label(nodes: &[InlineNode<'_>]) -> Result<String, Error> {
         .collect()
 }
 
-// JSON omits registration-time labels. Check those and the exact span rather
-// than rendered text, which can hide a parenthesis moved outside the term.
+// Rendered text can hide a parenthesis moved outside the index term.
 #[test]
 fn index_parentheses_keep_complete_catalog_labels_and_source_spans() -> Result<(), Error> {
     for depth in 1..=8 {
@@ -114,7 +115,7 @@ fn index_parentheses_keep_registration_time_attribute_values() -> Result<(), Err
         else {
             return Err("expected visible index term".into());
         };
-        assert_eq!(label(term.term())?, "Late (R)", "{source}");
+        assert_eq!(label(term.term())?, "Late ®", "{source}");
         assert_eq!(label(term.catalog_entry().term())?, registered, "{source}");
         assert_eq!(
             source.get(term.location.absolute_start..=term.location.absolute_end),

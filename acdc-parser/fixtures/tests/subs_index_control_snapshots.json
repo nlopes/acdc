@@ -700,11 +700,26 @@
             {
               "name": "text",
               "type": "string",
-              "value": "Copyright (C)",
+              "value": "Copyright ",
               "location": [
                 {
                   "line": 22,
                   "col": 13
+                },
+                {
+                  "line": 22,
+                  "col": 22
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
+              "location": [
+                {
+                  "line": 22,
+                  "col": 23
                 },
                 {
                   "line": 22,
@@ -806,11 +821,26 @@
             {
               "name": "text",
               "type": "string",
-              "value": "Copyright (C)",
+              "value": "Copyright ",
               "location": [
                 {
                   "line": 25,
                   "col": 13
+                },
+                {
+                  "line": 25,
+                  "col": 22
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
+              "location": [
+                {
+                  "line": 25,
+                  "col": 23
                 },
                 {
                   "line": 25,
@@ -819,6 +849,37 @@
               ]
             }
           ],
+          "catalog": {
+            "kind": {
+              "Flow": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Copyright (C)",
+                  "location": [
+                    {
+                      "line": 25,
+                      "col": 13
+                    },
+                    {
+                      "line": 25,
+                      "col": 25
+                    }
+                  ]
+                }
+              ]
+            },
+            "location": [
+              {
+                "line": 25,
+                "col": 1
+              },
+              {
+                "line": 25,
+                "col": 38
+              }
+            ]
+          },
           "visible": true,
           "location": [
             {

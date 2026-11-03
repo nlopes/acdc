@@ -1,7 +1,9 @@
-use std::ops::Range;
+mod neighbors;
+
+use std::{mem::take, ops::Range};
 
 use crate::{
-    InlineNode, Location, Plain, Raw, Substitution, Symbol, SymbolKind,
+    IndexTermKind, InlineMacro, InlineNode, Location, Plain, Raw, Substitution, Symbol, SymbolKind,
     grammar::{
         ParserState,
         state::InlineRules,
@@ -17,14 +19,47 @@ pub(crate) fn resolve_plain<'a>(
     state: &ParserState<'a>,
     paragraph: bool,
 ) -> Vec<InlineNode<'a>> {
-    if !state.inline_ctx.substitutions.enabled(&Substitution::Replacements)
+    resolve_plain_with_context(nodes, state, paragraph, WordContext::default())
+}
+
+fn resolve_plain_with_context<'a>(
+    nodes: Vec<InlineNode<'a>>,
+    state: &ParserState<'a>,
+    paragraph: bool,
+    context: WordContext,
+) -> Vec<InlineNode<'a>> {
+    if !state
+        .inline_ctx
+        .substitutions
+        .enabled(&Substitution::Replacements)
         || state.inline_ctx.rules.contains(InlineRules::INDEX_CATALOG)
-        || !nodes.iter().any(|node| matches!(node, InlineNode::PlainText(text) if !text.escaped && has_candidate(text.content)))
+        || !nodes.iter().any(neighbors::needs_resolution)
     {
         return nodes;
     }
+    let words = neighbors::contexts(&nodes, state, context);
     let mut result = Vec::with_capacity(nodes.len());
-    for node in nodes {
+    for (index, mut node) in nodes.into_iter().enumerate() {
+        let words = words
+            .as_ref()
+            .and_then(|words| words.get(index))
+            .copied()
+            .unwrap_or_default();
+        if let InlineNode::Macro(InlineMacro::IndexTerm(term)) = &mut node
+            && matches!(&term.kind, IndexTermKind::Flow(nodes) if nodes.iter().any(neighbors::needs_resolution))
+        {
+            let original = term.catalog.is_none().then(|| Box::new((**term).clone()));
+            if let IndexTermKind::Flow(nodes) = &mut term.kind {
+                *nodes = resolve_plain_with_context(take(nodes), state, false, words);
+            }
+            if let Some(original) = original
+                && term.kind != original.kind
+            {
+                term.catalog = Some(original);
+            }
+            result.push(node);
+            continue;
+        }
         let InlineNode::PlainText(text) = node else {
             result.push(node);
             continue;
@@ -40,7 +75,7 @@ pub(crate) fn resolve_plain<'a>(
                 && start.is_some_and(|start| start + text.content.len() == state.input.len())
                 && !late_boundary(state, state.input.len()),
         };
-        let edits = replacements(text.content, edges, |range, kind| {
+        let edits = replacements(text.content, edges, words, |range, kind| {
             (!is_arrow(kind)
                 || state
                     .inline_ctx
@@ -82,7 +117,9 @@ pub(crate) fn resolve_raw<'a>(
     }
     let arrows = SubstitutionPlan::from_substitutions(&raw.subs)
         .precedes(&Substitution::SpecialChars, &Substitution::Replacements);
-    let edits = replacements(raw.content, edges, |_, kind| !is_arrow(kind) || arrows);
+    let edits = replacements(raw.content, edges, WordContext::default(), |_, kind| {
+        !is_arrow(kind) || arrows
+    });
     if edits.is_empty() {
         return vec![InlineNode::RawText(raw)];
     }
@@ -128,6 +165,12 @@ pub(crate) struct Edges {
     pub(crate) end: bool,
 }
 
+#[derive(Clone, Copy, Default)]
+pub(crate) struct WordContext {
+    before: Option<(char, bool)>,
+    after: Option<(char, bool)>,
+}
+
 fn late_boundary(state: &ParserState<'_>, position: usize) -> bool {
     state
         .inline_ctx
@@ -142,6 +185,7 @@ fn late_boundary(state: &ParserState<'_>, position: usize) -> bool {
 pub(crate) fn replacements(
     text: &str,
     edges: Edges,
+    words: WordContext,
     allowed: impl Fn(Range<usize>, SymbolKind) -> bool,
 ) -> Vec<Replacement> {
     let mut edits = Vec::new();
@@ -149,7 +193,7 @@ pub(crate) fn replacements(
     while cursor < text.len() {
         let escaped = text.as_bytes().get(cursor) == Some(&b'\\');
         let start = cursor + usize::from(escaped);
-        let Some((mut range, kind)) = replacement_at(text, start, edges) else {
+        let Some((mut range, kind)) = replacement_at(text, start, edges, words) else {
             cursor += text[cursor..].chars().next().map_or(1, char::len_utf8);
             continue;
         };
@@ -169,17 +213,21 @@ pub(crate) fn replacements(
             range.start = cursor;
         }
         let mut context = range.clone();
+        let mut word_context_allowed = true;
         if matches!(
             kind,
             SymbolKind::CurvedApostrophe | SymbolKind::WordBoundedEmDash
         ) {
+            word_context_allowed = (range.start != 0
+                || words.before.is_none_or(|(_, allowed)| allowed))
+                && (range.end != text.len() || words.after.is_none_or(|(_, allowed)| allowed));
             context.start -= text[..range.start]
                 .chars()
                 .next_back()
                 .map_or(0, char::len_utf8);
             context.end += text[range.end..].chars().next().map_or(0, char::len_utf8);
         }
-        let value = if !allowed(context, kind) {
+        let value = if !word_context_allowed || !allowed(context, kind) {
             ReplacementValue::Literal(range.clone())
         } else if escaped {
             ReplacementValue::Literal(start..end)
@@ -192,7 +240,12 @@ pub(crate) fn replacements(
     edits
 }
 
-fn replacement_at(text: &str, start: usize, edges: Edges) -> Option<(Range<usize>, SymbolKind)> {
+fn replacement_at(
+    text: &str,
+    start: usize,
+    edges: Edges,
+    words: WordContext,
+) -> Option<(Range<usize>, SymbolKind)> {
     let suffix = &text[start..];
     for (token, kind) in [
         ("(C)", SymbolKind::Copyright),
@@ -220,15 +273,26 @@ fn replacement_at(text: &str, start: usize, edges: Edges) -> Option<(Range<usize
         .chars()
         .next_back();
     if suffix.starts_with('\'')
-        && previous.is_some_and(char::is_alphanumeric)
-        && suffix[1..].chars().next().is_some_and(char::is_alphabetic)
+        && previous
+            .or(words.before.map(|(character, _)| character))
+            .is_some_and(char::is_alphanumeric)
+        && suffix[1..]
+            .chars()
+            .next()
+            .or(words.after.map(|(character, _)| character))
+            .is_some_and(char::is_alphabetic)
     {
         return Some((start..start + 1, SymbolKind::CurvedApostrophe));
     }
     if suffix.starts_with("--") && !suffix.starts_with("---") && previous != Some('-') {
         let next = suffix[2..].chars().next();
         if text[..start].ends_with('\\')
-            || previous.is_some_and(is_word) && next.is_some_and(is_word)
+            || previous
+                .or(words.before.map(|(character, _)| character))
+                .is_some_and(is_word)
+                && next
+                    .or(words.after.map(|(character, _)| character))
+                    .is_some_and(is_word)
         {
             return Some((start..start + 2, SymbolKind::WordBoundedEmDash));
         }

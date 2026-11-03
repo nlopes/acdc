@@ -88,7 +88,7 @@
 
 #heading(level: 1)[#text("Description")] <id-5f6465736372697074696f6e>
 
-#text("P01 ")#metadata(none)<__indexterm-1>#text("Term ®")#text(" after.")
+#text("P01 ")#metadata(none)<__indexterm-1>#text("Term ")#text("®")#text(" after.")
 
 #text("P02 ")#metadata(none)<__indexterm-2>#text("function(argument)")#text(" after.")
 
@@ -136,7 +136,7 @@
 
 #text("P24 ")#metadata(none)<__indexterm-25>#text("Before ")#text("((literal))")#text(" after")#text(" end.")
 
-#text("P25 ")#link("https://example.org")[#metadata(none)<__indexterm-26>#text("Linked ®")#text(" label")]#text(" after.")
+#text("P25 ")#link("https://example.org")[#metadata(none)<__indexterm-26>#text("Linked ")#text("®")#text(" label")]#text(" after.")
 
 #text("P26 ((Unclosed (label)")
 

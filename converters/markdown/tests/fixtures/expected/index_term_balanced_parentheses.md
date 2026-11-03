@@ -15,7 +15,7 @@ index-parentheses - complete index labels
 <a id="_description"></a>
 ## Description
 
-P01 <a id="_indexterm_0"></a>Term (R) after.
+P01 <a id="_indexterm_0"></a>Term ® after.
 
 P02 <a id="_indexterm_1"></a>function(argument) after.
 
@@ -63,7 +63,7 @@ P23 <a id="_indexterm_23"></a>First (one) and (two) after.
 
 P24 <a id="_indexterm_24"></a>Before ((literal)) after end.
 
-P25 [<a id="_indexterm_25"></a>Linked (R) label](https://example.org) after.
+P25 [<a id="_indexterm_25"></a>Linked ® label](https://example.org) after.
 
 P26 ((Unclosed (label)
 

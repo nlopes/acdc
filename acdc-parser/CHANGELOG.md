@@ -29,6 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   typography too. Reversed escaping keeps source arrows literal. As with
   passthroughs, resolved signs retain their Unicode meaning when escaping runs
   later, rather than Asciidoctor’s generated entity spelling.
+  Apostrophes and complete word-bounded dash pairs also use neighboring text
+  across ordinary anchors and index labels. Formatting stays a boundary, and
+  index catalog labels keep their registration-time values. Visible index labels
+  now expose enabled signs and ellipses consistently to every converter.
 
 - Draft mode keeps block image alt text literal, including single-quoted values,
   and does not register macros from it. Attribute references still expand.

@@ -4,7 +4,7 @@ use crate::{
     InlineNode, Location, Raw, Substitution, Symbol,
     grammar::{
         ParserState,
-        inlines::typography::{Edges, ReplacementValue, is_arrow, replacements},
+        inlines::typography::{Edges, ReplacementValue, WordContext, is_arrow, replacements},
         utf8_utils::{RoundDirection, step_char},
     },
     model::substitution::SubstitutionPlan,
@@ -39,7 +39,7 @@ pub(super) fn resolve_fragments<'a>(
             (start..offset, raw)
         })
         .collect::<Vec<_>>();
-    let edits = replacements(&text, edges, |range, kind| {
+    let edits = replacements(&text, edges, WordContext::default(), |range, kind| {
         let first = spans.partition_point(|(span, _)| span.end <= range.start);
         let end = spans.partition_point(|(span, _)| span.start < range.end);
         spans.get(first..end).is_some_and(|covered| {

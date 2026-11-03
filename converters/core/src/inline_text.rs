@@ -438,7 +438,7 @@ mod tests {
     }
 
     #[test]
-    fn index_dash_context_preserves_source_and_neighboring_words()
+    fn index_dash_context_preserves_resolved_text_and_neighboring_words()
     -> Result<(), Box<dyn std::error::Error>> {
         for prefix in ["word", "é", "字", "word_"] {
             for suffix in ["word", "é", "字", "_tail"] {
@@ -457,8 +457,9 @@ mod tests {
                         };
                         let transform = super::InlineTextTransform::default();
                         let source = transform.to_string(&paragraph.content);
-                        assert_eq!(source, format!("{prefix}{label}{suffix}"), "{input}");
-                        let expected = source.replace("--", "—\u{200b}");
+                        let expected =
+                            format!("{prefix}{label}{suffix}").replace("--", "—\u{200b}");
+                        assert_eq!(source, expected, "{input}");
                         assert_eq!(
                             transform
                                 .rendered_replacements(true)
@@ -635,12 +636,12 @@ mod tests {
     }
 
     #[test]
-    fn index_replacement_context_respects_disabled_ordinary_text()
+    fn index_replacement_context_cannot_disable_resolved_symbols()
     -> Result<(), Box<dyn std::error::Error>> {
         for (input, expected) in [
             ("prefix indexterm2:[--] tail", "prefix -- tail"),
             ("prefix-indexterm2:[-]tail", "prefix--tail"),
-            ("Saindexterm2:[m]'s", "Sam's"),
+            ("Saindexterm2:[m]'s", "Sam’s"),
             (
                 "prefixindexterm2:[pass:r[--]]tail",
                 "prefix\u{2009}—\u{2009}tail",

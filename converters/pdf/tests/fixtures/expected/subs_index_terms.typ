@@ -104,7 +104,7 @@
 
 #text("Direct link: ")#metadata(none)<__indexterm-18>#text("direct ")#link("https://example.com")[#text("Ada")]#text(".")
 
-#text("Replacements: ")#metadata(none)<__indexterm-19>#text("copyright © — arrow →")#text(".")
+#text("Replacements: ")#metadata(none)<__indexterm-19>#text("copyright ")#text("©")#text(" — ")#text("arrow ")#text("→")#text(".")
 
 #text("Formatted hierarchy: ")#metadata(none)<__indexterm-20>#text(".")
 

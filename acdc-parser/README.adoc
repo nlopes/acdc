@@ -798,6 +798,13 @@ retain the existing compatibility delimiter rules. Unlike Asciidoctor's legacy
 macro stage, acdc also keeps complete labels when replacements are disabled
 or run after macros. This source-based delimiter policy keeps parsing separate
 from conversion under SDR-5; SDR-5 does not specify these exact index rules.
+The parser resolves word-internal apostrophes and complete word-bounded dash
+pairs using neighboring text around ordinary anchors and index labels. Formatting
+remains a boundary. Later attribute values cannot supply earlier word context,
+and catalog labels retain their registration-time content. Enabled signs and
+ellipses in visible index labels are also resolved before conversion. Split dash
+pairs and shared whitespace across owners still use converter context.
+
 Converters retain neighboring text across visible index labels,
 hidden index terms, and ordinary anchors. With replacements enabled,
 `prefixindexterm2:[--]tail` displays `prefix—tail` in HTML, PDF, manpages, and

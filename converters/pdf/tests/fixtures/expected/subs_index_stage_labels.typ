@@ -78,9 +78,9 @@
 ]
 #v(1em)
 
-#text(size: 1.25em)[#text("Late ")#metadata(none)<__indexterm-1>#text("Copyright © A — B …")#text(".")]
+#text(size: 1.25em)[#text("Late ")#metadata(none)<__indexterm-1>#text("Copyright ")#text("©")#text(" A")#text(" — ")#text("B ")#text("…")#text(".")]
 
-#text("Early ")#metadata(none)<__indexterm-2>#text("Copyright © A — B …")#text(".")
+#text("Early ")#metadata(none)<__indexterm-2>#text("Copyright ")#text("©")#text(" A")#text(" — ")#text("B ")#text("…")#text(".")
 
 #{
   let index-anchors = (

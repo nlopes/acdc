@@ -112,11 +112,26 @@
                 {
                   "name": "text",
                   "type": "string",
-                  "value": "Term (R)",
+                  "value": "Term ",
                   "location": [
                     {
                       "line": 3,
                       "col": 44
+                    },
+                    {
+                      "line": 3,
+                      "col": 48
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "®",
+                  "location": [
+                    {
+                      "line": 3,
+                      "col": 49
                     },
                     {
                       "line": 3,
@@ -125,6 +140,37 @@
                   ]
                 }
               ],
+              "catalog": {
+                "kind": {
+                  "Flow": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Term (R)",
+                      "location": [
+                        {
+                          "line": 3,
+                          "col": 44
+                        },
+                        {
+                          "line": 3,
+                          "col": 51
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "location": [
+                  {
+                    "line": 3,
+                    "col": 42
+                  },
+                  {
+                    "line": 3,
+                    "col": 53
+                  }
+                ]
+              },
               "visible": true,
               "location": [
                 {
@@ -566,11 +612,32 @@
             {
               "name": "text",
               "type": "string",
-              "value": "Term (R)",
+              "value": "Term ",
               "location": [
                 {
                   "line": 3,
                   "col": 42,
+                  "file": [
+                    "includes/compatibility_inline_boundary_selected.adoc"
+                  ]
+                },
+                {
+                  "line": 3,
+                  "col": 46,
+                  "file": [
+                    "includes/compatibility_inline_boundary_selected.adoc"
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "®",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 47,
                   "file": [
                     "includes/compatibility_inline_boundary_selected.adoc"
                   ]
@@ -585,6 +652,49 @@
               ]
             }
           ],
+          "catalog": {
+            "kind": {
+              "Flow": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Term (R)",
+                  "location": [
+                    {
+                      "line": 3,
+                      "col": 42,
+                      "file": [
+                        "includes/compatibility_inline_boundary_selected.adoc"
+                      ]
+                    },
+                    {
+                      "line": 3,
+                      "col": 49,
+                      "file": [
+                        "includes/compatibility_inline_boundary_selected.adoc"
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "location": [
+              {
+                "line": 3,
+                "col": 40,
+                "file": [
+                  "includes/compatibility_inline_boundary_selected.adoc"
+                ]
+              },
+              {
+                "line": 3,
+                "col": 51,
+                "file": [
+                  "includes/compatibility_inline_boundary_selected.adoc"
+                ]
+              }
+            ]
+          },
           "visible": true,
           "location": [
             {

@@ -1476,11 +1476,26 @@
                 {
                   "name": "text",
                   "type": "string",
-                  "value": "Term (R)",
+                  "value": "Term ",
                   "location": [
                     {
                       "line": 34,
                       "col": 11
+                    },
+                    {
+                      "line": 34,
+                      "col": 15
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "®",
+                  "location": [
+                    {
+                      "line": 34,
+                      "col": 16
                     },
                     {
                       "line": 34,
@@ -1489,6 +1504,37 @@
                   ]
                 }
               ],
+              "catalog": {
+                "kind": {
+                  "Flow": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Term (R)",
+                      "location": [
+                        {
+                          "line": 34,
+                          "col": 11
+                        },
+                        {
+                          "line": 34,
+                          "col": 18
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "location": [
+                  {
+                    "line": 34,
+                    "col": 9
+                  },
+                  {
+                    "line": 34,
+                    "col": 20
+                  }
+                ]
+              },
               "visible": true,
               "location": [
                 {

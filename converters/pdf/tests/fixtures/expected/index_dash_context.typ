@@ -90,9 +90,9 @@
 
 #text("P01 prefix")#metadata(none)<__indexterm-1>#text("—​")#text("tail")
 
-#text("P02 prefix")#metadata(none)<__indexterm-2>#text("—​tail")
+#text("P02 prefix")#metadata(none)<__indexterm-2>#text("—​")#text("tail")
 
-#text("P03 ")#metadata(none)<__indexterm-3>#text("prefix—​")#text("tail")
+#text("P03 ")#metadata(none)<__indexterm-3>#text("prefix")#text("—​")#text("tail")
 
 #text("P04 prefix")#metadata(none)<__indexterm-4>#text("—​")#text("tail")
 
@@ -102,9 +102,9 @@
 
 #text("P07 prefix")#metadata(none)<id-6265666f7265>#metadata(none)<__indexterm-9>#text("—​")#metadata(none)<id-6166746572>#text("tail")
 
-#text("P08 prefix")#metadata(none)<__indexterm-10>#text("begin—​")#metadata(none)<__indexterm-11>#text("end")#text("tail")
+#text("P08 prefix")#metadata(none)<__indexterm-10>#text("begin")#text("—​")#metadata(none)<__indexterm-11>#text("end")#text("tail")
 
-#text("P09 prefix")#metadata(none)<__indexterm-12>#text("begin")#metadata(none)<__indexterm-13>#text("—​end")#text("tail")
+#text("P09 prefix")#metadata(none)<__indexterm-12>#text("begin")#metadata(none)<__indexterm-13>#text("—​")#text("end")#text("tail")
 
 #text("P10 pré")#metadata(none)<__indexterm-14>#text("—​")#text("été")
 
@@ -156,9 +156,9 @@
 
 #text("P31 prefix ")#metadata(none)<__indexterm-40>#text(" — ")#text(" tail")
 
-#text("P32 Sa")#metadata(none)<__indexterm-41>#text("m")#text("’s")
+#text("P32 Sa")#metadata(none)<__indexterm-41>#text("m")#text("’")#text("s")
 
-#text("P33 ")#metadata(none)<__indexterm-42>#text("Sam’")#text("s")
+#text("P33 ")#metadata(none)<__indexterm-42>#text("Sam")#text("’")#text("s")
 
 #text("P34 Sam")#metadata(none)<__indexterm-43>#text("’")#text("s")
 
@@ -170,9 +170,9 @@
 
 #text("P38 Sam")#metadata(none)<__indexterm-47>#text("'")#text("s")
 
-#text("P39 Sa")#metadata(none)<__indexterm-48>#metadata(none)<__indexterm-49>#text("m")#text("’s")
+#text("P39 Sa")#metadata(none)<__indexterm-48>#metadata(none)<__indexterm-49>#text("m")#text("’")#text("s")
 
-#text("P40 Sa")#metadata(none)<id-61706f7374726f706865>#metadata(none)<__indexterm-50>#text("m")#text("’s")
+#text("P40 Sa")#metadata(none)<id-61706f7374726f706865>#metadata(none)<__indexterm-50>#text("m")#text("’")#text("s")
 
 #text("P41 prefix")#text("-")#metadata(none)<__indexterm-51>#text("-")#text("tail")
 
@@ -192,7 +192,7 @@
 
 #text("P49 prefix")#metadata(none)<__indexterm-60>#text(" — ")#text("")#link("https://next.example/spaced")[#text("Spaced")]
 
-#text("P50 ")#metadata(none)<__indexterm-61>#text("Sam’")#text("s ")#link("https://next.example/apostrophe")[#text("Apostrophe")]
+#text("P50 ")#metadata(none)<__indexterm-61>#text("Sam")#text("’")#text("s ")#link("https://next.example/apostrophe")[#text("Apostrophe")]
 
 #heading(level: 1)[#text("Index")] <id-5f696e646578>
 

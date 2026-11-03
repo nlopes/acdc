@@ -90,9 +90,9 @@
 
 #text("S01 ")#metadata(none)<__indexterm-1>#text("Term (R)")#text(" after.")
 
-#text("S02 ")#metadata(none)<__indexterm-2>#text("Term ®")#text(" after.")
+#text("S02 ")#metadata(none)<__indexterm-2>#text("Term ")#text("®")#text(" after.")
 
-#text("S03 ")#metadata(none)<__indexterm-3>#text("Term ®")#text(" after.")
+#text("S03 ")#metadata(none)<__indexterm-3>#text("Term ")#text("®")#text(" after.")
 
 #{
   let index-anchors = (
@@ -313,7 +313,7 @@
 }
 #raw(block: true, "S15 ((Disabled macro ®)) after.")
 
-#text("S16 ")#counter(footnote).update(0)#footnote[#text("A ")#metadata(none)<__indexterm-15>#text("Footnote ®")#text(" term.")]#text(" after.")
+#text("S16 ")#counter(footnote).update(0)#footnote[#text("A ")#metadata(none)<__indexterm-15>#text("Footnote ")#text("®")#text(" term.")]#text(" after.")
 
 #heading(level: 1)[#text("Index")] <id-5f696e646578>
 

@@ -1,0 +1,12 @@
+= Neighbor contexts
+
+Earlier.
+
+α🚀 **Sam'anchor:unicode[]s** and link:guide.html[Saindexterm2:[m]'s].
+
+[cols="a"]
+|===
+|Cell Sam'anchor:cell[]s and leftindexterm2:[--]right.
+|===
+
+include::includes/compatibility_typography_neighbors.adoc[lines=2..3,indent=0]

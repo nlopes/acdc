@@ -23,7 +23,7 @@ fn text_policy_preserves_content_and_fragment_context() -> Result<(), Error> {
             ),
             (
                 "prefixindexterm2:[--]tail",
-                "prefix--tail",
+                "prefix—\u{200b}tail",
                 "prefix—\u{200b}tail",
             ),
             (
