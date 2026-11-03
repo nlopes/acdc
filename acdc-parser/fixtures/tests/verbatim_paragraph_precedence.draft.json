@@ -571,64 +571,109 @@
           ]
         },
         {
-          "name": "dlist",
+          "name": "paragraph",
           "type": "block",
-          "metadata": {
-            "attributes": {
-              "language": "text"
-            },
-            "style": "source"
-          },
-          "items": [
+          "inlines": [
             {
-              "term": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "P04 first line <1>\nP05 continuation",
-                  "location": [
-                    {
-                      "line": 34,
-                      "col": 1
-                    },
-                    {
-                      "line": 35,
-                      "col": 16
-                    }
-                  ]
-                }
-              ],
-              "delimiter": ";;",
-              "principal_text": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "<2>\nP06 following line <3>",
-                  "location": [
-                    {
-                      "line": 35,
-                      "col": 21
-                    },
-                    {
-                      "line": 36,
-                      "col": 22
-                    }
-                  ]
-                }
-              ],
-              "description": [],
+              "name": "text",
+              "type": "string",
+              "value": "P04 first line ",
               "location": [
                 {
                   "line": 34,
                   "col": 1
                 },
                 {
-                  "line": 36,
+                  "line": 34,
+                  "col": 15
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "explicit",
+              "number": 1,
+              "location": [
+                {
+                  "line": 34,
+                  "col": 16
+                },
+                {
+                  "line": 34,
+                  "col": 18
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "\nP05 continuation ;; ",
+              "location": [
+                {
+                  "line": 34,
+                  "col": 19
+                },
+                {
+                  "line": 35,
+                  "col": 20
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "explicit",
+              "number": 2,
+              "location": [
+                {
+                  "line": 35,
+                  "col": 21
+                },
+                {
+                  "line": 35,
                   "col": 23
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "\nP06 following line ",
+              "location": [
+                {
+                  "line": 35,
+                  "col": 24
+                },
+                {
+                  "line": 36,
+                  "col": 19
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "explicit",
+              "number": 3,
+              "location": [
+                {
+                  "line": 36,
+                  "col": 20
+                },
+                {
+                  "line": 36,
+                  "col": 22
                 }
               ]
             }
           ],
+          "metadata": {
+            "attributes": {
+              "language": "text"
+            },
+            "style": "source"
+          },
           "location": [
             {
               "line": 33,
@@ -636,7 +681,7 @@
             },
             {
               "line": 36,
-              "col": 23
+              "col": 22
             }
           ]
         },

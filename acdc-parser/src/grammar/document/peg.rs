@@ -1916,7 +1916,7 @@ peg::parser! {
         = callout_list(start, offset, block_metadata)
         / unordered_list(start, offset, block_metadata, None, allow_continuation, false)
         / ordered_list(start, offset, block_metadata, None, allow_continuation, false)
-        / description_list(start, offset, block_metadata, allow_continuation)
+        / description_list(start, offset, block_metadata)
 
         rule unordered_list_marker() -> &'input str = $("*"+ / "-")
 
@@ -2926,7 +2926,7 @@ peg::parser! {
         rule callout_child_list(start: usize, offset: usize, metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
         = unordered_list(start, offset, metadata, None, false, false)
         / ordered_list(start, offset, metadata, None, false, false)
-        / description_list(start, offset, metadata, false)
+        / description_list(start, offset, metadata)
 
         rule callout_list_item(offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<(CalloutListItem<'input>, String, usize), Error>
         = at_callout_list_item()
@@ -3001,38 +3001,17 @@ peg::parser! {
             checked
         }
 
-        rule check_start_of_description_list(offset: usize)
-        = pos:position!() {?
-            if find_dlist_marker(state.input.as_bytes(), pos + offset, true, true) {
-                Ok(())
-            } else {
-                Err("no dlist marker before next blank line")
-            }
-        }
-
-        /// Like check_start_of_description_list but restricted to the current line.
-        /// Used by setext section rules to avoid false positives when a description
-        /// list marker (::, ;;) appears later in the document but not on the current line.
         rule check_line_is_description_list(offset: usize)
         = pos:position!() {?
-            if find_dlist_marker(state.input.as_bytes(), pos + offset, false, true) {
+            if find_dlist_marker(state.input.as_bytes(), pos + offset) {
                 Ok(())
             } else {
                 Err("no dlist marker on current line")
             }
         }
 
-        rule check_start_of_description_list_in_context(offset: usize, scan_across_eol: bool)
-        = pos:position!() {?
-            if find_dlist_marker(state.input.as_bytes(), pos + offset, scan_across_eol, true) {
-                Ok(())
-            } else {
-                Err("no dlist marker in this block context")
-            }
-        }
-
-        rule description_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>, scan_across_eol: bool) -> Result<Block<'input>, Error>
-        = check_start_of_description_list_in_context(offset, scan_across_eol)
+        rule description_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
+        = check_line_is_description_list(offset)
         first_item:description_list_item(offset, block_metadata)
         additional_items:description_list_additional_items(offset, block_metadata)*
         {
@@ -3065,7 +3044,7 @@ peg::parser! {
         eol()*
         !attribute_or_anchor_line_match()
         !at_callout_list_item()
-        check_start_of_description_list(offset)
+        check_line_is_description_list(offset)
         item:description_list_item(offset, block_metadata)
         {
             tracing::debug!("Found additional description list item");
@@ -3074,7 +3053,7 @@ peg::parser! {
 
         rule description_list_item(offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<DescriptionListItem<'input>, Error>
         = term_start:position!()
-        term:$((!(description_list_marker() (eol() / " " / ![_]) / eol()*<2,2>) [_])+)
+        term:$((!(description_list_marker() (eol() / " " / ![_]) / eol()) [_])+)
         term_end:position!()
         delim_start:position!() delimiter:description_list_marker() delim_end:position!()
         whitespace()?

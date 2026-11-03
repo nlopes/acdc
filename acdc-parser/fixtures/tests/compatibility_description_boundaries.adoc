@@ -1,0 +1,28 @@
+= Description term boundaries
+
+== Wrapped text
+
+Wrapped *paragraph* with footnote:[One note].
+Term:: Still paragraph text.
+
+== After a description list
+
+First:: One.
+
+Wrapped paragraph.
+Second:: Still paragraph text.
+
+== Real terms
+
+First::
+Second:: One shared description.
+
+Parent:: Description.
+Child::: Nested description.
+
+== Attached paragraph
+
+* Parent
++
+Attached text.
+Term:: Still attached paragraph text.

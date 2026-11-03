@@ -275,6 +275,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A description-list term and its marker must be on the same line. Ordinary
+  wrapped paragraphs that contain a later `Term::` line stay paragraphs in both
+  modes, matching Asciidoctor. This also applies after a description list and
+  inside includes and table cells.
+
 - Unordered and ordered list markers no longer split ordinary paragraphs.
   Attached paragraphs follow the selected mode: Asciidoctor accepts sibling and ancestor items from the
   same list family; Draft keeps those lines as text until a paragraph boundary.

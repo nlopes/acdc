@@ -369,6 +369,8 @@ family and numbering form start the next item. Draft keeps that line as text
 until a blank line or another paragraph boundary. A standalone `+` interrupts ordinary
 paragraphs in both modes. Unordered and ordered markers alone do not.
 Metadata before a nested list keeps it attached to the current item.
+A description-list term and its marker must appear on the same line. A marker
+on a later line does not turn an ordinary paragraph into a description list.
 
 Named titles parse the expanded attribute value. For example, with
 `:word: *Bold*`, `[title='{word}']` produces bold text in both modes.

@@ -1,0 +1,11 @@
+= Description contexts
+
+include::includes/compatibility_description_selected.adoc[lines=2..3]
+
+[cols="a"]
+|===
+|Wrapped cell paragraph.
+Term:: Still cell paragraph text.
+
+Actual:: Real description.
+|===

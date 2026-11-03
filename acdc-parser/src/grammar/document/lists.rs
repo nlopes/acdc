@@ -66,21 +66,14 @@ pub(super) const fn calculate_item_end(
     }
 }
 
-/// Find a description-list marker after at least one term character.
-/// A marker must be followed by a space, a newline, or (if `allow_eoi` is set) end of input.
-///
-/// Stop at the next newline unless `scan_across_eol` is set. In that case, stop
-/// at the next blank line. This scan avoids a PEG rule call at each byte.
+/// Find a description-list marker after at least one term character on this line.
+/// A marker must be followed by a space, a newline, or end of input.
+/// This scan avoids a PEG rule call at each byte.
 #[inline]
-pub(super) fn find_dlist_marker(
-    bytes: &[u8],
-    pos: usize,
-    scan_across_eol: bool,
-    allow_eoi: bool,
-) -> bool {
+pub(super) fn find_dlist_marker(bytes: &[u8], pos: usize) -> bool {
     let mut i = pos;
     while let Some(&b) = bytes.get(i) {
-        if b == b'\n' && (!scan_across_eol || bytes.get(i + 1) == Some(&b'\n')) {
+        if b == b'\n' {
             return false;
         }
         if i > pos && (b == b':' || b == b';') {
@@ -97,7 +90,7 @@ pub(super) fn find_dlist_marker(
             };
             if marker_len > 0 {
                 let after = bytes.get(i + marker_len).copied();
-                if matches!(after, Some(b'\n' | b' ')) || (allow_eoi && after.is_none()) {
+                if matches!(after, None | Some(b'\n' | b' ')) {
                     return true;
                 }
             }
