@@ -538,10 +538,24 @@ impl<'a> ParserState<'a> {
                 Some(self.create_error_source_location(location.clone())),
             ));
         }
+        if key == "compat-mode" && set {
+            self.warn_unsupported_compat_mode(Some(location.clone()));
+        }
         if updates_hardbreaks {
             self.hardbreaks = set;
         }
         Some(DocumentAttribute::accepted(key, applied, location))
+    }
+
+    pub(crate) fn warn_unsupported_compat_mode(&self, location: Option<Location>) {
+        if self.options.compatibility_mode == crate::CompatibilityMode::Draft
+            && self.document_attributes.contains_key("compat-mode")
+        {
+            self.add_warning(Warning::new(
+                WarningKind::UnsupportedCompatMode,
+                location.map(|location| self.create_error_source_location(location)),
+            ));
+        }
     }
 
     /// Initialize hard-break state from attributes supplied by the parser API.

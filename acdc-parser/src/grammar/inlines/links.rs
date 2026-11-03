@@ -232,7 +232,10 @@ pub(super) fn process_link_content<'a>(
     let mut tooltip = None;
     // Mailto uses commas to introduce subject/body slots. Other links use '=';
     // without that trigger (or in compat mode), quotes and commas are label text.
-    if !state.document_attributes.contains_key("compat-mode")
+    if !state
+        .options
+        .compatibility_mode
+        .legacy_controls_enabled(&state.document_attributes)
         && raw.contains(if mailto { ',' } else { '=' })
     {
         text = "";

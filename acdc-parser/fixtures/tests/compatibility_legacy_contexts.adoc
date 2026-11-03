@@ -1,0 +1,21 @@
+= Legacy contexts
+
+include::includes/compatibility_legacy_selected.adoc[tag=selected]
+
+include::https://example.invalid/blocked.adoc[]
+
+[cols="a"]
+|===
+|:compat-mode: cell value
+:experimental!:
+
+Cell: kbd:[Ctrl+C], btn:[Save], menu:File[Open].
+
+link:https://example.org[Cell,title=Tip].
+|===
+
+:compat-mode!:
+
+== Installation
+
+After include: <<Installation>>.

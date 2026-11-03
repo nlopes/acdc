@@ -1,0 +1,23 @@
+{
+  "recovery": null,
+  "warnings": [
+    {
+      "location": {
+        "absolute_end": 33,
+        "absolute_start": 21,
+        "file": "mailto_query_compat.adoc",
+        "location": [
+          {
+            "col": 1,
+            "line": 2
+          },
+          {
+            "col": 13,
+            "line": 2
+          }
+        ]
+      },
+      "message": "`compat-mode` has no effect in Draft mode; the attribute is preserved"
+    }
+  ]
+}

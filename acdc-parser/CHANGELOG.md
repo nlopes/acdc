@@ -450,6 +450,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Draft mode recognizes keyboard, button, and menu macros without
+  `experimental`. This is an acdc choice inspired by the unfinished draft
+  outline. Asciidoctor mode still requires explicit activation.
+- Draft preserves `compat-mode` and warns that it has no legacy language
+  effects. Reference labels, natural targets, and URI include fallback roles
+  follow Draft rules. Asciidoctor mode keeps the supported legacy behavior.
+  Neither attribute can change the caller's selected compatibility mode.
+
 - `[pass]` paragraphs retain raw content without interpreting inline macros.
   Simple admonitions own their title and attributes once; native JSON marks
   their source form with `form: "paragraph"`. Use `Admonition::from_paragraph`

@@ -796,7 +796,7 @@ peg::parser! {
         / start:position!() "indexterm2:" index_term_macro_content() check_index_token(start, 12) {}
 
         rule inline_menu() -> InlineNode<'input>
-        = check_experimental() "menu:"
+        = check_ui_macros() "menu:"
         target:$([^'[']+)
         "["
         items:((start:position!() item:$([^(']' | '>')]+) { (start + item.len() - item.trim_start().len(), item.trim()) }) ** (">" whitespace()?))
@@ -815,10 +815,10 @@ peg::parser! {
 
         /// Match inline menu without consuming - for use in negative lookaheads.
         rule inline_menu_match()
-        = check_experimental() "menu:" [^'[']+ "[" ([^']' | '>']+ (">" whitespace()? [^']' | '>']+)*)? "]"
+        = check_ui_macros() "menu:" [^'[']+ "[" ([^']' | '>']+ (">" whitespace()? [^']' | '>']+)*)? "]"
 
         rule inline_button() -> InlineNode<'input>
-        = check_experimental() "btn:[" start:position!() label:$balanced_bracket_content() "]"
+        = check_ui_macros() "btn:[" start:position!() label:$balanced_bracket_content() "]"
         {?
             let start = start + label.len() - label.trim_start().len();
             let label = label.trim();
@@ -831,10 +831,10 @@ peg::parser! {
 
         /// Match inline button without consuming - for use in negative lookaheads.
         rule inline_button_match()
-        = check_experimental() "btn:[" balanced_bracket_content() "]"
+        = check_ui_macros() "btn:[" balanced_bracket_content() "]"
 
         rule inline_keyboard() -> InlineNode<'input>
-        = check_experimental() "kbd:["
+        = check_ui_macros() "kbd:["
         keys:((start:position!() key:$([^(']' | '+' | ',')]+) { (start + key.len() - key.trim_start().len(), key.trim()) }) ** (("," / "+") whitespace()?))
         "]"
         {?
@@ -849,7 +849,7 @@ peg::parser! {
 
         /// Match inline keyboard without consuming - for use in negative lookaheads.
         rule inline_keyboard_match()
-        = check_experimental() "kbd:[" [^']' | '+' | ',']+ (("," / "+") whitespace()? [^']' | '+' | ',']+)* "]"
+        = check_ui_macros() "kbd:[" [^']' | '+' | ',']+ (("," / "+") whitespace()? [^']' | '+' | ',']+)* "]"
 
         /// Parse URL macros with attribute handling.
         ///
@@ -968,8 +968,8 @@ peg::parser! {
             }
         }
 
-        rule check_experimental() -> ()
-        = {? if state.document_attributes.contains_key("experimental") { Ok(()) } else { Err("experimental UI macros disabled") } }
+        rule check_ui_macros() -> ()
+        = {? if state.options.compatibility_mode.ui_macros_enabled(&state.document_attributes) { Ok(()) } else { Err("UI macros require the experimental attribute in Asciidoctor mode") } }
 
         rule check_post_replacements() -> ()
         = {? if state.inline_ctx.substitutions.enabled(&Substitution::PostReplacements) { Ok(()) } else { Err("post_replacements disabled") } }
@@ -1294,7 +1294,7 @@ peg::parser! {
             tracing::debug!("Found cross-reference shorthand");
             let location = state.create_block_location(span_start, span_end, state.inline_ctx.offset);
             let mut xref = crate::CrossReference::new(target_str, location).with_text(text);
-            xref.resolve_natural_target = !state.document_attributes.contains_key("compat-mode");
+            xref.resolve_natural_target = !state.options.compatibility_mode.legacy_controls_enabled(&state.document_attributes);
             if xref.resolve_natural_target {
                 xref.source_syntax = crate::model::XrefSourceSyntax::Shorthand;
             }
@@ -1340,7 +1340,7 @@ peg::parser! {
             };
             let mut macro_text = xref_macro_text(
                 raw_text,
-                state.document_attributes.contains_key("compat-mode"),
+                state.options.compatibility_mode.legacy_controls_enabled(&state.document_attributes),
             );
             let (metadata, macro_attributes) = macro_text.take_metadata(state, content_start + state.inline_ctx.offset);
             let text = if macro_text.text.is_empty() {
@@ -1372,7 +1372,7 @@ peg::parser! {
             tracing::debug!("Found cross-reference macro");
             let location = state.create_block_location(span_start, span_end, state.inline_ctx.offset);
             let mut xref = crate::CrossReference::new(target_str, location).with_text(text);
-            if !state.document_attributes.contains_key("compat-mode") {
+            if !state.options.compatibility_mode.legacy_controls_enabled(&state.document_attributes) {
                 xref.source_syntax = crate::model::XrefSourceSyntax::Macro;
             }
             if state.options.force_local_file_xrefs() {

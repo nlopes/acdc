@@ -43,6 +43,7 @@ impl Warning {
             WarningKind::ConflictingFootnote { .. } => "conflicting-footnote",
             WarningKind::LegacyFloatDiscreteHeading => "legacy-float-discrete-heading",
             WarningKind::DeprecatedToc2Attribute => "deprecated-toc2-attribute",
+            WarningKind::UnsupportedCompatMode => "unsupported-compat-mode",
             WarningKind::InvalidDocumentAttribute { .. } => "invalid-document-attribute",
             WarningKind::ContentRecovery { .. } => "content-recovery",
             WarningKind::Other(_) => "other",
@@ -118,6 +119,9 @@ impl Warning {
             WarningKind::DeprecatedToc2Attribute => {
                 Some("Use `:toc: left` in the document or `-a toc=left` on the command line.")
             }
+            WarningKind::UnsupportedCompatMode => Some(
+                "Remove `compat-mode`, or select CompatibilityMode::Asciidoctor through the parser API for supported legacy behavior.",
+            ),
             WarningKind::InvalidDocumentAttribute { .. } => {
                 Some("Use a value in the attribute's documented domain")
             }
@@ -297,6 +301,10 @@ pub enum WarningKind {
     /// An explicit `toc2` setting uses the deprecated left-sidebar TOC alias.
     #[error("`toc2` is deprecated; use `:toc: left` instead")]
     DeprecatedToc2Attribute,
+
+    /// Draft preserves `compat-mode` without applying its legacy language effects.
+    #[error("`compat-mode` has no effect in Draft mode; the attribute is preserved")]
+    UnsupportedCompatMode,
 
     /// A document attribute value did not match its documented domain.
     /// The previous effective value remains active.

@@ -429,6 +429,9 @@ A single-quoted named title supports formatting in both modes.
 Both modes honor explicit block `subs=` settings, including in minimal builds.
 Draft supports these controls as an acdc extension.
 Asciidoctor mode recognizes legacy underlined headings; Draft uses ATX headings.
+Asciidoctor mode requires `experimental` for UI macros and honors supported
+`compat-mode` effects. Draft enables UI macros directly and warns about
+`compat-mode` without applying its legacy rules.
 The link:acdc-parser/README.adoc[parser README] describes what the mode supports today and how to select it.
 
 === One choice for the whole parse

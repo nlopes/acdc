@@ -33,6 +33,16 @@ pub enum CompatibilityMode {
     Draft,
 }
 
+impl CompatibilityMode {
+    pub(crate) fn legacy_controls_enabled(self, attributes: &DocumentAttributes<'_>) -> bool {
+        self == Self::Asciidoctor && attributes.contains_key("compat-mode")
+    }
+
+    pub(crate) fn ui_macros_enabled(self, attributes: &DocumentAttributes<'_>) -> bool {
+        self == Self::Draft || attributes.contains_key("experimental")
+    }
+}
+
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub(crate) enum FileXrefMode {
     /// Use normal reference rules, including fully included source files.

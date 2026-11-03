@@ -1,0 +1,27 @@
+= UI activation
+:key: Ctrl
+:action: *Save*
+
+Before: kbd:[{key}+C], btn:[{action}], menu:File[Open > Recent].
+
+:experimental:
+
+Enabled: kbd:[{key}+C], btn:[{action}], menu:File[Open > Recent].
+
+:experimental: false
+
+Present text value: kbd:[Alt+F], btn:[Apply], menu:File[Close].
+
+:experimental!:
+
+Unset: kbd:[Échap], btn:[Annuler], menu:Fichier[Ouvrir].
+
+[source]
+----
+kbd:[raw] btn:[raw] menu:Raw[Raw]
+----
+
+ifdef::not-defined[]
+:compat-mode:
+btn:[excluded]
+endif::[]

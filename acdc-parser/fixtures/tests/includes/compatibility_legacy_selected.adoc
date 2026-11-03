@@ -1,0 +1,8 @@
+Excluded.
+// tag::selected[]
+:compat-mode: included value
+:experimental!:
+
+Included: <<Installation>>; kbd:[Échap]; link:https://example.org[Included,title=Tip].
+// end::selected[]
+Excluded tail.

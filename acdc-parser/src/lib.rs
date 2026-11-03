@@ -582,6 +582,7 @@ fn parse_input(
         state.source_ranges = source_ranges;
         state.included_files = included_files;
         state.warnings = warnings_for_state;
+        state.warn_unsupported_compat_mode(None);
         if state.document_attributes.contains_key("toc2") {
             state.add_warning(Warning::new(WarningKind::DeprecatedToc2Attribute, None));
         }
@@ -651,6 +652,7 @@ pub fn parse_inline(input: &str, options: &Options<'_>) -> Result<ParseInlineRes
             .rules
             .set(grammar::InlineRules::HARD_BREAKS, state.hardbreaks);
         state.warnings = warnings_for_state;
+        state.warn_unsupported_compat_mode(None);
         let result = match grammar::inline_parser::inlines(&owner.source, &mut state) {
             Ok(mut inlines) => {
                 grammar::reference_text::resolve_inline_tree(&mut state, &mut inlines)?;

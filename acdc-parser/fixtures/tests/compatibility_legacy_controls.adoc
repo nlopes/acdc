@@ -1,0 +1,20 @@
+= Legacy controls
+
+Before: <<Installation>>; xref:_installation["Label",role=custom]; link:https://example.org[Label,title=Tip].
+
+:compat-mode: authored value
+
+During: <<Installation>>; xref:_installation["Label",role=custom]; link:https://example.org[Label,title=Tip].
+
+:compat-mode!:
+
+After: <<Installation>>; xref:_installation["Label",role=custom]; link:https://example.org[Label,title=Tip].
+
+:compat-mode:
+:experimental!:
+
+Still selected: btn:[Save] kbd:[Ctrl+C] menu:File[Open].
+
+== Installation
+
+Body.

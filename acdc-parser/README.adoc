@@ -343,6 +343,16 @@ have been removed. Select `CompatibilityMode::Asciidoctor` for legacy
 underlined headings, or `CompatibilityMode::Draft` for ATX-only headings.
 The `setext` Cargo feature remains as a compatibility alias with no effect.
 
+Asciidoctor mode requires `:experimental:` for `kbd:[]`, `btn:[]`, and
+`menu:` macros. Draft recognizes them without that attribute. This is an acdc
+choice inspired by the unfinished draft outline, not a settled draft rule.
+
+Asciidoctor mode honors supported `compat-mode` effects on reference labels,
+natural targets, and include fallback roles. Draft preserves the attribute and
+reports `WarningKind::UnsupportedCompatMode`, without applying those effects.
+Document attributes cannot change the selected compatibility mode. Ordinary
+settings such as doctype and hard breaks still work in both modes.
+
 Named titles parse the expanded attribute value. For example, with
 `:word: *Bold*`, `[title='{word}']` produces bold text in both modes.
 Asciidoctor mode also parses double-quoted and unquoted titles. Draft keeps
@@ -1431,8 +1441,8 @@ If a source cannot open or a read fails before selection completes, the parser i
 It keeps the unresolved directive, discards partial text, and continues parsing.
 Encoding errors in required text and provider errors marked `Fatal` stop parsing.
 
-When `compat-mode` is set, denied URI includes omit the `include` role from their
-fallback link, matching Asciidoctor.
+In Asciidoctor mode, `compat-mode` makes denied URI includes omit the
+`include` role from their fallback link. Draft keeps the role.
 
 [#include-source-size-limit]
 == Include source size limit
@@ -1594,8 +1604,8 @@ a quoted value or retain its closing quote.
 substitution. Nested callout lists keep their outer validation context.
 * *References*: Link IDs enter the reference catalog. Anchors retain labels in
 contexts where Asciidoctor can fall back to `++[++id++]++`; valid IDs can also include
-non-ASCII symbols. Title-based references in `compat-mode` remain unresolved and
-warn. Cross-references never trigger file reads.
+non-ASCII symbols. In Asciidoctor mode, title-based references with `compat-mode` remain
+unresolved and warn. Draft resolves their natural targets. Cross-references never trigger file reads.
 * *Recovery warnings*: Disabled includes and ignored `subs=` settings report
 source recovery. Conflicting named footnotes warn and keep the first body.
 Nested bibliography and index sections remain in the AST with warnings, while

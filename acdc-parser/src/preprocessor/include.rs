@@ -925,7 +925,9 @@ impl<'a> Include<'a> {
             return Ok(UrlIncludeOutcome::Fallback(Box::new(
                 IncludeResult::link_fallback(
                     self.target_as_written(),
-                    self.options.document_attributes.contains_key("compat-mode"),
+                    self.options
+                        .compatibility_mode
+                        .legacy_controls_enabled(&self.options.document_attributes),
                 ),
             )));
         }
@@ -1023,7 +1025,9 @@ impl<'a> Include<'a> {
             ));
             return Ok(IncludeResult::link_fallback(
                 self.target_as_written(),
-                self.options.document_attributes.contains_key("compat-mode"),
+                self.options
+                    .compatibility_mode
+                    .legacy_controls_enabled(&self.options.document_attributes),
             ));
         }
 
@@ -1100,7 +1104,9 @@ impl<'a> Include<'a> {
                     ));
                     return Ok(IncludeResult::link_fallback(
                         self.target_as_written(),
-                        self.options.document_attributes.contains_key("compat-mode"),
+                        self.options
+                            .compatibility_mode
+                            .legacy_controls_enabled(&self.options.document_attributes),
                     ));
                 }
                 self.warn_located(format!("include uri not readable: {uri}"));

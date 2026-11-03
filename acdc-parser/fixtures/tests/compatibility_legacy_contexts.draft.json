@@ -1,0 +1,855 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Legacy contexts",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 17
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 17
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "compat-mode",
+      "type": "attribute",
+      "value": "included value",
+      "location": [
+        {
+          "line": 3,
+          "col": 1,
+          "file": [
+            "includes/compatibility_legacy_selected.adoc"
+          ]
+        },
+        {
+          "line": 3,
+          "col": 28,
+          "file": [
+            "includes/compatibility_legacy_selected.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "experimental",
+      "type": "attribute",
+      "value": false,
+      "location": [
+        {
+          "line": 4,
+          "col": 1,
+          "file": [
+            "includes/compatibility_legacy_selected.adoc"
+          ]
+        },
+        {
+          "line": 4,
+          "col": 15,
+          "file": [
+            "includes/compatibility_legacy_selected.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Included: ",
+          "location": [
+            {
+              "line": 6,
+              "col": 1,
+              "file": [
+                "includes/compatibility_legacy_selected.adoc"
+              ]
+            },
+            {
+              "line": 6,
+              "col": 10,
+              "file": [
+                "includes/compatibility_legacy_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "xref",
+          "type": "inline",
+          "target": "_installation",
+          "target_is_local": true,
+          "location": [
+            {
+              "line": 6,
+              "col": 11,
+              "file": [
+                "includes/compatibility_legacy_selected.adoc"
+              ]
+            },
+            {
+              "line": 6,
+              "col": 26,
+              "file": [
+                "includes/compatibility_legacy_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "; ",
+          "location": [
+            {
+              "line": 6,
+              "col": 27,
+              "file": [
+                "includes/compatibility_legacy_selected.adoc"
+              ]
+            },
+            {
+              "line": 6,
+              "col": 28,
+              "file": [
+                "includes/compatibility_legacy_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "keyboard",
+          "type": "inline",
+          "keys": [
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Échap",
+                "location": [
+                  {
+                    "line": 6,
+                    "col": 34,
+                    "file": [
+                      "includes/compatibility_legacy_selected.adoc"
+                    ]
+                  },
+                  {
+                    "line": 6,
+                    "col": 38,
+                    "file": [
+                      "includes/compatibility_legacy_selected.adoc"
+                    ]
+                  }
+                ]
+              }
+            ]
+          ],
+          "location": [
+            {
+              "line": 6,
+              "col": 29,
+              "file": [
+                "includes/compatibility_legacy_selected.adoc"
+              ]
+            },
+            {
+              "line": 6,
+              "col": 39,
+              "file": [
+                "includes/compatibility_legacy_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "; ",
+          "location": [
+            {
+              "line": 6,
+              "col": 40,
+              "file": [
+                "includes/compatibility_legacy_selected.adoc"
+              ]
+            },
+            {
+              "line": 6,
+              "col": 41,
+              "file": [
+                "includes/compatibility_legacy_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "ref",
+          "type": "inline",
+          "variant": "link",
+          "tooltip": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Tip",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 82,
+                  "file": [
+                    "includes/compatibility_legacy_selected.adoc"
+                  ]
+                },
+                {
+                  "line": 6,
+                  "col": 84,
+                  "file": [
+                    "includes/compatibility_legacy_selected.adoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "target": {
+            "type": "url",
+            "value": "https://example.org"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Included",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 67,
+                  "file": [
+                    "includes/compatibility_legacy_selected.adoc"
+                  ]
+                },
+                {
+                  "line": 6,
+                  "col": 74,
+                  "file": [
+                    "includes/compatibility_legacy_selected.adoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 6,
+              "col": 42,
+              "file": [
+                "includes/compatibility_legacy_selected.adoc"
+              ]
+            },
+            {
+              "line": 6,
+              "col": 85,
+              "file": [
+                "includes/compatibility_legacy_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 6,
+              "col": 86,
+              "file": [
+                "includes/compatibility_legacy_selected.adoc"
+              ]
+            },
+            {
+              "line": 6,
+              "col": 86,
+              "file": [
+                "includes/compatibility_legacy_selected.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 6,
+          "col": 1,
+          "file": [
+            "includes/compatibility_legacy_selected.adoc"
+          ]
+        },
+        {
+          "line": 6,
+          "col": 86,
+          "file": [
+            "includes/compatibility_legacy_selected.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "ref",
+          "type": "inline",
+          "variant": "link",
+          "metadata": {
+            "roles": [
+              "include"
+            ]
+          },
+          "target": {
+            "type": "url",
+            "value": "https://example.invalid/blocked.adoc"
+          },
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 55
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 55
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "compat-mode",
+                    "type": "attribute",
+                    "value": "cell value",
+                    "location": [
+                      {
+                        "line": 9,
+                        "col": 2
+                      },
+                      {
+                        "line": 9,
+                        "col": 25
+                      }
+                    ]
+                  },
+                  {
+                    "name": "experimental",
+                    "type": "attribute",
+                    "value": false,
+                    "location": [
+                      {
+                        "line": 10,
+                        "col": 1
+                      },
+                      {
+                        "line": 10,
+                        "col": 15
+                      }
+                    ]
+                  },
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "Cell: ",
+                        "location": [
+                          {
+                            "line": 12,
+                            "col": 1
+                          },
+                          {
+                            "line": 12,
+                            "col": 6
+                          }
+                        ]
+                      },
+                      {
+                        "name": "keyboard",
+                        "type": "inline",
+                        "keys": [
+                          [
+                            {
+                              "name": "text",
+                              "type": "string",
+                              "value": "Ctrl",
+                              "location": [
+                                {
+                                  "line": 12,
+                                  "col": 12
+                                },
+                                {
+                                  "line": 12,
+                                  "col": 15
+                                }
+                              ]
+                            }
+                          ],
+                          [
+                            {
+                              "name": "text",
+                              "type": "string",
+                              "value": "C",
+                              "location": [
+                                {
+                                  "line": 12,
+                                  "col": 17
+                                },
+                                {
+                                  "line": 12,
+                                  "col": 17
+                                }
+                              ]
+                            }
+                          ]
+                        ],
+                        "location": [
+                          {
+                            "line": 12,
+                            "col": 7
+                          },
+                          {
+                            "line": 12,
+                            "col": 18
+                          }
+                        ]
+                      },
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": ", ",
+                        "location": [
+                          {
+                            "line": 12,
+                            "col": 19
+                          },
+                          {
+                            "line": 12,
+                            "col": 20
+                          }
+                        ]
+                      },
+                      {
+                        "name": "button",
+                        "type": "inline",
+                        "label": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Save",
+                            "location": [
+                              {
+                                "line": 12,
+                                "col": 26
+                              },
+                              {
+                                "line": 12,
+                                "col": 29
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 12,
+                            "col": 21
+                          },
+                          {
+                            "line": 12,
+                            "col": 30
+                          }
+                        ]
+                      },
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": ", ",
+                        "location": [
+                          {
+                            "line": 12,
+                            "col": 31
+                          },
+                          {
+                            "line": 12,
+                            "col": 32
+                          }
+                        ]
+                      },
+                      {
+                        "name": "menu",
+                        "type": "inline",
+                        "target": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "File",
+                            "location": [
+                              {
+                                "line": 12,
+                                "col": 38
+                              },
+                              {
+                                "line": 12,
+                                "col": 41
+                              }
+                            ]
+                          }
+                        ],
+                        "items": [
+                          [
+                            {
+                              "name": "text",
+                              "type": "string",
+                              "value": "Open",
+                              "location": [
+                                {
+                                  "line": 12,
+                                  "col": 43
+                                },
+                                {
+                                  "line": 12,
+                                  "col": 46
+                                }
+                              ]
+                            }
+                          ]
+                        ],
+                        "location": [
+                          {
+                            "line": 12,
+                            "col": 33
+                          },
+                          {
+                            "line": 12,
+                            "col": 47
+                          }
+                        ]
+                      },
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": ".",
+                        "location": [
+                          {
+                            "line": 12,
+                            "col": 48
+                          },
+                          {
+                            "line": 12,
+                            "col": 48
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 12,
+                        "col": 1
+                      },
+                      {
+                        "line": 12,
+                        "col": 48
+                      }
+                    ]
+                  },
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "ref",
+                        "type": "inline",
+                        "variant": "link",
+                        "tooltip": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Tip",
+                            "location": [
+                              {
+                                "line": 14,
+                                "col": 37
+                              },
+                              {
+                                "line": 14,
+                                "col": 39
+                              }
+                            ]
+                          }
+                        ],
+                        "target": {
+                          "type": "url",
+                          "value": "https://example.org"
+                        },
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell",
+                            "location": [
+                              {
+                                "line": 14,
+                                "col": 26
+                              },
+                              {
+                                "line": 14,
+                                "col": 29
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 14,
+                            "col": 1
+                          },
+                          {
+                            "line": 14,
+                            "col": 40
+                          }
+                        ]
+                      },
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": ".",
+                        "location": [
+                          {
+                            "line": 14,
+                            "col": 41
+                          },
+                          {
+                            "line": 14,
+                            "col": 41
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 14,
+                        "col": 1
+                      },
+                      {
+                        "line": 14,
+                        "col": 41
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 8,
+            "col": 1
+          },
+          {
+            "line": 15,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 15,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "compat-mode",
+      "type": "attribute",
+      "value": false,
+      "location": [
+        {
+          "line": 17,
+          "col": 1
+        },
+        {
+          "line": 17,
+          "col": 14
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Installation",
+          "location": [
+            {
+              "line": 19,
+              "col": 4
+            },
+            {
+              "line": 19,
+              "col": 15
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "After include: ",
+              "location": [
+                {
+                  "line": 21,
+                  "col": 1
+                },
+                {
+                  "line": 21,
+                  "col": 15
+                }
+              ]
+            },
+            {
+              "name": "xref",
+              "type": "inline",
+              "target": "_installation",
+              "target_is_local": true,
+              "location": [
+                {
+                  "line": 21,
+                  "col": 16
+                },
+                {
+                  "line": 21,
+                  "col": 31
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 21,
+                  "col": 32
+                },
+                {
+                  "line": 21,
+                  "col": 32
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 21,
+              "col": 1
+            },
+            {
+              "line": 21,
+              "col": 32
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 19,
+          "col": 1
+        },
+        {
+          "line": 21,
+          "col": 32
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 21,
+      "col": 32
+    }
+  ]
+}
