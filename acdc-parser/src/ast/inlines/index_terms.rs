@@ -115,7 +115,10 @@ impl<'doc> IndexTermRef<'doc> {
         self.node.relationship.as_ref().map(Into::into)
     }
 
-    /// Labels at index registration, before any later substitutions.
+    /// Resolved labels at index registration, before later substitutions.
+    /// Document parsing resolves typography at the label's own boundaries,
+    /// independently of nearby prose. Standalone inline parsing can retain
+    /// unprocessed text.
     #[must_use]
     pub fn catalog(self) -> IndexTermLabelsRef<'doc> {
         IndexTermLabelsRef {

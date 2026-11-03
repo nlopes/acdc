@@ -236,8 +236,7 @@
                   "type": "string",
                   "value": "direct https://example.com[Ada]",
                   "substitutions": [
-                    "special_chars",
-                    "replacements"
+                    "special_chars"
                   ],
                   "location": [
                     {
@@ -355,8 +354,7 @@
                   "type": "string",
                   "value": "attribute https://example.com[Ada]",
                   "substitutions": [
-                    "special_chars",
-                    "replacements"
+                    "special_chars"
                   ],
                   "location": [
                     {

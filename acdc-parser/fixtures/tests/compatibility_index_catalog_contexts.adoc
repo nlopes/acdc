@@ -1,0 +1,15 @@
+= Catalog contexts
+:term: Early (C)
+
+include::includes/index_catalog_selected.adoc[lines=2..4,indent=0]
+
+:term: Later (R)
+
+[cols="a"]
+|===
+|
+indexterm2:[Cell {term}]
+
+[subs="macros,attributes,replacements"]
+indexterm2:[Frozen {term}]
+|===

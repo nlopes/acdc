@@ -216,7 +216,7 @@ pub(crate) fn pending_word_edges(text: &str) -> (usize, usize) {
     (prefix, suffix.min(text.len() - prefix))
 }
 
-fn has_candidate(text: &str) -> bool {
+pub(crate) fn has_candidate(text: &str) -> bool {
     text.contains("(C)")
         || text.contains("(R)")
         || text.contains("(TM)")

@@ -874,13 +874,31 @@
             "kind": {
               "Flow": [
                 {
-                  "name": "text",
+                  "name": "raw",
                   "type": "string",
-                  "value": "Copyright (C)",
+                  "value": "Copyright ",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 25,
                       "col": 13
+                    },
+                    {
+                      "line": 25,
+                      "col": 22
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "©",
+                  "location": [
+                    {
+                      "line": 25,
+                      "col": 23
                     },
                     {
                       "line": 25,

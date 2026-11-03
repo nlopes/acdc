@@ -1220,6 +1220,37 @@
               ]
             }
           ],
+          "catalog": {
+            "kind": {
+              "Flow": [
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": " — ",
+                  "location": [
+                    {
+                      "line": 20,
+                      "col": 20
+                    },
+                    {
+                      "line": 20,
+                      "col": 21
+                    }
+                  ]
+                }
+              ]
+            },
+            "location": [
+              {
+                "line": 20,
+                "col": 8
+              },
+              {
+                "line": 20,
+                "col": 22
+              }
+            ]
+          },
           "visible": true,
           "location": [
             {
@@ -1267,6 +1298,37 @@
               ]
             }
           ],
+          "catalog": {
+            "kind": {
+              "Flow": [
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": " — ",
+                  "location": [
+                    {
+                      "line": 20,
+                      "col": 39
+                    },
+                    {
+                      "line": 20,
+                      "col": 40
+                    }
+                  ]
+                }
+              ]
+            },
+            "location": [
+              {
+                "line": 20,
+                "col": 27
+              },
+              {
+                "line": 20,
+                "col": 41
+              }
+            ]
+          },
           "visible": true,
           "location": [
             {

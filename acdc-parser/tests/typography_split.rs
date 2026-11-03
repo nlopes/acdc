@@ -107,12 +107,23 @@ fn symbols_keep_only_their_owners_source_contribution(
             }
         })
     {
-        assert!(
-            !term
-                .catalog()
+        assert_eq!(
+            term.catalog()
                 .term()
                 .inlines()
-                .any(|node| matches!(node.kind(), InlineKind::Symbol(_)))
+                .filter_map(|node| {
+                    if let InlineKind::Symbol(symbol) = node.kind() {
+                        Some(symbol.kind())
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>(),
+            if body == "left indexterm2:[--] right" {
+                vec![SymbolKind::SpacedEmDash]
+            } else {
+                vec![]
+            }
         );
         for child in term.term().inlines() {
             assert!(term.location().absolute_start() <= child.location().absolute_start());

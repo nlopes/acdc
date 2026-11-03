@@ -952,8 +952,7 @@
                       "type": "string",
                       "value": "anchor:index-anchor[Index label]",
                       "substitutions": [
-                        "special_chars",
-                        "replacements"
+                        "special_chars"
                       ],
                       "location": [
                         {

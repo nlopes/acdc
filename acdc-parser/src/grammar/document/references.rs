@@ -15,7 +15,10 @@ use crate::{
         Caption, SectionKind, SectionLevel, Substitution, section, substitution::SubstitutionPlan,
     },
 };
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    mem::take,
+};
 
 fn displayed_reference_label<'a>(
     label: Option<&ContentAttribute<'a>>,
@@ -190,7 +193,7 @@ pub(super) fn finalize_inline_semantics<'a>(
         finalize_footnote_text(footnote);
     }
     walk_document_inline_nodes_mut(document, &mut |inline| {
-        finalize_registered_inline(inline);
+        finalize_registered_inline(state, inline);
         let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline else {
             return;
         };
@@ -863,13 +866,16 @@ pub(super) fn collect_inline_references<'a>(
     }
 }
 
-// Freeze text only after passthrough expansion and all source mapping have finished.
-fn finalize_registered_inline(node: &mut InlineNode<'_>) {
+fn finalize_registered_inline<'a>(state: &ParserState<'a>, node: &mut InlineNode<'a>) {
     if let InlineNode::Macro(InlineMacro::IndexTerm(term)) = node {
-        if let Some(plan) = term.catalog_substitutions.take()
-            && let Some(catalog) = &mut term.catalog
-        {
-            catalog.for_each_label_mut(|nodes| freeze_registered_text(nodes, plan));
+        crate::grammar::passthrough_processing::prepare_index_catalog(term, state);
+        if let Some(catalog) = &mut term.catalog {
+            catalog.for_each_label_mut(|nodes| {
+                *nodes = crate::grammar::passthrough_processing::resolve_registered_text(
+                    take(nodes),
+                    state,
+                );
+            });
         }
     } else if let InlineNode::Macro(InlineMacro::Footnote(footnote)) = node {
         finalize_footnote_text(footnote);

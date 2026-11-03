@@ -1,0 +1,5 @@
+Not selected.
+    café indexterm2:[Included (C) {term}].
+
+    indexterm2:[footnote:included[Included note.]]
+Not selected either.

@@ -183,9 +183,9 @@
             "kind": {
               "Flow": [
                 {
-                  "name": "text",
+                  "name": "symbol",
                   "type": "string",
-                  "value": "--",
+                  "value": " — ",
                   "location": [
                     {
                       "line": 9,
@@ -292,9 +292,9 @@
             "kind": {
               "Flow": [
                 {
-                  "name": "text",
+                  "name": "symbol",
                   "type": "string",
-                  "value": "--",
+                  "value": " — ",
                   "location": [
                     {
                       "line": 11,
@@ -805,6 +805,37 @@
                   ]
                 }
               ],
+              "catalog": {
+                "kind": {
+                  "Flow": [
+                    {
+                      "name": "symbol",
+                      "type": "string",
+                      "value": " — ",
+                      "location": [
+                        {
+                          "line": 25,
+                          "col": 15
+                        },
+                        {
+                          "line": 25,
+                          "col": 16
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "location": [
+                  {
+                    "line": 25,
+                    "col": 3
+                  },
+                  {
+                    "line": 25,
+                    "col": 17
+                  }
+                ]
+              },
               "visible": true,
               "location": [
                 {
@@ -901,6 +932,37 @@
                   ]
                 }
               ],
+              "catalog": {
+                "kind": {
+                  "Flow": [
+                    {
+                      "name": "symbol",
+                      "type": "string",
+                      "value": " — ",
+                      "location": [
+                        {
+                          "line": 27,
+                          "col": 22
+                        },
+                        {
+                          "line": 27,
+                          "col": 23
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "location": [
+                  {
+                    "line": 27,
+                    "col": 10
+                  },
+                  {
+                    "line": 27,
+                    "col": 24
+                  }
+                ]
+              },
               "visible": true,
               "location": [
                 {
@@ -1483,9 +1545,9 @@
             "kind": {
               "Flow": [
                 {
-                  "name": "text",
+                  "name": "symbol",
                   "type": "string",
-                  "value": "--",
+                  "value": " — ",
                   "location": [
                     {
                       "line": 42,

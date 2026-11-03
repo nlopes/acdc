@@ -177,49 +177,6 @@
               ]
             }
           ],
-          "catalog": {
-            "kind": {
-              "Flow": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "--",
-                  "location": [
-                    {
-                      "line": 2,
-                      "col": 56,
-                      "file": [
-                        "includes/subs_split_typography.adoc"
-                      ]
-                    },
-                    {
-                      "line": 2,
-                      "col": 57,
-                      "file": [
-                        "includes/subs_split_typography.adoc"
-                      ]
-                    }
-                  ]
-                }
-              ]
-            },
-            "location": [
-              {
-                "line": 2,
-                "col": 44,
-                "file": [
-                  "includes/subs_split_typography.adoc"
-                ]
-              },
-              {
-                "line": 2,
-                "col": 58,
-                "file": [
-                  "includes/subs_split_typography.adoc"
-                ]
-              }
-            ]
-          },
           "visible": true,
           "location": [
             {
@@ -337,9 +294,12 @@
                 "kind": {
                   "Flow": [
                     {
-                      "name": "text",
+                      "name": "raw",
                       "type": "string",
                       "value": "-",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 4,
@@ -506,49 +466,6 @@
                   ]
                 }
               ],
-              "catalog": {
-                "kind": {
-                  "Flow": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "--",
-                      "location": [
-                        {
-                          "line": 4,
-                          "col": 70,
-                          "file": [
-                            "includes/subs_split_typography.adoc"
-                          ]
-                        },
-                        {
-                          "line": 4,
-                          "col": 71,
-                          "file": [
-                            "includes/subs_split_typography.adoc"
-                          ]
-                        }
-                      ]
-                    }
-                  ]
-                },
-                "location": [
-                  {
-                    "line": 4,
-                    "col": 58,
-                    "file": [
-                      "includes/subs_split_typography.adoc"
-                    ]
-                  },
-                  {
-                    "line": 4,
-                    "col": 72,
-                    "file": [
-                      "includes/subs_split_typography.adoc"
-                    ]
-                  }
-                ]
-              },
               "visible": true,
               "location": [
                 {
@@ -708,9 +625,12 @@
                 "kind": {
                   "Flow": [
                     {
-                      "name": "text",
+                      "name": "raw",
                       "type": "string",
                       "value": "-",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 6,
@@ -945,37 +865,6 @@
                             ]
                           }
                         ],
-                        "catalog": {
-                          "kind": {
-                            "Flow": [
-                              {
-                                "name": "text",
-                                "type": "string",
-                                "value": "--",
-                                "location": [
-                                  {
-                                    "line": 10,
-                                    "col": 49
-                                  },
-                                  {
-                                    "line": 10,
-                                    "col": 50
-                                  }
-                                ]
-                              }
-                            ]
-                          },
-                          "location": [
-                            {
-                              "line": 10,
-                              "col": 37
-                            },
-                            {
-                              "line": 10,
-                              "col": 51
-                            }
-                          ]
-                        },
                         "visible": true,
                         "location": [
                           {
@@ -1062,9 +951,12 @@
                               "kind": {
                                 "Flow": [
                                   {
-                                    "name": "text",
+                                    "name": "raw",
                                     "type": "string",
                                     "value": "-",
+                                    "substitutions": [
+                                      "special_chars"
+                                    ],
                                     "location": [
                                       {
                                         "line": 12,

@@ -178,7 +178,7 @@
 #v(0.75em)
 #text(weight: "bold")[#text("C")]
 #v(0.25em)
-#par(hanging-indent: 1em)[#text("copyright © — arrow →")#_acdc_index_pages((<__indexterm-19>,), "term")]
+#par(hanging-indent: 1em)[#text("copyright ")#text("©")#text(" — ")#text("arrow ")#text("→")#_acdc_index_pages((<__indexterm-19>,), "term")]
 #v(0.75em)
 #text(weight: "bold")[#text("D")]
 #v(0.25em)

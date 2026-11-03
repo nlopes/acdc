@@ -3536,8 +3536,7 @@
                       "type": "string",
                       "value": "One \\\"quote\\\"",
                       "substitutions": [
-                        "special_chars",
-                        "replacements"
+                        "special_chars"
                       ],
                       "location": [
                         {

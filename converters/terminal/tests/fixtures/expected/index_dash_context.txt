@@ -79,7 +79,6 @@ P50 Sam’s [38;5;12mApostrophe[39m[2m (https://next.example/apostrophe)[0m
   --end
   --tail
   \'
-  --
    — 
 
 [38;5;14m[1mB[0m

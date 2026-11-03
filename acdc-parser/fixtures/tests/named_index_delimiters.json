@@ -275,8 +275,7 @@
                       "type": "string",
                       "value": "Before https://example.org/url[Link] after",
                       "substitutions": [
-                        "special_chars",
-                        "replacements"
+                        "special_chars"
                       ],
                       "location": [
                         {
@@ -439,8 +438,7 @@
                       "type": "string",
                       "value": "Before link:https://example.org/link[Link] after",
                       "substitutions": [
-                        "special_chars",
-                        "replacements"
+                        "special_chars"
                       ],
                       "location": [
                         {
@@ -603,8 +601,7 @@
                       "type": "string",
                       "value": "Before mailto:user@example.org[Mail] after",
                       "substitutions": [
-                        "special_chars",
-                        "replacements"
+                        "special_chars"
                       ],
                       "location": [
                         {
@@ -764,8 +761,7 @@
                       "type": "string",
                       "value": "Before xref:target[Target] after",
                       "substitutions": [
-                        "special_chars",
-                        "replacements"
+                        "special_chars"
                       ],
                       "location": [
                         {
@@ -924,8 +920,7 @@
                       "type": "string",
                       "value": "Before footnote:one[Only note.] after",
                       "substitutions": [
-                        "special_chars",
-                        "replacements"
+                        "special_chars"
                       ],
                       "location": [
                         {
@@ -1291,8 +1286,7 @@
                       "type": "string",
                       "value": "Before https://example.org/incomplete[Link",
                       "substitutions": [
-                        "special_chars",
-                        "replacements"
+                        "special_chars"
                       ],
                       "location": [
                         {
@@ -1471,8 +1465,7 @@
                       "type": "string",
                       "value": "Before https://example.org/escaped[Link",
                       "substitutions": [
-                        "special_chars",
-                        "replacements"
+                        "special_chars"
                       ],
                       "location": [
                         {
@@ -1508,8 +1501,7 @@
                       "type": "string",
                       "value": " after",
                       "substitutions": [
-                        "special_chars",
-                        "replacements"
+                        "special_chars"
                       ],
                       "location": [
                         {
@@ -1651,8 +1643,7 @@
                       "type": "string",
                       "value": "Before \\https://example.org/inactive[Link] after",
                       "substitutions": [
-                        "special_chars",
-                        "replacements"
+                        "special_chars"
                       ],
                       "location": [
                         {
@@ -1820,8 +1811,7 @@
                         "type": "string",
                         "value": "Category",
                         "substitutions": [
-                          "special_chars",
-                          "replacements"
+                          "special_chars"
                         ],
                         "location": [
                           {
@@ -1841,8 +1831,7 @@
                         "type": "string",
                         "value": "https://example.org/comma[Link, label]",
                         "substitutions": [
-                          "special_chars",
-                          "replacements"
+                          "special_chars"
                         ],
                         "location": [
                           {
@@ -1862,8 +1851,7 @@
                         "type": "string",
                         "value": "Tail",
                         "substitutions": [
-                          "special_chars",
-                          "replacements"
+                          "special_chars"
                         ],
                         "location": [
                           {
@@ -2023,8 +2011,7 @@
                       "type": "string",
                       "value": "Before anchor:inner[Ref] after",
                       "substitutions": [
-                        "special_chars",
-                        "replacements"
+                        "special_chars"
                       ],
                       "location": [
                         {
@@ -2659,8 +2646,7 @@
                       "type": "string",
                       "value": "Before <<target,Target] text>> after",
                       "substitutions": [
-                        "special_chars",
-                        "replacements"
+                        "special_chars"
                       ],
                       "location": [
                         {
@@ -2841,8 +2827,7 @@
                       "type": "string",
                       "value": "Before https://example.org/format[",
                       "substitutions": [
-                        "special_chars",
-                        "replacements"
+                        "special_chars"
                       ],
                       "location": [
                         {
@@ -2866,8 +2851,7 @@
                           "type": "string",
                           "value": "Bold",
                           "substitutions": [
-                            "special_chars",
-                            "replacements"
+                            "special_chars"
                           ],
                           "location": [
                             {
@@ -2897,8 +2881,7 @@
                       "type": "string",
                       "value": "] after",
                       "substitutions": [
-                        "special_chars",
-                        "replacements"
+                        "special_chars"
                       ],
                       "location": [
                         {
@@ -3112,8 +3095,7 @@
                       "type": "string",
                       "value": "Before https://outer.example[Outer mailto:inner@example.org[Inner] tail] after",
                       "substitutions": [
-                        "special_chars",
-                        "replacements"
+                        "special_chars"
                       ],
                       "location": [
                         {
@@ -3334,8 +3316,7 @@
                       "type": "string",
                       "value": "Before footnote:one[] after",
                       "substitutions": [
-                        "special_chars",
-                        "replacements"
+                        "special_chars"
                       ],
                       "location": [
                         {
@@ -3498,8 +3479,7 @@
                       "type": "string",
                       "value": "Before https://example.org/unicode[café] after",
                       "substitutions": [
-                        "special_chars",
-                        "replacements"
+                        "special_chars"
                       ],
                       "location": [
                         {
@@ -3695,8 +3675,7 @@
                       "type": "string",
                       "value": "Before https://example.org/bracket[Bracket",
                       "substitutions": [
-                        "special_chars",
-                        "replacements"
+                        "special_chars"
                       ],
                       "location": [
                         {
@@ -3732,8 +3711,7 @@
                       "type": "string",
                       "value": " label] after",
                       "substitutions": [
-                        "special_chars",
-                        "replacements"
+                        "special_chars"
                       ],
                       "location": [
                         {
@@ -3896,8 +3874,7 @@
                       "type": "string",
                       "value": "Before https://example.org/multiline[Multiline label] after",
                       "substitutions": [
-                        "special_chars",
-                        "replacements"
+                        "special_chars"
                       ],
                       "location": [
                         {
@@ -4111,8 +4088,7 @@
                       "type": "string",
                       "value": "Before https://one.example[One] and https://two.example[Two] after",
                       "substitutions": [
-                        "special_chars",
-                        "replacements"
+                        "special_chars"
                       ],
                       "location": [
                         {
@@ -4404,8 +4380,7 @@
                         "type": "string",
                         "value": "Category",
                         "substitutions": [
-                          "special_chars",
-                          "replacements"
+                          "special_chars"
                         ],
                         "location": [
                           {
@@ -4425,8 +4400,7 @@
                         "type": "string",
                         "value": "https://example.org/unquoted[Link",
                         "substitutions": [
-                          "special_chars",
-                          "replacements"
+                          "special_chars"
                         ],
                         "location": [
                           {
@@ -4446,8 +4420,7 @@
                         "type": "string",
                         "value": "label]",
                         "substitutions": [
-                          "special_chars",
-                          "replacements"
+                          "special_chars"
                         ],
                         "location": [
                           {
@@ -4806,8 +4779,7 @@
                       "type": "string",
                       "value": "Before https://example.org/quoted[\"Label, comma\",role=term] after",
                       "substitutions": [
-                        "special_chars",
-                        "replacements"
+                        "special_chars"
                       ],
                       "location": [
                         {
@@ -4955,8 +4927,7 @@
                       "type": "string",
                       "value": "First https://example.org/adjacent[Link]",
                       "substitutions": [
-                        "special_chars",
-                        "replacements"
+                        "special_chars"
                       ],
                       "location": [
                         {

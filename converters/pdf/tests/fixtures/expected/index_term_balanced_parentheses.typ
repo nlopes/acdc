@@ -212,7 +212,7 @@
 #v(0.75em)
 #text(weight: "bold")[#text("L")]
 #v(0.25em)
-#par(hanging-indent: 1em)[#text("Linked ®")#_acdc_index_pages((<__indexterm-26>,), "term")]
+#par(hanging-indent: 1em)[#text("Linked ")#text("®")#_acdc_index_pages((<__indexterm-26>,), "term")]
 #par(hanging-indent: 1em)[#text("Literal ) text")#_acdc_index_pages((<__indexterm-13>,), "term")]
 #v(0.75em)
 #text(weight: "bold")[#text("N")]
@@ -230,7 +230,7 @@
 #text(weight: "bold")[#text("T")]
 #v(0.25em)
 #par(hanging-indent: 1em)[#text("Term") (see #link(<__indextermdef-66756e6374696f6e28617267756d656e7429002374657874282266756e6374696f6e28617267756d656e74292229>)[#text("function(argument)")])]
-#par(hanging-indent: 1em)[#text("Term ®")#_acdc_index_pages((<__indexterm-1>,), "term")]
+#par(hanging-indent: 1em)[#text("Term ")#text("®")#_acdc_index_pages((<__indexterm-1>,), "term")]
 #v(0.75em)
 #text(weight: "bold")[#text("W")]
 #v(0.25em)

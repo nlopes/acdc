@@ -124,6 +124,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Generated indexes sort and combine entries by their resolved labels. Catalog
+  typography uses each label's own boundaries and registration-time substitutions.
+
 - Escaped inline formatting in caller-built trees retains HTML character
   escaping. The AsciiDoc escape flag no longer lets `<`, `>` or bare `&` bypass
   encoding.

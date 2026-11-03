@@ -310,13 +310,31 @@
             "kind": {
               "Flow": [
                 {
-                  "name": "text",
+                  "name": "raw",
                   "type": "string",
-                  "value": "Term (R)",
+                  "value": "Term ",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 13,
                       "col": 7
+                    },
+                    {
+                      "line": 13,
+                      "col": 11
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "®",
+                  "location": [
+                    {
+                      "line": 13,
+                      "col": 12
                     },
                     {
                       "line": 13,
@@ -569,13 +587,31 @@
             "kind": {
               "Flow": [
                 {
-                  "name": "text",
+                  "name": "raw",
                   "type": "string",
-                  "value": "Code (R)",
+                  "value": "Code ",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 22,
                       "col": 7
+                    },
+                    {
+                      "line": 22,
+                      "col": 11
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "®",
+                  "location": [
+                    {
+                      "line": 22,
+                      "col": 12
                     },
                     {
                       "line": 22,
@@ -811,13 +847,31 @@
             "kind": {
               "Flow": [
                 {
-                  "name": "text",
+                  "name": "raw",
                   "type": "string",
-                  "value": "Code (R)",
+                  "value": "Code ",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 24,
                       "col": 7
+                    },
+                    {
+                      "line": 24,
+                      "col": 11
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "®",
+                  "location": [
+                    {
+                      "line": 24,
+                      "col": 12
                     },
                     {
                       "line": 24,
@@ -2162,13 +2216,31 @@
                 "kind": {
                   "Flow": [
                     {
-                      "name": "text",
+                      "name": "raw",
                       "type": "string",
-                      "value": "Footnote (R)",
+                      "value": "Footnote ",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 51,
                           "col": 19
+                        },
+                        {
+                          "line": 51,
+                          "col": 27
+                        }
+                      ]
+                    },
+                    {
+                      "name": "symbol",
+                      "type": "string",
+                      "value": "®",
+                      "location": [
+                        {
+                          "line": 51,
+                          "col": 28
                         },
                         {
                           "line": 51,

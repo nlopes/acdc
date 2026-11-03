@@ -428,6 +428,7 @@ fn parse_processed_inlines<'a>(
         &inline_peg_state,
         state.scope == ParserScope::Document,
     );
+    super::passthrough_processing::prepare_index_catalogs(&mut inlines, &inline_peg_state);
     let labels = inlines
         .iter_mut()
         .try_for_each(|inline| -> Result<(), Error> {

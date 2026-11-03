@@ -233,42 +233,6 @@
               ]
             }
           ],
-          "catalog": {
-            "kind": {
-              "Concealed": {
-                "term": [
-                  {
-                    "name": "raw",
-                    "type": "string",
-                    "value": "First",
-                    "substitutions": [
-                      "special_chars"
-                    ],
-                    "location": [
-                      {
-                        "line": 5,
-                        "col": 63
-                      },
-                      {
-                        "line": 5,
-                        "col": 67
-                      }
-                    ]
-                  }
-                ]
-              }
-            },
-            "location": [
-              {
-                "line": 5,
-                "col": 52
-              },
-              {
-                "line": 5,
-                "col": 68
-              }
-            ]
-          },
           "visible": false,
           "location": [
             {

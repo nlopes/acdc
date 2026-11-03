@@ -335,6 +335,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Index catalog labels now expose resolved typography and passthrough policies
+  in both modes. Catalog punctuation uses the label's own boundaries and
+  registration-time substitutions, independently of the displayed prose.
+  Consumers should render these nodes without applying replacements again.
+
 - Passthrough blocks and `[pass]` paragraphs now honor explicit `subs=` settings
   in both compatibility modes and feature configurations. Inline formatting,
   replacements, and macros follow the requested order; default and `subs=none`

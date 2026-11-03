@@ -67,11 +67,12 @@ S16 [^1] after.
 
 ### C
 
-- Code (R) — [Description](#_indexterm_3), [Description (2)](#_indexterm_4), [Description (3)](#_indexterm_6)
+- Code (R) — [Description](#_indexterm_3)
+- Code ® — [Description](#_indexterm_4), [Description (2)](#_indexterm_6)
 
 ### F
 
-- Footnote (R) — [Description](#_indexterm_14)
+- Footnote ® — [Description](#_indexterm_14)
 - fn((x)) tail — [Description](#_indexterm_5)
 
 ### L
@@ -83,6 +84,7 @@ S16 [^1] after.
 
 ### T
 
-- Term (R) — [Description](#_indexterm_0), [Description (2)](#_indexterm_1), [Description (3)](#_indexterm_2)
+- Term (R) — [Description](#_indexterm_0), [Description (2)](#_indexterm_1)
+- Term ® — [Description](#_indexterm_2)
 
 [^1]: A <a id="_indexterm_14"></a>Footnote ® term.

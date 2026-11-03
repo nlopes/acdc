@@ -347,13 +347,97 @@
             "kind": {
               "Flow": [
                 {
-                  "name": "text",
+                  "name": "raw",
                   "type": "string",
-                  "value": "Copyright (C) A -- B ...",
+                  "value": "Copyright ",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 9,
                       "col": 9
+                    },
+                    {
+                      "line": 9,
+                      "col": 18
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "©",
+                  "location": [
+                    {
+                      "line": 9,
+                      "col": 19
+                    },
+                    {
+                      "line": 9,
+                      "col": 21
+                    }
+                  ]
+                },
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": " A",
+                  "substitutions": [
+                    "special_chars"
+                  ],
+                  "location": [
+                    {
+                      "line": 9,
+                      "col": 22
+                    },
+                    {
+                      "line": 9,
+                      "col": 23
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": " — ",
+                  "location": [
+                    {
+                      "line": 9,
+                      "col": 24
+                    },
+                    {
+                      "line": 9,
+                      "col": 27
+                    }
+                  ]
+                },
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "B ",
+                  "substitutions": [
+                    "special_chars"
+                  ],
+                  "location": [
+                    {
+                      "line": 9,
+                      "col": 28
+                    },
+                    {
+                      "line": 9,
+                      "col": 29
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "…",
+                  "location": [
+                    {
+                      "line": 9,
+                      "col": 30
                     },
                     {
                       "line": 9,
@@ -2412,8 +2496,7 @@
                       "type": "string",
                       "value": "Normal https://example.org[Caption]",
                       "substitutions": [
-                        "special_chars",
-                        "replacements"
+                        "special_chars"
                       ],
                       "location": [
                         {

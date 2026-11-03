@@ -242,9 +242,7 @@ fn index_term_node(mut term: IndexTerm<'_>, plan: SubstitutionPlan) -> InlineNod
     {
         term.catalog = None;
     }
-    if term.catalog.is_some() {
-        term.catalog_substitutions = Some(plan);
-    }
+    term.catalog_substitutions = Some(plan);
     InlineNode::Macro(InlineMacro::IndexTerm(Box::new(term)))
 }
 

@@ -520,8 +520,7 @@
                   "type": "string",
                   "value": "Before link:guide.adoc[Child,role=child] after",
                   "substitutions": [
-                    "special_chars",
-                    "replacements"
+                    "special_chars"
                   ],
                   "location": [
                     {
@@ -655,8 +654,7 @@
                   "type": "string",
                   "value": "Selected footnote:[Only note.]",
                   "substitutions": [
-                    "special_chars",
-                    "replacements"
+                    "special_chars"
                   ],
                   "location": [
                     {

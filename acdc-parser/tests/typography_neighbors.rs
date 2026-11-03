@@ -100,12 +100,23 @@ fn resolved_visible_labels_preserve_the_registration_snapshot(
             .inlines()
             .any(|node| matches!(node.kind(), InlineKind::Symbol(_)))
     );
-    assert!(
-        !term
-            .catalog()
+    assert_eq!(
+        term.catalog()
             .term()
             .inlines()
-            .any(|node| matches!(node.kind(), InlineKind::Symbol(_)))
+            .filter_map(|node| {
+                if let InlineKind::Symbol(symbol) = node.kind() {
+                    Some(symbol.kind())
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>(),
+        if subs == "replacements,macros" {
+            vec![SymbolKind::SpacedEmDash]
+        } else {
+            vec![]
+        }
     );
     assert_eq!(parsed.warnings(), []);
     Ok(())

@@ -454,6 +454,22 @@ fn highlighted_footnotes_in_link_labels_have_separate_unique_targets() -> Result
     check_link_label_footnote_targets("subs_footnotes_in_link_labels_highlighting")
 }
 
+#[rstest::rstest]
+#[case("subs_resolved_index_catalog")]
+#[case("index_dash_context")]
+#[case("subs_index_stage_labels")]
+#[case("subs_visible_index_typography")]
+fn resolved_index_catalogs_keep_unique_occurrences_and_valid_links(
+    #[case] stem: &str,
+) -> Result<(), Error> {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join(format!("tests/fixtures/source/html/embedded/{stem}.adoc"));
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        check_link_targets(&render_fixture(&path, variant, true)?, stem)?;
+    }
+    Ok(())
+}
+
 fn check_link_label_footnote_targets(name: &str) -> Result<(), Error> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join(format!("tests/fixtures/source/html/embedded/{name}.adoc"));
@@ -465,15 +481,21 @@ fn check_link_label_footnote_targets(name: &str) -> Result<(), Error> {
 }
 
 fn check_link_structure(output: &str, name: &str) -> Result<(), Error> {
+    assert!(
+        output.contains("href=\"#_footnote"),
+        "no footnote links in {name}"
+    );
+    check_link_targets(output, name)
+}
+
+fn check_link_targets(output: &str, name: &str) -> Result<(), Error> {
     let mut inside_anchor = false;
-    let mut footnote_links = 0;
     let mut ids = HashSet::new();
     for part in output.split('<').skip(1) {
         let tag = part.split_once('>').ok_or("unterminated HTML tag")?.0;
         if tag.starts_with("a ") {
             assert!(!inside_anchor, "nested anchor in {name}: <{tag}>");
             inside_anchor = true;
-            footnote_links += usize::from(tag.contains("href=\"#_footnote"));
         } else if tag == "/a" {
             assert!(inside_anchor, "unmatched closing anchor in {name}");
             inside_anchor = false;
@@ -484,7 +506,6 @@ fn check_link_structure(output: &str, name: &str) -> Result<(), Error> {
         }
     }
     assert!(!inside_anchor, "unclosed anchor in {name}");
-    assert!(footnote_links > 0, "no footnote links in {name}");
     for tail in output.split("href=\"#").skip(1) {
         let id = tail.split_once('"').ok_or("unterminated link")?.0;
         assert!(ids.contains(id), "missing target {id} in {name}");

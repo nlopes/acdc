@@ -154,8 +154,6 @@ P50 Sam\(cqs \c
 .br
 \-
 .br
- \(em
-.br
 \-\-
 .br
 \-\-\-
@@ -165,8 +163,6 @@ P50 Sam\(cqs \c
 \-\-tail
 .br
 \e\(aq
-.br
-\-\-
 .br
  \(em \&
 .br

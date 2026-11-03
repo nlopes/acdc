@@ -102,7 +102,7 @@ P28 <a id="_indexterm_26"></a> after.
 
 ### L
 
-- Linked (R) — [Description](#_indexterm_25)
+- Linked ® — [Description](#_indexterm_25)
 - Literal ) text — [Description](#_indexterm_12)
 
 ### N
@@ -120,7 +120,7 @@ P28 <a id="_indexterm_26"></a> after.
 ### T
 
 - Term — see [function(argument)](#_indextermdef_66756e6374696f6e28617267756d656e7429)
-- Term (R) — [Description](#_indexterm_0)
+- Term ® — [Description](#_indexterm_0)
 
 ### W
 

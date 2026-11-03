@@ -445,9 +445,9 @@ pub struct IndexTerm<'a> {
     pub kind: IndexTermKind<'a>,
     /// The relationship from this entry to other index terms.
     pub relationship: Option<IndexTermRelationship<'a>>,
-    /// Labels captured at index registration, before later substitutions.
+    /// Resolved catalog labels at registration, before later substitutions.
     pub(crate) catalog: Option<Box<IndexTerm<'a>>>,
-    /// Consumed after catalog source locations and passthroughs are resolved.
+    /// Substitutions selected when the term is registered.
     pub(crate) catalog_substitutions: Option<crate::model::substitution::SubstitutionPlan>,
     pub metadata: InlineMetadata<'a>,
     pub(crate) macro_attributes: MacroAttributes<'a>,

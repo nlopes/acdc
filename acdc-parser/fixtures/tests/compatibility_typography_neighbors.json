@@ -355,9 +355,12 @@
             "kind": {
               "Flow": [
                 {
-                  "name": "text",
+                  "name": "raw",
                   "type": "string",
                   "value": "'s",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 11,
@@ -741,9 +744,12 @@
             "kind": {
               "Flow": [
                 {
-                  "name": "text",
+                  "name": "raw",
                   "type": "string",
                   "value": "--right",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 19,
@@ -850,9 +856,12 @@
             "kind": {
               "Flow": [
                 {
-                  "name": "text",
+                  "name": "raw",
                   "type": "string",
                   "value": "left--",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 21,
@@ -959,9 +968,9 @@
             "kind": {
               "Flow": [
                 {
-                  "name": "text",
+                  "name": "symbol",
                   "type": "string",
-                  "value": "--",
+                  "value": " — ",
                   "location": [
                     {
                       "line": 23,

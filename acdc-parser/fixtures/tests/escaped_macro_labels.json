@@ -1475,8 +1475,7 @@
                           "type": "string",
                           "value": "Nested active ",
                           "substitutions": [
-                            "special_chars",
-                            "replacements"
+                            "special_chars"
                           ],
                           "location": [
                             {
@@ -1512,8 +1511,7 @@
                           "type": "string",
                           "value": " term",
                           "substitutions": [
-                            "special_chars",
-                            "replacements"
+                            "special_chars"
                           ],
                           "location": [
                             {

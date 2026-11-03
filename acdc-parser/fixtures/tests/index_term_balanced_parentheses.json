@@ -90,13 +90,31 @@
             "kind": {
               "Flow": [
                 {
-                  "name": "text",
+                  "name": "raw",
                   "type": "string",
-                  "value": "Term (R)",
+                  "value": "Term ",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 3,
                       "col": 7
+                    },
+                    {
+                      "line": 3,
+                      "col": 11
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "®",
+                  "location": [
+                    {
+                      "line": 3,
+                      "col": 12
                     },
                     {
                       "line": 3,
@@ -2198,13 +2216,31 @@
                 "kind": {
                   "Flow": [
                     {
-                      "name": "text",
+                      "name": "raw",
                       "type": "string",
-                      "value": "Linked (R)",
+                      "value": "Linked ",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 52,
                           "col": 32
+                        },
+                        {
+                          "line": 52,
+                          "col": 38
+                        }
+                      ]
+                    },
+                    {
+                      "name": "symbol",
+                      "type": "string",
+                      "value": "®",
+                      "location": [
+                        {
+                          "line": 52,
+                          "col": 39
                         },
                         {
                           "line": 52,

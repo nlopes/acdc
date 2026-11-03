@@ -798,8 +798,7 @@
                           "type": "string",
                           "value": "Linked ",
                           "substitutions": [
-                            "special_chars",
-                            "replacements"
+                            "special_chars"
                           ],
                           "location": [
                             {
@@ -835,8 +834,7 @@
                           "type": "string",
                           "value": " term",
                           "substitutions": [
-                            "special_chars",
-                            "replacements"
+                            "special_chars"
                           ],
                           "location": [
                             {
@@ -977,8 +975,7 @@
                           "type": "string",
                           "value": "Quoted ",
                           "substitutions": [
-                            "special_chars",
-                            "replacements"
+                            "special_chars"
                           ],
                           "location": [
                             {
@@ -1014,8 +1011,7 @@
                           "type": "string",
                           "value": " term",
                           "substitutions": [
-                            "special_chars",
-                            "replacements"
+                            "special_chars"
                           ],
                           "location": [
                             {
@@ -1361,8 +1357,7 @@
                           "type": "string",
                           "value": "Nested named ",
                           "substitutions": [
-                            "special_chars",
-                            "replacements"
+                            "special_chars"
                           ],
                           "location": [
                             {
@@ -1398,8 +1393,7 @@
                           "type": "string",
                           "value": " visible",
                           "substitutions": [
-                            "special_chars",
-                            "replacements"
+                            "special_chars"
                           ],
                           "location": [
                             {
@@ -2074,8 +2068,7 @@
                       "type": "string",
                       "value": "Escaped \\[[id]] anchor",
                       "substitutions": [
-                        "special_chars",
-                        "replacements"
+                        "special_chars"
                       ],
                       "location": [
                         {

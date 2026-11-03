@@ -1,0 +1,21 @@
+= Catalog typography
+:word: Expanded (C)
+
+Visible ((Copyright (C))) and indexterm2:[*Bold (R)*].
+
+indexterm:[Copyright (C),Secondary (R),Tertiary (TM),see=Other ...]
+
+leftindexterm2:[--]right
+
+[subs="macros,replacements"]
+leftindexterm2:[--]right and indexterm2:[Late (C)].
+
+[subs="quotes,macros"]
+indexterm2:[Literal (C)] and indexterm2:[pass:r[(R)]] and indexterm2:[pass:[(TM)]].
+
+Escapes indexterm2:[\(C) \=> \--] and indexterm2:[Value {word}].
+
+indexterm2:[footnote:one[One note.]]
+
+[subs="specialcharacters,macros,attributes,quotes"]
+indexterm2:[Start pass:attributes[{word}] *bold*]

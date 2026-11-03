@@ -856,13 +856,31 @@
             "kind": {
               "Flow": [
                 {
-                  "name": "text",
+                  "name": "raw",
                   "type": "string",
-                  "value": "Term (R)",
+                  "value": "Term ",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 11,
                       "col": 3
+                    },
+                    {
+                      "line": 11,
+                      "col": 7
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "®",
+                  "location": [
+                    {
+                      "line": 11,
+                      "col": 8
                     },
                     {
                       "line": 11,

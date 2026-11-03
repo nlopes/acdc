@@ -109,9 +109,12 @@
             "kind": {
               "Flow": [
                 {
-                  "name": "text",
+                  "name": "raw",
                   "type": "string",
                   "value": "-",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 8,
@@ -321,37 +324,6 @@
               ]
             }
           ],
-          "catalog": {
-            "kind": {
-              "Flow": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "--",
-                  "location": [
-                    {
-                      "line": 10,
-                      "col": 21
-                    },
-                    {
-                      "line": 10,
-                      "col": 22
-                    }
-                  ]
-                }
-              ]
-            },
-            "location": [
-              {
-                "line": 10,
-                "col": 9
-              },
-              {
-                "line": 10,
-                "col": 23
-              }
-            ]
-          },
           "visible": true,
           "location": [
             {
@@ -403,9 +375,12 @@
             "kind": {
               "Flow": [
                 {
-                  "name": "text",
+                  "name": "raw",
                   "type": "string",
                   "value": "-",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 10,
@@ -450,9 +425,12 @@
             "kind": {
               "Flow": [
                 {
-                  "name": "text",
+                  "name": "raw",
                   "type": "string",
                   "value": "-",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 10,
@@ -540,37 +518,6 @@
               ]
             }
           ],
-          "catalog": {
-            "kind": {
-              "Flow": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "--",
-                  "location": [
-                    {
-                      "line": 12,
-                      "col": 13
-                    },
-                    {
-                      "line": 12,
-                      "col": 14
-                    }
-                  ]
-                }
-              ]
-            },
-            "location": [
-              {
-                "line": 12,
-                "col": 1
-              },
-              {
-                "line": 12,
-                "col": 15
-              }
-            ]
-          },
           "visible": true,
           "location": [
             {
@@ -649,37 +596,6 @@
               ]
             }
           ],
-          "catalog": {
-            "kind": {
-              "Flow": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "--",
-                  "location": [
-                    {
-                      "line": 14,
-                      "col": 18
-                    },
-                    {
-                      "line": 14,
-                      "col": 19
-                    }
-                  ]
-                }
-              ]
-            },
-            "location": [
-              {
-                "line": 14,
-                "col": 6
-              },
-              {
-                "line": 14,
-                "col": 20
-              }
-            ]
-          },
           "visible": true,
           "location": [
             {
@@ -743,6 +659,37 @@
               ]
             }
           ],
+          "catalog": {
+            "kind": {
+              "Flow": [
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": " — ",
+                  "location": [
+                    {
+                      "line": 16,
+                      "col": 16
+                    },
+                    {
+                      "line": 16,
+                      "col": 17
+                    }
+                  ]
+                }
+              ]
+            },
+            "location": [
+              {
+                "line": 16,
+                "col": 4
+              },
+              {
+                "line": 16,
+                "col": 18
+              }
+            ]
+          },
           "visible": true,
           "location": [
             {
@@ -821,6 +768,37 @@
               ]
             }
           ],
+          "catalog": {
+            "kind": {
+              "Flow": [
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": " — ",
+                  "location": [
+                    {
+                      "line": 18,
+                      "col": 18
+                    },
+                    {
+                      "line": 18,
+                      "col": 19
+                    }
+                  ]
+                }
+              ]
+            },
+            "location": [
+              {
+                "line": 18,
+                "col": 6
+              },
+              {
+                "line": 18,
+                "col": 20
+              }
+            ]
+          },
           "visible": true,
           "location": [
             {
@@ -868,6 +846,37 @@
               ]
             }
           ],
+          "catalog": {
+            "kind": {
+              "Flow": [
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": " — ",
+                  "location": [
+                    {
+                      "line": 18,
+                      "col": 37
+                    },
+                    {
+                      "line": 18,
+                      "col": 38
+                    }
+                  ]
+                }
+              ]
+            },
+            "location": [
+              {
+                "line": 18,
+                "col": 25
+              },
+              {
+                "line": 18,
+                "col": 39
+              }
+            ]
+          },
           "visible": true,
           "location": [
             {
@@ -955,9 +964,12 @@
                 "kind": {
                   "Flow": [
                     {
-                      "name": "text",
+                      "name": "raw",
                       "type": "string",
                       "value": "-",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 20,
@@ -1076,37 +1088,6 @@
                   ]
                 }
               ],
-              "catalog": {
-                "kind": {
-                  "Flow": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "--",
-                      "location": [
-                        {
-                          "line": 20,
-                          "col": 64
-                        },
-                        {
-                          "line": 20,
-                          "col": 65
-                        }
-                      ]
-                    }
-                  ]
-                },
-                "location": [
-                  {
-                    "line": 20,
-                    "col": 52
-                  },
-                  {
-                    "line": 20,
-                    "col": 66
-                  }
-                ]
-              },
               "visible": true,
               "location": [
                 {
@@ -1208,9 +1189,12 @@
                 "kind": {
                   "Flow": [
                     {
-                      "name": "text",
+                      "name": "raw",
                       "type": "string",
                       "value": "-",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 20,
@@ -1576,9 +1560,12 @@
             "kind": {
               "Flow": [
                 {
-                  "name": "text",
+                  "name": "raw",
                   "type": "string",
                   "value": "-",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 25,
@@ -1653,9 +1640,12 @@
             "kind": {
               "Flow": [
                 {
-                  "name": "text",
+                  "name": "raw",
                   "type": "string",
                   "value": "-",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 25,
@@ -1730,9 +1720,12 @@
             "kind": {
               "Flow": [
                 {
-                  "name": "text",
+                  "name": "raw",
                   "type": "string",
                   "value": "-",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 25,
@@ -1861,9 +1854,12 @@
             "kind": {
               "Flow": [
                 {
-                  "name": "text",
+                  "name": "raw",
                   "type": "string",
                   "value": "-",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 28,
@@ -1954,9 +1950,12 @@
             "kind": {
               "Flow": [
                 {
-                  "name": "text",
+                  "name": "raw",
                   "type": "string",
                   "value": "-",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 28,
@@ -2047,9 +2046,12 @@
             "kind": {
               "Flow": [
                 {
-                  "name": "text",
+                  "name": "raw",
                   "type": "string",
                   "value": "-",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 28,

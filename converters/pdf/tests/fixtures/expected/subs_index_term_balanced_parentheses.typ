@@ -366,12 +366,12 @@
 #text(weight: "bold")[#text("C")]
 #v(0.25em)
 #par(hanging-indent: 1em)[#text("Code (R)")#_acdc_index_pages((<__indexterm-4>,), "term")]
-#par(hanging-indent: 1em)[#text("Code ®")#_acdc_index_pages((<__indexterm-5>,<__indexterm-7>,), "term")]
+#par(hanging-indent: 1em)[#text("Code ")#text("®")#_acdc_index_pages((<__indexterm-5>,<__indexterm-7>,), "term")]
 #v(0.75em)
 #text(weight: "bold")[#text("F")]
 #v(0.25em)
 #par(hanging-indent: 1em)[#text("fn((x)) tail")#_acdc_index_pages((<__indexterm-6>,), "term")]
-#par(hanging-indent: 1em)[#text("Footnote ®")#_acdc_index_pages((<__indexterm-15>,), "term")]
+#par(hanging-indent: 1em)[#text("Footnote ")#text("®")#_acdc_index_pages((<__indexterm-15>,), "term")]
 #v(0.75em)
 #text(weight: "bold")[#text("L")]
 #v(0.25em)
@@ -383,5 +383,5 @@
 #text(weight: "bold")[#text("T")]
 #v(0.25em)
 #par(hanging-indent: 1em)[#text("Term (R)")#_acdc_index_pages((<__indexterm-1>,<__indexterm-2>,), "term")]
-#par(hanging-indent: 1em)[#text("Term ®")#_acdc_index_pages((<__indexterm-3>,), "term")]
+#par(hanging-indent: 1em)[#text("Term ")#text("®")#_acdc_index_pages((<__indexterm-3>,), "term")]
 ]

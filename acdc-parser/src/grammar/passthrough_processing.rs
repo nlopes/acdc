@@ -4,8 +4,9 @@ use bumpalo::Bump;
 use std::{mem::take, rc::Rc};
 
 use crate::{
-    InlineMacro, InlineNode, LineBreak, Location, ParseInlineResult, Pass, PassthroughKind, Plain,
-    ProcessedContent, Raw, Substitution, SubstitutionSpec, Symbol, SymbolKind, Warning,
+    IndexTerm, InlineMacro, InlineNode, LineBreak, Location, ParseInlineResult, Pass,
+    PassthroughKind, Plain, ProcessedContent, Raw, Substitution, SubstitutionSpec, Symbol,
+    SymbolKind, Warning,
     document_attribute::AssignmentState,
     model::substitution::{
         SubstitutionPlan, character_reference_end, escape_attribute_characters,
@@ -122,6 +123,117 @@ fn finish_passthrough<'a>(
                 .is_some_and(|node| node.location().absolute_end == location.absolute_end),
     };
     finish_raw_nodes(nodes, state, edges, late_attributes)
+}
+
+pub(super) fn prepare_index_catalogs<'a>(nodes: &mut [InlineNode<'a>], state: &ParserState<'a>) {
+    for node in nodes {
+        super::location_walk::walk_inline_nodes_mut(node, &mut |node| {
+            if let InlineNode::Macro(InlineMacro::IndexTerm(term)) = node {
+                prepare_index_catalog(term, state);
+            }
+        });
+    }
+}
+
+pub(super) fn prepare_index_catalog<'a>(term: &mut IndexTerm<'a>, state: &ParserState<'a>) {
+    let Some(plan) = term.catalog_substitutions.take() else {
+        return;
+    };
+    if term.catalog.is_none() && !index_catalog_needs_resolution(term, plan) {
+        return;
+    }
+    let mut catalog = term
+        .catalog
+        .take()
+        .unwrap_or_else(|| Box::new(term.clone()));
+    catalog.catalog_substitutions = None;
+    let mut substitutions = vec![Substitution::SpecialChars];
+    if plan.precedes(&Substitution::Replacements, &Substitution::Macros) {
+        substitutions.push(Substitution::Replacements);
+    }
+    catalog.for_each_label_mut(|nodes| {
+        for node in &mut *nodes {
+            crate::grammar::location_walk::walk_inline_nodes_mut(node, &mut |node| {
+                if let InlineNode::PlainText(plain) = node {
+                    *node = InlineNode::RawText(Raw {
+                        content: plain.content,
+                        location: plain.location.clone(),
+                        subs: if plain.escaped {
+                            vec![Substitution::SpecialChars]
+                        } else {
+                            substitutions.clone()
+                        },
+                    });
+                }
+            });
+        }
+        *nodes = resolve_registered_text(take(nodes), state);
+    });
+    if catalog.kind != term.kind || catalog.relationship != term.relationship {
+        term.catalog = Some(catalog);
+    }
+}
+
+fn index_catalog_needs_resolution(term: &IndexTerm<'_>, plan: SubstitutionPlan) -> bool {
+    let ordinary = plan.precedes(&Substitution::Replacements, &Substitution::Macros);
+    let needs = |nodes: &[InlineNode<'_>]| {
+        nodes
+            .iter()
+            .any(|node| index_label_needs_resolution(node.into(), ordinary))
+    };
+    std::iter::once(term.term())
+        .chain(term.secondary())
+        .chain(term.tertiary())
+        .any(needs)
+        || match &term.relationship {
+            Some(crate::IndexTermRelationship::See { target }) => needs(target),
+            Some(crate::IndexTermRelationship::SeeAlso { targets }) => {
+                targets.iter().any(|target| needs(target))
+            }
+            None => false,
+        }
+}
+
+fn index_label_needs_resolution(node: crate::ast::InlineRef<'_>, ordinary: bool) -> bool {
+    if let crate::ast::InlineKind::Plain(text) = node.kind() {
+        ordinary
+            && !text.is_escaped()
+            && crate::grammar::inlines::typography::has_candidate(text.text())
+    } else if let crate::ast::InlineKind::Raw(raw) = node.kind() {
+        raw.substitutions()
+            .any(|substitution| substitution == Substitution::Replacements)
+    } else {
+        node.content_fields().any(|field| {
+            field
+                .content()
+                .inlines()
+                .any(|child| index_label_needs_resolution(child, ordinary))
+        })
+    }
+}
+
+pub(super) fn resolve_registered_text<'a>(
+    nodes: Vec<InlineNode<'a>>,
+    state: &ParserState<'a>,
+) -> Vec<InlineNode<'a>> {
+    let mut nodes = finish_raw_nodes(
+        nodes,
+        state,
+        Edges {
+            start: true,
+            end: true,
+        },
+        false,
+    );
+    for node in &mut nodes {
+        super::location_walk::walk_inline_nodes_mut(node, &mut |node| {
+            if let InlineNode::RawText(raw) = node {
+                raw.subs
+                    .retain(|substitution| *substitution != Substitution::Replacements);
+            }
+        });
+    }
+    nodes
 }
 
 fn finish_raw_nodes<'a>(

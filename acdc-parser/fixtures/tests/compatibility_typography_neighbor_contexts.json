@@ -406,9 +406,9 @@
                           "kind": {
                             "Flow": [
                               {
-                                "name": "text",
+                                "name": "symbol",
                                 "type": "string",
-                                "value": "--",
+                                "value": " — ",
                                 "location": [
                                   {
                                     "line": 9,
@@ -623,9 +623,9 @@
             "kind": {
               "Flow": [
                 {
-                  "name": "text",
+                  "name": "symbol",
                   "type": "string",
-                  "value": "--",
+                  "value": " — ",
                   "location": [
                     {
                       "line": 3,

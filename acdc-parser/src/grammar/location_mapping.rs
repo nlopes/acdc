@@ -312,7 +312,29 @@ fn map_locations<'a>(
             }
             InlineNode::Macro(inline_macro) => map_inline_macro(inline_macro, &ctx)?,
             InlineNode::LineBreak(lb) => lb.location = ctx.map_location(&lb.location)?,
-            InlineNode::RawText(raw) => raw.location = ctx.map_location(&raw.location)?,
+            InlineNode::RawText(raw) => {
+                if contains_passthrough_placeholders(raw.content, processed) {
+                    let mut plain = Plain {
+                        content: raw.content,
+                        location: raw.location.clone(),
+                        escaped: false,
+                    };
+                    let expanded = map_plain_text_inline_locations(&mut plain, &ctx)?;
+                    return Ok(expanded.map(|mut nodes| {
+                        for node in &mut nodes {
+                            if let InlineNode::PlainText(plain) = node {
+                                *node = InlineNode::RawText(crate::Raw {
+                                    content: plain.content,
+                                    location: plain.location.clone(),
+                                    subs: raw.subs.clone(),
+                                });
+                            }
+                        }
+                        nodes
+                    }));
+                }
+                raw.location = ctx.map_location(&raw.location)?;
+            }
             InlineNode::VerbatimText(verbatim) => {
                 verbatim.location = ctx.map_location(&verbatim.location)?;
             }
