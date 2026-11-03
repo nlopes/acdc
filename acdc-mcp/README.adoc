@@ -37,6 +37,13 @@ Repeat `--attribute` (or `-a`) for startup document attributes:
 * `-a community` sets a presence attribute.
 * `-a community!` unsets an attribute.
 
+The server uses Asciidoctor compatibility by default.
+Pass `--compatibility-mode draft` to select the supported draft rules for all tool calls,
+including included documents and table cells.
+Document and request attributes cannot change this setting.
+Allowed roots, include limits, and URI access rules stay the same.
+Continuation cursors belong to the selected mode; restart without a cursor after changing it.
+
 == Connect a client
 
 === Codex

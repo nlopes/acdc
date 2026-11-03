@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Select Asciidoctor compatibility (the default) or Draft with
+  `--compatibility-mode asciidoctor|draft`. All document tools use that mode,
+  including includes and table cells. Root and include access rules stay the
+  same. Continuation cursors cannot be reused after changing the mode.
+
 ### Fixed
 
 - Preserve resolved typography in extracted document text.

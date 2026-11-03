@@ -253,3 +253,47 @@ async fn stdio_negotiates_older_client_protocol_versions() {
     .await
     .expect("legacy protocol test timed out");
 }
+
+#[tokio::test]
+async fn stdio_compatibility_mode_uses_the_same_startup_choice_for_tool_calls() {
+    let root = TempDir::new().unwrap();
+    fs::write(
+        root.path().join("mode.adoc"),
+        ":word: *Selected*\n\n== {word}\n",
+    )
+    .unwrap();
+    for (mode, expected) in [
+        (None, "*Selected*"),
+        (Some("asciidoctor"), "*Selected*"),
+        (Some("draft"), "Selected"),
+    ] {
+        let mut command = server_command(root.path());
+        if let Some(mode) = mode {
+            command.args(["--compatibility-mode", mode]);
+        }
+        timeout(Duration::from_secs(20), async {
+            let client = ().serve(TokioChildProcess::new(command).unwrap()).await.unwrap();
+            let result = client
+                .call_tool(
+                    CallToolRequestParams::new("adoc_tree")
+                        .with_arguments(json!({"path":"mode.adoc"}).as_object().unwrap().clone()),
+                )
+                .await
+                .unwrap();
+            let result = serde_json::to_value(result).unwrap();
+            let page: Value =
+                serde_json::from_str(result["content"][0]["text"].as_str().unwrap()).unwrap();
+            assert!(
+                page["items"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|item| item["title"] == expected),
+                "{page}"
+            );
+            client.cancel().await.unwrap();
+        })
+        .await
+        .unwrap();
+    }
+}

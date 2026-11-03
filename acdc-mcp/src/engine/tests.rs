@@ -758,3 +758,72 @@ fn relative_links_in_includes_resolve_from_their_original_source() {
     let resolved = records(&engine.resolve(&request).unwrap());
     assert!(resolved.iter().any(|item| item["id"] == "end"));
 }
+
+fn engine_with_compatibility_mode(root: &Path, mode: &str) -> Engine {
+    let config = Cli::try_parse_from([
+        OsString::from("acdc-mcp"),
+        "--strictly-root-folders".into(),
+        "--root".into(),
+        root.as_os_str().to_owned(),
+        "--compatibility-mode".into(),
+        mode.into(),
+    ])
+    .unwrap()
+    .into_config()
+    .unwrap();
+    Engine::new(Arc::new(config), CancellationToken::new())
+}
+
+#[test]
+fn compatibility_mode_reaches_includes_cells_and_request_attributes_cannot_override_it() {
+    let root = TempDir::new().unwrap();
+    write(
+        root.path(),
+        "book.adoc",
+        "= Guide\n:word: *Selected*\n:compatibility-mode: draft\n\ninclude::part.adoc[]\n",
+    );
+    write(
+        root.path(),
+        "part.adoc",
+        "== {word}\n\n[cols=\"a\"]\n|===\n|\n=== {word} Cell\n|===\n",
+    );
+    for (mode, label) in [("asciidoctor", "*Selected*"), ("draft", "Selected")] {
+        let engine = engine_with_compatibility_mode(root.path(), mode);
+        let mut request = file("book.adoc");
+        request.common.attributes.insert(
+            "compatibility-mode".into(),
+            AttributeValue::from(if mode == "draft" {
+                "asciidoctor"
+            } else {
+                "draft"
+            }),
+        );
+        let items = records(&engine.tree(&request).unwrap());
+        assert!(items.iter().any(|item| item["title"] == label), "{items:?}");
+        let mut request = read("book.adoc", "@document");
+        request.format = crate::render::Format::Plain;
+        let text = content(&engine.read(&request, true).unwrap());
+        assert!(text.contains(&format!("{label} Cell")), "{text}");
+    }
+}
+
+#[test]
+fn compatibility_mode_is_part_of_continuation_identity_even_for_identical_content() {
+    let root = TempDir::new().unwrap();
+    write(
+        root.path(),
+        "guide.adoc",
+        &format!("= Guide\n\n== Read\n\n{}\n", "Long paragraph. ".repeat(300)),
+    );
+    let default = engine_with_compatibility_mode(root.path(), "asciidoctor");
+    let draft = engine_with_compatibility_mode(root.path(), "draft");
+    let mut request = read("guide.adoc", "Read");
+    request.common.max_tokens = Some(256);
+    let first: Value = serde_json::from_str(&default.read(&request, true).unwrap()).unwrap();
+    let other: Value = serde_json::from_str(&draft.read(&request, true).unwrap()).unwrap();
+    assert_eq!(first["items"], other["items"]);
+    request.common.cursor = first["next_cursor"].as_str().map(str::to_owned);
+    assert!(request.common.cursor.is_some());
+    assert!(default.read(&request, true).is_ok());
+    assert!(draft.read(&request, true).is_err());
+}

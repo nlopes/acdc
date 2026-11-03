@@ -63,6 +63,7 @@ impl Document {
         }));
         let loader = include_loader(config.clone(), sources.clone(), cancelled.clone());
         let mut options = Options::builder()
+            .with_compatibility_mode(config.compatibility_mode())
             .with_safe_mode(SafeMode::Unsafe)
             .with_base_dir(path.parent().expect("absolute file has a parent"))
             .with_include_loader(loader)

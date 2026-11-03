@@ -162,7 +162,7 @@ impl Engine {
             object.remove("max_tokens");
         }
         let mut identity = serde_json::to_vec(
-            &json!({"tool":tool,"request":identity,"roots":self.config.roots(),"attributes":self.config.attributes()}),
+            &json!({"tool":tool,"request":identity,"roots":self.config.roots(),"attributes":self.config.attributes(),"compatibilityMode":self.config.compatibility_mode()}),
         )?;
         identity.extend_from_slice(revision);
         identity.extend_from_slice(&self.timestamp(common)?.to_be_bytes());
