@@ -1,0 +1,23 @@
+{
+  "recovery": null,
+  "warnings": [
+    {
+      "location": {
+        "absolute_end": 49,
+        "absolute_start": 35,
+        "file": "includes/diagnostic_warning_offsets.adoc",
+        "location": [
+          {
+            "col": 1,
+            "line": 3
+          },
+          {
+            "col": 15,
+            "line": 3
+          }
+        ]
+      },
+      "message": "`compat-mode` has no effect in Draft mode; the attribute is preserved"
+    }
+  ]
+}

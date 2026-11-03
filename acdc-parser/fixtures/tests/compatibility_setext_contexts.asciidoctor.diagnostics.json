@@ -1,8 +1,8 @@
 {
   "recovery": {
     "location": {
-      "absolute_end": 195,
-      "absolute_start": 182,
+      "absolute_end": 191,
+      "absolute_start": 178,
       "file": "compatibility_setext_contexts.adoc",
       "location": [
         {
@@ -20,8 +20,8 @@
   "warnings": [
     {
       "location": {
-        "absolute_end": 195,
-        "absolute_start": 182,
+        "absolute_end": 191,
+        "absolute_start": 178,
         "file": "compatibility_setext_contexts.adoc",
         "location": [
           {

@@ -1,0 +1,23 @@
+{
+  "recovery": null,
+  "warnings": [
+    {
+      "location": {
+        "absolute_end": 47,
+        "absolute_start": 33,
+        "file": "includes/diagnostic_indented_offsets.adoc",
+        "location": [
+          {
+            "col": 5,
+            "line": 2
+          },
+          {
+            "col": 19,
+            "line": 2
+          }
+        ]
+      },
+      "message": "`compat-mode` has no effect in Draft mode; the attribute is preserved"
+    }
+  ]
+}

@@ -38,8 +38,8 @@
     },
     {
       "location": {
-        "absolute_end": 46,
-        "absolute_start": 19,
+        "absolute_end": 56,
+        "absolute_start": 29,
         "file": "includes/compatibility_legacy_selected.adoc",
         "location": [
           {
@@ -56,8 +56,8 @@
     },
     {
       "location": {
-        "absolute_end": 251,
-        "absolute_start": 228,
+        "absolute_end": 176,
+        "absolute_start": 153,
         "file": "compatibility_legacy_contexts.adoc",
         "location": [
           {

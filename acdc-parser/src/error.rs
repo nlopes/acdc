@@ -243,6 +243,8 @@ impl Error {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct SourceLocation {
+    /// The file containing the start. Cross-file spans also carry endpoint
+    /// include chains in `location`.
     pub file: Option<PathBuf>,
     pub location: Location,
 }

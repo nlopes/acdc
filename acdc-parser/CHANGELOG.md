@@ -317,6 +317,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Warning byte offsets now refer to the original file after includes and
+  preprocessing edits, including selected and nested includes. Cross-file
+  diagnostics retain each endpoint's source context. Reindented includes keep
+  merged byte offsets; use their original line and column instead.
+
 - Quoted menu sequences such as `"File > Open"` now work with `experimental`
   in Asciidoctor mode and by default in Draft mode. Rich labels, escapes,
   named entities, and explicit `subs=` settings follow the existing UI rules.

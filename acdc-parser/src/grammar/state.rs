@@ -791,48 +791,47 @@ impl<'a> ParserState<'a> {
         }
     }
 
-    /// Create a `SourceLocation` for an error/warning, resolving the correct
-    /// file and original line/column numbers for included content.
-    pub(crate) fn create_error_source_location(&self, location: Location) -> SourceLocation {
-        if let Some(range) =
+    /// Map a diagnostic's endpoints to their original source coordinates.
+    pub(crate) fn create_error_source_location(&self, mut location: Location) -> SourceLocation {
+        let Some(start_range) =
             SourceRange::find_containing(&self.source_ranges, location.absolute_start)
-        {
-            let file = range.file.clone();
-            let adjusted_start_line =
-                self.line_map
-                    .source_line(range, self.input, location.absolute_start);
-            let adjusted_end_line = self.line_map.source_line(
-                range,
-                self.input,
-                location.absolute_end.min(self.input.len()),
-            );
-            SourceLocation {
-                file,
-                location: Location {
-                    absolute_start: location.absolute_start,
-                    absolute_end: location.absolute_end,
-                    // The authoritative file for a diagnostic lives on the enclosing
-                    // `SourceLocation`; these positions don't carry it.
-                    start: crate::Position::new(
-                        adjusted_start_line,
-                        super::source_remap::shift_column(
-                            location.start.column,
-                            range.column_shift,
-                        ),
-                    ),
-                    end: crate::Position::new(
-                        adjusted_end_line,
-                        super::source_remap::shift_column(location.end.column, range.column_shift),
-                    ),
-                },
-            }
-        } else {
-            SourceLocation {
-                // Cold path: deep-copy the `Arc<PathBuf>` into the public `Option<PathBuf>`
-                // (one clone per diagnostic). See `current_file` for why the API isn't widened.
+        else {
+            return SourceLocation {
                 file: self.current_file.as_deref().cloned(),
                 location,
-            }
+            };
+        };
+        let end_probe = location
+            .absolute_end
+            .min(self.input.len().saturating_sub(1))
+            .max(location.absolute_start);
+        let end_range =
+            SourceRange::find_containing(&self.source_ranges, end_probe).unwrap_or(start_range);
+        let start = (
+            start_range.source_offset(location.absolute_start),
+            self.line_map
+                .source_line(start_range, self.input, location.absolute_start),
+            start_range,
+        );
+        let end = (
+            end_range.source_offset(location.absolute_end),
+            self.line_map.source_line(
+                end_range,
+                self.input,
+                location.absolute_end.min(self.input.len()),
+            ),
+            end_range,
+        );
+        super::source_remap::remap_endpoints(&mut location, start, end);
+        if start_range.file_chain != end_range.file_chain {
+            location.start.file = (!start_range.file_chain.is_empty())
+                .then(|| Arc::new(start_range.file_chain.clone()));
+            location.end.file =
+                (!end_range.file_chain.is_empty()).then(|| Arc::new(end_range.file_chain.clone()));
+        }
+        SourceLocation {
+            file: start_range.file.clone(),
+            location,
         }
     }
 
@@ -1165,5 +1164,53 @@ mod tests {
             assert_eq!(warning.location.start.column, expected);
         }
         Ok(())
+    }
+    #[rstest::rstest]
+    #[case(Some("a.adoc"), vec!["a.adoc".to_owned()])]
+    #[case(None, Vec::new())]
+    #[case(Some("main.adoc"), Vec::new())]
+    fn diagnostic_endpoints_keep_distinct_source_contexts(
+        #[case] file: Option<&str>,
+        #[case] chain: Vec<String>,
+    ) {
+        let input = "one\ntwo\n";
+        let mut state = ParserState::new_for_test(input);
+        state.source_ranges = vec![
+            SourceRange {
+                start_offset: 0,
+                end_offset: 4,
+                file: file.map(PathBuf::from),
+                file_chain: chain,
+                start_line: 4,
+                source_start_offset: 100,
+                column_shift: 0,
+            },
+            SourceRange {
+                start_offset: 4,
+                end_offset: 8,
+                file: Some(PathBuf::from("b.adoc")),
+                file_chain: vec!["b.adoc".to_owned()],
+                start_line: 2,
+                source_start_offset: 0,
+                column_shift: 0,
+            },
+        ];
+        let source = state.create_error_source_location(state.create_location(0, 6));
+        assert_eq!(source.file, file.map(PathBuf::from));
+        assert_eq!(
+            (source.location.start.line, source.location.start.column),
+            (4, 1)
+        );
+        assert_eq!(
+            (source.location.end.line, source.location.end.column),
+            (2, 3)
+        );
+        assert_eq!(source.location.absolute_start, 100);
+        assert_eq!(source.location.absolute_end, 100);
+        assert_eq!(source.location.byte_len(), None);
+        assert_eq!(
+            source.location.end.file.as_deref().map(Vec::as_slice),
+            Some(["b.adoc".to_owned()].as_slice())
+        );
     }
 }
