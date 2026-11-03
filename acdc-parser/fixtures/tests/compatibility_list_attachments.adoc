@@ -1,0 +1,44 @@
+= Attached paragraphs
+
+* Item
++
+Attached text
+* Sibling or text
+
+//-
+
+1. Ordered
++
+Ordered text
+10. Sibling or text
+
+//-
+
+Term:: Description.
++
+Description text
+Other:: Sibling or text
+
+//-
+
+* Parent
++
+Nested-looking wrapped text
+** Still text
+. Still text from another family
+
+//-
+
+* Blank-separated item
++
+Attached text
+
+* Real sibling
+
+//-
+
+* Attribute-separated item
++
+Supporting text
+[upperalpha]
+** Nested list

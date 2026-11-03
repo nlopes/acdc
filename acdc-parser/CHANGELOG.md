@@ -275,6 +275,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Unordered and ordered list markers no longer split ordinary paragraphs.
+  Attached paragraphs follow the selected mode: Asciidoctor accepts sibling and ancestor items from the
+  same list family; Draft keeps those lines as text until a paragraph boundary.
+  Standalone `+` lines still interrupt paragraphs in both modes. Metadata before
+  a nested list keeps it attached to the current item.
+
 - A list continuation keeps the next block attached when line or block
   comments precede it, including comments from selected includes. Comment-only
   continuations still retain their source. This matches Asciidoctor in both modes.

@@ -1278,6 +1278,68 @@
                   "col": 14
                 }
               ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "\n* P12 bullet ",
+              "location": [
+                {
+                  "line": 63,
+                  "col": 15
+                },
+                {
+                  "line": 64,
+                  "col": 13
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "explicit",
+              "number": 2,
+              "location": [
+                {
+                  "line": 64,
+                  "col": 14
+                },
+                {
+                  "line": 64,
+                  "col": 16
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "\nP13 after ",
+              "location": [
+                {
+                  "line": 64,
+                  "col": 17
+                },
+                {
+                  "line": 65,
+                  "col": 10
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "explicit",
+              "number": 3,
+              "location": [
+                {
+                  "line": 65,
+                  "col": 11
+                },
+                {
+                  "line": 65,
+                  "col": 13
+                }
+              ]
             }
           ],
           "metadata": {
@@ -1289,56 +1351,6 @@
           "location": [
             {
               "line": 62,
-              "col": 1
-            },
-            {
-              "line": 63,
-              "col": 14
-            }
-          ]
-        },
-        {
-          "name": "list",
-          "type": "block",
-          "variant": "unordered",
-          "marker": "*",
-          "items": [
-            {
-              "name": "listItem",
-              "type": "block",
-              "marker": "*",
-              "principal": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "P12 bullet <2>\nP13 after <3>",
-                  "location": [
-                    {
-                      "line": 64,
-                      "col": 3
-                    },
-                    {
-                      "line": 65,
-                      "col": 13
-                    }
-                  ]
-                }
-              ],
-              "location": [
-                {
-                  "line": 64,
-                  "col": 1
-                },
-                {
-                  "line": 65,
-                  "col": 13
-                }
-              ]
-            }
-          ],
-          "location": [
-            {
-              "line": 64,
               "col": 1
             },
             {

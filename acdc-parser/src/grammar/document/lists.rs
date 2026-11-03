@@ -7,6 +7,30 @@ use crate::{
 use bumpalo::collections::String as BumpString;
 use std::collections::VecDeque;
 
+#[derive(Clone, Copy)]
+pub(super) enum ListMarker<'a> {
+    Unordered(&'a str),
+    Ordered(&'a str),
+    Description(&'a str),
+}
+
+impl ListMarker<'_> {
+    pub(super) fn is_sibling_or_ancestor(self, next: Self) -> bool {
+        match (self, next) {
+            (Self::Unordered(parent), Self::Unordered(candidate))
+            | (Self::Description(parent), Self::Description(candidate)) => {
+                parent.starts_with(candidate)
+            }
+            (Self::Ordered(parent), Self::Ordered(candidate)) => {
+                parent.starts_with('.') == candidate.starts_with('.')
+                    && candidate.bytes().filter(|byte| *byte == b'.').count()
+                        <= parent.bytes().filter(|byte| *byte == b'.').count()
+            }
+            _ => false,
+        }
+    }
+}
+
 /// Join a list item's first line and continuation lines with newlines.
 /// Return `first_line` unchanged when there are no continuation lines.
 /// Otherwise, store the joined text in the arena.

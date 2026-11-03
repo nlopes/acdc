@@ -349,6 +349,13 @@ reports `WarningKind::UnsupportedCompatMode`, without applying those effects.
 Document attributes cannot change the selected compatibility mode. Ordinary
 settings such as doctype and hard breaks still work in both modes.
 
+Sibling and nested list items interrupt principal text in both modes. In an
+attached paragraph, Asciidoctor lets a sibling or ancestor of the same list
+family and numbering form start the next item. Draft keeps that line as text
+until a blank line or another paragraph boundary. A standalone `+` interrupts ordinary
+paragraphs in both modes. Unordered and ordered markers alone do not.
+Metadata before a nested list keeps it attached to the current item.
+
 Named titles parse the expanded attribute value. For example, with
 `:word: *Bold*`, `[title='{word}']` produces bold text in both modes.
 Asciidoctor mode also parses double-quoted and unquoted titles. Draft keeps

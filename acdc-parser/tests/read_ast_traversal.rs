@@ -144,7 +144,7 @@ fn compound_blocks_walk_in_preorder_without_inline_or_catalog_visits(
 
 #[rstest::rstest]
 #[case("* First\n+\nAttached.\n+\n** Nested\n* Second\n", vec!["ulist", "item:First", "Attached.", "ulist", "item:Nested", "item:Second"])]
-#[case(". First\n+\nAttached.\n. Second\n", vec!["olist", "item:First", "Attached.", "item:Second"])]
+#[case(". First\n+\nAttached.\n\n. Second\n", vec!["olist", "item:First", "Attached.", "item:Second"])]
 #[case("First:: Principal\n+\nAttached.\n\nSecond:: Other\n", vec!["dlist", "term:First", "Attached.", "term:Second"])]
 #[case("----\ncode <1>\n----\n<1> Explanation\n+\nAttached.\n", vec!["listing", "colist", "callout:Explanation", "Attached."])]
 fn lists_visit_items_before_their_attached_blocks(
