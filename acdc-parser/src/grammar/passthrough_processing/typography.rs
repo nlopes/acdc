@@ -4,9 +4,10 @@ use crate::{
     InlineNode, Location, Raw, Substitution, Symbol,
     grammar::{
         ParserState,
-        inlines::typography::{Edges, ReplacementValue, replacements},
+        inlines::typography::{Edges, ReplacementValue, is_arrow, replacements},
         utf8_utils::{RoundDirection, step_char},
     },
+    model::substitution::SubstitutionPlan,
 };
 
 use super::fragment_offset;
@@ -24,7 +25,7 @@ pub(super) fn resolve_fragments<'a>(
             && raw
                 .content
                 .bytes()
-                .any(|byte| matches!(byte, b'(' | b'.' | b'\'' | b'-'))
+                .any(|byte| matches!(byte, b'(' | b'.' | b'\'' | b'-' | b'=' | b'<'))
     }) {
         return fragments.into_iter().map(InlineNode::RawText).collect();
     }
@@ -38,14 +39,17 @@ pub(super) fn resolve_fragments<'a>(
             (start..offset, raw)
         })
         .collect::<Vec<_>>();
-    let edits = replacements(&text, edges, |range| {
+    let edits = replacements(&text, edges, |range, kind| {
         let first = spans.partition_point(|(span, _)| span.end <= range.start);
         let end = spans.partition_point(|(span, _)| span.start < range.end);
         spans.get(first..end).is_some_and(|covered| {
             !covered.is_empty()
-                && covered
-                    .iter()
-                    .all(|(_, raw)| raw.subs.contains(&Substitution::Replacements))
+                && covered.iter().all(|(_, raw)| {
+                    raw.subs.contains(&Substitution::Replacements)
+                        && (!is_arrow(kind)
+                            || SubstitutionPlan::from_substitutions(&raw.subs)
+                                .precedes(&Substitution::SpecialChars, &Substitution::Replacements))
+                })
                 && (!late_attributes
                     || !covered.windows(2).any(|pair| {
                         let [(_, left), (right_span, right)] = pair else {

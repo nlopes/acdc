@@ -84,33 +84,33 @@
 
 #heading(level: 1)[#text("Cases")] <id-5f6361736573>
 
-#text("R01 ")#text("→ ⇒ ← ⇐")#text(".")
+#text("R01 ")#text("→")#text(" ")#text("⇒")#text(" ")#text("←")#text(" ")#text("⇐")#text(".")
 
-#text("R02 ")#text("-> => <- <=")#text(".")
+#text("R02 ")#text("->")#text(" ")#text("=>")#text(" ")#text("<-")#text(" ")#text("<=")#text(".")
 
-#text("R03 ")#text("-> => <- <=")#text(".")
+#text("R03 ")#text("->")#text(" ")#text("=>")#text(" ")#text("<-")#text(" ")#text("<=")#text(".")
 
 #text("R04 ")#text("-> => <- <=")#text(".")
 
-#text("R05 ")#text("-> => <- <=")#text(".")
+#text("R05 ")#text("->")#text(" ")#text("=>")#text(" ")#text("<-")#text(" ")#text("<=")#text(".")
 
-#text("R06 ")#text("\\-> \\=> \\<- \\<=")#text(".")
+#text("R06 ")#text("\\")#text("->")#text(" \\")#text("=>")#text(" \\")#text("<-")#text(" \\")#text("<=")#text(".")
 
-#text("R07 ")#text("→→⇒←⇐")#text(".")
+#text("R07 ")#text("→")#text("→")#text("⇒")#text("←")#text("⇐")#text(".")
 
 #text("R08 ")#raw("→ ⇒ ← ⇐")#text(".")
 
-#text("R09 ")#text("→ ⇒ ← ⇐")#text(".")
+#text("R09 ")#text("→")#text(" ")#text("⇒")#text(" ")#text("←")#text(" ")#text("⇐")#text(".")
 
-#text("R10 pass:c,r[→ ⇒ ← ⇐].")
+#text("R10 pass:c,r[")#text("→")#text(" ")#text("⇒")#text(" ")#text("←")#text(" ")#text("⇐")#text("].")
 
-#text("R11 ")#text("→ ⇒ ← ⇐")#text(" and ")#text("-> => <- <=")#text(".")
+#text("R11 ")#text("→")#text(" ")#text("⇒")#text(" ")#text("←")#text(" ")#text("⇐")#text(" and ")#text("->")#text(" ")#text("=>")#text(" ")#text("<-")#text(" ")#text("<=")#text(".")
 
 #text("R12 ")#text("-")#text(">")#text(" and ")#text("->")#text(".")
 
 #text("R13 ")#text("©")#text(" ")#text("…")#text(" <x> ")#text("&copy;")#text(" \\*Bold\\*")#text(".")
 
-#text("R14 ")#text("-")#text(">")#text(" =")#text(">")#text(" ")#text("<")#text("- ")#text("<")#text("=")#text(".")
+#text("R14 ")#text("-")#text(">")#text(" ")#text("=")#text(">")#text(" ")#text("<")#text("-")#text(" ")#text("<")#text("=")#text(".")
 
 #raw(block: true, "R15 → ⇒ ← ⇐ and -> => <- <=.\nR16 -> => <- <=.")
 
@@ -122,7 +122,7 @@
 
 #text("R21 ")#text("-> => <- <=")#text(".")
 
-#text("R22 ")#text("\\-")#text(">")#text(" \\=")#text(">")#text(" ")#text("&lt;")#text("- ")#text("&lt;")#text("=")#text(".")
+#text("R22 ")#text("\\-")#text(">")#text(" ")#text("\\=")#text(">")#text(" ")#text("&lt;")#text("- ")#text("&lt;")#text("=")#text(".")
 
 #text("R23 ")#text("⇐→ ")#text("&")#text(".")
 

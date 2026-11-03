@@ -114,7 +114,7 @@
 
 #heading(level: 2)[#text("Not markers")] <id-5f6e6f745f6d61726b657273>
 
-#text("←1> Negative. <+1> Plus. <1.> Dot. <..> Dots.")
+#text("←")#text("1> Negative. <+1> Plus. <1.> Dot. <..> Dots.")
 
 #heading(level: 2)[#text("Escaped")] <id-5f65736361706564>
 

@@ -437,11 +437,26 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "\\*raw\\* \\->",
+              "value": "\\*raw\\* \\",
               "location": [
                 {
                   "line": 30,
                   "col": 12
+                },
+                {
+                  "line": 30,
+                  "col": 20
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "->",
+              "location": [
+                {
+                  "line": 30,
+                  "col": 21
                 },
                 {
                   "line": 30,

@@ -770,6 +770,11 @@ Unquoted number, boolean, and arithmetic comparisons retain their existing behav
 Formatting escapes belong to quote substitution. With quotes disabled, code and
 link labels retain backslashes such as `\*literal\*`, even when replacements
 are enabled. A replacement escape such as `\(C)` still displays literal `(C)`.
+Source arrows (`->`, `=>`, `<-`, `<=`) resolve to symbols in ordinary text and
+passthroughs when special-character substitution precedes replacements. Reversing
+that order keeps them literal. Escapes and later attribute values cannot create
+an earlier source-arrow replacement.
+
 The parser retains inactive syntax and resolves enabled typography. Converters
 choose the output encoding for resolved symbols.
 

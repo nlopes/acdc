@@ -73,11 +73,41 @@
         {
           "name": "text",
           "type": "string",
-          "value": " &amp; -> ",
+          "value": " &amp; ",
           "location": [
             {
               "line": 3,
               "col": 13
+            },
+            {
+              "line": 3,
+              "col": 19
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "→",
+          "location": [
+            {
+              "line": 3,
+              "col": 20
+            },
+            {
+              "line": 3,
+              "col": 21
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " ",
+          "location": [
+            {
+              "line": 3,
+              "col": 22
             },
             {
               "line": 3,
@@ -414,11 +444,26 @@
         {
           "name": "text",
           "type": "string",
-          "value": " &amp; ->",
+          "value": " &amp; ",
           "location": [
             {
               "line": 19,
               "col": 38
+            },
+            {
+              "line": 19,
+              "col": 44
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "→",
+          "location": [
+            {
+              "line": 19,
+              "col": 45
             },
             {
               "line": 19,
@@ -629,11 +674,26 @@
             {
               "name": "text",
               "type": "string",
-              "value": " &amp; ->",
+              "value": " &amp; ",
               "location": [
                 {
                   "line": 32,
                   "col": 38
+                },
+                {
+                  "line": 32,
+                  "col": 44
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "→",
+              "location": [
+                {
+                  "line": 32,
+                  "col": 45
                 },
                 {
                   "line": 32,
@@ -793,11 +853,26 @@
             {
               "name": "text",
               "type": "string",
-              "value": " &amp; ->",
+              "value": " &amp; ",
               "location": [
                 {
                   "line": 36,
                   "col": 28
+                },
+                {
+                  "line": 36,
+                  "col": 34
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "→",
+              "location": [
+                {
+                  "line": 36,
+                  "col": 35
                 },
                 {
                   "line": 36,

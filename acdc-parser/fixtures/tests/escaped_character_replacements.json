@@ -101,11 +101,26 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Escaped right arrow: \\->",
+          "value": "Escaped right arrow: ",
           "location": [
             {
               "line": 5,
               "col": 1
+            },
+            {
+              "line": 5,
+              "col": 21
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "->",
+          "location": [
+            {
+              "line": 5,
+              "col": 22
             },
             {
               "line": 5,
@@ -132,11 +147,26 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Escaped left arrow: \\<-",
+          "value": "Escaped left arrow: ",
           "location": [
             {
               "line": 7,
               "col": 1
+            },
+            {
+              "line": 7,
+              "col": 20
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "<-",
+          "location": [
+            {
+              "line": 7,
+              "col": 21
             },
             {
               "line": 7,
@@ -163,11 +193,26 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Escaped double right arrow: \\=>",
+          "value": "Escaped double right arrow: ",
           "location": [
             {
               "line": 9,
               "col": 1
+            },
+            {
+              "line": 9,
+              "col": 28
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "=>",
+          "location": [
+            {
+              "line": 9,
+              "col": 29
             },
             {
               "line": 9,
@@ -194,11 +239,26 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Escaped double left arrow: \\<=",
+          "value": "Escaped double left arrow: ",
           "location": [
             {
               "line": 11,
               "col": 1
+            },
+            {
+              "line": 11,
+              "col": 27
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "<=",
+          "location": [
+            {
+              "line": 11,
+              "col": 28
             },
             {
               "line": 11,

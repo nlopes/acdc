@@ -707,7 +707,7 @@ mod tests {
     }
 
     #[test]
-    fn passthrough_arrows_change_rendered_text_without_changing_source()
+    fn passthrough_source_arrows_expose_the_resolved_parser_meaning()
     -> Result<(), Box<dyn std::error::Error>> {
         for (profile, expected) in [
             ("c,r", "→ ⇒ ← ⇐"),
@@ -721,7 +721,7 @@ mod tests {
                 return Err("expected one paragraph".into());
             };
             let transform = super::InlineTextTransform::default();
-            assert_eq!(transform.to_string(&paragraph.content), "-> => <- <=");
+            assert_eq!(transform.to_string(&paragraph.content), expected);
             assert_eq!(
                 transform
                     .rendered_replacements(false)
@@ -729,7 +729,7 @@ mod tests {
                 expected,
                 "{profile}",
             );
-            assert_eq!(transform.to_string(&paragraph.content), "-> => <- <=");
+            assert_eq!(transform.to_string(&paragraph.content), expected);
         }
         Ok(())
     }

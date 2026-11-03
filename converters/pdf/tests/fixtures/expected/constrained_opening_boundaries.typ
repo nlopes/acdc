@@ -126,7 +126,7 @@
 
 #text("P21 <del>")#strong[#text("Bold")]#text("</del> <del>")#emph[#text("Italic")]#text("</del> <del>")#raw("Code")#text("</del> <del>")#highlight[#text("Mark")]#text("</del>.")
 
-#text("P22 ⇒")#strong[#text("Bold")]#text(".")
+#text("P22 ")#text("⇒")#strong[#text("Bold")]#text(".")
 
 #text("P23 =")#strong[#text("Bold")]#text(" =")#metadata(none)<id-636f6465>#raw("Code")#text(".")
 

@@ -81,8 +81,25 @@ pub(super) fn resolve_verbatim_inlines<'a>(
     };
     let mut resolved = Vec::new();
     let mut inlines = inlines.into_iter().peekable();
+    let mut xml_tail = false;
     while let Some(node) = inlines.next() {
         if let InlineNode::VerbatimText(text) = node {
+            let prefix = if xml_tail && text.content.starts_with("-->") {
+                3
+            } else {
+                0
+            };
+            xml_tail = false;
+            if prefix != 0 {
+                resolved.push(InlineNode::VerbatimText(Verbatim {
+                    content: &text.content[..prefix],
+                    location: state.create_block_location(
+                        text.location.absolute_start,
+                        text.location.absolute_start + prefix,
+                        0,
+                    ),
+                }));
+            }
             let guard = (substitutions
                 .precedes(&Substitution::Callouts, &Substitution::Replacements)
                 && matches!(inlines.peek(), Some(InlineNode::CalloutRef(_))))
@@ -92,8 +109,8 @@ pub(super) fn resolve_verbatim_inlines<'a>(
             resolved.extend(process_verbatim_inlines(
                 state,
                 &metadata,
-                text.location.absolute_start,
-                &text.content[..end],
+                text.location.absolute_start + prefix,
+                &text.content[prefix..end],
             )?);
             if guard.is_some() {
                 // A callout guard is already consumed when later replacements run.
@@ -118,6 +135,9 @@ pub(super) fn resolve_verbatim_inlines<'a>(
                 }));
             }
         } else {
+            xml_tail = substitutions.precedes(&Substitution::Callouts, &Substitution::Replacements)
+                && matches!(node, InlineNode::CalloutRef(_))
+                && matches!(resolved.last(), Some(InlineNode::VerbatimText(text)) if text.content.ends_with("<!--"));
             resolved.push(node);
         }
     }
@@ -125,8 +145,8 @@ pub(super) fn resolve_verbatim_inlines<'a>(
 }
 
 fn callout_guard(text: &str, prefix: Option<&AttributeValue<'_>>) -> Option<usize> {
-    if text.ends_with("<!--") {
-        return None;
+    if let Some(body) = text.strip_suffix("<!--") {
+        return Some(body.len());
     }
     let candidate = text.strip_suffix(' ').unwrap_or(text);
     let strip = |prefix: &str| {

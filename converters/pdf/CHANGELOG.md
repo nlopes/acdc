@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Source arrows now use the parser’s resolved value consistently in inline
+  code and text. Escaped arrows and replacement-only passthroughs remain literal.
+
 - Render parsed copyright and trademark signs, ellipses, word-internal
   apostrophes, and em dashes while keeping escaped tokens literal. Backtick content now applies
   enabled typography, matching Asciidoctor PDF.

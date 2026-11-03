@@ -7,6 +7,7 @@ use crate::{
         state::InlineRules,
         utf8_utils::{RoundDirection, step_char},
     },
+    model::substitution::SubstitutionPlan,
 };
 
 use super::recognition::structural_token_allowed;
@@ -39,15 +40,20 @@ pub(crate) fn resolve_plain<'a>(
                 && start.is_some_and(|start| start + text.content.len() == state.input.len())
                 && !late_boundary(state, state.input.len()),
         };
-        let edits = replacements(text.content, edges, |range| {
-            start.is_none_or(|start| {
-                structural_token_allowed(
-                    state,
-                    &Substitution::Replacements,
-                    start + range.start,
-                    range.len(),
-                )
-            })
+        let edits = replacements(text.content, edges, |range, kind| {
+            (!is_arrow(kind)
+                || state
+                    .inline_ctx
+                    .substitutions
+                    .precedes(&Substitution::SpecialChars, &Substitution::Replacements))
+                && start.is_none_or(|start| {
+                    structural_token_allowed(
+                        state,
+                        &Substitution::Replacements,
+                        start + range.start,
+                        range.len(),
+                    )
+                })
         });
         if edits.is_empty() {
             result.push(InlineNode::PlainText(text));
@@ -74,7 +80,9 @@ pub(crate) fn resolve_raw<'a>(
     if !raw.subs.contains(&Substitution::Replacements) {
         return vec![InlineNode::RawText(raw)];
     }
-    let edits = replacements(raw.content, edges, |_| true);
+    let arrows = SubstitutionPlan::from_substitutions(&raw.subs)
+        .precedes(&Substitution::SpecialChars, &Substitution::Replacements);
+    let edits = replacements(raw.content, edges, |_, kind| !is_arrow(kind) || arrows);
     if edits.is_empty() {
         return vec![InlineNode::RawText(raw)];
     }
@@ -99,6 +107,9 @@ fn has_candidate(text: &str) -> bool {
         || text.contains("...")
         || text.contains("--")
         || text.contains('\'')
+        || ["->", "=>", "<-", "<="]
+            .iter()
+            .any(|token| text.contains(token))
 }
 
 pub(crate) struct Replacement {
@@ -131,7 +142,7 @@ fn late_boundary(state: &ParserState<'_>, position: usize) -> bool {
 pub(crate) fn replacements(
     text: &str,
     edges: Edges,
-    allowed: impl Fn(Range<usize>) -> bool,
+    allowed: impl Fn(Range<usize>, SymbolKind) -> bool,
 ) -> Vec<Replacement> {
     let mut edits = Vec::new();
     let mut cursor = 0;
@@ -142,7 +153,7 @@ pub(crate) fn replacements(
             cursor += text[cursor..].chars().next().map_or(1, char::len_utf8);
             continue;
         };
-        if escaped && !allowed(cursor..start + 1) {
+        if escaped && !allowed(cursor..start + 1, kind) {
             cursor = start;
             continue;
         }
@@ -168,7 +179,7 @@ pub(crate) fn replacements(
                 .map_or(0, char::len_utf8);
             context.end += text[range.end..].chars().next().map_or(0, char::len_utf8);
         }
-        let value = if !allowed(context) {
+        let value = if !allowed(context, kind) {
             ReplacementValue::Literal(range.clone())
         } else if escaped {
             ReplacementValue::Literal(start..end)
@@ -190,6 +201,16 @@ fn replacement_at(text: &str, start: usize, edges: Edges) -> Option<(Range<usize
         ("...", SymbolKind::Ellipsis),
     ] {
         if suffix.starts_with(token) {
+            return Some((start..start + token.len(), kind));
+        }
+    }
+    for (token, kind) in [
+        ("=>", SymbolKind::RightDoubleArrow),
+        ("->", SymbolKind::RightArrow),
+        ("<=", SymbolKind::LeftDoubleArrow),
+        ("<-", SymbolKind::LeftArrow),
+    ] {
+        if suffix.starts_with(token) && !(token.starts_with('<') && suffix[2..].starts_with('>')) {
             return Some((start..start + token.len(), kind));
         }
     }
@@ -223,6 +244,16 @@ fn replacement_at(text: &str, start: usize, edges: Edges) -> Option<(Range<usize
         }
     }
     None
+}
+
+pub(crate) fn is_arrow(kind: SymbolKind) -> bool {
+    matches!(
+        kind,
+        SymbolKind::RightArrow
+            | SymbolKind::LeftArrow
+            | SymbolKind::RightDoubleArrow
+            | SymbolKind::LeftDoubleArrow
+    )
 }
 
 fn is_word(character: char) -> bool {

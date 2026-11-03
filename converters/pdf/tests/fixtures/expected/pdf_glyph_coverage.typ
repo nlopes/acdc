@@ -92,7 +92,7 @@
 
 #text("G04 Literal ⇒ ⇐ ⇔ → ← ↔.")
 
-#text("G11 Replacements ⇒ ⇐ → ←.")
+#text("G11 Replacements ")#text("⇒")#text(" ")#text("⇐")#text(" ")#text("→")#text(" ")#text("←")#text(".")
 
 #text("G05 Missing 中 日 한.")
 

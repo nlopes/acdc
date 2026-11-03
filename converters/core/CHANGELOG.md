@@ -384,6 +384,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Resolved source arrows now expose their semantic Unicode value
+  through inline text reads, including passthroughs with special characters
+  before replacements.
+
 - Library converter options now default to Secure, matching the parser API.
   Select a lower safe mode explicitly for trusted documents that need resources.
   CLI conversion retains its Unsafe default.

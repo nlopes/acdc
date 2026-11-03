@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Source arrows honor their parser substitution order, including monospace
+  content and replacement-only passthroughs. `pass:r[->]` stays literal;
+  `pass:c,r[->]` produces an arrow.
+
 - Markdown now writes enabled copyright and trademark signs, ellipses, and
   word-internal apostrophes, and em dashes as Unicode text. Escaped tokens remain literal.
 

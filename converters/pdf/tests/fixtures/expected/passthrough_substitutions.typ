@@ -140,7 +140,7 @@
 
 #text("Quotes: ")#strong[#text("bold")]#text(" ")#emph[#text("italic")]#text(" ")#highlight[#text("marked")]
 
-#text("Replacements: ")#text("©")#text(" -> ")#text("…")#text(" — ")
+#text("Replacements: ")#text("©")#text(" ")#text("->")#text(" ")#text("…")#text(" — ")
 
 #text("Macros: ")#link("https://example.com")[#text("https://example.com")]
 
@@ -186,6 +186,6 @@
 
 #text("Quotes: ")#text("*")#text("literal*")
 
-#text("Replacement escape: ")#text("\\->")
+#text("Replacement escape: ")#text("\\")#text("->")
 
 #text("Typst source stays text: ")#text("literal #pagebreak() ) \\ \" #raw(\"injected\")")

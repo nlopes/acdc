@@ -15,11 +15,41 @@
             {
               "name": "text",
               "type": "string",
-              "value": "OUTPUT <- INPUT xor enc_blk(enc_key, 1 @ SIV[126:32] @ bin",
+              "value": "OUTPUT ",
               "location": [
                 {
                   "line": 1,
                   "col": 3
+                },
+                {
+                  "line": 1,
+                  "col": 9
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "←",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 10
+                },
+                {
+                  "line": 1,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " INPUT xor enc_blk(enc_key, 1 @ SIV[126:32] @ bin",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 12
                 },
                 {
                   "line": 1,

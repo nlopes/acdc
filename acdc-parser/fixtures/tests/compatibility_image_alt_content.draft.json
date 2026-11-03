@@ -438,11 +438,26 @@
             {
               "name": "text",
               "type": "string",
-              "value": " &amp; ->",
+              "value": " &amp; ",
               "location": [
                 {
                   "line": 32,
                   "col": 38
+                },
+                {
+                  "line": 32,
+                  "col": 44
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "→",
+              "location": [
+                {
+                  "line": 32,
+                  "col": 45
                 },
                 {
                   "line": 32,
@@ -602,11 +617,26 @@
             {
               "name": "text",
               "type": "string",
-              "value": " &amp; ->",
+              "value": " &amp; ",
               "location": [
                 {
                   "line": 36,
                   "col": 28
+                },
+                {
+                  "line": 36,
+                  "col": 34
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "→",
+              "location": [
+                {
+                  "line": 36,
+                  "col": 35
                 },
                 {
                   "line": 36,

@@ -5,7 +5,7 @@
 
 UI: <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd>, <strong>[Save]</strong>, File > Open > Recent, [Back].
 
-Passthrough: <mark>raw</mark>, &lt;tag&gt; &amp; &amp;#169;, and © → … — .
+Passthrough: <mark>raw</mark>, &lt;tag&gt; &amp; &amp;#169;, and © -> … — .
 
 STEM: `x < y` and `a_b`.
 

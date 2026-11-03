@@ -3019,11 +3019,26 @@
             {
               "name": "text",
               "type": "string",
-              "value": "P22 =>",
+              "value": "P22 ",
               "location": [
                 {
                   "line": 54,
                   "col": 1
+                },
+                {
+                  "line": 54,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "⇒",
+              "location": [
+                {
+                  "line": 54,
+                  "col": 5
                 },
                 {
                   "line": 54,

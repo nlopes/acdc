@@ -672,13 +672,28 @@
               "type": "block",
               "inlines": [
                 {
-                  "name": "text",
+                  "name": "symbol",
                   "type": "string",
-                  "value": "<-1> Negative.\n<+1> Plus.\n<1.> Dot.\n<..> Dots.",
+                  "value": "←",
                   "location": [
                     {
                       "line": 45,
                       "col": 1
+                    },
+                    {
+                      "line": 45,
+                      "col": 2
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "1> Negative.\n<+1> Plus.\n<1.> Dot.\n<..> Dots.",
+                  "location": [
+                    {
+                      "line": 45,
+                      "col": 3
                     },
                     {
                       "line": 48,

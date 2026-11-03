@@ -165,6 +165,11 @@ number through `callout()`; that number belongs to its local callout sequence.
 
 Text reads keep ordinary, raw, and verbatim content distinct. `text()` returns
 parsed text without rendering; `PlainRef::is_escaped()` retains escape protection.
+Source arrows (`->`, `=>`, `<-`, `<=`) resolve to symbols in ordinary text and
+passthroughs when special-character substitution precedes replacements. Reversing
+that order keeps them literal. Escapes and later attribute values cannot create
+an earlier source-arrow replacement.
+
 `SymbolRef` represents resolved typography, including word-bounded and
 spaced em dashes. Its `kind()` is semantic, its `text()` is Unicode, and its location still covers the authored replacement token.
 Enabled replacements resolve copyright and trademark signs, ellipses, and

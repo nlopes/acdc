@@ -129,11 +129,41 @@
         {
           "name": "text",
           "type": "string",
-          "value": ", and -> arrows.",
+          "value": ", and ",
           "location": [
             {
               "line": 2,
               "col": 35
+            },
+            {
+              "line": 2,
+              "col": 40
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "→",
+          "location": [
+            {
+              "line": 2,
+              "col": 41
+            },
+            {
+              "line": 2,
+              "col": 42
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " arrows.",
+          "location": [
+            {
+              "line": 2,
+              "col": 43
             },
             {
               "line": 2,

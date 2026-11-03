@@ -345,11 +345,26 @@
         {
           "name": "raw",
           "type": "string",
-          "value": "\\->",
+          "value": "\\",
           "location": [
             {
               "line": 12,
               "col": 28
+            },
+            {
+              "line": 12,
+              "col": 28
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "->",
+          "location": [
+            {
+              "line": 12,
+              "col": 29
             },
             {
               "line": 12,

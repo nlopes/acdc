@@ -326,11 +326,26 @@
                         {
                           "name": "text",
                           "type": "string",
-                          "value": " <!--2-->",
+                          "value": " <!--2-",
                           "location": [
                             {
                               "line": 15,
                               "col": 20
+                            },
+                            {
+                              "line": 15,
+                              "col": 26
+                            }
+                          ]
+                        },
+                        {
+                          "name": "symbol",
+                          "type": "string",
+                          "value": "→",
+                          "location": [
+                            {
+                              "line": 15,
+                              "col": 27
                             },
                             {
                               "line": 15,
