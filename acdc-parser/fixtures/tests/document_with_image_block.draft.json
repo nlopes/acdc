@@ -82,6 +82,9 @@
           "name": "raw",
           "type": "string",
           "value": "Sunset",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 2,

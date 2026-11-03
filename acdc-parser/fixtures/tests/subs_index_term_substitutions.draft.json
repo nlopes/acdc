@@ -235,6 +235,10 @@
                   "name": "raw",
                   "type": "string",
                   "value": "direct https://example.com[Ada]",
+                  "substitutions": [
+                    "special_chars",
+                    "replacements"
+                  ],
                   "location": [
                     {
                       "line": 13,
@@ -350,6 +354,10 @@
                   "name": "raw",
                   "type": "string",
                   "value": "attribute https://example.com[Ada]",
+                  "substitutions": [
+                    "special_chars",
+                    "replacements"
+                  ],
                   "location": [
                     {
                       "line": 15,
@@ -550,6 +558,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "late {person} and {styled-person}",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 21,
@@ -636,6 +647,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "macro before attributes {linked}",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 24,

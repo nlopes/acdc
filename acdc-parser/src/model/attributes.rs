@@ -207,18 +207,13 @@ impl<'a> DocumentAttributeValue<'a> {
         }
     }
 
-    fn serialized_value(&self, presence_as_empty: bool) -> SerializedDocumentAttributeValue<'_> {
+    fn serialized_value(&self) -> SerializedDocumentAttributeValue<'_> {
         match &self.0 {
             ValueKind::Text(value) | ValueKind::Passthrough { text: value, .. } => {
                 SerializedDocumentAttributeValue::Text(value)
             }
-            ValueKind::Presence if presence_as_empty => SerializedDocumentAttributeValue::Text(""),
             ValueKind::Presence => SerializedDocumentAttributeValue::Bool(true),
-            ValueKind::Integer { value, source } => match source.as_deref() {
-                Some("") => SerializedDocumentAttributeValue::Bool(true),
-                Some(text) => SerializedDocumentAttributeValue::Text(text),
-                None => SerializedDocumentAttributeValue::Integer(*value),
-            },
+            ValueKind::Integer { value, .. } => SerializedDocumentAttributeValue::Integer(*value),
         }
     }
 
@@ -354,12 +349,9 @@ impl<'a> DocumentAttributeAssignment<'a> {
         self.value().and_then(DocumentAttributeValue::stored_text)
     }
 
-    pub(crate) fn serialized_value(
-        &self,
-        presence_as_empty: bool,
-    ) -> SerializedDocumentAttributeValue<'_> {
+    pub(crate) fn serialized_value(&self) -> SerializedDocumentAttributeValue<'_> {
         match self {
-            Self::Set(value) => value.serialized_value(presence_as_empty),
+            Self::Set(value) => value.serialized_value(),
             Self::Unset => SerializedDocumentAttributeValue::Bool(false),
         }
     }
@@ -1143,7 +1135,7 @@ impl Serialize for DocumentAttributes<'_> {
 
         let mut state = serializer.serialize_map(Some(entries.len()))?;
         for (name, entry) in entries {
-            state.serialize_entry(name, &entry.assignment.serialized_value(name == "toc"))?;
+            state.serialize_entry(name, &entry.assignment.serialized_value())?;
         }
         state.end()
     }
@@ -1263,7 +1255,7 @@ mod document_attribute_tests {
             Some(8)
         );
         assert!(!attributes.is_empty());
-        assert_eq!(to_value(&attributes)?, json!({ "max-include-depth": "8" }));
+        assert_eq!(to_value(&attributes)?, json!({ "max-include-depth": 8 }));
         Ok(())
     }
 
@@ -1656,17 +1648,7 @@ impl Serialize for ElementAttributes<'_> {
 
         let mut state = serializer.serialize_map(Some(entries.len()))?;
         for (key, value) in entries {
-            match value {
-                AttributeValue::Bool(true) if key == "toc" => {
-                    state.serialize_entry(key, "")?;
-                }
-                AttributeValue::Bool(true) => {
-                    state.serialize_entry(key, &true)?;
-                }
-                AttributeValue::Bool(false) | AttributeValue::String(_) | AttributeValue::None => {
-                    state.serialize_entry(key, value)?;
-                }
-            }
+            state.serialize_entry(key, value)?;
         }
         state.end()
     }
@@ -1720,7 +1702,7 @@ mod element_attribute_tests {
         ] {
             attributes.set(name.into(), value);
         }
-        let expected = r#"{"false":false,"none":null,"present":true,"text":"value","toc":""}"#;
+        let expected = r#"{"false":false,"none":null,"present":true,"text":"value","toc":true}"#;
         assert_eq!(serde_json::to_string(&attributes)?, expected);
         assert_eq!(serde_json::to_string(&attributes.into_static())?, expected);
         Ok(())

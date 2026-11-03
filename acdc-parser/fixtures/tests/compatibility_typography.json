@@ -567,6 +567,9 @@
           "name": "raw",
           "type": "string",
           "value": "(C)",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 7,
@@ -597,6 +600,9 @@
           "name": "raw",
           "type": "string",
           "value": "(R)",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 7,
@@ -627,6 +633,9 @@
           "name": "raw",
           "type": "string",
           "value": "(TM)",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 7,
@@ -657,6 +666,9 @@
           "name": "raw",
           "type": "string",
           "value": "...",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 7,
@@ -687,6 +699,9 @@
           "name": "raw",
           "type": "string",
           "value": "--",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 7,
@@ -717,6 +732,9 @@
           "name": "raw",
           "type": "string",
           "value": "'",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 7,
@@ -901,6 +919,9 @@
           "name": "raw",
           "type": "string",
           "value": "(C) ...",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 11,
@@ -946,6 +967,9 @@
           "name": "raw",
           "type": "string",
           "value": " ",
+          "substitutions": [
+            "replacements"
+          ],
           "location": [
             {
               "line": 11,
@@ -976,6 +1000,9 @@
           "name": "raw",
           "type": "string",
           "value": " left",
+          "substitutions": [
+            "replacements"
+          ],
           "location": [
             {
               "line": 11,
@@ -1006,6 +1033,9 @@
           "name": "raw",
           "type": "string",
           "value": "right",
+          "substitutions": [
+            "replacements"
+          ],
           "location": [
             {
               "line": 11,
@@ -1169,6 +1199,9 @@
               "name": "raw",
               "type": "string",
               "value": "Bold ",
+              "substitutions": [
+                "replacements"
+              ],
               "location": [
                 {
                   "line": 13,

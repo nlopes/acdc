@@ -709,6 +709,9 @@
               "name": "raw",
               "type": "string",
               "value": "{word}",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 36,
@@ -739,6 +742,9 @@
               "name": "raw",
               "type": "string",
               "value": "{word}",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 36,
@@ -829,6 +835,9 @@
               "name": "raw",
               "type": "string",
               "value": "café",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 36,
@@ -896,6 +905,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "{word}",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 39,
@@ -944,6 +956,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "{word}",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 39,
@@ -1144,6 +1159,9 @@
               "name": "raw",
               "type": "string",
               "value": "{word}",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 48,
@@ -1174,6 +1192,9 @@
               "name": "raw",
               "type": "string",
               "value": "{word}",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 48,
@@ -1204,6 +1225,9 @@
               "name": "raw",
               "type": "string",
               "value": "{word}",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 48,
@@ -1234,6 +1258,9 @@
               "name": "raw",
               "type": "string",
               "value": "{word}",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 48,
@@ -2043,6 +2070,9 @@
               "name": "raw",
               "type": "string",
               "value": "{word}",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 83,
@@ -2103,6 +2133,9 @@
               "name": "raw",
               "type": "string",
               "value": "café",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 83,
@@ -2170,6 +2203,9 @@
               "name": "raw",
               "type": "string",
               "value": "{word}",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 86,
@@ -2230,6 +2266,9 @@
               "name": "raw",
               "type": "string",
               "value": "café",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 86,

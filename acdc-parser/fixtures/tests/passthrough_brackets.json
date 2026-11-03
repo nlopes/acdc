@@ -858,6 +858,9 @@
               "name": "raw",
               "type": "string",
               "value": "Expanded",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 22,
@@ -910,6 +913,9 @@
               "name": "raw",
               "type": "string",
               "value": "Expanded",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 24,
@@ -1035,6 +1041,9 @@
           "name": "raw",
           "type": "string",
           "value": "]",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 28,
@@ -1115,6 +1124,9 @@
               "name": "raw",
               "type": "string",
               "value": "Expanded term",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 30,

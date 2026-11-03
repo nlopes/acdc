@@ -1269,6 +1269,9 @@
               "name": "raw",
               "type": "string",
               "value": "<b>Escaped</b>",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 33,

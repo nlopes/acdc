@@ -351,6 +351,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Early",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 38,
@@ -399,6 +402,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Early",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 38,
@@ -426,6 +432,9 @@
               "name": "raw",
               "type": "string",
               "value": " ",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 38,
@@ -1214,6 +1223,9 @@
               "name": "raw",
               "type": "string",
               "value": "pass:q,c[*Escaped*]",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 46,
@@ -1244,6 +1256,9 @@
               "name": "raw",
               "type": "string",
               "value": "pass:m,c[https://example.org[Escaped site]]",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 46,

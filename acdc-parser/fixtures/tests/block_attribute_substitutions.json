@@ -44,6 +44,9 @@
             "name": "raw",
             "type": "string",
             "value": "Ada *Lovelace*",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 3,
@@ -61,6 +64,9 @@
             "name": "raw",
             "type": "string",
             "value": "`Notes`",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 3,
@@ -130,6 +136,9 @@
             "name": "raw",
             "type": "string",
             "value": "Grace *Hopper*",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 8,
@@ -147,6 +156,9 @@
             "name": "raw",
             "type": "string",
             "value": "`Compiler`",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 8,
@@ -400,6 +412,9 @@
             "name": "raw",
             "type": "string",
             "value": "Notes",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 18,
@@ -469,6 +484,9 @@
             "name": "raw",
             "type": "string",
             "value": "https://example.com[Literal Author]",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 23,
@@ -486,6 +504,9 @@
             "name": "raw",
             "type": "string",
             "value": "https://example.org[Literal Work]",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 23,

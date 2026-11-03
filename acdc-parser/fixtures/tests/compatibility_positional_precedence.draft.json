@@ -164,6 +164,9 @@
             "name": "raw",
             "type": "string",
             "value": "Named",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 20,
@@ -181,6 +184,9 @@
             "name": "raw",
             "type": "string",
             "value": "NamedTitle",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 20,
@@ -250,6 +256,9 @@
             "name": "raw",
             "type": "string",
             "value": "Named",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 26,
@@ -267,6 +276,9 @@
             "name": "raw",
             "type": "string",
             "value": "NamedTitle",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 26,
@@ -336,6 +348,9 @@
             "name": "raw",
             "type": "string",
             "value": "Positional",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 32,
@@ -353,6 +368,9 @@
             "name": "raw",
             "type": "string",
             "value": "Citation",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 32,
@@ -409,6 +427,9 @@
           "name": "raw",
           "type": "string",
           "value": "Later",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 38,
@@ -451,6 +472,9 @@
           "name": "raw",
           "type": "string",
           "value": "Named",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 40,
@@ -512,6 +536,9 @@
           "name": "raw",
           "type": "string",
           "value": "Positional",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 45,
@@ -554,6 +581,9 @@
           "name": "raw",
           "type": "string",
           "value": "Alt",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 49,
@@ -697,6 +727,9 @@
           "name": "raw",
           "type": "string",
           "value": "Alt",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 63,
@@ -736,6 +769,9 @@
             "name": "raw",
             "type": "string",
             "value": "Earlier",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 65,
@@ -753,6 +789,9 @@
             "name": "raw",
             "type": "string",
             "value": "EarlierBook",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 65,

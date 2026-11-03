@@ -227,6 +227,9 @@
               "name": "raw",
               "type": "string",
               "value": "Sam",
+              "substitutions": [
+                "replacements"
+              ],
               "location": [
                 {
                   "line": 12,
@@ -257,6 +260,10 @@
               "name": "raw",
               "type": "string",
               "value": "s",
+              "substitutions": [
+                "special_chars",
+                "replacements"
+              ],
               "location": [
                 {
                   "line": 12,
@@ -394,6 +401,9 @@
                         "name": "raw",
                         "type": "string",
                         "value": "left",
+                        "substitutions": [
+                          "replacements"
+                        ],
                         "location": [
                           {
                             "line": 16,
@@ -424,6 +434,9 @@
                         "name": "raw",
                         "type": "string",
                         "value": "right",
+                        "substitutions": [
+                          "replacements"
+                        ],
                         "location": [
                           {
                             "line": 16,
@@ -469,6 +482,9 @@
                         "name": "raw",
                         "type": "string",
                         "value": "--",
+                        "substitutions": [
+                          "special_chars"
+                        ],
                         "location": [
                           {
                             "line": 16,
@@ -626,6 +642,9 @@
           "name": "raw",
           "type": "string",
           "value": "Sam",
+          "substitutions": [
+            "replacements"
+          ],
           "location": [
             {
               "line": 3,
@@ -668,6 +687,9 @@
           "name": "raw",
           "type": "string",
           "value": "s",
+          "substitutions": [
+            "replacements"
+          ],
           "location": [
             {
               "line": 3,

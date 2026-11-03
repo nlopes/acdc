@@ -44,7 +44,7 @@
     "authors": "Test Author",
     "firstname": "Test",
     "lastname": "Author",
-    "toc": ""
+    "toc": true
   },
   "blocks": [
     {

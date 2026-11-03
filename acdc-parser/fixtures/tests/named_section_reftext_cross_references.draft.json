@@ -339,6 +339,9 @@
             "name": "raw",
             "type": "string",
             "value": "Custom Label",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 12,
@@ -418,6 +421,9 @@
             "name": "raw",
             "type": "string",
             "value": "Generated Label",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 15,
@@ -469,6 +475,9 @@
             "name": "raw",
             "type": "string",
             "value": "Custom *Formatted* Label",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 18,

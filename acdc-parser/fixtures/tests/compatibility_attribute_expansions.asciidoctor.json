@@ -49,6 +49,9 @@
             "name": "raw",
             "type": "string",
             "value": "café",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 7,
@@ -66,6 +69,9 @@
             "name": "raw",
             "type": "string",
             "value": "λ",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 7,
@@ -135,6 +141,9 @@
             "name": "raw",
             "type": "string",
             "value": "{who}",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 12,
@@ -152,6 +161,9 @@
             "name": "raw",
             "type": "string",
             "value": "Book",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 12,
@@ -258,6 +270,9 @@
             "name": "raw",
             "type": "string",
             "value": "before Ada after",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 20,
@@ -328,6 +343,9 @@
             "name": "raw",
             "type": "string",
             "value": "\\{who}",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 25,
@@ -345,6 +363,9 @@
             "name": "raw",
             "type": "string",
             "value": "Book",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 25,

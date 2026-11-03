@@ -60,6 +60,9 @@
           "name": "raw",
           "type": "string",
           "value": "α {name} café",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 8,
@@ -117,6 +120,9 @@
           "name": "raw",
           "type": "string",
           "value": "β {name}",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 5,
@@ -183,6 +189,9 @@
                         "name": "raw",
                         "type": "string",
                         "value": "{name}",
+                        "substitutions": [
+                          "special_chars"
+                        ],
                         "location": [
                           {
                             "line": 17,

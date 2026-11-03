@@ -47,6 +47,9 @@
             "name": "raw",
             "type": "string",
             "value": "Ada -- Lovelace",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 5,
@@ -64,6 +67,9 @@
             "name": "raw",
             "type": "string",
             "value": "Book -- Title",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 5,
@@ -133,6 +139,9 @@
             "name": "raw",
             "type": "string",
             "value": "Ada -- Lovelace",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 10,
@@ -150,6 +159,9 @@
             "name": "raw",
             "type": "string",
             "value": "Book -- Title",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 10,
@@ -588,6 +600,9 @@
             "name": "raw",
             "type": "string",
             "value": "*Literal*",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 28,

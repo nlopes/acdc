@@ -270,6 +270,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "link:https://example.org/index[Index link]",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 12,

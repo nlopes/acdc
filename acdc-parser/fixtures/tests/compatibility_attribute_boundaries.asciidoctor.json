@@ -47,6 +47,9 @@
             "name": "raw",
             "type": "string",
             "value": "Ada",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 3,
@@ -64,6 +67,9 @@
             "name": "raw",
             "type": "string",
             "value": "Notes",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 3,
@@ -136,6 +142,9 @@
             "name": "raw",
             "type": "string",
             "value": "Ada",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 8,
@@ -153,6 +162,9 @@
             "name": "raw",
             "type": "string",
             "value": "Notes",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 8,
@@ -222,6 +234,9 @@
             "name": "raw",
             "type": "string",
             "value": "café, λ",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 13,

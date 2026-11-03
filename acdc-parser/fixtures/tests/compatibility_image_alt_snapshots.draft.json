@@ -58,6 +58,9 @@
           "name": "raw",
           "type": "string",
           "value": "*Early*",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 4,
@@ -192,6 +195,9 @@
           "name": "raw",
           "type": "string",
           "value": "Alt footnote:alt[Alt note]",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 11,
@@ -326,6 +332,9 @@
           "name": "raw",
           "type": "string",
           "value": "Alt footnote:second[Second note]",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 17,
@@ -362,6 +371,9 @@
           "name": "raw",
           "type": "string",
           "value": "Selected",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 21,
@@ -624,6 +636,9 @@
           "name": "raw",
           "type": "string",
           "value": "{other}",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 29,

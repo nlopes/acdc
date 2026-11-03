@@ -95,6 +95,9 @@
               "name": "raw",
               "type": "string",
               "value": "Éva",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 7,
@@ -192,6 +195,9 @@
                             "name": "raw",
                             "type": "string",
                             "value": "Éva",
+                            "substitutions": [
+                              "special_chars"
+                            ],
                             "location": [
                               {
                                 "line": 11,
@@ -310,6 +316,9 @@
               "name": "raw",
               "type": "string",
               "value": "Éva",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 3,

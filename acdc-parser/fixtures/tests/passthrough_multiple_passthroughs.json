@@ -73,6 +73,9 @@
           "name": "raw",
           "type": "string",
           "value": "*verbatim*",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 1,

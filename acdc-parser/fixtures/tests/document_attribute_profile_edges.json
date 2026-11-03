@@ -1120,6 +1120,9 @@
               "name": "raw",
               "type": "string",
               "value": "pass:q,c[*Escaped*]",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 42,
@@ -1150,6 +1153,9 @@
               "name": "raw",
               "type": "string",
               "value": "pass:a,c[{bold}]",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 42,
@@ -1180,6 +1186,9 @@
               "name": "raw",
               "type": "string",
               "value": "pass:typo[*Unknown*]",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 42,

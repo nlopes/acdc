@@ -10,6 +10,9 @@
           "name": "raw",
           "type": "string",
           "value": "*Unquoted*",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 1,
@@ -58,6 +61,9 @@
           "name": "raw",
           "type": "string",
           "value": "*Double quoted* -- &copy; footnote:[Protected]",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 4,
@@ -319,6 +325,9 @@
           "name": "raw",
           "type": "string",
           "value": "*Listing title*",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 13,

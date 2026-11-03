@@ -85,6 +85,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Start {close} End",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 10,
@@ -163,6 +166,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Named {bracket} End",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 10,
@@ -263,6 +269,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "{empty}",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 13,
@@ -325,6 +334,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "{empty}",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 13,
@@ -441,6 +453,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Start {relationship} End",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 16,
@@ -537,6 +552,9 @@
                     "name": "raw",
                     "type": "string",
                     "value": "{pair}",
+                    "substitutions": [
+                      "special_chars"
+                    ],
                     "location": [
                       {
                         "line": 16,
@@ -554,6 +572,9 @@
                     "name": "raw",
                     "type": "string",
                     "value": "Child",
+                    "substitutions": [
+                      "special_chars"
+                    ],
                     "location": [
                       {
                         "line": 16,
@@ -849,6 +870,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Start {close} End",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 23,
@@ -927,6 +951,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Named {bracket} End",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 23,
@@ -989,6 +1016,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "{empty}",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 24,
@@ -1051,6 +1081,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "{empty}",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 24,
@@ -1129,6 +1162,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Start {relationship} End",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 25,
@@ -1225,6 +1261,9 @@
                     "name": "raw",
                     "type": "string",
                     "value": "{pair}",
+                    "substitutions": [
+                      "special_chars"
+                    ],
                     "location": [
                       {
                         "line": 25,
@@ -1242,6 +1281,9 @@
                     "name": "raw",
                     "type": "string",
                     "value": "Child",
+                    "substitutions": [
+                      "special_chars"
+                    ],
                     "location": [
                       {
                         "line": 25,

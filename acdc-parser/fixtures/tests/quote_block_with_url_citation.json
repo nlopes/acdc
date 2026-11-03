@@ -14,6 +14,9 @@
             "name": "raw",
             "type": "string",
             "value": "https://example.com/docs[Example Docs]",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 1,

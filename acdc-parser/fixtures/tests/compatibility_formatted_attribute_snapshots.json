@@ -242,6 +242,9 @@
               "name": "raw",
               "type": "string",
               "value": "{name}",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 17,
@@ -478,6 +481,9 @@
               "name": "raw",
               "type": "string",
               "value": "{name}",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 21,

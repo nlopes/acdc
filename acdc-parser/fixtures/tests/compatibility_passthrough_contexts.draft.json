@@ -104,6 +104,9 @@
                         "name": "raw",
                         "type": "string",
                         "value": "pass:q,c[α *Éva*]",
+                        "substitutions": [
+                          "special_chars"
+                        ],
                         "location": [
                           {
                             "line": 7,
@@ -204,6 +207,9 @@
           "name": "raw",
           "type": "string",
           "value": "pass:typo[α <tag>]",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 3,

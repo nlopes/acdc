@@ -244,6 +244,9 @@
               "name": "raw",
               "type": "string",
               "value": "&#169;",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 14,
@@ -274,6 +277,9 @@
               "name": "raw",
               "type": "string",
               "value": "&#169;",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 14,
@@ -365,6 +371,9 @@
               "name": "raw",
               "type": "string",
               "value": "&#169;",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 16,
@@ -426,6 +435,9 @@
               "name": "raw",
               "type": "string",
               "value": "&#169;",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 18,
@@ -441,6 +453,10 @@
               "name": "raw",
               "type": "string",
               "value": " \\",
+              "substitutions": [
+                "special_chars",
+                "replacements"
+              ],
               "location": [
                 {
                   "line": 18,
@@ -456,6 +472,9 @@
               "name": "raw",
               "type": "string",
               "value": "&#169;",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 18,
@@ -471,6 +490,10 @@
               "name": "raw",
               "type": "string",
               "value": " ",
+              "substitutions": [
+                "special_chars",
+                "replacements"
+              ],
               "location": [
                 {
                   "line": 18,
@@ -486,6 +509,9 @@
               "name": "raw",
               "type": "string",
               "value": "&#9;",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 18,
@@ -501,6 +527,10 @@
               "name": "raw",
               "type": "string",
               "value": " ",
+              "substitutions": [
+                "special_chars",
+                "replacements"
+              ],
               "location": [
                 {
                   "line": 18,
@@ -516,6 +546,9 @@
               "name": "raw",
               "type": "string",
               "value": "&#0000169;",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 18,
@@ -577,6 +610,9 @@
               "name": "raw",
               "type": "string",
               "value": "<",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 20,
@@ -592,6 +628,10 @@
               "name": "raw",
               "type": "string",
               "value": "tag",
+              "substitutions": [
+                "special_chars",
+                "replacements"
+              ],
               "location": [
                 {
                   "line": 20,
@@ -607,6 +647,9 @@
               "name": "raw",
               "type": "string",
               "value": ">",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 20,
@@ -622,6 +665,10 @@
               "name": "raw",
               "type": "string",
               "value": " ",
+              "substitutions": [
+                "special_chars",
+                "replacements"
+              ],
               "location": [
                 {
                   "line": 20,
@@ -637,6 +684,9 @@
               "name": "raw",
               "type": "string",
               "value": "&",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 20,
@@ -667,6 +717,9 @@
               "name": "raw",
               "type": "string",
               "value": "&lt;",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 20,
@@ -682,6 +735,9 @@
               "name": "raw",
               "type": "string",
               "value": "tag",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 20,
@@ -697,6 +753,9 @@
               "name": "raw",
               "type": "string",
               "value": "&gt;",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 20,
@@ -712,6 +771,9 @@
               "name": "raw",
               "type": "string",
               "value": " ",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 20,
@@ -727,6 +789,9 @@
               "name": "raw",
               "type": "string",
               "value": "&amp;",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 20,

@@ -98,6 +98,9 @@
               "name": "raw",
               "type": "string",
               "value": "\"",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 4,
@@ -128,6 +131,9 @@
               "name": "raw",
               "type": "string",
               "value": "\"",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 4,
@@ -203,6 +209,9 @@
               "name": "raw",
               "type": "string",
               "value": "\"",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 6,
@@ -233,6 +242,9 @@
               "name": "raw",
               "type": "string",
               "value": "\"",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 6,
@@ -588,6 +600,9 @@
           "name": "raw",
           "type": "string",
           "value": "*Selected* footnote:[Selected block.]",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 15,
@@ -624,6 +639,9 @@
           "name": "raw",
           "type": "string",
           "value": "Selected macro",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 19,
@@ -746,6 +764,9 @@
             "name": "raw",
             "type": "string",
             "value": "Literal -- prefix ",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 25,
@@ -800,6 +821,9 @@
           "name": "raw",
           "type": "string",
           "value": "A \"quote\"",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 27,
@@ -836,6 +860,9 @@
           "name": "raw",
           "type": "string",
           "value": "A \"quote\"",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 30,
@@ -877,6 +904,9 @@
           "name": "raw",
           "type": "string",
           "value": "custom",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 34,
@@ -918,6 +948,9 @@
           "name": "raw",
           "type": "string",
           "value": "Named",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 37,
@@ -954,6 +987,9 @@
           "name": "raw",
           "type": "string",
           "value": "*Formatted*",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 40,

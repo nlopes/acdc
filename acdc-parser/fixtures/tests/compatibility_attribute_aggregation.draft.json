@@ -210,6 +210,9 @@
           "name": "raw",
           "type": "string",
           "value": "Photo",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 19,
@@ -254,6 +257,9 @@
           "name": "raw",
           "type": "string",
           "value": "Photo",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 22,

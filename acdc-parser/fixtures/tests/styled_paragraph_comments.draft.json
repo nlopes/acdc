@@ -699,6 +699,9 @@
                 "name": "raw",
                 "type": "string",
                 "value": "text",
+                "substitutions": [
+                  "special_chars"
+                ],
                 "location": [
                   {
                     "line": 66,

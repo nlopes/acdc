@@ -19,6 +19,9 @@
               "name": "raw",
               "type": "string",
               "value": "literal *stars*",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 1,

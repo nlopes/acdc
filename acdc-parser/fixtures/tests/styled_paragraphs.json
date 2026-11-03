@@ -81,6 +81,9 @@
                 "name": "raw",
                 "type": "string",
                 "value": "Albert Einstein",
+                "substitutions": [
+                  "special_chars"
+                ],
                 "location": [
                   {
                     "line": 5,
@@ -132,6 +135,9 @@
                 "name": "raw",
                 "type": "string",
                 "value": "Abraham Lincoln",
+                "substitutions": [
+                  "special_chars"
+                ],
                 "location": [
                   {
                     "line": 8,
@@ -149,6 +155,9 @@
                 "name": "raw",
                 "type": "string",
                 "value": "Gettysburg Address",
+                "substitutions": [
+                  "special_chars"
+                ],
                 "location": [
                   {
                     "line": 8,
@@ -234,6 +243,9 @@
                 "name": "raw",
                 "type": "string",
                 "value": "Carl Sandburg",
+                "substitutions": [
+                  "special_chars"
+                ],
                 "location": [
                   {
                     "line": 13,
@@ -251,6 +263,9 @@
                 "name": "raw",
                 "type": "string",
                 "value": "Fog",
+                "substitutions": [
+                  "special_chars"
+                ],
                 "location": [
                   {
                     "line": 13,

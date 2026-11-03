@@ -99,6 +99,9 @@
           "name": "raw",
           "type": "string",
           "value": "{source-value}",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 22,

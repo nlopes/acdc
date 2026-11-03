@@ -70,6 +70,9 @@
               "name": "raw",
               "type": "string",
               "value": "Block attribute",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 7,
@@ -111,6 +114,9 @@
               "name": "raw",
               "type": "string",
               "value": "Macro attribute",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 10,
@@ -152,6 +158,9 @@
               "name": "raw",
               "type": "string",
               "value": "Stacked attributes",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 14,
@@ -193,6 +202,9 @@
               "name": "raw",
               "type": "string",
               "value": "Relative link",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 16,
@@ -354,6 +366,9 @@
               "name": "raw",
               "type": "string",
               "value": "Empty block link",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 22,
@@ -395,6 +410,9 @@
               "name": "raw",
               "type": "string",
               "value": "Repeated block link",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 24,

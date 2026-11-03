@@ -592,6 +592,9 @@
           "name": "raw",
           "type": "string",
           "value": "*Named title*",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 17,

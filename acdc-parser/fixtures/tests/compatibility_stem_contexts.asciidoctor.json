@@ -176,6 +176,9 @@
           "name": "raw",
           "type": "string",
           "value": "stem:attributes[{value} footnote:include[Discarded.]]",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 5,
@@ -426,6 +429,9 @@
                         "name": "raw",
                         "type": "string",
                         "value": "stem:attributes[{value} footnote:table[Discarded.]]",
+                        "substitutions": [
+                          "special_chars"
+                        ],
                         "location": [
                           {
                             "line": 16,

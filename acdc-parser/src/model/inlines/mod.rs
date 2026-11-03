@@ -251,12 +251,7 @@ impl Serialize for InlineNode<'_> {
                 map.serialize_entry("value", &plain.content)?;
                 map.serialize_entry("location", &plain.location)?;
             }
-            InlineNode::RawText(raw) => {
-                map.serialize_entry("name", "raw")?;
-                map.serialize_entry("type", "string")?;
-                map.serialize_entry("value", &raw.content)?;
-                map.serialize_entry("location", &raw.location)?;
-            }
+            InlineNode::RawText(raw) => serialize_raw::<S>(raw, &mut map)?,
             InlineNode::VerbatimText(verbatim) => {
                 map.serialize_entry("name", "text")?;
                 map.serialize_entry("type", "string")?;
@@ -341,6 +336,7 @@ macro_rules! serialize_inline_owner {
 
 serialize_inline_owner! {
     InlineMacro => serialize_inline_macro,
+    Raw => serialize_raw,
     Footnote => serialize_footnote,
     Icon => serialize_icon,
     InlineImage => serialize_image,
@@ -518,6 +514,16 @@ where
         map.serialize_entry("inlines", &x.text)?;
     }
     map.serialize_entry("location", &x.location)
+}
+
+fn serialize_raw<S: Serializer>(raw: &Raw<'_>, map: &mut S::SerializeMap) -> Result<(), S::Error> {
+    map.serialize_entry("name", "raw")?;
+    map.serialize_entry("type", "string")?;
+    map.serialize_entry("value", raw.content)?;
+    if !raw.subs.is_empty() {
+        map.serialize_entry("substitutions", &raw.subs)?;
+    }
+    map.serialize_entry("location", &raw.location)
 }
 
 fn serialize_pass<S: Serializer>(

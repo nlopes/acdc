@@ -28,6 +28,9 @@
           "name": "raw",
           "type": "string",
           "value": "a much longer replacement value",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 3,
@@ -168,6 +171,9 @@
           "name": "raw",
           "type": "string",
           "value": "a much longer replacement value",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 7,

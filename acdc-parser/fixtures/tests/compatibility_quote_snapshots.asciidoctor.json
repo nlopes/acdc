@@ -563,6 +563,9 @@
             "name": "raw",
             "type": "string",
             "value": "footnote:literal[Literal note]",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 30,
@@ -580,6 +583,9 @@
             "name": "raw",
             "type": "string",
             "value": "((Literal index))",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 30,

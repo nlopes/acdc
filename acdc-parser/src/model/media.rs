@@ -451,6 +451,9 @@ impl Serialize for Image<'_> {
     where
         S: Serializer,
     {
+        self.metadata
+            .validate_attributes(&["alt"])
+            .map_err(serde::ser::Error::custom)?;
         let mut state = serializer.serialize_map(None)?;
         state.serialize_entry("name", "image")?;
         state.serialize_entry("type", "block")?;

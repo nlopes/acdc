@@ -1296,6 +1296,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Term (R)",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 16,
@@ -1374,6 +1377,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "fn((x)) tail",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 16,

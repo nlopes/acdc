@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- Native JSON now writes presence attributes, including `toc`, as `true` and
+  validated numeric attributes as JSON numbers. Numeric-looking text remains a
+  string, and integer text reads retain their original spelling. Header values
+  remain a snapshot and accepted body assignments stay in source order, with
+  `false` for unsets. Raw inline nodes retain nonempty ordered `substitutions`;
+  an omitted list means none. Serializing block metadata with stale reserved
+  scalar keys now returns an error. Use dedicated content fields instead.
+
 - Serializing an `InlineMacro` or its concrete owner now produces the same native
   JSON node as serializing its enclosing `InlineNode`, instead of enum wrappers
   or owner-specific layouts. Direct `LineBreak` serialization now uses the same

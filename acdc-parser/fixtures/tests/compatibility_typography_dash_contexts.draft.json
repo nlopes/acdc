@@ -74,6 +74,9 @@
           "name": "raw",
           "type": "string",
           "value": "left -- right",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 7,
@@ -91,6 +94,9 @@
           "name": "raw",
           "type": "string",
           "value": "α left--right",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 7,

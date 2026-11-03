@@ -221,6 +221,9 @@
           "name": "raw",
           "type": "string",
           "value": "A [x] B",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 26,
@@ -263,6 +266,9 @@
           "name": "raw",
           "type": "string",
           "value": "Alt, With Comma",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 28,
@@ -304,6 +310,9 @@
           "name": "raw",
           "type": "string",
           "value": "Named",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 30,

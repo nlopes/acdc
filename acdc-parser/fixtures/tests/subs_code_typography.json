@@ -564,6 +564,9 @@
               "name": "raw",
               "type": "string",
               "value": "(C)",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 23,
@@ -594,6 +597,9 @@
               "name": "raw",
               "type": "string",
               "value": "(R)",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 23,
@@ -624,6 +630,9 @@
               "name": "raw",
               "type": "string",
               "value": "(TM)",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 23,
@@ -654,6 +663,9 @@
               "name": "raw",
               "type": "string",
               "value": "...",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 23,
@@ -684,6 +696,9 @@
               "name": "raw",
               "type": "string",
               "value": "--",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 23,
@@ -714,6 +729,9 @@
               "name": "raw",
               "type": "string",
               "value": "->",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 23,
@@ -744,6 +762,9 @@
               "name": "raw",
               "type": "string",
               "value": "<-",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 23,
@@ -774,6 +795,9 @@
               "name": "raw",
               "type": "string",
               "value": "=>",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 23,
@@ -804,6 +828,9 @@
               "name": "raw",
               "type": "string",
               "value": "<=",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 23,
@@ -993,6 +1020,9 @@
               "name": "raw",
               "type": "string",
               "value": "\\*raw\\* \\",
+              "substitutions": [
+                "replacements"
+              ],
               "location": [
                 {
                   "line": 30,
@@ -2179,6 +2209,9 @@
               "name": "raw",
               "type": "string",
               "value": "(R)",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 58,

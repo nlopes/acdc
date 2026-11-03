@@ -714,6 +714,9 @@
               "name": "raw",
               "type": "string",
               "value": "{word}",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 42,
@@ -744,6 +747,9 @@
               "name": "raw",
               "type": "string",
               "value": "{word}",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 42,
@@ -1280,6 +1286,9 @@
               "name": "raw",
               "type": "string",
               "value": "{word}",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 54,
@@ -1410,6 +1419,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "{word}",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 56,
@@ -1489,6 +1501,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "{word}",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 58,

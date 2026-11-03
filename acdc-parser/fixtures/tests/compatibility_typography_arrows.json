@@ -388,6 +388,9 @@
           "name": "raw",
           "type": "string",
           "value": "->",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 9,
@@ -418,6 +421,9 @@
           "name": "raw",
           "type": "string",
           "value": "=>",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 9,
@@ -448,6 +454,9 @@
           "name": "raw",
           "type": "string",
           "value": "<-",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 9,
@@ -478,6 +487,9 @@
           "name": "raw",
           "type": "string",
           "value": "<=",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 9,
@@ -509,6 +521,9 @@
           "name": "raw",
           "type": "string",
           "value": "->",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 11,
@@ -539,6 +554,9 @@
           "name": "raw",
           "type": "string",
           "value": "=>",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 11,
@@ -569,6 +587,9 @@
           "name": "raw",
           "type": "string",
           "value": "<-",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 11,
@@ -599,6 +620,9 @@
           "name": "raw",
           "type": "string",
           "value": "<=",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 11,
@@ -721,6 +745,10 @@
           "name": "raw",
           "type": "string",
           "value": " ",
+          "substitutions": [
+            "special_chars",
+            "replacements"
+          ],
           "location": [
             {
               "line": 15,
@@ -751,6 +779,10 @@
           "name": "raw",
           "type": "string",
           "value": " ",
+          "substitutions": [
+            "special_chars",
+            "replacements"
+          ],
           "location": [
             {
               "line": 15,
@@ -781,6 +813,10 @@
           "name": "raw",
           "type": "string",
           "value": " ",
+          "substitutions": [
+            "special_chars",
+            "replacements"
+          ],
           "location": [
             {
               "line": 15,
@@ -827,6 +863,9 @@
           "name": "raw",
           "type": "string",
           "value": "->",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 17,
@@ -842,6 +881,9 @@
           "name": "raw",
           "type": "string",
           "value": " ",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 17,
@@ -857,6 +899,9 @@
           "name": "raw",
           "type": "string",
           "value": "=>",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 17,
@@ -872,6 +917,9 @@
           "name": "raw",
           "type": "string",
           "value": " ",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 17,
@@ -887,6 +935,9 @@
           "name": "raw",
           "type": "string",
           "value": "<-",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 17,
@@ -902,6 +953,9 @@
           "name": "raw",
           "type": "string",
           "value": " ",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 17,
@@ -917,6 +971,9 @@
           "name": "raw",
           "type": "string",
           "value": "<=",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 17,
@@ -963,6 +1020,9 @@
           "name": "raw",
           "type": "string",
           "value": " ",
+          "substitutions": [
+            "replacements"
+          ],
           "location": [
             {
               "line": 19,
@@ -993,6 +1053,9 @@
           "name": "raw",
           "type": "string",
           "value": " ",
+          "substitutions": [
+            "replacements"
+          ],
           "location": [
             {
               "line": 19,
@@ -1023,6 +1086,9 @@
           "name": "raw",
           "type": "string",
           "value": " ",
+          "substitutions": [
+            "replacements"
+          ],
           "location": [
             {
               "line": 19,
@@ -1069,6 +1135,9 @@
           "name": "raw",
           "type": "string",
           "value": "->",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 21,
@@ -1084,6 +1153,10 @@
           "name": "raw",
           "type": "string",
           "value": " ",
+          "substitutions": [
+            "special_chars",
+            "replacements"
+          ],
           "location": [
             {
               "line": 21,
@@ -1099,6 +1172,9 @@
           "name": "raw",
           "type": "string",
           "value": "=>",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 21,
@@ -1114,6 +1190,10 @@
           "name": "raw",
           "type": "string",
           "value": " ",
+          "substitutions": [
+            "special_chars",
+            "replacements"
+          ],
           "location": [
             {
               "line": 21,
@@ -1129,6 +1209,9 @@
           "name": "raw",
           "type": "string",
           "value": "<-",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 21,
@@ -1144,6 +1227,10 @@
           "name": "raw",
           "type": "string",
           "value": " ",
+          "substitutions": [
+            "special_chars",
+            "replacements"
+          ],
           "location": [
             {
               "line": 21,
@@ -1159,6 +1246,9 @@
           "name": "raw",
           "type": "string",
           "value": "<=",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 21,
@@ -1190,6 +1280,9 @@
           "name": "raw",
           "type": "string",
           "value": "->",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 24,
@@ -1220,6 +1313,9 @@
           "name": "raw",
           "type": "string",
           "value": "=>",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 24,
@@ -1250,6 +1346,9 @@
           "name": "raw",
           "type": "string",
           "value": "<-",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 24,
@@ -1280,6 +1379,9 @@
           "name": "raw",
           "type": "string",
           "value": "<=",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 24,

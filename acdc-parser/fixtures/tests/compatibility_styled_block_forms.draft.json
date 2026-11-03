@@ -283,6 +283,9 @@
           "name": "raw",
           "type": "string",
           "value": "Tooltip",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 15,
@@ -300,6 +303,9 @@
           "name": "raw",
           "type": "string",
           "value": "Sample",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 15,

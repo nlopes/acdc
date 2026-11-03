@@ -60,6 +60,9 @@
           "name": "raw",
           "type": "string",
           "value": "pass:q,c[*Escaped*]",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 7,
@@ -90,6 +93,9 @@
           "name": "raw",
           "type": "string",
           "value": "pass:m,c[footnote:discarded[Discarded.]]",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 7,
@@ -120,6 +126,9 @@
           "name": "raw",
           "type": "string",
           "value": "pass:callouts[<1>]",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 7,
@@ -150,6 +159,9 @@
           "name": "raw",
           "type": "string",
           "value": "pass:typo[*Unknown*]",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 7,
@@ -211,6 +223,9 @@
           "name": "raw",
           "type": "string",
           "value": "pass:q,c[<mark>*Bold*</mark>]",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 9,
@@ -272,6 +287,9 @@
           "name": "raw",
           "type": "string",
           "value": "pass:m,c[footnote:unused[Unused.\\] anchor:unused[\\]]",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 11,
@@ -333,6 +351,9 @@
           "name": "raw",
           "type": "string",
           "value": "pass:typo[<tag> *Bold*]",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 13,
@@ -394,6 +415,9 @@
           "name": "raw",
           "type": "string",
           "value": "pass:callouts[<1>]",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 15,
@@ -455,6 +479,9 @@
           "name": "raw",
           "type": "string",
           "value": "pass:q,verbatim[*Bold*]",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 17,
@@ -516,6 +543,9 @@
           "name": "raw",
           "type": "string",
           "value": "pass:q,c[α *Éva* \\] tail]",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 19,

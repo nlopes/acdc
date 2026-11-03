@@ -59,6 +59,9 @@
           "name": "raw",
           "type": "string",
           "value": "{role-name}",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 6,
@@ -89,6 +92,9 @@
           "name": "raw",
           "type": "string",
           "value": "*hot*",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 6,
@@ -807,6 +813,9 @@
               "name": "raw",
               "type": "string",
               "value": "title",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 24,
@@ -911,6 +920,9 @@
               "name": "raw",
               "type": "string",
               "value": "title",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 26,
@@ -1773,6 +1785,9 @@
               "name": "raw",
               "type": "string",
               "value": "my title",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 44,

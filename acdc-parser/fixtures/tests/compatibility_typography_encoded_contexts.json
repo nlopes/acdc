@@ -88,6 +88,9 @@
                         "name": "raw",
                         "type": "string",
                         "value": " ",
+                        "substitutions": [
+                          "replacements"
+                        ],
                         "location": [
                           {
                             "line": 5,
@@ -133,6 +136,9 @@
                         "name": "raw",
                         "type": "string",
                         "value": "->",
+                        "substitutions": [
+                          "special_chars"
+                        ],
                         "location": [
                           {
                             "line": 5,
@@ -320,6 +326,9 @@
           "name": "raw",
           "type": "string",
           "value": ">",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 2,

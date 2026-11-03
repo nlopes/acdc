@@ -282,6 +282,9 @@
             "name": "raw",
             "type": "string",
             "value": "Before",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 22,
@@ -299,6 +302,9 @@
             "name": "raw",
             "type": "string",
             "value": "Book",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 22,
@@ -366,6 +372,9 @@
             "name": "raw",
             "type": "string",
             "value": "Prefix",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 28,

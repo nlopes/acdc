@@ -76,6 +76,9 @@
               "name": "raw",
               "type": "string",
               "value": "Early Early *literal* (C).",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 8,
@@ -123,6 +126,9 @@
               "name": "raw",
               "type": "string",
               "value": "Attribute *body* Early.",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 8,
@@ -198,6 +204,9 @@
               "name": "raw",
               "type": "string",
               "value": "Late {name} *literal* (C).",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 13,
@@ -495,6 +504,10 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Term footnote:[Term note.]",
+                  "substitutions": [
+                    "special_chars",
+                    "replacements"
+                  ],
                   "location": [
                     {
                       "line": 19,

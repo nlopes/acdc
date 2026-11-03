@@ -800,6 +800,9 @@
               "name": "raw",
               "type": "string",
               "value": ">",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 22,
@@ -821,6 +824,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Bold",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 22,
@@ -848,6 +854,9 @@
               "name": "raw",
               "type": "string",
               "value": " <",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 22,
@@ -869,6 +878,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Italic",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 22,
@@ -896,6 +908,9 @@
               "name": "raw",
               "type": "string",
               "value": " &",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 22,
@@ -917,6 +932,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Code",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 22,
@@ -990,6 +1008,9 @@
               "name": "raw",
               "type": "string",
               "value": "pass:q,c[>*Bold* <_Italic_ &`Code`]",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 24,

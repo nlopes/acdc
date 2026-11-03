@@ -78,6 +78,9 @@
           "name": "raw",
           "type": "string",
           "value": "(C)",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 11,
@@ -154,6 +157,9 @@
           "name": "raw",
           "type": "string",
           "value": "(C)",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 15,
@@ -236,6 +242,9 @@
           "name": "raw",
           "type": "string",
           "value": "Sam",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 3,
@@ -321,6 +330,10 @@
           "name": "raw",
           "type": "string",
           "value": "Sam",
+          "substitutions": [
+            "special_chars",
+            "replacements"
+          ],
           "location": [
             {
               "line": 5,
@@ -406,6 +419,9 @@
           "name": "raw",
           "type": "string",
           "value": "(R)",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 7,
@@ -540,6 +556,9 @@
                         "name": "raw",
                         "type": "string",
                         "value": "Sam",
+                        "substitutions": [
+                          "special_chars"
+                        ],
                         "location": [
                           {
                             "line": 23,
@@ -601,6 +620,10 @@
                         "name": "raw",
                         "type": "string",
                         "value": "Sam",
+                        "substitutions": [
+                          "special_chars",
+                          "replacements"
+                        ],
                         "location": [
                           {
                             "line": 25,
@@ -662,6 +685,9 @@
                         "name": "raw",
                         "type": "string",
                         "value": "(R)",
+                        "substitutions": [
+                          "special_chars"
+                        ],
                         "location": [
                           {
                             "line": 27,
@@ -761,6 +787,9 @@
               "name": "raw",
               "type": "string",
               "value": "Sam",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 30,
@@ -843,6 +872,9 @@
               "name": "raw",
               "type": "string",
               "value": "Sam",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 32,

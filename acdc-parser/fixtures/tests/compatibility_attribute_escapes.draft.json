@@ -416,6 +416,9 @@
             "name": "raw",
             "type": "string",
             "value": "α\\",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 28,
@@ -433,6 +436,9 @@
             "name": "raw",
             "type": "string",
             "value": "Book",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 28,

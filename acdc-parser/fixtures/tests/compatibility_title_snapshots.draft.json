@@ -29,6 +29,9 @@
           "name": "raw",
           "type": "string",
           "value": "Before / {word}",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 4,
@@ -391,6 +394,9 @@
           "name": "raw",
           "type": "string",
           "value": "Before passthrough",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 25,
@@ -732,6 +738,9 @@
               "name": "raw",
               "type": "string",
               "value": "footnote:literal[Mode-dependent note]",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 40,

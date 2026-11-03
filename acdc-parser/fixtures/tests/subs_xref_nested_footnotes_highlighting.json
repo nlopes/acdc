@@ -586,6 +586,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "{name} *literal* (C).",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 28,

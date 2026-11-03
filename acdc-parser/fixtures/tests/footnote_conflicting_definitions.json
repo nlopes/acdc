@@ -482,6 +482,9 @@
               "name": "raw",
               "type": "string",
               "value": "literal",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 18,
@@ -787,6 +790,9 @@
           "name": "raw",
           "type": "string",
           "value": "footnote:shared[Passthrough replacement.]",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 26,

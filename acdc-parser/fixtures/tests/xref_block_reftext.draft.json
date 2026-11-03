@@ -511,6 +511,9 @@
             "name": "raw",
             "type": "string",
             "value": "Named *table* Ada",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 12,
@@ -630,6 +633,9 @@
             "name": "raw",
             "type": "string",
             "value": "Named _image_ Ada",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 19,
@@ -678,6 +684,9 @@
           "name": "raw",
           "type": "string",
           "value": "Example",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 19,
@@ -748,6 +757,9 @@
             "name": "raw",
             "type": "string",
             "value": "Named `paragraph` Ada",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 22,
@@ -796,6 +808,9 @@
             "name": "raw",
             "type": "string",
             "value": "Named example",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 26,
@@ -894,6 +909,9 @@
             "name": "raw",
             "type": "string",
             "value": "Named listing",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 32,
@@ -976,6 +994,9 @@
             "name": "raw",
             "type": "string",
             "value": "Named open",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 38,
@@ -1074,6 +1095,9 @@
             "name": "raw",
             "type": "string",
             "value": "Named untitled Ada",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 43,
@@ -1529,6 +1553,9 @@
                           "name": "raw",
                           "type": "string",
                           "value": "Cell label",
+                          "substitutions": [
+                            "special_chars"
+                          ],
                           "location": [
                             {
                               "line": 60,

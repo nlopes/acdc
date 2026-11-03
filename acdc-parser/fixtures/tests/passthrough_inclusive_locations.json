@@ -59,6 +59,9 @@
           "name": "raw",
           "type": "string",
           "value": "β",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 6,
@@ -89,6 +92,9 @@
           "name": "raw",
           "type": "string",
           "value": "δ",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 7,
@@ -264,6 +270,9 @@
               "name": "raw",
               "type": "string",
               "value": "café",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 13,
@@ -342,6 +351,9 @@
               "name": "raw",
               "type": "string",
               "value": "café",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 15,
@@ -457,6 +469,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "é",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 17,

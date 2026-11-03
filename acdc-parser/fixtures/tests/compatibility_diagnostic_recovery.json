@@ -88,6 +88,9 @@
           "name": "raw",
           "type": "string",
           "value": "pass:q,c[*Literal* footnote:discarded[Discarded.\\]]",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 6,
@@ -134,6 +137,9 @@
           "name": "raw",
           "type": "string",
           "value": "stem:quotes[α *x* footnote:discarded[Discarded.]]",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 8,
@@ -226,6 +232,9 @@
           "name": "raw",
           "type": "string",
           "value": "{counter:literal}",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 12,
@@ -256,6 +265,9 @@
           "name": "raw",
           "type": "string",
           "value": "{counter:literal}",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 12,
@@ -286,6 +298,9 @@
           "name": "raw",
           "type": "string",
           "value": "{counter:literal}",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 12,
@@ -347,6 +362,9 @@
           "name": "raw",
           "type": "string",
           "value": "{counter:literal}",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 14,
@@ -377,6 +395,9 @@
           "name": "raw",
           "type": "string",
           "value": "{counter:literal}",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 14,
@@ -407,6 +428,9 @@
           "name": "raw",
           "type": "string",
           "value": "{counter2:hidden:4}",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 14,
@@ -636,6 +660,9 @@
                         "name": "raw",
                         "type": "string",
                         "value": "pass:q,c[*Cell*]",
+                        "substitutions": [
+                          "special_chars"
+                        ],
                         "location": [
                           {
                             "line": 28,

@@ -1,0 +1,15 @@
+= Native attribute values
+:toc:
+:toclevels: 03
+:custom-presence:
+:custom-number-text: 007
+
+Header presence is {custom-presence} and text is {custom-number-text}.
+
+:toc!:
+:toc:
+:toclevels: 02
+:custom-presence!:
+:custom-presence:
+
+After the ordered assignments.

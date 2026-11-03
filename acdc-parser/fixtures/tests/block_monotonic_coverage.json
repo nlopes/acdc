@@ -306,6 +306,9 @@
             "name": "raw",
             "type": "string",
             "value": "Author",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 25,
@@ -375,6 +378,9 @@
             "name": "raw",
             "type": "string",
             "value": "Poet",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 30,

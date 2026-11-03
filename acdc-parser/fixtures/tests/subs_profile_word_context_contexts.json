@@ -155,6 +155,9 @@
           "name": "raw",
           "type": "string",
           "value": "left",
+          "substitutions": [
+            "replacements"
+          ],
           "location": [
             {
               "line": 2,
@@ -395,6 +398,9 @@
               "name": "raw",
               "type": "string",
               "value": "s",
+              "substitutions": [
+                "replacements"
+              ],
               "location": [
                 {
                   "line": 4,
@@ -486,6 +492,9 @@
               "name": "raw",
               "type": "string",
               "value": "left",
+              "substitutions": [
+                "replacements"
+              ],
               "location": [
                 {
                   "line": 6,
@@ -688,6 +697,9 @@
                         "name": "raw",
                         "type": "string",
                         "value": "left",
+                        "substitutions": [
+                          "replacements"
+                        ],
                         "location": [
                           {
                             "line": 10,
@@ -862,6 +874,9 @@
                             "name": "raw",
                             "type": "string",
                             "value": "s",
+                            "substitutions": [
+                              "replacements"
+                            ],
                             "location": [
                               {
                                 "line": 12,

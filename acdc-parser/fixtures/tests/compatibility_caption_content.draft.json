@@ -331,6 +331,9 @@
             "name": "raw",
             "type": "string",
             "value": "*Literal* -- <tag>: ",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 19,
@@ -635,6 +638,9 @@
           "name": "raw",
           "type": "string",
           "value": "Photo",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 38,
@@ -672,6 +678,9 @@
             "name": "raw",
             "type": "string",
             "value": "*Literal*: ",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 42,
@@ -707,6 +716,9 @@
           "name": "raw",
           "type": "string",
           "value": "Photo",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 42,

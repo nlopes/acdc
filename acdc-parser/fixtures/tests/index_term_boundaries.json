@@ -1685,6 +1685,9 @@
               "name": "raw",
               "type": "string",
               "value": "]",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 49,
@@ -1763,6 +1766,9 @@
               "name": "raw",
               "type": "string",
               "value": "]",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 51,

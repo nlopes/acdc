@@ -25,6 +25,9 @@
           "name": "raw",
           "type": "string",
           "value": "&#169;",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 1,
@@ -71,6 +74,9 @@
           "name": "raw",
           "type": "string",
           "value": "&#169;",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 3,
@@ -194,6 +200,9 @@
           "name": "raw",
           "type": "string",
           "value": "+plain",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 9,
@@ -255,6 +264,9 @@
           "name": "raw",
           "type": "string",
           "value": "++plain",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 11,
@@ -395,6 +407,9 @@
           "name": "raw",
           "type": "string",
           "value": "+*bold*",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 15,
@@ -456,6 +471,9 @@
           "name": "raw",
           "type": "string",
           "value": "+",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 17,
@@ -504,6 +522,9 @@
           "name": "raw",
           "type": "string",
           "value": "+",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 17,
@@ -629,6 +650,9 @@
           "name": "raw",
           "type": "string",
           "value": "+<mark>*bold*</mark>",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 21,
@@ -690,6 +714,9 @@
           "name": "raw",
           "type": "string",
           "value": "+",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 23,
@@ -768,6 +795,9 @@
           "name": "raw",
           "type": "string",
           "value": "+",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 23,
@@ -845,6 +875,9 @@
           "name": "raw",
           "type": "string",
           "value": "+&#169;",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 27,
@@ -906,6 +939,9 @@
           "name": "raw",
           "type": "string",
           "value": "+",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 29,

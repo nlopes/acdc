@@ -25,6 +25,9 @@
           "name": "raw",
           "type": "string",
           "value": "passthrough",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 1,
@@ -86,6 +89,9 @@
           "name": "raw",
           "type": "string",
           "value": "passthrough",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 3,
@@ -117,6 +123,9 @@
           "name": "raw",
           "type": "string",
           "value": "passthrough",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 5,
@@ -163,6 +172,9 @@
           "name": "raw",
           "type": "string",
           "value": "passthrough",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 7,
@@ -209,6 +221,9 @@
           "name": "raw",
           "type": "string",
           "value": "passthrough",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 9,
@@ -239,6 +254,9 @@
           "name": "raw",
           "type": "string",
           "value": "passthrough",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 9,

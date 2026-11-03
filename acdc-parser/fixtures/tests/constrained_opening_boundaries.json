@@ -3319,6 +3319,9 @@
               "name": "raw",
               "type": "string",
               "value": "@_literal_",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 60,
@@ -3349,6 +3352,9 @@
               "name": "raw",
               "type": "string",
               "value": "<`literal`",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 60,

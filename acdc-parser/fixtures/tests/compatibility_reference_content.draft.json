@@ -191,6 +191,9 @@
             "name": "raw",
             "type": "string",
             "value": "*Double* label",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 7,
@@ -255,6 +258,9 @@
             "name": "raw",
             "type": "string",
             "value": "*Unquoted*",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 10,
@@ -716,6 +722,9 @@
               "name": "raw",
               "type": "string",
               "value": "Photo",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 27,

@@ -884,6 +884,9 @@
           "name": "raw",
           "type": "string",
           "value": "--",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 16,
@@ -914,6 +917,9 @@
           "name": "raw",
           "type": "string",
           "value": "--",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 16,
@@ -944,6 +950,9 @@
           "name": "raw",
           "type": "string",
           "value": "left--right",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 16,
@@ -1020,6 +1029,9 @@
           "name": "raw",
           "type": "string",
           "value": "left",
+          "substitutions": [
+            "replacements"
+          ],
           "location": [
             {
               "line": 18,
@@ -1050,6 +1062,9 @@
           "name": "raw",
           "type": "string",
           "value": "right",
+          "substitutions": [
+            "replacements"
+          ],
           "location": [
             {
               "line": 18,
@@ -1923,6 +1938,9 @@
           "name": "raw",
           "type": "string",
           "value": "--",
+          "substitutions": [
+            "replacements"
+          ],
           "location": [
             {
               "line": 43,
@@ -1983,6 +2001,9 @@
           "name": "raw",
           "type": "string",
           "value": "word",
+          "substitutions": [
+            "replacements"
+          ],
           "location": [
             {
               "line": 43,
@@ -2013,6 +2034,9 @@
           "name": "raw",
           "type": "string",
           "value": "word",
+          "substitutions": [
+            "replacements"
+          ],
           "location": [
             {
               "line": 43,
@@ -2128,6 +2152,9 @@
               "name": "raw",
               "type": "string",
               "value": "-- word",
+              "substitutions": [
+                "replacements"
+              ],
               "location": [
                 {
                   "line": 45,
@@ -2277,6 +2304,9 @@
           "name": "raw",
           "type": "string",
           "value": "word",
+          "substitutions": [
+            "replacements"
+          ],
           "location": [
             {
               "line": 49,
@@ -2307,6 +2337,9 @@
           "name": "raw",
           "type": "string",
           "value": "word",
+          "substitutions": [
+            "replacements"
+          ],
           "location": [
             {
               "line": 49,

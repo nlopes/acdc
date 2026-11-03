@@ -431,6 +431,9 @@
           "name": "raw",
           "type": "string",
           "value": "Alt] *greedy* and footnote:literal[Not registered.",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 23,
@@ -466,6 +469,9 @@
           "name": "raw",
           "type": "string",
           "value": "Chosen title",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 26,
@@ -546,6 +552,9 @@
           "name": "raw",
           "type": "string",
           "value": "Alt",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 32,

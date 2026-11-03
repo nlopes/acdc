@@ -31,7 +31,7 @@
     ]
   },
   "attributes": {
-    "toc": "",
+    "toc": true,
     "toc-placement": "macro",
     "toc-position": "content"
   },

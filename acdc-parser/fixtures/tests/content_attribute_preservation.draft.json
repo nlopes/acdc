@@ -72,6 +72,9 @@
           "name": "raw",
           "type": "string",
           "value": "Before",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 5,
@@ -136,6 +139,9 @@
           "name": "raw",
           "type": "string",
           "value": "Selected footnote:[Selected caption.]",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 12,
@@ -153,6 +159,9 @@
           "name": "raw",
           "type": "string",
           "value": "Alt",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 12,
@@ -389,6 +398,9 @@
           "name": "raw",
           "type": "string",
           "value": "Alt",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 20,
@@ -425,6 +437,9 @@
           "name": "raw",
           "type": "string",
           "value": "Alt",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 22,

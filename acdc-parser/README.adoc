@@ -478,6 +478,19 @@ requested substitutions. Document parsing normally resolves passthroughs into
 inline content first. Native serialization does not interpret their text or
 apply ASG restrictions.
 
+Document attributes keep their semantic JSON types: presence is `true`, validated
+integers are numbers, and text stays text, even when it contains only digits.
+The header is a snapshot; accepted body assignments remain ordered nodes, with
+`false` for an unset. Text reads still retain an explicit integer's original spelling.
+
+Content attributes appear only in their dedicated fields as inline arrays.
+Absent content is omitted; explicit empty content is `[]`. Generated caption
+labels and counters are omitted. Scalar maps retain controls and extensions;
+serialization rejects reserved block keys that conflict with dedicated fields.
+Raw inline nodes retain their literal text and nonempty `substitutions` list in
+order. An omitted list means no substitutions. Serialization never reinterprets
+this text.
+
 == Migrating from 0.11
 
 For link, URL, and mailto owners, replace scalar-map field reads with

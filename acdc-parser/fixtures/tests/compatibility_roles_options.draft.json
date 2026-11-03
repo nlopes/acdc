@@ -145,6 +145,9 @@
           "name": "raw",
           "type": "string",
           "value": "Photo",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 13,

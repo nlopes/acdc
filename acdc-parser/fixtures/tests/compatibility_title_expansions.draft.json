@@ -110,6 +110,9 @@
           "name": "raw",
           "type": "string",
           "value": "*Bold*",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 9,
@@ -158,6 +161,9 @@
           "name": "raw",
           "type": "string",
           "value": "*Bold*",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 12,
@@ -368,6 +374,9 @@
           "name": "raw",
           "type": "string",
           "value": "*Bold*",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 24,

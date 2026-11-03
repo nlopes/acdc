@@ -386,6 +386,9 @@
           "name": "raw",
           "type": "string",
           "value": "*Bold*",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 24,

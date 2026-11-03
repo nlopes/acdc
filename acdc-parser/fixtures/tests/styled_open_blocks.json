@@ -310,6 +310,9 @@
             "name": "raw",
             "type": "string",
             "value": "Author",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 14,
@@ -327,6 +330,9 @@
             "name": "raw",
             "type": "string",
             "value": "Citation",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 14,
@@ -429,6 +435,9 @@
             "name": "raw",
             "type": "string",
             "value": "Author",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 19,
@@ -446,6 +455,9 @@
             "name": "raw",
             "type": "string",
             "value": "Citation",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 19,

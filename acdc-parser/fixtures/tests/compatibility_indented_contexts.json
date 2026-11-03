@@ -327,6 +327,9 @@
             "name": "raw",
             "type": "string",
             "value": "Included Author",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 5,
@@ -350,6 +353,9 @@
             "name": "raw",
             "type": "string",
             "value": "Included Citation",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 5,
@@ -815,6 +821,9 @@
                           "name": "raw",
                           "type": "string",
                           "value": "Cell Author",
+                          "substitutions": [
+                            "special_chars"
+                          ],
                           "location": [
                             {
                               "line": 16,
@@ -832,6 +841,9 @@
                           "name": "raw",
                           "type": "string",
                           "value": "Cell Citation",
+                          "substitutions": [
+                            "special_chars"
+                          ],
                           "location": [
                             {
                               "line": 16,

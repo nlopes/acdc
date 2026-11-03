@@ -34,7 +34,7 @@
     "doctype": "book",
     "sectnumlevels": "1",
     "sectnums": true,
-    "toc": "",
+    "toc": true,
     "xrefstyle": "full"
   },
   "blocks": [

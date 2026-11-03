@@ -8,6 +8,9 @@
           "name": "raw",
           "type": "string",
           "value": "Named document",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 2,
@@ -493,6 +496,9 @@
             "name": "raw",
             "type": "string",
             "value": "Named label",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 12,
@@ -623,6 +629,9 @@
             "name": "raw",
             "type": "string",
             "value": "Named before ID",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 19,
@@ -818,6 +827,9 @@
             "name": "raw",
             "type": "string",
             "value": "link:https://example.org[Link] (C) <tag>",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 32,
@@ -946,6 +958,9 @@
             "name": "raw",
             "type": "string",
             "value": "First owner",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 39,
@@ -1009,6 +1024,9 @@
             "name": "raw",
             "type": "string",
             "value": "Ignored label",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 42,

@@ -1192,6 +1192,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Indexed footnote:[Index label note.]",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 45,

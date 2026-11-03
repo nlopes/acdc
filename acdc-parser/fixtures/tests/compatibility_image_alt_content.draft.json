@@ -41,6 +41,9 @@
           "name": "raw",
           "type": "string",
           "value": "*Bold* &amp; -> footnote:alt[Alt note]",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 3,
@@ -77,6 +80,9 @@
           "name": "raw",
           "type": "string",
           "value": "*Literal* &amp; ->",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 6,
@@ -113,6 +119,9 @@
           "name": "raw",
           "type": "string",
           "value": "*Positional* label",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 9,
@@ -149,6 +158,9 @@
           "name": "raw",
           "type": "string",
           "value": "*Scalar* label",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 12,
@@ -185,6 +197,9 @@
           "name": "raw",
           "type": "string",
           "value": "*Scalar* label",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 14,
@@ -221,6 +236,9 @@
           "name": "raw",
           "type": "string",
           "value": "*Unquoted*",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 16,
@@ -257,6 +275,9 @@
           "name": "raw",
           "type": "string",
           "value": "Escaped \\*stars* pass:q[marked] &amp; ->",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 19,
@@ -352,6 +373,9 @@
           "name": "raw",
           "type": "string",
           "value": "Selected *label*",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 29,

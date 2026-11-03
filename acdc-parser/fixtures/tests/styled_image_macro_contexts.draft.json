@@ -60,6 +60,9 @@
           "name": "raw",
           "type": "string",
           "value": "Listing alt",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 6,
@@ -118,6 +121,9 @@
           "name": "raw",
           "type": "string",
           "value": "Source alt",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 10,
@@ -171,6 +177,9 @@
           "name": "raw",
           "type": "string",
           "value": "Literal alt",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 14,
@@ -224,6 +233,9 @@
           "name": "raw",
           "type": "string",
           "value": "Verse alt",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 18,
@@ -277,6 +289,9 @@
           "name": "raw",
           "type": "string",
           "value": "Explicit alt",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 22,
@@ -330,6 +345,9 @@
           "name": "raw",
           "type": "string",
           "value": "Explicit alt",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 26,
@@ -383,6 +401,9 @@
           "name": "raw",
           "type": "string",
           "value": "custom",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 29,
@@ -443,6 +464,9 @@
           "name": "raw",
           "type": "string",
           "value": "Untitled listing alt",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 36,
@@ -547,6 +571,9 @@
           "name": "raw",
           "type": "string",
           "value": "Final alt",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 43,

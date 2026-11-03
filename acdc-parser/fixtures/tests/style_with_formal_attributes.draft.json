@@ -10,6 +10,9 @@
           "name": "raw",
           "type": "string",
           "value": "Hello,world",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 1,

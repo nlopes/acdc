@@ -238,6 +238,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "Before https://example.org/code[Link] after",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 15,
@@ -363,6 +366,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "Before footnote:code[Code note.] after",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 16,
@@ -497,6 +503,9 @@
                         "name": "raw",
                         "type": "string",
                         "value": "Code",
+                        "substitutions": [
+                          "special_chars"
+                        ],
                         "location": [
                           {
                             "line": 17,
@@ -514,6 +523,9 @@
                         "name": "raw",
                         "type": "string",
                         "value": "link:https://example.org/hidden[Hidden, label]",
+                        "substitutions": [
+                          "special_chars"
+                        ],
                         "location": [
                           {
                             "line": 17,
@@ -531,6 +543,9 @@
                         "name": "raw",
                         "type": "string",
                         "value": "Tail",
+                        "substitutions": [
+                          "special_chars"
+                        ],
                         "location": [
                           {
                             "line": 17,
@@ -722,6 +737,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "Before https://example.org/format[",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 22,
@@ -743,6 +761,9 @@
                           "name": "raw",
                           "type": "string",
                           "value": "Bold",
+                          "substitutions": [
+                            "special_chars"
+                          ],
                           "location": [
                             {
                               "line": 22,
@@ -770,6 +791,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "] after",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 22,
@@ -1021,6 +1045,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "Before https://example.org/reordered[*Bold*] after",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 34,
@@ -1187,6 +1214,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "Before https://example.org/attribute[Expanded] after",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 37,
@@ -1302,6 +1332,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "Before {label} after",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 40,

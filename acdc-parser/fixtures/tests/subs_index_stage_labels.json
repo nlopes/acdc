@@ -156,6 +156,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Copyright (C) A -- B ...",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 6,
@@ -551,6 +554,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Copyright (C) A -- B ...",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 13,
@@ -675,6 +681,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "\\*Literal*",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 17,
@@ -749,6 +758,9 @@
               "name": "raw",
               "type": "string",
               "value": "{name}",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 17,
@@ -816,6 +828,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Start \\{name} *bold*",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 17,
@@ -1281,6 +1296,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Link https://example.org[Caption]",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 26,
@@ -1392,6 +1410,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Cross xref:target[Target]",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 26,
@@ -1510,6 +1531,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "One",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 29,
@@ -1541,6 +1565,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Note footnote:[One]",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 29,
@@ -1601,6 +1628,9 @@
               "name": "raw",
               "type": "string",
               "value": "Two",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 29,
@@ -1691,6 +1721,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Note {name}",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 32,
@@ -1719,6 +1752,9 @@
               "name": "raw",
               "type": "string",
               "value": " and *literal* (C)",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 32,
@@ -1819,6 +1855,9 @@
               "name": "raw",
               "type": "string",
               "value": "Expanded",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 35,
@@ -1886,6 +1925,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Start ",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 35,
@@ -1901,6 +1943,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Expanded",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 35,
@@ -1916,6 +1961,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": " *bold*",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 35,
@@ -2021,6 +2069,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "bold",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 38,
@@ -2048,6 +2099,9 @@
               "name": "raw",
               "type": "string",
               "value": " ",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 38,
@@ -2067,6 +2121,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Early {name}",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 38,
@@ -2354,6 +2411,10 @@
                       "name": "raw",
                       "type": "string",
                       "value": "Normal https://example.org[Caption]",
+                      "substitutions": [
+                        "special_chars",
+                        "replacements"
+                      ],
                       "location": [
                         {
                           "line": 43,

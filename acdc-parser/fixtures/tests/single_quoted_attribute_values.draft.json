@@ -94,6 +94,9 @@
               "name": "raw",
               "type": "string",
               "value": "A beautiful sunset",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 7,
@@ -136,6 +139,9 @@
               "name": "raw",
               "type": "string",
               "value": "Sunset view",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 9,

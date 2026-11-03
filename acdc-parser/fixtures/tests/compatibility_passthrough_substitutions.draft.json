@@ -77,6 +77,9 @@
           "name": "raw",
           "type": "string",
           "value": "<",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 11,
@@ -92,6 +95,9 @@
           "name": "raw",
           "type": "string",
           "value": "Late",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 11,
@@ -107,6 +113,9 @@
           "name": "raw",
           "type": "string",
           "value": "> ",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 11,
@@ -128,6 +137,9 @@
               "name": "raw",
               "type": "string",
               "value": "Bold",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 11,
@@ -201,6 +213,9 @@
           "name": "raw",
           "type": "string",
           "value": "<",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 13,
@@ -216,6 +231,9 @@
           "name": "raw",
           "type": "string",
           "value": "Late",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 13,
@@ -231,6 +249,9 @@
           "name": "raw",
           "type": "string",
           "value": "> ",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 13,
@@ -252,6 +273,9 @@
               "name": "raw",
               "type": "string",
               "value": "Bold",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 13,
@@ -325,6 +349,9 @@
           "name": "raw",
           "type": "string",
           "value": "*Bold*",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 15,
@@ -361,6 +388,9 @@
               "name": "raw",
               "type": "string",
               "value": "Bold",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 15,
@@ -434,6 +464,9 @@
           "name": "raw",
           "type": "string",
           "value": "*Bold*",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 17,
@@ -464,6 +497,10 @@
           "name": "raw",
           "type": "string",
           "value": "*Bold*",
+          "substitutions": [
+            "special_chars",
+            "replacements"
+          ],
           "location": [
             {
               "line": 17,
@@ -616,6 +653,9 @@
           "name": "raw",
           "type": "string",
           "value": "<",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 21,
@@ -631,6 +671,9 @@
           "name": "raw",
           "type": "string",
           "value": "Late",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 21,
@@ -646,6 +689,9 @@
           "name": "raw",
           "type": "string",
           "value": "> ",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 21,
@@ -667,6 +713,9 @@
               "name": "raw",
               "type": "string",
               "value": "Bold",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 21,
@@ -694,6 +743,9 @@
           "name": "raw",
           "type": "string",
           "value": " ",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 21,
@@ -745,6 +797,9 @@
               "name": "raw",
               "type": "string",
               "value": "Bold",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 21,
@@ -818,6 +873,9 @@
           "name": "raw",
           "type": "string",
           "value": "<{name}> *Bold* (C)",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 23,
@@ -975,6 +1033,9 @@
               "name": "raw",
               "type": "string",
               "value": "Early",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 28,
@@ -1126,6 +1187,9 @@
           "name": "raw",
           "type": "string",
           "value": "pass:q,c[*Bold*]",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 30,

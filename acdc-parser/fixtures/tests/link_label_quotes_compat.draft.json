@@ -71,6 +71,9 @@
               "name": "raw",
               "type": "string",
               "value": "\"",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 4,
@@ -101,6 +104,9 @@
               "name": "raw",
               "type": "string",
               "value": "\"",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 4,
@@ -131,6 +137,9 @@
               "name": "raw",
               "type": "string",
               "value": "]",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 4,

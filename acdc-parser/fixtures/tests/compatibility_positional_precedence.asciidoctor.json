@@ -164,6 +164,9 @@
             "name": "raw",
             "type": "string",
             "value": "Positional",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 20,
@@ -181,6 +184,9 @@
             "name": "raw",
             "type": "string",
             "value": "Citation",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 20,
@@ -250,6 +256,9 @@
             "name": "raw",
             "type": "string",
             "value": "Positional",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 25,
@@ -267,6 +276,9 @@
             "name": "raw",
             "type": "string",
             "value": "Citation",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 25,
@@ -336,6 +348,9 @@
             "name": "raw",
             "type": "string",
             "value": "Positional",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 32,
@@ -353,6 +368,9 @@
             "name": "raw",
             "type": "string",
             "value": "Citation",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 32,

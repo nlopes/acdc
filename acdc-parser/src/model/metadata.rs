@@ -67,7 +67,11 @@ pub struct BlockMetadata<'a> {
     pub(crate) alt_source: Option<Box<super::content_attribute::PendingContentAttribute<'a>>>,
     #[serde(skip)]
     pub(crate) first_source: Option<Box<super::content_attribute::PendingContentAttribute<'a>>>,
-    #[serde(default, skip_serializing_if = "ElementAttributes::is_empty")]
+    #[serde(
+        default,
+        skip_serializing_if = "ElementAttributes::is_empty",
+        serialize_with = "serialize_block_attributes"
+    )]
     pub attributes: ElementAttributes<'a>,
     /// Explicit reference label, interpreted independently of the block body.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -195,7 +199,7 @@ impl<'a> BlockMetadata<'a> {
     /// Replace scalar attributes without shadowing dedicated metadata.
     ///
     /// # Errors
-    /// Rejects identity, roles, options, style, caption, reference text,
+    /// Rejects identity, roles, options, style, title, caption, reference text,
     /// substitutions, attribution, and citation title. Aliases are checked too.
     pub fn with_attributes(
         mut self,
@@ -219,6 +223,7 @@ impl<'a> BlockMetadata<'a> {
                 name,
                 &[
                     "style",
+                    "title",
                     "caption",
                     "reftext",
                     "subs",
@@ -401,7 +406,6 @@ impl<'a> BlockMetadata<'a> {
             && self.anchors.is_empty()
             && self.attributes.is_empty()
             && self.reftext.is_none()
-            && self.positional_attributes.is_empty()
             && self.substitutions.is_none()
             && caption_has_no_content(&self.caption)
             && self.attribution.is_none()
@@ -424,6 +428,14 @@ fn overlay_positional_slots<'a>(
             destination.clone_from(attribute);
         }
     }
+}
+
+fn serialize_block_attributes<S: serde::Serializer>(
+    attributes: &ElementAttributes<'_>,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    BlockMetadata::validate_attribute_map(attributes, &[]).map_err(serde::ser::Error::custom)?;
+    attributes.serialize(serializer)
 }
 
 #[expect(clippy::ref_option, reason = "Serde passes a reference to the field")]
@@ -555,4 +567,22 @@ pub(crate) struct InlineMetadataView<'node, 'a> {
     pub(crate) options: &'node [&'a str],
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) id: &'node Option<ElementId<'a>>,
+}
+
+#[cfg(test)]
+mod serialization_tests {
+    use super::{BlockMetadata, PositionalAttribute};
+
+    #[test]
+    fn parser_working_slots_do_not_make_native_metadata_nonempty() -> Result<(), serde_json::Error>
+    {
+        let mut metadata = BlockMetadata::default();
+        metadata.positional_attributes.push(PositionalAttribute {
+            value: "parser working slot",
+            ..PositionalAttribute::default()
+        });
+        assert!(metadata.is_default());
+        assert_eq!(serde_json::to_value(metadata)?, serde_json::json!({}));
+        Ok(())
+    }
 }

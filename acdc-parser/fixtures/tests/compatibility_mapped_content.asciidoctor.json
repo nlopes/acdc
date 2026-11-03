@@ -341,6 +341,9 @@
             "name": "raw",
             "type": "string",
             "value": "Old",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 1,
@@ -364,6 +367,9 @@
             "name": "raw",
             "type": "string",
             "value": "OldBook",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 1,
@@ -475,6 +481,9 @@
                           "name": "raw",
                           "type": "string",
                           "value": "Old",
+                          "substitutions": [
+                            "special_chars"
+                          ],
                           "location": [
                             {
                               "line": 20,
@@ -492,6 +501,9 @@
                           "name": "raw",
                           "type": "string",
                           "value": "OldBook",
+                          "substitutions": [
+                            "special_chars"
+                          ],
                           "location": [
                             {
                               "line": 20,

@@ -92,6 +92,9 @@
           "name": "raw",
           "type": "string",
           "value": "pass:q,c[*Included*]",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 3,
@@ -199,6 +202,9 @@
           "name": "raw",
           "type": "string",
           "value": "Before {counter:title} after.",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 7,
@@ -247,6 +253,9 @@
           "name": "raw",
           "type": "string",
           "value": "pass:q,c[*Selected*]",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 10,
@@ -295,6 +304,9 @@
           "name": "raw",
           "type": "string",
           "value": "Selected",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 13,

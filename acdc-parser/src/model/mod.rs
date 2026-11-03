@@ -565,7 +565,7 @@ impl Serialize for DocumentAttribute<'_> {
         let mut state = serializer.serialize_map(None)?;
         state.serialize_entry("name", &self.name)?;
         state.serialize_entry("type", "attribute")?;
-        state.serialize_entry("value", &self.assignment.serialized_value(false))?;
+        state.serialize_entry("value", &self.assignment.serialized_value())?;
         state.serialize_entry("location", &self.location)?;
         state.end()
     }

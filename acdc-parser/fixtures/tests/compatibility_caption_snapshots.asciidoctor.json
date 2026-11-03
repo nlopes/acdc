@@ -161,6 +161,9 @@
             "name": "raw",
             "type": "string",
             "value": "{other}: ",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 13,

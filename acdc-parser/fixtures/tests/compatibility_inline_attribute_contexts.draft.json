@@ -584,6 +584,9 @@
           "name": "raw",
           "type": "string",
           "value": "*Strong*",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 18,

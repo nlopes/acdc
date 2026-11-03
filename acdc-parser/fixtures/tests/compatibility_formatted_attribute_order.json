@@ -114,6 +114,9 @@
           "name": "raw",
           "type": "string",
           "value": "*Bold*",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 21,
@@ -234,6 +237,9 @@
               "name": "raw",
               "type": "string",
               "value": "Early",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 24,
@@ -276,6 +282,9 @@
           "name": "raw",
           "type": "string",
           "value": "*Bold*",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 24,
@@ -342,6 +351,9 @@
           "name": "raw",
           "type": "string",
           "value": "(C)",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 27,
@@ -438,6 +450,9 @@
           "name": "raw",
           "type": "string",
           "value": "https://example.org",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 30,
@@ -538,6 +553,9 @@
           "name": "raw",
           "type": "string",
           "value": "*Bold*",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 33,

@@ -378,6 +378,9 @@
               "name": "raw",
               "type": "string",
               "value": "A photo",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 27,

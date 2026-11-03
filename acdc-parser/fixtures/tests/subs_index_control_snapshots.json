@@ -105,6 +105,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "{label} *label*",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 7,
@@ -316,6 +319,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "{introduced}",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 13,
@@ -556,6 +562,9 @@
                     "name": "raw",
                     "type": "string",
                     "value": "{label}",
+                    "substitutions": [
+                      "special_chars"
+                    ],
                     "location": [
                       {
                         "line": 19,
@@ -573,6 +582,9 @@
                     "name": "raw",
                     "type": "string",
                     "value": "Secondary",
+                    "substitutions": [
+                      "special_chars"
+                    ],
                     "location": [
                       {
                         "line": 19,
@@ -595,6 +607,9 @@
                     "name": "raw",
                     "type": "string",
                     "value": "{label}",
+                    "substitutions": [
+                      "special_chars"
+                    ],
                     "location": [
                       {
                         "line": 19,
@@ -612,6 +627,9 @@
                     "name": "raw",
                     "type": "string",
                     "value": "Other",
+                    "substitutions": [
+                      "special_chars"
+                    ],
                     "location": [
                       {
                         "line": 19,
@@ -735,6 +753,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Copyright (C)",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 22,

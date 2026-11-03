@@ -43,6 +43,9 @@
             "name": "raw",
             "type": "string",
             "value": "Author",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 3,
@@ -60,6 +63,9 @@
             "name": "raw",
             "type": "string",
             "value": "Book",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 3,
@@ -369,6 +375,9 @@
             "name": "raw",
             "type": "string",
             "value": "Author",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 31,
@@ -386,6 +395,9 @@
             "name": "raw",
             "type": "string",
             "value": "Book",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 31,
@@ -437,6 +449,9 @@
             "name": "raw",
             "type": "string",
             "value": "Author",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 34,
@@ -454,6 +469,9 @@
             "name": "raw",
             "type": "string",
             "value": "Book",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 34,

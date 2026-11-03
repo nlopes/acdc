@@ -73,6 +73,9 @@
           "name": "raw",
           "type": "string",
           "value": "Before",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 18,
@@ -246,6 +249,9 @@
           "name": "raw",
           "type": "string",
           "value": "After",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 30,

@@ -951,6 +951,10 @@
                       "name": "raw",
                       "type": "string",
                       "value": "anchor:index-anchor[Index label]",
+                      "substitutions": [
+                        "special_chars",
+                        "replacements"
+                      ],
                       "location": [
                         {
                           "line": 25,

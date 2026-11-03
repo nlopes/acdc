@@ -98,6 +98,9 @@
               "name": "raw",
               "type": "string",
               "value": "\"",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 4,
@@ -128,6 +131,9 @@
               "name": "raw",
               "type": "string",
               "value": "\"",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 4,
@@ -203,6 +209,9 @@
               "name": "raw",
               "type": "string",
               "value": "\"",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 6,
@@ -233,6 +242,9 @@
               "name": "raw",
               "type": "string",
               "value": "\"",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 6,
@@ -793,6 +805,9 @@
             "name": "raw",
             "type": "string",
             "value": "Literal -- prefix ",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 25,

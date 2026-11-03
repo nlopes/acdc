@@ -80,6 +80,9 @@
           "name": "raw",
           "type": "string",
           "value": "Description",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 3,
@@ -119,6 +122,9 @@
             "name": "raw",
             "type": "string",
             "value": "A -- B",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 5,
@@ -136,6 +142,9 @@
             "name": "raw",
             "type": "string",
             "value": "C -- D",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 5,
@@ -436,6 +445,9 @@
             "name": "raw",
             "type": "string",
             "value": "A -- B ",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 18,

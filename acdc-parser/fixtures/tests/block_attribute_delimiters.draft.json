@@ -44,6 +44,9 @@
             "name": "raw",
             "type": "string",
             "value": "A [x] B",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 3,
@@ -61,6 +64,9 @@
             "name": "raw",
             "type": "string",
             "value": "Notes",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 3,
@@ -130,6 +136,9 @@
             "name": "raw",
             "type": "string",
             "value": "A [x",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 8,
@@ -147,6 +156,9 @@
             "name": "raw",
             "type": "string",
             "value": "Notes",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 8,
@@ -216,6 +228,9 @@
             "name": "raw",
             "type": "string",
             "value": "A ] B",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 13,
@@ -233,6 +248,9 @@
             "name": "raw",
             "type": "string",
             "value": "Notes",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 13,
@@ -305,6 +323,9 @@
             "name": "raw",
             "type": "string",
             "value": "https://example.com[Someone",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 18,
@@ -322,6 +343,9 @@
             "name": "raw",
             "type": "string",
             "value": "Part 1]",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 18,
@@ -391,6 +415,9 @@
             "name": "raw",
             "type": "string",
             "value": "https://example.com[Someone, Part 1]",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 23,
@@ -408,6 +435,9 @@
             "name": "raw",
             "type": "string",
             "value": "Final",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 23,
@@ -477,6 +507,9 @@
             "name": "raw",
             "type": "string",
             "value": "\"Quoted author\"Adjacent citation",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 28,
@@ -494,6 +527,9 @@
             "name": "raw",
             "type": "string",
             "value": "Fourth slot",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 28,

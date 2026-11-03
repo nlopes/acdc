@@ -1371,6 +1371,9 @@
           "name": "raw",
           "type": "string",
           "value": "anchor:single[Single]",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 30,
@@ -1401,6 +1404,9 @@
           "name": "raw",
           "type": "string",
           "value": "anchor:double[Double]",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 30,

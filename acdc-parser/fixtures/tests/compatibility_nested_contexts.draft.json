@@ -63,6 +63,9 @@
           "name": "raw",
           "type": "string",
           "value": "*Outer*",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 4,
@@ -165,6 +168,9 @@
                         "name": "raw",
                         "type": "string",
                         "value": "*Inner*",
+                        "substitutions": [
+                          "special_chars"
+                        ],
                         "location": [
                           {
                             "line": 11,
@@ -218,6 +224,9 @@
                         "name": "raw",
                         "type": "string",
                         "value": "*Outer*",
+                        "substitutions": [
+                          "special_chars"
+                        ],
                         "location": [
                           {
                             "line": 14,
@@ -303,6 +312,9 @@
           "name": "raw",
           "type": "string",
           "value": "*Outer*",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 18,
@@ -320,6 +332,9 @@
           "name": "raw",
           "type": "string",
           "value": "*Outer*",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 18,

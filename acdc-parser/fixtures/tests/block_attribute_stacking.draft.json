@@ -44,6 +44,9 @@
             "name": "raw",
             "type": "string",
             "value": "Original Author",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 3,
@@ -61,6 +64,9 @@
             "name": "raw",
             "type": "string",
             "value": "Named Citation",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 4,
@@ -130,6 +136,9 @@
             "name": "raw",
             "type": "string",
             "value": "Replacement Author",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 10,
@@ -147,6 +156,9 @@
             "name": "raw",
             "type": "string",
             "value": "Original Citation",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 9,
@@ -216,6 +228,9 @@
             "name": "raw",
             "type": "string",
             "value": "Replacement Poet",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 16,
@@ -233,6 +248,9 @@
             "name": "raw",
             "type": "string",
             "value": "Replacement Poem",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 16,
@@ -344,6 +362,9 @@
           "name": "raw",
           "type": "string",
           "value": "Inner",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 28,

@@ -298,6 +298,9 @@
               "name": "raw",
               "type": "string",
               "value": "<!--2-->",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 18,
@@ -364,6 +367,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Note.",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 19,
