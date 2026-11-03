@@ -407,11 +407,41 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Explicit passthrough expansion uses the title's declaration snapshot.",
+          "value": "Explicit passthrough expansion uses the title",
           "location": [
             {
               "line": 27,
               "col": 1
+            },
+            {
+              "line": 27,
+              "col": 45
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "’",
+          "location": [
+            {
+              "line": 27,
+              "col": 46
+            },
+            {
+              "line": 27,
+              "col": 46
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "s declaration snapshot.",
+          "location": [
+            {
+              "line": 27,
+              "col": 47
             },
             {
               "line": 27,

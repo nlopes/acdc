@@ -585,11 +585,41 @@
                 {
                   "name": "text",
                   "type": "string",
-                  "value": "You don't know about me.",
+                  "value": "You don",
                   "location": [
                     {
                       "line": 29,
                       "col": 1
+                    },
+                    {
+                      "line": 29,
+                      "col": 7
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "’",
+                  "location": [
+                    {
+                      "line": 29,
+                      "col": 8
+                    },
+                    {
+                      "line": 29,
+                      "col": 8
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "t know about me.",
+                  "location": [
+                    {
+                      "line": 29,
+                      "col": 9
                     },
                     {
                       "line": 29,

@@ -86,7 +86,7 @@
 
 #text("B01 ")#strong[#text("source")]#text(" *bold* (C) link:https://example.org[Link].")
 
-#text("B02 ")#strong[#text("source")]#text(" *bold* © ")#link("https://example.org")[#text("Link")]#text(".")
+#text("B02 ")#strong[#text("source")]#text(" *bold* ")#text("©")#text(" ")#link("https://example.org")[#text("Link")]#text(".")
 
 #text("B03 ")#strong[#text("bold")]#text(" (C) link:https://example.org[Link].")
 
@@ -94,7 +94,7 @@
 
 #text("B05 *source* *bold* (C) link:https://example.org[Link].")
 
-#text("B06 ")#strong[#text("source")]#text(" *bold* © link:https://example.org[Link].")
+#text("B06 ")#strong[#text("source")]#text(" *bold* ")#text("©")#text(" link:https://example.org[Link].")
 
 #text("B07 *source* *bold* (C) link:https://example.org[Link].")
 
@@ -232,10 +232,10 @@
 }
 #raw(block: true, "B20 *source* *bold* (C) link:https://example.org[Link] <1>.")
 
-#text("B21 ")#strong[#text("source")]#text(" *bold* © ")#link("https://example.org")[#text("Link")]#text(".")
+#text("B21 ")#strong[#text("source")]#text(" *bold* ")#text("©")#text(" ")#link("https://example.org")[#text("Link")]#text(".")
 
 #text("B22 footnote:[Literal note.] anchor:literal[] indexterm:[Literal].")
 
 #text("B23 café ")#strong[#text("accentué")]#text(" *bold*.")
 
-#text("B24 ")#strong[#text("defaults restored")]#text(" © ")#link("https://example.org")[#text("Link")]#text(".")
+#text("B24 ")#strong[#text("defaults restored")]#text(" ")#text("©")#text(" ")#link("https://example.org")[#text("Link")]#text(".")

@@ -167,6 +167,11 @@ Text reads keep ordinary, raw, and verbatim content distinct. `text()` returns
 parsed text without rendering; `PlainRef::is_escaped()` retains escape protection.
 `SymbolRef` represents resolved typography. Its `kind()` is semantic, its `text()`
 is Unicode, and its location still covers the authored replacement token.
+Enabled replacements resolve copyright and trademark signs, ellipses, word-internal apostrophes before a converter reads the tree.
+Replacement escapes produce protected literal text. Later attribute expansion
+cannot introduce a token for an earlier replacement stage.
+`pass:r,c[(C)]` keeps the resolved copyright symbol; Asciidoctor instead
+escapes its generated HTML entity. acdc does not put backend markup in the tree.
 
 `RawRef::substitutions()` gives the remaining substitutions in order, including
 repeated entries. These replace the enclosing block's rules. The reads do not
@@ -875,9 +880,9 @@ Unused values register no macros; anonymous footnotes register separately at eac
 use, while named notes share their ID. Lists such as `q,c` or `m,c` that need
 rendered markup, unknown substitution names, and text-only `a`/`c` combinations
 that reference profiled values stay literal with a structured parser warning.
-Profiles apply typography during conversion, including code and backtick spans.
-For example, `:value: pass:r[(C)]` retains `(C)` for text reads and renders `©`
-at each use. `:value: pass:r[\(C)]` retains `\(C)` for text reads and renders
+Profiles resolve enabled typography when their content is parsed, including code
+and backtick spans. For example, `:value: pass:r[(C)]` supplies a copyright symbol
+at each use; text reads return `©`. `:value: pass:r[\(C)]` supplies protected
 literal `(C)`, including code that enables replacements. Asciidoctor removes
 that escape during assignment and can later render `©` in ordinary prose and
 replacements-enabled code. acdc's behavior follows its source-first policy under
@@ -886,7 +891,7 @@ Raw-arrow replacement and some block-level code replacement paths remain
 separate compatibility limits.
 
 Both modes share the same inline boundary and escape rules. Escaping a complete
-macro keeps its inner source literal and prevents it from registering notes or
+macro keeps its inner formatting literal and prevents it from registering notes or
 references; Asciidoctor may still format text inside the escaped macro. Escaping
 an unconstrained span keeps the complete span literal in acdc. Constrained spans
 remove escapes from both markers.

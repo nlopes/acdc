@@ -367,11 +367,41 @@
             {
               "name": "text",
               "type": "string",
-              "value": " and (C).",
+              "value": " and ",
               "location": [
                 {
                   "line": 18,
                   "col": 24
+                },
+                {
+                  "line": 18,
+                  "col": 28
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
+              "location": [
+                {
+                  "line": 18,
+                  "col": 29
+                },
+                {
+                  "line": 18,
+                  "col": 31
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 18,
+                  "col": 32
                 },
                 {
                   "line": 18,

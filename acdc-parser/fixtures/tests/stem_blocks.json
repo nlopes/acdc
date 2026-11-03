@@ -125,11 +125,41 @@
             {
               "name": "text",
               "type": "string",
-              "value": "Einstein's famous equation: ",
+              "value": "Einstein",
               "location": [
                 {
                   "line": 8,
                   "col": 1
+                },
+                {
+                  "line": 8,
+                  "col": 8
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "’",
+              "location": [
+                {
+                  "line": 8,
+                  "col": 9
+                },
+                {
+                  "line": 8,
+                  "col": 9
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "s famous equation: ",
+              "location": [
+                {
+                  "line": 8,
+                  "col": 10
                 },
                 {
                   "line": 8,

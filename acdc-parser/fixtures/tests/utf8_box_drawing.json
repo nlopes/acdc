@@ -61,11 +61,41 @@
             {
               "name": "text",
               "type": "string",
-              "value": "Here's some ASCII art:",
+              "value": "Here",
               "location": [
                 {
                   "line": 5,
                   "col": 1
+                },
+                {
+                  "line": 5,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "’",
+              "location": [
+                {
+                  "line": 5,
+                  "col": 5
+                },
+                {
+                  "line": 5,
+                  "col": 5
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "s some ASCII art:",
+              "location": [
+                {
+                  "line": 5,
+                  "col": 6
                 },
                 {
                   "line": 5,

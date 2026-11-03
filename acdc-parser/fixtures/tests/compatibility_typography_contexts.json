@@ -1,0 +1,784 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Typography contexts",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 21
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 2,
+        "col": 12
+      }
+    ]
+  },
+  "attributes": {
+    "value": "(TM)"
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Earlier.",
+          "location": [
+            {
+              "line": 4,
+              "col": 1
+            },
+            {
+              "line": 4,
+              "col": 8
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 4,
+          "col": 1
+        },
+        {
+          "line": 4,
+          "col": 8
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "π🚀 ",
+          "location": [
+            {
+              "line": 6,
+              "col": 1
+            },
+            {
+              "line": 6,
+              "col": 3
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Nested ",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 5
+                },
+                {
+                  "line": 6,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 12
+                },
+                {
+                  "line": 6,
+                  "col": 14
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 6,
+              "col": 4
+            },
+            {
+              "line": 6,
+              "col": 15
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " and ",
+          "location": [
+            {
+              "line": 6,
+              "col": 16
+            },
+            {
+              "line": 6,
+              "col": 20
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": "n",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Note ",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 32
+                },
+                {
+                  "line": 6,
+                  "col": 36
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "®",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 37
+                },
+                {
+                  "line": 6,
+                  "col": 39
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 40
+                },
+                {
+                  "line": 6,
+                  "col": 40
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 6,
+              "col": 21
+            },
+            {
+              "line": 6,
+              "col": 41
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 6,
+          "col": 1
+        },
+        {
+          "line": 6,
+          "col": 41
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Titled ",
+          "location": [
+            {
+              "line": 8,
+              "col": 2
+            },
+            {
+              "line": 8,
+              "col": 8
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "©",
+          "location": [
+            {
+              "line": 8,
+              "col": 9
+            },
+            {
+              "line": 8,
+              "col": 11
+            }
+          ]
+        }
+      ],
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Paragraph ",
+          "location": [
+            {
+              "line": 9,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 10
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "™",
+          "location": [
+            {
+              "line": 9,
+              "col": 11
+            },
+            {
+              "line": 9,
+              "col": 17
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 9,
+              "col": 18
+            },
+            {
+              "line": 9,
+              "col": 18
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 8,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 18
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "π🚀 ",
+                        "location": [
+                          {
+                            "line": 13,
+                            "col": 2
+                          },
+                          {
+                            "line": 13,
+                            "col": 4
+                          }
+                        ]
+                      },
+                      {
+                        "name": "symbol",
+                        "type": "string",
+                        "value": "©",
+                        "location": [
+                          {
+                            "line": 13,
+                            "col": 5
+                          },
+                          {
+                            "line": 13,
+                            "col": 7
+                          }
+                        ]
+                      },
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": " ",
+                        "location": [
+                          {
+                            "line": 13,
+                            "col": 8
+                          },
+                          {
+                            "line": 13,
+                            "col": 8
+                          }
+                        ]
+                      },
+                      {
+                        "name": "symbol",
+                        "type": "string",
+                        "value": "…",
+                        "location": [
+                          {
+                            "line": 13,
+                            "col": 9
+                          },
+                          {
+                            "line": 13,
+                            "col": 11
+                          }
+                        ]
+                      },
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": " and ",
+                        "location": [
+                          {
+                            "line": 13,
+                            "col": 12
+                          },
+                          {
+                            "line": 13,
+                            "col": 16
+                          }
+                        ]
+                      },
+                      {
+                        "name": "span",
+                        "type": "inline",
+                        "variant": "strong",
+                        "form": "constrained",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "inner ",
+                            "location": [
+                              {
+                                "line": 13,
+                                "col": 18
+                              },
+                              {
+                                "line": 13,
+                                "col": 23
+                              }
+                            ]
+                          },
+                          {
+                            "name": "symbol",
+                            "type": "string",
+                            "value": "®",
+                            "location": [
+                              {
+                                "line": 13,
+                                "col": 24
+                              },
+                              {
+                                "line": 13,
+                                "col": 26
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 13,
+                            "col": 17
+                          },
+                          {
+                            "line": 13,
+                            "col": 27
+                          }
+                        ]
+                      },
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": " and ",
+                        "location": [
+                          {
+                            "line": 13,
+                            "col": 28
+                          },
+                          {
+                            "line": 13,
+                            "col": 32
+                          }
+                        ]
+                      },
+                      {
+                        "name": "footnote",
+                        "type": "inline",
+                        "id": "n",
+                        "inlines": [],
+                        "location": [
+                          {
+                            "line": 13,
+                            "col": 33
+                          },
+                          {
+                            "line": 13,
+                            "col": 44
+                          }
+                        ]
+                      },
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": ".",
+                        "location": [
+                          {
+                            "line": 13,
+                            "col": 45
+                          },
+                          {
+                            "line": 13,
+                            "col": 45
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 13,
+                        "col": 2
+                      },
+                      {
+                        "line": 13,
+                        "col": 45
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 12,
+            "col": 1
+          },
+          {
+            "line": 14,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 11,
+          "col": 1
+        },
+        {
+          "line": 14,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "π🚀 Included ",
+          "location": [
+            {
+              "line": 3,
+              "col": 3,
+              "file": [
+                "includes/compatibility_typography.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 14,
+              "file": [
+                "includes/compatibility_typography.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "™",
+          "location": [
+            {
+              "line": 3,
+              "col": 15,
+              "file": [
+                "includes/compatibility_typography.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 18,
+              "file": [
+                "includes/compatibility_typography.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " ",
+          "location": [
+            {
+              "line": 3,
+              "col": 19,
+              "file": [
+                "includes/compatibility_typography.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 19,
+              "file": [
+                "includes/compatibility_typography.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "…",
+          "location": [
+            {
+              "line": 3,
+              "col": 20,
+              "file": [
+                "includes/compatibility_typography.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 22,
+              "file": [
+                "includes/compatibility_typography.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " and ",
+          "location": [
+            {
+              "line": 3,
+              "col": 23,
+              "file": [
+                "includes/compatibility_typography.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 27,
+              "file": [
+                "includes/compatibility_typography.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "ref",
+          "type": "inline",
+          "variant": "link",
+          "target": {
+            "type": "path",
+            "value": "manual.html"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Label ",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 45,
+                  "file": [
+                    "includes/compatibility_typography.adoc"
+                  ]
+                },
+                {
+                  "line": 3,
+                  "col": 50,
+                  "file": [
+                    "includes/compatibility_typography.adoc"
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 51,
+                  "file": [
+                    "includes/compatibility_typography.adoc"
+                  ]
+                },
+                {
+                  "line": 3,
+                  "col": 53,
+                  "file": [
+                    "includes/compatibility_typography.adoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 3,
+              "col": 28,
+              "file": [
+                "includes/compatibility_typography.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 54,
+              "file": [
+                "includes/compatibility_typography.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 3,
+              "col": 55,
+              "file": [
+                "includes/compatibility_typography.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 55,
+              "file": [
+                "includes/compatibility_typography.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 3,
+          "file": [
+            "includes/compatibility_typography.adoc"
+          ]
+        },
+        {
+          "line": 3,
+          "col": 55,
+          "file": [
+            "includes/compatibility_typography.adoc"
+          ]
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 3,
+      "col": 55,
+      "file": [
+        "includes/compatibility_typography.adoc"
+      ]
+    }
+  ]
+}

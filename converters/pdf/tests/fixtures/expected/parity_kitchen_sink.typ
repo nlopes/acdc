@@ -293,7 +293,7 @@
 #metadata(none) <id-776f726b666c6f772d6578616d706c65>
 #blocktitle[#text("Example 1. ")#text("Expected result")]
 #examplebox[
-#text("The output starts with a PDF header and preserves the document’s visible meaning.")
+#text("The output starts with a PDF header and preserves the document")#text("’")#text("s visible meaning.")
 
 ]
 

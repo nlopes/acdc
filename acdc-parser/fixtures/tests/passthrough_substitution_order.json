@@ -186,9 +186,9 @@
           ]
         },
         {
-          "name": "raw",
+          "name": "symbol",
           "type": "string",
-          "value": "(C)",
+          "value": "©",
           "location": [
             {
               "line": 14,

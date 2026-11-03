@@ -80,11 +80,41 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Two backslashes select the mode's reference rule.",
+          "value": "Two backslashes select the mode",
           "location": [
             {
               "line": 8,
               "col": 1
+            },
+            {
+              "line": 8,
+              "col": 31
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "’",
+          "location": [
+            {
+              "line": 8,
+              "col": 32
+            },
+            {
+              "line": 8,
+              "col": 32
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "s reference rule.",
+          "location": [
+            {
+              "line": 8,
+              "col": 33
             },
             {
               "line": 8,
@@ -158,11 +188,41 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Four backslashes select the mode's reference rule.",
+          "value": "Four backslashes select the mode",
           "location": [
             {
               "line": 14,
               "col": 1
+            },
+            {
+              "line": 14,
+              "col": 32
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "’",
+          "location": [
+            {
+              "line": 14,
+              "col": 33
+            },
+            {
+              "line": 14,
+              "col": 33
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "s reference rule.",
+          "location": [
+            {
+              "line": 14,
+              "col": 34
             },
             {
               "line": 14,
@@ -564,11 +624,41 @@
         {
           "name": "text",
           "type": "string",
-          "value": "The escaped bracket precedes the anchor's closing brackets.",
+          "value": "The escaped bracket precedes the anchor",
           "location": [
             {
               "line": 39,
               "col": 1
+            },
+            {
+              "line": 39,
+              "col": 39
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "’",
+          "location": [
+            {
+              "line": 39,
+              "col": 40
+            },
+            {
+              "line": 39,
+              "col": 40
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "s closing brackets.",
+          "location": [
+            {
+              "line": 39,
+              "col": 41
             },
             {
               "line": 39,

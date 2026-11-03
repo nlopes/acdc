@@ -268,7 +268,7 @@ Keyboard shortcut: \fBCtrl\fR+\fBC\fR
 .sp
 Button: [\fBOK\fR]
 .sp
-Menu: \fBFile\fR \(ra \fBSave As.\|.\|.\fR
+Menu: \fBFile\fR \(ra \fBSave As\&.\|.\|.\fR
 .SS "Deep Nesting"
 .sp
 \fBLevel 3 Section\fR

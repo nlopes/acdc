@@ -1,6 +1,4 @@
-use acdc_parser::{
-    Block, CompatibilityMode, InlineMacro, InlineNode, Options, Substitution, parse,
-};
+use acdc_parser::{Block, CompatibilityMode, InlineMacro, InlineNode, Options, parse};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -52,7 +50,7 @@ fn active_stage(nodes: &[InlineNode<'_>], stage: &str) -> usize {
     nodes.iter().filter(|node| match stage {
         "q" => matches!(node, InlineNode::BoldText(_)),
         "m" => matches!(node, InlineNode::Macro(InlineMacro::Url(_) | InlineMacro::Link(_) | InlineMacro::Autolink(_))),
-        "r" => matches!(node, InlineNode::RawText(raw) if raw.subs.contains(&Substitution::Replacements)),
+        "r" => matches!(node, InlineNode::Symbol(symbol) if symbol.kind == acdc_parser::SymbolKind::Copyright),
         "p" => matches!(node, InlineNode::LineBreak(_)),
         _ => false,
     }).count()

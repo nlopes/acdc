@@ -62,7 +62,7 @@ S10 \fBBold\fR {value} (C).
   S11 \fIitalic\fR footnote:[Inactive].
 .fi
 .nf
-S12 *Bold* {value} \(co.
+S12 *Bold* {value} \(co\&.
   S13 \(rg footnote:[Inactive].
 .fi
 .nf

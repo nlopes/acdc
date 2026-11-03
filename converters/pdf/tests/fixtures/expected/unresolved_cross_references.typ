@@ -82,7 +82,7 @@
 
 #text("See ")#text("[no-such-id]")#text(" and ")#text("explicit text")#text(".")
 
-#text("A reference whose target’s reference text holds a reference of its own resolves one level, then falls back to ")#raw("[id]")#text(".")
+#text("A reference whose target")#text("’")#text("s reference text holds a reference of its own resolves one level, then falls back to ")#raw("[id]")#text(".")
 
 #metadata(none) <id-73656c662d7265666572656e6365>
 #blocktitle[#text("Example 1. ")#text("See ")#context link(query(<id-73656c662d7265666572656e6365>).first().location())[#text("See ")#text("[self-reference]")#text(" again")]#text(" again")]

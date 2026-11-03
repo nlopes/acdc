@@ -31,11 +31,11 @@
 inline\-spacing \- preserve spaces around inline formatting
 .SH "DESCRIPTION"
 .sp
-Copyright \fBBold\fR and \(co.
+Copyright \fBBold\fR and \(co\&.
 .sp
-Registered \fIItalic\fR and \(rg.
+Registered \fIItalic\fR and \(rg\&.
 .sp
-Trademark \f(CRCode\fR and \(tm.
+Trademark \f(CRCode\fR and \(tm\&.
 .sp
 Hyphen \fBBold\fR \- dash.
 .sp
@@ -43,15 +43,15 @@ Backslash \fBBold\fR path\eto\efile.
 .sp
 Quotes \fBBold\fR \(lqquoted\(rq\&.
 .sp
-Ellipsis \fBBold\fR .\|.\|. end.
+Ellipsis \fBBold\fR \&.\|.\|. end.
 .sp
-Nested \fBBold \fIItalic\fB\fR and \(co.
+Nested \fBBold \fIItalic\fB\fR and \(co\&.
 .sp
 Raw \fBBold\fR and \(co.
 .sp
-Adjacent \fBBold\fR\(co.
+Adjacent \fBBold\fR\(co\&.
 .sp
-Multiple \fBBold\fR  spaces and \(co.
+Multiple \fBBold\fR  spaces and \(co\&.
 .sp
 Wrapped plain
 next line.
@@ -74,11 +74,11 @@ next \(co line.
 .sp
 Formatted hard break before
 .br
-\fBBold\fR and \(co.
+\fBBold\fR and \(co\&.
 .sp
 Marker hard break before
 .br
-[1] and \(co.
+[1] and \(co\&.
 .sp
 Raw hard break before
 .br
@@ -86,23 +86,23 @@ next \(co.
 .sp
 Nonbreaking hard break before
 .br
-\ next \(co.
+\ next \(co\&.
 .sp
 Anchor hard break before
 .br
-next \(co.
+next \(co\&.
 .sp
 Hidden index hard break before
 .br
-next \(co.
+next \(co\&.
 .sp
 Visible index hard break before
 .br
-Visible and \(co.
+Visible and \(co\&.
 .sp
 Link \c
 .URL "https://example.org" "Example" "\fR\c"
- and \(co.
+ and \(co\&.
 .sp
 Note [2]
 Reuse [2]\&.
@@ -113,4 +113,4 @@ Reuse [2]\&.
 .IP [1] 4
 Break note.
 .IP [2] 4
-\fBBold\fR and \(co.
+\fBBold\fR and \(co\&.

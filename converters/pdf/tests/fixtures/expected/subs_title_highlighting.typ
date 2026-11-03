@@ -84,13 +84,13 @@
 
 #heading(level: 1)[#text("Synopsis")] <id-5f73796e6f70736973>
 
-#blocktitle[#text("H01 Default title ")#strong[#text("bold")]#text(" © and ")#text("*")#text("literal*")]
+#blocktitle[#text("H01 Default title ")#strong[#text("bold")]#text(" ")#text("©")#text(" and ")#text("*")#text("literal*")]
 #raw(block: true, lang: "rust", "let default = \"(C)\";")
 
-#blocktitle[#text("H02 Disabled title ® and ")#text("(TM)")]
+#blocktitle[#text("H02 Disabled title ")#text("®")#text(" and ")#text("(TM)")]
 #raw(block: true, lang: "rust", "let disabled = \"(R)\";")
 
-#blocktitle[#text("H03 Enabled title ™")]
+#blocktitle[#text("H03 Enabled title ")#text("™")]
 #raw(block: true, lang: "rust", "let enabled = \"™\";")
 
-#text("H04 Following prose ©.")
+#text("H04 Following prose ")#text("©")#text(".")

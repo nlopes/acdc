@@ -9,11 +9,26 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Escaped ellipsis: \\...",
+          "value": "Escaped ellipsis: ",
           "location": [
             {
               "line": 1,
               "col": 1
+            },
+            {
+              "line": 1,
+              "col": 18
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "...",
+          "location": [
+            {
+              "line": 1,
+              "col": 19
             },
             {
               "line": 1,
@@ -195,11 +210,26 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Escaped copyright: \\(C)",
+          "value": "Escaped copyright: ",
           "location": [
             {
               "line": 13,
               "col": 1
+            },
+            {
+              "line": 13,
+              "col": 19
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "(C)",
+          "location": [
+            {
+              "line": 13,
+              "col": 20
             },
             {
               "line": 13,
@@ -226,11 +256,26 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Escaped registered: \\(R)",
+          "value": "Escaped registered: ",
           "location": [
             {
               "line": 15,
               "col": 1
+            },
+            {
+              "line": 15,
+              "col": 20
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "(R)",
+          "location": [
+            {
+              "line": 15,
+              "col": 21
             },
             {
               "line": 15,
@@ -257,11 +302,26 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Escaped trademark: \\(TM)",
+          "value": "Escaped trademark: ",
           "location": [
             {
               "line": 17,
               "col": 1
+            },
+            {
+              "line": 17,
+              "col": 19
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "(TM)",
+          "location": [
+            {
+              "line": 17,
+              "col": 20
             },
             {
               "line": 17,

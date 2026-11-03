@@ -257,7 +257,7 @@
     }
   }
   let links = (
-    ((0, 7, body => context link(query(<id-746172676574>).first().location(), body)), (7, 10, body => [#counter(footnote).update(5)#footnote[#text("Éva ")#strong[#text("bold")]#text(" ©.")]]), (10, 16, body => context link(query(<id-746172676574>).first().location(), body)), ),
+    ((0, 7, body => context link(query(<id-746172676574>).first().location(), body)), (7, 10, body => [#counter(footnote).update(5)#footnote[#text("Éva ")#strong[#text("bold")]#text(" ")#text("©")#text(".")]]), (10, 16, body => context link(query(<id-746172676574>).first().location(), body)), ),
   )
   let code-links(line) = {
     let start = 0

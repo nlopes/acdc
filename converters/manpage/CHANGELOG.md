@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Render resolved typography with roff escaping and the existing manpage dash spacing.
+- Render parsed copyright and trademark signs, ellipses, and word-internal
+  apostrophes while keeping escaped tokens literal.
 
 - Direct users of `ManpageVisitor` must use the shared `DocumentVisitor`,
   `BlockVisitor`, and `InlineVisitor` callbacks. Portable roff output, caption

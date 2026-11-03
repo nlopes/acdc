@@ -140,7 +140,7 @@
 
 #text("Quotes: ")#strong[#text("bold")]#text(" ")#emph[#text("italic")]#text(" ")#highlight[#text("marked")]
 
-#text("Replacements: ")#text("© -> … — ")
+#text("Replacements: ")#text("©")#text(" -> ")#text("…")#text(" — ")
 
 #text("Macros: ")#link("https://example.com")[#text("https://example.com")]
 
@@ -148,7 +148,7 @@
 
 #heading(level: 1)[#text("Substitution groups")] <id-5f737562737469747574696f6e5f67726f757073>
 
-#text("Normal: ")#text("<tag> ")#text("Ada")#text(" ")#strong[#text("bold")]#text(" © ")#link("https://example.com")[#text("https://example.com")]
+#text("Normal: ")#text("<tag> ")#text("Ada")#text(" ")#strong[#text("bold")]#text(" ")#text("©")#text(" ")#link("https://example.com")[#text("https://example.com")]
 
 #text("Normal quotes before attributes: ")#text("*attribute bold*")
 

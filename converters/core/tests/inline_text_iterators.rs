@@ -28,7 +28,7 @@ fn text_policy_preserves_content_and_fragment_context() -> Result<(), Error> {
             ),
             (
                 r"pass:r[(C) \(R) \*literal\* \->]",
-                r"(C) \(R) \*literal\* \->",
+                r"© (R) \*literal\* \->",
                 r"© (R) \*literal\* \->",
             ),
             ("First +\nsecond.", "First\nsecond.", "First\nsecond."),

@@ -77,9 +77,9 @@ P06 Before.
 ====
 P06 Example\-looking text.
 ====
-\&.\|.\|..
+\&.\|.\|.\&.
 P06 Literal\-looking text.
-\&.\|.\|..
+\&.\|.\|.\&.
 \fI__\fR
 P06 Quote\-looking text.
 \fI__\fR \(em P06 Open\-looking text. \(em P06 End.
@@ -113,9 +113,9 @@ E10 Inside.
 E10 After.\fR
 T}:T{
 \f(CRM11 Before.
-\&.\|.\|..
+\&.\|.\|.\&.
 M11 Inside.
-\&.\|.\|..
+\&.\|.\|.\&.
 M11 After.\fR
 T}:T{
 H12 Before.

@@ -37,7 +37,7 @@ deferred\-code
 P01 \(co \(rg \(tm
 .EE
 .EX
-P02 \(co \(rg \(tm .\|.\|. don\(cqt word\(em\&word
+P02 \(co \(rg \(tm \&.\|.\|. don\(cqt word\(em\&word
 .EE
 .sp
 .if n .RS 4
@@ -48,19 +48,19 @@ P03 \(co \(rg \(tm
 .fi
 .if n .RE
 .EX
-P04 \(co .\|.\|. don\(cqt word\(em\&word
+P04 \(co \&.\|.\|. don\(cqt word\(em\&word
 .EE
 .EX
-P05 (C) (R) (TM) ... word\-\-word
+P05 (C) (R) (TM) \&... word\-\-word
 .EE
 .EX
 P06 (C) (R)
 .EE
 .EX
-P07 (C) (R) (TM) ... word\-\-word \(co \(rg \(tm
+P07 (C) (R) (TM) \&... word\-\-word \(co \(rg \(tm
 .EE
 .sp
-P08 \(co .\|.\|. don\(cqt word\(emword and (C).
+P08 \(co \&.\|.\|. don\(cqt word\(emword and (C).
 .EX
 P09 \fB(C)\fR \fB(R)\fR
 .EE
@@ -69,7 +69,7 @@ P10 \(co \(rg \(tm\c
 .URL "https://example.org/code" "Next" "\fR\c"
 .EE
 .EX
-P11 \(co .\|.\|. don\(cqt word\(em\&word
+P11 \(co \&.\|.\|. don\(cqt word\(em\&word
 .EE
 .EX
 P12 (C) (R) (TM)
@@ -78,7 +78,7 @@ P12 (C) (R) (TM)
 P13 {missing}
 .EE
 .EX
-P14 \e*literal\e* ... (C)
+P14 \e*literal\e* \&... (C)
 .EE
 .EX
 P15 \(co \(rg \(tm \fB(1)\fP
@@ -88,4 +88,4 @@ P15 \(co \(rg \(tm \fB(1)\fP
 Deferred replacements retain callout numbering.
 .RE
 .sp
-P16 pass:r[\(co] and \(co.
+P16 pass:r[\(co] and \(co\&.

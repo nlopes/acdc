@@ -959,13 +959,58 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "symbol",
               "type": "string",
-              "value": "(C) ... <x> ",
+              "value": "©",
               "location": [
                 {
                   "line": 44,
                   "col": 14
+                },
+                {
+                  "line": 44,
+                  "col": 16
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": " ",
+              "location": [
+                {
+                  "line": 44,
+                  "col": 17
+                },
+                {
+                  "line": 44,
+                  "col": 17
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "…",
+              "location": [
+                {
+                  "line": 44,
+                  "col": 18
+                },
+                {
+                  "line": 44,
+                  "col": 20
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": " <x> ",
+              "location": [
+                {
+                  "line": 44,
+                  "col": 21
                 },
                 {
                   "line": 44,

@@ -31,11 +31,41 @@
             {
               "name": "text",
               "type": "string",
-              "value": "Something is up. Let's see.",
+              "value": "Something is up. Let",
               "location": [
                 {
                   "line": 3,
                   "col": 1
+                },
+                {
+                  "line": 3,
+                  "col": 20
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "’",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 21
+                },
+                {
+                  "line": 3,
+                  "col": 21
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "s see.",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 22
                 },
                 {
                   "line": 3,
@@ -101,11 +131,41 @@
             {
               "name": "text",
               "type": "string",
-              "value": "And that's it.",
+              "value": "And that",
               "location": [
                 {
                   "line": 11,
                   "col": 1
+                },
+                {
+                  "line": 11,
+                  "col": 8
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "’",
+              "location": [
+                {
+                  "line": 11,
+                  "col": 9
+                },
+                {
+                  "line": 11,
+                  "col": 9
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "s it.",
+              "location": [
+                {
+                  "line": 11,
+                  "col": 10
                 },
                 {
                   "line": 11,

@@ -84,10 +84,10 @@
 
 #heading(level: 1)[#text("Description")] <id-5f6465736372697074696f6e>
 
-#blocktitle[#text("S01 Normal title ©")]
+#blocktitle[#text("S01 Normal title ")#text("©")]
 #verse[#text("S01 *Bold* {value} (C) link:https://example.org/inactive[Inactive].\n  S02 literal indent.")]
 
-#blocktitle[#text("S03 Normal title ©")]
+#blocktitle[#text("S03 Normal title ")#text("©")]
 #verse[#text("S03 *Bold* {value} (C) footnote:[Inactive].\n  S04 literal indent.\n\nS05 final line.")]
 
 #verse[#text("S06 ")#strong[#text("Bold")]#text(" expanded (C).\n  S07 ")#link("https://example.org/control")[#text("Control (R)")]#text(".")]
@@ -96,8 +96,8 @@
 
 #verse[#text("S10 ")#strong[#text("Bold")]#text(" {value} (C).\n  S11 ")#emph[#text("italic")]#text(" footnote:[Inactive].")]
 
-#verse[#text("S12 *Bold* {value} ©.\n  S13 ® footnote:[Inactive].")]
+#verse[#text("S12 *Bold* {value} ")#text("©")#text(".\n  S13 ")#text("®")#text(" footnote:[Inactive].")]
 
-#verse[#text("S14 ")#strong[#text("Bold")]#text(" expanded © ")#text("(R)")#text(".\n  S15 hard break")#linebreak()#text("    S16 after break.")]
+#verse[#text("S14 ")#strong[#text("Bold")]#text(" expanded ")#text("©")#text(" ")#text("(R)")#text(".\n  S15 hard break")#linebreak()#text("    S16 after break.")]
 
-#text("After ©, ")#strong[#text("bold")]#text(", and ordinary wrapped prose.")
+#text("After ")#text("©")#text(", ")#strong[#text("bold")]#text(", and ordinary wrapped prose.")

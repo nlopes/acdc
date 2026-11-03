@@ -38,17 +38,17 @@ P01 \(co \(rg \(tm\&.
 .sp
 P02 \(co \(rg \(tm\&.
 .sp
-P03 (C) (R) (TM) ... word\-\-word\&.
+P03 (C) (R) (TM) \&... word\-\-word\&.
 .sp
-P04 \(co \(rg \(tm.
+P04 \(co \(rg \(tm\&.
 .sp
-P05 \(co \(rg \(tm .\|.\|. don\(cqt word\(emword\&.
+P05 \(co \(rg \(tm \&.\|.\|. don\(cqt word\(emword\&.
 .sp
 P06 (C) (R) (TM) ... don\(aqt word\-\-word\&.
 .sp
 P07 \e*literal\e* \e_literal\e_ \e`literal\e` \e#literal\e#\&.
 .sp
-P08 (C) (R) (TM) ... word\-\-word\&.
+P08 (C) (R) (TM) \&... word\-\-word\&.
 .sp
 P09 \fB\(co\fR \fIword\(emword\fR\&.
 .sp
@@ -66,7 +66,7 @@ P14 \c
 .sp
 P15 \f(CR\(co \(rg \(tm\fR\&.
 .sp
-P16 \f(CR(C) (R) (TM) ... word\-\-word\fR\&.
+P16 \f(CR(C) (R) (TM) \&... word\-\-word\fR\&.
 .sp
 P17 \f(CR\(co \(rg \(tm\fR\&.
 .sp

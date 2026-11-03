@@ -88,27 +88,27 @@
 
 #heading(level: 1)[#text("Description")] <id-5f6465736372697074696f6e>
 
-#text("P01 ")#text("© ® ™")#text(".")
+#text("P01 ")#text("©")#text(" ")#text("®")#text(" ")#text("™")#text(".")
 
-#text("P02 ")#text("© ® ™")#text(".")
+#text("P02 ")#text("©")#text(" ")#text("®")#text(" ")#text("™")#text(".")
 
-#text("P03 ")#text("(C) (R) (TM) ... word--word")#text(".")
+#text("P03 ")#text("(C)")#text(" ")#text("(R)")#text(" ")#text("(TM)")#text(" ")#text("...")#text(" word--word")#text(".")
 
-#text("P04 © ® ™.")
+#text("P04 ")#text("©")#text(" ")#text("®")#text(" ")#text("™")#text(".")
 
-#text("P05 ")#text("© ® ™ … don’t word—​word")#text(".")
+#text("P05 ")#text("©")#text(" ")#text("®")#text(" ")#text("™")#text(" ")#text("…")#text(" don")#text("’")#text("t word—​word")#text(".")
 
 #text("P06 ")#text("(C) (R) (TM) ... don't word--word")#text(".")
 
 #text("P07 ")#text("\\*literal\\* \\_literal\\_ \\`literal\\` \\#literal\\#")#text(".")
 
-#text("P08 ")#text("(C) (R) (TM) ... word--word")#text(".")
+#text("P08 ")#text("(C)")#text(" ")#text("(R)")#text(" ")#text("(TM)")#text(" ")#text("...")#text(" word--word")#text(".")
 
 #text("P09 ")#strong[#text("©")]#text(" ")#emph[#text("word—​word")]#text(".")
 
-#text("P10 ")#text("<tag> © &")#text(".")
+#text("P10 ")#text("<tag> ")#text("©")#text(" &")#text(".")
 
-#text("P11 ")#text("© <tag> &")#text(".")
+#text("P11 ")#text("©")#text(" <tag> &")#text(".")
 
 #text("P12 ")#text("word — word --")#text(".")
 
@@ -120,12 +120,12 @@
 
 #text("P16 ")#raw("(C) (R) (TM) ... word--word")#text(".")
 
-#text("P17 ")#raw("(C) (R) (TM)")#text(".")
+#text("P17 ")#raw("© ® ™")#text(".")
 
-#text("P18 ")#text("© ® ™")#text(".")
+#text("P18 ")#text("©")#text(" ")#text("®")#text(" ")#text("™")#text(".")
 
-  - #text("P19 ")#text("© ® ™")#text(".")
+  - #text("P19 ")#text("©")#text(" ")#text("®")#text(" ")#text("™")#text(".")
 
-#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("P20 ")#text("© ® ™")#text(".")
+#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("P20 ")#text("©")#text(" ")#text("®")#text(" ")#text("™")#text(".")
 
 ])

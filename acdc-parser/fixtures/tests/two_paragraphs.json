@@ -9,11 +9,41 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Paragraphs don't require any special markup in AsciiDoc.\nA paragraph is just one or more lines of consecutive text.",
+          "value": "Paragraphs don",
           "location": [
             {
               "line": 1,
               "col": 1
+            },
+            {
+              "line": 1,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "’",
+          "location": [
+            {
+              "line": 1,
+              "col": 15
+            },
+            {
+              "line": 1,
+              "col": 15
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "t require any special markup in AsciiDoc.\nA paragraph is just one or more lines of consecutive text.",
+          "location": [
+            {
+              "line": 1,
+              "col": 16
             },
             {
               "line": 2,

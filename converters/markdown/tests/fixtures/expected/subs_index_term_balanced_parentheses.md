@@ -33,7 +33,7 @@ S07 Code (R)) after Next07
 
 <a id="_indexterm_7"></a><a id="_indexterm_8"></a><a id="_indexterm_9"></a>```
 S08 Late (R) after Next08
-S09 \(R) Escaped after Next09
+S09 (R) Escaped after Next09
 S10 (R) Literal after Next10
 ```
 
@@ -58,8 +58,8 @@ S16 [^1] after.
 
 ### @
 
-- (R) Literal — [Description](#_indexterm_9)
 - (R) Escaped — [Description](#_indexterm_8)
+- (R) Literal — [Description](#_indexterm_9)
 
 ### A
 

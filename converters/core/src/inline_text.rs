@@ -666,8 +666,7 @@ mod tests {
     }
 
     #[test]
-    fn deferred_typography_preserves_semantic_source_and_own_escapes()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn resolved_typography_preserves_literal_escapes() -> Result<(), Box<dyn std::error::Error>> {
         for source in [
             r"pass:r[(C) \(R) \*literal\* \->]",
             ":value: pass:r[(C) \\(R) \\*literal\\* \\->]\n\n{value}",
@@ -679,7 +678,7 @@ mod tests {
             let transform = super::InlineTextTransform::default();
             assert_eq!(
                 transform.to_string(&paragraph.content),
-                r"(C) \(R) \*literal\* \->"
+                r"© (R) \*literal\* \->"
             );
             assert_eq!(
                 transform
@@ -689,7 +688,7 @@ mod tests {
             );
             assert_eq!(
                 transform.to_string(&paragraph.content),
-                r"(C) \(R) \*literal\* \->"
+                r"© (R) \*literal\* \->"
             );
         }
         Ok(())

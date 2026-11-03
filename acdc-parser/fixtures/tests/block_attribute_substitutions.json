@@ -352,11 +352,41 @@
           {
             "name": "text",
             "type": "string",
-            "value": "A'B",
+            "value": "A",
             "location": [
               {
                 "line": 18,
                 "col": 10
+              },
+              {
+                "line": 18,
+                "col": 10
+              }
+            ]
+          },
+          {
+            "name": "symbol",
+            "type": "string",
+            "value": "’",
+            "location": [
+              {
+                "line": 18,
+                "col": 11
+              },
+              {
+                "line": 18,
+                "col": 12
+              }
+            ]
+          },
+          {
+            "name": "text",
+            "type": "string",
+            "value": "B",
+            "location": [
+              {
+                "line": 18,
+                "col": 13
               },
               {
                 "line": 18,

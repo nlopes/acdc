@@ -76,11 +76,41 @@
             {
               "name": "text",
               "type": "string",
-              "value": "This is an example of an example block.\nThat's so meta.",
+              "value": "This is an example of an example block.\nThat",
               "location": [
                 {
                   "line": 7,
                   "col": 1
+                },
+                {
+                  "line": 8,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "’",
+              "location": [
+                {
+                  "line": 8,
+                  "col": 5
+                },
+                {
+                  "line": 8,
+                  "col": 5
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "s so meta.",
+              "location": [
+                {
+                  "line": 8,
+                  "col": 6
                 },
                 {
                   "line": 8,

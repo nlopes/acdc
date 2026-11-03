@@ -229,11 +229,41 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Here's a URL with attributes: ",
+          "value": "Here",
           "location": [
             {
               "line": 5,
               "col": 1
+            },
+            {
+              "line": 5,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "’",
+          "location": [
+            {
+              "line": 5,
+              "col": 5
+            },
+            {
+              "line": 5,
+              "col": 5
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "s a URL with attributes: ",
+          "location": [
+            {
+              "line": 5,
+              "col": 6
             },
             {
               "line": 5,

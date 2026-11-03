@@ -393,7 +393,22 @@
             {
               "name": "raw",
               "type": "string",
-              "value": " (C)",
+              "value": " ",
+              "location": [
+                {
+                  "line": 28,
+                  "col": 33
+                },
+                {
+                  "line": 28,
+                  "col": 40
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
               "location": [
                 {
                   "line": 28,
@@ -687,7 +702,22 @@
             {
               "name": "raw",
               "type": "string",
-              "value": " (C)",
+              "value": " ",
+              "location": [
+                {
+                  "line": 34,
+                  "col": 30
+                },
+                {
+                  "line": 34,
+                  "col": 37
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
               "location": [
                 {
                   "line": 34,

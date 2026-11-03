@@ -108,7 +108,7 @@
 
 #text("R12 ")#text("-")#text(">")#text(" and ")#text("->")#text(".")
 
-#text("R13 ")#text("© … <x> ")#text("&copy;")#text(" \\*Bold\\*")#text(".")
+#text("R13 ")#text("©")#text(" ")#text("…")#text(" <x> ")#text("&copy;")#text(" \\*Bold\\*")#text(".")
 
 #text("R14 ")#text("-")#text(">")#text(" =")#text(">")#text(" ")#text("<")#text("- ")#text("<")#text("=")#text(".")
 

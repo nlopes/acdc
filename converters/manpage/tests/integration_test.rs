@@ -37,7 +37,7 @@ fn styled_titles_keep_substitutions_separate_from_the_body(
         output.contains("Body (C) *Bold* footnote:[Inactive note.]."),
         "{style}: {output}"
     );
-    assert!(output.contains("After \\(co."), "{style}: {output}");
+    assert!(output.contains("After \\(co\\&."), "{style}: {output}");
     assert_eq!(
         output.matches("Title note.").count(),
         usize::from(!embedded),

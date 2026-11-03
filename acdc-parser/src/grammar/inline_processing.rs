@@ -401,6 +401,9 @@ fn parse_processed_inlines<'a>(
         || inline_ctx
             .substitutions
             .precedes(&Substitution::Quotes, &Substitution::Attributes)
+        || inline_ctx
+            .substitutions
+            .precedes(&Substitution::Replacements, &Substitution::Attributes)
     {
         inline_peg_state.late_attribute_sources =
             late_attribute_sources(processed, state, location);
@@ -427,6 +430,7 @@ fn parse_processed_inlines<'a>(
         }
     };
 
+    inlines = super::inlines::typography::resolve_plain(inlines, &inline_peg_state);
     for inline in &mut inlines {
         if let InlineNode::InlineAnchor(anchor) = inline {
             anchor.bibliography_label =

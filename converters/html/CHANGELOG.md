@@ -9,7 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Render resolved typography with the existing HTML entities and spacing in both backends.
+- `pass:r,c[(C)]` now displays © instead of escaped HTML entity text;
+  this differs from Asciidoctor. Render parsed copyright and trademark signs, ellipses, and word-internal
+  apostrophes while keeping escaped tokens literal.
 
 - Automatic cross-reference titles and labels retain their formatting, caption
   styles, and nested-reference fallbacks.

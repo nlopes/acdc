@@ -136,7 +136,7 @@ P24 \c
 .sp
 P25 \c
 .MTO "test\(atexample.org" "Mail" "\fR\c"
-\(co.
+\(co\&.
 .sp
 P26 \c
 .MTO "test\(atexample.org" "Mail" "\fR\c"

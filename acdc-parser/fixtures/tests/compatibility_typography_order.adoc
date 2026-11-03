@@ -1,0 +1,13 @@
+= Typography order
+:value: (C) ...
+
+[subs="attributes,replacements,specialchars"]
+π {value}.
+
+[subs="replacements,attributes,specialchars"]
+π {value}.
+
+pass:a,r[{value}] and pass:r,a[{value}].
+
+[subs="replacements,attributes,replacements,specialchars"]
+{value}.

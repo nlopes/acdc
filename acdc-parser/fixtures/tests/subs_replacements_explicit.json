@@ -9,11 +9,101 @@
         {
           "name": "text",
           "type": "string",
-          "value": "This has -- dashes, (C), (R), (TM), and -> arrows.",
+          "value": "This has -- dashes, ",
           "location": [
             {
               "line": 2,
               "col": 1
+            },
+            {
+              "line": 2,
+              "col": 20
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "©",
+          "location": [
+            {
+              "line": 2,
+              "col": 21
+            },
+            {
+              "line": 2,
+              "col": 23
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ", ",
+          "location": [
+            {
+              "line": 2,
+              "col": 24
+            },
+            {
+              "line": 2,
+              "col": 25
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "®",
+          "location": [
+            {
+              "line": 2,
+              "col": 26
+            },
+            {
+              "line": 2,
+              "col": 28
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ", ",
+          "location": [
+            {
+              "line": 2,
+              "col": 29
+            },
+            {
+              "line": 2,
+              "col": 30
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "™",
+          "location": [
+            {
+              "line": 2,
+              "col": 31
+            },
+            {
+              "line": 2,
+              "col": 34
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ", and -> arrows.",
+          "location": [
+            {
+              "line": 2,
+              "col": 35
             },
             {
               "line": 2,

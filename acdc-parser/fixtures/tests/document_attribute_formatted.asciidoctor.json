@@ -425,7 +425,22 @@
             {
               "name": "raw",
               "type": "string",
-              "value": " (C)",
+              "value": " ",
+              "location": [
+                {
+                  "line": 38,
+                  "col": 37
+                },
+                {
+                  "line": 38,
+                  "col": 44
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
               "location": [
                 {
                   "line": 38,

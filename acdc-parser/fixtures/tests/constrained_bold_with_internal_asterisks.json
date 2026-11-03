@@ -420,11 +420,26 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Test 7: (...",
+          "value": "Test 7: (",
           "location": [
             {
               "line": 15,
               "col": 1
+            },
+            {
+              "line": 15,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "…",
+          "location": [
+            {
+              "line": 15,
+              "col": 10
             },
             {
               "line": 15,
@@ -466,13 +481,28 @@
           ]
         },
         {
-          "name": "text",
+          "name": "symbol",
           "type": "string",
-          "value": "...)",
+          "value": "…",
           "location": [
             {
               "line": 15,
               "col": 19
+            },
+            {
+              "line": 15,
+              "col": 21
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ")",
+          "location": [
+            {
+              "line": 15,
+              "col": 22
             },
             {
               "line": 15,

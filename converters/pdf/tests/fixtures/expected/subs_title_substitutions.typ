@@ -84,7 +84,7 @@
 
 #heading(level: 1)[#text("Synopsis")] <id-5f73796e6f70736973>
 
-#blocktitle[#text("S01 Quote ")#strong[#text("title")]#text(" expanded ©")]
+#blocktitle[#text("S01 Quote ")#strong[#text("title")]#text(" expanded ")#text("©")]
 #blockquote[
 #text("S01 body *bold* {value} (C).")
 #text(style: "normal")[
@@ -93,85 +93,85 @@
 ]
 ]
 
-#blocktitle[#text("S02 Verse ")#emph[#text("title")]#text(" expanded ®")]
+#blocktitle[#text("S02 Verse ")#emph[#text("title")]#text(" expanded ")#text("®")]
 #verse[#text("S02 first _italic_ {value} (R).\nS02 second.")]
 
 #attribution[#text("Poet")#text(", ")#text("Work")]
 
-#blocktitle[#text("S03 Ordinary title ™")]
+#blocktitle[#text("S03 Ordinary title ")#text("™")]
 #text("S03 body (TM).")
 
-#blocktitle[#text("S04 Listing title © <tag> & text")]
+#blocktitle[#text("S04 Listing title ")#text("©")#text(" <tag> & text")]
 #raw(block: true, "S04 body (C).")
 
-#blocktitle[#text("S05 Literal title ®")]
+#blocktitle[#text("S05 Literal title ")#text("®")]
 #raw(block: true, "S05 body (R).")
 
-#blocktitle[#text("S06 Source title ™")]
+#blocktitle[#text("S06 Source title ")#text("™")]
 #raw(block: true, "S06 body (TM).")
 
-#blocktitle[#text("S07 Title © with literal ")#text("(R)")#text(" and (TM)")]
+#blocktitle[#text("S07 Title ")#text("©")#text(" with literal ")#text("(R)")#text(" and ")#text("(TM)")]
 #text("S07 body expanded (C) *bold*.")
 
-#blocktitle[#text("S08 Title ®")]
-#text("S08 body © *bold*.")
+#blocktitle[#text("S08 Title ")#text("®")]
+#text("S08 body ")#text("©")#text(" *bold*.")
 
-#abstracttitle[#text("S09 Abstract title ©")]
+#abstracttitle[#text("S09 Abstract title ")#text("©")]
 #abstract[
 #text("S09 body (C).")
 ]
 
 #block(width: 100%, below: 0.8em)[
-#grid(columns: (0.8em, 1fr), column-gutter: 0.2em, align: top, [#box(width: 0.8em, height: 0.8em, baseline: 0.1em, align(center + horizon, rotate(90deg, origin: center, text(weight: "bold", size: 0.8em, ">"))))], [#captiontext[#text("S10 Disclosure title ®")]])
+#grid(columns: (0.8em, 1fr), column-gutter: 0.2em, align: top, [#box(width: 0.8em, height: 0.8em, baseline: 0.1em, align(center + horizon, rotate(90deg, origin: center, text(weight: "bold", size: 0.8em, ">"))))], [#captiontext[#text("S10 Disclosure title ")#text("®")]])
 #block(inset: (left: 1em), above: 0.3em)[
 #text("S10 body (R).")
 ]
 ]
 
-#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#blocktitle[#text("S11 Cell title ©")]
+#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#blocktitle[#text("S11 Cell title ")#text("©")]
 #blockquote[
 #text("S11 body (C).")]
 
-], table.cell(x: 0, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#blocktitle[#text("S12 Cell title ®")]
+], table.cell(x: 0, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#blocktitle[#text("S12 Cell title ")#text("®")]
 #verse[#text("S12 first (R).\nS12 second.")]
 
 ])
 
   - #block(width: 100%)[#text("List item.")
 
-#blocktitle[#text("S13 Attached title ©")]
+#blocktitle[#text("S13 Attached title ")#text("©")]
 #text("S13 body (C).")
 
   ]
 
-#blocktitle[#text("S14 Outer title ©")]
-#blocktitle[#text("S15 Inner title ®")]
+#blocktitle[#text("S14 Outer title ")#text("©")]
+#blocktitle[#text("S15 Inner title ")#text("®")]
 #text("S15 body (R).")
 
-#text("S14 following normal ©.")
+#text("S14 following normal ")#text("©")#text(".")
 
-#blocktitle[#text("S16 Title ")#link("https://example.org/title")[#text("Link ©")]#text(" ")#counter(footnote).update(0)#footnote[#text("Title note ®.")]<id-666f6f746e6f74653a736861726564>]
+#blocktitle[#text("S16 Title ")#link("https://example.org/title")[#text("Link ")#text("©")]#text(" ")#counter(footnote).update(0)#footnote[#text("Title note ")#text("®")#text(".")]<id-666f6f746e6f74653a736861726564>]
 #text("S16 literal footnote:[Inactive note.] and (C).")
 
-#text("S17 Reused ")#footnote(<id-666f6f746e6f74653a736861726564>)#text(" and following normal ©.")
+#text("S17 Reused ")#footnote(<id-666f6f746e6f74653a736861726564>)#text(" and following normal ")#text("©")#text(".")
 
-#blocktitle[#text("S18 Compound title ©")]
+#blocktitle[#text("S18 Compound title ")#text("©")]
 #callout("note")[
-#admonitiontitle[#text("S19 Note title ®")]
-#text("S19 note body ©.")
+#admonitiontitle[#text("S19 Note title ")#text("®")]
+#text("S19 note body ")#text("©")#text(".")
 
 ]
 
 #text("► ")#link("sample.ogg")[#text("sample.ogg")]#text(" ")#emph[#text("(audio)")]
-#imagecaption[#text("S20 Audio title ™")]
+#imagecaption[#text("S20 Audio title ")#text("™")]
 
 
 #text("► ")#link("sample.mp4")[#text("sample.mp4")]#text(" ")#emph[#text("(video)")]
-#imagecaption[#text("S21 Video title ©")]
+#imagecaption[#text("S21 Video title ")#text("©")]
 
 
-#heading(level: 2, outlined: false)[#text("S22 Discrete title ®")]
+#heading(level: 2, outlined: false)[#text("S22 Discrete title ")#text("®")]
 
-#text("S22 normal body ©.")
+#text("S22 normal body ")#text("©")#text(".")
 
-#text("S23 Final normal prose ©.")
+#text("S23 Final normal prose ")#text("©")#text(".")

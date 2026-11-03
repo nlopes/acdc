@@ -378,11 +378,71 @@
                           {
                             "name": "text",
                             "type": "string",
-                            "value": "P06 Before.\n====\nP06 Example-looking text.\n====\n....\nP06 Literal-looking text.\n....\n",
+                            "value": "P06 Before.\n====\nP06 Example-looking text.\n====\n",
                             "location": [
                               {
                                 "line": 42,
                                 "col": 2
+                              },
+                              {
+                                "line": 45,
+                                "col": 5
+                              }
+                            ]
+                          },
+                          {
+                            "name": "symbol",
+                            "type": "string",
+                            "value": "…",
+                            "location": [
+                              {
+                                "line": 46,
+                                "col": 1
+                              },
+                              {
+                                "line": 46,
+                                "col": 3
+                              }
+                            ]
+                          },
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": ".\nP06 Literal-looking text.\n",
+                            "location": [
+                              {
+                                "line": 46,
+                                "col": 4
+                              },
+                              {
+                                "line": 47,
+                                "col": 26
+                              }
+                            ]
+                          },
+                          {
+                            "name": "symbol",
+                            "type": "string",
+                            "value": "…",
+                            "location": [
+                              {
+                                "line": 48,
+                                "col": 1
+                              },
+                              {
+                                "line": 48,
+                                "col": 3
+                              }
+                            ]
+                          },
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": ".\n",
+                            "location": [
+                              {
+                                "line": 48,
+                                "col": 4
                               },
                               {
                                 "line": 48,
@@ -762,11 +822,71 @@
                           {
                             "name": "text",
                             "type": "string",
-                            "value": "M11 Before.\n....\nM11 Inside.\n....\nM11 After.",
+                            "value": "M11 Before.\n",
                             "location": [
                               {
                                 "line": 80,
                                 "col": 2
+                              },
+                              {
+                                "line": 80,
+                                "col": 13
+                              }
+                            ]
+                          },
+                          {
+                            "name": "symbol",
+                            "type": "string",
+                            "value": "…",
+                            "location": [
+                              {
+                                "line": 81,
+                                "col": 1
+                              },
+                              {
+                                "line": 81,
+                                "col": 3
+                              }
+                            ]
+                          },
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": ".\nM11 Inside.\n",
+                            "location": [
+                              {
+                                "line": 81,
+                                "col": 4
+                              },
+                              {
+                                "line": 82,
+                                "col": 12
+                              }
+                            ]
+                          },
+                          {
+                            "name": "symbol",
+                            "type": "string",
+                            "value": "…",
+                            "location": [
+                              {
+                                "line": 83,
+                                "col": 1
+                              },
+                              {
+                                "line": 83,
+                                "col": 3
+                              }
+                            ]
+                          },
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": ".\nM11 After.",
+                            "location": [
+                              {
+                                "line": 83,
+                                "col": 4
                               },
                               {
                                 "line": 84,

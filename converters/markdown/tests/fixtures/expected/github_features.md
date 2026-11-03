@@ -5,10 +5,10 @@ This document tests GitHub Flavored Markdown specific features.
 <a id="_github_alerts"></a>
 ## GitHub Alerts
 
-Alerts are GitHub's native admonition syntax.
+Alerts are GitHub’s native admonition syntax.
 
 > [!NOTE]
-> This is a note alert using GitHub's native syntax.
+> This is a note alert using GitHub’s native syntax.
 
 > [!TIP]
 > This is a helpful tip.

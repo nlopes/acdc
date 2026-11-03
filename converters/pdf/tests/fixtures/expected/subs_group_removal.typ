@@ -92,15 +92,15 @@
 
 #text("G04 *source* {value} (C) ")#link("https://example.org")[#text("Link")]#text(".")
 
-#text("G05 ")#strong[#text("source")]#text(" *bold* © ")#link("https://example.org")[#text("Link")]#text(".")
+#text("G05 ")#strong[#text("source")]#text(" *bold* ")#text("©")#text(" ")#link("https://example.org")[#text("Link")]#text(".")
 
-#text("G06 ")#strong[#text("source")]#text(" *bold* © link:https://example.org[Link].")
+#text("G06 ")#strong[#text("source")]#text(" *bold* ")#text("©")#text(" link:https://example.org[Link].")
 
 #text("G07 *source* *bold* (C) link:https://example.org[Link].")
 
 #text("G08 *source* {value} (C) link:https://example.org[Link].")
 
-#text("G09 ")#strong[#text("bold")]#text(" © ")#link("https://example.org")[#text("Link")]#text(".")
+#text("G09 ")#strong[#text("bold")]#text(" ")#text("©")#text(" ")#link("https://example.org")[#text("Link")]#text(".")
 
 #text("G10 ")#link("https://example.org")[#text("Link")]#text(".")
 
@@ -108,9 +108,9 @@
 
 #text("G12 footnote:[Literal note.] anchor:literal[] indexterm:[Literal].")
 
-#text("G13 ")#strong[#text("source")]#text(" *bold* © ")#link("https://example.org")[#text("Link")]#text(".")
+#text("G13 ")#strong[#text("source")]#text(" *bold* ")#text("©")#text(" ")#link("https://example.org")[#text("Link")]#text(".")
 
-#text("G14 ")#strong[#text("source")]#text(" *bold* © ")#link("https://example.org")[#text("Link")]#text(".")
+#text("G14 ")#strong[#text("source")]#text(" *bold* ")#text("©")#text(" ")#link("https://example.org")[#text("Link")]#text(".")
 
 #text("G15 ")#strong[#text("source")]#text(" {value} (C) link:https://example.org[Link].")
 
@@ -148,4 +148,4 @@
 
 #text("G28 café *accentué* *bold*.")
 
-#text("G29 ")#strong[#text("defaults restored")]#text(" © ")#link("https://example.org")[#text("Link")]#text(".")
+#text("G29 ")#strong[#text("defaults restored")]#text(" ")#text("©")#text(" ")#link("https://example.org")[#text("Link")]#text(".")

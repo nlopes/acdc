@@ -102,7 +102,7 @@
 
 #raw(block: true, "P07 (C) (R) (TM) ... word--word © ® ™")
 
-#text("P08 ")#text("© … don’t word—​word")#text(" and (C).")
+#text("P08 ")#text("©")#text(" ")#text("…")#text(" don")#text("’")#text("t word—​word")#text(" and (C).")
 
 #{
   // Slice highlighted text without discarding its syntax styles.
@@ -194,4 +194,4 @@
 [#text("(1)")], [#text("Deferred replacements retain callout numbering.")],
 )
 
-#text("P16 pass:r[©] and ©.")
+#text("P16 pass:r[")#text("©")#text("] and ")#text("©")#text(".")

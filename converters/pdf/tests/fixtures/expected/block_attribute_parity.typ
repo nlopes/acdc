@@ -288,7 +288,7 @@
 
 
 #text(style: "normal")[
-#attribution[#text("A’B")#text(", ")#text("Notes")]
+#attribution[#text("A")#text("’")#text("B")#text(", ")#text("Notes")]
 
 ]
 ]

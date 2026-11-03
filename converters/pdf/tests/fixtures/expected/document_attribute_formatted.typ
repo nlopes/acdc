@@ -88,7 +88,7 @@
 
 #heading(level: 1)[#text("DESCRIPTION")] <id-5f6465736372697074696f6e>
 
-#text("Frozen: ")#strong[#text("Early")]#text(" / ")#strong[#text("Early")]#text(" / ")#strong[#text("Early")]#text(" ©")#text(" / ")#strong[#text("Late")]#text(".")
+#text("Frozen: ")#strong[#text("Early")]#text(" / ")#strong[#text("Early")]#text(" / ")#strong[#text("Early")]#text(" ")#text("©")#text(" / ")#strong[#text("Late")]#text(".")
 
 #text("Alias: ")#strong[#text("Bold")]#text(" / ")#strong[#text("Early")]#text(" / ")#counter(footnote).update(0)#footnote[#text("Anonymous body.")]#text(" / ")#strong[#text("Body")]#text(" / ")#counter(footnote).update(1)#footnote[#text("Anonymous body.")]#text(" / ")#counter(footnote).update(2)#footnote[#text("Anonymous body.")]#text(".")
 

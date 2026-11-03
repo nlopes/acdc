@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
-- Preserve resolved typography in terminal text output.
+- Render parsed copyright and trademark signs, ellipses, and word-internal
+  apostrophes while keeping escaped tokens literal.
 
 - Direct users of `TerminalVisitor` must use the shared `DocumentVisitor`,
   `BlockVisitor`, and `InlineVisitor` callbacks. Terminal output, table layouts,

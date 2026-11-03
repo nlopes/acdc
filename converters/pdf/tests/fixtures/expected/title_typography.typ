@@ -84,46 +84,46 @@
 
 #heading(level: 1)[#text("Synopsis")] <id-5f73796e6f70736973>
 
-#blocktitle[#text("N01 Listing ")#strong[#text("title")]#text(" expanded ©")]
+#blocktitle[#text("N01 Listing ")#strong[#text("title")]#text(" expanded ")#text("©")]
 #raw(block: true, "N01 body (C) *bold* {value}.")
 
-#blocktitle[#text("N02 Literal ")#emph[#text("title")]#text(" ®")]
+#blocktitle[#text("N02 Literal ")#emph[#text("title")]#text(" ")#text("®")]
 #raw(block: true, "N02 body (R) _italic_.")
 
-#blocktitle[#text("N03 Source title ™")]
+#blocktitle[#text("N03 Source title ")#text("™")]
 #raw(block: true, "N03 body (TM).")
 
-#blocktitle[#text("N04 Literal block title ©")]
+#blocktitle[#text("N04 Literal block title ")#text("©")]
 #raw(block: true, "N04 body (C).")
 
-#blocktitle[#text("N05 Verse title ®")]
-#verse[#text("N05 first ®.\nN05 second.")]
+#blocktitle[#text("N05 Verse title ")#text("®")]
+#verse[#text("N05 first ")#text("®")#text(".\nN05 second.")]
 
 #attribution[#text("Poet")#text(", ")#text("Work")]
 
-#blocktitle[#text("N06 Verse block title ™")]
-#verse[#text("N06 first ™.\nN06 second.")]
+#blocktitle[#text("N06 Verse block title ")#text("™")]
+#verse[#text("N06 first ")#text("™")#text(".\nN06 second.")]
 
 #attribution[#text("Poet")#text(", ")#text("Work")]
 
-#blocktitle[#text("N07 Escaped (C) ")#text("*")#text("literal* and ")#text("(R)")]
+#blocktitle[#text("N07 Escaped ")#text("(C)")#text(" ")#text("*")#text("literal* and ")#text("(R)")]
 #raw(block: true, "N07 body (C).")
 
-#blocktitle[#text("N08 Attribute title ")#text("©")#text(" and ®")]
+#blocktitle[#text("N08 Attribute title ")#text("©")#text(" and ")#text("®")]
 #raw(block: true, "N08 body (C).")
 
-#blocktitle[#text("N09 Outer title ©")]
-#blocktitle[#text("N10 Nested listing title ®")]
+#blocktitle[#text("N09 Outer title ")#text("©")]
+#blocktitle[#text("N10 Nested listing title ")#text("®")]
 #raw(block: true, "N10 body (R).")
 
-#text("N09 following normal ©.")
+#text("N09 following normal ")#text("©")#text(".")
 
-#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#blocktitle[#text("N11 Cell listing title ©")]
+#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#blocktitle[#text("N11 Cell listing title ")#text("©")]
 #raw(block: true, "N11 body (C).")
 
-], table.cell(x: 0, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#blocktitle[#text("N12 Cell verse title ®")]
-#verse[#text("N12 first ®.\nN12 second.")]
+], table.cell(x: 0, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#blocktitle[#text("N12 Cell verse title ")#text("®")]
+#verse[#text("N12 first ")#text("®")#text(".\nN12 second.")]
 
 ])
 
-#text("N13 Following prose ©.")
+#text("N13 Following prose ")#text("©")#text(".")

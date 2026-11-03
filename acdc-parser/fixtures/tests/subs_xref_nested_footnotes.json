@@ -742,11 +742,41 @@
                     {
                       "name": "text",
                       "type": "string",
-                      "value": " (C).",
+                      "value": " ",
                       "location": [
                         {
                           "line": 31,
                           "col": 43
+                        },
+                        {
+                          "line": 31,
+                          "col": 43
+                        }
+                      ]
+                    },
+                    {
+                      "name": "symbol",
+                      "type": "string",
+                      "value": "©",
+                      "location": [
+                        {
+                          "line": 31,
+                          "col": 44
+                        },
+                        {
+                          "line": 31,
+                          "col": 46
+                        }
+                      ]
+                    },
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": ".",
+                      "location": [
+                        {
+                          "line": 31,
+                          "col": 47
                         },
                         {
                           "line": 31,

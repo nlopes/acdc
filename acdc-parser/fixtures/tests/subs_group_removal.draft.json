@@ -432,11 +432,41 @@
             {
               "name": "text",
               "type": "string",
-              "value": " *bold* (C) ",
+              "value": " *bold* ",
               "location": [
                 {
                   "line": 28,
                   "col": 13
+                },
+                {
+                  "line": 28,
+                  "col": 21
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
+              "location": [
+                {
+                  "line": 28,
+                  "col": 22
+                },
+                {
+                  "line": 28,
+                  "col": 24
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " ",
+              "location": [
+                {
+                  "line": 28,
+                  "col": 25
                 },
                 {
                   "line": 28,
@@ -568,11 +598,41 @@
             {
               "name": "text",
               "type": "string",
-              "value": " *bold* (C) link:https://example.org[Link].",
+              "value": " *bold* ",
               "location": [
                 {
                   "line": 31,
                   "col": 13
+                },
+                {
+                  "line": 31,
+                  "col": 21
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
+              "location": [
+                {
+                  "line": 31,
+                  "col": 22
+                },
+                {
+                  "line": 31,
+                  "col": 24
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " link:https://example.org[Link].",
+              "location": [
+                {
+                  "line": 31,
+                  "col": 25
                 },
                 {
                   "line": 31,
@@ -730,11 +790,41 @@
             {
               "name": "text",
               "type": "string",
-              "value": " (C) ",
+              "value": " ",
               "location": [
                 {
                   "line": 40,
                   "col": 12
+                },
+                {
+                  "line": 40,
+                  "col": 12
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
+              "location": [
+                {
+                  "line": 40,
+                  "col": 13
+                },
+                {
+                  "line": 40,
+                  "col": 15
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " ",
+              "location": [
+                {
+                  "line": 40,
+                  "col": 16
                 },
                 {
                   "line": 40,
@@ -1078,11 +1168,41 @@
             {
               "name": "text",
               "type": "string",
-              "value": " (C) ",
+              "value": " ",
               "location": [
                 {
                   "line": 52,
                   "col": 21
+                },
+                {
+                  "line": 52,
+                  "col": 21
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
+              "location": [
+                {
+                  "line": 52,
+                  "col": 22
+                },
+                {
+                  "line": 52,
+                  "col": 24
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " ",
+              "location": [
+                {
+                  "line": 52,
+                  "col": 25
                 },
                 {
                   "line": 52,
@@ -1261,11 +1381,41 @@
             {
               "name": "text",
               "type": "string",
-              "value": " (C) ",
+              "value": " ",
               "location": [
                 {
                   "line": 55,
                   "col": 21
+                },
+                {
+                  "line": 55,
+                  "col": 21
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
+              "location": [
+                {
+                  "line": 55,
+                  "col": 22
+                },
+                {
+                  "line": 55,
+                  "col": 24
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " ",
+              "location": [
+                {
+                  "line": 55,
+                  "col": 25
                 },
                 {
                   "line": 55,
@@ -2189,11 +2339,41 @@
             {
               "name": "text",
               "type": "string",
-              "value": " (C) ",
+              "value": " ",
               "location": [
                 {
                   "line": 115,
                   "col": 24
+                },
+                {
+                  "line": 115,
+                  "col": 24
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
+              "location": [
+                {
+                  "line": 115,
+                  "col": 25
+                },
+                {
+                  "line": 115,
+                  "col": 27
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " ",
+              "location": [
+                {
+                  "line": 115,
+                  "col": 28
                 },
                 {
                   "line": 115,

@@ -181,7 +181,7 @@
     }
   }
   let links = (
-    ((7, 10, body => [#counter(footnote).update(3)#footnote[#strong[#text("Bold")]#text(" and ©.")]]), ),
+    ((7, 10, body => [#counter(footnote).update(3)#footnote[#strong[#text("Bold")]#text(" and ")#text("©")#text(".")]]), ),
     ((5, 8, body => [#counter(footnote).update(4)#footnote[#text("Term note.")]]), ),
   )
   let code-links(line) = {

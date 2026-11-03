@@ -49,6 +49,51 @@ fn process_passthrough<'a>(
     state: &ParserState<'a>,
     attribute_substitutions: SubstitutionPlan,
 ) -> Vec<InlineNode<'a>> {
+    finish_raw_nodes(
+        process_passthrough_stages(content, passthrough, state, attribute_substitutions),
+        state,
+    )
+}
+
+fn finish_raw_nodes<'a>(
+    nodes: Vec<InlineNode<'a>>,
+    state: &ParserState<'a>,
+) -> Vec<InlineNode<'a>> {
+    if state.inline_ctx.rules.contains(InlineRules::INDEX_CATALOG) {
+        return nodes;
+    }
+    let mut result = Vec::with_capacity(nodes.len());
+    for mut node in nodes {
+        if let InlineNode::RawText(raw) = node {
+            result.extend(super::inlines::typography::resolve_raw(raw, state));
+        } else {
+            if let InlineNode::Macro(InlineMacro::IndexTerm(index)) = &mut node {
+                let original = index.catalog.is_none().then(|| Box::new((**index).clone()));
+                index.for_each_label_mut(|nodes| {
+                    *nodes = finish_raw_nodes(take(nodes), state);
+                });
+                if let Some(original) = original
+                    && (index.kind != original.kind || index.relationship != original.relationship)
+                {
+                    index.catalog = Some(original);
+                }
+            } else if !matches!(node, InlineNode::Macro(InlineMacro::Footnote(_))) {
+                for_each_inline_children(&mut node, &mut |nodes| {
+                    *nodes = finish_raw_nodes(take(nodes), state);
+                });
+            }
+            result.push(node);
+        }
+    }
+    result
+}
+
+fn process_passthrough_stages<'a>(
+    content: &'a str,
+    passthrough: &Pass<'a>,
+    state: &ParserState<'a>,
+    attribute_substitutions: SubstitutionPlan,
+) -> Vec<InlineNode<'a>> {
     let raw = Raw {
         content,
         location: passthrough_content_location(passthrough, content, state),
