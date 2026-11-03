@@ -1577,11 +1577,41 @@
             {
               "name": "text",
               "type": "string",
-              "value": " \\*literal\\* word--word",
+              "value": " \\*literal\\* word",
               "location": [
                 {
                   "line": 58,
                   "col": 13
+                },
+                {
+                  "line": 58,
+                  "col": 29
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "—​",
+              "location": [
+                {
+                  "line": 58,
+                  "col": 30
+                },
+                {
+                  "line": 58,
+                  "col": 31
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "word",
+              "location": [
+                {
+                  "line": 58,
+                  "col": 32
                 },
                 {
                   "line": 58,
@@ -2232,11 +2262,26 @@
             {
               "name": "text",
               "type": "string",
-              "value": "\nC21 -- ",
+              "value": "\nC21",
               "location": [
                 {
                   "line": 79,
                   "col": 61
+                },
+                {
+                  "line": 80,
+                  "col": 3
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": " — ",
+              "location": [
+                {
+                  "line": 80,
+                  "col": 4
                 },
                 {
                   "line": 80,
@@ -2278,9 +2323,9 @@
               ]
             },
             {
-              "name": "text",
+              "name": "symbol",
               "type": "string",
-              "value": " --",
+              "value": " — ",
               "location": [
                 {
                   "line": 80,

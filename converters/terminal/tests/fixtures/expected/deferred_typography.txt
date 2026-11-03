@@ -25,7 +25,7 @@ P08 (C) (R) (TM) ... word--word.
 P09 [1m©[22m [3mword—​word[23m.
 P10 <tag> © &.
 P11 © <tag> &.
-P12 word — word --.
+P12 word — word — .
 P13 --word and word--.
 P14 [38;5;12mhttps://example.org[39m[©].
 P15 [38;5;14m© ® ™[39m.

@@ -92,25 +92,25 @@
 
 #text("P02 ")#text("©")#text(" ")#text("®")#text(" ")#text("™")#text(".")
 
-#text("P03 ")#text("(C)")#text(" ")#text("(R)")#text(" ")#text("(TM)")#text(" ")#text("...")#text(" word--word")#text(".")
+#text("P03 ")#text("(C)")#text(" ")#text("(R)")#text(" ")#text("(TM)")#text(" ")#text("...")#text(" word")#text("--")#text("word")#text(".")
 
 #text("P04 ")#text("©")#text(" ")#text("®")#text(" ")#text("™")#text(".")
 
-#text("P05 ")#text("©")#text(" ")#text("®")#text(" ")#text("™")#text(" ")#text("…")#text(" don")#text("’")#text("t word—​word")#text(".")
+#text("P05 ")#text("©")#text(" ")#text("®")#text(" ")#text("™")#text(" ")#text("…")#text(" don")#text("’")#text("t word")#text("—​")#text("word")#text(".")
 
 #text("P06 ")#text("(C) (R) (TM) ... don't word--word")#text(".")
 
 #text("P07 ")#text("\\*literal\\* \\_literal\\_ \\`literal\\` \\#literal\\#")#text(".")
 
-#text("P08 ")#text("(C)")#text(" ")#text("(R)")#text(" ")#text("(TM)")#text(" ")#text("...")#text(" word--word")#text(".")
+#text("P08 ")#text("(C)")#text(" ")#text("(R)")#text(" ")#text("(TM)")#text(" ")#text("...")#text(" word")#text("--")#text("word")#text(".")
 
-#text("P09 ")#strong[#text("©")]#text(" ")#emph[#text("word—​word")]#text(".")
+#text("P09 ")#strong[#text("©")]#text(" ")#emph[#text("word")#text("—​")#text("word")]#text(".")
 
 #text("P10 ")#text("<tag> ")#text("©")#text(" &")#text(".")
 
 #text("P11 ")#text("©")#text(" <tag> &")#text(".")
 
-#text("P12 ")#text("word — word --")#text(".")
+#text("P12 ")#text("word")#text(" — ")#text("word")#text(" — ")#text(".")
 
 #text("P13 ")#text("--word")#text(" and ")#text("word--")#text(".")
 

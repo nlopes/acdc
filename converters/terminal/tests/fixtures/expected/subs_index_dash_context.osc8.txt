@@ -18,7 +18,7 @@ S01 prefix—​tail
 S02 prefix—​tail
 S03 prefix--tail
 S04 prefixindexterm2:[--]tail
-S05 prefix—​tail
+S05 prefix — tail
 S06 prefix--tail
 [38;5;8m────────────────────────────────────[ text ]────────────────────────────────────[39m
 [38;2;131;148;150mS07 prefix — tail Next07
@@ -107,8 +107,8 @@ S62 prefix--tail
   ---
   --tail
   \'
-  --
   \--
+   — 
 
 [38;5;14m[1mB[0m
   begin--

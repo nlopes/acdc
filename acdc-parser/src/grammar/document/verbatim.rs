@@ -1,7 +1,8 @@
 //! Verbatim block and paragraph content.
 
 use crate::{
-    Block, BlockMetadata, DelimitedBlockType, Error, InlineNode, Paragraph, Plain,
+    AttributeValue, Block, BlockMetadata, DelimitedBlockType, Error, InlineNode, Paragraph, Plain,
+    Verbatim,
     grammar::{
         ParserState,
         document::{
@@ -73,24 +74,75 @@ pub(super) fn resolve_verbatim_inlines<'a>(
     if !needs_verbatim_inlines(substitutions) {
         return Ok(inlines);
     }
+    let comment_prefix = metadata.metadata.attributes.get("line-comment");
     let metadata = BlockParsingMetadata {
         substitutions,
         ..BlockParsingMetadata::default()
     };
     let mut resolved = Vec::new();
-    for node in inlines {
+    let mut inlines = inlines.into_iter().peekable();
+    while let Some(node) = inlines.next() {
         if let InlineNode::VerbatimText(text) = node {
+            let guard = (substitutions
+                .precedes(&Substitution::Callouts, &Substitution::Replacements)
+                && matches!(inlines.peek(), Some(InlineNode::CalloutRef(_))))
+            .then(|| callout_guard(text.content, comment_prefix))
+            .flatten();
+            let end = guard.unwrap_or(text.content.len());
             resolved.extend(process_verbatim_inlines(
                 state,
                 &metadata,
                 text.location.absolute_start,
-                text.content,
+                &text.content[..end],
             )?);
+            if guard.is_some() {
+                // A callout guard is already consumed when later replacements run.
+                let start = match resolved.last() {
+                    Some(InlineNode::VerbatimText(last))
+                        if last.location.absolute_end + 1 == text.location.absolute_start + end
+                            && text.content[..end].ends_with(last.content) =>
+                    {
+                        let start = end - last.content.len();
+                        resolved.pop();
+                        start
+                    }
+                    _ => end,
+                };
+                resolved.push(InlineNode::VerbatimText(Verbatim {
+                    content: &text.content[start..],
+                    location: state.create_block_location(
+                        text.location.absolute_start + start,
+                        text.location.absolute_start + text.content.len(),
+                        0,
+                    ),
+                }));
+            }
         } else {
             resolved.push(node);
         }
     }
     Ok(resolved)
+}
+
+fn callout_guard(text: &str, prefix: Option<&AttributeValue<'_>>) -> Option<usize> {
+    if text.ends_with("<!--") {
+        return None;
+    }
+    let candidate = text.strip_suffix(' ').unwrap_or(text);
+    let strip = |prefix: &str| {
+        if prefix.is_empty() {
+            return None;
+        }
+        candidate
+            .strip_suffix(prefix)
+            .or_else(|| text.strip_suffix(prefix))
+            .map(str::len)
+    };
+    match prefix {
+        Some(AttributeValue::String(prefix)) => strip(prefix),
+        Some(_) => None,
+        None => ["//", "#", "--", ";;"].into_iter().find_map(strip),
+    }
 }
 
 pub(super) fn get_literal_paragraph<'input>(

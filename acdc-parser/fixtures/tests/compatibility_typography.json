@@ -174,11 +174,71 @@
         {
           "name": "text",
           "type": "string",
-          "value": "s text; left--right and left -- right.",
+          "value": "s text; left",
           "location": [
             {
               "line": 3,
               "col": 27
+            },
+            {
+              "line": 3,
+              "col": 38
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "—​",
+          "location": [
+            {
+              "line": 3,
+              "col": 39
+            },
+            {
+              "line": 3,
+              "col": 40
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "right and left",
+          "location": [
+            {
+              "line": 3,
+              "col": 41
+            },
+            {
+              "line": 3,
+              "col": 54
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": " — ",
+          "location": [
+            {
+              "line": 3,
+              "col": 55
+            },
+            {
+              "line": 3,
+              "col": 58
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "right.",
+          "location": [
+            {
+              "line": 3,
+              "col": 59
             },
             {
               "line": 3,
@@ -611,11 +671,41 @@
         {
           "name": "text",
           "type": "string",
-          "value": " left\\--right and Sam",
+          "value": " left",
           "location": [
             {
               "line": 7,
               "col": 21
+            },
+            {
+              "line": 7,
+              "col": 25
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "--",
+          "location": [
+            {
+              "line": 7,
+              "col": 26
+            },
+            {
+              "line": 7,
+              "col": 28
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "right and Sam",
+          "location": [
+            {
+              "line": 7,
+              "col": 29
             },
             {
               "line": 7,
@@ -885,11 +975,41 @@
         {
           "name": "raw",
           "type": "string",
-          "value": " left--right",
+          "value": " left",
           "location": [
             {
               "line": 11,
               "col": 29
+            },
+            {
+              "line": 11,
+              "col": 33
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "—​",
+          "location": [
+            {
+              "line": 11,
+              "col": 34
+            },
+            {
+              "line": 11,
+              "col": 35
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "right",
+          "location": [
+            {
+              "line": 11,
+              "col": 36
             },
             {
               "line": 11,

@@ -1,0 +1,18 @@
+= Dash source contexts
+:empty:
+
+Earlier paragraph.
+
+.π left -- right
+image::photo.png["α left{empty}--right",title="left -- right"]
+
+== π left--right
+
+π footnote:n[Note left -- right.] and footnote:n[].
+
+[cols="1a"]
+|===
+|α left{empty}--right; *left -- right*.
+|===
+
+include::includes/compatibility_typography_dashes.adoc[tag=selected,indent=0]

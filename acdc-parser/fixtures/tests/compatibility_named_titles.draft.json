@@ -136,13 +136,28 @@
           ]
         },
         {
-          "name": "text",
+          "name": "symbol",
           "type": "string",
-          "value": " -- &copy; ",
+          "value": " — ",
           "location": [
             {
               "line": 7,
               "col": 24
+            },
+            {
+              "line": 7,
+              "col": 27
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "&copy; ",
+          "location": [
+            {
+              "line": 7,
+              "col": 28
             },
             {
               "line": 7,

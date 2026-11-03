@@ -6,8 +6,8 @@ type Error = Box<dyn std::error::Error>;
 #[case("", "(C) (R) (TM)", vec![SymbolKind::Copyright, SymbolKind::RegisteredTrademark, SymbolKind::Trademark])]
 #[case("", "Wait...", vec![SymbolKind::Ellipsis])]
 #[case("", "Sam's text", vec![SymbolKind::CurvedApostrophe])]
-#[case("", "left--right", vec![])]
-#[case("", "left -- right", vec![])]
+#[case("", "left--right", vec![SymbolKind::WordBoundedEmDash])]
+#[case("", "left -- right", vec![SymbolKind::SpacedEmDash])]
 #[case("", r"\(C) \(R) \(TM) \... word\--word Sam\'s", vec![])]
 #[case("[subs=none]\n", "(C) ... left--right Sam's", vec![])]
 #[case("[subs=\"specialchars,macros\"]\n", "(C) ... left--right Sam's", vec![])]
@@ -113,7 +113,7 @@ fn typography_does_not_register_a_note_twice(
 #[rstest::rstest]
 fn symbols_retain_authored_ranges(
     #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
-    #[values("(C)", "(R)", "(TM)", "...", "'")] token: &str,
+    #[values("(C)", "(R)", "(TM)", "...", "'", "--")] token: &str,
 ) -> Result<(), Error> {
     let source = format!("Earlier.\n\nα🚀 *left{token}right*.");
     let parsed = parse(

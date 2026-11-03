@@ -36,7 +36,7 @@ P19 prefix--.tail
 P20 prefix — tail
 P21 prefix--[1mbold[22m
 P22 prefix--tail
-P23 prefix—​tail
+P23 prefix — tail
 P24 prefix--tail
 P25 prefix-- [38;5;12mNext[39m[2m (https://next.example/prose)[0m
 Standalone control — 
@@ -59,10 +59,10 @@ P40 Sam’s
 P41 prefix--tail
 P42 prefix -- tail
 P43 prefix -- tail
-P44 prefix -- tail
+P44 prefix  —  tail
 P45 prefix — [1mBold[22m
 P46 prefix-[1m-[22mtail
-P47 prefix — -- — tail
+P47 prefix -- — -- tail
 P48 prefix —  — tail
 P49 prefix — [38;5;12mSpaced[39m[2m (https://next.example/spaced)[0m
 P50 Sam’s [38;5;12mApostrophe[39m[2m (https://next.example/apostrophe)[0m
@@ -80,6 +80,7 @@ P50 Sam’s [38;5;12mApostrophe[39m[2m (https://next.example/apostrophe)[0m
   --tail
   \'
   --
+   — 
 
 [38;5;14m[1mB[0m
   begin

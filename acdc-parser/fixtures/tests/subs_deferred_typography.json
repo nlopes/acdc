@@ -477,11 +477,41 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "t word--word",
+              "value": "t word",
               "location": [
                 {
                   "line": 28,
                   "col": 33
+                },
+                {
+                  "line": 28,
+                  "col": 38
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "—​",
+              "location": [
+                {
+                  "line": 28,
+                  "col": 39
+                },
+                {
+                  "line": 28,
+                  "col": 40
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "word",
+              "location": [
+                {
+                  "line": 28,
+                  "col": 41
                 },
                 {
                   "line": 28,
@@ -721,7 +751,37 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "t word--word",
+              "value": "t word",
+              "location": [
+                {
+                  "line": 36,
+                  "col": 5
+                },
+                {
+                  "line": 36,
+                  "col": 23
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "—​",
+              "location": [
+                {
+                  "line": 36,
+                  "col": 5
+                },
+                {
+                  "line": 36,
+                  "col": 23
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "word",
               "location": [
                 {
                   "line": 36,
@@ -879,7 +939,37 @@
             {
               "name": "raw",
               "type": "string",
-              "value": " word\\--word",
+              "value": " word",
+              "location": [
+                {
+                  "line": 41,
+                  "col": 5
+                },
+                {
+                  "line": 41,
+                  "col": 19
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "--",
+              "location": [
+                {
+                  "line": 41,
+                  "col": 5
+                },
+                {
+                  "line": 41,
+                  "col": 19
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "word",
               "location": [
                 {
                   "line": 41,
@@ -1126,7 +1216,37 @@
             {
               "name": "raw",
               "type": "string",
-              "value": " word\\--word",
+              "value": " word",
+              "location": [
+                {
+                  "line": 51,
+                  "col": 5
+                },
+                {
+                  "line": 51,
+                  "col": 19
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "--",
+              "location": [
+                {
+                  "line": 51,
+                  "col": 5
+                },
+                {
+                  "line": 51,
+                  "col": 19
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "word",
               "location": [
                 {
                   "line": 51,
@@ -1337,7 +1457,37 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "t word--word",
+              "value": "t word",
+              "location": [
+                {
+                  "line": 55,
+                  "col": 5
+                },
+                {
+                  "line": 55,
+                  "col": 23
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "—​",
+              "location": [
+                {
+                  "line": 55,
+                  "col": 5
+                },
+                {
+                  "line": 55,
+                  "col": 23
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "word",
               "location": [
                 {
                   "line": 55,
@@ -1771,7 +1921,37 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "t word--word",
+              "value": "t word",
+              "location": [
+                {
+                  "line": 69,
+                  "col": 5
+                },
+                {
+                  "line": 69,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "—​",
+              "location": [
+                {
+                  "line": 69,
+                  "col": 5
+                },
+                {
+                  "line": 69,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "word",
               "location": [
                 {
                   "line": 69,

@@ -568,7 +568,37 @@
             {
               "name": "raw",
               "type": "string",
-              "value": " word\\--word",
+              "value": " word",
+              "location": [
+                {
+                  "line": 24,
+                  "col": 5
+                },
+                {
+                  "line": 24,
+                  "col": 19
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "--",
+              "location": [
+                {
+                  "line": 24,
+                  "col": 5
+                },
+                {
+                  "line": 24,
+                  "col": 19
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "word",
               "location": [
                 {
                   "line": 24,
@@ -885,11 +915,41 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "t word--word",
+              "value": "t word",
               "location": [
                 {
                   "line": 28,
                   "col": 33
+                },
+                {
+                  "line": 28,
+                  "col": 38
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "—​",
+              "location": [
+                {
+                  "line": 28,
+                  "col": 39
+                },
+                {
+                  "line": 28,
+                  "col": 40
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "word",
+              "location": [
+                {
+                  "line": 28,
+                  "col": 41
                 },
                 {
                   "line": 28,
@@ -1173,11 +1233,41 @@
             {
               "name": "raw",
               "type": "string",
-              "value": " word\\--word",
+              "value": " word",
               "location": [
                 {
                   "line": 34,
                   "col": 32
+                },
+                {
+                  "line": 34,
+                  "col": 36
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "--",
+              "location": [
+                {
+                  "line": 34,
+                  "col": 37
+                },
+                {
+                  "line": 34,
+                  "col": 39
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "word",
+              "location": [
+                {
+                  "line": 34,
+                  "col": 40
                 },
                 {
                   "line": 34,
@@ -1288,11 +1378,41 @@
                 {
                   "name": "raw",
                   "type": "string",
-                  "value": "word--word",
+                  "value": "word",
                   "location": [
                     {
                       "line": 36,
                       "col": 21
+                    },
+                    {
+                      "line": 36,
+                      "col": 24
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "—​",
+                  "location": [
+                    {
+                      "line": 36,
+                      "col": 25
+                    },
+                    {
+                      "line": 36,
+                      "col": 26
+                    }
+                  ]
+                },
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "word",
+                  "location": [
+                    {
+                      "line": 36,
+                      "col": 27
                     },
                     {
                       "line": 36,
@@ -1528,11 +1648,56 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "word -- word --",
+              "value": "word",
               "location": [
                 {
                   "line": 42,
                   "col": 12
+                },
+                {
+                  "line": 42,
+                  "col": 15
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": " — ",
+              "location": [
+                {
+                  "line": 42,
+                  "col": 16
+                },
+                {
+                  "line": 42,
+                  "col": 19
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "word",
+              "location": [
+                {
+                  "line": 42,
+                  "col": 20
+                },
+                {
+                  "line": 42,
+                  "col": 23
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": " — ",
+              "location": [
+                {
+                  "line": 42,
+                  "col": 24
                 },
                 {
                   "line": 42,
@@ -2040,7 +2205,37 @@
                 {
                   "name": "raw",
                   "type": "string",
-                  "value": " word\\--word",
+                  "value": " word",
+                  "location": [
+                    {
+                      "line": 50,
+                      "col": 6
+                    },
+                    {
+                      "line": 50,
+                      "col": 20
+                    }
+                  ]
+                },
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "--",
+                  "location": [
+                    {
+                      "line": 50,
+                      "col": 6
+                    },
+                    {
+                      "line": 50,
+                      "col": 20
+                    }
+                  ]
+                },
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "word",
                   "location": [
                     {
                       "line": 50,

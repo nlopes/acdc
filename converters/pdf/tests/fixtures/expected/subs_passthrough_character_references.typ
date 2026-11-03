@@ -130,9 +130,9 @@
 
 #text("P21 ")#text("café ")#text("©")#text("Ω ")#text("©")#text("©")
 
-#text("P22 ")#text("©")#text(" — tail")
+#text("P22 ")#text("©")#text(" — ")#text("tail")
 
-#text("P23 ")#text("head — ")#text("©")
+#text("P23 ")#text("head")#text(" — ")#text("©")
 
 #text("P24 ")#text("&amp;#169;")#text(" ")#text("&amp;")
 

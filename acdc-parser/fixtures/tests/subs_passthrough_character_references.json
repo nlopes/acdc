@@ -2116,13 +2116,28 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "symbol",
               "type": "string",
-              "value": " -- tail",
+              "value": " — ",
               "location": [
                 {
                   "line": 58,
                   "col": 20
+                },
+                {
+                  "line": 58,
+                  "col": 23
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "tail",
+              "location": [
+                {
+                  "line": 58,
+                  "col": 24
                 },
                 {
                   "line": 58,
@@ -2164,11 +2179,26 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "head -- ",
+              "value": "head",
               "location": [
                 {
                   "line": 60,
                   "col": 14
+                },
+                {
+                  "line": 60,
+                  "col": 17
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": " — ",
+              "location": [
+                {
+                  "line": 60,
+                  "col": 18
                 },
                 {
                   "line": 60,

@@ -134,7 +134,7 @@
 }
 #text("S08 indexterm2:[No substitutions \\] text].")
 
-#text("S09 ")#text("indexterm2:[")#strong[#text("Late")]#text(" — \\] text]")#text(".")
+#text("S09 ")#text("indexterm2:[")#strong[#text("Late")]#text(" — ")#text("\\] text]")#text(".")
 
 #text("S10 ")#counter(footnote).update(1)#footnote[#text("Frozen {label} ")#text("]")#text(" note")]#text(".")
 

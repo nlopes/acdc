@@ -94,7 +94,7 @@
 
 
 #text(style: "normal")[
-#attribution[#text("A — B")#text(", ")#text("C — D")]
+#attribution[#text("A")#text(" — ")#text("B")#text(", ")#text("C")#text(" — ")#text("D")]
 
 ]
 ]

@@ -37,7 +37,7 @@ deferred\-code
 P01 \(co \(rg \(tm
 .EE
 .EX
-P02 \(co \(rg \(tm \&.\|.\|. don\(cqt word\(em\&word
+P02 \(co \(rg \(tm \&.\|.\|. don\(cqt word\(emword
 .EE
 .sp
 .if n .RS 4
@@ -48,7 +48,7 @@ P03 \(co \(rg \(tm
 .fi
 .if n .RE
 .EX
-P04 \(co \&.\|.\|. don\(cqt word\(em\&word
+P04 \(co \&.\|.\|. don\(cqt word\(emword
 .EE
 .EX
 P05 (C) (R) (TM) \&... word\-\-word
@@ -69,7 +69,7 @@ P10 \(co \(rg \(tm\c
 .URL "https://example.org/code" "Next" "\fR\c"
 .EE
 .EX
-P11 \(co \&.\|.\|. don\(cqt word\(em\&word
+P11 \(co \&.\|.\|. don\(cqt word\(emword
 .EE
 .EX
 P12 (C) (R) (TM)

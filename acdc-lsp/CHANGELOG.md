@@ -31,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Document symbols show resolved typography in block titles, including em dashes.
+
 - Clickable `mailto:` links use a single scheme prefix, so editors open the
   intended email address.
 

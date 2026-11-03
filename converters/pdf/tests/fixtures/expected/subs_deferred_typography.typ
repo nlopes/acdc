@@ -102,7 +102,7 @@
 
 #raw(block: true, "P07 (C) (R) (TM) ... word--word © ® ™")
 
-#text("P08 ")#text("©")#text(" ")#text("…")#text(" don")#text("’")#text("t word—​word")#text(" and (C).")
+#text("P08 ")#text("©")#text(" ")#text("…")#text(" don")#text("’")#text("t word")#text("—​")#text("word")#text(" and (C).")
 
 #{
   // Slice highlighted text without discarding its syntax styles.

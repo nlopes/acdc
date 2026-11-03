@@ -79,47 +79,47 @@
 #v(1em)
 
 #blocktitle[#text("Documented conflict")]
-#text(" — Come here! — I said. + — What is it? — replied Lance.")
+#text(" — ")#text("Come here!")#text(" — ")#text("I said. +")#text(" — ")#text("What is it?")#text(" — ")#text("replied Lance.")
 
 #blocktitle[#text("Documented workaround")]
-#text(" — Come here! — I said.")#linebreak()#text(" — What is it? — replied Lance.")
+#text(" — ")#text("Come here!")#text(" — ")#text("I said.")#linebreak()#text(" — ")#text("What is it?")#text(" — ")#text("replied Lance.")
 
 #blocktitle[#text("No substitutions")]
 #text("-- First line. + -- Second line.")
 
 #blocktitle[#text("No post replacements")]
-#text(" — First line. + — Second line.")
+#text(" — ")#text("First line. +")#text(" — ")#text("Second line.")
 
 #blocktitle[#text("No replacements")]
 #text("-- First line.")#linebreak()#text("-- Second line.")
 
 #blocktitle[#text("No attributes in the workaround")]
-#text(" — First line.")#linebreak()#text("{empty} — Second line.")
+#text(" — ")#text("First line.")#linebreak()#text("{empty}")#text(" — ")#text("Second line.")
 
 #blocktitle[#text("No replacements in the workaround")]
 #text("-- First line.")#linebreak()#linebreak()#text("-- Second line.")
 
 #blocktitle[#text("No post replacements in the workaround")]
-#text(" — First line.  — Second line.")
+#text(" — ")#text("First line. ")#text(" — ")#text("Second line.")
 
 #blocktitle[#text("Replacements before post replacements")]
-#text(" — First line. + — Second line.")
+#text(" — ")#text("First line. +")#text(" — ")#text("Second line.")
 
 #blocktitle[#text("Post replacements before replacements")]
-#text(" — First line.")#linebreak()#text(" — Second line.")
+#text(" — ")#text("First line.")#linebreak()#text(" — Second line.")
 
 #blocktitle[#text("Replacements moved after post replacements")]
-#text(" — First line.")#linebreak()#text(" — Second line.")
+#text(" — ")#text("First line.")#linebreak()#text(" — Second line.")
 
 #blocktitle[#text("Paragraph boundaries")]
-#text(" — alpha")
+#text(" — ")#text("alpha")
 
-#text("alpha — ")
+#text("alpha")#text(" — ")
 
 #blocktitle[#text("Internal boundaries")]
-#text("alpha — beta")
+#text("alpha")#text(" — ")#text("beta")
 
-#text("alpha—​beta")
+#text("alpha")#text("—​")#text("beta")
 
 #text("alpha --beta")
 
@@ -130,7 +130,7 @@
 
 #strong[#text("alpha --")]
 
-#strong[#text("alpha — beta")]
+#strong[#text("alpha")#text(" — ")#text("beta")]
 
 #text("lead --")#strong[#text("Bold")]
 
@@ -143,4 +143,4 @@
 #emph[#text("-- italic")]#text(" ")#raw("-- monospace")#text(" ")#highlight[#text("-- highlight")]#text(" ")#text(fill: rgb("#bf0000"))[#text("-- role")]
 
 #blocktitle[#text("Multiple surrounding spaces")]
-#text("alpha  —  beta")
+#text("alpha ")#text(" — ")#text(" beta")

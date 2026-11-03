@@ -621,13 +621,28 @@
               ]
             },
             {
-              "name": "text",
+              "name": "symbol",
               "type": "string",
-              "value": " -- \\] text]",
+              "value": " — ",
               "location": [
                 {
                   "line": 34,
                   "col": 24
+                },
+                {
+                  "line": 34,
+                  "col": 27
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "\\] text]",
+              "location": [
+                {
+                  "line": 34,
+                  "col": 28
                 },
                 {
                   "line": 34,

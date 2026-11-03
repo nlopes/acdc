@@ -430,7 +430,11 @@ fn parse_processed_inlines<'a>(
         }
     };
 
-    inlines = super::inlines::typography::resolve_plain(inlines, &inline_peg_state);
+    inlines = super::inlines::typography::resolve_plain(
+        inlines,
+        &inline_peg_state,
+        state.scope == ParserScope::Document,
+    );
     for inline in &mut inlines {
         if let InlineNode::InlineAnchor(anchor) = inline {
             anchor.bibliography_label =

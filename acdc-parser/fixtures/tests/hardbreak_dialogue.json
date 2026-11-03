@@ -54,13 +54,118 @@
       ],
       "inlines": [
         {
-          "name": "text",
+          "name": "symbol",
           "type": "string",
-          "value": "-- Come here! -- I said. +\n-- What is it? -- replied Lance.",
+          "value": " — ",
           "location": [
             {
               "line": 4,
               "col": 1
+            },
+            {
+              "line": 4,
+              "col": 3
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Come here!",
+          "location": [
+            {
+              "line": 4,
+              "col": 4
+            },
+            {
+              "line": 4,
+              "col": 13
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": " — ",
+          "location": [
+            {
+              "line": 4,
+              "col": 14
+            },
+            {
+              "line": 4,
+              "col": 17
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "I said. +",
+          "location": [
+            {
+              "line": 4,
+              "col": 18
+            },
+            {
+              "line": 4,
+              "col": 26
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": " — ",
+          "location": [
+            {
+              "line": 4,
+              "col": 27
+            },
+            {
+              "line": 5,
+              "col": 3
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "What is it?",
+          "location": [
+            {
+              "line": 5,
+              "col": 4
+            },
+            {
+              "line": 5,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": " — ",
+          "location": [
+            {
+              "line": 5,
+              "col": 15
+            },
+            {
+              "line": 5,
+              "col": 18
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "replied Lance.",
+          "location": [
+            {
+              "line": 5,
+              "col": 19
             },
             {
               "line": 5,
@@ -102,13 +207,58 @@
       ],
       "inlines": [
         {
-          "name": "text",
+          "name": "symbol",
           "type": "string",
-          "value": "-- Come here! -- I said.",
+          "value": " — ",
           "location": [
             {
               "line": 9,
               "col": 1
+            },
+            {
+              "line": 9,
+              "col": 3
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Come here!",
+          "location": [
+            {
+              "line": 9,
+              "col": 4
+            },
+            {
+              "line": 9,
+              "col": 13
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": " — ",
+          "location": [
+            {
+              "line": 9,
+              "col": 14
+            },
+            {
+              "line": 9,
+              "col": 17
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "I said.",
+          "location": [
+            {
+              "line": 9,
+              "col": 18
             },
             {
               "line": 9,
@@ -131,13 +281,58 @@
           ]
         },
         {
-          "name": "text",
+          "name": "symbol",
           "type": "string",
-          "value": "\n-- What is it? -- replied Lance.",
+          "value": " — ",
           "location": [
             {
               "line": 10,
-              "col": 1
+              "col": 8
+            },
+            {
+              "line": 11,
+              "col": 3
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "What is it?",
+          "location": [
+            {
+              "line": 11,
+              "col": 4
+            },
+            {
+              "line": 11,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": " — ",
+          "location": [
+            {
+              "line": 11,
+              "col": 15
+            },
+            {
+              "line": 11,
+              "col": 18
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "replied Lance.",
+          "location": [
+            {
+              "line": 11,
+              "col": 19
             },
             {
               "line": 11,
@@ -186,11 +381,41 @@
         {
           "name": "text",
           "type": "string",
-          "value": "First line. +\n-- Second line.",
+          "value": "First line. +",
           "location": [
             {
               "line": 14,
               "col": 1
+            },
+            {
+              "line": 14,
+              "col": 13
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": " — ",
+          "location": [
+            {
+              "line": 14,
+              "col": 14
+            },
+            {
+              "line": 15,
+              "col": 3
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Second line.",
+          "location": [
+            {
+              "line": 15,
+              "col": 4
             },
             {
               "line": 15,
@@ -232,13 +457,58 @@
       ],
       "inlines": [
         {
-          "name": "text",
+          "name": "symbol",
           "type": "string",
-          "value": "-- First line.\n-- Second line.",
+          "value": " — ",
           "location": [
             {
               "line": 19,
               "col": 1
+            },
+            {
+              "line": 19,
+              "col": 3
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "First line.",
+          "location": [
+            {
+              "line": 19,
+              "col": 4
+            },
+            {
+              "line": 19,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": " — ",
+          "location": [
+            {
+              "line": 19,
+              "col": 15
+            },
+            {
+              "line": 20,
+              "col": 3
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Second line.",
+          "location": [
+            {
+              "line": 20,
+              "col": 4
             },
             {
               "line": 20,
@@ -362,13 +632,28 @@
       ],
       "inlines": [
         {
-          "name": "text",
+          "name": "symbol",
           "type": "string",
-          "value": "-- alpha",
+          "value": " — ",
           "location": [
             {
               "line": 27,
               "col": 1
+            },
+            {
+              "line": 27,
+              "col": 3
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "alpha",
+          "location": [
+            {
+              "line": 27,
+              "col": 4
             },
             {
               "line": 27,
@@ -412,11 +697,26 @@
         {
           "name": "text",
           "type": "string",
-          "value": "alpha --",
+          "value": "alpha",
           "location": [
             {
               "line": 30,
               "col": 1
+            },
+            {
+              "line": 30,
+              "col": 5
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": " — ",
+          "location": [
+            {
+              "line": 30,
+              "col": 6
             },
             {
               "line": 30,
@@ -460,11 +760,41 @@
         {
           "name": "text",
           "type": "string",
-          "value": "alpha -- beta",
+          "value": "alpha",
           "location": [
             {
               "line": 33,
               "col": 1
+            },
+            {
+              "line": 33,
+              "col": 5
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": " — ",
+          "location": [
+            {
+              "line": 33,
+              "col": 6
+            },
+            {
+              "line": 33,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "beta",
+          "location": [
+            {
+              "line": 33,
+              "col": 10
             },
             {
               "line": 33,
@@ -508,11 +838,41 @@
         {
           "name": "text",
           "type": "string",
-          "value": "alpha--beta",
+          "value": "alpha",
           "location": [
             {
               "line": 36,
               "col": 1
+            },
+            {
+              "line": 36,
+              "col": 5
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "—​",
+          "location": [
+            {
+              "line": 36,
+              "col": 6
+            },
+            {
+              "line": 36,
+              "col": 7
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "beta",
+          "location": [
+            {
+              "line": 36,
+              "col": 8
             },
             {
               "line": 36,
@@ -790,11 +1150,41 @@
             {
               "name": "text",
               "type": "string",
-              "value": "alpha -- beta",
+              "value": "alpha",
               "location": [
                 {
                   "line": 51,
                   "col": 2
+                },
+                {
+                  "line": 51,
+                  "col": 6
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": " — ",
+              "location": [
+                {
+                  "line": 51,
+                  "col": 7
+                },
+                {
+                  "line": 51,
+                  "col": 10
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "beta",
+              "location": [
+                {
+                  "line": 51,
+                  "col": 11
                 },
                 {
                   "line": 51,
@@ -1010,9 +1400,9 @@
       ],
       "inlines": [
         {
-          "name": "text",
+          "name": "symbol",
           "type": "string",
-          "value": "-- ",
+          "value": " — ",
           "location": [
             {
               "line": 60,
@@ -1124,9 +1514,9 @@
           ]
         },
         {
-          "name": "text",
+          "name": "symbol",
           "type": "string",
-          "value": " --",
+          "value": " — ",
           "location": [
             {
               "line": 63,
@@ -1385,11 +1775,41 @@
         {
           "name": "text",
           "type": "string",
-          "value": "alpha  --  beta",
+          "value": "alpha ",
           "location": [
             {
               "line": 69,
               "col": 1
+            },
+            {
+              "line": 69,
+              "col": 6
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": " — ",
+          "location": [
+            {
+              "line": 69,
+              "col": 7
+            },
+            {
+              "line": 69,
+              "col": 10
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " beta",
+          "location": [
+            {
+              "line": 69,
+              "col": 11
             },
             {
               "line": 69,

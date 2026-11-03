@@ -606,13 +606,28 @@
               ]
             },
             {
-              "name": "text",
+              "name": "symbol",
               "type": "string",
-              "value": " -- Attribute \\] text]",
+              "value": " — ",
               "location": [
                 {
                   "line": 30,
                   "col": 24
+                },
+                {
+                  "line": 30,
+                  "col": 27
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Attribute \\] text]",
+              "location": [
+                {
+                  "line": 30,
+                  "col": 28
                 },
                 {
                   "line": 30,

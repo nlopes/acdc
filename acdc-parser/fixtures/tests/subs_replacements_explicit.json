@@ -9,11 +9,41 @@
         {
           "name": "text",
           "type": "string",
-          "value": "This has -- dashes, ",
+          "value": "This has",
           "location": [
             {
               "line": 2,
               "col": 1
+            },
+            {
+              "line": 2,
+              "col": 8
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": " — ",
+          "location": [
+            {
+              "line": 2,
+              "col": 9
+            },
+            {
+              "line": 2,
+              "col": 12
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "dashes, ",
+          "location": [
+            {
+              "line": 2,
+              "col": 13
             },
             {
               "line": 2,

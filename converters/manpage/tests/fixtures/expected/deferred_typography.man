@@ -56,7 +56,7 @@ P10 <tag> \(co &\&.
 .sp
 P11 \(co <tag> &\&.
 .sp
-P12 word \(em word \-\-\&.
+P12 word \(em word \(em \&.
 .sp
 P13 \-\-word and word\-\-\&.
 .sp

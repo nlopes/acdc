@@ -14,6 +14,7 @@ use super::recognition::structural_token_allowed;
 pub(crate) fn resolve_plain<'a>(
     nodes: Vec<InlineNode<'a>>,
     state: &ParserState<'a>,
+    paragraph: bool,
 ) -> Vec<InlineNode<'a>> {
     if !state.inline_ctx.substitutions.enabled(&Substitution::Replacements)
         || state.inline_ctx.rules.contains(InlineRules::INDEX_CATALOG)
@@ -32,7 +33,13 @@ pub(crate) fn resolve_plain<'a>(
             continue;
         }
         let start = source_start(text.content, &text.location, state);
-        let edits = replacements(text.content, |range| {
+        let edges = Edges {
+            start: paragraph && start == Some(0) && !late_boundary(state, 0),
+            end: paragraph
+                && start.is_some_and(|start| start + text.content.len() == state.input.len())
+                && !late_boundary(state, state.input.len()),
+        };
+        let edits = replacements(text.content, edges, |range| {
             start.is_none_or(|start| {
                 structural_token_allowed(
                     state,
@@ -59,11 +66,15 @@ pub(crate) fn resolve_plain<'a>(
     result
 }
 
-pub(crate) fn resolve_raw<'a>(raw: Raw<'a>, state: &ParserState<'a>) -> Vec<InlineNode<'a>> {
+pub(crate) fn resolve_raw<'a>(
+    raw: Raw<'a>,
+    state: &ParserState<'a>,
+    edges: Edges,
+) -> Vec<InlineNode<'a>> {
     if !raw.subs.contains(&Substitution::Replacements) {
         return vec![InlineNode::RawText(raw)];
     }
-    let edits = replacements(raw.content, |_| true);
+    let edits = replacements(raw.content, edges, |_| true);
     if edits.is_empty() {
         return vec![InlineNode::RawText(raw)];
     }
@@ -86,6 +97,7 @@ fn has_candidate(text: &str) -> bool {
         || text.contains("(R)")
         || text.contains("(TM)")
         || text.contains("...")
+        || text.contains("--")
         || text.contains('\'')
 }
 
@@ -99,13 +111,34 @@ enum ReplacementValue {
     Literal(Range<usize>),
 }
 
-fn replacements(text: &str, allowed: impl Fn(Range<usize>) -> bool) -> Vec<Replacement> {
+#[derive(Clone, Copy, Default)]
+pub(crate) struct Edges {
+    pub(crate) start: bool,
+    pub(crate) end: bool,
+}
+
+fn late_boundary(state: &ParserState<'_>, position: usize) -> bool {
+    state
+        .inline_ctx
+        .substitutions
+        .precedes(&Substitution::Replacements, &Substitution::Attributes)
+        && state
+            .late_attribute_sources
+            .iter()
+            .any(|(range, _)| range.start == position && range.end == position)
+}
+
+fn replacements(
+    text: &str,
+    edges: Edges,
+    allowed: impl Fn(Range<usize>) -> bool,
+) -> Vec<Replacement> {
     let mut edits = Vec::new();
     let mut cursor = 0;
     while cursor < text.len() {
         let escaped = text.as_bytes().get(cursor) == Some(&b'\\');
         let start = cursor + usize::from(escaped);
-        let Some((mut range, kind)) = replacement_at(text, start) else {
+        let Some((mut range, kind)) = replacement_at(text, start, edges) else {
             cursor += text[cursor..].chars().next().map_or(1, char::len_utf8);
             continue;
         };
@@ -121,7 +154,10 @@ fn replacements(text: &str, allowed: impl Fn(Range<usize>) -> bool) -> Vec<Repla
             range.start = cursor;
         }
         let mut context = range.clone();
-        if kind == SymbolKind::CurvedApostrophe {
+        if matches!(
+            kind,
+            SymbolKind::CurvedApostrophe | SymbolKind::WordBoundedEmDash
+        ) {
             context.start -= text[..range.start]
                 .chars()
                 .next_back()
@@ -141,7 +177,7 @@ fn replacements(text: &str, allowed: impl Fn(Range<usize>) -> bool) -> Vec<Repla
     edits
 }
 
-fn replacement_at(text: &str, start: usize) -> Option<(Range<usize>, SymbolKind)> {
+fn replacement_at(text: &str, start: usize, edges: Edges) -> Option<(Range<usize>, SymbolKind)> {
     let suffix = &text[start..];
     for (token, kind) in [
         ("(C)", SymbolKind::Copyright),
@@ -164,7 +200,29 @@ fn replacement_at(text: &str, start: usize) -> Option<(Range<usize>, SymbolKind)
     {
         return Some((start..start + 1, SymbolKind::CurvedApostrophe));
     }
+    if suffix.starts_with("--") && !suffix.starts_with("---") && previous != Some('-') {
+        let next = suffix[2..].chars().next();
+        if text[..start].ends_with('\\')
+            || previous.is_some_and(is_word) && next.is_some_and(is_word)
+        {
+            return Some((start..start + 2, SymbolKind::WordBoundedEmDash));
+        }
+        if (previous.is_some_and(|character| matches!(character, ' ' | '\n'))
+            || start == 0 && edges.start)
+            && (next.is_some_and(|character| matches!(character, ' ' | '\n'))
+                || start + 2 == text.len() && edges.end)
+        {
+            return Some((
+                start.saturating_sub(1)..(start + 3).min(text.len()),
+                SymbolKind::SpacedEmDash,
+            ));
+        }
+    }
     None
+}
+
+fn is_word(character: char) -> bool {
+    character.is_alphanumeric() || character == '_'
 }
 
 fn source_start(text: &str, location: &Location, state: &ParserState<'_>) -> Option<usize> {

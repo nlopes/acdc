@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Text reads now return parser-resolved copyright and trademark signs,
-  ellipses, and word-internal apostrophes. Replacement escapes return their
+  ellipses, word-internal apostrophes, and em dashes. Replacement escapes return their
   literal value, including when rendered replacements are disabled.
 
 - Typed automatic-reference resolution can apply the manpage policy of using

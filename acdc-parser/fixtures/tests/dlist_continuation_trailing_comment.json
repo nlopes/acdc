@@ -272,9 +272,9 @@
                                 "type": "block",
                                 "inlines": [
                                   {
-                                    "name": "text",
+                                    "name": "symbol",
                                     "type": "string",
-                                    "value": "--",
+                                    "value": " — ",
                                     "location": [
                                       {
                                         "line": 7,
@@ -399,9 +399,9 @@
                                 "type": "block",
                                 "inlines": [
                                   {
-                                    "name": "text",
+                                    "name": "symbol",
                                     "type": "string",
-                                    "value": "--",
+                                    "value": " — ",
                                     "location": [
                                       {
                                         "line": 8,

@@ -6,7 +6,7 @@
 > — A -- B, <cite>C -- D</cite>
 
 > Substituted attribution.
-> — A -- B, <cite>C -- D</cite>
+> — A — B, <cite>C — D</cite>
 
 > ****Care****
 > A custom admonition label.

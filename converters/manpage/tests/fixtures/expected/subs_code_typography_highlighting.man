@@ -101,7 +101,7 @@ XML callout.
 .RE
 .EX
 C20 \fB\(co\fR(R)https://example.org/mixed[Next \(tm]\&.\|.\|.
-C21 \(em \fBmiddle\fR \(em
+C21 \(em \fBmiddle\fR \(em \&
 .EE
 .EX
 C22 \-\- \(co \&... \(rg

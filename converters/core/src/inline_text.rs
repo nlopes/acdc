@@ -544,8 +544,14 @@ mod tests {
             ("prefixpass:[ ]indexterm2:[--] tail", "prefix -- tail"),
             ("prefix indexterm2:[--]pass:[ ]tail", "prefix -- tail"),
             ("prefixpass:[-]indexterm2:[-]tail", "prefix--tail"),
-            ("prefix indexterm2:[pass:r[--]] tail", "prefix -- tail"),
-            ("prefixindexterm2:[pass:r[--]]tail", "prefix—\u{200b}tail"),
+            (
+                "prefix indexterm2:[pass:r[--]] tail",
+                "prefix \u{2009}—\u{2009} tail",
+            ),
+            (
+                "prefixindexterm2:[pass:r[--]]tail",
+                "prefix\u{2009}—\u{2009}tail",
+            ),
         ] {
             let parsed = parse(input, &Options::default())?;
             let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
@@ -635,8 +641,14 @@ mod tests {
             ("prefix indexterm2:[--] tail", "prefix -- tail"),
             ("prefix-indexterm2:[-]tail", "prefix--tail"),
             ("Saindexterm2:[m]'s", "Sam's"),
-            ("prefixindexterm2:[pass:r[--]]tail", "prefix—\u{200b}tail"),
-            ("prefix indexterm2:[pass:r[--]] tail", "prefix -- tail"),
+            (
+                "prefixindexterm2:[pass:r[--]]tail",
+                "prefix\u{2009}—\u{2009}tail",
+            ),
+            (
+                "prefix indexterm2:[pass:r[--]] tail",
+                "prefix \u{2009}—\u{2009} tail",
+            ),
             ("prefix-indexterm2:[pass:r[-]]tail", "prefix--tail"),
         ] {
             let parsed = parse(input, &Options::default())?;

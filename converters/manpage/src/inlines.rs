@@ -13,7 +13,7 @@ use acdc_converters_core::{
     xref::{XrefDisplay, resolve_local_reference},
 };
 use acdc_parser::{
-    Substitution,
+    Substitution, SymbolKind,
     ast::{
         AttributeValueRef, AutolinkRef, ContentRef, CrossReferenceRef, IconRef, InlineKind,
         InlineRef, LinkRef, MailtoRef, RawRef, ReferenceRef, TokensRef, UrlRef,
@@ -524,6 +524,11 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             InlineKind::Plain(text) => self.render_plain_text(text.text())?,
             InlineKind::Symbol(symbol) => {
                 self.render_plain_text(replacements().symbol(symbol.kind()))?;
+                if symbol.kind() == SymbolKind::SpacedEmDash
+                    && self.text_boundaries.at_paragraph_end()
+                {
+                    write!(self.writer_mut(), "\\&")?;
+                }
             }
 
             InlineKind::Raw(text) => self.render_raw_inline(text)?,

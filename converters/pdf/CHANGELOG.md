@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Render parsed copyright and trademark signs, ellipses, and word-internal
-  apostrophes while keeping escaped tokens literal. Backtick content now applies
+- Render parsed copyright and trademark signs, ellipses, word-internal
+  apostrophes, and em dashes while keeping escaped tokens literal. Backtick content now applies
   enabled typography, matching Asciidoctor PDF.
 
 - Table-of-contents rendering avoids another full copy of heading content while

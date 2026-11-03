@@ -532,13 +532,58 @@
                             ]
                           },
                           {
-                            "name": "text",
+                            "name": "symbol",
                             "type": "string",
-                            "value": "\n--\nP06 Open-looking text.\n--\nP06 End.",
+                            "value": " — ",
                             "location": [
                               {
                                 "line": 51,
                                 "col": 5
+                              },
+                              {
+                                "line": 52,
+                                "col": 3
+                              }
+                            ]
+                          },
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "P06 Open-looking text.",
+                            "location": [
+                              {
+                                "line": 53,
+                                "col": 1
+                              },
+                              {
+                                "line": 53,
+                                "col": 22
+                              }
+                            ]
+                          },
+                          {
+                            "name": "symbol",
+                            "type": "string",
+                            "value": " — ",
+                            "location": [
+                              {
+                                "line": 53,
+                                "col": 23
+                              },
+                              {
+                                "line": 54,
+                                "col": 3
+                              }
+                            ]
+                          },
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "P06 End.",
+                            "location": [
+                              {
+                                "line": 55,
+                                "col": 1
                               },
                               {
                                 "line": 55,

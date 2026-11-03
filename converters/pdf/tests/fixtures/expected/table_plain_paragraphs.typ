@@ -96,7 +96,7 @@
 
 ], table.cell(x: 0, y: 4, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text(".P05 Block-looking title P05 Ordinary paragraph text.")
 
-], table.cell(x: 0, y: 5, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("P06 Before. ==== P06 Example-looking text. ==== ")#text("…")#text(". P06 Literal-looking text. ")#text("…")#text(". ")#emph[#text("__")]#text(" P06 Quote-looking text. ")#emph[#text("__")]#text(" — P06 Open-looking text. — P06 End.")
+], table.cell(x: 0, y: 5, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("P06 Before. ==== P06 Example-looking text. ==== ")#text("…")#text(". P06 Literal-looking text. ")#text("…")#text(". ")#emph[#text("__")]#text(" P06 Quote-looking text. ")#emph[#text("__")]#text(" — ")#text("P06 Open-looking text.")#text(" — ")#text("P06 End.")
 
 ], table.cell(x: 0, y: 6, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("P07 Before. P07 After.")
 

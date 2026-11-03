@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Render parsed copyright and trademark signs, ellipses, and word-internal
-  apostrophes while keeping escaped tokens literal.
+  apostrophes while keeping escaped tokens literal. Parsed em dashes retain
+  manpage spacing in listing and literal blocks.
 
 - Direct users of `ManpageVisitor` must use the shared `DocumentVisitor`,
   `BlockVisitor`, and `InlineVisitor` callbacks. Portable roff output, caption

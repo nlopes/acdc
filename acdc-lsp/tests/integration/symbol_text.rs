@@ -36,7 +36,11 @@ image::fallback.png[]
         .collect::<Vec<_>>();
     assert_eq!(
         names,
-        ["😀 Bold [Bird] target --", "Sidebar", "fallback.png"]
+        [
+            "😀 Bold [Bird] target\u{2009}—\u{2009}",
+            "Sidebar",
+            "fallback.png"
+        ]
     );
     client.shutdown();
     Ok(())

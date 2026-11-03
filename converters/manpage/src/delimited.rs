@@ -7,13 +7,16 @@ use std::{borrow::Cow, io::Write};
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::{SubsFlags, effective_subs_flags};
 use acdc_converters_core::{InlineTextTransform, TraversalContext};
-use acdc_parser::ast::{AttributesRef, BlockKind, BlockRef, ContentRef, InlineKind, InlineRef};
+use acdc_parser::{
+    SymbolKind,
+    ast::{AttributesRef, BlockKind, BlockRef, ContentRef, InlineKind, InlineRef},
+};
 
 use crate::{
     Error, ManpageVisitor,
     document::extract_verbatim_text,
     escape::{EscapeMode, manify},
-    inlines::contains_link,
+    inlines::{contains_link, replacements},
     manpage_visitor::{IndexCollection, attribute_text},
 };
 
@@ -266,6 +269,15 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         let (prefix, content, suffix) = match node.kind() {
             InlineKind::Plain(text) => return self.write_verbatim_text(text.text()),
             InlineKind::Verbatim(text) => return self.write_verbatim_text(text.text()),
+            InlineKind::Symbol(symbol) => {
+                self.write_verbatim_text(replacements().symbol(symbol.kind()))?;
+                if symbol.kind() == SymbolKind::SpacedEmDash
+                    && self.text_boundaries.at_paragraph_end()
+                {
+                    write!(self.writer_mut(), "\\&")?;
+                }
+                return Ok(());
+            }
             InlineKind::Callout(callout) => {
                 write!(self.writer_mut(), "\\fB({})\\fP", callout.number())?;
                 return Ok(());
@@ -285,7 +297,6 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             }
             InlineKind::Raw(_)
             | InlineKind::StandaloneCurvedApostrophe(_)
-            | InlineKind::Symbol(_)
             | InlineKind::LineBreak(_)
             | InlineKind::Anchor(_)
             | InlineKind::Footnote(_)

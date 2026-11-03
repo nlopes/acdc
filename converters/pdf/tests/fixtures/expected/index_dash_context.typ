@@ -132,7 +132,7 @@
 
 #text("P22 prefix")#metadata(none)<__indexterm-26>#text("--")#text("tail")
 
-#text("P23 prefix")#metadata(none)<__indexterm-27>#text("—​")#text("tail")
+#text("P23 prefix")#metadata(none)<__indexterm-27>#text(" — ")#text("tail")
 
 #text("P24 prefix")#metadata(none)<__indexterm-28>#text("--")#text("tail")
 
@@ -180,13 +180,13 @@
 
 #text("P43 prefix ")#metadata(none)<__indexterm-53>#text("--")#text(" ")#text("tail")
 
-#text("P44 prefix ")#metadata(none)<__indexterm-54>#text("--")#text(" tail")
+#text("P44 prefix ")#metadata(none)<__indexterm-54>#text(" — ")#text(" tail")
 
 #text("P45 prefix")#metadata(none)<__indexterm-55>#text(" — ")#text("")#strong[#text("Bold")]
 
 #text("P46 prefix-")#strong[#text("-")]#text("tail")
 
-#text("P47 prefix")#metadata(none)<__indexterm-56>#text(" — ")#text("--")#metadata(none)<__indexterm-57>#text(" — ")#text("tail")
+#text("P47 prefix ")#metadata(none)<__indexterm-56>#text("--")#text(" — ")#metadata(none)<__indexterm-57>#text("--")#text(" tail")
 
 #text("P48 prefix")#metadata(none)<__indexterm-58>#text(" — ")#text("")#metadata(none)<__indexterm-59>#text(" — ")#text("tail")
 
@@ -237,13 +237,14 @@
 #v(0.25em)
 #par(hanging-indent: 1em)[#text("'")#_acdc_index_pages((<__indexterm-43>,<__indexterm-44>,<__indexterm-45>,<__indexterm-46>,), "term")]
 #par(hanging-indent: 1em)[#text("-")#_acdc_index_pages((<__indexterm-33>,<__indexterm-34>,<__indexterm-35>,<__indexterm-36>,<__indexterm-51>,), "term")]
-#par(hanging-indent: 1em)[#text("--")#_acdc_index_pages((<__indexterm-26>,), "term")]
-#par(hanging-indent: 1em)[#text(" — ")#_acdc_index_pages((<__indexterm-1>,<__indexterm-4>,<__indexterm-6>,<__indexterm-7>,<__indexterm-9>,<__indexterm-14>,<__indexterm-15>,<__indexterm-18>,<__indexterm-19>,<__indexterm-20>,<__indexterm-21>,<__indexterm-22>,<__indexterm-23>,<__indexterm-24>,<__indexterm-25>,<__indexterm-27>,<__indexterm-29>,<__indexterm-30>,<__indexterm-32>,<__indexterm-38>,<__indexterm-39>,<__indexterm-40>,<__indexterm-52>,<__indexterm-53>,<__indexterm-54>,<__indexterm-55>,<__indexterm-56>,<__indexterm-57>,<__indexterm-58>,<__indexterm-59>,<__indexterm-60>,), "term")]
+#par(hanging-indent: 1em)[#text("--")#_acdc_index_pages((<__indexterm-26>,<__indexterm-28>,), "term")]
+#par(hanging-indent: 1em)[#text(" — ")#_acdc_index_pages((<__indexterm-1>,<__indexterm-4>,<__indexterm-6>,<__indexterm-7>,<__indexterm-9>,<__indexterm-14>,<__indexterm-15>,<__indexterm-18>,<__indexterm-19>,<__indexterm-20>,<__indexterm-21>,<__indexterm-22>,<__indexterm-23>,<__indexterm-24>,<__indexterm-25>,<__indexterm-29>,<__indexterm-30>,<__indexterm-32>,<__indexterm-38>,<__indexterm-39>,<__indexterm-40>,<__indexterm-52>,<__indexterm-53>,<__indexterm-55>,<__indexterm-56>,<__indexterm-57>,<__indexterm-58>,<__indexterm-59>,<__indexterm-60>,), "term")]
 #par(hanging-indent: 1em)[#text("---")#_acdc_index_pages((<__indexterm-17>,), "term")]
 #par(hanging-indent: 1em)[#text("--end")#_acdc_index_pages((<__indexterm-13>,), "term")]
 #par(hanging-indent: 1em)[#text("--tail")#_acdc_index_pages((<__indexterm-2>,), "term")]
 #par(hanging-indent: 1em)[#text("\\'")#_acdc_index_pages((<__indexterm-47>,), "term")]
-#par(hanging-indent: 1em)[#text("--")#_acdc_index_pages((<__indexterm-16>,<__indexterm-28>,), "term")]
+#par(hanging-indent: 1em)[#text("--")#_acdc_index_pages((<__indexterm-16>,), "term")]
+#par(hanging-indent: 1em)[#text(" — ")#_acdc_index_pages((<__indexterm-27>,<__indexterm-54>,), "term")]
 #v(0.75em)
 #text(weight: "bold")[#text("B")]
 #v(0.25em)

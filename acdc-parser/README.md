@@ -165,8 +165,8 @@ number through `callout()`; that number belongs to its local callout sequence.
 
 Text reads keep ordinary, raw, and verbatim content distinct. `text()` returns
 parsed text without rendering; `PlainRef::is_escaped()` retains escape protection.
-`SymbolRef` represents resolved typography. Its `kind()` is semantic, its `text()`
-is Unicode, and its location still covers the authored replacement token.
+`SymbolRef` represents resolved typography, including word-bounded and
+spaced em dashes. Its `kind()` is semantic, its `text()` is Unicode, and its location still covers the authored replacement token.
 Enabled replacements resolve copyright and trademark signs, ellipses, and
 word-internal apostrophes before a converter reads the tree.
 Replacement escapes produce protected literal text. Later attribute expansion

@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
-- Render parsed copyright and trademark signs, ellipses, and word-internal
-  apostrophes while keeping escaped tokens literal.
+- Render parsed copyright and trademark signs, ellipses, word-internal
+  apostrophes, and em dashes while keeping escaped tokens literal.
 
 - Direct users of `TerminalVisitor` must use the shared `DocumentVisitor`,
   `BlockVisitor`, and `InlineVisitor` callbacks. Terminal output, table layouts,

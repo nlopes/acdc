@@ -26,7 +26,7 @@ E08 anchor:target\[Anchor \\\] text\]
 
 E09 indexterm2:\[Open \\\[ text\]
 
-E10 indexterm2:\[**Bold** -- Attribute \\\] text\]
+E10 indexterm2:\[**Bold** — Attribute \\\] text\]
 
 E11 indexterm2:\[Repeated \\\\\\\] term\]
 

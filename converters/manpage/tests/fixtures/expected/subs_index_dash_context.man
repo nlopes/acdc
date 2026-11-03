@@ -42,7 +42,7 @@ S03 prefix\-\-tail
 .sp
 S04 prefixindexterm2:[\-\-]tail
 .sp
-S05 prefix\(emtail
+S05 prefix \(em tail
 .sp
 S06 prefix\-\-tail
 .EX
@@ -100,7 +100,7 @@ S23 prefix \(em tail \c
 S24 prefix\-\-tail \c
 .URL "https://next.example/24" "Next24" "\fR\c"
 
-S25 prefix\(em\&tail \c
+S25 prefix \(em tail \c
 .URL "https://next.example/25" "Next25" "\fR\c"
 
 S26 prefix\-\-tail \c
@@ -121,7 +121,7 @@ S27 prefix\(emtail \c
 S28 prefix\-\-tail \c
 .URL "https://next.example/28" "Next28" "\fR\c"
 
-S29 prefix\(em\&tail \c
+S29 prefix \(em tail \c
 .URL "https://next.example/29" "Next29" "\fR\c"
 .EE
 .EX
@@ -188,10 +188,10 @@ S49 prefix \-\- tail \c
 S50 prefix \-\- tail \c
 .URL "https://next.example/50" "Next50" "\fR\c"
 
-S51 prefix \-\- tail \c
+S51 prefix  \(em  tail \c
 .URL "https://next.example/51" "Next51" "\fR\c"
 
-S52 prefix \(em \-\- \(em tail \c
+S52 prefix \-\- \(em \-\- tail \c
 .URL "https://next.example/52" "Next52" "\fR\c"
 
 S53 prefix \(em  \(em tail \c
@@ -216,7 +216,7 @@ S61 prefix\(emtail
 .sp
 S62 prefix\-\-tail
 .EX
-S63 prefix\(em\&tail \c
+S63 prefix \(em tail \c
 .URL "https://next.example/63" "Next63" "\fR\c"
 .EE
 .SH "INDEX"
@@ -236,9 +236,9 @@ S63 prefix\(em\&tail \c
 .br
 \e\(aq
 .br
-\-\-
-.br
 \e\-\-
+.br
+ \(em \&
 .br
 .RE
 .SS "B"

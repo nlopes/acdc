@@ -14,7 +14,7 @@ use crate::{
 
 use super::{
     ParserState,
-    inlines::inline_parser,
+    inlines::{inline_parser, typography::Edges},
     location_mapping::clamp_inline_node_locations,
     state::{InlineContext, InlineRules},
     utf8_utils::{RoundDirection, step_char},
@@ -49,28 +49,45 @@ fn process_passthrough<'a>(
     state: &ParserState<'a>,
     attribute_substitutions: SubstitutionPlan,
 ) -> Vec<InlineNode<'a>> {
-    finish_raw_nodes(
-        process_passthrough_stages(content, passthrough, state, attribute_substitutions),
-        state,
-    )
+    let nodes = process_passthrough_stages(content, passthrough, state, attribute_substitutions);
+    let location = passthrough_content_location(passthrough, content, state);
+    let late_attributes = SubstitutionPlan::from_substitutions(&passthrough.substitutions)
+        .precedes(&Substitution::Replacements, &Substitution::Attributes);
+    let edges = Edges {
+        start: !late_attributes
+            || nodes
+                .first()
+                .is_some_and(|node| node.location().absolute_start == location.absolute_start),
+        end: !late_attributes
+            || nodes
+                .last()
+                .is_some_and(|node| node.location().absolute_end == location.absolute_end),
+    };
+    finish_raw_nodes(nodes, state, edges)
 }
 
 fn finish_raw_nodes<'a>(
     nodes: Vec<InlineNode<'a>>,
     state: &ParserState<'a>,
+    edges: Edges,
 ) -> Vec<InlineNode<'a>> {
     if state.inline_ctx.rules.contains(InlineRules::INDEX_CATALOG) {
         return nodes;
     }
     let mut result = Vec::with_capacity(nodes.len());
-    for mut node in nodes {
+    let count = nodes.len();
+    for (index, mut node) in nodes.into_iter().enumerate() {
         if let InlineNode::RawText(raw) = node {
-            result.extend(super::inlines::typography::resolve_raw(raw, state));
+            let edges = Edges {
+                start: edges.start && index == 0,
+                end: edges.end && index + 1 == count,
+            };
+            result.extend(super::inlines::typography::resolve_raw(raw, state, edges));
         } else {
             if let InlineNode::Macro(InlineMacro::IndexTerm(index)) = &mut node {
                 let original = index.catalog.is_none().then(|| Box::new((**index).clone()));
                 index.for_each_label_mut(|nodes| {
-                    *nodes = finish_raw_nodes(take(nodes), state);
+                    *nodes = finish_raw_nodes(take(nodes), state, Edges::default());
                 });
                 if let Some(original) = original
                     && (index.kind != original.kind || index.relationship != original.relationship)
@@ -79,7 +96,7 @@ fn finish_raw_nodes<'a>(
                 }
             } else if !matches!(node, InlineNode::Macro(InlineMacro::Footnote(_))) {
                 for_each_inline_children(&mut node, &mut |nodes| {
-                    *nodes = finish_raw_nodes(take(nodes), state);
+                    *nodes = finish_raw_nodes(take(nodes), state, Edges::default());
                 });
             }
             result.push(node);
