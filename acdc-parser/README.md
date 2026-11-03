@@ -927,8 +927,10 @@ literal. As with resolved signs, a later escaping stage preserves an arrow's
 Unicode meaning; Asciidoctor HTML instead exposes its generated entity spelling.
 
 The parser resolves word-internal apostrophes and complete word-bounded dash
-pairs using neighboring text around ordinary anchors and index labels. Formatting
-remains a boundary. Later attribute values cannot supply earlier word context,
+pairs using neighboring text around ordinary anchors, index labels, and protected
+passthrough text. For example, `Sam'pass:[s]` exposes the apostrophe as a resolved
+symbol. Passthroughs keep their own substitution settings, including when the
+surrounding text disables replacements. Formatting remains a boundary. Later attribute values cannot supply earlier word context,
 and catalog labels retain their registration-time content. Enabled signs and
 ellipses in visible index labels are also resolved before conversion. Split dash
 pairs and shared whitespace across owners still use converter context.

@@ -1,28 +1,37 @@
-use crate::{IndexTermKind, InlineMacro, InlineNode, Substitution, grammar::ParserState};
+use crate::{IndexTermKind, InlineMacro, InlineNode, Location, Substitution, grammar::ParserState};
 
 use super::{WordContext, has_candidate, source_start, structural_token_allowed};
 
-pub(super) fn needs_resolution(node: &InlineNode<'_>) -> bool {
+pub(super) fn needs_resolution(node: &InlineNode<'_>, ordinary: bool) -> bool {
     if let InlineNode::PlainText(text) = node {
-        return !text.escaped && has_candidate(text.content);
+        return ordinary && !text.escaped && has_candidate(text.content);
+    }
+    if let InlineNode::RawText(raw) = node {
+        return raw.subs.contains(&Substitution::Replacements) && needs_context(raw.content);
     }
     if let InlineNode::Macro(InlineMacro::IndexTerm(term)) = node {
-        return matches!(&term.kind, IndexTermKind::Flow(nodes) if nodes.iter().any(needs_resolution));
+        return matches!(&term.kind, IndexTermKind::Flow(nodes) if nodes.iter().any(|node| needs_resolution(node, ordinary)));
     }
     false
 }
 
-fn needs_word_context(node: &InlineNode<'_>) -> bool {
+pub(super) fn needs_word_context(node: &InlineNode<'_>) -> bool {
     if let InlineNode::PlainText(text) = node {
-        return !text.escaped
-            && ["'", "--"]
-                .iter()
-                .any(|token| text.content.starts_with(token) || text.content.ends_with(token));
+        return !text.escaped && needs_context(text.content);
+    }
+    if let InlineNode::RawText(raw) = node {
+        return raw.subs.contains(&Substitution::Replacements) && needs_context(raw.content);
     }
     if let InlineNode::Macro(InlineMacro::IndexTerm(term)) = node {
         return matches!(&term.kind, IndexTermKind::Flow(nodes) if nodes.iter().any(needs_word_context));
     }
     false
+}
+
+fn needs_context(text: &str) -> bool {
+    ["'", "--"]
+        .iter()
+        .any(|token| text.starts_with(token) || text.ends_with(token))
 }
 
 pub(super) fn contexts(
@@ -65,25 +74,8 @@ impl Edge {
 
 fn edge(node: &InlineNode<'_>, first: bool, state: &ParserState<'_>) -> Edge {
     match node {
-        InlineNode::PlainText(text) => {
-            let character = if first {
-                text.content.char_indices().next()
-            } else {
-                text.content.char_indices().next_back()
-            };
-            let Some((offset, character)) = character else {
-                return Edge::Transparent;
-            };
-            let allowed = source_start(text.content, &text.location, state).is_some_and(|start| {
-                structural_token_allowed(
-                    state,
-                    &Substitution::Replacements,
-                    start + offset,
-                    character.len_utf8(),
-                )
-            });
-            Edge::Text(character, allowed)
-        }
+        InlineNode::PlainText(text) => text_edge(text.content, &text.location, first, state),
+        InlineNode::RawText(raw) => text_edge(raw.content, &raw.location, first, state),
         InlineNode::Symbol(symbol) => {
             let text = symbol.kind.text();
             let character = if first {
@@ -111,8 +103,7 @@ fn edge(node: &InlineNode<'_>, first: bool, state: &ParserState<'_>) -> Edge {
             }
             Edge::Transparent
         }
-        InlineNode::RawText(_)
-        | InlineNode::VerbatimText(_)
+        InlineNode::VerbatimText(_)
         | InlineNode::BoldText(_)
         | InlineNode::ItalicText(_)
         | InlineNode::MonospaceText(_)
@@ -127,4 +118,28 @@ fn edge(node: &InlineNode<'_>, first: bool, state: &ParserState<'_>) -> Edge {
         | InlineNode::Macro(_)
         | InlineNode::CalloutRef(_) => Edge::Boundary,
     }
+}
+
+fn text_edge(text: &str, location: &Location, first: bool, state: &ParserState<'_>) -> Edge {
+    let character = if first {
+        text.char_indices().next()
+    } else {
+        text.char_indices().next_back()
+    };
+    let Some((offset, character)) = character else {
+        return Edge::Transparent;
+    };
+    let allowed = !state
+        .inline_ctx
+        .substitutions
+        .precedes(&Substitution::Replacements, &Substitution::Attributes)
+        || source_start(text, location, state).is_some_and(|start| {
+            structural_token_allowed(
+                state,
+                &Substitution::Replacements,
+                start + offset,
+                character.len_utf8(),
+            )
+        });
+    Edge::Text(character, allowed)
 }

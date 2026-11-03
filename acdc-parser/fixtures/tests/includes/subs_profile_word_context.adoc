@@ -1,0 +1,7 @@
+Excluded.
+    α🚀 Sam'pass:[s]; pass:r[left--]right.
+
+    **pass:[Sam]'s**; footnote:included[Sampass:r['s]].
+
+    link:outer.html[pass:r[left--]right].
+Excluded again.

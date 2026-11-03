@@ -171,7 +171,7 @@ pub(crate) fn map_inner_content_locations<'a>(
     content: Vec<InlineNode<'a>>,
     ctx: &LocationMappingContext<'_, 'a>,
 ) -> Result<Vec<InlineNode<'a>>, Error> {
-    map_nodes(content, |node| {
+    let mapped = map_nodes(content, |node| {
         match node {
             InlineNode::PlainText(plain) => {
                 let expanded = map_plain_text_inline_locations(plain, ctx)?;
@@ -207,7 +207,8 @@ pub(crate) fn map_inner_content_locations<'a>(
             }
         }
         Ok(None)
-    })
+    })?;
+    Ok(resolve_profile_context(mapped, ctx))
 }
 
 /// Keep the original buffer unless a node expands into a replacement sequence.
@@ -265,7 +266,7 @@ pub(crate) fn map_inline_locations<'a>(
         base_location: location,
     };
 
-    map_nodes(content, |inline| {
+    let mapped = map_nodes(content, |inline| {
         match inline {
             InlineNode::PlainText(plain) => {
                 return map_plain_text_inline_locations(plain, &ctx);
@@ -296,7 +297,42 @@ pub(crate) fn map_inline_locations<'a>(
             }
         }
         Ok(None)
-    })
+    })?;
+    Ok(resolve_profile_context(mapped, &ctx))
+}
+
+fn resolve_profile_context<'a>(
+    nodes: Vec<InlineNode<'a>>,
+    ctx: &LocationMappingContext<'_, 'a>,
+) -> Vec<InlineNode<'a>> {
+    if !super::inlines::typography::needs_profile_context(&nodes) {
+        return nodes;
+    }
+    let mut inline_ctx = ctx.state.inline_ctx;
+    inline_ctx.substitutions = ctx.processed.attribute_substitutions;
+    let mut state = ParserState::for_inline_parsing(ctx.state.input, ctx.state, inline_ctx);
+    state
+        .attribute_value_ranges
+        .clone_from(&ctx.state.attribute_value_ranges);
+    state.attribute_value_ranges.extend(
+        ctx.processed
+            .source_map
+            .replacements
+            .iter()
+            .filter(|replacement| {
+                replacement.kind.is_attribute()
+                    || ctx.processed.passthroughs.iter().any(|pass| {
+                        pass.kind == PassthroughKind::AttributeRef
+                            && pass.location.absolute_start == replacement.absolute_start
+                            && pass.location.absolute_end == replacement.absolute_end
+                    })
+            })
+            .map(|replacement| replacement.absolute_start..replacement.absolute_end),
+    );
+    state
+        .attribute_value_ranges
+        .sort_unstable_by_key(|range| range.start);
+    super::inlines::typography::resolve_plain(nodes, &state, false)
 }
 
 fn map_anchor_locations<'a>(

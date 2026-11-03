@@ -15,6 +15,22 @@ use crate::{
 
 use super::recognition::structural_token_allowed;
 
+pub(crate) fn needs_profile_context(nodes: &[InlineNode<'_>]) -> bool {
+    contains_raw(nodes) && nodes.iter().any(neighbors::needs_word_context)
+}
+
+fn contains_raw(nodes: &[InlineNode<'_>]) -> bool {
+    nodes.iter().any(|node| {
+        if let InlineNode::RawText(_) = node {
+            return true;
+        }
+        if let InlineNode::Macro(InlineMacro::IndexTerm(term)) = node {
+            return matches!(&term.kind, IndexTermKind::Flow(nodes) if contains_raw(nodes));
+        }
+        false
+    })
+}
+
 pub(crate) fn resolve_plain<'a>(
     nodes: Vec<InlineNode<'a>>,
     state: &ParserState<'a>,
@@ -29,12 +45,14 @@ fn resolve_plain_with_context<'a>(
     paragraph: bool,
     context: WordContext,
 ) -> Vec<InlineNode<'a>> {
-    if !state
+    let ordinary = state
         .inline_ctx
         .substitutions
-        .enabled(&Substitution::Replacements)
-        || state.inline_ctx.rules.contains(InlineRules::INDEX_CATALOG)
-        || !nodes.iter().any(neighbors::needs_resolution)
+        .enabled(&Substitution::Replacements);
+    if state.inline_ctx.rules.contains(InlineRules::INDEX_CATALOG)
+        || !nodes
+            .iter()
+            .any(|node| neighbors::needs_resolution(node, ordinary))
     {
         return nodes;
     }
@@ -47,7 +65,7 @@ fn resolve_plain_with_context<'a>(
             .copied()
             .unwrap_or_default();
         if let InlineNode::Macro(InlineMacro::IndexTerm(term)) = &mut node
-            && matches!(&term.kind, IndexTermKind::Flow(nodes) if nodes.iter().any(neighbors::needs_resolution))
+            && matches!(&term.kind, IndexTermKind::Flow(nodes) if nodes.iter().any(|node| neighbors::needs_resolution(node, ordinary)))
         {
             let original = term.catalog.is_none().then(|| Box::new((**term).clone()));
             if let IndexTermKind::Flow(nodes) = &mut term.kind {
@@ -61,11 +79,26 @@ fn resolve_plain_with_context<'a>(
             result.push(node);
             continue;
         }
+        if let InlineNode::RawText(raw) = node {
+            if raw.subs.contains(&Substitution::Replacements)
+                && (words.before.is_some() || words.after.is_some())
+            {
+                result.extend(resolve_raw_with_context(
+                    raw,
+                    state,
+                    Edges::default(),
+                    words,
+                ));
+            } else {
+                result.push(InlineNode::RawText(raw));
+            }
+            continue;
+        }
         let InlineNode::PlainText(text) = node else {
             result.push(node);
             continue;
         };
-        if text.escaped {
+        if text.escaped || !ordinary {
             result.push(InlineNode::PlainText(text));
             continue;
         }
@@ -113,11 +146,20 @@ pub(crate) fn resolve_raw<'a>(
     state: &ParserState<'a>,
     edges: Edges,
 ) -> Vec<InlineNode<'a>> {
+    resolve_raw_with_context(raw, state, edges, WordContext::default())
+}
+
+fn resolve_raw_with_context<'a>(
+    raw: Raw<'a>,
+    state: &ParserState<'a>,
+    edges: Edges,
+    words: WordContext,
+) -> Vec<InlineNode<'a>> {
     if !raw.subs.contains(&Substitution::Replacements) {
         return vec![InlineNode::RawText(raw)];
     }
     let plan = SubstitutionPlan::from_substitutions(&raw.subs);
-    let edits = replacements(raw.content, edges, WordContext::default(), |range, kind| {
+    let edits = replacements(raw.content, edges, words, |range, kind| {
         arrow_allowed(raw.content, range, kind, plan)
     });
     if edits.is_empty() {

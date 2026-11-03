@@ -687,7 +687,11 @@ impl<'a> ParserState<'a> {
             attribute_value_ranges: Vec::new(),
             late_attribute_sources: Vec::new(),
             last_url_boundary: None,
-            line_map: Rc::new(LineMap::new(input)),
+            line_map: if std::ptr::eq(input, parent.input) {
+                Rc::clone(&parent.line_map)
+            } else {
+                Rc::new(LineMap::new(input))
+            },
             input,
             arena: parent.arena,
             footnote_tracker: Rc::clone(&parent.footnote_tracker),

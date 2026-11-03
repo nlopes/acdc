@@ -1,0 +1,30 @@
+= profiles(1)
+:doctype: manpage
+:revdate: 2026-01-01
+:docdate: 2026-01-01
+
+== Name
+profiles - verify protected word context
+
+== Synopsis
+profiles
+
+== Description
+
+Earlier paragraph.
+
+α🚀 Sam'pass:[s]; pass:[Sam]'s; pass:r[Sam']s; Sampass:r['s].
+
+α🚀 left--pass:[right]; pass:[left]--right; pass:r[left--]right; leftpass:r[--right].
+
+Protected: leftpass:[--]right; pass:[Sam']s; Sam'pass:[123]; Sam'pass:[_s]; Sam'pass:[*s*]; left--pass:[!].
+
+Escaped: Sam\'pass:[s]; pass:r[Sam\']s.
+
+[subs=macros]
+α🚀 pass:r[Sam']s; Sampass:r['s]; pass:r[left--]right; leftpass:r[--right]; Sam'pass:[s]; left--pass:[right].
+
+:tail: s
+
+[subs="replacements,attributes,macros"]
+Sam'pass:a[{tail}].

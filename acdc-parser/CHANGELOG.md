@@ -37,6 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   their escapes and shared delimiters. Earlier escaping protects authored
   references; later escaping retains the semantic arrow rather than Asciidoctor
   HTML’s generated entity spelling.
+  Protected passthrough text now supplies neighboring word context in the
+  parser too, so `Sam'pass:[s]` exposes a resolved apostrophe. A passthrough's
+  own replacement settings stay independent of the surrounding text.
 
 - Draft mode keeps block image alt text literal, including single-quoted values,
   and does not register macros from it. Attribute references still expand.
