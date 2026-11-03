@@ -27,7 +27,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     ) -> Result<(), Error> {
         let data = para;
         if data.style() == Some("pass") {
-            self.render_passthrough_content(traversal, data.content(), data.attributes())?;
+            self.visit_content(traversal, data.content())?;
             writeln!(self.writer)?;
             return Ok(());
         }

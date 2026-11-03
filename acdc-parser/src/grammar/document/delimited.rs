@@ -391,11 +391,17 @@ fn pass_inner<'input>(
         metadata.move_positional_attributes_to_attributes();
         let content_location =
             state.create_block_location(p.content_start, p.content_end, p.offset);
-        DelimitedBlockType::DelimitedPass(vec![InlineNode::RawText(Raw {
-            content: p.content,
-            location: content_location,
-            subs: vec![],
-        })])
+        DelimitedBlockType::DelimitedPass(
+            super::super::passthrough_processing::process_block_passthrough(
+                Raw {
+                    content: p.content,
+                    location: content_location,
+                    subs: Vec::new(),
+                },
+                metadata.substitutions.as_ref(),
+                state,
+            ),
+        )
     }
 }
 

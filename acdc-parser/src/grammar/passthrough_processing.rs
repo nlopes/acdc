@@ -5,7 +5,7 @@ use std::{mem::take, rc::Rc};
 
 use crate::{
     InlineMacro, InlineNode, LineBreak, Location, ParseInlineResult, Pass, PassthroughKind, Plain,
-    ProcessedContent, Raw, Substitution, Symbol, SymbolKind, Warning,
+    ProcessedContent, Raw, Substitution, SubstitutionSpec, Symbol, SymbolKind, Warning,
     document_attribute::AssignmentState,
     model::substitution::{
         SubstitutionPlan, character_reference_end, escape_attribute_characters,
@@ -78,7 +78,38 @@ fn process_passthrough<'a>(
 ) -> Vec<InlineNode<'a>> {
     let nodes = process_passthrough_stages(content, passthrough, state, attribute_substitutions);
     let location = passthrough_content_location(passthrough, content, state);
-    let late_attributes = SubstitutionPlan::from_substitutions(&passthrough.substitutions)
+    finish_passthrough(nodes, &location, &passthrough.substitutions, state)
+}
+
+pub(super) fn process_block_passthrough<'a>(
+    raw: Raw<'a>,
+    spec: Option<&SubstitutionSpec>,
+    state: &ParserState<'a>,
+) -> Vec<InlineNode<'a>> {
+    let substitutions = spec.map_or_else(Vec::new, |spec| spec.resolve(&[]));
+    if substitutions.is_empty() {
+        return vec![InlineNode::RawText(raw)];
+    }
+    let location = raw.location.clone();
+    let nodes = process_raw_substitutions(raw, &substitutions, state);
+    let mut nodes = finish_passthrough(nodes, &location, &substitutions, state);
+    for node in &mut nodes {
+        super::location_walk::walk_inline_nodes_mut(node, &mut |node| {
+            if let InlineNode::Macro(InlineMacro::Footnote(note)) = node {
+                state.finalize_footnote(note);
+            }
+        });
+    }
+    nodes
+}
+
+fn finish_passthrough<'a>(
+    nodes: Vec<InlineNode<'a>>,
+    location: &Location,
+    substitutions: &[Substitution],
+    state: &ParserState<'a>,
+) -> Vec<InlineNode<'a>> {
+    let late_attributes = SubstitutionPlan::from_substitutions(substitutions)
         .precedes(&Substitution::Replacements, &Substitution::Attributes);
     let edges = Edges {
         start: !late_attributes
@@ -353,7 +384,7 @@ fn apply_raw_substitution<'a>(
         Substitution::Quotes | Substitution::Macros | Substitution::PostReplacements => {
             parse_raw_substitution(raw, substitution, state)
         }
-        // Inline passthroughs do not support callouts. Group variants were
+        // Passthroughs do not interpret callout markers. Group variants were
         // expanded before processing started.
         Substitution::Callouts | Substitution::Normal | Substitution::Verbatim => {
             vec![InlineNode::RawText(raw)]

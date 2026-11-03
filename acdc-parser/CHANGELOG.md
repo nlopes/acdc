@@ -335,6 +335,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Passthrough blocks and `[pass]` paragraphs now honor explicit `subs=` settings
+  in both compatibility modes and feature configurations. Inline formatting,
+  replacements, and macros follow the requested order; default and `subs=none`
+  content stays raw.
+
 - Each unresolved footnote now reports its authored source range and marks the
   document as recovered. Repeated references report separate warnings, including
   inside links, passthroughs, selected titles, includes, and table cells. Their

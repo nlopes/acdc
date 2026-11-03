@@ -1,0 +1,608 @@
+{
+  "name": "document",
+  "type": "block",
+  "attributes": {
+    "word": "*Initial*"
+  },
+  "blocks": [
+    {
+      "name": "pass",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "++++",
+      "metadata": {
+        "substitutions": [
+          "normal"
+        ]
+      },
+      "inlines": [
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "café ",
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 4,
+              "col": 5,
+              "file": [
+                "includes/block_passthrough_selected.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 9,
+              "file": [
+                "includes/block_passthrough_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "Included",
+              "substitutions": [
+                "special_chars"
+              ],
+              "location": [
+                {
+                  "line": 4,
+                  "col": 11,
+                  "file": [
+                    "includes/block_passthrough_selected.adoc"
+                  ]
+                },
+                {
+                  "line": 4,
+                  "col": 18,
+                  "file": [
+                    "includes/block_passthrough_selected.adoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 4,
+              "col": 10,
+              "file": [
+                "includes/block_passthrough_selected.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 19,
+              "file": [
+                "includes/block_passthrough_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": " ",
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 4,
+              "col": 20,
+              "file": [
+                "includes/block_passthrough_selected.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 20,
+              "file": [
+                "includes/block_passthrough_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "*Initial*",
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 4,
+              "col": 21,
+              "file": [
+                "includes/block_passthrough_selected.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 26,
+              "file": [
+                "includes/block_passthrough_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": " ",
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 4,
+              "col": 27,
+              "file": [
+                "includes/block_passthrough_selected.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 27,
+              "file": [
+                "includes/block_passthrough_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "©",
+          "location": [
+            {
+              "line": 4,
+              "col": 28,
+              "file": [
+                "includes/block_passthrough_selected.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 30,
+              "file": [
+                "includes/block_passthrough_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": " ",
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 4,
+              "col": 31,
+              "file": [
+                "includes/block_passthrough_selected.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 31,
+              "file": [
+                "includes/block_passthrough_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": "included",
+          "inlines": [
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "Included note.",
+              "substitutions": [
+                "special_chars"
+              ],
+              "location": [
+                {
+                  "line": 4,
+                  "col": 50,
+                  "file": [
+                    "includes/block_passthrough_selected.adoc"
+                  ]
+                },
+                {
+                  "line": 4,
+                  "col": 63,
+                  "file": [
+                    "includes/block_passthrough_selected.adoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 4,
+              "col": 32,
+              "file": [
+                "includes/block_passthrough_selected.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 64,
+              "file": [
+                "includes/block_passthrough_selected.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 2,
+          "col": 5,
+          "file": [
+            "includes/block_passthrough_selected.adoc"
+          ]
+        },
+        {
+          "line": 5,
+          "col": 8,
+          "file": [
+            "includes/block_passthrough_selected.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "word",
+      "type": "attribute",
+      "value": "*Later*",
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 14
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "pass",
+                    "type": "block",
+                    "form": "delimited",
+                    "delimiter": "++++",
+                    "metadata": {
+                      "substitutions": [
+                        "normal"
+                      ]
+                    },
+                    "inlines": [
+                      {
+                        "name": "raw",
+                        "type": "string",
+                        "value": "café ",
+                        "substitutions": [
+                          "special_chars"
+                        ],
+                        "location": [
+                          {
+                            "line": 12,
+                            "col": 1
+                          },
+                          {
+                            "line": 12,
+                            "col": 5
+                          }
+                        ]
+                      },
+                      {
+                        "name": "span",
+                        "type": "inline",
+                        "variant": "strong",
+                        "form": "constrained",
+                        "inlines": [
+                          {
+                            "name": "raw",
+                            "type": "string",
+                            "value": "Cell",
+                            "substitutions": [
+                              "special_chars"
+                            ],
+                            "location": [
+                              {
+                                "line": 12,
+                                "col": 7
+                              },
+                              {
+                                "line": 12,
+                                "col": 10
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 12,
+                            "col": 6
+                          },
+                          {
+                            "line": 12,
+                            "col": 11
+                          }
+                        ]
+                      },
+                      {
+                        "name": "raw",
+                        "type": "string",
+                        "value": " ",
+                        "substitutions": [
+                          "special_chars"
+                        ],
+                        "location": [
+                          {
+                            "line": 12,
+                            "col": 12
+                          },
+                          {
+                            "line": 12,
+                            "col": 12
+                          }
+                        ]
+                      },
+                      {
+                        "name": "raw",
+                        "type": "string",
+                        "value": "*Later*",
+                        "substitutions": [
+                          "special_chars"
+                        ],
+                        "location": [
+                          {
+                            "line": 12,
+                            "col": 13
+                          },
+                          {
+                            "line": 12,
+                            "col": 18
+                          }
+                        ]
+                      },
+                      {
+                        "name": "raw",
+                        "type": "string",
+                        "value": " ",
+                        "substitutions": [
+                          "special_chars"
+                        ],
+                        "location": [
+                          {
+                            "line": 12,
+                            "col": 19
+                          },
+                          {
+                            "line": 12,
+                            "col": 19
+                          }
+                        ]
+                      },
+                      {
+                        "name": "symbol",
+                        "type": "string",
+                        "value": "©",
+                        "location": [
+                          {
+                            "line": 12,
+                            "col": 20
+                          },
+                          {
+                            "line": 12,
+                            "col": 22
+                          }
+                        ]
+                      },
+                      {
+                        "name": "raw",
+                        "type": "string",
+                        "value": " ",
+                        "substitutions": [
+                          "special_chars"
+                        ],
+                        "location": [
+                          {
+                            "line": 12,
+                            "col": 23
+                          },
+                          {
+                            "line": 12,
+                            "col": 23
+                          }
+                        ]
+                      },
+                      {
+                        "name": "footnote",
+                        "type": "inline",
+                        "id": "cell",
+                        "inlines": [
+                          {
+                            "name": "raw",
+                            "type": "string",
+                            "value": "Cell note.",
+                            "substitutions": [
+                              "special_chars"
+                            ],
+                            "location": [
+                              {
+                                "line": 12,
+                                "col": 38
+                              },
+                              {
+                                "line": 12,
+                                "col": 47
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 12,
+                            "col": 24
+                          },
+                          {
+                            "line": 12,
+                            "col": 48
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 10,
+                        "col": 1
+                      },
+                      {
+                        "line": 13,
+                        "col": 4
+                      }
+                    ]
+                  },
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "span",
+                        "type": "inline",
+                        "variant": "strong",
+                        "form": "constrained",
+                        "inlines": [
+                          {
+                            "name": "raw",
+                            "type": "string",
+                            "value": "Later",
+                            "substitutions": [
+                              "special_chars"
+                            ],
+                            "location": [
+                              {
+                                "line": 16,
+                                "col": 1
+                              },
+                              {
+                                "line": 16,
+                                "col": 6
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 16,
+                            "col": 1
+                          },
+                          {
+                            "line": 16,
+                            "col": 6
+                          }
+                        ]
+                      }
+                    ],
+                    "metadata": {
+                      "style": "pass",
+                      "substitutions": [
+                        "attributes",
+                        "quotes"
+                      ]
+                    },
+                    "location": [
+                      {
+                        "line": 15,
+                        "col": 1
+                      },
+                      {
+                        "line": 16,
+                        "col": 6
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 8,
+            "col": 1
+          },
+          {
+            "line": 17,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 17,
+          "col": 4
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 17,
+      "col": 4
+    }
+  ]
+}

@@ -14,6 +14,7 @@ use crate::{
         helpers::BlockParsingMetadata,
         inline_preprocessor::{ProcessedKind, SourceMap},
         inline_processing::{process_inlines, process_mapped_inlines},
+        passthrough_processing::process_block_passthrough,
     },
     model::Substitution,
 };
@@ -134,11 +135,15 @@ pub(super) fn build_paragraph<'a>(
 
     let source_text = content;
     let content = if selected_style == Some("pass") {
-        vec![InlineNode::RawText(Raw {
-            content,
-            location: state.create_block_location(content_start, end, offset),
-            subs: Vec::new(),
-        })]
+        process_block_passthrough(
+            Raw {
+                content,
+                location: state.create_block_location(content_start, end, offset),
+                subs: Vec::new(),
+            },
+            block_metadata.metadata.substitutions.as_ref(),
+            state,
+        )
     } else if content.starts_with([' ', '\t']) && selected_style == Some("normal") {
         process_normal_indented(state, block_metadata, content, content_start + offset)?
     } else if is_styled_verbatim {

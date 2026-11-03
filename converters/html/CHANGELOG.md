@@ -124,6 +124,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Passthrough blocks and `[pass]` paragraphs now render explicit `subs=` settings
+  in the requested order, including footnotes and anchors. With `subs=normal`,
+  formatting introduced by a later attribute expansion stays literal, matching
+  Asciidoctor. This also works without default features.
+
 - Custom captions keep formatting and escape literal angle brackets even when
   the block body uses `subs=none`. Both HTML variants apply the same caption
   rules to images, tables, listings, and examples. Numbered caption labels

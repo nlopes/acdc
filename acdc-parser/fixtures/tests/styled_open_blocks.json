@@ -858,11 +858,44 @@
         {
           "name": "raw",
           "type": "string",
-          "value": "<em>{word}</em>",
+          "value": "<em>",
           "location": [
             {
               "line": 69,
               "col": 1
+            },
+            {
+              "line": 69,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "expanded",
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 69,
+              "col": 5
+            },
+            {
+              "line": 69,
+              "col": 10
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "</em>",
+          "location": [
+            {
+              "line": 69,
+              "col": 11
             },
             {
               "line": 69,

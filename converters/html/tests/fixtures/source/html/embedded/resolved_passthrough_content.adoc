@@ -1,0 +1,18 @@
+:word: *Declared*
+
+[subs=normal]
+++++
+*Bold* (C) {word} & <tag>
+++++
+
+[pass,subs=normal]
+*Paragraph* (TM) {word}
+
+[subs="attributes,quotes,specialchars,replacements"]
+++++
+{word} (R) & <tag>
+++++
+
+++++
+<em>Raw</em> (C)
+++++

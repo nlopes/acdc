@@ -5,10 +5,10 @@ use acdc_converters_core::{TraversalContext, code::source_language};
 #[cfg(not(feature = "pre-spec-subs"))]
 use acdc_converters_core::substitutions::baseline_subs;
 #[cfg(feature = "pre-spec-subs")]
-use acdc_converters_core::substitutions::{effective_subs, substitute_attributes};
+use acdc_converters_core::substitutions::effective_subs;
 
 use acdc_parser::{
-    CaptionKind, InlineNode, StemNotation,
+    CaptionKind, StemNotation,
     ast::{
         AttributeValueRef, AttributesRef, BlockKind, BlockRef, ContentRef, ExampleRef, ListingRef,
         LiteralRef, StemBlockRef, TokensRef, VerseRef,
@@ -16,10 +16,7 @@ use acdc_parser::{
 };
 
 #[cfg(feature = "pre-spec-subs")]
-use acdc_parser::{
-    Location, Plain, Substitution,
-    ast::{InlineKind, SubstitutionSpecRef},
-};
+use acdc_parser::Substitution;
 
 #[cfg(feature = "terminal")]
 use crate::terminal::{is_terminal_session, render_listing, render_session};
@@ -416,7 +413,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 crate::table::render_table(traversal, data, self, &processor)?;
             }
             BlockKind::Passthrough(data) => {
-                self.render_passthrough_content(traversal, data.content(), data.attributes())?;
+                self.visit_content(traversal, data.content())?;
             }
             BlockKind::Listing(data) => {
                 self.render_listing_block(traversal, data, caption_kind)?;
@@ -863,72 +860,6 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             body(self, traversal)?;
             writeln!(self.writer, "</div>")?;
             writeln!(self.writer, "</div>")?;
-        }
-        Ok(())
-    }
-
-    pub(crate) fn render_passthrough_content(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        body: ContentRef<'_>,
-        attributes: AttributesRef<'_>,
-    ) -> Result<(), Error> {
-        #[cfg(feature = "pre-spec-subs")]
-        if let Some(AttributeValueRef::Substitutions(spec)) = attributes.get("subs") {
-            return self.render_pass_block_with_subs(traversal, body, spec);
-        }
-        #[cfg(not(feature = "pre-spec-subs"))]
-        let _ = attributes;
-        self.visit_content(traversal, body)
-    }
-
-    /// Render a passthrough block with `subs=` override applied.
-    ///
-    /// Passthrough blocks default to no substitutions, emitting raw content.
-    /// When `subs=` is specified, the raw content is processed through the
-    /// substitution pipeline (attributes, quotes, specialchars, replacements).
-    #[cfg(feature = "pre-spec-subs")]
-    fn render_pass_block_with_subs(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        body: ContentRef<'_>,
-        spec: SubstitutionSpecRef<'_>,
-    ) -> Result<(), Error> {
-        // Passthrough blocks default to no subs, so the baseline is empty.
-        let effective = spec.resolve(&[]);
-
-        let mut content = String::new();
-        for node in body.inlines() {
-            if let InlineKind::Raw(raw) = node.kind() {
-                content.push_str(raw.text());
-            }
-        }
-
-        // Apply attribute substitution if enabled (not done by parser for
-        // passthrough blocks)
-        if effective.contains(&Substitution::Attributes) {
-            content = substitute_attributes(&content, traversal).into_owned();
-        }
-
-        // If quotes substitution is enabled, parse the content for inline
-        // formatting (bold, italic, etc.) and render each node with the full
-        // effective subs. This mirrors VerbatimText rendering which passes full
-        // subs to avoid PlainText's no_quotes_subs optimization that would
-        // prevent Bold/Italic nodes from rendering as HTML.
-        if effective.contains(&Substitution::Quotes) {
-            let parsed = acdc_parser::parse_text_for_quotes(&content);
-            let options = self.render_options.clone();
-            for node in parsed.inlines() {
-                self.render_inline_node(traversal, node.into(), &options, &effective)?;
-            }
-        } else {
-            let plain = InlineNode::PlainText(Plain {
-                content: &content,
-                location: Location::default(),
-                escaped: false,
-            });
-            let options = self.render_options.clone();
-            self.render_inline_node(traversal, (&plain).into(), &options, &effective)?;
         }
         Ok(())
     }
