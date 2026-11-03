@@ -281,6 +281,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Quoted menu sequences such as `"File > Open"` now work with `experimental`
+  in Asciidoctor mode and by default in Draft mode. Rich labels, escapes,
+  named entities, and explicit `subs=` settings follow the existing UI rules.
+
 - Menu items recognize `&gt;` separators. With `subs=macros`, a raw `>` stays
   inside the label, matching Asciidoctor. Labels after entities keep their
   authored source locations.

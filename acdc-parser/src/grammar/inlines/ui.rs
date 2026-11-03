@@ -167,3 +167,29 @@ pub(super) fn parse_menu_items<'a>(
     }
     parse_fields(state, source, start, ranges)
 }
+
+pub(super) fn is_implicit_menu<'a>(state: &ParserState<'a>, source: &'a str, start: usize) -> bool {
+    let (source, _) = registration_source(
+        state,
+        IndexTermSegment {
+            text: source,
+            start,
+        },
+    );
+    if !source
+        .chars()
+        .next()
+        .is_some_and(|character| character == '&' || regex_syntax::is_word_character(character))
+        || !(source.contains('>') || source.contains("&gt;"))
+    {
+        return false;
+    }
+    let mut child = ParserState::for_inline_parsing(source, state, state.inline_ctx);
+    inline_parser::ui_separators(source, &mut child).is_ok_and(|separators| {
+        separators.iter().any(|separator| {
+            separator.character == '>'
+                && source[..separator.range.start].ends_with([' ', '\n'])
+                && source[separator.range.end..].starts_with([' ', '\n'])
+        })
+    })
+}

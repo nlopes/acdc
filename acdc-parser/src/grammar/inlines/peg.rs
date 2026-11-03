@@ -37,8 +37,8 @@ use crate::{
                 process_inlines_or_err, registration_source,
             },
             ui::{
-                Separator, menu_character_separator_enabled, menu_entity_separator_enabled,
-                parse_keyboard_keys, parse_menu_items,
+                Separator, is_implicit_menu, menu_character_separator_enabled,
+                menu_entity_separator_enabled, parse_keyboard_keys, parse_menu_items,
             },
         },
         state::{InlineRules, InlineUrlBoundary, ParserScope},
@@ -303,6 +303,7 @@ peg::parser! {
             / check_macros() &['k'] keyboard:inline_keyboard() { keyboard }
             / check_macros() &['b'] button:inline_button() { button }
             / check_macros() &['m'] menu:inline_menu() { menu }
+            / check_macros() &['"'] menu:inline_implicit_menu() { menu }
             // mailto has to come before the url_macro because url_macro calls url() which
             // also matches against mailto:
             / check_macros() &['m'] mailto_macro:mailto_macro() { mailto_macro }
@@ -457,7 +458,7 @@ peg::parser! {
             // These empty forms still recognize an escape in Asciidoctor.
             / "footnote:[]" / "link:[" ("\\]" / !"]" [_])* "]"
             / inline_image_match() / inline_icon_match() / inline_stem_match()
-            / inline_keyboard_match() / inline_button_match() / inline_menu_match()
+            / inline_keyboard_match() / inline_button_match() / inline_menu_match() / inline_implicit_menu_match()
             / inline_pass_match() / inline_anchor_match())
         ) { content }
 
@@ -827,6 +828,30 @@ peg::parser! {
         /// Match inline menu without consuming.
         rule inline_menu_match()
         = check_ui_macros() "menu:" [^'[']+ "[" escaped_balanced_bracket_content() "]"
+
+        rule inline_implicit_menu() -> InlineNode<'input>
+        = content:implicit_menu_source() {?
+            let mut labels = parse_menu_items(state, content.text, content.start)
+                .map_err(|_| "invalid implicit menu labels")?.into_iter();
+            let target = labels.next().ok_or("missing implicit menu target")?;
+            Ok(InlineNode::Macro(InlineMacro::Menu(Menu {
+                target,
+                items: labels.collect(),
+                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
+            })))
+        }
+
+        rule inline_implicit_menu_match()
+        = implicit_menu_source() {}
+
+        rule implicit_menu_source() -> IndexTermSegment<'input>
+        = check_ui_macros() open:position!() "\"" start:position!()
+          content:$((!['"'] (bracket_label_macro_match() / [_]))*)
+          close:position!() "\"" check_macro_delimiters(open, close) {?
+            is_implicit_menu(state, content, start)
+                .then_some(IndexTermSegment { text: content, start })
+                .ok_or("not an implicit menu")
+        }
 
         rule inline_button() -> InlineNode<'input>
         = check_ui_macros() "btn:[" start:position!() label:$escaped_balanced_bracket_content() "]"
@@ -1198,7 +1223,7 @@ peg::parser! {
         /// Parse a link target and its optional label or named attributes.
         rule link_macro() -> InlineNode<'input>
         = "link:" target:link_macro_source() fragment:path_fragment()? open:position!() "["
-        content_start:position!() content:link_macro_content() close:position!() "]" check_link_brackets(open, close)
+        content_start:position!() content:link_macro_content() close:position!() "]" check_macro_delimiters(open, close)
         {?
             tracing::debug!("Found link macro inline");
             let bm = BlockParsingMetadata {
@@ -1231,13 +1256,13 @@ peg::parser! {
         /// Recognize link syntax for escaping and inline lookahead.
         rule link_macro_match()
         = "link:" link_macro_source() path_fragment()? open:position!() "["
-          ("\\]" / !"]" [_])* close:position!() "]" check_link_brackets(open, close)
+          ("\\]" / !"]" [_])* close:position!() "]" check_macro_delimiters(open, close)
 
-        // Attribute values expanded after macros cannot complete a link's syntax.
-        rule check_link_brackets(open: usize, close: usize)
+        // Later attribute values cannot supply a macro's opening or closing delimiter.
+        rule check_macro_delimiters(open: usize, close: usize)
         = {?
             (macro_token_allowed(state, open, 1) && macro_token_allowed(state, close, 1))
-                .then_some(()).ok_or("link bracket introduced after macros")
+                .then_some(()).ok_or("macro delimiter introduced after macros")
         }
 
         // Asciidoctor's URI pass removes this escape before the named link pass.
@@ -1402,6 +1427,7 @@ peg::parser! {
             / &['k'] inline_keyboard_match()
             / &['l'] (inline_stem_match() / link_macro_match())
             / &['m'] (inline_menu_match() / mailto_macro_match())
+            / &['"'] inline_implicit_menu_match()
         )
 
         /// Match cross-reference shorthand syntax without consuming.
@@ -2234,7 +2260,7 @@ peg::parser! {
                     // Macro guard: [ ( < for delimiters, then first letters of each macro:
                     // a=anchor/asciimath, b=btn, f=footnote/ftp, h=http(s), i=image/icon/indexterm/irc,
                     // k=kbd, l=link/latexmath, m=menu/mailto, p=pass, s=stem, x=xref
-                    / (check_macros() &['[' | '(' | '<' | 'a' | 'b' | 'f' | 'h' | 'i' | 'k' | 'l' | 'm' | 'p' | 's' | 'x'] (inline_anchor_match() / (check_index_terms() index_term_match()) / cross_reference_shorthand_match() / cross_reference_macro_match() / footnote_match() / inline_image_match() / inline_icon_match() / inline_stem_match() / inline_keyboard_match() / inline_button_match() / inline_menu_match() / mailto_macro_match() / url_macro_match(false) / inline_pass_match() / link_macro_match()))
+                    / (check_macros() &['"' | '[' | '(' | '<' | 'a' | 'b' | 'f' | 'h' | 'i' | 'k' | 'l' | 'm' | 'p' | 's' | 'x'] (inline_anchor_match() / (check_index_terms() index_term_match()) / cross_reference_shorthand_match() / cross_reference_macro_match() / footnote_match() / inline_image_match() / inline_icon_match() / inline_stem_match() / inline_keyboard_match() / inline_button_match() / inline_menu_match() / inline_implicit_menu_match() / mailto_macro_match() / url_macro_match(false) / inline_pass_match() / link_macro_match()))
                     / (check_macros() &['l'] literal_link_target_match())
                     / (check_macros() check_autolinks() inline_autolink_match(false))
                     / (check_quotes() &['*' | '_' | '`' | '#' | '^' | '~' | '"' | '\'' | '['] (bold_text_unconstrained_match() / bold_text_constrained_match() / italic_text_unconstrained_match() / italic_text_constrained_match() / monospace_text_unconstrained_match() / monospace_text_constrained_match() / highlight_text_unconstrained_match() / highlight_text_constrained_match() / superscript_text_match() / subscript_text_match() / curved_quotation_text_match() / curved_apostrophe_text_match() / standalone_curved_apostrophe_match()))

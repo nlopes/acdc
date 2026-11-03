@@ -1,0 +1,5 @@
+Excluded.
+// tag::keep[]
+    π "Édition > Ouvrir footnote:included[Included.]".
+// end::keep[]
+Excluded.

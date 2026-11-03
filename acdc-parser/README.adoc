@@ -312,6 +312,10 @@ acdc preserves this protection where Asciidoctor splits the inserted text.
 Menu separators follow the selected substitutions. Under `subs=macros`, write
 `&gt;` for an item separator; a raw `>` stays in the label. The usual substitutions
 accept both. Numeric references such as `&#62;` remain label text, as in Asciidoctor.
+Quoted sequences such as `"File > Open"` use the same UI rules. The first character
+must be a Unicode word character or `&`, with a space or line feed on each side
+of at least one item separator. Tabs and leading spaces leave the quotes literal.
+A separator inside a child macro stays with that macro, preserving valid nesting.
 
 Draft block attribute lists reject leading and trailing spaces or tabs, including
 whitespace introduced by attribute references. A closing quote must be followed
