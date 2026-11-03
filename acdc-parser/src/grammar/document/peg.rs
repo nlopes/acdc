@@ -1316,12 +1316,18 @@ peg::parser! {
         = form:&(open:block_open() (eol() / ![_]) { AttributeBlockForm::Delimited(open.0, open.2) }) { form }
         / &((table_delimiter() / comma_table_delimiter() / colon_table_delimiter()) (eol() / ![_])) { AttributeBlockForm::Table }
         / &(media_block_ahead_true() / at_list_item_start() / at_callout_list_item()
-            / check_line_is_description_list(offset) / "toc::" / ("<<<" &eol()*<2,2>) / "> "
+            / check_line_is_description_list(offset) / toc_block_ahead() / ("<<<" &eol()*<2,2>) / "> "
             / thematic_break_marker()) { AttributeBlockForm::NonParagraph }
         / { AttributeBlockForm::Paragraph }
 
         rule media_block_ahead_true()
-        = ("image::" / "audio::" / "video::") [^'[' | '\n' | '\r']+ "[" attribute_list_content(BlockAttributeMode::Macro)
+        = ("image::" / "audio::" / "video::") [^'[' | '\n' | '\r']+ "[" attribute_list_content(BlockAttributeMode::Macro) block_macro_end()
+
+        rule toc_block_ahead()
+        = "toc::" "[" attribute_list_content(BlockAttributeMode::Macro) block_macro_end()
+
+        rule block_macro_end()
+        = [' ' | '\t' | '\r']* &(eol() / ![_])
 
         // Match metadata in lookahead without expanding attributes or titles.
         rule block_metadata_line_match()
@@ -1769,14 +1775,13 @@ peg::parser! {
         }
 
         rule toc(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
-        = "toc::" attributes:macro_attributes() end:position!()
-          trailing:$([^'\n']*)
+        = &toc_block_ahead() "toc::" attributes:macro_attributes() end:position!()
+          block_macro_end()
         {
             let metadata_from_attributes = attributes.metadata;
             let mut metadata = block_metadata.metadata.clone();
             merge_macro_metadata(&mut metadata, &metadata_from_attributes, state.options.compatibility_mode);
             metadata.move_positional_attributes_to_attributes();
-            state.warn_trailing_macro_content("toc", trailing, end, offset);
             tracing::debug!("Found Table of Contents block");
             Ok(Block::TableOfContents(TableOfContents {
                 metadata,
@@ -1805,10 +1810,9 @@ peg::parser! {
 
         rule image(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
         = structural_block_boundaries(block_metadata)
-          "image::" source:source() attributes:cached_macro_attributes(block_metadata) end:position!()
-          trailing:$([^'\n']*)
+          &media_block_ahead_true() "image::" source:source() attributes:cached_macro_attributes(block_metadata) end:position!()
+          block_macro_end()
         {
-            state.warn_trailing_macro_content("image", trailing, end, offset);
             let metadata_from_attributes = attributes.metadata;
             let title = block_metadata.title.clone();
             let mut metadata = block_metadata.metadata.clone();
@@ -1828,10 +1832,9 @@ peg::parser! {
         }
 
         rule audio(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
-        = "audio::" source:source() attributes:cached_macro_attributes(block_metadata) end:position!()
-          trailing:$([^'\n']*)
+        = &media_block_ahead_true() "audio::" source:source() attributes:cached_macro_attributes(block_metadata) end:position!()
+          block_macro_end()
         {
-            state.warn_trailing_macro_content("audio", trailing, end, offset);
             let metadata_from_attributes = attributes.metadata;
             let title = block_metadata.title.clone();
             let mut metadata = block_metadata.metadata.clone();
@@ -1848,10 +1851,9 @@ peg::parser! {
 
         // Preserve commas until the converter interprets a provider's playlist syntax.
         rule video(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
-        = "video::" target:$([^'[' | '\n' | '\r']+) attributes:cached_macro_attributes(block_metadata) end:position!()
-          trailing:$([^'\n']*)
+        = &media_block_ahead_true() "video::" target:$([^'[' | '\n' | '\r']+) attributes:cached_macro_attributes(block_metadata) end:position!()
+          block_macro_end()
         {
-            state.warn_trailing_macro_content("video", trailing, end, offset);
             let target = substitute(target, &[Substitution::Attributes], &state.document_attributes);
             let source = Source::from_str_borrowed(state.intern_str(&target))?;
             let metadata_from_attributes = attributes.metadata;

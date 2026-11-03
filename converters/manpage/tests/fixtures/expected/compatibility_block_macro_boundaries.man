@@ -1,0 +1,70 @@
+'\" t
+.\"     Title: macro-boundaries
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-01-01
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "MACRO\-BOUNDARIES" "1" "2026-01-01" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+macro\-boundaries \- complete macro lines
+.SH "DESCRIPTION"
+.sp
+image::diagram.png[] preserved λ
+.sp
+audio::sound.wav[] preserved λ
+.sp
+video::movie.mp4[] preserved λ
+.sp
+toc::[] preserved λ
+.sp
+image::diagram.png[]suffix
+.sp
+audio::sound.wav[]suffix
+.sp
+video::movie.mp4[]suffix
+.sp
+toc::[]suffix
+.sp
+image::diagram.png[Alt] \fBformatted\fR
+.sp
+image::diagram.png[Alt] [1] followed by text.
+.sp
+[Alt] *greedy* and footnote:literal[Not registered.]
+.sp
+\fBChosen title\fR
+.br
+image::diagram.png[Alt,title="Discarded media title"] preserved tail
+.sp
+Before.
+image::diagram.png[] preserved on the next line.
+.sp
+[Alt]
+.sp
+.URL "sound.wav" "[Audio: sound.wav]" ""
+.sp
+.URL "movie.mp4" "[Video: movie.mp4]" ""
+.SH "NOTES"
+.IP [1] 4
+Kept once.

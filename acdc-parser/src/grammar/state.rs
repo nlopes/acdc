@@ -719,24 +719,6 @@ impl<'a> ParserState<'a> {
         }
     }
 
-    /// Warn about unexpected trailing content after a block macro's attribute list.
-    pub(crate) fn warn_trailing_macro_content(
-        &mut self,
-        macro_name: &str,
-        trailing: &str,
-        end: usize,
-        offset: usize,
-    ) {
-        if !trailing.trim().is_empty() {
-            let start_abs = end + offset;
-            let location = self.create_location(start_abs, start_abs + trailing.len());
-            self.add_generic_warning_at(
-                format!("unexpected content after {macro_name} macro: '{trailing}'"),
-                location,
-            );
-        }
-    }
-
     /// Collect an ad-hoc string warning with no source location. Prefer
     /// [`Self::add_generic_warning_at`] whenever the call site has a
     /// `Location`; untethered warnings are still useful (e.g. document-

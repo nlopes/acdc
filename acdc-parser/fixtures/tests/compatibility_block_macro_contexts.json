@@ -1,0 +1,358 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Macro contexts",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 16
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 16
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Earlier.",
+          "location": [
+            {
+              "line": 3,
+              "col": 1
+            },
+            {
+              "line": 3,
+              "col": 8
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 3,
+          "col": 8
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "image::diagram.png[] preserved λ",
+          "location": [
+            {
+              "line": 2,
+              "col": 5,
+              "file": [
+                "includes/compatibility_block_macro_selected.adoc"
+              ]
+            },
+            {
+              "line": 2,
+              "col": 36,
+              "file": [
+                "includes/compatibility_block_macro_selected.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 2,
+          "col": 5,
+          "file": [
+            "includes/compatibility_block_macro_selected.adoc"
+          ]
+        },
+        {
+          "line": 2,
+          "col": 36,
+          "file": [
+            "includes/compatibility_block_macro_selected.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "Earlier.",
+                        "location": [
+                          {
+                            "line": 6,
+                            "col": 6,
+                            "file": [
+                              "includes/compatibility_block_macro_selected.adoc"
+                            ]
+                          },
+                          {
+                            "line": 6,
+                            "col": 13,
+                            "file": [
+                              "includes/compatibility_block_macro_selected.adoc"
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 6,
+                        "col": 6,
+                        "file": [
+                          "includes/compatibility_block_macro_selected.adoc"
+                        ]
+                      },
+                      {
+                        "line": 6,
+                        "col": 13,
+                        "file": [
+                          "includes/compatibility_block_macro_selected.adoc"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "audio::sound.wav[] preserved λ",
+                        "location": [
+                          {
+                            "line": 8,
+                            "col": 5,
+                            "file": [
+                              "includes/compatibility_block_macro_selected.adoc"
+                            ]
+                          },
+                          {
+                            "line": 8,
+                            "col": 34,
+                            "file": [
+                              "includes/compatibility_block_macro_selected.adoc"
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 8,
+                        "col": 5,
+                        "file": [
+                          "includes/compatibility_block_macro_selected.adoc"
+                        ]
+                      },
+                      {
+                        "line": 8,
+                        "col": 34,
+                        "file": [
+                          "includes/compatibility_block_macro_selected.adoc"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "video::movie.mp4[] preserved λ",
+                        "location": [
+                          {
+                            "line": 10,
+                            "col": 5,
+                            "file": [
+                              "includes/compatibility_block_macro_selected.adoc"
+                            ]
+                          },
+                          {
+                            "line": 10,
+                            "col": 34,
+                            "file": [
+                              "includes/compatibility_block_macro_selected.adoc"
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 10,
+                        "col": 5,
+                        "file": [
+                          "includes/compatibility_block_macro_selected.adoc"
+                        ]
+                      },
+                      {
+                        "line": 10,
+                        "col": 34,
+                        "file": [
+                          "includes/compatibility_block_macro_selected.adoc"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "toc::[] preserved λ",
+                        "location": [
+                          {
+                            "line": 12,
+                            "col": 5,
+                            "file": [
+                              "includes/compatibility_block_macro_selected.adoc"
+                            ]
+                          },
+                          {
+                            "line": 12,
+                            "col": 23,
+                            "file": [
+                              "includes/compatibility_block_macro_selected.adoc"
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 12,
+                        "col": 5,
+                        "file": [
+                          "includes/compatibility_block_macro_selected.adoc"
+                        ]
+                      },
+                      {
+                        "line": 12,
+                        "col": 23,
+                        "file": [
+                          "includes/compatibility_block_macro_selected.adoc"
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 5,
+            "col": 5,
+            "file": [
+              "includes/compatibility_block_macro_selected.adoc"
+            ]
+          },
+          {
+            "line": 13,
+            "col": 8,
+            "file": [
+              "includes/compatibility_block_macro_selected.adoc"
+            ]
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 4,
+          "col": 5,
+          "file": [
+            "includes/compatibility_block_macro_selected.adoc"
+          ]
+        },
+        {
+          "line": 13,
+          "col": 8,
+          "file": [
+            "includes/compatibility_block_macro_selected.adoc"
+          ]
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 13,
+      "col": 8,
+      "file": [
+        "includes/compatibility_block_macro_selected.adoc"
+      ]
+    }
+  ]
+}

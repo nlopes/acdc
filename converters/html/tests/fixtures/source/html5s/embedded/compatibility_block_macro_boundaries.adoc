@@ -1,0 +1,36 @@
+image::diagram.png[] preserved λ
+
+audio::sound.wav[] preserved λ
+
+video::movie.mp4[] preserved λ
+
+toc::[] preserved λ
+
+image::diagram.png[]suffix
+
+audio::sound.wav[]suffix
+
+video::movie.mp4[]suffix
+
+toc::[]suffix
+
+image::diagram.png[Alt] *formatted*
+
+image::diagram.png[Alt] footnote:kept[Kept once.] followed by text.
+
+image::diagram.png[Alt] *greedy* and footnote:literal[Not registered.]
+
+.Named title
+[title="Chosen title"]
+image::diagram.png[Alt,title="Discarded media title"] preserved tail
+
+Before.
+image::diagram.png[] preserved on the next line.
+
+image::diagram.png[Alt]
+
+audio::sound.wav[]
+
+video::movie.mp4[]
+
+toc::[]

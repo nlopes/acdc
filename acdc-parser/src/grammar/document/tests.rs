@@ -1245,10 +1245,9 @@ fn test_block_macro_uses_last_closing_bracket() -> Result<(), Error> {
     Ok(())
 }
 
-/// When `source_ranges` are set, `warn_trailing_macro_content` should resolve
-/// the correct file name and line number from the included file.
+/// Grammar warnings use the included file and its original line number.
 #[test]
-fn test_trailing_content_warning_resolves_source_range() {
+fn test_grammar_warning_resolves_source_range() {
     use crate::model::SourceRange;
     use std::path::PathBuf;
 
@@ -1268,7 +1267,7 @@ fn test_trailing_content_warning_resolves_source_range() {
 
     // Trigger warning at byte offset 40 (inside the included range)
     // 40 - 28 = 12 bytes into the included content = 3 newlines = line 4
-    state.warn_trailing_macro_content("image", "[100,100]", 40, 0);
+    state.add_generic_warning_at("example warning".into(), state.create_location(40, 47));
 
     let warnings = state.warnings.borrow();
     assert_eq!(warnings.len(), 1);
@@ -1288,10 +1287,9 @@ fn test_trailing_content_warning_resolves_source_range() {
     );
 }
 
-/// When offset is outside any `source_range`, `warn_trailing_macro_content`
-/// should fall back to the entry-point file.
+/// Warnings outside included ranges use the entry-point file.
 #[test]
-fn test_trailing_content_warning_falls_back_to_entry_file() {
+fn test_grammar_warning_falls_back_to_entry_file() {
     use crate::model::SourceRange;
     use std::path::PathBuf;
 
@@ -1308,7 +1306,7 @@ fn test_trailing_content_warning_falls_back_to_entry_file() {
         column_shift: 0,
     }];
 
-    state.warn_trailing_macro_content("image", "extra", 17, 0);
+    state.add_generic_warning_at("example warning".into(), state.create_location(17, 21));
 
     let warnings = state.warnings.borrow();
     assert_eq!(warnings.len(), 1);

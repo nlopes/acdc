@@ -317,6 +317,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Block image, audio, video, and TOC macros with text after their closing bracket
+  stay paragraph text instead of discarding the trailing content, matching
+  Asciidoctor. Whitespace after a complete macro remains valid.
+
 - Escaped counter references stay literal instead of being removed. Unsupported
   active counters still warn and omit their value, and now set
   `ParseResult::source_recovery()` so callers can detect the loss. Match

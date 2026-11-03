@@ -1,0 +1,5 @@
+= Macro contexts
+
+Earlier.
+
+include::includes/compatibility_block_macro_selected.adoc[tag=selected,indent=0]
