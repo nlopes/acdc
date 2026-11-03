@@ -882,6 +882,18 @@ SDR-5; SDR-5 does not prescribe these custom-list semantics.
 Raw-arrow replacement and some block-level code replacement paths remain
 separate compatibility limits.
 
+Both modes share the same inline boundary and escape rules. Escaping a complete
+macro keeps its inner source literal and prevents it from registering notes or
+references; Asciidoctor may still format text inside the escaped macro. Escaping
+an unconstrained span keeps the complete span literal in acdc. Constrained spans
+remove escapes from both markers.
+
+Formatting treats ASCII letters, digits, and `_` as word characters. For non-ASCII
+text, it uses Rust's alphabetic and numeric properties. Thus `é*word*` stays
+literal, while a combining acute accent before `*Mark*` allows bold text.
+Asciidoctor's broader word class leaves the latter literal. These shared rules remain stable
+while the draft's word-boundary rules are open.
+
 Visible index shorthand preserves balanced internal parentheses. For example,
 `((Term (R)))` contains the complete label `Term (R)` and displays `Term ®`
 when replacements are enabled. `((fn((x)) tail))` keeps its nested pairs;

@@ -1,0 +1,766 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Shared inline boundary contexts",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 33
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 33
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "ref",
+          "type": "inline",
+          "variant": "link",
+          "target": {
+            "type": "url",
+            "value": "https://example.org"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "*",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 26
+                },
+                {
+                  "line": 3,
+                  "col": 27
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Literal",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 28
+                },
+                {
+                  "line": 3,
+                  "col": 34
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "*",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 35
+                },
+                {
+                  "line": 3,
+                  "col": 36
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " and ",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 37
+                },
+                {
+                  "line": 3,
+                  "col": 41
+                }
+              ]
+            },
+            {
+              "name": "indexterm",
+              "type": "inline",
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Term (R)",
+                  "location": [
+                    {
+                      "line": 3,
+                      "col": 44
+                    },
+                    {
+                      "line": 3,
+                      "col": 51
+                    }
+                  ]
+                }
+              ],
+              "visible": true,
+              "location": [
+                {
+                  "line": 3,
+                  "col": 42
+                },
+                {
+                  "line": 3,
+                  "col": 53
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 3,
+              "col": 1
+            },
+            {
+              "line": 3,
+              "col": 54
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 3,
+              "col": 55
+            },
+            {
+              "line": 3,
+              "col": 55
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 3,
+          "col": 55
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "é*word* and “",
+                        "location": [
+                          {
+                            "line": 7,
+                            "col": 2
+                          },
+                          {
+                            "line": 7,
+                            "col": 14
+                          }
+                        ]
+                      },
+                      {
+                        "name": "span",
+                        "type": "inline",
+                        "variant": "strong",
+                        "form": "constrained",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell",
+                            "location": [
+                              {
+                                "line": 7,
+                                "col": 16
+                              },
+                              {
+                                "line": 7,
+                                "col": 19
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 7,
+                            "col": 15
+                          },
+                          {
+                            "line": 7,
+                            "col": 20
+                          }
+                        ]
+                      },
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "” and ",
+                        "location": [
+                          {
+                            "line": 7,
+                            "col": 21
+                          },
+                          {
+                            "line": 7,
+                            "col": 26
+                          }
+                        ]
+                      },
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "footnote:inactive-cell[Literal.]",
+                        "location": [
+                          {
+                            "line": 7,
+                            "col": 27
+                          },
+                          {
+                            "line": 7,
+                            "col": 59
+                          }
+                        ]
+                      },
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": ".",
+                        "location": [
+                          {
+                            "line": 7,
+                            "col": 60
+                          },
+                          {
+                            "line": 7,
+                            "col": 60
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 7,
+                        "col": 2
+                      },
+                      {
+                        "line": 7,
+                        "col": 60
+                      }
+                    ]
+                  },
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "footnote",
+                        "type": "inline",
+                        "id": "cell",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell note.",
+                            "location": [
+                              {
+                                "line": 9,
+                                "col": 15
+                              },
+                              {
+                                "line": 9,
+                                "col": 24
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 9,
+                            "col": 1
+                          },
+                          {
+                            "line": 9,
+                            "col": 25
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 9,
+                        "col": 1
+                      },
+                      {
+                        "line": 9,
+                        "col": 25
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 6,
+            "col": 1
+          },
+          {
+            "line": 10,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 10,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "π ",
+          "location": [
+            {
+              "line": 3,
+              "col": 5,
+              "file": [
+                "includes/compatibility_inline_boundary_selected.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 6,
+              "file": [
+                "includes/compatibility_inline_boundary_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "*",
+          "location": [
+            {
+              "line": 3,
+              "col": 7,
+              "file": [
+                "includes/compatibility_inline_boundary_selected.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 8,
+              "file": [
+                "includes/compatibility_inline_boundary_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Literal",
+          "location": [
+            {
+              "line": 3,
+              "col": 9,
+              "file": [
+                "includes/compatibility_inline_boundary_selected.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 15,
+              "file": [
+                "includes/compatibility_inline_boundary_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "*",
+          "location": [
+            {
+              "line": 3,
+              "col": 16,
+              "file": [
+                "includes/compatibility_inline_boundary_selected.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 17,
+              "file": [
+                "includes/compatibility_inline_boundary_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " and “",
+          "location": [
+            {
+              "line": 3,
+              "col": 18,
+              "file": [
+                "includes/compatibility_inline_boundary_selected.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 23,
+              "file": [
+                "includes/compatibility_inline_boundary_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Included",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 25,
+                  "file": [
+                    "includes/compatibility_inline_boundary_selected.adoc"
+                  ]
+                },
+                {
+                  "line": 3,
+                  "col": 32,
+                  "file": [
+                    "includes/compatibility_inline_boundary_selected.adoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 3,
+              "col": 24,
+              "file": [
+                "includes/compatibility_inline_boundary_selected.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 33,
+              "file": [
+                "includes/compatibility_inline_boundary_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "” and ",
+          "location": [
+            {
+              "line": 3,
+              "col": 34,
+              "file": [
+                "includes/compatibility_inline_boundary_selected.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 39,
+              "file": [
+                "includes/compatibility_inline_boundary_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "indexterm",
+          "type": "inline",
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Term (R)",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 42,
+                  "file": [
+                    "includes/compatibility_inline_boundary_selected.adoc"
+                  ]
+                },
+                {
+                  "line": 3,
+                  "col": 49,
+                  "file": [
+                    "includes/compatibility_inline_boundary_selected.adoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "visible": true,
+          "location": [
+            {
+              "line": 3,
+              "col": 40,
+              "file": [
+                "includes/compatibility_inline_boundary_selected.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 51,
+              "file": [
+                "includes/compatibility_inline_boundary_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".\n",
+          "location": [
+            {
+              "line": 3,
+              "col": 52,
+              "file": [
+                "includes/compatibility_inline_boundary_selected.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 53,
+              "file": [
+                "includes/compatibility_inline_boundary_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "footnote:inactive-include[Literal.]",
+          "location": [
+            {
+              "line": 4,
+              "col": 5,
+              "file": [
+                "includes/compatibility_inline_boundary_selected.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 40,
+              "file": [
+                "includes/compatibility_inline_boundary_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " and ",
+          "location": [
+            {
+              "line": 4,
+              "col": 41,
+              "file": [
+                "includes/compatibility_inline_boundary_selected.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 45,
+              "file": [
+                "includes/compatibility_inline_boundary_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": "included",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Included note.",
+              "location": [
+                {
+                  "line": 4,
+                  "col": 64,
+                  "file": [
+                    "includes/compatibility_inline_boundary_selected.adoc"
+                  ]
+                },
+                {
+                  "line": 4,
+                  "col": 77,
+                  "file": [
+                    "includes/compatibility_inline_boundary_selected.adoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 4,
+              "col": 46,
+              "file": [
+                "includes/compatibility_inline_boundary_selected.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 78,
+              "file": [
+                "includes/compatibility_inline_boundary_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 4,
+              "col": 79,
+              "file": [
+                "includes/compatibility_inline_boundary_selected.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 79,
+              "file": [
+                "includes/compatibility_inline_boundary_selected.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 5,
+          "file": [
+            "includes/compatibility_inline_boundary_selected.adoc"
+          ]
+        },
+        {
+          "line": 4,
+          "col": 79,
+          "file": [
+            "includes/compatibility_inline_boundary_selected.adoc"
+          ]
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 4,
+      "col": 79,
+      "file": [
+        "includes/compatibility_inline_boundary_selected.adoc"
+      ]
+    }
+  ]
+}

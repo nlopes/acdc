@@ -502,6 +502,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Clarified the shared inline escape, Unicode boundary, and balanced index-label
+  rules, including the intentional differences from Asciidoctor in both modes.
+
 - Documented shared block extensions in both compatibility modes: nestable tilde
   open blocks, longer backtick fences, and uppercase checklist markers. The
   `paragraph` style on indented text remains specific to Draft mode.

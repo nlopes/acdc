@@ -1485,8 +1485,7 @@ peg::parser! {
         / non_word_non_ascii_char()
         / ![_]
 
-        /// A single non-ASCII character that is not a Unicode word character
-        /// (letter or number).
+        /// Non-ASCII text outside Rust's alphabetic and numeric properties.
         rule non_word_non_ascii_char()
         = c:$([_]) {?
             match c.chars().next() {

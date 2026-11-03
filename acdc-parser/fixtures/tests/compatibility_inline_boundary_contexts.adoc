@@ -1,0 +1,12 @@
+= Shared inline boundary contexts
+
+link:https://example.org[\*Literal\* and ((Term (R)))].
+
+[cols=a]
+|===
+|é*word* and “*Cell*” and \footnote:inactive-cell[Literal.].
+
+footnote:cell[Cell note.]
+|===
+
+include::includes/compatibility_inline_boundary_selected.adoc[tag=keep,indent=0]

@@ -31,10 +31,8 @@ pub(super) fn check_constrained_opening_boundary(
         Some(b'&') if marker == b'#' => false,
         Some(&b) if b.is_ascii() => match_constrained_boundary(b),
         // The preceding byte belongs to a multibyte (non-ASCII) character. It is
-        // a valid boundary unless that character is a Unicode word character
-        // (letter or number) — matching asciidoctor, where Unicode punctuation
-        // such as `“` or `«` opens a constrained span but letters like `é`/`日`
-        // do not.
+        // Letters and numbers block a boundary; punctuation allows one.
+        // This uses Rust's character properties, not Ruby's broader word class.
         Some(_) => char_ending_at(input, pos).is_none_or(|c| !c.is_alphanumeric()),
     }
 }
