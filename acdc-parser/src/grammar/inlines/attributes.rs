@@ -8,10 +8,11 @@ use crate::{
         ParserState,
         attributes::{AttributeQuote, scan_attribute_list},
         helpers::{
-            MacroAttributeContext, RESERVED_NAMED_ATTRIBUTE_ID, RESERVED_NAMED_ATTRIBUTE_OPTIONS,
-            RESERVED_NAMED_ATTRIBUTE_ROLE, RESERVED_NAMED_ATTRIBUTE_SUBS,
-            parse_comma_separated_values,
+            BlockParsingMetadata, MacroAttributeContext, RESERVED_NAMED_ATTRIBUTE_ID,
+            RESERVED_NAMED_ATTRIBUTE_OPTIONS, RESERVED_NAMED_ATTRIBUTE_ROLE,
+            RESERVED_NAMED_ATTRIBUTE_SUBS, parse_comma_separated_values,
         },
+        inline_preprocessor::{ProcessedKind, SourceMap},
     },
     model::{MacroAttributes, PositionalAttribute},
 };
@@ -185,47 +186,20 @@ pub(super) fn parse_content<'a>(
     start: usize,
     quote: AttributeQuote,
 ) -> Result<ContentAttribute<'a>, Error> {
-    use crate::grammar::{
-        helpers::BlockParsingMetadata, inline_processing::process_inlines_no_autolinks,
-        state::InlineRules,
-    };
-    let rules = state.inline_ctx.rules;
-    state.inline_ctx.rules.insert(InlineRules::BRACKET_LABEL);
-    state.inline_ctx.rules.set(
-        InlineRules::DOUBLE_QUOTED_LINK,
-        quote == AttributeQuote::Double,
-    );
-    state.inline_ctx.rules.set(
-        InlineRules::SINGLE_QUOTED_LINK,
-        quote == AttributeQuote::Single,
-    );
     let metadata = BlockParsingMetadata {
         substitutions: state.inline_ctx.substitutions,
         ..BlockParsingMetadata::default()
     };
     let parsed = if source.contains("\\]") {
-        let mut mapping = crate::grammar::inline_preprocessor::SourceMap::default();
+        let mut mapping = SourceMap::default();
         for (position, _) in source.match_indices("\\]") {
-            mapping.add_replacement(
-                position,
-                position + 2,
-                1,
-                crate::grammar::inline_preprocessor::ProcessedKind::Escape,
-            );
+            mapping.add_replacement(position, position + 2, 1, ProcessedKind::Escape);
         }
         let text = state.intern_str(&source.replace("\\]", "]"));
-        super::text::process_unescaped_label(state, &metadata, text, start, &mapping)
+        super::text::parse_bracket_label(state, &metadata, text, start, quote, Some(&mapping))
     } else {
-        process_inlines_no_autolinks(
-            state,
-            &metadata,
-            start,
-            start + source.len(),
-            state.inline_ctx.offset,
-            source,
-        )
+        super::text::parse_bracket_label(state, &metadata, source, start, quote, None)
     };
-    state.inline_ctx.rules = rules;
     parsed.map(ContentAttribute::new)
 }
 

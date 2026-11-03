@@ -281,6 +281,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Cross-reference shorthand removes only leading ASCII whitespace from its
+  label, retaining trailing and nonbreaking spaces like Asciidoctor. Label
+  locations point to the displayed text after the skipped prefix.
 - Image alt content introduced by an attribute reference now points to that
   reference, including selected includes and table cells. In Asciidoctor mode,
   preceding single-quoted alt values parse introduced formatting and resolve

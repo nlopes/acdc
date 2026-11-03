@@ -1,0 +1,7 @@
+Excluded.
+// tag::selected[]
+    link:guide["π \] included",title='{label}',id=included]
+
+    <<target,   π included   >>
+// end::selected[]
+Excluded tail.

@@ -4,16 +4,16 @@ use crate::{
     ContentAttribute, CrossReference, InlineMetadata, InlineNode,
     grammar::{
         ParserState,
-        attributes::ScannedAttribute,
+        attributes::{AttributeQuote, ScannedAttribute},
         helpers::BlockParsingMetadata,
         inline_preprocessor::{ProcessedKind, SourceMap},
-        inline_processing::process_inlines_no_autolinks,
         inlines::{
             attributes::insert_named_metadata,
             index_terms::IndexTermSegment,
-            text::{RestoredRange, registration_source, restored_label_offset},
+            text::{
+                RestoredRange, parse_bracket_label, registration_source, restored_label_offset,
+            },
         },
-        state::InlineRules,
     },
     model::{MacroAttributes, XrefSourceSyntax},
 };
@@ -55,8 +55,6 @@ pub(super) struct XrefMacroText<'s> {
     pub(super) offset: usize,
     /// Maps unescaped label positions back to the original label.
     pub(super) source_map: SourceMap,
-    /// Whether `text` is the whole bracket content as written.
-    pub(super) as_written: bool,
     /// A `xrefstyle=` for this reference alone, overriding the document's.
     pub(super) xrefstyle: Option<String>,
     attributes: Vec<ScannedAttribute>,
@@ -78,7 +76,6 @@ pub(super) fn xref_macro_text(raw: &str, compat_mode: bool) -> XrefMacroText<'_>
             text: Cow::Borrowed(raw),
             offset: 0,
             source_map: SourceMap::default(),
-            as_written: true,
             xrefstyle: None,
             attributes: Vec::new(),
         };
@@ -87,7 +84,6 @@ pub(super) fn xref_macro_text(raw: &str, compat_mode: bool) -> XrefMacroText<'_>
         text: Cow::Borrowed(""),
         offset: 0,
         source_map: SourceMap::default(),
-        as_written: false,
         xrefstyle: None,
         attributes: Vec::new(),
     };
@@ -207,7 +203,6 @@ pub(super) fn process_link_content<'a>(
     state: &mut ParserState<'a>,
     metadata: &BlockParsingMetadata<'_>,
     start: usize,
-    end: usize,
     content: &LinkContent<'a>,
     mailto: bool,
 ) -> Result<ProcessedLinkContent<'a>, crate::Error> {
@@ -227,7 +222,7 @@ pub(super) fn process_link_content<'a>(
     let protected = content.registered_protected_ranges(&restored);
     let mut text = content.raw;
     let mut offset = 0;
-    let mut quote = None;
+    let mut quote = AttributeQuote::Unquoted;
     let mut result = ProcessedLinkContent::default();
     let mut tooltip = None;
     // Mailto uses commas to introduce subject/body slots. Other links use '=';
@@ -282,7 +277,7 @@ pub(super) fn process_link_content<'a>(
                     from..to,
                 );
             } else if index == 0 {
-                quote = attribute_quote;
+                quote = attribute.quote;
                 offset = restored_label_offset(attribute.value_start, &restored, false);
                 let end = restored_label_offset(attribute.value_end, &restored, false);
                 text = &content.raw[offset..end];
@@ -304,7 +299,7 @@ pub(super) fn process_link_content<'a>(
             .insert("window".into(), "_blank".into());
     }
     if !text.is_empty() {
-        result.text = parse_link_label(state, metadata, text, start + offset, end, quote)?;
+        result.text = parse_bracket_label(state, metadata, text, start + offset, quote, None)?;
     }
     if let Some((from, to, quote)) = tooltip {
         result.tooltip = Some(super::attributes::parse_content(
@@ -315,30 +310,4 @@ pub(super) fn process_link_content<'a>(
         )?);
     }
     Ok(result)
-}
-
-fn parse_link_label<'a>(
-    state: &mut ParserState<'a>,
-    metadata: &BlockParsingMetadata<'_>,
-    text: &'a str,
-    start: usize,
-    end: usize,
-    quote: Option<char>,
-) -> Result<Vec<crate::InlineNode<'a>>, crate::Error> {
-    // Keep source slices intact until the label parser consumes each escape.
-    // Reset the quote mode for nested links, then restore the enclosing mode on errors too.
-    let rules = state.inline_ctx.rules;
-    state.inline_ctx.rules.insert(InlineRules::BRACKET_LABEL);
-    state
-        .inline_ctx
-        .rules
-        .set(InlineRules::DOUBLE_QUOTED_LINK, quote == Some('"'));
-    state
-        .inline_ctx
-        .rules
-        .set(InlineRules::SINGLE_QUOTED_LINK, quote == Some('\''));
-    let parsed =
-        process_inlines_no_autolinks(state, metadata, start, end, state.inline_ctx.offset, text);
-    state.inline_ctx.rules = rules;
-    parsed
 }

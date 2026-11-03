@@ -26,6 +26,10 @@ See link:../../README.md#parsing-and-conversion[the parser README] for the suppo
 Formatting nodes can contain other inline nodes.
 Links, cross-references, footnotes, and visible index terms can also contain inline labels.
 Keep these labels nested; do not flatten them into generated markup and parse that markup again.
+Bracketed labels share quote-context and location handling.
+Media and tooltip attribute lists consume one closing-bracket escape before their values are parsed; link labels keep those escapes until label parsing.
+Preserve that boundary so an escaped bracket can still close a nested macro inside an attribute value.
+
 Unmatched formatting marks normally remain plain text.
 Malformed or incomplete macros follow their own literal-text or recovery rules.
 

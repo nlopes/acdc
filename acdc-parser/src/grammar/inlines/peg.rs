@@ -5,6 +5,7 @@ use crate::{
     StandaloneCurvedApostrophe, Stem, StemNotation, Subscript, Superscript, Url,
     grammar::{
         ParserState,
+        attributes::AttributeQuote,
         helpers::{
             BlockParsingMetadata, MacroAttributeContext, PositionWithOffset,
             RESERVED_NAMED_ATTRIBUTE_ID, RESERVED_NAMED_ATTRIBUTE_OPTIONS,
@@ -13,7 +14,7 @@ use crate::{
         inline_boundaries::{check_constrained_closing_at_end, check_constrained_opening_boundary},
         inline_preprocessing,
         inline_preprocessor::InlinePreprocessorParserState,
-        inline_processing::{process_inlines, process_inlines_no_autolinks},
+        inline_processing::process_inlines,
         inlines::{
             attributes::{Shorthand, parse_content, process_attribute_list, process_media_content},
             index_terms::{
@@ -32,8 +33,8 @@ use crate::{
                 url_opening_allowed,
             },
             text::{
-                parse_footnote_content, process_inlines_or_err, process_unescaped_label,
-                registration_source,
+                parse_bracket_label, parse_footnote_content, parse_shorthand_label,
+                process_inlines_or_err, registration_source,
             },
         },
         state::{InlineRules, InlineUrlBoundary, ParserScope},
@@ -867,7 +868,7 @@ peg::parser! {
                 substitutions: state.inline_ctx.substitutions,
                 ..BlockParsingMetadata::default()
             };
-            let ProcessedLinkContent { text, tooltip, metadata, macro_attributes, .. } = process_link_content(state, &bm, content_start, span_end, &content, false)
+            let ProcessedLinkContent { text, tooltip, metadata, macro_attributes, .. } = process_link_content(state, &bm, content_start, &content, false)
                 .map_err(|_| {
                     tracing::error!("could not process link text");
                     "could not process link text"
@@ -918,7 +919,7 @@ peg::parser! {
                 substitutions: state.inline_ctx.substitutions,
                 ..BlockParsingMetadata::default()
             };
-            let ProcessedLinkContent { text, tooltip, metadata, macro_attributes, subject, body } = process_link_content(state, &bm, content_start, span_end, &content, true)
+            let ProcessedLinkContent { text, tooltip, metadata, macro_attributes, subject, body } = process_link_content(state, &bm, content_start, &content, true)
                 .map_err(|_| {
                     tracing::error!("could not process link text");
                     "could not process link text"
@@ -1205,7 +1206,7 @@ peg::parser! {
                 }
                 None => target,
             };
-            let ProcessedLinkContent { text, tooltip, metadata, macro_attributes, .. } = process_link_content(state, &bm, content_start, span_end, &content, false)
+            let ProcessedLinkContent { text, tooltip, metadata, macro_attributes, .. } = process_link_content(state, &bm, content_start, &content, false)
                 .map_err(|_| {
                     tracing::error!("could not process link text");
                     "could not process link text"
@@ -1266,31 +1267,10 @@ peg::parser! {
                 substitutions: state.inline_ctx.substitutions,
                 ..BlockParsingMetadata::default()
             };
-            // Shorthand-specific pre-trim: asciidoctor treats whitespace-only
-            // custom text in `<<id, >>` as "no custom text" and falls back to
-            // the target's section title. We drop to `vec![]` here so the
-            // converter hits its fallback branch. This diverges from the
-            // `xref:id[ ]` macro form, where `process_inlines_no_autolinks`
-            // preserves the whitespace literally — matching asciidoctor's
-            // asymmetry between the two syntaxes.
-            let text = if let Some((content_start, t)) = raw_text {
-                let trimmed = t.trim();
-                if trimmed.is_empty() {
-                    vec![]
-                } else {
-                    let content_pos = PositionWithOffset {
-                        offset: content_start,
-                        position: state.line_map.offset_to_position(content_start, state.input),
-                    };
-                    process_inlines_no_autolinks(state, &bm, content_pos.offset, span_end, state.inline_ctx.offset, trimmed)
-                        .map_err(|_| {
-                            tracing::error!("could not process xref text");
-                            "could not process xref text"
-                        })?
-                }
-            } else {
-                vec![]
-            };
+            let text = if let Some((content_start, text)) = raw_text {
+                parse_shorthand_label(state, &bm, text, content_start)
+                    .map_err(|_| "could not process xref text")?
+            } else { vec![] };
             tracing::debug!("Found cross-reference shorthand");
             let location = state.create_block_location(span_start, span_end, state.inline_ctx.offset);
             let mut xref = crate::CrossReference::new(target_str, location).with_text(text);
@@ -1346,23 +1326,14 @@ peg::parser! {
             let text = if macro_text.text.is_empty() {
                 vec![]
             } else {
-                let rules = state.inline_ctx.rules;
-                state.inline_ctx.rules.insert(InlineRules::BRACKET_LABEL);
-                state.inline_ctx.rules.remove(InlineRules::QUOTED_LINK);
+                let start = content_start + macro_text.offset;
                 let parsed = match macro_text.text {
-                    Cow::Borrowed(text) => {
-                        // Brackets read as written keep the span they always had.
-                        let start = content_start + macro_text.offset;
-                        let end = if macro_text.as_written { span_end } else { start + text.len() };
-                        process_inlines_no_autolinks(state, &bm, start, end, state.inline_ctx.offset, text)
-                    }
+                    Cow::Borrowed(text) => parse_bracket_label(state, &bm, text, start, AttributeQuote::Unquoted, None),
                     Cow::Owned(text) => {
-                        let start = content_start + macro_text.offset + state.inline_ctx.offset;
                         let text = state.intern_str(&text);
-                        process_unescaped_label(state, &bm, text, start, &macro_text.source_map)
+                        parse_bracket_label(state, &bm, text, start, AttributeQuote::Unquoted, Some(&macro_text.source_map))
                     }
                 };
-                state.inline_ctx.rules = rules;
                 parsed
                     .map_err(|_| {
                         tracing::error!("could not process xref text");

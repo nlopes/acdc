@@ -1,0 +1,34 @@
+= Link content policy
+:label: *Inserted*
+:tip: *Inserted tip*
+
+[[target]]
+== Target
+
+link:guide.adoc["*Guide*",title='{tip}',id=guide,role=quiet,options=nofollow]
+
+https://example.org["*Site*",title="",window=_blank]
+
+mailto:team@example.org["*Team*",Subject,Body,title="*Mail tip*"]
+
+link:guide.adoc[{label},title='{tip}']
+
+xref:target["*Label*",role=quiet]
+
+<<target,   *π Label*   >>
+
+<<target, π Label >>
+
+xref:target[ ] and <<target, >> and <<target, >>.
+
+link:guide["π \] label",title='π \] tooltip']
+
+image:photo.png[Alt,title='π \] tooltip'] and icon:heart[alt='π \] icon'].
+
+xref:target["π \"word\" footnote:note[Note]",role=quiet]
+
+link:guide[Label,title='Discarded footnote:hidden[Hidden]',title='Tip footnote:tip[Tip note]',role='footnote:role[Scalar]']
+
+xref:target[id=local,title=footnote:ignored[Scalar],reftext=footnote:other[Scalar]]
+
+link:guide[https://example.org literal] and xref:target[https://example.org literal].

@@ -287,6 +287,14 @@ alt uses protected literal nodes instead of formatted nodes or ordinary text.
 Absent and explicitly empty alt values stay distinct, and converters choose any
 filename fallback. A block image's title is its caption, not a tooltip.
 
+Link, URL, mailto, and explicit xref labels support rich inline content in both
+modes. Quoted label and tooltip values keep their own escape rules; bare URLs
+inside a label stay text. Mailto subject/body and scalar controls do not become
+inline content. Only selected labels and tooltips register macros. Bracketed
+xref labels preserve whitespace; shorthand labels skip leading ASCII whitespace
+and keep trailing and nonbreaking spaces, matching Asciidoctor. An absent or
+empty xref label uses automatic reference text.
+
 Draft block attribute lists reject leading and trailing spaces or tabs, including
 whitespace introduced by attribute references. A closing quote must be followed
 by a comma, space, tab, or the end of the list; otherwise the value keeps its

@@ -1,0 +1,27 @@
+= Link contexts
+:label: *Before*
+
+[[target]]
+== Target
+
+include::includes/compatibility_link_selected.adoc[tag=selected,indent=0]
+
+[cols="a"]
+|===
+|link:guide["π \] cell",title='*Cell tip*']
+
+<<target,   π cell   >>
+|===
+
+:label: *After*
+
+link:guide[{label},title='{label}']
+
+[subs="macros,attributes,quotes,replacements"]
+link:guide[{label},title='{label}',role=quiet]
+
+[subs="attributes,quotes,macros,replacements"]
+link:guide[{label},title='{label}',role=quiet]
+
+[subs="quotes,attributes"]
+link:guide[*Literal macro*,title='*Literal tip*']
