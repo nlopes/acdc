@@ -30,3 +30,20 @@ pub(super) fn constrained_passthrough_end(source: &str, start: usize) -> Option<
     }
     None
 }
+
+pub(crate) fn has_stem_substitution_list(source: &str) -> bool {
+    source.contains(':')
+        && ["stem:", "asciimath:", "latexmath:"]
+            .into_iter()
+            .any(|prefix| {
+                source.split(prefix).skip(1).any(|tail| {
+                    tail.split_once('[').is_some_and(|(controls, _)| {
+                        !controls.is_empty()
+                            && controls.bytes().all(|byte| {
+                                byte.is_ascii_alphabetic()
+                                    || matches!(byte, b',' | b'+' | b'-' | b'_')
+                            })
+                    })
+                })
+            })
+}

@@ -228,11 +228,11 @@ pub(crate) fn preprocess_inline_content<'a>(
     };
     let location = state.create_location(content_start + offset, content_end_offset);
 
-    // Fast path: skip the preprocessing PEG pass when content has no trigger characters.
-    // The preprocessor only modifies content containing { (attribute/counter references),
-    // + (constrained/unconstrained passthroughs), or pass: (macro passthroughs).
+    // Avoid the preprocessing pass for ordinary text and literal formulas.
     let needs_preprocessing = content.as_bytes().iter().any(|&b| b == b'{' || b == b'+')
-        || (substitutions.enabled(&Substitution::Macros) && content.contains("pass:"));
+        || (substitutions.enabled(&Substitution::Macros)
+            && (content.contains("pass:")
+                || super::inline_preprocessor::has_stem_substitution_list(content)));
 
     if !needs_preprocessing {
         // Hot path: no preprocessing trigger characters. Borrow directly from

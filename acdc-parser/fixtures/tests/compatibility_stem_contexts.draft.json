@@ -1,0 +1,510 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "STEM contexts",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 15
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 3,
+        "col": 14
+      }
+    ]
+  },
+  "attributes": {
+    "stem": "latexmath",
+    "value": "Before"
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "stem",
+          "type": "inline",
+          "content": "{value}",
+          "notation": "latexmath",
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 5,
+              "col": 15
+            },
+            {
+              "line": 5,
+              "col": 15
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 15
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "π ",
+          "location": [
+            {
+              "line": 3,
+              "col": 5,
+              "file": [
+                "includes/compatibility_stem_selected.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 6,
+              "file": [
+                "includes/compatibility_stem_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "stem",
+          "type": "inline",
+          "content": "α \\in [0,1]",
+          "notation": "latexmath",
+          "location": [
+            {
+              "line": 3,
+              "col": 7,
+              "file": [
+                "includes/compatibility_stem_selected.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 25,
+              "file": [
+                "includes/compatibility_stem_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 3,
+              "col": 26,
+              "file": [
+                "includes/compatibility_stem_selected.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 26,
+              "file": [
+                "includes/compatibility_stem_selected.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 5,
+          "file": [
+            "includes/compatibility_stem_selected.adoc"
+          ]
+        },
+        {
+          "line": 3,
+          "col": 26,
+          "file": [
+            "includes/compatibility_stem_selected.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "stem:attributes[{value} footnote:include[Discarded.]]",
+          "location": [
+            {
+              "line": 5,
+              "col": 5,
+              "file": [
+                "includes/compatibility_stem_selected.adoc"
+              ]
+            },
+            {
+              "line": 5,
+              "col": 57,
+              "file": [
+                "includes/compatibility_stem_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 5,
+              "col": 58,
+              "file": [
+                "includes/compatibility_stem_selected.adoc"
+              ]
+            },
+            {
+              "line": 5,
+              "col": 58,
+              "file": [
+                "includes/compatibility_stem_selected.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 5,
+          "col": 5,
+          "file": [
+            "includes/compatibility_stem_selected.adoc"
+          ]
+        },
+        {
+          "line": 5,
+          "col": 58,
+          "file": [
+            "includes/compatibility_stem_selected.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "stem",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "++++",
+      "metadata": {
+        "substitutions": [
+          "+attributes"
+        ]
+      },
+      "content": "Before α < β",
+      "notation": "latexmath",
+      "title": [
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "*Selected*",
+          "location": [
+            {
+              "line": 7,
+              "col": 37,
+              "file": [
+                "includes/compatibility_stem_selected.adoc"
+              ]
+            },
+            {
+              "line": 7,
+              "col": 46,
+              "file": [
+                "includes/compatibility_stem_selected.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 7,
+          "col": 5,
+          "file": [
+            "includes/compatibility_stem_selected.adoc"
+          ]
+        },
+        {
+          "line": 10,
+          "col": 8,
+          "file": [
+            "includes/compatibility_stem_selected.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "stem",
+      "type": "attribute",
+      "value": "asciimath",
+      "location": [
+        {
+          "line": 9,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 16
+        }
+      ]
+    },
+    {
+      "name": "value",
+      "type": "attribute",
+      "value": "After",
+      "location": [
+        {
+          "line": 10,
+          "col": 1
+        },
+        {
+          "line": 10,
+          "col": 13
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "π ",
+                        "location": [
+                          {
+                            "line": 14,
+                            "col": 2
+                          },
+                          {
+                            "line": 14,
+                            "col": 3
+                          }
+                        ]
+                      },
+                      {
+                        "name": "stem",
+                        "type": "inline",
+                        "content": "α \\in [0,1]",
+                        "notation": "asciimath",
+                        "location": [
+                          {
+                            "line": 14,
+                            "col": 4
+                          },
+                          {
+                            "line": 14,
+                            "col": 22
+                          }
+                        ]
+                      },
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": ".",
+                        "location": [
+                          {
+                            "line": 14,
+                            "col": 23
+                          },
+                          {
+                            "line": 14,
+                            "col": 23
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 14,
+                        "col": 2
+                      },
+                      {
+                        "line": 14,
+                        "col": 23
+                      }
+                    ]
+                  },
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "raw",
+                        "type": "string",
+                        "value": "stem:attributes[{value} footnote:table[Discarded.]]",
+                        "location": [
+                          {
+                            "line": 16,
+                            "col": 1
+                          },
+                          {
+                            "line": 16,
+                            "col": 51
+                          }
+                        ]
+                      },
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": ".",
+                        "location": [
+                          {
+                            "line": 16,
+                            "col": 52
+                          },
+                          {
+                            "line": 16,
+                            "col": 52
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 16,
+                        "col": 1
+                      },
+                      {
+                        "line": 16,
+                        "col": 52
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 13,
+            "col": 1
+          },
+          {
+            "line": 17,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 12,
+          "col": 1
+        },
+        {
+          "line": 17,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "stem",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "++++",
+      "metadata": {
+        "substitutions": [
+          "+attributes"
+        ]
+      },
+      "content": "After *x*",
+      "notation": "asciimath",
+      "location": [
+        {
+          "line": 19,
+          "col": 1
+        },
+        {
+          "line": 22,
+          "col": 4
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 22,
+      "col": 4
+    }
+  ]
+}

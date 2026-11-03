@@ -281,6 +281,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Unsupported inline STEM substitution lists now preserve their complete source
+  and report a warning, instead of formatting or registering inner content.
+  Asciidoctor supports inline lists; acdc supports block attribute expansion only.
+
 - Keyboard sequences expand ordinary attributes before choosing their keys.
   Explicit `subs="macros,attributes,..."` freezes keyboard and menu boundaries
   before those attributes expand. Keyboard passthroughs stay inside one macro.

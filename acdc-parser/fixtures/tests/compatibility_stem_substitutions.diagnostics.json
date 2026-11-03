@@ -1,0 +1,112 @@
+{
+  "recovery": {
+    "location": {
+      "absolute_end": 127,
+      "absolute_start": 58,
+      "file": "compatibility_stem_substitutions.adoc",
+      "location": [
+        {
+          "col": 1,
+          "line": 5
+        },
+        {
+          "col": 70,
+          "line": 5
+        }
+      ]
+    },
+    "message": "Inline STEM substitution lists are not supported. Source is preserved."
+  },
+  "warnings": [
+    {
+      "location": {
+        "absolute_end": 127,
+        "absolute_start": 58,
+        "file": "compatibility_stem_substitutions.adoc",
+        "location": [
+          {
+            "col": 1,
+            "line": 5
+          },
+          {
+            "col": 70,
+            "line": 5
+          }
+        ]
+      },
+      "message": "Inline STEM substitution lists are not supported. Source is preserved."
+    },
+    {
+      "location": {
+        "absolute_end": 163,
+        "absolute_start": 142,
+        "file": "compatibility_stem_substitutions.adoc",
+        "location": [
+          {
+            "col": 1,
+            "line": 7
+          },
+          {
+            "col": 22,
+            "line": 7
+          }
+        ]
+      },
+      "message": "Inline STEM substitution lists are not supported. Source is preserved."
+    },
+    {
+      "location": {
+        "absolute_end": 198,
+        "absolute_start": 168,
+        "file": "compatibility_stem_substitutions.adoc",
+        "location": [
+          {
+            "col": 27,
+            "line": 7
+          },
+          {
+            "col": 57,
+            "line": 7
+          }
+        ]
+      },
+      "message": "Inline STEM substitution lists are not supported. Source is preserved."
+    },
+    {
+      "location": {
+        "absolute_end": 237,
+        "absolute_start": 201,
+        "file": "compatibility_stem_substitutions.adoc",
+        "location": [
+          {
+            "col": 1,
+            "line": 9
+          },
+          {
+            "col": 36,
+            "line": 9
+          }
+        ]
+      },
+      "message": "Inline STEM substitution lists are not supported. Source is preserved."
+    },
+    {
+      "location": {
+        "absolute_end": 290,
+        "absolute_start": 277,
+        "file": "compatibility_stem_substitutions.adoc",
+        "location": [
+          {
+            "col": 1,
+            "line": 13
+          },
+          {
+            "col": 14,
+            "line": 13
+          }
+        ]
+      },
+      "message": "STEM blocks do not support these substitutions: quotes. Formula text is preserved; supported substitutions still apply."
+    }
+  ]
+}

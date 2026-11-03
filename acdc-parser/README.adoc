@@ -1150,8 +1150,10 @@ acdc keeps these differences from Asciidoctor 2.0.26:
 * Inline LaTeX removes one enclosing `$...$` pair. Additional dollar pairs
   remain in the formula; Asciidoctor can also remove a nested pair.
 * Inline substitution lists such as `stem:attributes[...]` are not supported.
-  STEM block substitutions expand attributes; quote and macro substitutions
-  inside a block formula are not interpreted as inline nodes.
+  Their complete source is retained with a content-recovery warning; nested
+  formatting, attribute references, and macros stay literal. Asciidoctor accepts
+  these lists. STEM block substitutions can expand attributes; quote and macro
+  substitutions inside a block formula are not interpreted as inline nodes.
 * HTML character escaping runs on the final formula text, including text from
   nested passthroughs. Asciidoctor keeps the escaping rules of nested
   passthroughs. It can also escape an attribute value twice when an explicit

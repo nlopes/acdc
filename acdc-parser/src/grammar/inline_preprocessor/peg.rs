@@ -57,6 +57,7 @@ peg::parser! {
 
         rule inlines() -> String = quiet!{
             inherited_attribute()
+            / unsupported_stem_macro()
             / stem_macro()
             /
             // Keyboard macros can contain plus signs that would otherwise start passthroughs.
@@ -120,6 +121,19 @@ peg::parser! {
             = source:$(kbd_macro_pattern()) {?
                 state.preprocess_keyboard(source, document_attributes)
             }
+
+        rule unsupported_stem_macro() -> String
+            = start:position() source:$(unsupported_stem_macro_pattern()) {
+                state.recover_stem_substitutions(source, start)
+            }
+
+        rule unsupported_stem_macro_pattern()
+            = check_macros() (start:position!()
+              {? (!state.input.borrow()[..start].ends_with('\\'))
+                  .then_some(()).ok_or("escaped STEM macro") })
+              ("latexmath" / "asciimath" / "stem") ":"
+              ['a'..='z' | 'A'..='Z' | ',' | '+' | '-' | '_']+
+              "[" balanced_bracket_content() "]"
 
         rule stem_macro() -> String
             = source:$(stem_macro_pattern()) {?
@@ -309,7 +323,7 @@ peg::parser! {
                 stem_literal_pattern()
                 / [^'{' | '+' | '`' | 'k' | 'p' | 's' | 'a' | 'l' | '\\']+
                 /
-                !(stem_macro_pattern() / escaped_passthrough_pattern() / escaped_attribute_reference_pattern() / passthrough_pattern(false) / counter_reference_pattern() / attribute_reference_pattern() / kbd_macro_pattern() / monospace_pattern()) [_]
+                !(unsupported_stem_macro_pattern() / stem_macro_pattern() / escaped_passthrough_pattern() / escaped_attribute_reference_pattern() / passthrough_pattern(false) / counter_reference_pattern() / attribute_reference_pattern() / kbd_macro_pattern() / monospace_pattern()) [_]
             )+) {
                 state.advance(text);
                 text.to_string()
@@ -341,11 +355,11 @@ peg::parser! {
 
         rule attribute_name_pattern() = ['a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_']+
 
-        rule kbd_macro_pattern() = "kbd:[" keyboard_bracket_content() "]"
+        rule kbd_macro_pattern() = "kbd:[" balanced_bracket_content() "]"
 
-        rule keyboard_bracket_content()
+        rule balanced_bracket_content()
             = ("\\" ['[' | ']']
-                / "[" keyboard_bracket_content() "]"
+                / "[" balanced_bracket_content() "]"
                 / !("\\" ['[' | ']'] / "[" / "]") [_])*
 
         rule monospace_pattern()

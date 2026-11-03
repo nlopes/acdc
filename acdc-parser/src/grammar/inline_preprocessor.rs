@@ -6,6 +6,7 @@ mod recognition;
 use recognition::{constrained_passthrough_end, constrained_passthrough_start};
 
 pub(crate) use peg::inline_preprocessing;
+pub(super) use recognition::has_stem_substitution_list;
 
 use bumpalo::Bump;
 use std::{
@@ -104,6 +105,33 @@ impl<'a> InlinePreprocessorParserState<'a> {
         arena: &'a Bump,
     ) -> Self {
         Self::new(input, line_map, full_input, arena, true, true)
+    }
+
+    fn recover_stem_substitutions(&self, source: &'a str, start: Position) -> String {
+        let location = self.calculate_location(start, source, 0);
+        self.add_warning(Warning::new(
+            WarningKind::ContentRecovery {
+                message: "Inline STEM substitution lists are not supported. Source is preserved."
+                    .into(),
+            },
+            Some(self.source_location_for(location.absolute_start, location.absolute_end)),
+        ));
+        let placeholder = format!("���{}���", self.pass_found_count.get());
+        self.source_map.borrow_mut().add_replacement(
+            location.absolute_start,
+            location.absolute_end,
+            placeholder.len(),
+            ProcessedKind::Passthrough,
+        );
+        self.passthroughs.borrow_mut().push(Pass {
+            attribute_fragments: Box::default(),
+            text: Some(source),
+            substitutions: vec![Substitution::SpecialChars],
+            location,
+            kind: PassthroughKind::Triple,
+        });
+        self.pass_found_count.set(self.pass_found_count.get() + 1);
+        placeholder
     }
 
     fn preprocess_keyboard(
