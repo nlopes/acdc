@@ -1,0 +1,15 @@
+= Menu separator contexts
+:experimental:
+:items: Open &gt; Close
+
+menu:File[{items}].
+
+[subs="macros,attributes,quotes,replacements"]
+menu:File[{items}].
+
+[cols=a]
+|===
+|π menu:File[Öpen &gt; Closé footnote:cell[Cell.]].
+|===
+
+include::includes/compatibility_menu_selected.adoc[tag=keep,indent=0]

@@ -281,6 +281,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Menu items recognize `&gt;` separators. With `subs=macros`, a raw `>` stays
+  inside the label, matching Asciidoctor. Labels after entities keep their
+  authored source locations.
+
 - Unsupported inline STEM substitution lists now preserve their complete source
   and report a warning, instead of formatting or registering inner content.
   Asciidoctor supports inline lists; acdc supports block attribute expansion only.

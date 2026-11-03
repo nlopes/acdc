@@ -1,0 +1,1213 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Menu separator stages",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 23
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 2,
+        "col": 14
+      }
+    ]
+  },
+  "attributes": {
+    "experimental": true
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "menu",
+          "type": "inline",
+          "target": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "File",
+              "location": [
+                {
+                  "line": 4,
+                  "col": 6
+                },
+                {
+                  "line": 4,
+                  "col": 9
+                }
+              ]
+            }
+          ],
+          "items": [
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Open",
+                "location": [
+                  {
+                    "line": 4,
+                    "col": 11
+                  },
+                  {
+                    "line": 4,
+                    "col": 14
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Close",
+                "location": [
+                  {
+                    "line": 4,
+                    "col": 18
+                  },
+                  {
+                    "line": 4,
+                    "col": 22
+                  }
+                ]
+              }
+            ]
+          ],
+          "location": [
+            {
+              "line": 4,
+              "col": 1
+            },
+            {
+              "line": 4,
+              "col": 23
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " and ",
+          "location": [
+            {
+              "line": 4,
+              "col": 24
+            },
+            {
+              "line": 4,
+              "col": 28
+            }
+          ]
+        },
+        {
+          "name": "menu",
+          "type": "inline",
+          "target": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "File",
+              "location": [
+                {
+                  "line": 4,
+                  "col": 34
+                },
+                {
+                  "line": 4,
+                  "col": 37
+                }
+              ]
+            }
+          ],
+          "items": [
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Open",
+                "location": [
+                  {
+                    "line": 4,
+                    "col": 39
+                  },
+                  {
+                    "line": 4,
+                    "col": 42
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Close",
+                "location": [
+                  {
+                    "line": 4,
+                    "col": 49
+                  },
+                  {
+                    "line": 4,
+                    "col": 53
+                  }
+                ]
+              }
+            ]
+          ],
+          "location": [
+            {
+              "line": 4,
+              "col": 29
+            },
+            {
+              "line": 4,
+              "col": 54
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 4,
+              "col": 55
+            },
+            {
+              "line": 4,
+              "col": 55
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 4,
+          "col": 1
+        },
+        {
+          "line": 4,
+          "col": 55
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "menu",
+          "type": "inline",
+          "target": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "File",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 6
+                },
+                {
+                  "line": 6,
+                  "col": 9
+                }
+              ]
+            }
+          ],
+          "items": [
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Open &#62; Close",
+                "location": [
+                  {
+                    "line": 6,
+                    "col": 11
+                  },
+                  {
+                    "line": 6,
+                    "col": 26
+                  }
+                ]
+              }
+            ]
+          ],
+          "location": [
+            {
+              "line": 6,
+              "col": 1
+            },
+            {
+              "line": 6,
+              "col": 27
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " and ",
+          "location": [
+            {
+              "line": 6,
+              "col": 28
+            },
+            {
+              "line": 6,
+              "col": 32
+            }
+          ]
+        },
+        {
+          "name": "menu",
+          "type": "inline",
+          "target": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "File",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 38
+                },
+                {
+                  "line": 6,
+                  "col": 41
+                }
+              ]
+            }
+          ],
+          "items": [
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Open &amp;gt; Close",
+                "location": [
+                  {
+                    "line": 6,
+                    "col": 43
+                  },
+                  {
+                    "line": 6,
+                    "col": 61
+                  }
+                ]
+              }
+            ]
+          ],
+          "location": [
+            {
+              "line": 6,
+              "col": 33
+            },
+            {
+              "line": 6,
+              "col": 62
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 6,
+              "col": 63
+            },
+            {
+              "line": 6,
+              "col": 63
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 6,
+          "col": 1
+        },
+        {
+          "line": 6,
+          "col": 63
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "menu",
+          "type": "inline",
+          "target": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "File",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 6
+                },
+                {
+                  "line": 9,
+                  "col": 9
+                }
+              ]
+            }
+          ],
+          "items": [
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Open > Close",
+                "location": [
+                  {
+                    "line": 9,
+                    "col": 11
+                  },
+                  {
+                    "line": 9,
+                    "col": 22
+                  }
+                ]
+              }
+            ]
+          ],
+          "location": [
+            {
+              "line": 9,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 23
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " and ",
+          "location": [
+            {
+              "line": 9,
+              "col": 24
+            },
+            {
+              "line": 9,
+              "col": 28
+            }
+          ]
+        },
+        {
+          "name": "menu",
+          "type": "inline",
+          "target": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "File",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 34
+                },
+                {
+                  "line": 9,
+                  "col": 37
+                }
+              ]
+            }
+          ],
+          "items": [
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Open",
+                "location": [
+                  {
+                    "line": 9,
+                    "col": 39
+                  },
+                  {
+                    "line": 9,
+                    "col": 42
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Close",
+                "location": [
+                  {
+                    "line": 9,
+                    "col": 49
+                  },
+                  {
+                    "line": 9,
+                    "col": 53
+                  }
+                ]
+              }
+            ]
+          ],
+          "location": [
+            {
+              "line": 9,
+              "col": 29
+            },
+            {
+              "line": 9,
+              "col": 54
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 9,
+              "col": 55
+            },
+            {
+              "line": 9,
+              "col": 55
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "substitutions": [
+          "macros"
+        ]
+      },
+      "location": [
+        {
+          "line": 8,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 55
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "menu",
+          "type": "inline",
+          "target": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "File",
+              "location": [
+                {
+                  "line": 12,
+                  "col": 6
+                },
+                {
+                  "line": 12,
+                  "col": 9
+                }
+              ]
+            }
+          ],
+          "items": [
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Open",
+                "location": [
+                  {
+                    "line": 12,
+                    "col": 11
+                  },
+                  {
+                    "line": 12,
+                    "col": 14
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Close",
+                "location": [
+                  {
+                    "line": 12,
+                    "col": 18
+                  },
+                  {
+                    "line": 12,
+                    "col": 22
+                  }
+                ]
+              }
+            ]
+          ],
+          "location": [
+            {
+              "line": 12,
+              "col": 1
+            },
+            {
+              "line": 12,
+              "col": 23
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " and ",
+          "location": [
+            {
+              "line": 12,
+              "col": 24
+            },
+            {
+              "line": 12,
+              "col": 28
+            }
+          ]
+        },
+        {
+          "name": "menu",
+          "type": "inline",
+          "target": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "File",
+              "location": [
+                {
+                  "line": 12,
+                  "col": 34
+                },
+                {
+                  "line": 12,
+                  "col": 37
+                }
+              ]
+            }
+          ],
+          "items": [
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Open &gt; Close",
+                "location": [
+                  {
+                    "line": 12,
+                    "col": 39
+                  },
+                  {
+                    "line": 12,
+                    "col": 53
+                  }
+                ]
+              }
+            ]
+          ],
+          "location": [
+            {
+              "line": 12,
+              "col": 29
+            },
+            {
+              "line": 12,
+              "col": 54
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 12,
+              "col": 55
+            },
+            {
+              "line": 12,
+              "col": 55
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "substitutions": [
+          "specialchars",
+          "macros"
+        ]
+      },
+      "location": [
+        {
+          "line": 11,
+          "col": 1
+        },
+        {
+          "line": 12,
+          "col": 55
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "menu",
+          "type": "inline",
+          "target": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "File",
+              "location": [
+                {
+                  "line": 15,
+                  "col": 6
+                },
+                {
+                  "line": 15,
+                  "col": 9
+                }
+              ]
+            }
+          ],
+          "items": [
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Open &gt; Close",
+                "location": [
+                  {
+                    "line": 15,
+                    "col": 11
+                  },
+                  {
+                    "line": 15,
+                    "col": 25
+                  }
+                ]
+              }
+            ]
+          ],
+          "location": [
+            {
+              "line": 15,
+              "col": 1
+            },
+            {
+              "line": 15,
+              "col": 26
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 15,
+              "col": 27
+            },
+            {
+              "line": 15,
+              "col": 27
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "substitutions": [
+          "replacements",
+          "specialchars",
+          "macros"
+        ]
+      },
+      "location": [
+        {
+          "line": 14,
+          "col": 1
+        },
+        {
+          "line": 15,
+          "col": 27
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "menu",
+          "type": "inline",
+          "target": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "File",
+              "location": [
+                {
+                  "line": 18,
+                  "col": 6
+                },
+                {
+                  "line": 18,
+                  "col": 9
+                }
+              ]
+            }
+          ],
+          "items": [
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Open",
+                "location": [
+                  {
+                    "line": 18,
+                    "col": 11
+                  },
+                  {
+                    "line": 18,
+                    "col": 14
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Close",
+                "location": [
+                  {
+                    "line": 18,
+                    "col": 21
+                  },
+                  {
+                    "line": 18,
+                    "col": 25
+                  }
+                ]
+              }
+            ]
+          ],
+          "location": [
+            {
+              "line": 18,
+              "col": 1
+            },
+            {
+              "line": 18,
+              "col": 26
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 18,
+              "col": 27
+            },
+            {
+              "line": 18,
+              "col": 27
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "substitutions": [
+          "specialchars",
+          "replacements",
+          "macros"
+        ]
+      },
+      "location": [
+        {
+          "line": 17,
+          "col": 1
+        },
+        {
+          "line": 18,
+          "col": 27
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "π ",
+          "location": [
+            {
+              "line": 20,
+              "col": 1
+            },
+            {
+              "line": 20,
+              "col": 2
+            }
+          ]
+        },
+        {
+          "name": "menu",
+          "type": "inline",
+          "target": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "File",
+              "location": [
+                {
+                  "line": 20,
+                  "col": 8
+                },
+                {
+                  "line": 20,
+                  "col": 11
+                }
+              ]
+            }
+          ],
+          "items": [
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Öpen",
+                "location": [
+                  {
+                    "line": 20,
+                    "col": 13
+                  },
+                  {
+                    "line": 20,
+                    "col": 16
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Closé ",
+                "location": [
+                  {
+                    "line": 20,
+                    "col": 23
+                  },
+                  {
+                    "line": 20,
+                    "col": 28
+                  }
+                ]
+              },
+              {
+                "name": "footnote",
+                "type": "inline",
+                "id": "note",
+                "inlines": [
+                  {
+                    "name": "text",
+                    "type": "string",
+                    "value": "Note.",
+                    "location": [
+                      {
+                        "line": 20,
+                        "col": 43
+                      },
+                      {
+                        "line": 20,
+                        "col": 47
+                      }
+                    ]
+                  }
+                ],
+                "location": [
+                  {
+                    "line": 20,
+                    "col": 29
+                  },
+                  {
+                    "line": 20,
+                    "col": 48
+                  }
+                ]
+              }
+            ]
+          ],
+          "location": [
+            {
+              "line": 20,
+              "col": 3
+            },
+            {
+              "line": 20,
+              "col": 49
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 20,
+              "col": 50
+            },
+            {
+              "line": 20,
+              "col": 50
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 20,
+          "col": 1
+        },
+        {
+          "line": 20,
+          "col": 50
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "menu",
+          "type": "inline",
+          "target": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "File",
+              "location": [
+                {
+                  "line": 22,
+                  "col": 6
+                },
+                {
+                  "line": 22,
+                  "col": 9
+                }
+              ]
+            }
+          ],
+          "items": [
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Open",
+                "location": [
+                  {
+                    "line": 22,
+                    "col": 11
+                  },
+                  {
+                    "line": 22,
+                    "col": 14
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "name": "raw",
+                "type": "string",
+                "value": "A &gt; B",
+                "location": [
+                  {
+                    "line": 22,
+                    "col": 27
+                  },
+                  {
+                    "line": 22,
+                    "col": 34
+                  }
+                ]
+              }
+            ]
+          ],
+          "location": [
+            {
+              "line": 22,
+              "col": 1
+            },
+            {
+              "line": 22,
+              "col": 36
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " and ",
+          "location": [
+            {
+              "line": 22,
+              "col": 37
+            },
+            {
+              "line": 22,
+              "col": 41
+            }
+          ]
+        },
+        {
+          "name": "menu",
+          "type": "inline",
+          "target": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "File",
+              "location": [
+                {
+                  "line": 22,
+                  "col": 47
+                },
+                {
+                  "line": 22,
+                  "col": 50
+                }
+              ]
+            }
+          ],
+          "items": [
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Open",
+                "location": [
+                  {
+                    "line": 22,
+                    "col": 52
+                  },
+                  {
+                    "line": 22,
+                    "col": 55
+                  }
+                ]
+              }
+            ],
+            []
+          ],
+          "location": [
+            {
+              "line": 22,
+              "col": 42
+            },
+            {
+              "line": 22,
+              "col": 62
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 22,
+              "col": 63
+            },
+            {
+              "line": 22,
+              "col": 63
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 22,
+          "col": 1
+        },
+        {
+          "line": 22,
+          "col": 63
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 22,
+      "col": 63
+    }
+  ]
+}

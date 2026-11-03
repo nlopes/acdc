@@ -309,6 +309,9 @@ Ordinary attributes can introduce key and menu separators. When `subs=` puts
 macros before attributes, introduced separators stay inside the existing label.
 Explicit attribute profiles keep their parsed content together as one label;
 acdc preserves this protection where Asciidoctor splits the inserted text.
+Menu separators follow the selected substitutions. Under `subs=macros`, write
+`&gt;` for an item separator; a raw `>` stays in the label. The usual substitutions
+accept both. Numeric references such as `&#62;` remain label text, as in Asciidoctor.
 
 Draft block attribute lists reject leading and trailing spaces or tabs, including
 whitespace introduced by attribute references. A closing quote must be followed

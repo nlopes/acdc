@@ -1,0 +1,4 @@
+// omitted
+// tag::keep[]
+    π menu:File[Öpen &gt; Closé footnote:include[Included.]].
+// end::keep[]

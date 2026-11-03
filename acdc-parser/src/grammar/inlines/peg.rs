@@ -36,7 +36,10 @@ use crate::{
                 parse_bracket_label, parse_footnote_content, parse_shorthand_label,
                 process_inlines_or_err, registration_source,
             },
-            ui::{parse_keyboard_keys, parse_menu_items},
+            ui::{
+                Separator, menu_character_separator_enabled, menu_entity_separator_enabled,
+                parse_keyboard_keys, parse_menu_items,
+            },
         },
         state::{InlineRules, InlineUrlBoundary, ParserScope},
     },
@@ -791,18 +794,23 @@ peg::parser! {
         / start:position!() "indexterm:" index_term_macro_content() check_index_token(start, 11) {}
         / start:position!() "indexterm2:" index_term_macro_content() check_index_token(start, 12) {}
 
-        pub rule ui_separator_positions() -> Vec<(usize, char)>
-        = positions:(
+        pub rule ui_separators() -> Vec<Separator>
+        = separators:(
             bracket_label_macro_match() { None }
             / check_macros() cross_reference_shorthand_match() { None }
             / check_macros() check_index_terms() index_term_match() { None }
             / "[" escaped_balanced_bracket_content() "]" { None }
             / "\\" ['[' | ']'] { None }
-            / start:position!() delimiter:$(['+' | ',' | '>']) {
-                delimiter.chars().next().map(|character| (start, character))
+            / start:position!() character:(
+                "&gt;" { menu_entity_separator_enabled(state).then_some('>') }
+                / ">" { menu_character_separator_enabled(state).then_some('>') }
+                / "+" { Some('+') }
+                / "," { Some(',') }
+            ) end:position!() {
+                character.map(|character| Separator { range: start..end, character })
             }
             / [_] { None }
-        )* { positions.into_iter().flatten().collect() }
+        )* { separators.into_iter().flatten().collect() }
 
         rule inline_menu() -> InlineNode<'input>
         = check_ui_macros() "menu:" target:$([^'[']+) "[" start:position!() items:escaped_balanced_bracket_content() "]"

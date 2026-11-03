@@ -3,7 +3,7 @@
 use std::ops::Range;
 
 use crate::{
-    ContentAttribute, Error,
+    ContentAttribute, Error, Substitution,
     grammar::{ParserState, attributes::AttributeQuote, inline_parser},
 };
 
@@ -13,11 +13,31 @@ use super::{
     text::{registration_source, restored_label_offset},
 };
 
-fn delimiter_positions<'a>(
+pub(super) struct Separator {
+    pub(super) range: Range<usize>,
+    pub(super) character: char,
+}
+
+pub(super) fn menu_character_separator_enabled(state: &ParserState<'_>) -> bool {
+    state
+        .inline_ctx
+        .substitutions
+        .precedes(&Substitution::SpecialChars, &Substitution::Macros)
+}
+
+pub(super) fn menu_entity_separator_enabled(state: &ParserState<'_>) -> bool {
+    // Replacements restore authored entities after special-character escaping.
+    let plan = state.inline_ctx.substitutions;
+    !menu_character_separator_enabled(state)
+        || (plan.precedes(&Substitution::SpecialChars, &Substitution::Replacements)
+            && plan.precedes(&Substitution::Replacements, &Substitution::Macros))
+}
+
+fn separators<'a>(
     source: &'a str,
     start: usize,
     state: &ParserState<'a>,
-) -> Result<Vec<(usize, char)>, Error> {
+) -> Result<Vec<Separator>, Error> {
     let (source, ranges) = registration_source(
         state,
         IndexTermSegment {
@@ -26,12 +46,17 @@ fn delimiter_positions<'a>(
         },
     );
     let mut child = ParserState::for_inline_parsing(source, state, state.inline_ctx);
-    inline_parser::ui_separator_positions(source, &mut child)
-        .map(|positions| {
-            positions
+    inline_parser::ui_separators(source, &mut child)
+        .map(|separators| {
+            separators
                 .into_iter()
-                .map(|(position, delimiter)| {
-                    (restored_label_offset(position, &ranges, false), delimiter)
+                .map(|mut separator| {
+                    let start = restored_label_offset(separator.range.start, &ranges, false);
+                    let end =
+                        restored_label_offset(separator.range.end.saturating_sub(1), &ranges, true)
+                            + 1;
+                    separator.range = start..end;
+                    separator
                 })
                 .collect()
         })
@@ -43,13 +68,16 @@ fn delimiter_positions<'a>(
         })
 }
 
-fn split_ranges(positions: &[(usize, char)], delimiter: char, end: usize) -> Vec<Range<usize>> {
+fn split_ranges(separators: &[Separator], delimiter: char, end: usize) -> Vec<Range<usize>> {
     let mut ranges = Vec::new();
     let mut start = 0;
-    for &(offset, character) in positions.iter().take_while(|(offset, _)| *offset < end) {
-        if character == delimiter {
-            ranges.push(start..offset);
-            start = offset + character.len_utf8();
+    for separator in separators
+        .iter()
+        .take_while(|separator| separator.range.start < end)
+    {
+        if separator.character == delimiter {
+            ranges.push(start..separator.range.start);
+            start = separator.range.end;
         }
     }
     ranges.push(start..end);
@@ -89,15 +117,15 @@ pub(super) fn parse_keyboard_keys<'a>(
     }
     let trimmed = source.trim();
     let start = start + source.len() - source.trim_start().len();
-    let positions = delimiter_positions(trimmed, start, state)?;
-    let delimiter = positions
+    let separators = separators(trimmed, start, state)?;
+    let delimiter = separators
         .iter()
-        .copied()
-        .find(|(offset, character)| *offset != 0 && matches!(character, '+' | ','));
-    let ranges = if let Some((_, delimiter)) = delimiter {
+        .find(|separator| separator.range.start != 0 && matches!(separator.character, '+' | ','));
+    let ranges = if let Some(separator) = delimiter {
+        let delimiter = separator.character;
         let trailing = trimmed.ends_with(delimiter);
         let end = trimmed.len().saturating_sub(usize::from(trailing));
-        let mut ranges = split_ranges(&positions, delimiter, end);
+        let mut ranges = split_ranges(&separators, delimiter, end);
         if trailing && let Some(last) = ranges.last_mut() {
             last.end = trimmed.len();
         }
@@ -116,17 +144,23 @@ pub(super) fn parse_menu_items<'a>(
     if source.is_empty() {
         return Ok(Vec::new());
     }
-    let positions = delimiter_positions(source, start, state)?;
-    let delimiter = if positions.iter().any(|(_, character)| *character == '>') {
+    let separators = separators(source, start, state)?;
+    let delimiter = if separators
+        .iter()
+        .any(|separator| separator.character == '>')
+    {
         Some('>')
-    } else if positions.iter().any(|(_, character)| *character == ',') {
+    } else if separators
+        .iter()
+        .any(|separator| separator.character == ',')
+    {
         Some(',')
     } else {
         None
     };
     let mut ranges = delimiter.map_or_else(
         || std::iter::once(0..source.len()).collect(),
-        |delimiter| split_ranges(&positions, delimiter, source.len()),
+        |delimiter| split_ranges(&separators, delimiter, source.len()),
     );
     while ranges.last().is_some_and(Range::is_empty) {
         ranges.pop();
