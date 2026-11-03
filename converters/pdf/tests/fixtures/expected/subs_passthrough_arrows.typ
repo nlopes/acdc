@@ -116,22 +116,22 @@
 
 #raw(block: true, lang: "rust", "// R17 → ⇒ ← ⇐ and -> => <- <=.\n// R18 -> => <- <=.")
 
-#text("R19 ")#text("→ ⇒ ← ⇐")#text(".")
+#text("R19 ")#text("→")#text(" ")#text("⇒")#text(" ")#text("←")#text(" ")#text("⇐")#text(".")
 
-#text("R20 ")#text("→ ⇒ ← ⇐")#text(".")
+#text("R20 ")#text("→")#text(" ")#text("⇒")#text(" ")#text("←")#text(" ")#text("⇐")#text(".")
 
-#text("R21 ")#text("-> => <- <=")#text(".")
+#text("R21 ")#text("->")#text(" ")#text("=>")#text(" ")#text("<-")#text(" ")#text("<=")#text(".")
 
-#text("R22 ")#text("\\-")#text(">")#text(" ")#text("\\=")#text(">")#text(" ")#text("&lt;")#text("- ")#text("&lt;")#text("=")#text(".")
+#text("R22 ")#text("\\")#text("-")#text(">")#text(" \\")#text("=")#text(">")#text(" ")#text("&lt;")#text("-")#text(" ")#text("&lt;")#text("=")#text(".")
 
-#text("R23 ")#text("⇐→ ")#text("&")#text(".")
+#text("R23 ")#text("⇐")#text("→")#text(" ")#text("&")#text(".")
 
 #text("R24 ")#text("-")#text(">")#text(" =")#text(">")#text(" ")#text("<")#text("- ")#text("<")#text("=")#text(".")
 
-#text("R25 ")#text("-&gt; =&gt; &lt;- &lt;=")#text(".")
+#text("R25 ")#text("-&gt;")#text(" ")#text("=&gt;")#text(" ")#text("&lt;-")#text(" ")#text("&lt;=")#text(".")
 
-#text("R26 ")#text("<→ <⇒")#text(".")
+#text("R26 ")#text("<")#text("→")#text(" ")#text("<")#text("⇒")#text(".")
 
-#text("R27 ")#text("←> ⇐>")#text(".")
+#text("R27 ")#text("←")#text(">")#text(" ")#text("⇐")#text(">")#text(".")
 
-#text("R28 ")#text("\\<→ \\<⇒")#text(".")
+#text("R28 ")#text("\\")#text("<")#text("→")#text(" \\")#text("<")#text("⇒")#text(".")

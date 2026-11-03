@@ -1,3 +1,4 @@
+mod encoded_arrows;
 mod neighbors;
 
 use std::{mem::take, ops::Range};
@@ -76,19 +77,19 @@ fn resolve_plain_with_context<'a>(
                 && !late_boundary(state, state.input.len()),
         };
         let edits = replacements(text.content, edges, words, |range, kind| {
-            (!is_arrow(kind)
-                || state
-                    .inline_ctx
-                    .substitutions
-                    .precedes(&Substitution::SpecialChars, &Substitution::Replacements))
-                && start.is_none_or(|start| {
-                    structural_token_allowed(
-                        state,
-                        &Substitution::Replacements,
-                        start + range.start,
-                        range.len(),
-                    )
-                })
+            arrow_allowed(
+                text.content,
+                range.clone(),
+                kind,
+                state.inline_ctx.substitutions,
+            ) && start.is_none_or(|start| {
+                structural_token_allowed(
+                    state,
+                    &Substitution::Replacements,
+                    start + range.start,
+                    range.len(),
+                )
+            })
         });
         if edits.is_empty() {
             result.push(InlineNode::PlainText(text));
@@ -115,10 +116,9 @@ pub(crate) fn resolve_raw<'a>(
     if !raw.subs.contains(&Substitution::Replacements) {
         return vec![InlineNode::RawText(raw)];
     }
-    let arrows = SubstitutionPlan::from_substitutions(&raw.subs)
-        .precedes(&Substitution::SpecialChars, &Substitution::Replacements);
-    let edits = replacements(raw.content, edges, WordContext::default(), |_, kind| {
-        !is_arrow(kind) || arrows
+    let plan = SubstitutionPlan::from_substitutions(&raw.subs);
+    let edits = replacements(raw.content, edges, WordContext::default(), |range, kind| {
+        arrow_allowed(raw.content, range, kind, plan)
     });
     if edits.is_empty() {
         return vec![InlineNode::RawText(raw)];
@@ -147,6 +147,17 @@ fn has_candidate(text: &str) -> bool {
         || ["->", "=>", "<-", "<="]
             .iter()
             .any(|token| text.contains(token))
+        || text.contains('&')
+            && [
+                "-&gt;",
+                "=&gt;",
+                "&lt;-",
+                "&lt;=",
+                r"&lt;\-&gt;",
+                r"&lt;\=&gt;",
+            ]
+            .iter()
+            .any(|token| text.contains(token))
 }
 
 pub(crate) struct Replacement {
@@ -157,6 +168,10 @@ pub(crate) struct Replacement {
 pub(crate) enum ReplacementValue {
     Symbol(SymbolKind),
     Literal(Range<usize>),
+    EncodedLiteral {
+        range: Range<usize>,
+        decoded: &'static str,
+    },
 }
 
 #[derive(Clone, Copy, Default)]
@@ -197,7 +212,12 @@ pub(crate) fn replacements(
             cursor += text[cursor..].chars().next().map_or(1, char::len_utf8);
             continue;
         };
-        if escaped && !allowed(cursor..start + 1, kind) {
+        if escaped
+            && !allowed(
+                cursor..if is_arrow(kind) { range.end } else { start + 1 },
+                kind,
+            )
+        {
             cursor = start;
             continue;
         }
@@ -234,8 +254,8 @@ pub(crate) fn replacements(
         } else {
             ReplacementValue::Symbol(kind)
         };
-        edits.push(Replacement { range, value });
-        cursor = end;
+        encoded_arrows::append_edits(text, range, value, &mut edits, &allowed);
+        cursor = edits.last().map_or(end, |edit| edit.range.end);
     }
     edits
 }
@@ -247,6 +267,9 @@ fn replacement_at(
     words: WordContext,
 ) -> Option<(Range<usize>, SymbolKind)> {
     let suffix = &text[start..];
+    if let Some(arrow) = encoded_arrows::at(suffix) {
+        return Some((start..start + arrow.0, arrow.1));
+    }
     for (token, kind) in [
         ("(C)", SymbolKind::Copyright),
         ("(R)", SymbolKind::RegisteredTrademark),
@@ -308,6 +331,17 @@ fn replacement_at(
         }
     }
     None
+}
+
+pub(crate) fn arrow_allowed(
+    text: &str,
+    range: Range<usize>,
+    kind: SymbolKind,
+    plan: SubstitutionPlan,
+) -> bool {
+    !is_arrow(kind)
+        || text[range].contains('&')
+            != plan.precedes(&Substitution::SpecialChars, &Substitution::Replacements)
 }
 
 pub(crate) fn is_arrow(kind: SymbolKind) -> bool {
@@ -382,31 +416,77 @@ fn append_resolved<'a>(
                 kind,
                 location: node_location,
             }),
-            ReplacementValue::Literal(range) => InlineNode::RawText(Raw {
-                content: &text[range],
-                location: node_location,
-                subs: raw_subs.map_or_else(
-                    || {
-                        state
+            ReplacementValue::EncodedLiteral { range, decoded } => {
+                let subs = raw_subs.unwrap_or(&[]);
+                if subs.contains(&Substitution::SpecialChars)
+                    || raw_subs.is_none()
+                        && state
                             .inline_ctx
                             .substitutions
                             .enabled(&Substitution::SpecialChars)
-                            .then_some(Substitution::SpecialChars)
-                            .into_iter()
-                            .collect()
-                    },
-                    |subs| {
-                        subs.iter()
-                            .filter(|substitution| **substitution != Substitution::Replacements)
-                            .cloned()
-                            .collect()
-                    },
-                ),
-            }),
+                {
+                    InlineNode::RawText(Raw {
+                        content: &text[range],
+                        location: node_location,
+                        subs: vec![Substitution::SpecialChars],
+                    })
+                } else {
+                    InlineNode::RawText(Raw {
+                        content: decoded,
+                        location: node_location,
+                        subs: vec![Substitution::SpecialChars],
+                    })
+                }
+            }
+            ReplacementValue::Literal(range) => {
+                protected_literal(text, range, node_location, raw_subs, state)
+            }
         });
         cursor = edit.range.end;
     }
     if cursor < text.len() {
         result.push(plain(cursor..text.len()));
     }
+}
+
+fn protected_literal<'a>(
+    text: &'a str,
+    range: Range<usize>,
+    location: Location,
+    raw_subs: Option<&[Substitution]>,
+    state: &ParserState<'a>,
+) -> InlineNode<'a> {
+    let literal = &text[range];
+    let content = if raw_subs.is_none()
+        && state
+            .inline_ctx
+            .substitutions
+            .precedes(&Substitution::SpecialChars, &Substitution::Replacements)
+        && literal.contains('&')
+    {
+        state.intern_str(&literal.replace("&lt;", "<").replace("&gt;", ">"))
+    } else {
+        literal
+    };
+    InlineNode::RawText(Raw {
+        content,
+        location,
+        subs: raw_subs.map_or_else(
+            || {
+                state
+                    .inline_ctx
+                    .substitutions
+                    .enabled(&Substitution::SpecialChars)
+                    .then_some(Substitution::SpecialChars)
+                    .into_iter()
+                    .collect()
+            },
+            |subs| {
+                subs.iter()
+                    .filter(|substitution| **substitution != Substitution::Replacements)
+                    .cloned()
+                    .collect()
+            },
+        ),
+    })
 }

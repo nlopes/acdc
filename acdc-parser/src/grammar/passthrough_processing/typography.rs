@@ -4,7 +4,9 @@ use crate::{
     InlineNode, Location, Raw, Substitution, Symbol,
     grammar::{
         ParserState,
-        inlines::typography::{Edges, ReplacementValue, WordContext, is_arrow, replacements},
+        inlines::typography::{
+            Edges, ReplacementValue, WordContext, arrow_allowed, is_arrow, replacements,
+        },
         utf8_utils::{RoundDirection, step_char},
     },
     model::substitution::SubstitutionPlan,
@@ -44,11 +46,18 @@ pub(super) fn resolve_fragments<'a>(
         let end = spans.partition_point(|(span, _)| span.start < range.end);
         spans.get(first..end).is_some_and(|covered| {
             !covered.is_empty()
-                && covered.iter().all(|(_, raw)| {
+                && covered.iter().all(|(span, raw)| {
                     raw.subs.contains(&Substitution::Replacements)
                         && (!is_arrow(kind)
-                            || SubstitutionPlan::from_substitutions(&raw.subs)
-                                .precedes(&Substitution::SpecialChars, &Substitution::Replacements))
+                            || text[range.clone()].contains('&')
+                                && !text[range.start.max(span.start)..range.end.min(span.end)]
+                                    .contains('&')
+                            || arrow_allowed(
+                                &text,
+                                range.clone(),
+                                kind,
+                                SubstitutionPlan::from_substitutions(&raw.subs),
+                            ))
                 })
                 && (!late_attributes
                     || !covered.windows(2).any(|pair| {
@@ -81,6 +90,15 @@ pub(super) fn resolve_fragments<'a>(
                 kind,
                 location: locate(text, &spans, edit.range.clone(), state),
             })),
+            ReplacementValue::EncodedLiteral { range, decoded } => append_encoded_literal(
+                &mut result,
+                text,
+                &spans,
+                range,
+                edit.range.clone(),
+                decoded,
+                state,
+            ),
             ReplacementValue::Literal(range) => append_fragments(
                 &mut result,
                 text,
@@ -94,6 +112,30 @@ pub(super) fn resolve_fragments<'a>(
     }
     append_fragments(&mut result, text, &spans, cursor..text.len(), None, state);
     result
+}
+
+fn append_encoded_literal<'a>(
+    result: &mut Vec<InlineNode<'a>>,
+    text: &'a str,
+    fragments: &[Fragment<'_, 'a>],
+    range: Range<usize>,
+    original: Range<usize>,
+    decoded: &'static str,
+    state: &ParserState<'a>,
+) {
+    let first = fragments.partition_point(|(span, _)| span.end <= range.start);
+    if fragments
+        .get(first)
+        .is_some_and(|(_, raw)| raw.subs.contains(&Substitution::SpecialChars))
+    {
+        append_fragments(result, text, fragments, range, Some(original.start), state);
+    } else {
+        result.push(InlineNode::RawText(Raw {
+            content: decoded,
+            location: locate(text, fragments, original, state),
+            subs: vec![Substitution::SpecialChars],
+        }));
+    }
 }
 
 fn append_fragments<'a>(

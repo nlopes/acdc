@@ -736,7 +736,7 @@ mod tests {
     }
 
     #[test]
-    fn encoded_passthrough_arrows_reach_rendering_as_complete_tokens()
+    fn encoded_passthrough_arrows_are_resolved_before_rendering()
     -> Result<(), Box<dyn std::error::Error>> {
         for (content, arrow) in [
             ("-&gt;", "→"),
@@ -758,28 +758,10 @@ mod tests {
             let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
                 return Err("expected one paragraph".into());
             };
-            let raw = paragraph
-                .content
-                .iter()
-                .find_map(|node| {
-                    if let InlineNode::RawText(raw) = node {
-                        Some(raw)
-                    } else {
-                        None
-                    }
-                })
-                .ok_or("expected raw arrow content")?;
-            assert_eq!(raw.content, content);
-            assert_eq!(
-                parsed
-                    .source()
-                    .get(raw.location.absolute_start..=raw.location.absolute_end),
-                Some(content),
-            );
             let transform = super::InlineTextTransform::default();
             assert_eq!(
                 transform.to_string(&paragraph.content),
-                format!("α {content} ω")
+                format!("α {arrow} ω")
             );
             let rendered = transform
                 .rendered_replacements(false)
@@ -787,7 +769,7 @@ mod tests {
             assert_eq!(rendered, format!("α {arrow} ω"));
             assert_eq!(
                 transform.to_string(&paragraph.content),
-                format!("α {content} ω")
+                format!("α {arrow} ω")
             );
         }
         Ok(())

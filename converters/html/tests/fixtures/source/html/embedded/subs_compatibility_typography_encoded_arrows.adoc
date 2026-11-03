@@ -1,0 +1,36 @@
+= Encoded arrows
+:tail: gt;
+:left: &lt;-
+
+Authored entities stay literal by default: -&gt; =&gt; &lt;- &lt;=.
+
+α🚀 pass:r[-&gt; =&gt; &lt;- &lt;=].
+
+pass:c,r[-&gt; =&gt; &lt;- &lt;=].
+
+pass:r,c[-&gt; =&gt; &lt;- &lt;=].
+
+pass:r[\-&gt; \=&gt; \&lt;- \&lt;=].
+
+pass:r,c[\-&gt; \&lt;-].
+
+pass:r[&lt;-&gt; &lt;=&gt; &lt;\-&gt; &lt;\=&gt; \&lt;-&gt;].
+
+pass:a,r[-&{tail} {left}].
+
+pass:r,a[-&{tail} {left}].
+
+[subs="replacements"]
+Encoded block: -&gt; =&gt; &lt;- &lt;=.
+
+[subs="replacements,specialchars"]
+----
+Encoded listing: -&gt; =&gt; &lt;- &lt;=.
+----
+
+[subs="specialchars,replacements"]
+----
+Protected listing: -&gt; =&gt; &lt;- &lt;=.
+----
+
+A *pass:r[-&gt;]*, footnote:n[pass:r[&lt;-]] and footnote:n[].

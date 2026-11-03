@@ -33,6 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   across ordinary anchors and index labels. Formatting stays a boundary, and
   index catalog labels keep their registration-time values. Visible index labels
   now expose enabled signs and ellipses consistently to every converter.
+  Encoded arrows such as `pass:r[-&gt;]` also resolve before conversion, including
+  their escapes and shared delimiters. Earlier escaping protects authored
+  references; later escaping retains the semantic arrow rather than Asciidoctor
+  HTML’s generated entity spelling.
 
 - Draft mode keeps block image alt text literal, including single-quoted values,
   and does not register macros from it. Attribute references still expand.

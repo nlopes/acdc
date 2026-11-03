@@ -506,13 +506,103 @@
       "type": "block",
       "inlines": [
         {
-          "name": "text",
+          "name": "raw",
           "type": "string",
-          "value": "-&gt; =&gt; &lt;- &lt;=",
+          "value": "->",
           "location": [
             {
               "line": 11,
               "col": 1
+            },
+            {
+              "line": 11,
+              "col": 5
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " ",
+          "location": [
+            {
+              "line": 11,
+              "col": 6
+            },
+            {
+              "line": 11,
+              "col": 6
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "=>",
+          "location": [
+            {
+              "line": 11,
+              "col": 7
+            },
+            {
+              "line": 11,
+              "col": 11
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " ",
+          "location": [
+            {
+              "line": 11,
+              "col": 12
+            },
+            {
+              "line": 11,
+              "col": 12
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "<-",
+          "location": [
+            {
+              "line": 11,
+              "col": 13
+            },
+            {
+              "line": 11,
+              "col": 17
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " ",
+          "location": [
+            {
+              "line": 11,
+              "col": 18
+            },
+            {
+              "line": 11,
+              "col": 18
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "<=",
+          "location": [
+            {
+              "line": 11,
+              "col": 19
             },
             {
               "line": 11,

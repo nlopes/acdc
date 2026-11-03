@@ -798,6 +798,11 @@ retain the existing compatibility delimiter rules. Unlike Asciidoctor's legacy
 macro stage, acdc also keeps complete labels when replacements are disabled
 or run after macros. This source-based delimiter policy keeps parsing separate
 from conversion under SDR-5; SDR-5 does not specify these exact index rules.
+Authored encoded arrows such as `pass:r[-&gt;]` also resolve to semantic symbols
+when no earlier escaping stage protects their ampersands. Escaped arrows stay
+literal. As with resolved signs, a later escaping stage preserves an arrow's
+Unicode meaning; Asciidoctor HTML instead exposes its generated entity spelling.
+
 The parser resolves word-internal apostrophes and complete word-bounded dash
 pairs using neighboring text around ordinary anchors and index labels. Formatting
 remains a boundary. Later attribute values cannot supply earlier word context,
@@ -822,8 +827,8 @@ SDR-5 policy; SDR-5 does not prescribe these exact typography rules. Formatting
 and link boundaries still separate replacement runs. Passthroughs retain their
 own substitution profiles: their text can supply word context, but replacements
 cannot consume spaces, escapes, or dash halves from another profile. For example,
-`prefix indexterm2:[pass:r[--]] tail` retains `--`; Asciidoctor converts the
-isolated passthrough to a spaced em dash before inserting it.
+`prefix indexterm2:[pass:r[--]] tail` keeps its outside spaces and inserts the
+spaced em dash resolved within the passthrough.
 
 == Nested macros in index labels
 

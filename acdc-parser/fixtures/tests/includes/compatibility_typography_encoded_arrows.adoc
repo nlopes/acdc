@@ -1,0 +1,4 @@
+Excluded.
+    α🚀 *pass:r[-&gt;]* and pass:r[&lt;\-&gt;].
+    More pass:r[&lt;-].
+Excluded tail.

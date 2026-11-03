@@ -1,0 +1,8 @@
+= Encoded arrow contexts
+
+[cols="a"]
+|===
+| Unicode βx pass:r[-&gt; &lt;-] and pass:r[\-&gt;].
+|===
+
+include::includes/compatibility_typography_encoded_arrows.adoc[lines=2..3,indent=0]
