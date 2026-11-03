@@ -181,6 +181,41 @@ fn resolve_raw_with_context<'a>(
     result
 }
 
+/// Return byte lengths of edges that still need outside word context.
+pub(crate) fn pending_word_edges(text: &str) -> (usize, usize) {
+    let prefix_text = text.strip_prefix('\\').unwrap_or(text);
+    let prefix_escape = text.len() - prefix_text.len();
+    let prefix = if prefix_text
+        .strip_prefix('\'')
+        .is_some_and(|tail| tail.is_empty() || tail.chars().next().is_some_and(char::is_alphabetic))
+    {
+        prefix_escape + 1
+    } else if text
+        .strip_prefix("--")
+        .is_some_and(|tail| tail.chars().next().is_some_and(is_word))
+    {
+        2
+    } else {
+        0
+    };
+    let suffix = if let Some(head) = text.strip_suffix('\'') {
+        let word = head.strip_suffix('\\').unwrap_or(head);
+        if word.is_empty() || word.chars().next_back().is_some_and(char::is_alphanumeric) {
+            head.len() - word.len() + 1
+        } else {
+            0
+        }
+    } else if text
+        .strip_suffix("--")
+        .is_some_and(|head| head.chars().next_back().is_some_and(is_word))
+    {
+        2
+    } else {
+        0
+    };
+    (prefix, suffix.min(text.len() - prefix))
+}
+
 fn has_candidate(text: &str) -> bool {
     text.contains("(C)")
         || text.contains("(R)")

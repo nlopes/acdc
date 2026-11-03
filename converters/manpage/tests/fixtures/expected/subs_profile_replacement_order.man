@@ -1,0 +1,131 @@
+'\" t
+.\"     Title: profile-order
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-01-01
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "PROFILE\-ORDER" "1" "2026-01-01" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+profile\-order \- substitution order
+.SH "DESCRIPTION"
+.sp
+Earlier.
+.sp
+Sam\(aqs
+.sp
+Sam\(cqs
+.sp
+Sam\(aqs
+.sp
+Sam\(cqs
+.sp
+(C)
+.sp
+\(co
+.sp
+left\-\-right
+.sp
+left\(emright
+.sp
+Sam\(cqs
+.sp
+Sam\(cqs
+.sp
+ \(em \&
+.sp
+\(co Sam
+.sp
+\(coSam\(aqs
+.sp
+\(aqSam Sam\(cqs
+.sp
+Sam\(aqs and Sam\(cqs
+.sp
+Sam\(aqs
+.sp
+Sam\(cqs
+.sp
+Sam\(aqs
+.sp
+Sam\(aqs
+.sp
+Sam\e\(aqs
+.sp
+\fBSam\(aqs\fR
+.sp
+\fBSam\(cqs\fR
+.sp
+\fBSam\(aqs\fR
+.sp
+\fBSam\(cqs\fR
+.sp
+\fB(C)\fR
+.sp
+\fB\(co\fR
+.sp
+\fBleft\-\-right\fR
+.sp
+\fBleft\(emright\fR
+.sp
+\c
+.URL "target.html" "\(co" "\fR\c"
+
+.sp
+[1]
+.sp
+\fBSam \(co\fR
+.sp
+\fB\c
+.URL "target.html" "\fB\(co" "\fB\c"
+\fR
+.sp
+\(-> Sam
+.sp
+\-> Sam
+.sp
+\(-> Sam
+.sp
+\->
+.sp
+\->
+.sp
+\(->
+.sp
+\-> Sam
+.sp
+\-> Sam]
+.sp
+[2]
+.sp
+[3]
+.sp
+[2] and [3]
+.SH "NOTES"
+.IP [1] 4
+\(co
+.IP [2] 4
+\(co
+.IP [3] 4
+(C)

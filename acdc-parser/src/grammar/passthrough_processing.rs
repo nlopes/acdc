@@ -5,7 +5,7 @@ use std::{mem::take, rc::Rc};
 
 use crate::{
     InlineMacro, InlineNode, LineBreak, Location, ParseInlineResult, Pass, PassthroughKind, Plain,
-    ProcessedContent, Raw, Substitution,
+    ProcessedContent, Raw, Substitution, Symbol, SymbolKind,
     document_attribute::AssignmentState,
     model::substitution::{
         SubstitutionPlan, character_reference_end, escape_attribute_characters,
@@ -23,6 +23,31 @@ use super::{
 };
 
 const QUOTES_THEN_MACROS: &[Substitution] = &[Substitution::Quotes, Substitution::Macros];
+
+// Later formatting and macros parse through resolved symbols without losing
+// their semantic kind or original source range.
+enum TextFragment<'a> {
+    Raw(Raw<'a>),
+    Symbol { text: Raw<'a>, kind: SymbolKind },
+}
+
+impl<'a> TextFragment<'a> {
+    fn as_raw(&self) -> &Raw<'a> {
+        match self {
+            Self::Raw(raw) | Self::Symbol { text: raw, .. } => raw,
+        }
+    }
+
+    fn into_node(self) -> InlineNode<'a> {
+        match self {
+            Self::Raw(raw) => InlineNode::RawText(raw),
+            Self::Symbol { text, kind } => InlineNode::Symbol(Symbol {
+                kind,
+                location: text.location,
+            }),
+        }
+    }
+}
 
 /// Expand an attribute at its grammar position, before later macros register.
 /// Locations stay relative to the placeholder until the normal source map runs.
@@ -213,7 +238,15 @@ fn process_passthrough_stages<'a>(
         Vec::new(),
         state,
     );
-    process_inline_nodes(fragments, &substitutions, state)
+    process_inline_stages(
+        fragments,
+        &substitutions,
+        state,
+        Edges {
+            start: true,
+            end: true,
+        },
+    )
 }
 
 fn process_attribute_fragment<'a>(
@@ -276,23 +309,26 @@ fn passthrough_content_location(
 }
 
 fn process_raw_substitutions<'a>(
-    mut raw: Raw<'a>,
+    raw: Raw<'a>,
     substitutions: &[Substitution],
     state: &ParserState<'a>,
 ) -> Vec<InlineNode<'a>> {
-    let Some((substitution, remaining)) = substitutions.split_first() else {
-        return vec![InlineNode::RawText(raw)];
-    };
+    process_inline_stages(
+        vec![InlineNode::RawText(raw)],
+        substitutions,
+        state,
+        Edges {
+            start: true,
+            end: true,
+        },
+    )
+}
 
-    if let [Substitution::Quotes, Substitution::Macros, remaining @ ..] = substitutions {
-        let parsed = parse_raw_stage(
-            raw,
-            SubstitutionPlan::from_substitutions(QUOTES_THEN_MACROS),
-            state,
-        );
-        return process_inline_nodes(parsed, remaining, state);
-    }
-
+fn apply_raw_substitution<'a>(
+    mut raw: Raw<'a>,
+    substitution: &Substitution,
+    state: &ParserState<'a>,
+) -> Vec<InlineNode<'a>> {
     match substitution {
         Substitution::SpecialChars => {
             if raw.subs.last() == Some(&Substitution::SpecialChars) {
@@ -302,31 +338,25 @@ fn process_raw_substitutions<'a>(
             } else {
                 raw.subs.push(substitution.clone());
             }
-            process_raw_substitutions(raw, remaining, state)
+            vec![InlineNode::RawText(raw)]
         }
         Substitution::Replacements => {
             if let Some(fragments) = restore_raw_character_references(&raw, state) {
-                return process_inline_nodes(fragments, remaining, state);
+                return fragments;
             }
             if !raw.subs.contains(&Substitution::Replacements) {
                 raw.subs.push(substitution.clone());
             }
-            process_raw_substitutions(raw, remaining, state)
+            vec![InlineNode::RawText(raw)]
         }
-        Substitution::Attributes => {
-            process_inline_nodes(expand_raw_attributes(&raw, state), remaining, state)
-        }
+        Substitution::Attributes => expand_raw_attributes(&raw, state),
         Substitution::Quotes | Substitution::Macros | Substitution::PostReplacements => {
-            process_inline_nodes(
-                parse_raw_substitution(raw, substitution, state),
-                remaining,
-                state,
-            )
+            parse_raw_substitution(raw, substitution, state)
         }
         // Inline passthroughs do not support callouts. Group variants were
         // expanded before processing started.
         Substitution::Callouts | Substitution::Normal | Substitution::Verbatim => {
-            process_raw_substitutions(raw, remaining, state)
+            vec![InlineNode::RawText(raw)]
         }
     }
 }
@@ -421,62 +451,126 @@ fn restore_raw_character_references<'a>(
     Some(fragments)
 }
 
-fn process_inline_nodes<'a>(
-    nodes: Vec<InlineNode<'a>>,
-    substitutions: &[Substitution],
+#[derive(Clone, Copy)]
+struct SubstitutionStage<'a> {
+    active: &'a [Substitution],
+    following: &'a [Substitution],
+}
+
+fn process_inline_stages<'a>(
+    mut nodes: Vec<InlineNode<'a>>,
+    mut substitutions: &[Substitution],
     state: &ParserState<'a>,
+    edges: Edges,
 ) -> Vec<InlineNode<'a>> {
-    let Some((substitution, remaining)) = substitutions.split_first() else {
-        return nodes;
-    };
-
-    if matches!(substitution, Substitution::PostReplacements) {
-        let nodes = process_post_replacements(nodes, state);
-        return process_inline_nodes(nodes, remaining, state);
-    }
-
-    if matches!(substitution, Substitution::Quotes | Substitution::Macros) {
-        let (stages, remaining) =
+    while let Some((first, remaining)) = substitutions.split_first() {
+        let (active, following) =
             if let [Substitution::Quotes, Substitution::Macros, remaining @ ..] = substitutions {
                 (QUOTES_THEN_MACROS, remaining)
             } else {
-                (std::slice::from_ref(substitution), remaining)
+                (std::slice::from_ref(first), remaining)
             };
-        let plan = SubstitutionPlan::from_substitutions(stages);
+        nodes = apply_inline_stage(nodes, SubstitutionStage { active, following }, state, edges);
+        substitutions = following;
+    }
+    nodes
+}
+
+fn apply_inline_stage<'a>(
+    nodes: Vec<InlineNode<'a>>,
+    step: SubstitutionStage<'_>,
+    state: &ParserState<'a>,
+    edges: Edges,
+) -> Vec<InlineNode<'a>> {
+    let Some(substitution) = step.active.first() else {
+        return nodes;
+    };
+    if matches!(substitution, Substitution::PostReplacements) {
+        return process_post_replacements(nodes, step, state);
+    }
+    if matches!(substitution, Substitution::Quotes | Substitution::Macros) {
+        let plan = SubstitutionPlan::from_substitutions(step.active);
         let mut result = Vec::with_capacity(nodes.len());
         let mut fragments = Vec::new();
         for mut node in nodes {
             if let InlineNode::RawText(raw) = node {
-                fragments.push(raw);
-            } else {
-                result.extend(parse_raw_fragments(take(&mut fragments), plan, state));
-                process_inline_children(&mut node, stages, state);
-                result.push(node);
+                fragments.push(TextFragment::Raw(raw));
+                continue;
             }
+            if let InlineNode::Symbol(symbol) = node {
+                fragments.push(TextFragment::Symbol {
+                    text: Raw {
+                        content: symbol.kind.text(),
+                        location: symbol.location,
+                        subs: Vec::new(),
+                    },
+                    kind: symbol.kind,
+                });
+                continue;
+            }
+            result.extend(parse_raw_fragments(take(&mut fragments), plan, state));
+            process_inline_children(&mut node, step, state);
+            result.push(node);
         }
         result.extend(parse_raw_fragments(fragments, plan, state));
-        return process_inline_nodes(result, remaining, state);
+        return result;
     }
 
-    // Finish this stage across all fragments before later macros join them.
     let mut result = Vec::with_capacity(nodes.len());
     for mut node in nodes {
         if let InlineNode::RawText(raw) = node {
-            result.extend(process_raw_substitutions(
-                raw,
-                std::slice::from_ref(substitution),
-                state,
-            ));
-            continue;
+            result.extend(apply_raw_substitution(raw, substitution, state));
+        } else {
+            process_inline_children(&mut node, step, state);
+            result.push(node);
         }
-        process_inline_children(&mut node, std::slice::from_ref(substitution), state);
-        result.push(node);
     }
-    process_inline_nodes(result, remaining, state)
+    if *substitution == Substitution::Replacements
+        && !step.following.is_empty()
+        && !state.inline_ctx.rules.contains(InlineRules::INDEX_CATALOG)
+    {
+        finish_replacement_stage(result, state, edges)
+    } else {
+        result
+    }
+}
+
+fn finish_replacement_stage<'a>(
+    nodes: Vec<InlineNode<'a>>,
+    state: &ParserState<'a>,
+    edges: Edges,
+) -> Vec<InlineNode<'a>> {
+    let count = nodes.len();
+    let mut nodes = nodes.into_iter().enumerate().peekable();
+    let mut result = Vec::with_capacity(count);
+    while let Some((first, node)) = nodes.next() {
+        let InlineNode::RawText(raw) = node else {
+            result.push(node);
+            continue;
+        };
+        let mut last = first;
+        let mut fragments = vec![raw];
+        while matches!(nodes.peek(), Some((_, InlineNode::RawText(_)))) {
+            if let Some((index, InlineNode::RawText(raw))) = nodes.next() {
+                last = index;
+                fragments.push(raw);
+            }
+        }
+        result.extend(typography::finish_replacement_stage(
+            fragments,
+            state,
+            Edges {
+                start: edges.start && first == 0,
+                end: edges.end && last + 1 == count,
+            },
+        ));
+    }
+    result
 }
 
 fn process_post_replacements<'a>(
     nodes: Vec<InlineNode<'a>>,
+    step: SubstitutionStage<'_>,
     state: &ParserState<'a>,
 ) -> Vec<InlineNode<'a>> {
     let mut staged = Vec::with_capacity(nodes.len());
@@ -488,7 +582,7 @@ fn process_post_replacements<'a>(
                 state,
             ));
         } else {
-            process_inline_children(&mut node, &[Substitution::PostReplacements], state);
+            process_inline_children(&mut node, step, state);
             staged.push(node);
         }
     }
@@ -613,12 +707,13 @@ fn cross_boundary_hardbreak_location(
 
 fn process_inline_children<'a>(
     node: &mut InlineNode<'a>,
-    substitutions: &[Substitution],
+    step: SubstitutionStage<'_>,
     state: &ParserState<'a>,
 ) {
     macro_rules! process_content {
         ($value:expr) => {
-            $value.content = process_inline_nodes(take(&mut $value.content), substitutions, state)
+            $value.content =
+                apply_inline_stage(take(&mut $value.content), step, state, Edges::default())
         };
     }
 
@@ -633,7 +728,7 @@ fn process_inline_children<'a>(
         InlineNode::CurvedApostropheText(value) => process_content!(value),
         InlineNode::Macro(macro_node) => {
             macro_node.for_each_content_attribute_mut(|nodes| {
-                *nodes = process_inline_nodes(take(nodes), substitutions, state);
+                *nodes = apply_inline_stage(take(nodes), step, state, Edges::default());
             });
             match macro_node {
                 InlineMacro::IndexTerm(value) => {
@@ -641,20 +736,24 @@ fn process_inline_children<'a>(
                         value.catalog = Some(Box::new((**value).clone()));
                     }
                     value.for_each_label_mut(|nodes| {
-                        *nodes = process_inline_nodes(take(nodes), substitutions, state);
+                        *nodes = apply_inline_stage(take(nodes), step, state, Edges::default());
                     });
                 }
                 InlineMacro::Url(value) => {
-                    value.text = process_inline_nodes(take(&mut value.text), substitutions, state);
+                    value.text =
+                        apply_inline_stage(take(&mut value.text), step, state, Edges::default());
                 }
                 InlineMacro::Link(value) => {
-                    value.text = process_inline_nodes(take(&mut value.text), substitutions, state);
+                    value.text =
+                        apply_inline_stage(take(&mut value.text), step, state, Edges::default());
                 }
                 InlineMacro::Mailto(value) => {
-                    value.text = process_inline_nodes(take(&mut value.text), substitutions, state);
+                    value.text =
+                        apply_inline_stage(take(&mut value.text), step, state, Edges::default());
                 }
                 InlineMacro::CrossReference(value) => {
-                    value.text = process_inline_nodes(take(&mut value.text), substitutions, state);
+                    value.text =
+                        apply_inline_stage(take(&mut value.text), step, state, Edges::default());
                 }
                 // Footnotes retain the body captured at the macro stage.
                 InlineMacro::Footnote(_)
@@ -929,20 +1028,26 @@ fn map_stage_locations(node: &mut InlineNode<'_>, raw: &Raw<'_>, state: &ParserS
 // Attribute expansion splits raw text to retain its escaping rules. A later
 // structural stage must still recognize syntax across those fragment boundaries.
 fn parse_raw_fragments<'a>(
-    fragments: Vec<Raw<'a>>,
+    fragments: Vec<TextFragment<'a>>,
     plan: SubstitutionPlan,
     state: &ParserState<'a>,
 ) -> Vec<InlineNode<'a>> {
     if fragments.len() <= 1 {
         return fragments
             .into_iter()
-            .flat_map(|raw| parse_raw_stage(raw, plan, state))
+            .flat_map(|fragment| match fragment {
+                TextFragment::Raw(raw) => parse_raw_stage(raw, plan, state),
+                symbol @ TextFragment::Symbol { .. } => vec![symbol.into_node()],
+            })
             .collect();
     }
-    let text: String = fragments.iter().map(|raw| raw.content).collect();
+    let text: String = fragments
+        .iter()
+        .map(|fragment| fragment.as_raw().content)
+        .collect();
     let text = state.intern_str(&text);
     let Some(mut nodes) = parse_raw_inlines(text, plan, state) else {
-        return fragments.into_iter().map(InlineNode::RawText).collect();
+        return fragments.into_iter().map(TextFragment::into_node).collect();
     };
     for node in &mut nodes {
         convert_plain_to_raw_with_source(node, &[], Some(text));
@@ -950,13 +1055,14 @@ fn parse_raw_fragments<'a>(
     let mut offset = 0;
     let spans: Vec<_> = fragments
         .iter()
-        .map(|raw| {
+        .map(|fragment| {
+            let raw = fragment.as_raw();
             let start = offset;
             offset += raw.content.len();
             (start..offset, raw)
         })
         .collect();
-    let mut nodes = restore_fragment_substitutions(nodes, &spans, text);
+    let mut nodes = restore_fragment_substitutions(nodes, &spans, text, &fragments);
     for node in &mut nodes {
         super::location_walk::walk_inline_locations_mut(node, &mut |location| {
             location.absolute_start =
@@ -1001,6 +1107,7 @@ fn restore_fragment_substitutions<'a>(
     nodes: Vec<InlineNode<'a>>,
     fragments: &[(std::ops::Range<usize>, &Raw<'a>)],
     text: &str,
+    sources: &[TextFragment<'a>],
 ) -> Vec<InlineNode<'a>> {
     let mut result = Vec::with_capacity(nodes.len());
     for mut node in nodes {
@@ -1017,25 +1124,36 @@ fn restore_fragment_substitutions<'a>(
                 .and_then(|source| source.find(raw.content))
                 .map_or(original_start, |offset| original_start + offset);
             let end = start + raw.content.len();
-            for (span, fragment) in fragments {
+            for (index, (span, fragment)) in fragments.iter().enumerate() {
                 let left = start.max(span.start);
                 let right = end.min(span.end);
                 if left < right {
-                    result.push(InlineNode::RawText(Raw {
-                        content: &raw.content[left - start..right - start],
-                        location: Location {
-                            absolute_start: if left == start { original_start } else { left },
-                            absolute_end: step_char(text, right, RoundDirection::Backward),
-                            ..raw.location.clone()
-                        },
-                        subs: fragment.subs.clone(),
-                    }));
+                    if let Some(TextFragment::Symbol { kind, .. }) = sources.get(index) {
+                        result.push(InlineNode::Symbol(Symbol {
+                            kind: *kind,
+                            location: Location {
+                                absolute_start: span.start,
+                                absolute_end: step_char(text, span.end, RoundDirection::Backward),
+                                ..raw.location.clone()
+                            },
+                        }));
+                    } else {
+                        result.push(InlineNode::RawText(Raw {
+                            content: &raw.content[left - start..right - start],
+                            location: Location {
+                                absolute_start: if left == start { original_start } else { left },
+                                absolute_end: step_char(text, right, RoundDirection::Backward),
+                                ..raw.location.clone()
+                            },
+                            subs: fragment.subs.clone(),
+                        }));
+                    }
                 }
             }
             continue;
         }
         for_each_inline_children(&mut node, &mut |children| {
-            *children = restore_fragment_substitutions(take(children), fragments, text);
+            *children = restore_fragment_substitutions(take(children), fragments, text, sources);
         });
         result.push(node);
     }

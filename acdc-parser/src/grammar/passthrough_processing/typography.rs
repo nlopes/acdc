@@ -16,6 +16,79 @@ use super::fragment_offset;
 
 type Fragment<'raw, 'input> = (Range<usize>, &'raw Raw<'input>);
 
+pub(super) fn finish_replacement_stage<'a>(
+    fragments: Vec<Raw<'a>>,
+    state: &ParserState<'a>,
+    edges: Edges,
+) -> Vec<InlineNode<'a>> {
+    let (prefix, suffix, length) = if let [raw] = fragments.as_slice() {
+        let (prefix, suffix) = super::super::inlines::typography::pending_word_edges(raw.content);
+        (prefix, suffix, raw.content.len())
+    } else {
+        let text: String = fragments.iter().map(|raw| raw.content).collect();
+        let (prefix, suffix) = super::super::inlines::typography::pending_word_edges(&text);
+        (prefix, suffix, text.len())
+    };
+    let mut leading = Vec::new();
+    let mut core = Vec::new();
+    let mut trailing = Vec::new();
+    let mut offset = 0;
+    let end = length - suffix;
+    for raw in fragments {
+        let start = offset;
+        offset += raw.content.len();
+        if offset <= prefix {
+            leading.push(raw);
+        } else if start >= end {
+            trailing.push(raw);
+        } else if start >= prefix && offset <= end {
+            core.push(raw);
+        } else {
+            for (range, destination) in [
+                (0..prefix, &mut leading),
+                (prefix..end, &mut core),
+                (end..length, &mut trailing),
+            ] {
+                let begin = start.max(range.start);
+                let stop = offset.min(range.end);
+                if begin < stop {
+                    destination.push(Raw {
+                        content: &raw.content[begin - start..stop - start],
+                        location: super::raw_segment_location(
+                            &raw,
+                            begin - start,
+                            stop - start,
+                            state,
+                        ),
+                        subs: raw.subs.clone(),
+                    });
+                }
+            }
+        }
+    }
+    let mut resolved = resolve_fragments(
+        core,
+        state,
+        Edges {
+            start: edges.start && prefix == 0,
+            end: edges.end && suffix == 0,
+        },
+        false,
+    );
+    for node in &mut resolved {
+        if let InlineNode::RawText(raw) = node {
+            raw.subs
+                .retain(|substitution| *substitution != Substitution::Replacements);
+        }
+    }
+    leading
+        .into_iter()
+        .map(InlineNode::RawText)
+        .chain(resolved)
+        .chain(trailing.into_iter().map(InlineNode::RawText))
+        .collect()
+}
+
 pub(super) fn resolve_fragments<'a>(
     fragments: Vec<Raw<'a>>,
     state: &ParserState<'a>,

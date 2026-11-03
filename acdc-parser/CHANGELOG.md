@@ -317,6 +317,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Inline passthroughs finish replacements before later attributes or macros.
+  In `pass:r,a[...]`, a later value cannot introduce signs, dashes, or apostrophe
+  context for the earlier stage. In `pass:r,m[footnote:n[(C)\]]`, the footnote
+  captures the resolved copyright sign; reversing the stages keeps it literal.
+  Edge punctuation still uses acdc's documented parsed word context.
+
 - Typography around empty passthroughs is available in the parsed tree, with
   each symbol located only in the source text that owns it. Rendered behavior
   follows acdc's existing parsed-context policy in both modes; Asciidoctor keeps

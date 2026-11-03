@@ -1,0 +1,8 @@
+Excluded.
+// tag::selected[]
+    α🚀 pass:r,a[{word}']s
+
+    pass:a,r[{word}']s
+
+    pass:r,a[{mark}] and pass:a,r[{mark}]
+// end::selected[]

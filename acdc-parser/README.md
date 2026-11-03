@@ -177,6 +177,8 @@ word-internal apostrophes before a converter reads the tree.
 Replacement escapes produce protected literal text. Later attribute expansion
 cannot introduce a token, word context, or escape for an earlier replacement stage.
 Raw passthroughs also resolve tokens split across earlier attribute expansions.
+In `pass:r,a[...]`, replacements run before attributes. Later values stay literal
+for that earlier stage; `pass:a,r[...]` permits them to create replacement tokens.
 `pass:r,c[(C)]` keeps the resolved copyright symbol; Asciidoctor instead
 escapes its generated HTML entity. acdc does not put backend markup in the tree.
 

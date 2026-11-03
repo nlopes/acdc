@@ -407,26 +407,11 @@
         {
           "name": "raw",
           "type": "string",
-          "value": "Sam",
+          "value": "Sam'",
           "location": [
             {
               "line": 12,
               "col": 35
-            },
-            {
-              "line": 12,
-              "col": 37
-            }
-          ]
-        },
-        {
-          "name": "raw",
-          "type": "string",
-          "value": "'",
-          "location": [
-            {
-              "line": 12,
-              "col": 38
             },
             {
               "line": 12,
@@ -543,26 +528,11 @@
         {
           "name": "raw",
           "type": "string",
-          "value": "Sam",
+          "value": "Sam'",
           "location": [
             {
               "line": 14,
               "col": 37
-            },
-            {
-              "line": 14,
-              "col": 39
-            }
-          ]
-        },
-        {
-          "name": "raw",
-          "type": "string",
-          "value": "'",
-          "location": [
-            {
-              "line": 14,
-              "col": 40
             },
             {
               "line": 14,
@@ -694,26 +664,11 @@
         {
           "name": "raw",
           "type": "string",
-          "value": "'",
+          "value": "'s",
           "location": [
             {
               "line": 16,
               "col": 47
-            },
-            {
-              "line": 16,
-              "col": 47
-            }
-          ]
-        },
-        {
-          "name": "raw",
-          "type": "string",
-          "value": "s",
-          "location": [
-            {
-              "line": 16,
-              "col": 48
             },
             {
               "line": 16,
@@ -830,26 +785,11 @@
         {
           "name": "raw",
           "type": "string",
-          "value": "--",
+          "value": "--right",
           "location": [
             {
               "line": 18,
               "col": 54
-            },
-            {
-              "line": 18,
-              "col": 55
-            }
-          ]
-        },
-        {
-          "name": "raw",
-          "type": "string",
-          "value": "right",
-          "location": [
-            {
-              "line": 18,
-              "col": 56
             },
             {
               "line": 18,
@@ -951,26 +891,11 @@
         {
           "name": "raw",
           "type": "string",
-          "value": "left",
+          "value": "left--",
           "location": [
             {
               "line": 20,
               "col": 43
-            },
-            {
-              "line": 20,
-              "col": 46
-            }
-          ]
-        },
-        {
-          "name": "raw",
-          "type": "string",
-          "value": "--",
-          "location": [
-            {
-              "line": 20,
-              "col": 47
             },
             {
               "line": 20,
