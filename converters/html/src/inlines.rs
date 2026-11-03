@@ -613,14 +613,13 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         if p.text().is_empty() {
             return Ok(());
         }
-        // Attribute substitution already applied by the inline preprocessor during parsing.
-        let content = p.text();
-        // Escaped text must also bypass typography replacements.
-        let effective_subs: &[Substitution] = if p.is_escaped() { &[] } else { subs };
-
-        // Formatting is already represented by inline nodes. Plain text can
-        // contain literal delimiters introduced after quote substitution.
-        let text = substitution_text(content, effective_subs, options, self.text_boundaries());
+        let text = substitution_text(
+            p.text(),
+            subs,
+            options,
+            self.text_boundaries(),
+            p.is_escaped(),
+        );
         let w = self.writer_mut();
         if options.hardbreaks {
             write!(w, "{}", text.replace('\n', "<br>"))?;
@@ -658,7 +657,13 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             ..options.clone()
         };
 
-        let text = substitution_text(v.text(), subs, &verbatim_options, self.text_boundaries());
+        let text = substitution_text(
+            v.text(),
+            subs,
+            &verbatim_options,
+            self.text_boundaries(),
+            false,
+        );
         write!(self.writer_mut(), "{text}")?;
         Ok(())
     }
@@ -863,7 +868,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             InlineKind::Autolink(al) => self.render_autolink(al, options),
             InlineKind::Link(l) => self.render_link(traversal, l, options, subs),
             InlineKind::Image(i) => self.render_inline_image(traversal, i),
-            InlineKind::Pass(p) => self.render_pass(p, options, subs),
+            InlineKind::Pass(p) => self.render_pass(p),
             InlineKind::Url(u) => self.render_url(traversal, u, options, subs),
             InlineKind::Mailto(m) => self.render_mailto(traversal, m, options, subs),
             InlineKind::Footnote(f) => self.render_footnote(f, options),
@@ -1029,23 +1034,21 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         Ok(())
     }
 
-    fn render_pass(
-        &mut self,
-        p: PassRef<'_>,
-        options: &RenderOptions,
-        subs: &[Substitution],
-    ) -> Result<(), Error> {
+    fn render_pass(&mut self, p: PassRef<'_>) -> Result<(), Error> {
         let Some(text) = p.text() else { return Ok(()) };
-        // Only escape when SpecialChars substitution is enabled (pass:c[]).
-        // Otherwise output raw HTML (pass:[], +++...+++).
-        if p.substitutions()
+        let text = if p
+            .substitutions()
             .any(|sub| sub == Substitution::SpecialChars)
         {
-            let text = substitution_text(text, subs, options, self.text_boundaries());
-            write!(self.writer_mut(), "{text}")?;
+            encode_html_entities(
+                &escape_ampersands(text)
+                    .replace('>', "&gt;")
+                    .replace('<', "&lt;"),
+            )
         } else {
-            write!(self.writer_mut(), "{text}")?;
-        }
+            text.to_owned()
+        };
+        write!(self.writer_mut(), "{text}")?;
         Ok(())
     }
 
@@ -1656,6 +1659,7 @@ fn substitution_text(
     subs: &[Substitution],
     options: &RenderOptions,
     text_boundaries: TextBoundaries,
+    escaped: bool,
 ) -> String {
     debug_assert!(
         !text.is_empty(),
@@ -1673,7 +1677,7 @@ fn substitution_text(
     // Determine if we should apply typography replacements
     // Based on substitutions list, skip for basic mode (passthrough)
     let should_apply_replacements =
-        subs.contains(&Substitution::Replacements) && !options.inlines_basic;
+        subs.contains(&Substitution::Replacements) && !options.inlines_basic && !escaped;
 
     // Strip backslash escapes first (before any other processing)
     // Only needed when replacements are applied (escape sequences only matter for replacements)

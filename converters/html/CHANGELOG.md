@@ -124,6 +124,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Escaped inline formatting in caller-built trees retains HTML character
+  escaping. The AsciiDoc escape flag no longer lets `<`, `>` or bare `&` bypass
+  encoding.
+- `pass:c[]` nodes retained by standalone inline parsing use their own escaping
+  setting and keep replacement syntax literal, regardless of surrounding settings.
+
 - Passthrough blocks and `[pass]` paragraphs now render explicit `subs=` settings
   in the requested order, including footnotes and anchors. With `subs=normal`,
   formatting introduced by a later attribute expansion stays literal, matching

@@ -53,7 +53,7 @@ fn leaf_inputs_can_be_dropped_before_the_visitor() -> Result<(), TestError> {
             let mut macros = 0;
             for node in fragment.inlines() {
                 if let InlineNode::Macro(InlineMacro::Pass(pass)) = node {
-                    visitor.render_pass(pass.into(), &options, &[])?;
+                    visitor.render_pass(pass.into())?;
                     macros += 1;
                 } else if let InlineNode::Macro(InlineMacro::Stem(stem)) = node {
                     visitor.render_stem(&mut traversal, stem.into())?;
@@ -151,10 +151,10 @@ fn retained_pass_skips_absent_and_empty_text_but_propagates_write_errors() -> Re
     for text in [None, Some("")] {
         let mut pass = pass.clone();
         pass.text = text;
-        visitor.render_pass((&pass).into(), &RenderOptions::default(), &[])?;
+        visitor.render_pass((&pass).into())?;
     }
     assert!(matches!(
-        visitor.render_pass(pass.into(), &RenderOptions::default(), &[]),
+        visitor.render_pass(pass.into()),
         Err(Error::Io(_))
     ));
     Ok(())
@@ -375,5 +375,72 @@ fn resolved_symbols_keep_html_encoding_without_reinterpreting_source() -> Result
         assert_eq!(String::from_utf8(visitor.into_writer())?, expected_output);
         assert!(warnings.is_empty(), "{warnings:?}");
     }
+    Ok(())
+}
+
+#[test]
+fn escaped_text_keeps_html_character_escaping() -> Result<(), TestError> {
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        let processor = Rc::new(Processor::new_with_variant(
+            ConverterOptions::default(),
+            Options::builder(),
+            variant,
+        )?);
+        let source = WarningSource::new("html");
+        let mut warnings = Vec::new();
+        let mut visitor = HtmlVisitor::new(
+            Vec::new(),
+            processor,
+            RenderOptions::default(),
+            Diagnostics::new(&source, &mut warnings),
+        );
+        let plain = Plain {
+            content: r"Keep (C) \=> <tag> & raw",
+            escaped: true,
+            location: Location::default(),
+        };
+        visitor.render_plain(
+            (&plain).into(),
+            &RenderOptions::default(),
+            &[
+                Substitution::SpecialChars,
+                Substitution::Quotes,
+                Substitution::Replacements,
+            ],
+        )?;
+        let output = String::from_utf8(visitor.into_writer())?;
+        assert!(output.contains("(C)"), "{output}");
+        assert!(output.contains(r"\=&gt;"), "{output}");
+        assert!(output.contains("&lt;tag&gt;"), "{output}");
+        assert!(output.contains("&amp; raw"), "{output}");
+        assert!(warnings.is_empty(), "{warnings:?}");
+    }
+    Ok(())
+}
+
+#[test]
+fn standalone_pass_uses_its_own_escaping_setting() -> Result<(), TestError> {
+    let processor = Rc::new(Processor::new_with_variant(
+        ConverterOptions::default(),
+        Options::builder(),
+        HtmlVariant::Standard,
+    )?);
+    let source = WarningSource::new("html");
+    let mut warnings = Vec::new();
+    let mut visitor = HtmlVisitor::new(
+        Vec::new(),
+        processor,
+        RenderOptions::default(),
+        Diagnostics::new(&source, &mut warnings),
+    );
+    let fragment = parse_inline("pass:c[<tag> & raw]", &Options::default())?;
+    let node = fragment.inlines().first().ok_or("passthrough")?;
+    let InlineNode::Macro(InlineMacro::Pass(pass)) = node else {
+        return Err("unprocessed pass macro".into());
+    };
+    visitor.render_pass(pass.into())?;
+    let output = String::from_utf8(visitor.into_writer())?;
+    assert!(output.contains("&lt;tag&gt; &amp; raw"), "{output}");
+    assert!(warnings.is_empty(), "{warnings:?}");
     Ok(())
 }
