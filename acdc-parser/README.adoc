@@ -299,6 +299,13 @@ xref labels preserve whitespace; shorthand labels skip leading ASCII whitespace
 and keep trailing and nonbreaking spaces, matching Asciidoctor. An absent or
 empty xref label uses automatic reference text.
 
+Keyboard sequences choose their first plus/comma separator after the first key
+character. A doubled final separator gives a literal key, as in `kbd:[Ctrl++]`.
+Menus use `>` when present, otherwise commas. Nested labels and escaped brackets
+stay inside their owning macro. Empty UI macros and formatted menu targets are
+shared acdc extensions; Asciidoctor can leave them literal or capture adjacent
+macros. UI availability still follows the selected mode and `experimental`.
+
 Draft block attribute lists reject leading and trailing spaces or tabs, including
 whitespace introduced by attribute references. A closing quote must be followed
 by a comma, space, tab, or the end of the list; otherwise the value keeps its

@@ -36,6 +36,7 @@ use crate::{
                 parse_bracket_label, parse_footnote_content, parse_shorthand_label,
                 process_inlines_or_err, registration_source,
             },
+            ui::{parse_keyboard_keys, parse_menu_items},
         },
         state::{InlineRules, InlineUrlBoundary, ParserScope},
     },
@@ -562,32 +563,26 @@ peg::parser! {
 
         rule footnote_match() -> (usize, Option<&'input str>, usize, &'input str, usize)
         = "footnote:"
-        id:id()? "[" content_start:position!() content:footnote_content() "]"
+        id:id()? "[" content_start:position!() content:escaped_balanced_bracket_content() "]"
         {?
             (id.is_some() || !content.is_empty())
                 .then_some((span_start, id, content_start, content, span_end))
                 .ok_or("footnote body or reference id")
         }
 
-        // A closing-bracket escape belongs to the body. Preserve its source bytes
-        // until label parsing removes it, including for registration-time text.
-        rule footnote_content() -> &'input str
-        = content:$(footnote_content_part()*) { content }
+        // Nested brackets and bracket escapes stay in the captured body.
+        // The owning macro consumes its own delimiter escapes.
+        rule escaped_balanced_bracket_content() -> &'input str
+        = content:$(escaped_balanced_bracket_content_part()*) { content }
 
-        rule footnote_content_part()
+        rule escaped_balanced_bracket_content_part()
         = "\\" ['[' | ']']
-        / "[" footnote_content() "]"
+        / "[" escaped_balanced_bracket_content() "]"
         / !("\\" ['[' | ']'] / "[" / "]") [_]
 
-        /// Parse content that may contain balanced square brackets (general case)
-        /// This is used for nested link brackets and button labels
-        rule balanced_bracket_content() -> &'input str
-        = content:$(balanced_bracket_content_part()*) { content }
-
-        /// Individual parts of balanced bracket content - either regular text or nested brackets
-        rule balanced_bracket_content_part() -> Cow<'input, str>
-        = nested_brackets:("[" inner:balanced_bracket_content() "]" { Cow::Owned(format!("[{inner}]")) })
-        / regular_text:$([^('[' | ']')]+) { Cow::Borrowed(regular_text) }
+        // Link attributes balance nested brackets before their own escape decoding.
+        rule balanced_bracket_content()
+        = ("[" balanced_bracket_content() "]" / [^'[' | ']']+)*
 
         /// Parse content within brackets using escape handling (no bracket balancing).
         /// Used for stem macros where `\]` and `\[` are common (math notation).
@@ -796,17 +791,24 @@ peg::parser! {
         / start:position!() "indexterm:" index_term_macro_content() check_index_token(start, 11) {}
         / start:position!() "indexterm2:" index_term_macro_content() check_index_token(start, 12) {}
 
+        pub rule ui_separator_positions() -> Vec<(usize, char)>
+        = positions:(
+            bracket_label_macro_match() { None }
+            / check_macros() cross_reference_shorthand_match() { None }
+            / check_macros() check_index_terms() index_term_match() { None }
+            / "[" escaped_balanced_bracket_content() "]" { None }
+            / "\\" ['[' | ']'] { None }
+            / start:position!() delimiter:$(['+' | ',' | '>']) {
+                delimiter.chars().next().map(|character| (start, character))
+            }
+            / [_] { None }
+        )* { positions.into_iter().flatten().collect() }
+
         rule inline_menu() -> InlineNode<'input>
-        = check_ui_macros() "menu:"
-        target:$([^'[']+)
-        "["
-        items:((start:position!() item:$([^(']' | '>')]+) { (start + item.len() - item.trim_start().len(), item.trim()) }) ** (">" whitespace()?))
-        "]"
+        = check_ui_macros() "menu:" target:$([^'[']+) "[" start:position!() items:escaped_balanced_bracket_content() "]"
         {?
-            let target = parse_content(state, target, span_start + 5, crate::grammar::attributes::AttributeQuote::Unquoted).map_err(|_| "invalid menu target")?;
-            let items = items.into_iter().map(|(start, item)| {
-                parse_content(state, item, start, crate::grammar::attributes::AttributeQuote::Unquoted)
-            }).collect::<Result<Vec<_>, _>>().map_err(|_| "invalid menu item")?;
+            let target = parse_content(state, target, span_start + 5, AttributeQuote::Unquoted).map_err(|_| "invalid menu target")?;
+            let items = parse_menu_items(state, items, start).map_err(|_| "invalid menu items")?;
             Ok(InlineNode::Macro(InlineMacro::Menu(Menu {
                 target,
                 items,
@@ -814,12 +816,12 @@ peg::parser! {
             })))
         }
 
-        /// Match inline menu without consuming - for use in negative lookaheads.
+        /// Match inline menu without consuming.
         rule inline_menu_match()
-        = check_ui_macros() "menu:" [^'[']+ "[" ([^']' | '>']+ (">" whitespace()? [^']' | '>']+)*)? "]"
+        = check_ui_macros() "menu:" [^'[']+ "[" escaped_balanced_bracket_content() "]"
 
         rule inline_button() -> InlineNode<'input>
-        = check_ui_macros() "btn:[" start:position!() label:$balanced_bracket_content() "]"
+        = check_ui_macros() "btn:[" start:position!() label:$escaped_balanced_bracket_content() "]"
         {?
             let start = start + label.len() - label.trim_start().len();
             let label = label.trim();
@@ -832,25 +834,21 @@ peg::parser! {
 
         /// Match inline button without consuming - for use in negative lookaheads.
         rule inline_button_match()
-        = check_ui_macros() "btn:[" balanced_bracket_content() "]"
+        = check_ui_macros() "btn:[" escaped_balanced_bracket_content() "]"
 
         rule inline_keyboard() -> InlineNode<'input>
-        = check_ui_macros() "kbd:["
-        keys:((start:position!() key:$([^(']' | '+' | ',')]+) { (start + key.len() - key.trim_start().len(), key.trim()) }) ** (("," / "+") whitespace()?))
-        "]"
+        = check_ui_macros() "kbd:[" start:position!() source:escaped_balanced_bracket_content() "]"
         {?
-            let keys = keys.into_iter().map(|(start, key)| {
-                parse_content(state, key, start, crate::grammar::attributes::AttributeQuote::Unquoted)
-            }).collect::<Result<Vec<_>, _>>().map_err(|_| "invalid keyboard label")?;
+            let keys = parse_keyboard_keys(state, source, start).map_err(|_| "invalid keyboard labels")?;
             Ok(InlineNode::Macro(InlineMacro::Keyboard(Keyboard {
                 keys,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
             })))
         }
 
-        /// Match inline keyboard without consuming - for use in negative lookaheads.
+        /// Match inline keyboard without consuming.
         rule inline_keyboard_match()
-        = check_ui_macros() "kbd:[" [^']' | '+' | ',']+ (("," / "+") whitespace()? [^']' | '+' | ',']+)* "]"
+        = check_ui_macros() "kbd:[" escaped_balanced_bracket_content() "]"
 
         /// Parse URL macros with attribute handling.
         ///

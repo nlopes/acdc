@@ -281,6 +281,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Keyboard macros recognize plus/comma keys such as `kbd:[Ctrl++]` and
+  `kbd:[Ctrl,,]`, choose one separator per sequence, and preserve nested labels.
+  Menus accept comma-separated items and empty final items. Keyboard, menu,
+  and button labels keep escaped closing brackets inside the enclosing macro.
+  These forms follow Asciidoctor where it recognizes them.
+
 - Cross-reference shorthand removes only leading ASCII whitespace from its
   label, retaining trailing and nonbreaking spaces like Asciidoctor. Label
   locations point to the displayed text after the skipped prefix.

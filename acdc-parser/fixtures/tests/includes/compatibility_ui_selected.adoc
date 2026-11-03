@@ -1,0 +1,7 @@
+Excluded.
+// tag::selected[]
+    kbd:[π++,] and menu:File[Open,Save].
+
+    btn:[Included \] label] and icon:heart[alt='{label}'].
+// end::selected[]
+Excluded tail.

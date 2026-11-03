@@ -1,0 +1,21 @@
+= UI contexts
+:experimental:
+:label: *Before*
+
+btn:[{label}]
+
+include::includes/compatibility_ui_selected.adoc[tag=selected,indent=0]
+
+[cols="a"]
+|===
+|kbd:[π+,] and btn:[Save \] Close].
+
+menu:File[one \] two > Close].
+|===
+
+:label: *After*
+
+btn:[{label}]
+
+[subs="quotes,attributes"]
+kbd:[Ctrl++] and btn:[*Literal*] and menu:File[Open,Save].
