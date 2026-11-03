@@ -1,0 +1,7 @@
+// tag::body[]
+[normal#included]
+  é *Included* footnote:included[Included note].
+
+[quote,Included Author,Included Citation]
+  Included quote *Bold*.
+// end::body[]

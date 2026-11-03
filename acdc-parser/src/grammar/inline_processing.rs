@@ -35,17 +35,33 @@ pub(super) fn process_attribute_inlines_with_substitutions<'a>(
     source: &ResolvedContentAttribute<'a>,
     substitutions: SubstitutionPlan,
 ) -> Result<Vec<InlineNode<'a>>, Error> {
-    let mut child = ParserState::for_inline_parsing(source.text, state, InlineContext::default());
-    child.document_attributes = Rc::clone(&source.attributes);
-    child.warnings = Rc::default();
     let metadata = BlockParsingMetadata {
         substitutions,
         ..BlockParsingMetadata::default()
     };
-    let parsed = process_inlines(&mut child, &metadata, 0, source.text.len(), 0, source.text);
+    process_mapped_inlines(
+        state,
+        source.text,
+        &source.source_map,
+        &metadata,
+        &source.attributes,
+    )
+}
+
+pub(super) fn process_mapped_inlines<'a>(
+    state: &ParserState<'a>,
+    text: &'a str,
+    source_map: &SourceMap,
+    metadata: &BlockParsingMetadata<'a>,
+    attributes: &Rc<crate::DocumentAttributes<'a>>,
+) -> Result<Vec<InlineNode<'a>>, Error> {
+    let mut child = ParserState::for_inline_parsing(text, state, InlineContext::default());
+    child.document_attributes = Rc::clone(attributes);
+    child.warnings = Rc::default();
+    let parsed = process_inlines(&mut child, metadata, 0, text.len(), 0, text);
     for mut warning in std::mem::take(&mut *child.warnings.borrow_mut()) {
         if let Some(location) = &mut warning.location {
-            *location = attribute_source_location(state, source, &location.location)?;
+            *location = mapped_source_location(state, text, source_map, &location.location)?;
         }
         state.add_warning(warning);
     }
@@ -53,7 +69,7 @@ pub(super) fn process_attribute_inlines_with_substitutions<'a>(
         Ok(parsed) => parsed,
         Err(mut error) => {
             if let Error::PegParse(location, _) = &mut error {
-                **location = attribute_source_location(state, source, &location.location)?;
+                **location = mapped_source_location(state, text, source_map, &location.location)?;
             }
             return Err(error);
         }
@@ -62,8 +78,8 @@ pub(super) fn process_attribute_inlines_with_substitutions<'a>(
         super::location_walk::try_walk_inline_locations_mut(
             node,
             &mut |location| -> Result<(), Error> {
-                let start = source.source_map.map_position(location.absolute_start)?;
-                let end = source.source_map.map_end_position(location.absolute_end)?;
+                let start = source_map.map_position(location.absolute_start)?;
+                let end = source_map.map_end_position(location.absolute_end)?;
                 *location = state.create_location(start, end);
                 Ok(())
             },
@@ -79,17 +95,14 @@ pub(super) fn process_attribute_inlines_with_substitutions<'a>(
     Ok(nodes)
 }
 
-fn attribute_source_location(
+fn mapped_source_location(
     state: &ParserState<'_>,
-    source: &ResolvedContentAttribute<'_>,
+    text: &str,
+    source_map: &SourceMap,
     location: &Location,
 ) -> Result<SourceLocation, Error> {
-    let start = source
-        .source_map
-        .map_position(position_offset(source.text, &location.start))?;
-    let end = source
-        .source_map
-        .map_end_position(position_offset(source.text, &location.end))?;
+    let start = source_map.map_position(position_offset(text, &location.start))?;
+    let end = source_map.map_end_position(position_offset(text, &location.end))?;
     Ok(state.create_error_source_location(state.create_location(start, end)))
 }
 

@@ -270,6 +270,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Indented paragraphs honor `normal`, quote, verse, example, sidebar, and
+  admonition styles instead of falling back to literal text. `normal` removes
+  common indentation; explicit verbatim styles preserve it. Draft also accepts
+  `paragraph` as an alias for `normal`; Asciidoctor mode keeps it literal.
+  Implicit literal paragraphs now remove the full common indentation.
+
 - Open blocks honor example, admonition, quote, verse, sidebar, and passthrough
   styles like Asciidoctor. Verbatim, raw, and comment styles preserve slash
   lines and keep the selected content behavior across includes in both modes.

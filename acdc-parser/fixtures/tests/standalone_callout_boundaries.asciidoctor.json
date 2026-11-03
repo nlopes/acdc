@@ -1085,7 +1085,7 @@
                 {
                   "name": "text",
                   "type": "string",
-                  "value": "\t<1> Alpha.\n\t<2> Beta.",
+                  "value": "<1> Alpha.\n<2> Beta.",
                   "location": [
                     {
                       "line": 74,
@@ -1098,6 +1098,9 @@
                   ]
                 }
               ],
+              "metadata": {
+                "style": "literal"
+              },
               "location": [
                 {
                   "line": 74,

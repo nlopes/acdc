@@ -517,6 +517,8 @@ pub(crate) enum ProcessedKind {
     Attribute,
     RawAttribute(Box<[Range<usize>]>),
     Escape,
+    /// Removed leading whitespace maps to the first retained byte.
+    Indentation,
     Passthrough,
 }
 
@@ -673,7 +675,10 @@ impl SourceMap {
             let rep_processed_end = rep_processed_start + replacement_length;
 
             // Position is before this replacement - done adjusting
-            if signed_pos < rep_processed_start || (signed_pos == rep_processed_start && !end_bias)
+            if signed_pos < rep_processed_start
+                || (signed_pos == rep_processed_start
+                    && !end_bias
+                    && rep.kind != ProcessedKind::Indentation)
             {
                 break;
             }
@@ -688,7 +693,7 @@ impl SourceMap {
                         // All inserted characters map to the left-most original position
                         Ok(rep.absolute_start)
                     }
-                    ProcessedKind::Escape => Ok(rep.absolute_start),
+                    ProcessedKind::Escape | ProcessedKind::Indentation => Ok(rep.absolute_start),
                     ProcessedKind::Passthrough => {
                         let mapped_pos = signed_pos - adjustment;
                         if mapped_pos >= rep_end {

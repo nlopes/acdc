@@ -33,7 +33,7 @@ use super::delimited::DelimitedKind;
 #[derive(Clone, Copy, Debug)]
 pub(super) enum AttributeBlockForm<'a> {
     Delimited(DelimitedKind, Option<&'a str>),
-    Paragraph { indented: bool },
+    Paragraph,
     NonParagraph,
     Table,
 }
@@ -613,12 +613,11 @@ pub(super) fn route_block_positions<'a>(
             (metadata.style == Some("source"), false)
         }
         AttributeBlockForm::Delimited(DelimitedKind::Quote, _) => (false, true),
-        AttributeBlockForm::Delimited(DelimitedKind::Open, _)
-        | AttributeBlockForm::Paragraph { indented: false } => (
+        AttributeBlockForm::Delimited(DelimitedKind::Open, _) | AttributeBlockForm::Paragraph => (
             metadata.style == Some("source"),
             matches!(metadata.style, Some("quote" | "verse")),
         ),
-        AttributeBlockForm::Paragraph { indented: true } | AttributeBlockForm::NonParagraph => (
+        AttributeBlockForm::NonParagraph => (
             metadata.style == Some("source"),
             metadata.style == Some("verse"),
         ),

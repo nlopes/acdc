@@ -7,6 +7,7 @@ use crate::{
         document::{
             callouts::resolve_verbatim_callouts,
             delimited::{DelimitedKind, DelimitedParams},
+            paragraph::common_indent,
         },
         helpers::BlockParsingMetadata,
         inline_processing::process_verbatim_inlines,
@@ -134,11 +135,8 @@ pub(super) fn get_literal_paragraph<'input>(
     }
     state.pending_callouts.extend(callouts);
 
-    // Mixed indentation preserves all leading spaces, as in Asciidoctor.
-    let all_lines_have_leading_space = content
-        .lines()
-        .all(|line| line.is_empty() || line.starts_with(' '));
-    if all_lines_have_leading_space {
+    let indent = common_indent(content);
+    if indent != 0 {
         for node in &mut inlines {
             // Parse before dedenting so callouts and nested formatting keep source locations.
             walk_inline_nodes_mut(node, &mut |node| {
@@ -156,7 +154,12 @@ pub(super) fn get_literal_paragraph<'input>(
                         let strip = !first || starts_line;
                         first = false;
                         if strip {
-                            line.strip_prefix(' ').unwrap_or(line)
+                            line.get(..indent)
+                                .filter(|prefix| {
+                                    prefix.bytes().all(|byte| byte == b' ' || byte == b'\t')
+                                })
+                                .and_then(|_| line.get(indent..))
+                                .unwrap_or(line)
                         } else {
                             line
                         }

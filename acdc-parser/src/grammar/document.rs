@@ -7,6 +7,7 @@ mod doctype;
 mod lists;
 mod manpage;
 mod metadata;
+mod paragraph;
 mod peg;
 mod references;
 mod revision;

@@ -38,6 +38,7 @@ use crate::{
                 resolve_block_content_attributes, resolve_title, route_block_positions,
                 route_media_attributes, select_heading_style,
             },
+            paragraph::{indented_style, process_normal_indented},
             references::{
                 ReferenceCatalog, collect_inline_references, collect_metadata_references,
                 collect_references, finalize_inline_semantics, header_reference_title,
@@ -1317,7 +1318,7 @@ peg::parser! {
         / &(media_block_ahead_true() / at_list_item_start() / at_callout_list_item()
             / check_line_is_description_list(offset) / "toc::" / ("<<<" &eol()*<2,2>) / "> "
             / thematic_break_marker()) { AttributeBlockForm::NonParagraph }
-        / indented:&($(whitespace()*)) { AttributeBlockForm::Paragraph { indented: !indented.is_empty() } }
+        / { AttributeBlockForm::Paragraph }
 
         rule media_block_ahead_true()
         = ("image::" / "audio::" / "video::") [^'[' | '\n' | '\r']+ "[" attribute_list_content(BlockAttributeMode::Macro)
@@ -3487,16 +3488,19 @@ peg::parser! {
                 }));
             }
 
-            // Indentation selects literal substitutions before ordinary inline processing.
-            if content.starts_with(' ')
-                && !is_styled_verbatim
-                && block_metadata.metadata.style != Some("verse")
-            {
-                return get_literal_paragraph(state, content, start, content_start, span_end, offset, block_metadata);
-            }
+            let selected_style = if content.starts_with([' ', '\t']) {
+                let Some(style) = indented_style(state.options.compatibility_mode, block_metadata.metadata.style) else {
+                    return get_literal_paragraph(state, content, start, content_start, span_end, offset, block_metadata);
+                };
+                Some(style)
+            } else {
+                block_metadata.metadata.style
+            };
 
             let source_text = content;
-            let content = if is_styled_verbatim {
+            let content = if content.starts_with([' ', '\t']) && selected_style == Some("normal") {
+                process_normal_indented(state, block_metadata, content, content_start + offset)?
+            } else if is_styled_verbatim {
                 let content_location =
                     state.create_block_location(content_start, span_end, offset);
                 let (verbatim_content, callouts) = resolve_verbatim_callouts(
@@ -3572,6 +3576,7 @@ peg::parser! {
             } else {
                 let mut metadata = block_metadata.metadata.clone();
                 metadata.move_positional_attributes_to_attributes();
+                metadata.style = selected_style;
 
                 tracing::debug!(node_count = content.len(), "found paragraph block");
                 Ok(Block::Paragraph(Paragraph {

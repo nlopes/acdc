@@ -136,7 +136,7 @@
 
 #heading(level: 2)[#text("Tab indent")] <id-5f7461625f696e64656e74>
 
-#text(" <1> Alpha. <2> Beta.")
+#raw(block: true, "<1> Alpha.\n<2> Beta.")
 
 #heading(level: 2)[#text("Tab separator")] <id-5f7461625f736570617261746f72>
 
