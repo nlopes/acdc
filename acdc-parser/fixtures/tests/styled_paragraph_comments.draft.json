@@ -818,15 +818,15 @@
             {
               "name": "text",
               "type": "string",
-              "value": "C26 before false conditional",
+              "value": "C26 before false conditional\nC28 end",
               "location": [
                 {
                   "line": 81,
                   "col": 1
                 },
                 {
-                  "line": 81,
-                  "col": 28
+                  "line": 88,
+                  "col": 7
                 }
               ]
             }
@@ -843,8 +843,8 @@
               "col": 1
             },
             {
-              "line": 81,
-              "col": 28
+              "line": 88,
+              "col": 7
             }
           ]
         }
@@ -855,8 +855,8 @@
           "col": 1
         },
         {
-          "line": 81,
-          "col": 28
+          "line": 88,
+          "col": 7
         }
       ]
     }
@@ -867,8 +867,8 @@
       "col": 1
     },
     {
-      "line": 81,
-      "col": 28
+      "line": 88,
+      "col": 7
     }
   ]
 }

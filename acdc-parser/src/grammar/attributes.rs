@@ -401,18 +401,18 @@ fn scan_attributes(
     attributes
 }
 
-pub(super) fn style_overrides_block_form(mode: CompatibilityMode, style: Option<&str>) -> bool {
+pub(crate) fn style_overrides_block_form(mode: CompatibilityMode, style: Option<&str>) -> bool {
     mode == CompatibilityMode::Asciidoctor
         && matches!(style, Some("source" | "listing" | "literal" | "verse"))
 }
 
-// Preprocessing needs only the style to preserve comments in verbatim
-// paragraphs. The caller has already checked the block attribute-line boundary.
-pub(crate) fn verbatim_paragraph_style(
+// Preprocessing uses the selected style without parsing block content.
+// The caller has already checked the block attribute-line boundary.
+pub(crate) fn block_attribute_style(
     source: &str,
     attributes: &DocumentAttributes<'_>,
     mode: CompatibilityMode,
-) -> Option<bool> {
+) -> Option<String> {
     if source.starts_with('[')
         && (mode == CompatibilityMode::Asciidoctor || source.starts_with("[["))
     {
@@ -420,7 +420,7 @@ pub(crate) fn verbatim_paragraph_style(
     }
     let substituted = expand_attribute_list(source, attributes, mode);
     let attributes = scan_block_attribute_list(&substituted.text, mode, BlockAttributeMode::Block);
-    block_list_style(&attributes, mode).map(|style| style_overrides_block_form(mode, Some(style)))
+    block_list_style(&attributes, mode).map(str::to_owned)
 }
 
 pub(super) fn block_attribute_entries(

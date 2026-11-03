@@ -84,6 +84,13 @@ impl DelimitedKind {
         match (self, style) {
             (Self::Open | Self::Literal, Some("source" | "listing")) => Self::Listing,
             (Self::Open | Self::Listing, Some("literal")) => Self::Literal,
+            (
+                Self::Open,
+                Some("example" | "NOTE" | "TIP" | "IMPORTANT" | "CAUTION" | "WARNING"),
+            ) => Self::Example,
+            (Self::Open, Some("quote" | "verse")) => Self::Quote,
+            (Self::Open, Some("sidebar")) => Self::Sidebar,
+            (Self::Open, Some("pass")) => Self::Pass,
             (kind, _) => kind,
         }
     }

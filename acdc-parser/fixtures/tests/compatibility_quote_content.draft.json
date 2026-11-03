@@ -577,7 +577,7 @@
       ]
     },
     {
-      "name": "open",
+      "name": "quote",
       "type": "block",
       "form": "delimited",
       "delimiter": "--",

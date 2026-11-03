@@ -810,9 +810,7 @@ impl Preprocessor {
             self.include_context.block_context.clone(),
             options.compatibility_mode,
         );
-        let mut style_options = (options.compatibility_mode
-            == crate::CompatibilityMode::Asciidoctor
-            && text.contains('{')
+        let mut style_options = (text.contains('{')
             && text
                 .lines()
                 .any(|line| line.starts_with('[') && line.contains('{')))
@@ -1477,11 +1475,11 @@ impl Preprocessor {
         while let Some(line) = lines.next() {
             // Keep raw comment lines and their source coordinates before
             // considering directives or folding attribute continuations.
-            if scanner.preserves_comment_line(line) {
-                if conditional_stack.last().is_none_or(|frame| frame.active) {
-                    out.push_source_line(line, line_number);
-                    scanner.record(line, &options.document_attributes);
-                }
+            if conditional_stack.last().is_none_or(|frame| frame.active)
+                && scanner.preserves_comment_line(line)
+            {
+                out.push_source_line(line, line_number);
+                scanner.record(line, &options.document_attributes);
                 line_number += 1;
                 continue;
             }
@@ -2176,6 +2174,43 @@ endif::inner[]";
         assert_eq!(
             result.text,
             "////\ninclude::missing-comment-file.adoc[]\n////\nVisible"
+        );
+        Ok(())
+    }
+
+    #[rstest::rstest]
+    fn styled_open_contents_survive_fast_and_slow_paths(
+        #[values(crate::CompatibilityMode::Asciidoctor, crate::CompatibilityMode::Draft)]
+        mode: crate::CompatibilityMode,
+        #[values("source,text", "listing", "literal", "verse", "pass", "comment")] style: &str,
+    ) -> Result<(), Error> {
+        let options = Options::builder().with_compatibility_mode(mode).build()?;
+        for source in [
+            format!("[{style}]\n--\nBody\n// visible\n////\nStill body\n////\n--"),
+            format!(":kind: {style}\n\n[{{kind}}]\n--\nBody\n// visible\n--"),
+        ] {
+            let fast = Preprocessor::process(&source, &options, Rc::default())?;
+            assert_eq!(fast.text, source);
+            assert!(matches!(fast.text, Cow::Borrowed(_)));
+            let slow_source = format!("ifndef::missing[]\n{source}\nendif::[]");
+            let slow = Preprocessor::process(&slow_source, &options, Rc::default())?;
+            assert_eq!(slow.text, source);
+            assert!(matches!(slow.text, Cow::Owned(_)));
+        }
+        Ok(())
+    }
+
+    #[rstest::rstest]
+    fn styled_open_comments_ignore_excluded_delimiters(
+        #[values(crate::CompatibilityMode::Asciidoctor, crate::CompatibilityMode::Draft)]
+        mode: crate::CompatibilityMode,
+    ) -> Result<(), Error> {
+        let options = Options::builder().with_compatibility_mode(mode).build()?;
+        let source = "[comment]\nifdef::missing[]\n--\nendif::[]\n--\ninclude::missing-comment-file.adoc[]\n--\nVisible";
+        let result = Preprocessor::process(source, &options, Rc::default())?;
+        assert_eq!(
+            result.text,
+            "[comment]\n--\ninclude::missing-comment-file.adoc[]\n--\nVisible"
         );
         Ok(())
     }

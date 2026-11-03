@@ -270,6 +270,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Open blocks honor example, admonition, quote, verse, sidebar, and passthrough
+  styles like Asciidoctor. Verbatim, raw, and comment styles preserve slash
+  lines and keep the selected content behavior across includes in both modes.
+
 - Delimited listing and literal blocks honor `[literal]`, `[listing]`, and
   `[source,language]` styles like Asciidoctor, including source language and
   explicit `subs=` settings. Original delimiters and source locations stay intact.

@@ -1,0 +1,70 @@
+:word: expanded
+
+.Example title
+[example#example.sample]
+--
+*Example* {word} footnote:example[Example note].
+--
+
+[NOTE]
+--
+*Admonition* footnote:note[Admonition note].
+--
+
+[quote,Author,Citation]
+--
+*Quote* {word}.
+--
+
+[verse,Author,Citation]
+--
+*Verse* {word}.
+// Verse slash line
+////
+Still verse.
+////
+--
+
+[sidebar]
+--
+*Sidebar* {word}.
+
+* First item
+* Second item
+--
+
+[pass]
+--
+<b>raw</b> {word} footnote:raw[Not registered]
+// Raw slash line
+////
+Still raw.
+////
+--
+
+[comment]
+--
+Hidden footnote:hidden[Not registered].
+include::missing-comment-file.adoc[]
+ifdef::missing[]
+////
+Hidden comment.
+////
+--
+
+[source,text]
+--
+Code {word}
+// Source slash line
+--
+
+[literal]
+--
+Literal {word}
+// Literal slash line
+--
+
+[pass,subs=attributes]
+--
+<em>{word}</em>
+--
