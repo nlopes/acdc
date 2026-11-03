@@ -54,12 +54,20 @@ pub(super) fn capture_named<'a>(
     }
 }
 
+fn restricted_substitutions() -> SubstitutionPlan {
+    SubstitutionPlan::from_substitutions(&[
+        Substitution::SpecialChars,
+        Substitution::Quotes,
+        Substitution::Replacements,
+    ])
+}
+
 pub(super) fn capture_block<'a>(
     state: &ParserState<'a>,
     value: ResolvedContentAttribute<'a>,
 ) -> usize {
     let substitutions = match state.options.compatibility_mode {
-        CompatibilityMode::Asciidoctor => SubstitutionPlan::only(&Substitution::Quotes),
+        CompatibilityMode::Asciidoctor => restricted_substitutions(),
         CompatibilityMode::Draft => SubstitutionPlan::default().without(&Substitution::Attributes),
     };
     capture(state, value, Some(substitutions))
@@ -94,7 +102,7 @@ pub(super) fn capture_inline<'a>(
                 attributes: Rc::clone(&state.document_attributes),
             },
         ),
-        Some(SubstitutionPlan::only(&Substitution::Quotes)),
+        Some(restricted_substitutions()),
     )
 }
 
@@ -180,7 +188,7 @@ pub(super) fn capture_macro<'a>(state: &ParserState<'a>, text: &'a str, start: u
                 attributes: Rc::clone(&state.document_attributes),
             },
         ),
-        Some(SubstitutionPlan::only(&Substitution::Quotes)),
+        Some(restricted_substitutions()),
     )
 }
 

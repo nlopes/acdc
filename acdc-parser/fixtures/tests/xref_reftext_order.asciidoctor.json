@@ -817,11 +817,41 @@
           {
             "name": "text",
             "type": "string",
-            "value": "link:https://example.org[Link] (C) <tag>",
+            "value": "link:https://example.org[Link] ",
             "location": [
               {
                 "line": 32,
                 "col": 22
+              },
+              {
+                "line": 32,
+                "col": 52
+              }
+            ]
+          },
+          {
+            "name": "symbol",
+            "type": "string",
+            "value": "©",
+            "location": [
+              {
+                "line": 32,
+                "col": 53
+              },
+              {
+                "line": 32,
+                "col": 55
+              }
+            ]
+          },
+          {
+            "name": "text",
+            "type": "string",
+            "value": " <tag>",
+            "location": [
+              {
+                "line": 32,
+                "col": 56
               },
               {
                 "line": 32,

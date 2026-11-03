@@ -335,6 +335,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Reference labels resolve copyright and trademark signs, punctuation, and
+  escaped tokens in the parser. Asciidoctor-mode labels keep macros literal;
+  Draft's unquoted and double-quoted named `reftext` values remain literal.
+  Render resolved label nodes without applying replacements again.
+
 - Index catalog labels now expose resolved typography and passthrough policies
   in both modes. Catalog punctuation uses the label's own boundaries and
   registration-time substitutions, independently of the displayed prose.

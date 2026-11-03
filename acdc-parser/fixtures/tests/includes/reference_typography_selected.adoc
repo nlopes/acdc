@@ -1,0 +1,5 @@
+Excluded source.
+    [id=included-label,reftext='café {label} (C)']
+    Included body.
+
+Excluded source.

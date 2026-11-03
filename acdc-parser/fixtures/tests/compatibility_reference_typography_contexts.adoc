@@ -1,0 +1,14 @@
+= Reference typography contexts
+:label: Earlier (C)
+
+include::includes/reference_typography_selected.adoc[lines=2..4,indent=0]
+
+:label: Later (R)
+
+[cols="a"]
+|===
+|[id=cell-label,reftext='Cell {label} (TM)']
+Cell body.
+|===
+
+See <<included-label>> and <<cell-label>>.
