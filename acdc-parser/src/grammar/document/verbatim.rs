@@ -60,6 +60,7 @@ fn needs_verbatim_inlines(substitutions: SubstitutionPlan) -> bool {
         Substitution::Quotes,
         Substitution::Attributes,
         Substitution::Macros,
+        Substitution::Replacements,
     ]
     .iter()
     .any(|substitution| substitutions.enabled(substitution))

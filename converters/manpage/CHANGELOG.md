@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Enabled typography resolves consistently in verbatim-only profiles. Generated
+  em-dash padding is omitted at the end of a code block.
+
 - Render parsed copyright and trademark signs, ellipses, and word-internal
   apostrophes while keeping escaped tokens literal. Parsed em dashes retain
   manpage spacing in listing and literal blocks.

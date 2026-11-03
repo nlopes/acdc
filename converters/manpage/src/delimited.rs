@@ -270,12 +270,16 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             InlineKind::Plain(text) => return self.write_verbatim_text(text.text()),
             InlineKind::Verbatim(text) => return self.write_verbatim_text(text.text()),
             InlineKind::Symbol(symbol) => {
-                self.write_verbatim_text(replacements().symbol(symbol.kind()))?;
-                if symbol.kind() == SymbolKind::SpacedEmDash
+                let replacements = replacements();
+                let text = replacements.symbol(symbol.kind());
+                let text = if symbol.kind() == SymbolKind::SpacedEmDash
                     && self.text_boundaries.at_paragraph_end()
                 {
-                    write!(self.writer_mut(), "\\&")?;
-                }
+                    text.strip_suffix(' ').unwrap_or(text)
+                } else {
+                    text
+                };
+                self.write_verbatim_text(text)?;
                 return Ok(());
             }
             InlineKind::Callout(callout) => {

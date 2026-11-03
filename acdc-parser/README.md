@@ -894,8 +894,12 @@ literal `(C)`, including code that enables replacements. Asciidoctor removes
 that escape during assignment and can later render `©` in ordinary prose and
 replacements-enabled code. acdc's behavior follows its source-first policy under
 SDR-5; SDR-5 does not prescribe these custom-list semantics.
-Raw-arrow replacement and some block-level code replacement paths remain
-separate compatibility limits.
+Source arrows in ordinary and verbatim blocks follow the same substitution
+order: `subs="replacements,specialchars"` keeps `->` literal, while
+`subs="specialchars,replacements"` resolves it to `→`. Enabled signs, ellipses,
+apostrophes, and dashes also resolve in verbatim-only profiles. Their Unicode
+meaning survives later escaping; Asciidoctor may instead display its generated
+entity spelling as text. Encoded-arrow interpretation remains a separate limit.
 
 Both modes share the same inline boundary and escape rules. Escaping a complete
 macro keeps its inner formatting literal and prevents it from registering notes or

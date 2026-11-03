@@ -1048,11 +1048,12 @@ Passthrough arrow replacements honor the list order. `pass:c,r[->]` renders
 `→`; `pass:r,c[->]` and `pass:r[->]` retain `->`, matching Asciidoctor.
 An escaped arrow remains literal. Already encoded arrows such as
 `pass:r[-&gt;]` also render as symbols; an earlier `c` stage protects the
-authored reference instead. Ordinary blocks recognize source
-arrows whenever replacements are enabled: `[subs="replacements"]` can render
-`->` as `→` without an escaping stage. Asciidoctor leaves that source arrow
-literal because its replacement pattern requires the escaped angle bracket.
-acdc keeps this existing source-based typography policy independently of SDR-5.
+authored reference instead. Source arrows in ordinary and verbatim blocks follow the same
+order. A listing with `subs="replacements,specialchars"` keeps `->` literal,
+while `subs="specialchars,replacements"` resolves it to `→`. Enabled signs,
+ellipses, apostrophes, and dashes also resolve in verbatim-only profiles.
+Their Unicode meaning is preserved if escaping runs later; Asciidoctor may
+instead display its generated entity spelling as text.
 With `pass:r,c[-&gt;]`, HTML displays the generated numeric entity as text,
 matching Asciidoctor HTML. acdc's non-HTML converters instead retain the Unicode
 arrow, as they do for other converted symbols; Asciidoctor PDF and manpage

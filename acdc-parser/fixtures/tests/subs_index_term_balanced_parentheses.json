@@ -1808,11 +1808,41 @@
         {
           "name": "text",
           "type": "string",
-          "value": "S15 ((Disabled macro (R))) after.",
+          "value": "S15 ((Disabled macro ",
           "location": [
             {
               "line": 48,
               "col": 1
+            },
+            {
+              "line": 48,
+              "col": 21
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "®",
+          "location": [
+            {
+              "line": 48,
+              "col": 22
+            },
+            {
+              "line": 48,
+              "col": 24
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ")) after.",
+          "location": [
+            {
+              "line": 48,
+              "col": 25
             },
             {
               "line": 48,

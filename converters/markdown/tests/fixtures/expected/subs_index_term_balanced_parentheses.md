@@ -48,7 +48,7 @@ S14 Late open (literal after Next14
 ```
 
 ```
-S15 ((Disabled macro (R))) after.
+S15 ((Disabled macro ®)) after.
 ```
 
 S16 [^1] after.

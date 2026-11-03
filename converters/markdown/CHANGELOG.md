@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Replacement-only code profiles now resolve enabled typography even when
+  macros are disabled, matching the parser’s resolved text.
+
 - Source arrows honor their parser substitution order, including monospace
   content and replacement-only passthroughs. `pass:r[->]` stays literal;
   `pass:c,r[->]` produces an arrow.
