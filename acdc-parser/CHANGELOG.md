@@ -281,6 +281,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Keyboard sequences expand ordinary attributes before choosing their keys.
+  Explicit `subs="macros,attributes,..."` freezes keyboard and menu boundaries
+  before those attributes expand. Keyboard passthroughs stay inside one macro.
+
 - Keyboard macros recognize plus/comma keys such as `kbd:[Ctrl++]` and
   `kbd:[Ctrl,,]`, choose one separator per sequence, and preserve nested labels.
   Menus accept comma-separated items and empty final items. Keyboard, menu,

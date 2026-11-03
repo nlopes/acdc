@@ -1,0 +1,31 @@
+= UI substitution order
+:experimental:
+:keys: Ctrl+Alt
+:items: Open > Close
+:protected: pass:q[*Ctrl*+Alt]
+
+kbd:[{keys}] and menu:File[{items}].
+
+[subs="macros,attributes,quotes,replacements"]
+kbd:[{keys}] and menu:File[{items}].
+
+kbd:[{protected}] and menu:File[{protected}].
+
+kbd:[+Literal+] and kbd:[+] and kbd:[Ctrl++].
+
+:keys: Échap,Alt
+:items: Open,Close
+
+kbd:[{keys}] and menu:File[{items}].
+
+[subs="macros,attributes,quotes,replacements"]
+kbd:[{keys}] and menu:File[{items}].
+
+:keys: Ctrl+pass:[a+b]
+
+kbd:[{keys}].
+
+[cols=a]
+|===
+|kbd:[{keys}] and menu:File[{items}].
+|===

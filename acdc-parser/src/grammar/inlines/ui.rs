@@ -7,19 +7,40 @@ use crate::{
     grammar::{ParserState, attributes::AttributeQuote, inline_parser},
 };
 
-use super::attributes::parse_content;
+use super::{
+    attributes::parse_content,
+    index_terms::IndexTermSegment,
+    text::{registration_source, restored_label_offset},
+};
 
 fn delimiter_positions<'a>(
     source: &'a str,
+    start: usize,
     state: &ParserState<'a>,
 ) -> Result<Vec<(usize, char)>, Error> {
+    let (source, ranges) = registration_source(
+        state,
+        IndexTermSegment {
+            text: source,
+            start,
+        },
+    );
     let mut child = ParserState::for_inline_parsing(source, state, state.inline_ctx);
-    inline_parser::ui_separator_positions(source, &mut child).map_err(|_| {
-        Error::Parse(
-            Box::new(state.create_error_source_location(state.create_location(0, 0))),
-            "could not locate UI separators".into(),
-        )
-    })
+    inline_parser::ui_separator_positions(source, &mut child)
+        .map(|positions| {
+            positions
+                .into_iter()
+                .map(|(position, delimiter)| {
+                    (restored_label_offset(position, &ranges, false), delimiter)
+                })
+                .collect()
+        })
+        .map_err(|_| {
+            Error::Parse(
+                Box::new(state.create_error_source_location(state.create_location(start, start))),
+                "could not locate UI separators".into(),
+            )
+        })
 }
 
 fn split_ranges(positions: &[(usize, char)], delimiter: char, end: usize) -> Vec<Range<usize>> {
@@ -68,7 +89,7 @@ pub(super) fn parse_keyboard_keys<'a>(
     }
     let trimmed = source.trim();
     let start = start + source.len() - source.trim_start().len();
-    let positions = delimiter_positions(trimmed, state)?;
+    let positions = delimiter_positions(trimmed, start, state)?;
     let delimiter = positions
         .iter()
         .copied()
@@ -95,7 +116,7 @@ pub(super) fn parse_menu_items<'a>(
     if source.is_empty() {
         return Ok(Vec::new());
     }
-    let positions = delimiter_positions(source, state)?;
+    let positions = delimiter_positions(source, start, state)?;
     let delimiter = if positions.iter().any(|(_, character)| *character == '>') {
         Some('>')
     } else if positions.iter().any(|(_, character)| *character == ',') {

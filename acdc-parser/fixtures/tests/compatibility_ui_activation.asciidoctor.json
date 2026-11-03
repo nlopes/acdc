@@ -42,7 +42,7 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Before: kbd:[{key}+C], btn:[*Save*], menu:File[Open > Recent].",
+          "value": "Before: kbd:[Ctrl+C], btn:[*Save*], menu:File[Open > Recent].",
           "location": [
             {
               "line": 5,

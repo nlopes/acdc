@@ -301,6 +301,10 @@ Menus use `>` when present, otherwise commas. Nested labels and escaped brackets
 stay inside their owning macro. Empty UI macros and formatted menu targets are
 shared acdc extensions; Asciidoctor can leave them literal or capture adjacent
 macros. UI availability still follows the selected mode and `experimental`.
+Ordinary attributes can introduce key and menu separators. When `subs=` puts
+macros before attributes, introduced separators stay inside the existing label.
+Explicit attribute profiles keep their parsed content together as one label;
+acdc preserves this protection where Asciidoctor splits the inserted text.
 
 Draft block attribute lists reject leading and trailing spaces or tabs, including
 whitespace introduced by attribute references. A closing quote must be followed

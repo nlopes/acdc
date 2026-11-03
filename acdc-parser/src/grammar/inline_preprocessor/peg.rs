@@ -117,9 +117,8 @@ peg::parser! {
             }
 
         rule kbd_macro() -> String
-            = text:$("kbd:[" (!"]" [_])* "]") {
-                state.advance(text);
-                text.into()
+            = source:$(kbd_macro_pattern()) {?
+                state.preprocess_keyboard(source, document_attributes)
             }
 
         rule stem_macro() -> String
@@ -342,7 +341,12 @@ peg::parser! {
 
         rule attribute_name_pattern() = ['a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_']+
 
-        rule kbd_macro_pattern() = "kbd:[" (!"]" [_])* "]"
+        rule kbd_macro_pattern() = "kbd:[" keyboard_bracket_content() "]"
+
+        rule keyboard_bracket_content()
+            = ("\\" ['[' | ']']
+                / "[" keyboard_bracket_content() "]"
+                / !("\\" ['[' | ']'] / "[" / "]") [_])*
 
         rule monospace_pattern()
             = ({? (!state.defer_monospace).then_some(()).ok_or("attributes precede quotes") })

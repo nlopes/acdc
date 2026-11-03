@@ -106,6 +106,33 @@ impl<'a> InlinePreprocessorParserState<'a> {
         Self::new(input, line_map, full_input, arena, true, true)
     }
 
+    fn preprocess_keyboard(
+        &self,
+        source: &'a str,
+        document_attributes: &DocumentAttributes<'a>,
+    ) -> Result<String, &'static str> {
+        let body = source
+            .get(5..source.len() - 1)
+            .ok_or("invalid keyboard source")?;
+        let end = self.get_offset() + source.len();
+        self.advance_by(5);
+        // Scope extraction to this body so literal plus keys cannot open a
+        // passthrough across adjacent keyboard macros. Attributes still expand.
+        let saved_input = self.input.replace(body);
+        let saved_start = self.substring_start_offset.replace(self.get_offset());
+        let result = if body.is_empty() {
+            Ok(String::new())
+        } else {
+            inline_preprocessing::content(body, document_attributes, self)
+        };
+        self.input.replace(saved_input);
+        self.substring_start_offset.set(saved_start);
+        self.current_offset.set(end);
+        result
+            .map(|body| format!("kbd:[{body}]"))
+            .map_err(|_| "could not preprocess keyboard content")
+    }
+
     fn preprocess_stem(
         &self,
         source: &'a str,
