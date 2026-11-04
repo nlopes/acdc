@@ -1,4 +1,8 @@
-use acdc_parser::{Block, InlineNode, Options, parse};
+use acdc_parser::{
+    Options,
+    ast::{AnchorRef, BlockKind, BlockRef, InlineKind},
+    parse,
+};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -13,15 +17,20 @@ fn bare_heading_markers_keep_one_paragraph_and_complete_source_spans() -> Result
                     let source =
                         format!("Before.{newline}{marker}{padding}{newline}After.{ending}");
                     let parsed = parse(&source, &Options::default())?;
-                    let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+                    let [BlockKind::Paragraph(paragraph)] = &*parsed
+                        .document_ref()
+                        .blocks()
+                        .map(BlockRef::kind)
+                        .collect::<Vec<_>>()
+                    else {
                         return Err(format!("expected one paragraph: {source:?}").into());
                     };
-                    let span = &paragraph.location;
-                    assert_eq!(span.start.line, 1, "{source:?}");
-                    assert_eq!(span.end.line, 3, "{source:?}");
-                    assert_eq!(span.end.column, 6, "{source:?}");
+                    let span = paragraph.location();
+                    assert_eq!(span.start().line(), 1, "{source:?}");
+                    assert_eq!(span.end().line(), 3, "{source:?}");
+                    assert_eq!(span.end().column(), 6, "{source:?}");
                     assert_eq!(
-                        &parsed.source()[span.absolute_start..=span.absolute_end],
+                        &parsed.source()[span.absolute_start()..=span.absolute_end()],
                         format!("Before.\n{marker}\nAfter."),
                         "{source:?}"
                     );
@@ -40,9 +49,16 @@ fn bare_heading_markers_at_document_edges_are_not_titles() -> Result<(), Error> 
                 for before in ["", "Before.\n"] {
                     let source = format!("{before}{marker}{padding}{ending}");
                     let parsed = parse(&source, &Options::default())?;
-                    assert!(parsed.document().header.is_none(), "{source:?}");
+                    assert!(parsed.document_ref().header().is_none(), "{source:?}");
                     assert!(
-                        matches!(parsed.document().blocks.as_slice(), [Block::Paragraph(_)]),
+                        matches!(
+                            &*parsed
+                                .document_ref()
+                                .blocks()
+                                .map(BlockRef::kind)
+                                .collect::<Vec<_>>(),
+                            [BlockKind::Paragraph(_)]
+                        ),
                         "{source:?}"
                     );
                 }
@@ -57,28 +73,33 @@ fn standalone_hashes_close_multiline_highlights() -> Result<(), Error> {
     for newline in ["\n", "\r\n"] {
         let source = format!("Before ##café{newline}##{newline}after.{newline}");
         let parsed = parse(&source, &Options::default())?;
-        let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+        let [BlockKind::Paragraph(paragraph)] = &*parsed
+            .document_ref()
+            .blocks()
+            .map(BlockRef::kind)
+            .collect::<Vec<_>>()
+        else {
             return Err("expected one paragraph".into());
         };
         let highlight = paragraph
-            .content
-            .iter()
+            .content()
+            .inlines()
             .find_map(|node| {
-                if let InlineNode::HighlightText(text) = node {
+                if let InlineKind::Highlight(text) = node.kind() {
                     Some(text)
                 } else {
                     None
                 }
             })
             .ok_or("missing highlighted span")?;
-        let span = &highlight.location;
+        let span = highlight.location();
         assert_eq!(
-            &parsed.source()[span.absolute_start..=span.absolute_end],
+            &parsed.source()[span.absolute_start()..=span.absolute_end()],
             "##café\n##"
         );
-        assert_eq!(span.start.line, 1);
-        assert_eq!(span.end.line, 2);
-        assert_eq!(span.end.column, 2);
+        assert_eq!(span.start().line(), 1);
+        assert_eq!(span.end().line(), 2);
+        assert_eq!(span.end().column(), 2);
     }
     Ok(())
 }
@@ -93,14 +114,20 @@ fn titled_headings_still_interrupt_paragraphs() -> Result<(), Error> {
                     marker.repeat(depth)
                 );
                 let parsed = parse(&source, &Options::default())?;
-                let [Block::Paragraph(_), Block::Section(section)] =
-                    parsed.document().blocks.as_slice()
+                let [BlockKind::Paragraph(_), BlockKind::Section(section)] = &*parsed
+                    .document_ref()
+                    .blocks()
+                    .map(BlockRef::kind)
+                    .collect::<Vec<_>>()
                 else {
                     return Err(format!("expected a real section: {source:?}").into());
                 };
-                assert_eq!(usize::from(section.level), depth - 1, "{source:?}");
+                assert_eq!(usize::from(section.level()), depth - 1, "{source:?}");
                 assert!(
-                    matches!(section.content.as_slice(), [Block::Paragraph(_)]),
+                    matches!(
+                        &*section.blocks().map(BlockRef::kind).collect::<Vec<_>>(),
+                        [BlockKind::Paragraph(_)]
+                    ),
                     "{source:?}"
                 );
             }
@@ -118,25 +145,25 @@ fn heading_metadata_before_bare_markers_belongs_to_the_paragraph() -> Result<(),
             );
             let parsed = parse(&source, &Options::default())?;
             let [
-                Block::Paragraph(_),
-                Block::Paragraph(paragraph),
-                Block::Section(_),
-            ] = parsed.document().blocks.as_slice()
+                BlockKind::Paragraph(_),
+                BlockKind::Paragraph(paragraph),
+                BlockKind::Section(_),
+            ] = &*parsed
+                .document_ref()
+                .blocks()
+                .map(BlockRef::kind)
+                .collect::<Vec<_>>()
             else {
                 return Err(format!("expected paragraph metadata: {source:?}").into());
             };
-            let mut anchors = paragraph
-                .metadata
-                .id
-                .iter()
-                .chain(&paragraph.metadata.anchors);
+            let mut anchors = paragraph.anchors();
             assert_eq!(
-                anchors.next().map(|anchor| anchor.id),
+                anchors.next().map(AnchorRef::id),
                 Some("literal"),
                 "{source:?}"
             );
             assert!(anchors.next().is_none(), "{source:?}");
-            assert_eq!(parsed.document().footnotes.len(), 1);
+            assert_eq!(parsed.document_ref().footnotes().count(), 1);
         }
     }
     Ok(())
@@ -147,8 +174,12 @@ fn a_title_that_expands_to_empty_is_still_a_heading() -> Result<(), Error> {
     let source = "= Document\n:blank:\n\nBefore.\n== {blank}\n\nBody.\n";
     let parsed = parse(source, &Options::default())?;
     assert!(matches!(
-        parsed.document().blocks.as_slice(),
-        [Block::Paragraph(_), Block::Section(_)]
+        &*parsed
+            .document_ref()
+            .blocks()
+            .map(BlockRef::kind)
+            .collect::<Vec<_>>(),
+        [BlockKind::Paragraph(_), BlockKind::Section(_)]
     ));
     Ok(())
 }

@@ -1,4 +1,8 @@
-use acdc_parser::{Block, InlineMacro, InlineNode, Options, SafeMode, parse, parse_file};
+use acdc_parser::{
+    Options, SafeMode,
+    ast::{BlockKind, InlineKind, TocEntryRef},
+    parse, parse_file,
+};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -14,20 +18,19 @@ fn generated_section_ids_include_preceding_included_sections() -> Result<(), Err
     )?;
     assert_eq!(
         parsed
-            .document()
-            .toc_entries
-            .iter()
-            .map(|entry| entry.id)
+            .document_ref()
+            .toc_entries()
+            .map(TocEntryRef::id)
             .collect::<Vec<_>>(),
         ["_same", "_same_2"]
     );
     let first = parsed
-        .document()
-        .references
+        .document_ref()
+        .references()
         .get("_same")
         .ok_or("missing first section")?;
-    assert_eq!(first.location.start.line, 1);
-    assert_eq!(first.location.end.line, 1);
+    assert_eq!(first.location().start().line(), 1);
+    assert_eq!(first.location().end().line(), 1);
     Ok(())
 }
 
@@ -39,10 +42,9 @@ fn generated_section_ids_include_setext_headings() -> Result<(), Error> {
     )?;
     assert_eq!(
         parsed
-            .document()
-            .toc_entries
-            .iter()
-            .map(|entry| entry.id)
+            .document_ref()
+            .toc_entries()
+            .map(TocEntryRef::id)
             .collect::<Vec<_>>(),
         ["_same", "_same_2"]
     );
@@ -55,20 +57,21 @@ fn generated_section_ids_skip_occupied_suffixes_and_keep_toc_targets() -> Result
         "= T\n\n[[_same_2]]\nReserved.\n\n== Same\n\n== Same\n\n=== Same\n\nSee <<_same_3>> and <<_same_4>>.\n",
         &Options::default(),
     )?;
-    let document = parsed.document();
-    let ids: Vec<_> = document.toc_entries.iter().map(|entry| entry.id).collect();
+    let document = parsed.document_ref();
+    let ids: Vec<_> = document.toc_entries().map(TocEntryRef::id).collect();
     assert_eq!(ids, ["_same", "_same_3", "_same_4"]);
     for id in ids {
-        assert!(document.references.contains_key(id));
+        assert!(document.references().contains(id));
     }
-    let Block::Section(second) = document.blocks.get(2).ok_or("missing section")? else {
+    let BlockKind::Section(second) = document.blocks().nth(2).ok_or("missing section")?.kind()
+    else {
         return Err("expected section".into());
     };
-    assert_eq!(second.id(), "_same_3");
-    let Block::Section(child) = second.content.first().ok_or("missing child")? else {
+    assert_eq!(second.resolve_id(), "_same_3");
+    let BlockKind::Section(child) = second.blocks().next().ok_or("missing child")?.kind() else {
         return Err("expected child section".into());
     };
-    assert_eq!(child.id(), "_same_4");
+    assert_eq!(child.resolve_id(), "_same_4");
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     Ok(())
 }
@@ -79,18 +82,26 @@ fn natural_section_references_follow_unique_ids_after_slug_collisions() -> Resul
         "= T\n\n== Same!\n\n== Same?\n\nSee <<Same!>> and <<Same?>>.\n",
         &Options::default(),
     )?;
-    let Block::Section(section) = parsed.document().blocks.get(1).ok_or("missing section")? else {
+    let BlockKind::Section(section) = parsed
+        .document_ref()
+        .blocks()
+        .nth(1)
+        .ok_or("missing section")?
+        .kind()
+    else {
         return Err("expected section".into());
     };
-    let Block::Paragraph(paragraph) = section.content.first().ok_or("missing paragraph")? else {
+    let BlockKind::Paragraph(paragraph) =
+        section.blocks().next().ok_or("missing paragraph")?.kind()
+    else {
         return Err("expected paragraph".into());
     };
     let targets: Vec<_> = paragraph
-        .content
-        .iter()
+        .content()
+        .inlines()
         .filter_map(|inline| {
-            if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline {
-                Some(xref.target)
+            if let InlineKind::CrossReference(xref) = inline.kind() {
+                Some(xref.target())
             } else {
                 None
             }
@@ -106,16 +117,15 @@ fn generated_section_ids_are_shared_across_asciidoc_table_cells() -> Result<(), 
         "= T\n\n== Same\n\n[cols=\"a\"]\n|===\n|== Same\n\ncell\n|===\n\n== Same\n",
         &Options::default(),
     )?;
-    let document = parsed.document();
+    let document = parsed.document_ref();
     assert_eq!(
         document
-            .toc_entries
-            .iter()
-            .map(|entry| entry.id)
+            .toc_entries()
+            .map(TocEntryRef::id)
             .collect::<Vec<_>>(),
         ["_same", "_same_3"]
     );
-    assert!(document.references.contains_key("_same_2"));
+    assert!(document.references().contains("_same_2"));
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     Ok(())
 }

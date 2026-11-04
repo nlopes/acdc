@@ -1,8 +1,9 @@
 use std::{io::Cursor, path::PathBuf};
 
 use acdc_parser::{
-    Block, InlineNode, Options, ParseResult, SafeMode, Warning, WarningKind, parse,
-    parse_from_reader,
+    Options, ParseResult, SafeMode, Warning, WarningKind,
+    ast::{BlockKind, BlockRef, InlineKind},
+    parse, parse_from_reader,
 };
 
 type Error = Box<dyn std::error::Error>;
@@ -35,10 +36,10 @@ fn toc_header_normalization(#[case] header: &str, #[case] expected: &str) -> Res
     );
     let parsed = parse(&input, &Options::default())?;
     assert_eq!(
-        paragraphs(&parsed.document().blocks),
+        paragraphs(parsed.document_ref().blocks()),
         [format!("{expected}.")]
     );
-    assert!(!parsed.document().attributes.contains_key("toc2"));
+    assert!(!parsed.document_ref().attributes().contains("toc2"));
     Ok(())
 }
 
@@ -62,7 +63,7 @@ fn toc_normalization_preserves_caller_precedence(
         &options,
     )?;
     assert_eq!(
-        paragraphs(&parsed.document().blocks),
+        paragraphs(parsed.document_ref().blocks()),
         [format!("First: {first}."), format!("Last: {last}.")]
     );
     Ok(())
@@ -75,7 +76,7 @@ fn toc_normalization_preserves_caller_unset() -> Result<(), Error> {
         &Options::builder().with_attribute("toc", ()).build()?,
     )?;
     assert_eq!(
-        paragraphs(&parsed.document().blocks),
+        paragraphs(parsed.document_ref().blocks()),
         [
             "First: [{toc}] [{toc-position}] [auto].",
             "Last: [{toc}] [{toc-position}] [auto]."
@@ -91,7 +92,7 @@ fn toc_normalization_stops_at_header_boundary() -> Result<(), Error> {
         &Options::default(),
     )?;
     assert_eq!(
-        paragraphs(&parsed.document().blocks),
+        paragraphs(parsed.document_ref().blocks()),
         ["First.", "[right] [left] [auto] [toc2]."]
     );
     Ok(())
@@ -140,8 +141,8 @@ fn toc2_caller_settings_warn_once_on_each_parse() -> Result<(), Error> {
             assert!(warning.source_location().is_none());
             assert_eq!(
                 parsed
-                    .document()
-                    .attributes
+                    .document_ref()
+                    .attributes()
                     .get("toc-position")
                     .and_then(|value| value.as_str()),
                 Some("left"),
@@ -199,7 +200,7 @@ fn toc2_unset_preserves_caller_locks(
     .build()?;
     let parsed = parse("= T\n:toc2:\n\nBody.\n", &options)?;
     assert_eq!(toc2_warnings(&parsed).count(), expected);
-    assert_eq!(parsed.document().attributes.contains_key("toc"), soft);
+    assert_eq!(parsed.document_ref().attributes().contains("toc"), soft);
     Ok(())
 }
 
@@ -238,22 +239,21 @@ fn toc2_warnings(parsed: &ParseResult) -> impl Iterator<Item = &Warning> {
         .filter(|warning| matches!(warning.kind, WarningKind::DeprecatedToc2Attribute))
 }
 
-fn paragraphs(blocks: &[Block<'_>]) -> Vec<String> {
+fn paragraphs<'doc>(blocks: impl Iterator<Item = BlockRef<'doc>>) -> Vec<String> {
     blocks
-        .iter()
         .filter_map(|block| {
-            let Block::Paragraph(paragraph) = block else {
+            let BlockKind::Paragraph(paragraph) = block.kind() else {
                 return None;
             };
             Some(
                 paragraph
-                    .content
-                    .iter()
+                    .content()
+                    .inlines()
                     .filter_map(|node| {
-                        let InlineNode::PlainText(text) = node else {
+                        let InlineKind::Plain(text) = node.kind() else {
                             return None;
                         };
-                        Some(text.content)
+                        Some(text.text())
                     })
                     .collect(),
             )
