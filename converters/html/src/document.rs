@@ -5,7 +5,7 @@ use acdc_parser::ast::{AuthorRef, DocumentAttributesRef, HeaderRef};
 
 use crate::{
     Error, HtmlVisitor,
-    inlines::{escape_attribute, escape_role},
+    inlines::{escape_attribute, escape_pcdata, escape_role},
 };
 
 impl<W: Write> HtmlVisitor<'_, '_, W> {
@@ -30,12 +30,14 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         for author in header.authors() {
             render_author(author, w)?;
         }
-        let text = InlineTextTransform::default();
-        let title_text = header
-            .title()
-            .map_or_else(String::new, |title| text.content_to_string(title));
+        let text = InlineTextTransform::default()
+            .rendered()
+            .decode_char_refs(true);
+        let title_text = header.title().map_or_else(String::new, |title| {
+            escape_pcdata(&text.content_to_string(title))
+        });
         if let Some(subtitle) = header.subtitle() {
-            let subtitle_text = text.content_to_string(subtitle);
+            let subtitle_text = escape_pcdata(&text.content_to_string(subtitle));
             writeln!(w, "<title>{title_text}: {subtitle_text}</title>")?;
         } else {
             writeln!(w, "<title>{title_text}</title>")?;

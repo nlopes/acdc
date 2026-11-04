@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Document titles and subtitles keep escaped references literal in the HTML head. Literal markup cannot close the title element or introduce head elements.
+
 - Reference characters in source-code link labels now use their display text, including labels taken from referenced headings. Literal escaped references remain unchanged.
 
 - Index occurrence labels and admonition image alternatives use the displayed characters of resolved references.

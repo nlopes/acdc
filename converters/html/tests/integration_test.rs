@@ -3660,3 +3660,38 @@ fn constructed_character_references_render_without_double_escaping() -> Result<(
     }
     Ok(())
 }
+
+#[test]
+fn head_title_keeps_literal_text_inside_the_title_element() -> Result<(), Error> {
+    let source = include_str!("fixtures/source/html/standalone/character_reference_head_text.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            source,
+            &ParserOptions::builder()
+                .with_compatibility_mode(mode)
+                .build()?,
+        )?;
+        for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+            let processor = Processor::new_with_variant(
+                ConverterOptions::default(),
+                ParserOptions::builder().with_compatibility_mode(mode),
+                variant,
+            )?;
+            let mut output = Vec::new();
+            let mut warnings = Vec::new();
+            processor.convert_to_writer(
+                parsed.document(),
+                &mut output,
+                &RenderOptions::default(),
+                &mut Diagnostics::new(&WarningSource::new("html"), &mut warnings),
+            )?;
+            let output = String::from_utf8(output)?;
+            let (head, _) = output.split_once("</head>").ok_or("HTML head")?;
+            assert!(head.contains("<title>Active © and &amp;#169; Bold &lt;/title&gt;&lt;script&gt;probe()&lt;/script&gt;: Sub &amp; and &amp;amp;</title>"), "{head}");
+            assert_eq!(head.matches("</title>").count(), 1);
+            assert!(!head.contains("<script>probe()"));
+            assert!(warnings.is_empty(), "{warnings:?}");
+        }
+    }
+    Ok(())
+}
