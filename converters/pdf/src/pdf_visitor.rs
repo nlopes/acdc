@@ -1970,7 +1970,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         attributes: Option<AttributesRef<'_>>,
     ) -> usize {
         attributes
-            .and_then(|attributes| retained_attribute_text(attributes, "tabsize"))
+            .and_then(|attributes| attribute_text(attributes, "tabsize"))
             .and_then(|value| value.parse().ok())
             .or_else(|| {
                 traversal.get("tabsize").and_then(|value| {
@@ -4547,8 +4547,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 role.push_str(token);
             }
         }
-        let role = acdc_parser::strip_quotes(&role);
-        let state = self.write_inline_span_start(id, (!role.is_empty()).then_some(role));
+        let state = self.write_inline_span_start(id, (!role.is_empty()).then_some(role.as_str()));
         if let Some(text) = text {
             let mut nodes = text.inlines();
             if let Some(node) = nodes.next()
@@ -5188,15 +5187,7 @@ fn has_attribute_token(attributes: Option<AttributesRef<'_>>, name: &str, token:
 }
 
 fn attribute_style(attributes: Option<AttributesRef<'_>>) -> Option<&str> {
-    attributes.and_then(|attributes| retained_attribute_text(attributes, "style"))
-}
-
-fn retained_attribute_text<'doc>(attributes: AttributesRef<'doc>, name: &str) -> Option<&'doc str> {
-    if let Some(AttributeValueRef::Text(value)) = attributes.get(name) {
-        Some(value)
-    } else {
-        None
-    }
+    attributes.and_then(|attributes| attribute_text(attributes, "style"))
 }
 
 pub(super) fn attribute_text<'doc>(
@@ -5204,7 +5195,7 @@ pub(super) fn attribute_text<'doc>(
     name: &str,
 ) -> Option<&'doc str> {
     if let Some(AttributeValueRef::Text(value)) = attributes.get(name) {
-        Some(acdc_parser::strip_quotes(value))
+        Some(value)
     } else {
         None
     }

@@ -14,6 +14,63 @@ use acdc_converters_pdf::{PageLayout, PageMargins, PageSize, PdfOptions, Process
 type Error = Box<dyn std::error::Error>;
 
 #[test]
+fn decoded_media_links_and_asset_names_reach_pdf() -> Result<(), Error> {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/source/decoded_output_controls.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse_file(
+            &path,
+            &Options::builder().with_compatibility_mode(mode).build()?,
+        )?;
+        let processor = cli_fixture_processor(
+            Options::builder()
+                .with_compatibility_mode(mode)
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
+        let mut output = Vec::new();
+        let mut warnings = Vec::new();
+        processor.write_to(
+            parsed.document(),
+            &mut output,
+            Some(&path),
+            None,
+            &mut Diagnostics::new(&WarningSource::new("pdf"), &mut warnings),
+        )?;
+        let [warning] = warnings.as_slice() else {
+            return Err(format!("unexpected warnings: {warnings:?}").into());
+        };
+        assert!(
+            warning
+                .message
+                .starts_with("interactive media playback is unavailable"),
+            "{warnings:?}"
+        );
+        let pdf = PdfDocument::load_mem(&output)?;
+        let mut targets = Vec::new();
+        for page in pdf.get_pages().values() {
+            for annotation in pdf.get_page_annotations(*page)? {
+                if let Ok(action) = annotation.get(b"A").and_then(Object::as_dict)
+                    && let Ok(uri) = action.get(b"URI")
+                {
+                    targets.push(String::from_utf8(uri.as_str()?.to_vec())?);
+                }
+            }
+        }
+        for target in [
+            "'https://example.org/block'",
+            "'https://example.org/icon'",
+            "'https://example.org/inline'",
+        ] {
+            assert!(
+                targets.iter().any(|actual| actual == target),
+                "{mode:?}: {targets:?}"
+            );
+        }
+    }
+    Ok(())
+}
+
+#[test]
 fn caption_families_preserve_text_styles_links_and_numbering() -> Result<(), Error> {
     let source = include_str!("fixtures/source/caption_families.adoc").replace(
         "missing-caption-image.png",

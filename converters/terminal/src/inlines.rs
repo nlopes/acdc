@@ -12,9 +12,8 @@ use acdc_converters_core::{
 use acdc_parser::{
     Substitution,
     ast::{
-        AttributeValueRef, ButtonRef, ContentRef, CrossReferenceRef, IconRef, IndexTermRef,
-        IndexTermRelationshipRef, InlineImageRef, InlineKind, InlineRef, KeyboardRef, LinkRef,
-        RawRef, ReferenceRef,
+        ButtonRef, ContentRef, CrossReferenceRef, IconRef, IndexTermRef, IndexTermRelationshipRef,
+        InlineImageRef, InlineKind, InlineRef, KeyboardRef, LinkRef, RawRef, ReferenceRef,
     },
 };
 
@@ -23,17 +22,10 @@ use crossterm::{
     style::{Attribute, Color, Print, PrintStyledContent, SetAttribute, Stylize},
 };
 
-use crate::{Error, IndexCatalogRelationship, IndexTermEntry, IndexTermLabel, Processor};
-
-fn attribute_text<'doc>(
-    attributes: acdc_parser::ast::AttributesRef<'doc>,
-    name: &str,
-) -> Option<&'doc str> {
-    match attributes.get(name) {
-        Some(AttributeValueRef::Text(value)) => Some(acdc_parser::strip_quotes(value)),
-        _ => None,
-    }
-}
+use crate::{
+    Error, IndexCatalogRelationship, IndexTermEntry, IndexTermLabel, Processor,
+    terminal_visitor::attribute_text,
+};
 
 /// Try to convert a character to its Unicode superscript equivalent.
 /// Only digits and a few reliable symbols are mapped; letters are not included

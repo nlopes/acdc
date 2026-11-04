@@ -195,7 +195,7 @@ fn block_style(attributes: AttributesRef<'_>) -> Option<&str> {
 
 fn attribute_text<'doc>(attributes: AttributesRef<'doc>, name: &str) -> Option<&'doc str> {
     match attributes.get(name) {
-        Some(AttributeValueRef::Text(text)) => Some(acdc_parser::strip_quotes(text)),
+        Some(AttributeValueRef::Text(text)) => Some(text),
         _ => None,
     }
 }

@@ -13,8 +13,8 @@ use acdc_converters_core::{
 use acdc_parser::{
     Substitution, SymbolKind,
     ast::{
-        AttributeValueRef, AutolinkRef, ContentRef, CrossReferenceRef, IconRef, InlineKind,
-        InlineRef, LinkRef, MailtoRef, RawRef, ReferenceRef, TokensRef, UrlRef,
+        AutolinkRef, ContentRef, CrossReferenceRef, IconRef, InlineKind, InlineRef, LinkRef,
+        MailtoRef, RawRef, ReferenceRef, TokensRef, UrlRef,
     },
 };
 
@@ -24,7 +24,7 @@ use crate::{
         EscapeMode, escape_rendered_roff_macro_argument, escape_roff_macro_argument, manify,
         uppercase_title,
     },
-    manpage_visitor::TextCase,
+    manpage_visitor::{TextCase, attribute_text},
 };
 
 pub(crate) fn replacements() -> Replacements<'static> {
@@ -88,7 +88,7 @@ fn role_from_tokens(roles: TokensRef<'_>) -> Option<String> {
         }
         role.push_str(token);
     }
-    Some(acdc_parser::strip_quotes(&role).to_owned())
+    Some(role)
 }
 
 fn has_degraded_role(role: Option<&str>) -> bool {
@@ -621,10 +621,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             traversal,
             icon.alt(),
             &fallback,
-            match icon.attributes().get("link") {
-                Some(AttributeValueRef::Text(link)) => Some(acdc_parser::strip_quotes(link)),
-                _ => None,
-            },
+            attribute_text(icon.attributes(), "link"),
             true,
         )?;
         Ok(())

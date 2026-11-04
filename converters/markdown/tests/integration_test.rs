@@ -18,6 +18,58 @@ mod support;
 type Error = Box<dyn std::error::Error>;
 
 #[test]
+fn decoded_media_links_keep_literal_values_in_markdown() -> Result<(), Error> {
+    let input = include_str!("fixtures/source/decoded_output_controls.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            input,
+            &ParserOptions::builder()
+                .with_compatibility_mode(mode)
+                .build()?,
+        )?;
+        for variant in [MarkdownVariant::GitHubFlavored, MarkdownVariant::CommonMark] {
+            let processor = Processor::new(
+                ConverterOptions::default(),
+                ParserOptions::builder().with_compatibility_mode(mode),
+            )?
+            .with_variant(variant);
+            let mut output = Vec::new();
+            let mut warnings = Vec::new();
+            processor.write_to(
+                parsed.document(),
+                &mut output,
+                None,
+                None,
+                &mut Diagnostics::new(&WarningSource::new("markdown"), &mut warnings),
+            )?;
+            let output = String::from_utf8(output)?;
+            let events = parse_markdown(&output, variant);
+            let links = events
+                .iter()
+                .filter_map(|event| {
+                    if let Event::Start(Tag::Link { dest_url, .. }) = event {
+                        Some(dest_url.as_ref())
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>();
+            for target in [
+                "'https://example.org/block'",
+                "'https://example.org/icon'",
+                "'https://example.org/inline'",
+            ] {
+                assert!(links.contains(&target), "{mode:?} {variant:?}: {output}");
+            }
+            assert!(events.iter().any(|event| matches!(event, Event::Start(Tag::Image { dest_url, .. }) if dest_url.as_ref() == "'literal.svg")), "{output}");
+            assert!(output.contains("width=\"&#39;40&#39;\""), "{output}");
+            assert!(output.contains("height=\"&#39;&#39;\""), "{output}");
+        }
+    }
+    Ok(())
+}
+
+#[test]
 fn literal_caption_markup_stays_text_in_both_markdown_variants() -> Result<(), Error> {
     let input = format!(
         "{}\nExtra <span>literal</span> and &lt;encoded&gt;.\n\npass:[<b>Raw</b>].\n",

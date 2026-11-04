@@ -23,7 +23,7 @@ pub(super) fn attribute_text<'doc>(
     name: &str,
 ) -> Option<&'doc str> {
     match attributes.get(name) {
-        Some(AttributeValueRef::Text(value)) => Some(acdc_parser::strip_quotes(value)),
+        Some(AttributeValueRef::Text(value)) => Some(value),
         _ => None,
     }
 }

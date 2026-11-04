@@ -7,9 +7,7 @@ use acdc_converters_core::{
     media::{resolve_target, with_time_range_from_attributes},
     video::TryUrl,
 };
-use acdc_parser::ast::{
-    AttributeValueRef, AudioRef, ContentRef, ImageRef, InlineImageRef, SourceRef, VideoRef,
-};
+use acdc_parser::ast::{AudioRef, ContentRef, ImageRef, InlineImageRef, SourceRef, VideoRef};
 
 use crate::{
     Error, ManpageVisitor,
@@ -63,10 +61,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             traversal,
             image.alt(),
             &alt,
-            match image.attributes().get("link") {
-                Some(AttributeValueRef::Text(link)) => Some(acdc_parser::strip_quotes(link)),
-                _ => None,
-            },
+            super::manpage_visitor::attribute_text(image.attributes(), "link"),
             true,
         )
     }

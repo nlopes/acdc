@@ -1,0 +1,17 @@
+= Decoded output controls
+:icons: image
+:iconsdir: .
+
+Inline image:inline-image-dimensions.svg[Inline alternative,link="'https://example.org/inline'",width="'40'",height="''"].
+
+.Block alternative
+image::inline-image-dimensions.svg[Block alternative,link="'https://example.org/block'",width="'40'"]
+
+icon:star[alt=Custom icon,icon="'literal.svg",link="'https://example.org/icon'"]
+
+[icon="'literal.svg"]
+NOTE: Custom label image.
+
+link:https://example.org[Quoted role,role="'underline'"] and link:https://example.net[Plain role,role=underline].
+
+video::clip.mp4[poster="'literal.svg"]

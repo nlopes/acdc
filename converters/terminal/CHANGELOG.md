@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Image and icon links retain literal quote characters in both plain-text and OSC 8 output. Image and table controls use their parsed values without removing quotes.
+
 - Image alternatives retain the parser-selected text in fallback output.
 
 ### Fixed

@@ -1404,12 +1404,11 @@ impl<'doc> BlockVisitor<'doc> for PreparationVisitor {
             }
             BlockKind::Video(video) => {
                 collect_optional_preparation(video.title(), traversal, preparation);
-                if let Some(AttributeValueRef::Text(poster)) = video.attributes().get("poster") {
-                    let poster = acdc_parser::strip_quotes(poster);
-                    if !poster.is_empty() && !matches!(poster, "youtube" | "vimeo") {
-                        preparation
-                            .insert_image(resolve_target(poster, traversal), video.location());
-                    }
+                if let Some(AttributeValueRef::Text(poster)) = video.attributes().get("poster")
+                    && !poster.is_empty()
+                    && !matches!(poster, "youtube" | "vimeo")
+                {
+                    preparation.insert_image(resolve_target(poster, traversal), video.location());
                 }
             }
             BlockKind::Example(_)
@@ -1577,19 +1576,17 @@ fn collect_admonition_preparation(
     preparation.needs_admonition_label_helper |= admonition.caption_content().is_some();
     if IconMode::from_attributes(attributes) != IconMode::Text
         && let Some(AttributeValueRef::Text(icon)) = admonition.attributes().get("icon")
+        && !icon.is_empty()
     {
-        let icon = acdc_parser::strip_quotes(icon);
-        if !icon.is_empty() {
-            preparation.needs_admonition_label_helper = true;
-            preparation.insert_named_image_icon(
-                admonition_icon_source(attributes, icon),
-                icon.to_owned(),
-                admonition
-                    .attributes()
-                    .location()
-                    .unwrap_or_else(|| admonition.location()),
-            );
-        }
+        preparation.needs_admonition_label_helper = true;
+        preparation.insert_named_image_icon(
+            admonition_icon_source(attributes, icon),
+            icon.to_owned(),
+            admonition
+                .attributes()
+                .location()
+                .unwrap_or_else(|| admonition.location()),
+        );
     }
     collect_optional_preparation(admonition.title(), attributes, preparation);
 }
@@ -1681,10 +1678,7 @@ fn collect_inline_preparation(
                     let source = if let Some(AttributeValueRef::Text(value)) =
                         icon.attributes().get("icon")
                     {
-                        acdc_converters_core::icon::custom_image_source(
-                            attributes,
-                            acdc_parser::strip_quotes(value),
-                        )
+                        acdc_converters_core::icon::custom_image_source(attributes, value)
                     } else {
                         icon_image_source(attributes, icon.target())
                     };
