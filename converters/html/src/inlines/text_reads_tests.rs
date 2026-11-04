@@ -62,7 +62,10 @@ fn leaf_inputs_can_be_dropped_before_the_visitor() -> Result<(), TestError> {
                     visitor.render_autolink(link.into(), &options)?;
                     macros += 1;
                 } else if let InlineNode::Macro(InlineMacro::Footnote(note)) = node {
-                    visitor.render_footnote(note.into(), &options)?;
+                    // Caller-created footnotes can use IDs outside the source grammar.
+                    let mut note = note.clone();
+                    note.id = Some("temporary\"note");
+                    visitor.render_footnote((&note).into(), &options)?;
                     macros += 1;
                 }
             }
@@ -71,6 +74,12 @@ fn leaf_inputs_can_be_dropped_before_the_visitor() -> Result<(), TestError> {
         let output = String::from_utf8(visitor.into_writer())?;
         assert!(output.contains("temporary-pass"), "{output}");
         assert!(output.contains("x &lt; y"), "{output}");
+        if variant == HtmlVariant::Standard {
+            assert!(
+                output.contains("id=\"_footnote_temporary&quot;note\""),
+                "{output}"
+            );
+        }
         assert!(warnings.is_empty(), "{warnings:?}");
     }
     Ok(())

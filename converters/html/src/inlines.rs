@@ -96,9 +96,9 @@ fn passthrough_substitution_text(raw: RawRef<'_>, text_boundaries: TextBoundarie
     }
 }
 
-/// Escape `&` to `&amp;` in URL strings for use in HTML.
+/// Escape a URL for a quoted HTML attribute.
 pub(crate) fn escape_href(url: &str) -> String {
-    url.replace('&', "&amp;")
+    escape_attribute(url)
 }
 
 /// Escape literal text for HTML character data.
@@ -115,6 +115,14 @@ pub(crate) fn escape_pcdata(text: &str) -> String {
 /// Escape literal text for a double-quoted HTML attribute value.
 pub(crate) fn escape_attribute(text: &str) -> String {
     escape_pcdata(text).replace('"', "&quot;")
+}
+
+fn escape_role(role: &str) -> String {
+    // Roles retain source entity references, including an authored &amp;.
+    escape_ampersands(role)
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
 }
 
 fn raw_fragment_placeholder(index: usize) -> String {
@@ -136,7 +144,7 @@ fn link_class_attr(roles: TokensRef<'_>, bare: bool) -> String {
         role.push_str(token);
     }
     let role = strip_quotes(&role);
-    let role = (!role.is_empty()).then_some(role);
+    let role = (!role.is_empty()).then(|| escape_role(role));
     match (bare, role) {
         (true, Some(role)) => format!(" class=\"bare {role}\""),
         (true, None) => " class=\"bare\"".to_string(),
@@ -147,7 +155,7 @@ fn link_class_attr(roles: TokensRef<'_>, bare: bool) -> String {
 
 fn link_id_attr(id: Option<ElementIdRef<'_>>) -> String {
     id.map_or_else(String::new, |id| {
-        format!(" id=\"{}\"", strip_quotes(id.as_str()))
+        format!(" id=\"{}\"", escape_attribute(strip_quotes(id.as_str())))
     })
 }
 
@@ -192,14 +200,7 @@ fn write_tag_with_attrs<W: Write + ?Sized>(
     id: Option<&str>,
     role: Option<&str>,
 ) -> io::Result<()> {
-    // Roles retain source entity references; escape the quoted attribute without
-    // turning an authored &amp; into a literal entity name.
-    let role = role.map(|role| {
-        escape_ampersands(role)
-            .replace('<', "&lt;")
-            .replace('>', "&gt;")
-            .replace('"', "&quot;")
-    });
+    let role = role.map(escape_role);
     match (id.map(escape_attribute), role) {
         (Some(id), Some(role)) => write!(writer, "<{tag} id=\"{id}\" class=\"{role}\">"),
         (Some(id), None) => write!(writer, "<{tag} id=\"{id}\">"),
@@ -473,7 +474,11 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
-        write!(self.writer_mut(), "<a id=\"{}\"></a>", anchor.id())?;
+        write!(
+            self.writer_mut(),
+            "<a id=\"{}\"></a>",
+            escape_attribute(anchor.id())
+        )?;
         if !anchor.is_bibliography() {
             return Ok(());
         }
@@ -1116,7 +1121,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
         write!(w, "<sup class=\"{sup_class}\"")?;
         if !is_ref && let Some(id) = f.id() {
-            write!(w, " id=\"_footnote_{id}\"")?;
+            write!(w, " id=\"_footnote_{}\"", escape_attribute(id))?;
         }
         if is_ref {
             write!(
@@ -1219,7 +1224,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 |visitor: &mut Self| visitor.render_xref_display(traversal, display, options, subs);
             return if linked {
                 self.with_inline_link(
-                    InlineLink::new(format!("#{target}"), String::new(), class),
+                    InlineLink::new(escape_href(&format!("#{target}")), String::new(), class),
                     render,
                 )
             } else {
@@ -1239,7 +1244,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         {
             escape_href(&external_target)
         } else {
-            format!("#{target}")
+            escape_href(&format!("#{target}"))
         };
         self.with_inline_link(InlineLink::new(href, String::new(), class), |visitor| {
             for inline in xref.text().inlines() {

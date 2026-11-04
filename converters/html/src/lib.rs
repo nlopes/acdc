@@ -950,7 +950,7 @@ fn capture_code_inlines<'a, W: std::io::Write>(
                         let start = offset + term_offset;
                         links.push(syntax::HighlightedLink {
                             range: start..start,
-                            html: format!("<a id=\"{id}\"></a>"),
+                            html: format!("<a id=\"{}\"></a>", inlines::escape_attribute(&id)),
                             outside_spans: false,
                         });
                     }

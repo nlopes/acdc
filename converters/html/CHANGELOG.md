@@ -124,6 +124,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Escape quotes and markup in inline anchor IDs, hyperlink IDs and roles,
+  footnote IDs, and cross-reference destinations in both HTML variants. Authored
+  attribute values can no longer create extra HTML elements or attributes.
+
 - Bibliography entries now render explicitly empty labels as `[]` in both HTML
   variants instead of literal anchor syntax. Whitespace-only labels and citations
   follow Asciidoctor's leading-space rules. acdc keeps the closing bracket that
