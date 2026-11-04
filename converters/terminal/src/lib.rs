@@ -10,10 +10,10 @@ use acdc_converters_core::{
     BackendProfile, Converter, Diagnostics, InlineTextTransform, Options, TraversalContext,
     section::contains_index_section, visitor::DocumentVisitor, xref::XrefGuard,
 };
-#[cfg(any(test, feature = "emulator"))]
-use acdc_parser::DocumentAttributes;
-use acdc_parser::ast::{AttributesRef, CaptionRef, ContentRef, DocumentRef};
-use acdc_parser::{CaptionKind, Document, Options as ParserOptions, Reference};
+use acdc_parser::{
+    CaptionKind, DocumentAttributes, Options as ParserOptions, Reference,
+    ast::{AttributesRef, CaptionRef, ContentRef, DocumentRef},
+};
 
 pub(crate) use appearance::Appearance;
 
@@ -167,7 +167,7 @@ impl<'a> Converter<'a> for Processor<'a> {
     fn derive_output_path(
         &self,
         _input: &Path,
-        _doc: &Document<'_>,
+        _doc: DocumentRef<'_>,
     ) -> Result<Option<PathBuf>, Error> {
         // Terminal converter always outputs to stdout by default
         Ok(None)
@@ -175,14 +175,14 @@ impl<'a> Converter<'a> for Processor<'a> {
 
     fn write_to<W: Write>(
         &self,
-        doc: &Document<'_>,
+        doc: DocumentRef<'_>,
         writer: W,
         _source_file: Option<&Path>,
         _output_path: Option<&Path>,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Self::Error> {
         // Per-conversion processor borrows from `doc`; lifetime independent of `self`.
-        let document = DocumentRef::from(doc);
+        let document = doc;
         let processor = Processor {
             parser_options: ParserOptions::default()
                 .with_document_attributes(document.attributes().into()),
@@ -319,13 +319,17 @@ impl Processor<'_> {
 /// Returns an error if terminal conversion or writing fails.
 pub fn render_document_to_ansi(
     options: Options,
-    doc: &Document<'_>,
+    doc: DocumentRef<'_>,
     width: usize,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Result<Vec<u8>, Error> {
     let processor = Processor::new(
         options,
-        ParserOptions::builder().with_attributes(doc.attributes.to_static().into_inputs()),
+        ParserOptions::builder().with_attributes(
+            DocumentAttributes::from(doc.attributes())
+                .to_static()
+                .into_inputs(),
+        ),
     )?
     .with_terminal_width(width);
     let mut output = Vec::new();
@@ -426,7 +430,13 @@ mod backend_tests {
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         let mut output = Vec::new();
 
-        processor.write_to(parsed.document(), &mut output, None, None, &mut diagnostics)?;
+        processor.write_to(
+            parsed.document_ref(),
+            &mut output,
+            None,
+            None,
+            &mut diagnostics,
+        )?;
 
         let terminal = String::from_utf8(output)?;
         assert!(terminal.contains("images/header/before.png"));
@@ -450,7 +460,13 @@ mod backend_tests {
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         let mut output = Vec::new();
 
-        processor.write_to(parsed.document(), &mut output, None, None, &mut diagnostics)?;
+        processor.write_to(
+            parsed.document_ref(),
+            &mut output,
+            None,
+            None,
+            &mut diagnostics,
+        )?;
 
         let terminal = String::from_utf8(output)?;
         assert!(terminal.contains("[Run]"), "{terminal:?}");

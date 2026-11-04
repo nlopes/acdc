@@ -17,7 +17,7 @@
 //!     "= cmd(1)\n\n== Name\n\ncmd - run a command\n",
 //!     processor.parser_options(),
 //! )?;
-//! processor.convert(parsed.document(), Some(Path::new("cmd.adoc")))?;
+//! processor.convert(parsed.document_ref(), Some(Path::new("cmd.adoc")))?;
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!
@@ -46,7 +46,7 @@ use acdc_converters_core::{
 };
 
 use acdc_parser::{
-    AttributeValue, Document, DocumentAttributes, Options as ParserOptions, Reference,
+    AttributeValue, DocumentAttributes, Options as ParserOptions, Reference,
     ast::{DocumentRef, TocEntryRef},
 };
 
@@ -114,12 +114,12 @@ impl Processor<'_> {
     /// Returns an error if conversion or writing fails.
     pub fn write_document<W: Write>(
         &self,
-        doc: &Document<'_>,
+        doc: DocumentRef<'_>,
         writer: W,
         source_file: Option<&Path>,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Error> {
-        let document = DocumentRef::from(doc);
+        let document = doc;
         let mut attrs: DocumentAttributes<'_> = document.attributes().into();
 
         if attrs.get("revdate").is_none()
@@ -136,7 +136,7 @@ impl Processor<'_> {
         let processor: Processor<'_> = Processor {
             options: self.options.clone(),
             parser_options: ParserOptions::default().with_document_attributes(attrs),
-            references: Rc::new(doc.references.clone()),
+            references: Rc::new(doc.references().into()),
             xref_guard: XrefGuard::default(),
             top_level_section_ids: Rc::new(
                 document
@@ -156,12 +156,10 @@ impl Processor<'_> {
     }
 
     /// Determine the output file extension based on the volume number.
-    fn output_extension(doc: &Document<'_>) -> String {
+    fn output_extension(doc: DocumentRef<'_>) -> String {
         // Read manvolnum from document attributes (set by parser)
-        acdc_converters_core::document_attribute_text(
-            DocumentRef::from(doc).attributes().get("manvolnum"),
-        )
-        .map_or_else(|| String::from("1"), str::to_owned)
+        acdc_converters_core::document_attribute_text(doc.attributes().get("manvolnum"))
+            .map_or_else(|| String::from("1"), str::to_owned)
     }
 }
 
@@ -214,7 +212,7 @@ impl<'a> Converter<'a> for Processor<'a> {
     fn derive_output_path(
         &self,
         input: &Path,
-        doc: &Document<'_>,
+        doc: DocumentRef<'_>,
     ) -> Result<Option<PathBuf>, Error> {
         let extension = Self::output_extension(doc);
         let manpage_path = input.with_extension(&extension);
@@ -227,7 +225,7 @@ impl<'a> Converter<'a> for Processor<'a> {
 
     fn write_to<W: Write>(
         &self,
-        doc: &Document<'_>,
+        doc: DocumentRef<'_>,
         writer: W,
         source_file: Option<&Path>,
         _output_path: Option<&Path>,
@@ -302,7 +300,13 @@ mod tests {
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         let mut output = Vec::new();
 
-        processor.write_to(parsed.document(), &mut output, None, None, &mut diagnostics)?;
+        processor.write_to(
+            parsed.document_ref(),
+            &mut output,
+            None,
+            None,
+            &mut diagnostics,
+        )?;
 
         let manpage = String::from_utf8(output)?;
         assert!(manpage.contains("images/header/before.mp3"));

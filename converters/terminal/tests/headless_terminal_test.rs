@@ -118,7 +118,7 @@ fn render_to_grid(asciidoc: &str, cols: u16, rows: u16) -> Result<RenderedGrid, 
     let source = acdc_converters_core::WarningSource::new("terminal");
     let mut warnings = Vec::new();
     let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+    processor.write_to(doc.into(), &mut output, None, None, &mut diagnostics)?;
 
     let mut terminal = Terminal::new(cols, rows)?;
     terminal.set_scrollback_max_bytes(Some(0))?;

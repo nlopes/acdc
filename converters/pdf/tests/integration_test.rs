@@ -30,7 +30,7 @@ fn decoded_media_links_and_asset_names_reach_pdf() -> Result<(), Error> {
         let mut output = Vec::new();
         let mut warnings = Vec::new();
         processor.write_to(
-            parsed.document(),
+            parsed.document_ref(),
             &mut output,
             Some(&path),
             None,
@@ -93,7 +93,7 @@ fn caption_families_preserve_text_styles_links_and_numbering() -> Result<(), Err
         let mut warnings = Vec::new();
         let source = WarningSource::new("pdf");
         processor.write_to(
-            parsed.document(),
+            parsed.document_ref(),
             &mut output,
             None,
             None,
@@ -259,7 +259,7 @@ fn unresolved_tables_preserve_body_and_nested_cell_decoration() -> Result<(), Er
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         processor.write_to(
-            document,
+            document.into(),
             &mut Vec::new(),
             None,
             None,
@@ -303,7 +303,7 @@ fn theme_config_export_rejects_library_input_and_output_collisions() -> Result<(
         let mut warnings = Vec::new();
         let mut bytes = Vec::new();
         let result = processor.write_to(
-            parsed.document(),
+            parsed.document_ref(),
             &mut bytes,
             Some(&input),
             Some(&pdf),
@@ -338,7 +338,7 @@ fn theme_config_export_rejects_library_collisions_before_opening_pdf() -> Result
         });
     assert!(
         processor
-            .convert_to_file(parsed.document(), None, &pdf)
+            .convert_to_file(parsed.document_ref(), None, &pdf)
             .is_err()
     );
     assert_eq!(std::fs::read_to_string(pdf)?, "original PDF");
@@ -350,7 +350,7 @@ fn theme_config_export_rejects_library_collisions_before_opening_pdf() -> Result
     });
     assert!(
         processor
-            .convert_to_file(parsed.document(), None, &pdf)
+            .convert_to_file(parsed.document_ref(), None, &pdf)
             .is_err()
     );
     assert!(!pdf.exists());
@@ -372,7 +372,7 @@ fn theme_config_export_library_conversion_writes_pdf_and_native_theme() -> Resul
             emit_theme_config: Some(config.clone()),
             ..PdfOptions::default()
         });
-    processor.convert_to_file(parsed.document(), Some(&input), &pdf)?;
+    processor.convert_to_file(parsed.document_ref(), Some(&input), &pdf)?;
     assert!(std::fs::read(pdf)?.starts_with(b"%PDF-"));
     assert_eq!(std::fs::read_to_string(input)?, input_text);
     assert_eq!(
@@ -398,7 +398,7 @@ fn theme_config_export_rejects_library_symlink_collisions() -> Result<(), Error>
         });
     assert!(
         processor
-            .convert_to_file(parsed.document(), None, &pdf)
+            .convert_to_file(parsed.document_ref(), None, &pdf)
             .is_err()
     );
     assert_eq!(std::fs::read_to_string(pdf)?, "original PDF");
@@ -428,7 +428,7 @@ fn asciidoctor_theme_heading_sizes_apply_to_pdf_section_levels() -> Result<(), E
     let mut warnings = Vec::new();
     let mut bytes = Vec::new();
     processor.write_to(
-        parsed.document(),
+        parsed.document_ref(),
         &mut bytes,
         None,
         None,
@@ -481,7 +481,7 @@ fn invalid_page_margin_overrides_keep_loaded_theme_margins() -> Result<(), Error
             let mut warnings = Vec::new();
             let mut bytes = Vec::new();
             processor.write_to(
-                parsed.document(),
+                parsed.document_ref(),
                 &mut bytes,
                 None,
                 None,
@@ -553,7 +553,7 @@ fn asciidoctor_theme_page_settings_respect_document_and_caller_overrides() -> Re
         let mut warnings = Vec::new();
         let mut bytes = Vec::new();
         processor.write_to(
-            parsed.document(),
+            parsed.document_ref(),
             &mut bytes,
             None,
             None,
@@ -767,7 +767,7 @@ fn page_break_layout_changes_update_image_widths_and_code_wrapping() -> Result<(
     let mut warnings = Vec::new();
     let source = WarningSource::new("pdf");
     processor.write_to(
-        parsed.document(),
+        parsed.document_ref(),
         &mut output,
         None,
         None,
@@ -939,7 +939,7 @@ fn nested_styles_use_combined_pdf_fonts_and_restore_outer_styles() -> Result<(),
         let mut warnings = Vec::new();
         let warning_source = WarningSource::new("pdf");
         processor.write_to(
-            parsed.document(),
+            parsed.document_ref(),
             &mut output,
             None,
             None,
@@ -3176,7 +3176,7 @@ fn render_document_with_warnings(
     let mut warnings = Vec::new();
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
     let mut output = Vec::new();
-    processor.write_to(document, &mut output, None, None, &mut diagnostics)?;
+    processor.write_to(document.into(), &mut output, None, None, &mut diagnostics)?;
     Ok((PdfDocument::load_mem(&output)?, warnings))
 }
 
@@ -3827,7 +3827,7 @@ fn run_typst_fixture(path: &Path) -> Result<(), Error> {
     let source = WarningSource::new("pdf");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
     processor.write_to(
-        parsed.document(),
+        parsed.document_ref(),
         &mut pdf,
         Some(path),
         None,
@@ -3937,7 +3937,7 @@ fn link_macro_ids_are_named_pdf_destinations() -> Result<(), Error> {
     let source = WarningSource::new("pdf");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
     processor.write_to(
-        parsed.document(),
+        parsed.document_ref(),
         &mut pdf,
         Some(path),
         None,
@@ -3995,7 +3995,7 @@ fn image_alt_text_reaches_pdf_structure() -> Result<(), Error> {
     let source = WarningSource::new("pdf");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
     processor.write_to(
-        parsed.document(),
+        parsed.document_ref(),
         &mut pdf,
         Some(path),
         None,

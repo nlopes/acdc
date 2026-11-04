@@ -34,7 +34,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut warnings = Vec::new();
         let source = acdc_converters_core::WarningSource::new("manpage");
         let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        processor.write_document(doc, output, None, &mut diagnostics)?;
+        processor.write_document(doc.into(), output, None, &mut diagnostics)?;
         Ok(())
     })
 }

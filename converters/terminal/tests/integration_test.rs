@@ -32,7 +32,7 @@ fn selected_terminal_text_works_in_every_build() -> Result<(), Error> {
             let mut warnings = Vec::new();
             let warning_source = WarningSource::new("terminal");
             processor.write_to(
-                parsed.document(),
+                parsed.document_ref(),
                 &mut output,
                 None,
                 None,
@@ -87,7 +87,7 @@ fn selected_draft_buttons_render_in_plain_and_buffered_content() -> Result<(), E
         let mut warnings = Vec::new();
         let warning_source = WarningSource::new("terminal");
         processor.write_to(
-            parsed.document(),
+            parsed.document_ref(),
             &mut output,
             None,
             None,
@@ -128,7 +128,7 @@ fn render_terminal(
     let mut warnings = Vec::new();
     let source = WarningSource::new("terminal");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+    processor.write_to(doc.into(), &mut output, None, None, &mut diagnostics)?;
     Ok((
         String::from_utf8(output)?,
         warnings
@@ -309,7 +309,7 @@ fn test_fixture_variant(fixture_name: &str, osc8: bool) -> Result<(), Error> {
     let source = WarningSource::new("terminal");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
     processor.write_to(
-        doc,
+        doc.into(),
         &mut output,
         Some(input_path.as_path()),
         None,
@@ -399,7 +399,7 @@ fn explicit_ordered_list_numbering_styles() -> Result<(), Error> {
         let mut warnings = Vec::new();
         let source = WarningSource::new("terminal");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+        processor.write_to(doc.into(), &mut output, None, None, &mut diagnostics)?;
         let actual = String::from_utf8(output)?;
         for marker in expected_markers {
             assert!(
@@ -426,7 +426,7 @@ fn captioned_cross_references_honor_source_order_xrefstyle() -> Result<(), Error
     let mut warnings = Vec::new();
     let source = WarningSource::new("terminal");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+    processor.write_to(doc.into(), &mut output, None, None, &mut diagnostics)?;
     let output = String::from_utf8(output)?;
 
     for expected in [
@@ -459,7 +459,7 @@ fn interdocument_xref_macros_do_not_use_matching_local_titles() -> Result<(), Er
     let mut warnings = Vec::new();
     let source = WarningSource::new("terminal");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+    processor.write_to(doc.into(), &mut output, None, None, &mut diagnostics)?;
     let output = String::from_utf8(output)?;
 
     for expected in [
@@ -490,7 +490,7 @@ fn passthroughs_are_restored_before_natural_xref_resolution() -> Result<(), Erro
     let mut warnings = Vec::new();
     let source = WarningSource::new("terminal");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+    processor.write_to(doc.into(), &mut output, None, None, &mut diagnostics)?;
     let output = String::from_utf8(output)?;
 
     for resolved in ["Pass raw Title", "Plus raw Title"] {
@@ -526,7 +526,7 @@ fn none_ordered_list_style_suppresses_marker() -> Result<(), Error> {
     let mut warnings = Vec::new();
     let source = WarningSource::new("terminal");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+    processor.write_to(doc.into(), &mut output, None, None, &mut diagnostics)?;
     let actual = String::from_utf8(output)?;
 
     assert!(actual.contains("1. numbered"), "{actual}");
@@ -550,7 +550,7 @@ fn markerless_ordered_list_styles_suppress_markers() -> Result<(), Error> {
         let mut warnings = Vec::new();
         let source = WarningSource::new("terminal");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+        processor.write_to(doc.into(), &mut output, None, None, &mut diagnostics)?;
         let actual = String::from_utf8(output)?;
 
         assert!(actual.lines().any(|line| line == "unmarked"), "{actual}");
@@ -574,7 +574,7 @@ fn markerless_unordered_list_styles_suppress_markers() -> Result<(), Error> {
         let mut warnings = Vec::new();
         let source = WarningSource::new("terminal");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+        processor.write_to(doc.into(), &mut output, None, None, &mut diagnostics)?;
         let actual = String::from_utf8(output)?;
 
         assert!(actual.lines().any(|line| line == "unmarked"), "{actual}");
@@ -598,7 +598,7 @@ fn markerless_checklist_styles_keep_the_checkbox() -> Result<(), Error> {
         let mut warnings = Vec::new();
         let source = WarningSource::new("terminal");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+        processor.write_to(doc.into(), &mut output, None, None, &mut diagnostics)?;
         let actual = String::from_utf8(output)?;
 
         assert!(actual.contains("[ ]"), "{actual}");
@@ -623,7 +623,7 @@ fn image_failure_warning_is_returned_in_conversion_result() -> Result<(), Error>
     .with_terminal_width(80);
     let output_path = temp_output_path("terminal-warning", "txt");
 
-    let result = processor.convert_to_file(doc, None, &output_path)?;
+    let result = processor.convert_to_file(doc.into(), None, &output_path)?;
     let _ = std::fs::remove_file(&output_path);
 
     assert!(result.warnings().iter().any(|warning| {
@@ -947,7 +947,7 @@ fn constructed_character_references_render_in_plain_and_formatted_content() -> R
     let mut warnings = Vec::new();
     let warning_source = WarningSource::new("terminal");
     processor.write_to(
-        &doc,
+        (&doc).into(),
         &mut output,
         None,
         None,

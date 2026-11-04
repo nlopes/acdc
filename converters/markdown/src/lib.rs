@@ -14,7 +14,7 @@
 //! let processor = Processor::new(options, acdc_parser::Options::builder())?
 //!     .with_variant(MarkdownVariant::CommonMark);
 //! let parsed = acdc_parser::parse("= Title\n\nHello.\n", processor.parser_options())?;
-//! processor.convert(parsed.document(), Some(Path::new("doc.adoc")))?;
+//! processor.convert(parsed.document_ref(), Some(Path::new("doc.adoc")))?;
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!
@@ -113,8 +113,8 @@ use acdc_converters_core::{
     section::contains_index_section, visitor::DocumentVisitor, xref::XrefGuard,
 };
 use acdc_parser::{
-    CaptionKind, Document, DocumentAttributes, Options as ParserOptions, Reference,
-    ast::{AttributesRef, CaptionRef, DocumentRef},
+    CaptionKind, Options as ParserOptions, Reference,
+    ast::{AttributesRef, CaptionRef, DocumentAttributesRef, DocumentRef},
 };
 
 mod error;
@@ -334,7 +334,7 @@ impl<'a> Converter<'a> for Processor<'a> {
     fn derive_output_path(
         &self,
         input: &Path,
-        _doc: &Document<'_>,
+        _doc: DocumentRef<'_>,
     ) -> Result<Option<PathBuf>, Error> {
         let md_path = input.with_extension("md");
         // Avoid overwriting the input file
@@ -346,7 +346,7 @@ impl<'a> Converter<'a> for Processor<'a> {
 
     fn write_to<W: Write>(
         &self,
-        doc: &Document<'_>,
+        doc: DocumentRef<'_>,
         writer: W,
         _source_file: Option<&Path>,
         _output_path: Option<&Path>,
@@ -356,33 +356,25 @@ impl<'a> Converter<'a> for Processor<'a> {
         let processor = Processor {
             options: self.options.clone(),
             parser_options: ParserOptions::default()
-                .with_document_attributes(doc.attributes.clone()),
-            references: Rc::new(doc.references.clone()),
+                .with_document_attributes(doc.attributes().into()),
+            references: Rc::new(doc.references().into()),
             xref_guard: XrefGuard::default(),
-            document: Some(doc.into()),
-            example_counter: Rc::new(Cell::new(
-                DocumentRef::from(doc).highest_caption_number(CaptionKind::Example),
-            )),
-            figure_counter: Rc::new(Cell::new(
-                DocumentRef::from(doc).highest_caption_number(CaptionKind::Figure),
-            )),
-            listing_counter: Rc::new(Cell::new(
-                DocumentRef::from(doc).highest_caption_number(CaptionKind::Listing),
-            )),
-            table_counter: Rc::new(Cell::new(
-                DocumentRef::from(doc).highest_caption_number(CaptionKind::Table),
-            )),
+            document: Some(doc),
+            example_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Example))),
+            figure_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Figure))),
+            listing_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Listing))),
+            table_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Table))),
             index_term_counter: Rc::new(Cell::new(0)),
             index_catalog_counter: Rc::new(Cell::new(0)),
             index_entries: Rc::new(RefCell::new(Vec::new())),
-            generate_index: index_generation_enabled(&doc.attributes)
-                && contains_index_section(DocumentRef::from(doc).blocks()),
+            generate_index: index_generation_enabled(doc.attributes())
+                && contains_index_section(doc.blocks()),
             warned_fallbacks: Rc::new(RefCell::new(HashSet::new())),
             variant: self.variant,
         };
-        let mut traversal = TraversalContext::new(&doc.attributes);
+        let mut traversal = TraversalContext::new(doc.attributes());
         let mut visitor = MarkdownVisitor::new(writer, &processor, diagnostics.reborrow());
-        visitor.visit_document(&mut traversal, doc.into())
+        visitor.visit_document(&mut traversal, doc)
     }
 
     fn name(&self) -> &'static str {
@@ -394,7 +386,7 @@ impl<'a> Converter<'a> for Processor<'a> {
     }
 }
 
-fn index_generation_enabled(attributes: &DocumentAttributes<'_>) -> bool {
+fn index_generation_enabled(attributes: DocumentAttributesRef<'_>) -> bool {
     attributes.get("acdc-index").is_some()
 }
 
@@ -448,7 +440,13 @@ mod tests {
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         let mut output = Vec::new();
 
-        processor.write_to(parsed.document(), &mut output, None, None, &mut diagnostics)?;
+        processor.write_to(
+            parsed.document_ref(),
+            &mut output,
+            None,
+            None,
+            &mut diagnostics,
+        )?;
 
         let markdown = String::from_utf8(output)?;
         for target in [
@@ -483,7 +481,13 @@ mod tests {
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         let mut output = Vec::new();
 
-        processor.write_to(parsed.document(), &mut output, None, None, &mut diagnostics)?;
+        processor.write_to(
+            parsed.document_ref(),
+            &mut output,
+            None,
+            None,
+            &mut diagnostics,
+        )?;
 
         let markdown = String::from_utf8(output)?;
         assert!(markdown.contains("](images/header/before.png)"));

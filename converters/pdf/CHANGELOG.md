@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Conversion methods now accept `ast::DocumentRef`. Pass `parsed.document_ref()` for parsed input or `DocumentRef::from(&document)` for a document you construct. Output is unchanged.
+
 - Render attributed plus passthroughs without leaking their ID and role prefixes into the text. Apply the supported inline roles and retain link destinations.
 
 - Reference characters in source-code link labels now use their display text, including labels taken from referenced headings. Literal escaped references remain unchanged.

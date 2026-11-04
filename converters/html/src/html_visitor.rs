@@ -1686,7 +1686,7 @@ mod title_media_tests {
                 let source = WarningSource::new("html");
                 let mut warnings = Vec::new();
                 processor.convert_to_writer(
-                    &document,
+                    (&document).into(),
                     &mut output,
                     &RenderOptions {
                         embedded: true,
@@ -1804,7 +1804,7 @@ mod title_media_tests {
                 let mut warnings = Vec::new();
                 let mut output = Vec::new();
                 processor.convert_to_writer(
-                    &document,
+                    (&document).into(),
                     &mut output,
                     &RenderOptions {
                         embedded: true,
@@ -1968,7 +1968,7 @@ mod title_media_tests {
                 let mut warnings = Vec::new();
                 let mut bytes = Vec::new();
                 processor.convert_to_writer(
-                    &document,
+                    (&document).into(),
                     &mut bytes,
                     &RenderOptions {
                         embedded: true,
@@ -2064,7 +2064,7 @@ mod title_media_tests {
             let mut warnings = Vec::new();
             let mut output = Vec::new();
             processor.convert_to_writer(
-                &document,
+                (&document).into(),
                 &mut output,
                 &RenderOptions {
                     embedded: true,

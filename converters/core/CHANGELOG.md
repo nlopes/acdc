@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Conversion methods now accept `ast::DocumentRef`. Pass `parsed.document_ref()` for parsed input or `DocumentRef::from(&document)` for a document you construct. Output is unchanged.
+
 - Code-link labels and index occurrence offsets use the display characters of parsed references. Escaped references remain literal, and offsets count UTF-8 bytes in the decoded text.
 
 - Image and icon alternative-text helpers return the display characters of parsed references, while escaped reference text stays literal.

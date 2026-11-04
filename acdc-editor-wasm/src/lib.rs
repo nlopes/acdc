@@ -134,8 +134,8 @@ fn render_parsed(
         })
         .collect();
 
-    let document = parsed.document();
-    let highlight_html = ast_highlight::highlight_from_ast(input, parsed.document_ref());
+    let document = parsed.document_ref();
+    let highlight_html = ast_highlight::highlight_from_ast(input, document);
 
     let render_options = RenderOptions {
         embedded: true,
@@ -160,7 +160,7 @@ fn render_parsed(
         )
     }));
 
-    let has_stem = acdc_converters_html::uses_stem(parsed.document_ref());
+    let has_stem = acdc_converters_html::uses_stem(document);
 
     Ok(ParseResult {
         highlight_html,

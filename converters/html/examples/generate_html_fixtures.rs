@@ -73,7 +73,12 @@ fn main() -> Result<(), Box<dyn Error>> {
                 let mut warnings = Vec::new();
                 let source = WarningSource::new("html").with_variant(variant.as_str());
                 let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-                processor.convert_to_writer(doc, &mut output, &render_options, &mut diagnostics)?;
+                processor.convert_to_writer(
+                    doc.into(),
+                    &mut output,
+                    &render_options,
+                    &mut diagnostics,
+                )?;
                 fs::create_dir_all(&expected_dir)?;
                 fs::write(&output_path, output)?;
                 println!("Generated {}", output_path.display());

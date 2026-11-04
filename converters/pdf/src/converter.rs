@@ -9,7 +9,7 @@ use std::{
 use acdc_converters_core::{
     ConversionResult, Converter, Diagnostics, Options, PrettyDuration, WarningSource,
 };
-use acdc_parser::Document;
+use acdc_parser::ast::DocumentRef;
 
 use crate::{Error, PDF_BACKEND, PdfOptions, Processor};
 
@@ -47,7 +47,7 @@ impl<'a> Converter<'a> for Processor<'a> {
     fn derive_output_path(
         &self,
         input: &Path,
-        _doc: &Document<'_>,
+        _doc: DocumentRef<'_>,
     ) -> Result<Option<PathBuf>, Error> {
         let pdf_path = input.with_extension("pdf");
         if pdf_path == input {
@@ -58,7 +58,7 @@ impl<'a> Converter<'a> for Processor<'a> {
 
     fn write_to<W: Write>(
         &self,
-        doc: &Document<'_>,
+        doc: DocumentRef<'_>,
         mut writer: W,
         source_file: Option<&Path>,
         output_path: Option<&Path>,
@@ -77,7 +77,7 @@ impl<'a> Converter<'a> for Processor<'a> {
 
     fn convert_to_file(
         &self,
-        doc: &Document<'_>,
+        doc: DocumentRef<'_>,
         source_file: Option<&Path>,
         output_path: &Path,
     ) -> Result<ConversionResult, Self::Error> {

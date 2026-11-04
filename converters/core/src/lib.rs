@@ -38,8 +38,8 @@ use std::{
 };
 
 use acdc_parser::{
-    AttributeValue, DelimitedBlockType, Document, DocumentAttributeValue, DocumentAttributes,
-    Error, Options as ParserOptions, OptionsBuilder as ParserOptionsBuilder, SafeMode,
+    AttributeValue, DelimitedBlockType, DocumentAttributeValue, DocumentAttributes, Error,
+    Options as ParserOptions, OptionsBuilder as ParserOptionsBuilder, SafeMode, ast::DocumentRef,
 };
 
 mod backend;
@@ -565,7 +565,7 @@ pub trait Converter<'a>: Sized {
     /// Create a converter from application-supplied attribute values.
     ///
     /// Stored attributes borrow with lifetime `'a`; each conversion accepts a
-    /// borrowed `Document<'_>` of any lifetime, independent of `'a`.
+    /// `DocumentRef<'_>` of any lifetime, independent of `'a`.
     ///
     /// # Errors
     ///
@@ -604,7 +604,7 @@ pub trait Converter<'a>: Sized {
     fn derive_output_path(
         &self,
         input: &Path,
-        doc: &Document<'_>,
+        doc: DocumentRef<'_>,
     ) -> Result<Option<PathBuf>, Self::Error>;
 
     /// Convert the document and produce all output for one conversion.
@@ -629,7 +629,7 @@ pub trait Converter<'a>: Sized {
     /// Returns an error if conversion or writing fails.
     fn write_to<W: std::io::Write>(
         &self,
-        doc: &Document<'_>,
+        doc: DocumentRef<'_>,
         writer: W,
         source_file: Option<&Path>,
         output_path: Option<&Path>,
@@ -664,7 +664,7 @@ pub trait Converter<'a>: Sized {
     /// Returns an error if conversion or writing fails.
     fn convert_to_stdout(
         &self,
-        doc: &Document<'_>,
+        doc: DocumentRef<'_>,
         source_file: Option<&Path>,
     ) -> Result<ConversionResult, Self::Error> {
         let stdout = std::io::stdout();
@@ -690,7 +690,7 @@ pub trait Converter<'a>: Sized {
     /// Returns an error if file creation, conversion, or writing fails.
     fn convert_to_file(
         &self,
-        doc: &Document<'_>,
+        doc: DocumentRef<'_>,
         source_file: Option<&Path>,
         output_path: &Path,
     ) -> Result<ConversionResult, Self::Error> {
@@ -749,7 +749,7 @@ pub trait Converter<'a>: Sized {
     /// Returns an error if conversion or writing fails.
     fn convert(
         &self,
-        doc: &Document<'_>,
+        doc: DocumentRef<'_>,
         source_file: Option<&Path>,
     ) -> Result<ConversionResult, Self::Error> {
         match self.options().output_destination() {

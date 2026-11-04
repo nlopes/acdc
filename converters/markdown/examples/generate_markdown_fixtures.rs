@@ -66,7 +66,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         let mut warnings = Vec::new();
         let source = WarningSource::new("markdown").with_variant(variant.as_str());
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        processor.write_to(doc, &mut output, Some(&input_path), None, &mut diagnostics)?;
+        processor.write_to(
+            doc.into(),
+            &mut output,
+            Some(&input_path),
+            None,
+            &mut diagnostics,
+        )?;
         fs::write(output_path, output)?;
     }
 

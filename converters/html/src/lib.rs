@@ -15,7 +15,7 @@ use acdc_converters_core::{
 };
 
 use acdc_parser::{
-    AttributeValue, CaptionKind, Document, DocumentAttributes, Options as ParserOptions, Reference,
+    AttributeValue, CaptionKind, DocumentAttributes, Options as ParserOptions, Reference,
     Substitution, TocEntry,
     ast::{
         AttributeValueRef, AttributesRef, ContentRef, DocumentAttributesRef, DocumentRef,
@@ -274,12 +274,12 @@ impl<'a> Processor<'a> {
     /// Returns an error if document conversion or writing fails.
     pub fn convert_to_writer<W: Write>(
         &self,
-        doc: &Document<'_>,
+        doc: DocumentRef<'_>,
         writer: W,
         options: &RenderOptions,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Error> {
-        let document = DocumentRef::from(doc);
+        let document = doc;
         let processor = Processor {
             toc_entries: document.toc_entries().map(TocEntry::from).collect(),
             references: document.references().into(),
@@ -334,7 +334,7 @@ impl<'a> Processor<'a> {
     /// Returns an error if document conversion fails.
     pub fn convert_to_string(
         &self,
-        doc: &Document<'_>,
+        doc: DocumentRef<'_>,
         options: &RenderOptions,
     ) -> Result<String, Error> {
         let mut output = Vec::new();
@@ -504,7 +504,7 @@ impl<'a> Converter<'a> for Processor<'a> {
     fn derive_output_path(
         &self,
         input: &Path,
-        _doc: &Document<'_>,
+        _doc: DocumentRef<'_>,
     ) -> Result<Option<PathBuf>, Error> {
         let html_path = input.with_extension("html");
         // Avoid overwriting the input file
@@ -516,7 +516,7 @@ impl<'a> Converter<'a> for Processor<'a> {
 
     fn write_to<W: Write>(
         &self,
-        doc: &Document<'_>,
+        doc: DocumentRef<'_>,
         writer: W,
         source_file: Option<&Path>,
         output_path: Option<&Path>,
@@ -543,16 +543,8 @@ impl<'a> Converter<'a> for Processor<'a> {
         if let Some(output_path) = output_path
             && !self.options.embedded()
         {
-            self.handle_copycss(
-                DocumentRef::from(doc).attributes(),
-                output_path,
-                diagnostics,
-            );
-            Self::handle_copy_syntax_css(
-                DocumentRef::from(doc).attributes(),
-                output_path,
-                diagnostics,
-            );
+            self.handle_copycss(doc.attributes(), output_path, diagnostics);
+            Self::handle_copy_syntax_css(doc.attributes(), output_path, diagnostics);
         }
         Ok(())
     }
@@ -1293,7 +1285,7 @@ mod tests {
             )?
             .with_variant(variant)?;
             let html = processor.convert_to_string(
-                parsed.document(),
+                parsed.document_ref(),
                 &RenderOptions {
                     embedded: true,
                     ..RenderOptions::default()
@@ -1329,7 +1321,7 @@ mod tests {
             ParserOptions::builder()
                 .with_attributes(parsed.document().attributes.clone().into_inputs()),
         )?;
-        let html = processor.convert_to_string(parsed.document(), &RenderOptions::default())?;
+        let html = processor.convert_to_string(parsed.document_ref(), &RenderOptions::default())?;
 
         assert!(html.contains("images/header/before.png"));
         assert!(html.contains("images/body/after.png"));
@@ -1363,7 +1355,7 @@ This is a paragraph.
             embedded: true,
             ..RenderOptions::default()
         };
-        let html = processor.convert_to_string(doc, &render_options)?;
+        let html = processor.convert_to_string(doc.into(), &render_options)?;
 
         // Should NOT contain document frame elements
         assert!(!html.contains("<!DOCTYPE"), "should not contain DOCTYPE");
@@ -1434,7 +1426,7 @@ This is a paragraph.
             Options::default(),
             ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
         )?;
-        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
 
         assert!(
             html.contains(">Section One</h2>"),
@@ -1462,7 +1454,7 @@ This is a paragraph.
             Options::default(),
             ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
         )?;
-        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
 
         assert!(
             html.contains(">1. Section One</h2>"),
@@ -1502,7 +1494,7 @@ This is a paragraph.
             Options::default(),
             ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
         )?;
-        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
 
         assert!(
             html.contains(">1. Chapter One</h2>"),
@@ -1547,7 +1539,7 @@ This is a paragraph.
             Options::default(),
             ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
         )?;
-        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
 
         assert!(
             html.contains(">1. Chapter One</h2>"),
@@ -1585,7 +1577,7 @@ This is a paragraph.
             Options::default(),
             ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
         )?;
-        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
 
         assert!(
             html.contains(">1. Introduction</h2>"),
@@ -1625,7 +1617,7 @@ This is a paragraph.
             Options::default(),
             ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
         )?;
-        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
 
         // TOC should exist
         assert!(html.contains("<div id=\"toc\""), "should have TOC");
@@ -1657,7 +1649,7 @@ This is a paragraph.
             Options::default(),
             ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
         )?;
-        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
 
         // TOC should have numbered entries
         assert!(
@@ -1696,7 +1688,7 @@ This is a paragraph.
             Options::default(),
             ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
         )?;
-        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
 
         // TOC should have Introduction numbered as 1
         assert!(
@@ -1736,7 +1728,7 @@ This is a paragraph.
             Options::default(),
             ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
         )?;
-        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
 
         assert!(
             html.contains("<a href=\"#_chapter_one\">1. Chapter One</a>"),
@@ -1768,7 +1760,7 @@ This is a paragraph.
             Options::default(),
             ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
         )?;
-        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
 
         assert!(
             html.contains(r#"<meta name="color-scheme" content="dark">"#),
@@ -1800,7 +1792,7 @@ This is a paragraph.
             embedded,
             ..RenderOptions::default()
         };
-        Ok(processor.convert_to_string(doc, &render_options)?)
+        Ok(processor.convert_to_string(doc.into(), &render_options)?)
     }
 
     #[test]
@@ -1881,7 +1873,7 @@ This is a paragraph.
             Options::default(),
             ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
         )?;
-        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
 
         assert!(
             !html.contains(r#"<meta name="color-scheme" content="dark">"#),
@@ -1909,7 +1901,7 @@ This is a paragraph.
             Options::default(),
             ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
         )?;
-        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
 
         assert!(
             !html.contains("color-scheme:dark"),
@@ -1933,7 +1925,7 @@ This is a paragraph.
             Options::default(),
             ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
         )?;
-        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
 
         assert!(
             !html.contains("color-scheme:dark"),
@@ -1953,7 +1945,7 @@ This is a paragraph.
             Options::default(),
             ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
         )?;
-        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
 
         assert!(
             html.contains("<body class=\"book\">"),
@@ -1981,7 +1973,7 @@ Content.
             Options::default(),
             ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
         )?;
-        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
 
         assert!(
             html.contains("<h1 id=\"_part_one\" class=\"sect0\">Part One</h1>"),
@@ -2024,7 +2016,7 @@ Content.
             Options::default(),
             ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
         )?;
-        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
 
         assert!(
             html.contains("<ul class=\"sectlevel0\">"),
@@ -2061,7 +2053,7 @@ Content.
             Options::default(),
             ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
         )?;
-        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
 
         assert_eq!(html.matches("Unit 1. First Chapter").count(), 2, "{html}");
         assert_eq!(html.matches("1.1. Detail").count(), 2, "{html}");
@@ -2102,7 +2094,7 @@ More appendix content.
             Options::default(),
             ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
         )?;
-        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
 
         // Appendix sections should be demoted to sect1 with h2
         assert!(
@@ -2163,7 +2155,7 @@ Content.
             Options::default(),
             ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
         )?;
-        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
 
         // TOC should have appendix entries with letter prefix
         assert!(
@@ -2215,7 +2207,7 @@ Content.
             Options::default(),
             ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
         )?;
-        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
 
         // Body headings.
         for expected in [
@@ -2269,7 +2261,7 @@ Content.
             Options::default(),
             ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
         )?;
-        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
 
         assert!(
             html.contains(">Annexe A: First Appendix</h2>"),
@@ -2298,7 +2290,7 @@ Content.
             Options::default(),
             ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
         )?;
-        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
 
         // Demoted to sect1/h2; with the caption disabled the heading still shows
         // the bare letter numeral ("A. "), matching asciidoctor.

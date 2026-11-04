@@ -28,7 +28,7 @@ fn resolved_text_and_substitution_profiles_work_in_every_build() -> Result<(), E
         let mut warnings = Vec::new();
         let warning_source = WarningSource::new("manpage");
         processor.write_to(
-            parsed.document(),
+            parsed.document_ref(),
             &mut output,
             None,
             None,
@@ -71,7 +71,13 @@ fn styled_titles_keep_substitutions_separate_from_the_body(
     let mut warnings = Vec::new();
     let warning_source = WarningSource::new("manpage");
     let mut diagnostics = Diagnostics::new(&warning_source, &mut warnings);
-    processor.write_to(parsed.document(), &mut output, None, None, &mut diagnostics)?;
+    processor.write_to(
+        parsed.document_ref(),
+        &mut output,
+        None,
+        None,
+        &mut diagnostics,
+    )?;
     let output = String::from_utf8(output)?;
     assert!(output.contains("Title \\(co"), "{style}: {output}");
     assert!(output.contains("\\fBBold\\fB"), "{style}: {output}");
@@ -108,7 +114,13 @@ fn code_typography_omits_generated_trailing_space() -> Result<(), Error> {
         let mut warnings = Vec::new();
         let warning_source = WarningSource::new("manpage");
         let mut diagnostics = Diagnostics::new(&warning_source, &mut warnings);
-        processor.write_to(parsed.document(), &mut output, None, None, &mut diagnostics)?;
+        processor.write_to(
+            parsed.document_ref(),
+            &mut output,
+            None,
+            None,
+            &mut diagnostics,
+        )?;
         let output = String::from_utf8(output)?;
         assert_eq!(
             output.lines().find(|line| line.starts_with("Tail ")),
@@ -134,7 +146,7 @@ fn verbatim_links_keep_roff_commands_outside_arguments() -> Result<(), Error> {
     let source = WarningSource::new("manpage");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
     processor.write_to(
-        parsed.document(),
+        parsed.document_ref(),
         &mut output,
         Some(&path),
         None,
@@ -180,7 +192,7 @@ fn nested_links_keep_roff_commands_outside_arguments() -> Result<(), Error> {
     let source = WarningSource::new("manpage");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
     processor.write_to(
-        parsed.document(),
+        parsed.document_ref(),
         &mut output,
         Some(&path),
         None,
@@ -271,7 +283,7 @@ fn run_manpage_fixture(path: &Path, expected_dir: &Path, embedded: bool) -> Resu
     let mut warnings = Vec::new();
     let source = WarningSource::new("manpage");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc, &mut output, Some(path), None, &mut diagnostics)?;
+    processor.write_to(doc.into(), &mut output, Some(path), None, &mut diagnostics)?;
 
     // Read expected output
     let expected = std::fs::read_to_string(&expected_path)?;
@@ -320,7 +332,7 @@ fn section_order_warning_is_returned_in_conversion_result() -> Result<(), Error>
     )?;
     let output_path = temp_output_path("manpage-warning", "1");
 
-    let result = processor.convert_to_file(doc, None, &output_path)?;
+    let result = processor.convert_to_file(doc.into(), None, &output_path)?;
     let _ = std::fs::remove_file(&output_path);
 
     assert!(result.warnings().iter().any(|warning| {
@@ -344,7 +356,7 @@ fn custom_name_section_title_is_not_out_of_order() -> Result<(), Error> {
     )?;
     let output_path = temp_output_path("manpage-custom-name-section", "1");
 
-    let result = processor.convert_to_file(doc, Some(source_path), &output_path)?;
+    let result = processor.convert_to_file(doc.into(), Some(source_path), &output_path)?;
     let _ = std::fs::remove_file(&output_path);
 
     assert!(result.warnings().is_empty(), "{:?}", result.warnings());
@@ -365,7 +377,7 @@ fn static_media_playback_warning_is_deduplicated() -> Result<(), Error> {
     let source = WarningSource::new("manpage");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+    processor.write_to(doc.into(), &mut output, None, None, &mut diagnostics)?;
 
     assert_eq!(warnings.len(), 1, "unexpected warnings: {warnings:?}");
     let warning = warnings.first().ok_or("missing playback warning")?;
@@ -420,7 +432,7 @@ table-warnings
     let source = WarningSource::new("manpage");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+    processor.write_to(doc.into(), &mut output, None, None, &mut diagnostics)?;
 
     assert_eq!(warnings.len(), 3, "unexpected warnings: {warnings:?}");
     for expected in [
@@ -451,7 +463,13 @@ fn inline_role_fallback_warning_is_deduplicated() -> Result<(), Error> {
     let source = WarningSource::new("manpage");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-    processor.write_to(doc, &mut output, Some(source_path), None, &mut diagnostics)?;
+    processor.write_to(
+        doc.into(),
+        &mut output,
+        Some(source_path),
+        None,
+        &mut diagnostics,
+    )?;
 
     assert_eq!(warnings.len(), 1, "unexpected warnings: {warnings:?}");
     let warning = warnings.first().ok_or("missing inline role warning")?;
@@ -528,7 +546,7 @@ Backward full: <<figure-target>> and <<table-target>>.
     let mut warnings = Vec::new();
     let source = WarningSource::new("manpage");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+    processor.write_to(doc.into(), &mut output, None, None, &mut diagnostics)?;
     let output = String::from_utf8(output)?;
 
     for expected in [
@@ -562,7 +580,7 @@ fn interdocument_xref_macros_do_not_use_matching_local_titles() -> Result<(), Er
     let mut warnings = Vec::new();
     let source = WarningSource::new("manpage");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+    processor.write_to(doc.into(), &mut output, None, None, &mut diagnostics)?;
     let output = String::from_utf8(output)?;
 
     for expected in [
@@ -592,7 +610,7 @@ fn passthroughs_are_restored_before_natural_xref_resolution() -> Result<(), Erro
     let mut warnings = Vec::new();
     let source = WarningSource::new("manpage");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+    processor.write_to(doc.into(), &mut output, None, None, &mut diagnostics)?;
     let output = String::from_utf8(output)?;
 
     for expected in [
@@ -635,7 +653,7 @@ fn explicit_ordered_list_numbering_styles() -> Result<(), Error> {
         let mut warnings = Vec::new();
         let source = WarningSource::new("manpage");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+        processor.write_to(doc.into(), &mut output, None, None, &mut diagnostics)?;
         let actual = String::from_utf8(output)?;
         for tag in expected_tags {
             assert!(
@@ -684,7 +702,7 @@ fn constructed_character_references_render_in_plain_and_formatted_content() -> R
     let mut warnings = Vec::new();
     let warning_source = WarningSource::new("manpage");
     processor.write_to(
-        &doc,
+        (&doc).into(),
         &mut output,
         None,
         None,

@@ -52,7 +52,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut warnings = Vec::new();
         let source = acdc_converters_core::WarningSource::new("pdf");
         let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        processor.write_to(doc, &mut pdf, Some(&source_file), None, &mut diagnostics)?;
+        processor.write_to(
+            doc.into(),
+            &mut pdf,
+            Some(&source_file),
+            None,
+            &mut diagnostics,
+        )?;
         output.extend(std::fs::read(typst_path)?);
         Ok(())
     })

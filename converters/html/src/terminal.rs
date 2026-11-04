@@ -1338,7 +1338,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         processor.convert_to_writer(
-            doc,
+            doc.into(),
             &mut output,
             &RenderOptions::default(),
             &mut diagnostics,

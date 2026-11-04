@@ -41,7 +41,7 @@ fn quoted_header_values_stay_inside_html_attributes() -> Result<(), Error> {
             let mut warnings = Vec::new();
             let warning_source = WarningSource::new("html");
             processor.convert_to_writer(
-                parsed.document(),
+                parsed.document_ref(),
                 &mut output,
                 &RenderOptions::default(),
                 &mut Diagnostics::new(&warning_source, &mut warnings),
@@ -80,7 +80,7 @@ fn image_text_preserves_curved_quotation_punctuation() -> Result<(), Error> {
             let mut warnings = Vec::new();
             let warning_source = WarningSource::new("html");
             processor.convert_to_writer(
-                parsed.document(),
+                parsed.document_ref(),
                 &mut output,
                 &RenderOptions::default(),
                 &mut Diagnostics::new(&warning_source, &mut warnings),
@@ -121,7 +121,7 @@ fn block_substitutions_are_honored_in_every_build() -> Result<(), Error> {
             let warning_source = WarningSource::new("html");
             let mut diagnostics = Diagnostics::new(&warning_source, &mut warnings);
             processor.convert_to_writer(
-                parsed.document(),
+                parsed.document_ref(),
                 &mut output,
                 &RenderOptions::default(),
                 &mut diagnostics,
@@ -164,7 +164,7 @@ fn decoded_attribute_values_keep_literal_quotes() -> Result<(), Error> {
             let warning_source = WarningSource::new("html");
             let mut diagnostics = Diagnostics::new(&warning_source, &mut warnings);
             processor.convert_to_writer(
-                parsed.document(),
+                parsed.document_ref(),
                 &mut output,
                 &RenderOptions::default(),
                 &mut diagnostics,
@@ -219,7 +219,7 @@ fn decoded_source_controls_keep_literal_quotes() -> Result<(), Error> {
             let warning_source = WarningSource::new("html");
             let mut diagnostics = Diagnostics::new(&warning_source, &mut warnings);
             processor.convert_to_writer(
-                parsed.document(),
+                parsed.document_ref(),
                 &mut output,
                 &RenderOptions::default(),
                 &mut diagnostics,
@@ -254,7 +254,7 @@ fn inline_identity_attributes_cannot_create_html_elements() -> Result<(), Error>
             let warning_source = WarningSource::new("html");
             let mut diagnostics = Diagnostics::new(&warning_source, &mut warnings);
             processor.convert_to_writer(
-                parsed.document(),
+                parsed.document_ref(),
                 &mut output,
                 &RenderOptions::default(),
                 &mut diagnostics,
@@ -301,7 +301,7 @@ fn block_identity_attributes_cannot_create_html_elements() -> Result<(), Error> 
             let warning_source = WarningSource::new("html");
             let mut diagnostics = Diagnostics::new(&warning_source, &mut warnings);
             processor.convert_to_writer(
-                parsed.document(),
+                parsed.document_ref(),
                 &mut output,
                 &RenderOptions::default(),
                 &mut diagnostics,
@@ -1305,7 +1305,7 @@ fn bibliography_conversion_keeps_parent_safe_mode() -> Result<(), Error> {
         let source = WarningSource::new("html");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         processor.convert_to_writer(
-            parsed.document(),
+            parsed.document_ref(),
             &mut output,
             &RenderOptions {
                 embedded: true,
@@ -1349,7 +1349,7 @@ fn oversized_source_indent_is_a_bounded_structured_warning() -> Result<(), Error
             let source = WarningSource::new("html");
             let mut diagnostics = Diagnostics::new(&source, &mut warnings);
             processor.convert_to_writer(
-                parsed.document(),
+                parsed.document_ref(),
                 &mut output,
                 &RenderOptions {
                     embedded: true,
@@ -1449,7 +1449,7 @@ fn render_fixture_document(
     let mut warnings = Vec::new();
     let source = WarningSource::new("html");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.convert_to_writer(doc, &mut output, &render_options, &mut diagnostics)?;
+    processor.convert_to_writer(doc.into(), &mut output, &render_options, &mut diagnostics)?;
 
     Ok(String::from_utf8(output)?)
 }
@@ -1714,7 +1714,7 @@ fn convert_string_with_variant(
     let mut warnings = Vec::new();
     let source = WarningSource::new("html");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.convert_to_writer(doc, &mut output, &render_options, &mut diagnostics)?;
+    processor.convert_to_writer(doc.into(), &mut output, &render_options, &mut diagnostics)?;
     Ok(String::from_utf8(output)?)
 }
 
@@ -1841,7 +1841,7 @@ fn deprecated_role_warning_is_returned_in_conversion_result() -> Result<(), Erro
     )?;
     let output_path = temp_output_path("html-warning", "html");
 
-    let result = processor.convert_to_file(doc, None, &output_path)?;
+    let result = processor.convert_to_file(doc.into(), None, &output_path)?;
     let _ = std::fs::remove_file(&output_path);
 
     assert!(result.warnings().iter().any(|warning| {
@@ -1912,7 +1912,7 @@ fn deprecated_highlight_attributes_warn_once_per_conversion(
                 let mut output = Vec::new();
                 let mut diagnostics = Diagnostics::new(&source, &mut warnings);
                 processor.convert_to_writer(
-                    doc,
+                    doc.into(),
                     &mut output,
                     &RenderOptions {
                         embedded,
@@ -1954,7 +1954,7 @@ fn deprecated_highlight_warnings_are_returned_in_conversion_result() -> Result<(
             variant,
         )?;
         let result = processor.convert_to_file(
-            parsed.document(),
+            parsed.document_ref(),
             None,
             &temp.path().join("document.html"),
         )?;
@@ -2039,7 +2039,7 @@ fn interdocument_xref_macros_do_not_link_to_matching_local_titles() -> Result<()
         let source = WarningSource::new("html");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         processor.convert_to_writer(
-            doc,
+            doc.into(),
             &mut output,
             &RenderOptions::default(),
             &mut diagnostics,
@@ -2103,7 +2103,7 @@ fn passthroughs_are_restored_before_natural_xref_resolution() -> Result<(), Erro
         let source = WarningSource::new("html");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         processor.convert_to_writer(
-            doc,
+            doc.into(),
             &mut output,
             &RenderOptions::default(),
             &mut diagnostics,
@@ -2314,7 +2314,7 @@ fn main() {
             let mut warnings = Vec::new();
             let source = WarningSource::new("html");
             let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-            processor.write_to(doc, &mut linked, None, Some(&path), &mut diagnostics)?;
+            processor.write_to(doc.into(), &mut linked, None, Some(&path), &mut diagnostics)?;
             let linked = String::from_utf8(linked)?;
             assert!(
                 linked.contains("href=\"css/acdc-highlight.css\""),
@@ -2420,7 +2420,7 @@ fn main() {
             let mut warnings = Vec::new();
             let source = WarningSource::new("html");
             let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-            processor.write_to(doc, &mut output, None, Some(&path), &mut diagnostics)?;
+            processor.write_to(doc.into(), &mut output, None, Some(&path), &mut diagnostics)?;
             let output = String::from_utf8(output)?;
             assert!(!output.contains("class=\"syntax-"), "{output}");
             assert!(!output.contains("acdc-highlight.css"), "{output}");
@@ -2772,7 +2772,7 @@ mod copycss {
         let source = WarningSource::new("html");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         processor.write_to(
-            doc,
+            doc.into(),
             &mut html_output,
             None,
             Some(&html_path),
@@ -2838,7 +2838,7 @@ mod copycss {
         let source = WarningSource::new("html");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         processor.write_to(
-            doc,
+            doc.into(),
             &mut html_output,
             None,
             Some(&html_path),
@@ -2892,7 +2892,7 @@ mod copycss {
         let source = WarningSource::new("html");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         processor.write_to(
-            doc,
+            doc.into(),
             &mut html_output,
             None,
             Some(&html_path),
@@ -2941,7 +2941,7 @@ mod copycss {
         let source = WarningSource::new("html");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         processor.write_to(
-            doc,
+            doc.into(),
             &mut html_output,
             None,
             Some(&html_path),
@@ -3007,7 +3007,7 @@ mod docinfo {
             ..RenderOptions::default()
         };
 
-        let html = processor.convert_to_string(doc, &render_options)?;
+        let html = processor.convert_to_string(doc.into(), &render_options)?;
         Ok(html)
     }
 
@@ -3266,7 +3266,7 @@ mod docinfo {
             ..RenderOptions::default()
         };
 
-        let html = processor.convert_to_string(doc, &render_options)?;
+        let html = processor.convert_to_string(doc.into(), &render_options)?;
 
         assert!(
             html.contains("<!-- from-custom-dir -->"),
@@ -3383,7 +3383,7 @@ mod toc_footnote {
         let mut warnings = Vec::new();
         let source = WarningSource::new("html");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        processor.convert_to_writer(doc, &mut output, &render_options, &mut diagnostics)?;
+        processor.convert_to_writer(doc.into(), &mut output, &render_options, &mut diagnostics)?;
         Ok(String::from_utf8(output)?)
     }
 
@@ -3553,7 +3553,7 @@ fn unresolved_table_decoration_matches_the_parsed_presentation() -> Result<(), E
                     let warning_source = WarningSource::new("html");
                     let mut diagnostics = Diagnostics::new(&warning_source, &mut warnings);
                     processor.convert_to_writer(
-                        document,
+                        document.into(),
                         &mut output,
                         &options,
                         &mut diagnostics,
@@ -3680,7 +3680,7 @@ fn head_title_keeps_literal_text_inside_the_title_element() -> Result<(), Error>
             let mut output = Vec::new();
             let mut warnings = Vec::new();
             processor.convert_to_writer(
-                parsed.document(),
+                parsed.document_ref(),
                 &mut output,
                 &RenderOptions::default(),
                 &mut Diagnostics::new(&WarningSource::new("html"), &mut warnings),

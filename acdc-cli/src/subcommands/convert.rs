@@ -533,7 +533,7 @@ where
             ..ConversionSummary::default()
         };
         let result = processor
-            .convert(parsed.document(), None)
+            .convert(parsed.document_ref(), None)
             .map_err(|error| error::display(&error))?;
         summary.record(result, WarningRenderContext::new());
         return Ok(summary);
@@ -660,7 +660,7 @@ where
     let (result, parser_warnings) = match parse_result {
         Ok(mut parsed) => {
             let parser_warnings = parsed.take_warnings();
-            let result = processor.convert(parsed.document(), Some(&file));
+            let result = processor.convert(parsed.document_ref(), Some(&file));
             (result, parser_warnings)
         }
         Err(error) => (Err(error.into()), Vec::new()),
@@ -1286,7 +1286,7 @@ fn run_terminal_stdin(
             let source = processor.warning_source();
             let mut diagnostics =
                 acdc_converters_core::Diagnostics::new(&source, &mut converter_warnings);
-            processor.write_to(parsed.document(), writer, None, None, &mut diagnostics)?;
+            processor.write_to(parsed.document_ref(), writer, None, None, &mut diagnostics)?;
         }
         // `parsed` and its arena drop here; the pager output is already in flight.
         drop(parsed);
@@ -1303,7 +1303,7 @@ fn run_terminal_stdin(
         ..ConversionSummary::default()
     };
     summary.record(
-        processor.convert(parsed.document(), None)?,
+        processor.convert(parsed.document_ref(), None)?,
         WarningRenderContext::new(),
     );
     Ok(summary)
@@ -1330,7 +1330,13 @@ fn run_terminal_through_pager(
         for file in files {
             let mut parsed = parse_terminal_file(base_options, processor.parser_options(), file)?;
             let parser_warnings = parsed.take_warnings();
-            processor.write_to(parsed.document(), &mut writer, None, None, &mut diagnostics)?;
+            processor.write_to(
+                parsed.document_ref(),
+                &mut writer,
+                None,
+                None,
+                &mut diagnostics,
+            )?;
             // `parsed` drops here — output is already buffered into `writer`.
             deferred.push((parser_warnings, file.clone()));
         }
@@ -1380,7 +1386,7 @@ fn run_terminal_with_pager(
                 .warnings()
                 .render(WarningRenderContext::new().with_file(file));
             summary.record(
-                processor.convert(parsed.document(), Some(file))?,
+                processor.convert(parsed.document_ref(), Some(file))?,
                 WarningRenderContext::new().with_file(file),
             );
         }

@@ -76,7 +76,7 @@ fn generate(
         let mut warnings = Vec::new();
         let source = acdc_converters_core::WarningSource::new("terminal");
         let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        processor.write_to(doc, output, None, None, &mut diagnostics)?;
+        processor.write_to(doc.into(), output, None, None, &mut diagnostics)?;
         Ok(())
     })
 }

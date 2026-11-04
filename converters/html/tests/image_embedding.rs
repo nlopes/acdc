@@ -34,7 +34,7 @@ fn convert(
     let mut warnings = Vec::new();
     let source = WarningSource::new("html");
     processor.convert_to_writer(
-        parsed.document(),
+        parsed.document_ref(),
         &mut output,
         &options,
         &mut Diagnostics::new(&source, &mut warnings),
@@ -308,7 +308,7 @@ fn image_text_survives_embedding_and_fallback_modes() -> Result<(), Error> {
                     let mut output = Vec::new();
                     let mut warnings = Vec::new();
                     processor.convert_to_writer(
-                        parsed.document(),
+                        parsed.document_ref(),
                         &mut output,
                         &RenderOptions {
                             embedded: true,

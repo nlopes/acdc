@@ -11,7 +11,7 @@ fn render<'a, C: Converter<'a>>(converter: &C, doc: &Document<'_>) -> Result<Vec
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
     let mut output = Vec::new();
     converter
-        .write_to(doc, &mut output, None, None, &mut diagnostics)
+        .write_to(doc.into(), &mut output, None, None, &mut diagnostics)
         .map_err(|error| error.to_string())?;
     assert_ne!(output, [] as [u8; 0]);
     Ok(output)

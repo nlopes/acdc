@@ -34,7 +34,7 @@ fn decoded_media_links_keep_literal_values_in_markdown() -> Result<(), Error> {
             let mut output = Vec::new();
             let mut warnings = Vec::new();
             processor.write_to(
-                parsed.document(),
+                parsed.document_ref(),
                 &mut output,
                 None,
                 None,
@@ -89,7 +89,7 @@ fn literal_caption_markup_stays_text_in_both_markdown_variants() -> Result<(), E
             let mut output = Vec::new();
             let mut warnings = Vec::new();
             processor.write_to(
-                parsed.document(),
+                parsed.document_ref(),
                 &mut output,
                 None,
                 None,
@@ -138,7 +138,7 @@ fn link_tooltips_preserve_parser_selected_text() -> Result<(), Error> {
             let mut output = Vec::new();
             let mut warnings = Vec::new();
             processor.write_to(
-                parsed.document(),
+                parsed.document_ref(),
                 &mut output,
                 None,
                 None,
@@ -198,7 +198,7 @@ fn curved_quotes_preserve_punctuation_and_inline_identity() -> Result<(), Error>
             let mut warnings = Vec::new();
             let source = WarningSource::new("markdown");
             processor.write_to(
-                parsed.document(),
+                parsed.document_ref(),
                 &mut output,
                 None,
                 None,
@@ -256,7 +256,7 @@ fn remaining_passthrough_profiles_keep_disabled_formatting_escapes() -> Result<(
             let mut warnings = Vec::new();
             let source = WarningSource::new("markdown");
             processor.write_to(
-                parsed.document(),
+                parsed.document_ref(),
                 &mut output,
                 None,
                 None,
@@ -304,7 +304,7 @@ fn resolved_escapes_survive_markdown_parsing_in_both_modes() -> Result<(), Error
             let mut warnings = Vec::new();
             let source = WarningSource::new("markdown");
             processor.write_to(
-                parsed.document(),
+                parsed.document_ref(),
                 &mut output,
                 None,
                 None,
@@ -545,7 +545,7 @@ fn test_gfm_fixtures(#[files("tests/fixtures/source/*.adoc")] path: PathBuf) -> 
     let mut warnings = Vec::new();
     let source = WarningSource::new("markdown");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc, &mut output, Some(&path), None, &mut diagnostics)?;
+    processor.write_to(doc.into(), &mut output, Some(&path), None, &mut diagnostics)?;
 
     // Read expected output
     let expected = std::fs::read_to_string(&expected_path)?;
@@ -593,7 +593,7 @@ fn test_commonmark_variant(
     let mut warnings = Vec::new();
     let source = WarningSource::new("markdown");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc, &mut output, Some(&path), None, &mut diagnostics)?;
+    processor.write_to(doc.into(), &mut output, Some(&path), None, &mut diagnostics)?;
 
     // Read expected output
     let expected = std::fs::read_to_string(&expected_path)?;
@@ -632,7 +632,7 @@ fn convert_str_with_variant(
     let mut warnings = Vec::new();
     let source = WarningSource::new("markdown");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+    processor.write_to(doc.into(), &mut output, None, None, &mut diagnostics)?;
 
     Ok((String::from_utf8(output)?, warnings))
 }
@@ -658,7 +658,7 @@ fn convert_html_str(input: &str) -> Result<(String, Vec<Warning>), Error> {
     let mut warnings = Vec::new();
     let source = WarningSource::new("html");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+    processor.write_to(doc.into(), &mut output, None, None, &mut diagnostics)?;
 
     Ok((String::from_utf8(output)?, warnings))
 }
@@ -1511,7 +1511,7 @@ fn constructed_character_references_render_in_plain_and_formatted_content() -> R
     let mut warnings = Vec::new();
     let warning_source = WarningSource::new("markdown");
     processor.write_to(
-        &doc,
+        (&doc).into(),
         &mut output,
         None,
         None,
@@ -1540,7 +1540,7 @@ fn resolved_reference_display_text_preserves_escaped_literals() -> Result<(), Er
             let mut output = Vec::new();
             let mut warnings = Vec::new();
             processor.write_to(
-                parsed.document(),
+                parsed.document_ref(),
                 &mut output,
                 None,
                 None,
