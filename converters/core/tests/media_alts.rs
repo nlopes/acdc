@@ -65,8 +65,8 @@ fn image_and_icon_fallbacks_keep_distinct_target_policies() -> Result<(), TestEr
 fn explicit_and_empty_alternatives_outlive_temporary_sources() -> Result<(), TestError> {
     for (markup, expected) in [
         ("", ""),
-        ("*Bird* &amp; ->", "Bird &amp; ->"),
-        ("*Bird* &#38; ->", "Bird &#38; ->"),
+        ("*Bird* &amp; ->", "Bird &amp; →"),
+        ("*Bird* &#38; ->", "Bird &#38; →"),
     ] {
         let (image, icon, typed_image, typed_icon) = {
             let text = String::from(markup);
@@ -126,7 +126,7 @@ fn typed_icon_alternatives_do_not_borrow_temporary_content() -> Result<(), TestE
         icon::alt_from_content(target, Some(ContentRef::from(&content)))
     };
     assert!(matches!(alt, Cow::Owned(_)));
-    assert_eq!(alt, "Bird ->");
+    assert_eq!(alt, "Bird →");
     Ok(())
 }
 

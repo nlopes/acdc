@@ -134,10 +134,10 @@ fn document_passthrough_substitutions_can_produce_structure(
 }
 
 #[rstest::rstest]
-fn standalone_pass_reads_preserve_unprocessed_content_and_empty_values(
+fn retained_pass_reads_preserve_content_and_empty_values(
     #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
 ) -> Result<(), Error> {
-    let source = "pass:q[*bold*] pass:[]";
+    let source = r"pass:m[pass:q[*bold*\] pass:[\]]";
     let parsed = parse_inline(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
@@ -165,7 +165,7 @@ fn standalone_pass_reads_preserve_unprocessed_content_and_empty_values(
     );
     assert_eq!(
         source.get(pass.location().absolute_start()..=pass.location().absolute_end()),
-        Some("pass:q[*bold*]")
+        Some(r"pass:q[*bold*\]")
     );
     assert_eq!(PassRef::from(empty).text(), Some(""));
     assert!(PassRef::from(empty).substitutions().next().is_none());

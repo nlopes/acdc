@@ -38,9 +38,9 @@ fn owner_json(owner: &InlineMacro<'_>) -> Result<Value, TestError> {
 #[case("xref:chapter[Label]")]
 #[case("stem:[x^2]")]
 #[case("indexterm:[Primary,Secondary]")]
-#[case("pass:[<b>Raw</b>]")]
-#[case("pass:[]")]
-#[case("pass:q[*Formatted*]")]
+#[case(r"pass:m[pass:[<b>Raw</b>\]]")]
+#[case(r"pass:m[pass:[\]]")]
+#[case(r"pass:m[pass:q[*Formatted*\]]")]
 #[case("mailto:team@example.com[Team,\"\",\"\"]")]
 #[case("mailto:team@example.com[Team]")]
 fn macros_have_one_projection_at_each_serialization_boundary(

@@ -47,7 +47,7 @@ fn leaf_inputs_can_be_dropped_before_the_visitor() -> Result<(), TestError> {
             let callout = CalloutRef::explicit(3, Location::default());
             visitor.render_callout_ref(&traversal, (&callout).into())?;
             let source = String::from(
-                "pass:[temporary-pass] latexmath:[x < y] https://example.test footnote:temporary[Note]",
+                r"pass:m[pass:[temporary-pass\]] latexmath:[x < y] https://example.test footnote:temporary[Note]",
             );
             let fragment = parse_inline(&source, &Options::default())?;
             let mut macros = 0;
@@ -153,7 +153,7 @@ fn retained_pass_skips_absent_and_empty_text_but_propagates_write_errors() -> Re
         RenderOptions::default(),
         Diagnostics::new(&source, &mut warnings),
     );
-    let fragment = parse_inline("pass:[content]", &Options::default())?;
+    let fragment = parse_inline(r"pass:m[pass:[content\]]", &Options::default())?;
     let Some(InlineNode::Macro(InlineMacro::Pass(pass))) = fragment.inlines().first() else {
         return Err("expected a retained passthrough".into());
     };
@@ -428,7 +428,7 @@ fn escaped_text_keeps_html_character_escaping() -> Result<(), TestError> {
 }
 
 #[test]
-fn standalone_pass_uses_its_own_escaping_setting() -> Result<(), TestError> {
+fn retained_pass_uses_its_own_escaping_setting() -> Result<(), TestError> {
     let processor = Rc::new(Processor::new_with_variant(
         ConverterOptions::default(),
         Options::builder(),
@@ -442,7 +442,7 @@ fn standalone_pass_uses_its_own_escaping_setting() -> Result<(), TestError> {
         RenderOptions::default(),
         Diagnostics::new(&source, &mut warnings),
     );
-    let fragment = parse_inline("pass:c[<tag> & raw]", &Options::default())?;
+    let fragment = parse_inline(r"pass:m[pass:c[<tag> & raw\]]", &Options::default())?;
     let node = fragment.inlines().first().ok_or("passthrough")?;
     let InlineNode::Macro(InlineMacro::Pass(pass)) = node else {
         return Err("unprocessed pass macro".into());

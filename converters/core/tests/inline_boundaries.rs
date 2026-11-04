@@ -20,8 +20,25 @@ fn sibling_context_preserves_invisible_nodes_and_formatting_barriers() -> Result
         ("*before*--after", "--after"),
         ("before[[a]] [[b]]--[[c]] after", "\u{2009}—\u{2009}"),
     ] {
-        let parsed = parse_inline(source, &Options::default())?;
-        let nodes = parsed.inlines();
+        let literal = format!("pass:c,q,m[{}]", source.replace(']', r"\]"));
+        let parsed = parse_inline(&literal, &Options::default())?;
+        // Exercise the boundary helper before replacements consume the source.
+        // The explicit profile retains markup structure without replacing dashes.
+        let nodes = parsed
+            .inlines()
+            .iter()
+            .map(|node| {
+                if let InlineNode::RawText(text) = node {
+                    InlineNode::PlainText(Plain {
+                        content: text.content,
+                        escaped: false,
+                        location: text.location.clone(),
+                    })
+                } else {
+                    node.clone()
+                }
+            })
+            .collect::<Vec<_>>();
         let (index, text) = nodes
             .iter()
             .enumerate()
@@ -35,13 +52,13 @@ fn sibling_context_preserves_invisible_nodes_and_formatting_barriers() -> Result
                 }
             })
             .ok_or_else(|| format!("missing dash fragment: {source}"))?;
-        let siblings = parsed.content().inlines();
+        let siblings = nodes.iter().map(InlineRef::from);
         let context = TextBoundaries::BOTH.for_inline_refs(
             siblings.clone().nth(index),
             siblings.clone().take(index).rev(),
             siblings.clone().skip(index + 1),
         );
-        assert_eq!(context, TextBoundaries::BOTH.for_inline(nodes, index));
+        assert_eq!(context, TextBoundaries::BOTH.for_inline(&nodes, index));
         assert_eq!(
             Replacements::unicode().apply(text, context),
             expected,

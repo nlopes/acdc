@@ -27,10 +27,11 @@ fn named_index_delimiters_preserve_registration_time_macro_text() -> Result<(), 
     let [InlineNode::Macro(InlineMacro::IndexTerm(term))] = parsed.inlines() else {
         return Err("expected index term".into());
     };
-    let [InlineNode::PlainText(catalog)] = term.catalog_entry().term() else {
+    let [InlineNode::RawText(catalog)] = term.catalog_entry().term() else {
         return Err("expected literal catalog text".into());
     };
     assert_eq!(catalog.content, label);
+    assert_eq!(catalog.subs, [acdc_parser::Substitution::SpecialChars]);
     assert_eq!(
         &source[catalog.location.absolute_start..=catalog.location.absolute_end],
         label

@@ -29,6 +29,7 @@ pub(crate) use document::document_parser;
 pub(crate) use inline_preprocessor::{
     InlinePreprocessorParserState, ProcessedContent, inline_preprocessing,
 };
+pub(crate) use inline_processing::process_inlines;
 pub(crate) use inlines::inline_parser;
 pub(crate) use line_map::LineMap;
 pub(crate) use location_walk::{walk_document_inline_nodes_mut, walk_inline_nodes_mut};

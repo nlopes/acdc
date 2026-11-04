@@ -615,7 +615,9 @@ fn parse_input(
 /// Parse inline `AsciiDoc` content from a string.
 ///
 /// The result owns its inline nodes without a block document. Use it for fragments
-/// containing emphasis, links, macros, or other inline content.
+/// containing emphasis, links, macros, or other inline content. It uses the same
+/// inline substitutions as document content, including attribute references and
+/// passthroughs, and preserves surrounding whitespace.
 ///
 /// # Example
 ///
@@ -634,7 +636,6 @@ fn parse_input(
 /// This function returns an error if the inline content cannot be parsed.
 #[instrument(skip_all, fields(input_len = input.len(), safe_mode = ?options.safe_mode))]
 pub fn parse_inline(input: &str, options: &Options<'_>) -> Result<ParseInlineResult, Error> {
-    tracing::trace!(input_len = input.len(), "post preprocessor");
     let owner = parsed::OwnedInput::new(input.into());
     let options_owned = options
         .clone()
@@ -650,38 +651,43 @@ pub fn parse_inline(input: &str, options: &Options<'_>) -> Result<ParseInlineRes
         state
             .inline_ctx
             .rules
+            .insert(grammar::InlineRules::ISOLATED_TEXT);
+        state
+            .inline_ctx
+            .rules
             .set(grammar::InlineRules::HARD_BREAKS, state.hardbreaks);
         state.warnings = warnings_for_state;
         state.warn_unsupported_compat_mode(None);
-        let result = match grammar::inline_parser::inlines(&owner.source, &mut state) {
-            Ok(mut inlines) => {
-                grammar::reference_text::resolve_inline_tree(&mut state, &mut inlines)?;
-                grammar::remap_inlines_to_source(
-                    &mut inlines,
-                    &state.source_ranges,
-                    &owner.source,
-                    &state.line_map,
-                );
-                // Nested parsing uses inline scope to retain whitespace. Finalize
-                // diagnostics only once all locations refer to the original input.
-                state.scope = grammar::ParserScope::Document;
-                for inline in &mut inlines {
-                    grammar::walk_inline_nodes_mut(inline, &mut |node| {
-                        if let InlineNode::Macro(InlineMacro::Footnote(note)) = node {
-                            state.finalize_footnote(note);
-                        }
-                    });
-                }
-                Ok(inlines)
+        let metadata =
+            grammar::helpers::BlockParsingMetadata::new(state.options.compatibility_mode);
+        let result = grammar::process_inlines(
+            &mut state,
+            &metadata,
+            0,
+            owner.source.len(),
+            0,
+            &owner.source,
+        )
+        .and_then(|(mut inlines, _)| {
+            grammar::reference_text::resolve_inline_tree(&mut state, &mut inlines)?;
+            grammar::remap_inlines_to_source(
+                &mut inlines,
+                &state.source_ranges,
+                &owner.source,
+                &state.line_map,
+            );
+            // Nested parsing uses inline scope to retain whitespace. Finalize
+            // diagnostics only once all locations refer to the original input.
+            state.scope = grammar::ParserScope::Document;
+            for inline in &mut inlines {
+                grammar::walk_inline_nodes_mut(inline, &mut |node| {
+                    if let InlineNode::Macro(InlineMacro::Footnote(note)) = node {
+                        state.finalize_footnote(note);
+                    }
+                });
             }
-            Err(error) => {
-                tracing::error!("error parsing inline content");
-                Err(Error::Parse(
-                    Box::new(peg_error_to_source_location(&error, &state)),
-                    error.to_string(),
-                ))
-            }
-        };
+            Ok(inlines)
+        });
         state.emit_warnings();
         result
     })
@@ -929,19 +935,19 @@ mod tests {
         let parsed = parse_inline("pass:[raw] pass:[]", &Options::default())
             .expect("parse pass macros without substitution names");
         let [
-            InlineNode::Macro(InlineMacro::Pass(with_content)),
+            InlineNode::RawText(with_content),
             InlineNode::PlainText(separator),
-            InlineNode::Macro(InlineMacro::Pass(empty)),
+            InlineNode::RawText(empty),
         ] = parsed.inlines()
         else {
-            panic!("expected two pass macros, got {:?}", parsed.inlines());
+            panic!("expected two raw passthroughs, got {:?}", parsed.inlines());
         };
 
-        assert_eq!(with_content.text, Some("raw"));
-        assert_eq!(with_content.substitutions, []);
+        assert_eq!(with_content.content, "raw");
+        assert_eq!(with_content.subs, []);
         assert_eq!(separator.content, " ");
-        assert_eq!(empty.text, Some(""));
-        assert_eq!(empty.substitutions, []);
+        assert_eq!(empty.content, "");
+        assert_eq!(empty.subs, []);
     }
 
     #[test]
