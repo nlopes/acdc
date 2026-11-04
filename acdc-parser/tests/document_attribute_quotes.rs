@@ -1,8 +1,9 @@
 //! Reference labels retain the literal document values at their source position.
 
 use acdc_parser::{
-    Block, CompatibilityMode, InlineMacro, InlineNode, Options, XrefCaptionLabel, XrefSignifier,
-    XrefStyle, parse,
+    CompatibilityMode, Options, XrefCaptionLabel, XrefSignifier, XrefStyle,
+    ast::{BlockKind, BlockRef, InlineKind},
+    parse,
 };
 
 type Error = Box<dyn std::error::Error>;
@@ -19,14 +20,20 @@ fn reference_snapshots_preserve_document_quote_characters(
         &input,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Block::Paragraph(paragraph) = parsed.document().blocks.first().ok_or("paragraph")? else {
+    let BlockKind::Paragraph(paragraph) = parsed
+        .document_ref()
+        .blocks()
+        .next()
+        .map(BlockRef::kind)
+        .ok_or("paragraph")?
+    else {
         return Err("paragraph".into());
     };
     let refs = paragraph
-        .content
-        .iter()
+        .content()
+        .inlines()
         .filter_map(|node| {
-            if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = node {
+            if let InlineKind::CrossReference(xref) = node.kind() {
                 Some(xref)
             } else {
                 None
@@ -41,7 +48,7 @@ fn reference_snapshots_preserve_document_quote_characters(
     } else {
         XrefCaptionLabel::AtReference(value)
     };
-    assert_eq!(table.caption_label, expected);
+    assert_eq!(table.caption_label(), expected);
     assert_eq!(section.signifier(), XrefSignifier::AtReference(value));
     Ok(())
 }
@@ -55,15 +62,21 @@ fn xref_styles_do_not_reinterpret_literal_quotes(
         input,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Block::Paragraph(paragraph) = parsed.document().blocks.first().ok_or("paragraph")? else {
+    let BlockKind::Paragraph(paragraph) = parsed
+        .document_ref()
+        .blocks()
+        .next()
+        .map(BlockRef::kind)
+        .ok_or("paragraph")?
+    else {
         return Err("paragraph".into());
     };
     let styles = paragraph
-        .content
-        .iter()
+        .content()
+        .inlines()
         .filter_map(|node| {
-            if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = node {
-                Some(xref.xrefstyle)
+            if let InlineKind::CrossReference(xref) = node.kind() {
+                Some(xref.xrefstyle())
             } else {
                 None
             }

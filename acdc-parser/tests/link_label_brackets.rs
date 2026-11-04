@@ -1,15 +1,19 @@
-use acdc_parser::{Block, InlineMacro, InlineNode, Options, parse};
+use acdc_parser::{
+    Options,
+    ast::{BlockKind, BlockRef, ContentRef, InlineKind},
+    parse,
+};
 
 type Error = Box<dyn std::error::Error>;
 
-fn label_text(nodes: &[InlineNode<'_>]) -> Result<String, Error> {
+fn label_text(nodes: ContentRef<'_>) -> Result<String, Error> {
     nodes
-        .iter()
+        .inlines()
         .map(|node| {
-            if let InlineNode::PlainText(text) = node {
-                Ok(text.content)
-            } else if let InlineNode::RawText(text) = node {
-                Ok(text.content)
+            if let InlineKind::Plain(text) = node.kind() {
+                Ok(text.text())
+            } else if let InlineKind::Raw(text) = node.kind() {
+                Ok(text.text())
             } else {
                 Err(format!("unexpected label node: {node:?}").into())
             }
@@ -28,20 +32,26 @@ fn link_label_brackets_remove_one_escape_and_keep_source_spans() -> Result<(), E
             let escapes = "\\".repeat(count);
             let source = format!("α {prefix}[é {escapes}] café] ω.\n");
             let parsed = parse(&source, &Options::default())?;
-            let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+            let [BlockKind::Paragraph(paragraph)] = &*parsed
+                .document_ref()
+                .blocks()
+                .map(BlockRef::kind)
+                .collect::<Vec<_>>()
+            else {
                 return Err("expected paragraph".into());
             };
-            let node = paragraph
-                .content
-                .iter()
-                .find(|node| matches!(node, InlineNode::Macro(_)))
-                .ok_or("missing link")?;
-            let text = if let InlineNode::Macro(InlineMacro::Link(link)) = node {
-                &link.text
-            } else if let InlineNode::Macro(InlineMacro::Url(url)) = node {
-                &url.text
-            } else if let InlineNode::Macro(InlineMacro::Mailto(mailto)) = node {
-                &mailto.text
+            let nodes = paragraph.content().inlines().collect::<Vec<_>>();
+            let [prefix, node, suffix] = nodes.as_slice() else {
+                return Err(format!("expected one link between text: {nodes:?}").into());
+            };
+            assert!(matches!(prefix.kind(), InlineKind::Plain(_)));
+            assert!(matches!(suffix.kind(), InlineKind::Plain(_)));
+            let text = if let InlineKind::Link(link) = node.kind() {
+                link.text()
+            } else if let InlineKind::Url(url) = node.kind() {
+                url.text()
+            } else if let InlineKind::Mailto(mailto) = node.kind() {
+                mailto.text()
             } else {
                 return Err("unexpected macro".into());
             };
@@ -51,9 +61,9 @@ fn link_label_brackets_remove_one_escape_and_keep_source_spans() -> Result<(), E
                 "{source}"
             );
             let bracket = text
-                .iter()
+                .inlines()
                 .find_map(|node| {
-                    if let InlineNode::RawText(raw) = node {
+                    if let InlineKind::Raw(raw) = node.kind() {
                         Some(raw)
                     } else {
                         None
@@ -61,19 +71,19 @@ fn link_label_brackets_remove_one_escape_and_keep_source_spans() -> Result<(), E
                 })
                 .ok_or("missing escaped bracket")?;
             assert_eq!(
-                &source[bracket.location.absolute_start..=bracket.location.absolute_end],
+                &source[bracket.location().absolute_start()..=bracket.location().absolute_end()],
                 format!("{escapes}]")
             );
-            for node in text {
+            for node in text.inlines() {
                 let location = node.location();
                 for (offset, position) in [
-                    (location.absolute_start, &location.start),
-                    (location.absolute_end, &location.end),
+                    (location.absolute_start(), location.start()),
+                    (location.absolute_end(), location.end()),
                 ] {
                     assert!(source.is_char_boundary(offset));
-                    assert_eq!(position.line, 1);
+                    assert_eq!(position.line(), 1);
                     assert_eq!(
-                        position.column as usize,
+                        position.column() as usize,
                         source[..offset].chars().count() + 1
                     );
                 }
@@ -88,30 +98,48 @@ fn link_label_brackets_keep_quoted_source_spans() -> Result<(), Error> {
     for quote in ['\'', '"'] {
         let source = format!("α link:https://example.org[{quote}é \\] café{quote},role=test] ω.\n");
         let parsed = parse(&source, &Options::default())?;
-        let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+        let [BlockKind::Paragraph(paragraph)] = &*parsed
+            .document_ref()
+            .blocks()
+            .map(BlockRef::kind)
+            .collect::<Vec<_>>()
+        else {
             return Err("expected paragraph".into());
         };
         let link = paragraph
-            .content
-            .iter()
+            .content()
+            .inlines()
             .find_map(|node| {
-                if let InlineNode::Macro(InlineMacro::Link(link)) = node {
+                if let InlineKind::Link(link) = node.kind() {
                     Some(link)
                 } else {
                     None
                 }
             })
             .ok_or("missing link")?;
-        assert_eq!(label_text(&link.text)?, "é ] café");
-        let first = link.text.first().ok_or("missing label")?.location();
+        assert_eq!(label_text(link.text())?, "é ] café");
+        let first = link
+            .text()
+            .inlines()
+            .next()
+            .ok_or("missing label")?
+            .location();
         assert_eq!(
-            first.absolute_start,
+            first.absolute_start(),
             source.find('é').ok_or("missing source label")?
         );
-        let last = link.text.last().ok_or("missing label")?.location();
+        let last = link
+            .text()
+            .inlines()
+            .last()
+            .ok_or("missing label")?
+            .location();
         let end = source.find("café").ok_or("missing source tail")? + "caf".len();
-        assert_eq!(last.absolute_end, end);
-        assert_eq!(last.end.column as usize, source[..end].chars().count() + 1);
+        assert_eq!(last.absolute_end(), end);
+        assert_eq!(
+            last.end().column() as usize,
+            source[..end].chars().count() + 1
+        );
     }
     Ok(())
 }
@@ -125,27 +153,32 @@ fn link_label_brackets_keep_multiline_passthrough_source_spans() -> Result<(), E
             "α link:https://example.org[é \\]\ncafé] ω.\n"
         };
         let parsed = parse(source, &Options::default())?;
-        let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+        let [BlockKind::Paragraph(paragraph)] = &*parsed
+            .document_ref()
+            .blocks()
+            .map(BlockRef::kind)
+            .collect::<Vec<_>>()
+        else {
             return Err("expected paragraph".into());
         };
         let link = paragraph
-            .content
-            .iter()
+            .content()
+            .inlines()
             .find_map(|node| {
-                if let InlineNode::Macro(InlineMacro::Link(link)) = node {
+                if let InlineKind::Link(link) = node.kind() {
                     Some(link)
                 } else {
                     None
                 }
             })
             .ok_or("missing link")?;
-        assert_eq!(label_text(&link.text)?, "é ]\ncafé");
+        assert_eq!(label_text(link.text())?, "é ]\ncafé");
         let bracket = link
-            .text
-            .iter()
+            .text()
+            .inlines()
             .find_map(|node| {
-                if let InlineNode::RawText(raw) = node
-                    && raw.content == "]"
+                if let InlineKind::Raw(raw) = node.kind()
+                    && raw.text() == "]"
                 {
                     Some(raw)
                 } else {
@@ -154,13 +187,18 @@ fn link_label_brackets_keep_multiline_passthrough_source_spans() -> Result<(), E
             })
             .ok_or("missing escaped bracket")?;
         assert_eq!(
-            &source[bracket.location.absolute_start..=bracket.location.absolute_end],
+            &source[bracket.location().absolute_start()..=bracket.location().absolute_end()],
             if passthrough { r"\\]" } else { r"\]" }
         );
-        let tail = link.text.last().ok_or("missing label tail")?.location();
-        assert_eq!((tail.end.line, tail.end.column), (2, 4));
+        let tail = link
+            .text()
+            .inlines()
+            .last()
+            .ok_or("missing label tail")?
+            .location();
+        assert_eq!((tail.end().line(), tail.end().column()), (2, 4));
         assert_eq!(
-            tail.absolute_end,
+            tail.absolute_end(),
             source.find("café").ok_or("missing source tail")? + 3
         );
     }

@@ -1,4 +1,8 @@
-use acdc_parser::{Block, InlineMacro, InlineNode, Options, parse};
+use acdc_parser::{
+    Options,
+    ast::{BlockKind, BlockRef, InlineKind},
+    parse,
+};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -9,8 +13,8 @@ fn outer_macro_escapes_do_not_register_literal_macros() -> Result<(), Error> {
         include_str!("../fixtures/tests/outer_macro_escapes.adoc"),
         &Options::default(),
     )?;
-    assert_eq!(parsed.document().footnotes.len(), 1);
-    assert!(!parsed.document().references.contains_key("unused"));
+    assert_eq!(parsed.document_ref().footnotes().count(), 1);
+    assert!(!parsed.document_ref().references().contains("unused"));
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     Ok(())
 }
@@ -30,34 +34,40 @@ fn outer_macro_escapes_preserve_backslash_runs_and_unicode_source_spans() -> Res
         ] {
             let source = format!("α {}{literal} ω.\n", "\\".repeat(count));
             let parsed = parse(&source, &Options::default())?;
-            let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+            let [BlockKind::Paragraph(paragraph)] = &*parsed
+                .document_ref()
+                .blocks()
+                .map(BlockRef::kind)
+                .collect::<Vec<_>>()
+            else {
                 return Err("expected one paragraph".into());
             };
             let mut text = String::new();
-            for node in &paragraph.content {
-                let InlineNode::PlainText(plain) = node else {
+            for node in paragraph.content().inlines() {
+                let InlineKind::Plain(plain) = node.kind() else {
                     return Err(format!("escaped macro became active: {node:?}").into());
                 };
-                text.push_str(plain.content);
-                if plain.content.ends_with(literal) {
+                text.push_str(plain.text());
+                if plain.text().ends_with(literal) {
                     let source_escapes = if literal.starts_with("https:") {
                         count
                     } else {
                         1
                     };
                     assert_eq!(
-                        &source[plain.location.absolute_start..=plain.location.absolute_end],
+                        &source
+                            [plain.location().absolute_start()..=plain.location().absolute_end()],
                         format!("{}{literal}", "\\".repeat(source_escapes))
                     );
                 }
                 for (offset, position) in [
-                    (plain.location.absolute_start, &plain.location.start),
-                    (plain.location.absolute_end, &plain.location.end),
+                    (plain.location().absolute_start(), plain.location().start()),
+                    (plain.location().absolute_end(), plain.location().end()),
                 ] {
                     assert!(source.is_char_boundary(offset), "{source}");
-                    assert_eq!(position.line, 1);
+                    assert_eq!(position.line(), 1);
                     assert_eq!(
-                        position.column as usize,
+                        position.column() as usize,
                         source[..offset].chars().count() + 1
                     );
                 }
@@ -67,8 +77,8 @@ fn outer_macro_escapes_preserve_backslash_runs_and_unicode_source_spans() -> Res
                 text,
                 format!("α {}{literal} ω.", "\\".repeat(count - consumed))
             );
-            assert_eq!(parsed.document().footnotes, []);
-            assert!(parsed.document().references.is_empty());
+            assert!(parsed.document_ref().footnotes().next().is_none());
+            assert!(parsed.document_ref().references().is_empty());
             assert_eq!(parsed.warnings(), []);
         }
     }
@@ -82,26 +92,30 @@ fn outer_macro_escapes_cannot_be_introduced_after_macro_substitution() -> Result
             ":escape: \\\\\n\n[subs=\"{subs}\"]\n{{escape}}indexterm2:[Index] and {{escape}}footnote:[Note] and {{escape}}https://example.org[URL].\n"
         );
         let parsed = parse(&source, &Options::default())?;
-        let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.last() else {
+        let Some(BlockKind::Paragraph(paragraph)) =
+            parsed.document_ref().blocks().last().map(BlockRef::kind)
+        else {
             return Err("expected paragraph".into());
         };
         let macros = paragraph
-            .content
-            .iter()
+            .content()
+            .inlines()
             .filter(|node| {
                 matches!(
-                    node,
-                    InlineNode::Macro(InlineMacro::IndexTerm(_) | InlineMacro::Footnote(_))
+                    node.kind(),
+                    InlineKind::IndexTerm(_) | InlineKind::Footnote(_)
                 )
             })
             .count();
         assert_eq!(macros, expected_macros, "{subs}");
-        assert!(!paragraph.content.iter().any(|node| matches!(
-            node,
-            InlineNode::Macro(InlineMacro::Url(_) | InlineMacro::Autolink(_))
-        )));
+        assert!(
+            !paragraph
+                .content()
+                .inlines()
+                .any(|node| matches!(node.kind(), InlineKind::Url(_) | InlineKind::Autolink(_)))
+        );
         assert_eq!(
-            parsed.document().footnotes.len(),
+            parsed.document_ref().footnotes().count(),
             usize::from(expected_macros != 0)
         );
     }
