@@ -1,67 +1,15 @@
 #![cfg(feature = "asg")]
 
 use acdc_parser::{
-    Block, Caption, CaptionKind, CompatibilityMode, ContentAttribute, Document, Location, Options,
-    Paragraph, Plain, Title, asg, ast::ContentRef, parse,
+    Block, Caption, CaptionKind, ContentAttribute, Document, Location, Options, Paragraph, Plain,
+    Title, asg, ast::DocumentRef, parse,
 };
 use serde_json::{Value, json};
 
 type Error = Box<dyn std::error::Error + Send + Sync>;
 
-fn export(document: &Document<'_>) -> Result<Value, asg::Error> {
-    asg::document_with_profile(document.into(), asg::Profile::Acdc)
-}
-
-#[test]
-fn resolved_content_fields_preserve_their_inline_trees() -> Result<(), Error> {
-    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
-        let options = Options::builder().with_compatibility_mode(mode).build()?;
-        for source in [
-            "[quote,attribution='*Ada*',citetitle='_Book_']\n____\nBody.\n____",
-            "[verse,attribution=\"*literal*\",citetitle=\"\"]\n____\nBody.\n____",
-            ".Title\n[caption='*Custom* ']\n====\nBody.\n====",
-        ] {
-            let parsed = parse(source, &options)?;
-            let before = serde_json::to_value(parsed.document())?;
-            let value = export(parsed.document())?;
-            let metadata = parsed
-                .document()
-                .blocks
-                .first()
-                .ok_or("block")?
-                .metadata()
-                .ok_or("metadata")?;
-            if source.contains("attribution=") {
-                assert!(metadata.attribution.is_some());
-                assert!(metadata.citetitle.is_some());
-            } else {
-                assert!(matches!(metadata.caption, Some(Caption::CustomContent(_))));
-                assert_eq!(
-                    value.pointer("/blocks/0/caption/prefix/0/variant"),
-                    Some(&json!("strong"))
-                );
-            }
-            for (name, content) in [
-                ("attribution", metadata.attribution.as_ref()),
-                ("citetitle", metadata.citetitle.as_ref()),
-            ] {
-                if let Some(content) = content {
-                    assert_eq!(
-                        value.pointer(&format!("/blocks/0/{name}")),
-                        Some(&asg::inlines(ContentRef::from(content))?)
-                    );
-                }
-            }
-            if let Some(Caption::CustomContent(content)) = &metadata.caption {
-                assert_eq!(
-                    value.pointer("/blocks/0/caption/prefix"),
-                    Some(&asg::inlines(ContentRef::from(content))?)
-                );
-            }
-            assert_eq!(serde_json::to_value(parsed.document())?, before);
-        }
-    }
-    Ok(())
+fn export(document: DocumentRef<'_>) -> Result<Value, asg::Error> {
+    asg::document_with_profile(document, asg::Profile::Acdc)
 }
 
 #[test]
@@ -110,61 +58,11 @@ fn content_presence_and_caption_variants_do_not_collapse() -> Result<(), Error> 
     ] {
         paragraph.metadata.caption = caption;
         document.blocks = vec![Block::Paragraph(paragraph.clone())];
-        let value = export(&document)?;
+        let value = export((&document).into())?;
         assert_eq!(value.pointer("/blocks/0/title"), Some(&json!([])));
         assert_eq!(value.pointer("/blocks/0/attribution"), Some(&json!([])));
         assert_eq!(value.pointer("/blocks/0/citetitle"), Some(&json!([])));
         assert_eq!(value.pointer("/blocks/0/caption"), expected.as_ref());
-    }
-    Ok(())
-}
-
-#[test]
-fn captioned_targets_are_reconstructible_but_stale_catalogs_fail() -> Result<(), Error> {
-    let parsed = parse("[#sample]\n.Title\n====\nBody.\n====", &Options::default())?;
-    let value = export(parsed.document())?;
-    assert_eq!(value.pointer("/blocks/0/caption/number"), Some(&json!(1)));
-    let mut document = Document::default();
-    document.blocks.clone_from(&parsed.document().blocks);
-    document
-        .references
-        .clone_from(&parsed.document().references);
-    document.attributes = parsed.document().attributes.clone();
-    document
-        .references
-        .get_mut("sample")
-        .ok_or("reference")?
-        .caption = Some(Caption::Unnumbered);
-    assert!(
-        matches!(export(&document),Err(asg::Error::Unsupported {path,..}) if path=="/references/sample")
-    );
-    Ok(())
-}
-
-#[test]
-fn nested_unsupported_content_keeps_its_property_path() -> Result<(), Error> {
-    let parsed = parse("= Title\n:experimental:\n\nbtn:[Save]", &Options::default())?;
-    let Block::Paragraph(source) = parsed.document().blocks.first().ok_or("block")? else {
-        return Err("paragraph".into());
-    };
-    for property in ["attribution", "citetitle", "caption"] {
-        let mut paragraph = Paragraph::new(Vec::new(), Location::default());
-        let content = ContentAttribute::new(source.content.clone());
-        match property {
-            "attribution" => paragraph.metadata.attribution = Some(content),
-            "citetitle" => paragraph.metadata.citetitle = Some(content),
-            _ => paragraph.metadata.caption = Some(Caption::CustomContent(content)),
-        }
-        let mut document = Document::default();
-        document.blocks.push(Block::Paragraph(paragraph));
-        let field = if property == "caption" {
-            "caption/prefix"
-        } else {
-            property
-        };
-        assert!(
-            matches!(export(&document),Err(asg::Error::Unsupported {path,construct:Some("button"),..}) if path==format!("/blocks/0/{field}/0"))
-        );
     }
     Ok(())
 }
@@ -181,7 +79,7 @@ fn programmatic_literal_content_is_not_parsed_again() -> Result<(), Error> {
     ]));
     let mut document = Document::default();
     document.blocks.push(Block::Paragraph(paragraph));
-    let value = export(&document)?;
+    let value = export((&document).into())?;
     assert_eq!(
         value.pointer("/blocks/0/attribution/0/value"),
         Some(&json!("*literal* {name}"))
@@ -197,7 +95,7 @@ fn strict_export_is_unchanged_and_profiles_are_explicit() -> Result<(), Error> {
         strict,
         asg::document_with_profile(parsed.document_ref(), asg::Profile::Upstream)?
     );
-    let mut extended = export(parsed.document())?;
+    let mut extended = export(parsed.document_ref())?;
     assert_eq!(extended.get("profile"), Some(&json!(asg::ACDC_SCHEMA_ID)));
     extended
         .as_object_mut()
@@ -212,7 +110,7 @@ fn strict_export_is_unchanged_and_profiles_are_explicit() -> Result<(), Error> {
         matches!(asg::document(parsed.document_ref()), Err(asg::Error::Unsupported {path, ..}) if path == "/blocks/0/metadata/attribution")
     );
     assert_eq!(
-        export(parsed.document())?.pointer("/blocks/0/attribution"),
+        export(parsed.document_ref())?.pointer("/blocks/0/attribution"),
         Some(&json!([]))
     );
     Ok(())
@@ -315,7 +213,7 @@ fn captioned_leaf_bodies_and_absent_content_retain_their_meaning() -> Result<(),
         "[source,rust]\n----\nlet x = \"*literal*\";\n----",
         &Options::default(),
     )?;
-    let value = export(parsed.document())?;
+    let value = export(parsed.document_ref())?;
     assert_eq!(
         value.pointer("/blocks/0/caption"),
         Some(&json!({"kind":"unnumbered"}))
@@ -326,7 +224,7 @@ fn captioned_leaf_bodies_and_absent_content_retain_their_meaning() -> Result<(),
         Some(&json!("let x = \"*literal*\";"))
     );
     let parsed = parse("Text.", &Options::default())?;
-    let value = export(parsed.document())?;
+    let value = export(parsed.document_ref())?;
     for name in ["title", "reftext", "caption", "attribution", "citetitle"] {
         assert!(value.pointer(&format!("/blocks/0/{name}")).is_none());
     }

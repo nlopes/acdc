@@ -22,3 +22,12 @@ mod source_storage;
 mod table_edits;
 mod table_storage;
 mod video;
+
+#[cfg(feature = "asg")]
+mod asg_content_storage;
+#[cfg(feature = "asg")]
+mod asg_core_storage;
+#[cfg(feature = "asg")]
+mod asg_image_storage;
+#[cfg(feature = "asg")]
+mod asg_list_storage;

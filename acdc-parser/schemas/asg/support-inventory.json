@@ -5568,7 +5568,7 @@
       "handling": "Supported when every owned value is supported; required titles retain empty presence.",
       "tests": [
         {
-          "file": "tests/asg.rs",
+          "file": "src/ast/tests/asg_core_storage.rs",
           "name": "asg_preserves_formatted_titles_reftext_and_ids"
         },
         {
@@ -5606,7 +5606,7 @@
       "handling": "Supported scalar strings, presence, roles/options, styles, slots and one ordinary identity retain meaning. Unsets, ambiguous values, aliases, bibliography and independent labels are rejected.",
       "tests": [
         {
-          "file": "tests/asg.rs",
+          "file": "src/ast/tests/asg_core_storage.rs",
           "name": "asg_reads_retained_positional_slots"
         },
         {
@@ -5636,11 +5636,11 @@
       "handling": "Reference and TOC data is omitted only when reconstructible from supported owners. Extra, stale, numbered or bibliography meaning is rejected.",
       "tests": [
         {
-          "file": "tests/asg.rs",
+          "file": "src/ast/tests/asg_core_storage.rs",
           "name": "asg_preserves_formatted_titles_reftext_and_ids"
         },
         {
-          "file": "tests/asg.rs",
+          "file": "src/ast/tests/asg_core_storage.rs",
           "name": "asg_rejects_independent_header_and_catalog_values"
         }
       ]
@@ -5695,11 +5695,11 @@
           "name": "source_comments_are_omitted_without_dropping_their_neighbors"
         },
         {
-          "file": "tests/asg.rs",
+          "file": "src/ast/tests/asg_core_storage.rs",
           "name": "asg_reads_retained_positional_slots"
         },
         {
-          "file": "tests/asg.rs",
+          "file": "src/ast/tests/asg_core_storage.rs",
           "name": "asg_preserves_formatted_titles_reftext_and_ids"
         }
       ]
@@ -5793,7 +5793,7 @@
           "name": "unresolved_macro_and_callout_owners_are_rejected"
         },
         {
-          "file": "tests/asg.rs",
+          "file": "src/ast/tests/asg_core_storage.rs",
           "name": "asg_rejects_independent_header_and_catalog_values"
         }
       ]
@@ -5851,23 +5851,23 @@
           "name": "list_metadata_and_formatted_description_terms_keep_their_meaning"
         },
         {
-          "file": "tests/asg_lists.rs",
+          "file": "src/ast/tests/asg_list_storage.rs",
           "name": "invalid_list_state_fails_before_schema_projection"
         },
         {
-          "file": "tests/asg_lists.rs",
+          "file": "src/ast/tests/asg_list_storage.rs",
           "name": "checklist_and_nested_unsupported_content_report_their_own_paths"
         },
         {
-          "file": "tests/asg_lists.rs",
+          "file": "src/ast/tests/asg_list_storage.rs",
           "name": "callout_markers_preserve_kind_and_resolved_number"
         },
         {
-          "file": "tests/asg_lists.rs",
+          "file": "src/ast/tests/asg_list_storage.rs",
           "name": "description_item_identities_are_preserved_or_explicitly_rejected"
         },
         {
-          "file": "tests/asg_lists.rs",
+          "file": "src/ast/tests/asg_list_storage.rs",
           "name": "list_attachments_cannot_gain_sections"
         }
       ]
@@ -5926,10 +5926,10 @@
           ],
           "handling": "Preserve resolved caption state and content arrays directly. Titles/reftext retain upstream arrays; reject unsupported nested semantics and stale derived catalogs. Other strict rejection rules remain unchanged.",
           "tests": [
-            "asg_content.rs::resolved_content_fields_preserve_their_inline_trees",
+            "../src/ast/tests/asg_content_storage.rs::resolved_content_fields_preserve_their_inline_trees",
             "asg_content.rs::content_presence_and_caption_variants_do_not_collapse",
-            "asg_content.rs::captioned_targets_are_reconstructible_but_stale_catalogs_fail",
-            "asg_content.rs::nested_unsupported_content_keeps_its_property_path",
+            "../src/ast/tests/asg_content_storage.rs::captioned_targets_are_reconstructible_but_stale_catalogs_fail",
+            "../src/ast/tests/asg_content_storage.rs::nested_unsupported_content_keeps_its_property_path",
             "asg_content.rs::programmatic_literal_content_is_not_parsed_again",
             "asg_content.rs::strict_export_is_unchanged_and_profiles_are_explicit",
             "asg_content.rs::extension_schema_is_closed_and_keeps_the_pinned_structure"
@@ -5962,8 +5962,8 @@
             "asg_images.rs::inline_image_metadata_and_content_are_preserved",
             "asg_images.rs::image_text_presence_does_not_create_a_filename_fallback",
             "asg_images.rs::block_image_alternative_content_stays_separate_from_its_caption",
-            "asg_images.rs::image_support_composes_through_every_supported_content_owner",
-            "asg_images.rs::unsupported_image_content_and_scalar_states_fail_by_property",
+            "../src/ast/tests/asg_image_storage.rs::image_support_composes_through_every_supported_content_owner",
+            "../src/ast/tests/asg_image_storage.rs::unsupported_image_content_and_scalar_states_fail_by_property",
             "asg_images.rs::image_schema_rejects_unknown_fields_and_malformed_nested_values",
             "asg_images.rs::standalone_image_export_checks_the_selected_profile",
             "asg_images.rs::block_image_metadata_cannot_shadow_promoted_content"
