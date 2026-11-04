@@ -1,0 +1,91 @@
+[1m[4mTable column controls[0m
+  Table 1. Literal quote characters
+╭────────┬────────╮
+│ [1mCell 1[22m[0m ┆ [1mCell 2[22m[0m │
+│ [1m[22m[0m       ┆ [1m[22m[0m       │
+╰────────┴────────╯
+  Table 2. Invalid beside valid
+╭────────╮
+│ [1mCell 1[22m[0m │
+│ [1m[22m[0m       │
+├╌╌╌╌╌╌╌╌┤
+│ [1mCell 2[22m[0m │
+│ [1m[22m[0m       │
+╰────────╯
+  Table 3. No partial alignment
+╭────────╮
+│ [1mCell 1[22m[0m │
+│ [1m[22m[0m       │
+├╌╌╌╌╌╌╌╌┤
+│ [1mCell 2[22m[0m │
+│ [1m[22m[0m       │
+╰────────╯
+  Table 4. No partial multiplier
+╭────────╮
+│ [1mCell 1[22m[0m │
+│ [1m[22m[0m       │
+├╌╌╌╌╌╌╌╌┤
+│ [1mCell 2[22m[0m │
+│ [1m[22m[0m       │
+╰────────╯
+  Table 5. Full repeated specification
+╭────────┬────────┬────────╮
+│ [1mCell 1[22m[0m ┆ [1mCell 2[22m[0m ┆ [1mCell 3[22m[0m │
+│ [1m[22m[0m       ┆ [1m[22m[0m       ┆ [1m[22m[0m       │
+╰────────┴────────┴────────╯
+  Table 6. Alignment defaults
+╭────────┬────────╮
+│ [1mCell 1[22m[0m ┆ [1mCell 2[22m[0m │
+│       [1m[22m[0m ┆ [1m[22m[0m       │
+╰────────┴────────╯
+  Table 7. Count shorthand
+╭────────┬────────╮
+│ [1mCell 1[22m[0m ┆ [1mCell 2[22m[0m │
+│ [1m[22m[0m       ┆ [1m[22m[0m       │
+╰────────┴────────╯
+  Table 8. Semicolon records
+╭────────┬────────╮
+│ [1mCell 1[22m[0m ┆ [1mCell 2[22m[0m │
+│ [1m[22m[0m       ┆ [1m[22m[0m       │
+╰────────┴────────╯
+  Table 9. Embedded spaces
+╭────────┬────────╮
+│ [1mCell 1[22m[0m ┆ [1mCell 2[22m[0m │
+│ [1m[22m[0m       ┆ [1m[22m[0m       │
+╰────────┴────────╯
+  Table 10. Empty records
+╭────────┬────────╮
+│ [1mCell 1[22m[0m ┆ [1mCell 2[22m[0m │
+│ [1m[22m[0m       ┆ [1m[22m[0m       │
+╰────────┴────────╯
+  Table 11. Unknown style
+╭────────┬────────╮
+│ [1mCell 1[22m[0m ┆ [1mCell 2[22m[0m │
+│ [1m[22m[0m       ┆ [1m[22m[0m       │
+╰────────┴────────╯
+  Table 12. Zero repetition
+╭────────╮
+│ [1mCell 1[22m[0m │
+│ [1m[22m[0m       │
+├╌╌╌╌╌╌╌╌┤
+│ [1mCell 2[22m[0m │
+│ [1m[22m[0m       │
+╰────────╯
+  Table 13. Percentage widths
+╭────────┬────────╮
+│ [1mCell 1[22m[0m ┆ [1mCell 2[22m[0m │
+│ [1m[22m[0m       ┆ [1m[22m[0m       │
+╰────────┴────────╯
+  Table 14. Unicode junk
+╭────────╮
+│ [1mCell 1[22m[0m │
+│ [1m[22m[0m       │
+├╌╌╌╌╌╌╌╌┤
+│ [1mCell 2[22m[0m │
+│ [1m[22m[0m       │
+╰────────╯
+  Table 15. Syntactic outer quotes
+╭───────┬────────╮
+│ [1mFirst[22m[0m ┆ [1mSecond[22m[0m │
+│ [1m[22m[0m      ┆ [1m[22m[0m       │
+╰───────┴────────╯

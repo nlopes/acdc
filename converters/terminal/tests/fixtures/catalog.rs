@@ -5,6 +5,7 @@ terminal_fixture_catalog!([
     (caption_families, true),
     (decoded_output_controls, true),
     (literal_document_attribute_text, true),
+    (table_column_values, true),
     (subs_resolved_text, true),
     (subs_paragraph_styles, true),
     (media_content_escapes, true),
