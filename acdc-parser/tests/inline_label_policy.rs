@@ -1,12 +1,18 @@
-use acdc_parser::{Block, CompatibilityMode, InlineMacro, InlineNode, Options, parse};
+use acdc_parser::{
+    CompatibilityMode, Options,
+    ast::{BlockKind, BlockRef, ContentRef, FootnoteDefinitionRef, InlineKind, InlineRef},
+    parse,
+};
 
 type Error = Box<dyn std::error::Error>;
 
-fn paragraph(parsed: &acdc_parser::ParseResult) -> Result<&[InlineNode<'_>], Error> {
-    let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.first() else {
+fn paragraph(parsed: &acdc_parser::ParseResult) -> Result<ContentRef<'_>, Error> {
+    let Some(BlockKind::Paragraph(paragraph)) =
+        parsed.document_ref().blocks().next().map(BlockRef::kind)
+    else {
         return Err("expected paragraph".into());
     };
-    Ok(&paragraph.content)
+    Ok(paragraph.content())
 }
 
 #[rstest::rstest]
@@ -27,19 +33,24 @@ fn shorthand_labels_keep_trailing_and_unicode_whitespace_at_the_authored_span(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let reference = paragraph(&parsed)?
-        .iter()
+        .inlines()
         .find_map(|node| {
-            if let InlineNode::Macro(InlineMacro::CrossReference(reference)) = node {
+            if let InlineKind::CrossReference(reference) = node.kind() {
                 Some(reference)
             } else {
                 None
             }
         })
         .ok_or("missing xref")?;
-    let [InlineNode::PlainText(text)] = reference.text.as_slice() else {
-        return Err(format!("expected plain label: {:?}", reference.text).into());
+    let [InlineKind::Plain(text)] = &*reference
+        .text()
+        .inlines()
+        .map(InlineRef::kind)
+        .collect::<Vec<_>>()
+    else {
+        return Err(format!("expected plain label: {:?}", reference.text()).into());
     };
-    assert_eq!(text.content, expected);
+    assert_eq!(text.text(), expected);
     // Normalization removes trailing spaces before a newline before assigning byte offsets.
     let start = parsed
         .source()
@@ -52,7 +63,10 @@ fn shorthand_labels_keep_trailing_and_unicode_whitespace_at_the_authored_span(
             .ok_or("empty expected label")?
             .0;
     assert_eq!(
-        (text.location.absolute_start, text.location.absolute_end),
+        (
+            text.location().absolute_start(),
+            text.location().absolute_end()
+        ),
         (start, end)
     );
     Ok(())
@@ -68,15 +82,19 @@ fn shorthand_ascii_whitespace_is_automatic_but_unicode_whitespace_is_explicit(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let [InlineNode::Macro(InlineMacro::CrossReference(reference))] = paragraph(&parsed)? else {
+    let [InlineKind::CrossReference(reference)] = &*paragraph(&parsed)?
+        .inlines()
+        .map(InlineRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err("expected xref".into());
     };
     if label == "\u{a0}" {
         assert!(
-            matches!(reference.text.as_slice(), [InlineNode::PlainText(text)] if text.content == label)
+            matches!(&*reference.text().inlines().map(InlineRef::kind).collect::<Vec<_>>(), [InlineKind::Plain(text)] if text.text() == label)
         );
     } else {
-        assert_eq!(reference.text, []);
+        assert_eq!(reference.text().inlines().count(), 0);
     }
     Ok(())
 }
@@ -99,31 +117,35 @@ fn content_attribute_escapes_keep_their_full_authored_span(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let content = paragraph(&parsed)?
-        .iter()
+        .inlines()
         .find_map(|node| {
-            if let InlineNode::Macro(InlineMacro::Image(image)) = node {
-                image.tooltip.as_ref()
-            } else if let InlineNode::Macro(InlineMacro::Icon(icon)) = node {
-                icon.alt.as_ref()
-            } else if let InlineNode::Macro(InlineMacro::Link(link)) = node {
-                link.tooltip.as_ref()
-            } else if let InlineNode::Macro(InlineMacro::Url(url)) = node {
-                url.tooltip.as_ref()
-            } else if let InlineNode::Macro(InlineMacro::Mailto(mailto)) = node {
-                mailto.tooltip.as_ref()
+            if let InlineKind::Image(image) = node.kind() {
+                image.tooltip()
+            } else if let InlineKind::Icon(icon) = node.kind() {
+                icon.alt()
+            } else if let InlineKind::Link(link) = node.kind() {
+                link.tooltip()
+            } else if let InlineKind::Url(url) = node.kind() {
+                url.tooltip()
+            } else if let InlineKind::Mailto(mailto) = node.kind() {
+                mailto.tooltip()
             } else {
                 None
             }
         })
         .ok_or("missing content attribute")?;
-    let [InlineNode::PlainText(text)] = content.as_ref() else {
+    let [InlineKind::Plain(text)] = &*content.inlines().map(InlineRef::kind).collect::<Vec<_>>()
+    else {
         return Err("expected decoded attribute text".into());
     };
-    assert_eq!(text.content, "π ] end");
+    assert_eq!(text.text(), "π ] end");
     let authored = "π \\] end";
     let start = source.find(authored).ok_or("missing authored value")?;
     assert_eq!(
-        (text.location.absolute_start, text.location.absolute_end),
+        (
+            text.location().absolute_start(),
+            text.location().absolute_end()
+        ),
         (start, start + authored.len() - 1)
     );
     Ok(())
@@ -142,10 +164,9 @@ fn selected_tooltips_register_macros_once_and_controls_stay_scalar(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let ids = parsed
-        .document()
-        .footnotes
-        .iter()
-        .map(|note| note.id)
+        .document_ref()
+        .footnotes()
+        .map(FootnoteDefinitionRef::id)
         .collect::<Vec<_>>();
     assert_eq!(ids, [Some("tip")]);
     Ok(())
@@ -161,9 +182,9 @@ fn quoted_xref_footnotes_keep_their_mapped_catalog_locations(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let reference = paragraph(&parsed)?
-        .iter()
+        .inlines()
         .find_map(|node| {
-            if let InlineNode::Macro(InlineMacro::CrossReference(reference)) = node {
+            if let InlineKind::CrossReference(reference) = node.kind() {
                 Some(reference)
             } else {
                 None
@@ -171,10 +192,10 @@ fn quoted_xref_footnotes_keep_their_mapped_catalog_locations(
         })
         .ok_or("missing xref")?;
     let occurrence = reference
-        .text
-        .iter()
+        .text()
+        .inlines()
         .find_map(|node| {
-            if let InlineNode::Macro(InlineMacro::Footnote(note)) = node {
+            if let InlineKind::Footnote(note) = node.kind() {
                 Some(note)
             } else {
                 None
@@ -182,14 +203,14 @@ fn quoted_xref_footnotes_keep_their_mapped_catalog_locations(
         })
         .ok_or("missing footnote occurrence")?;
     let note = parsed
-        .document()
-        .footnotes
-        .first()
+        .document_ref()
+        .footnotes()
+        .next()
         .ok_or("missing catalog footnote")?;
-    assert_eq!(note.location, occurrence.location);
-    assert_eq!(note.content, occurrence.content);
+    assert_eq!(note.location(), occurrence.location());
+    assert_eq!(note.content(), occurrence.content());
     assert_eq!(
-        note.location.absolute_start,
+        note.location().absolute_start(),
         source.find("footnote:").ok_or("missing authored note")?
     );
     Ok(())
