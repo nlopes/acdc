@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Intrinsic attributes such as `{quot}` and `{apos}` produce semantic character references. A later `specialchars` stage now escapes intrinsic values, matching Asciidoctor; replacement attributes still protect formatting and macro syntax.
+
 - Checked ASG export rejects sections without a title and verbatim content without a supported literal/listing mapping. Present empty titles remain distinct from absent titles.
 
 - Added `InlineNode::CharacterReference`, with named/numeric values and `CharacterReferenceRef` reads. Native JSON uses `name: "charref"`; numeric values use canonical decimal reference spelling. Checked ASG export accepts reference nodes and rejects invalid XML numeric characters. Parsing now identifies references during replacements. Asciidoctor mode follows its reference syntax; Draft accepts XML names and one-digit numeric references. Escapes, substitution order, expanded attributes, and source ranges retain their meaning. Numeric references no longer retain hexadecimal spelling or zero padding.

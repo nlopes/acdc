@@ -311,6 +311,35 @@ fn finish_raw_nodes<'a>(
     result
 }
 
+fn process_intrinsic_attribute<'a>(
+    raw: Raw<'a>,
+    plan: SubstitutionPlan,
+    state: &ParserState<'a>,
+) -> Vec<InlineNode<'a>> {
+    if !plan.precedes(&Substitution::Attributes, &Substitution::SpecialChars) {
+        return vec![
+            whole(
+                raw.content,
+                state.options.compatibility_mode,
+                raw.location.clone(),
+            )
+            .map_or(InlineNode::RawText(raw), InlineNode::CharacterReference),
+        ];
+    }
+    let remaining: Vec<_> = plan
+        .after(&Substitution::Attributes)
+        .into_iter()
+        .filter(|stage| {
+            matches!(
+                stage,
+                Substitution::SpecialChars | Substitution::Replacements
+            )
+        })
+        .collect();
+    // Replacement attributes keep formatting and macro syntax literal.
+    resolve_registered_text(process_raw_substitutions(raw, &remaining, state), state)
+}
+
 fn process_passthrough_stages<'a>(
     content: &'a str,
     passthrough: &Pass<'a>,
@@ -322,6 +351,12 @@ fn process_passthrough_stages<'a>(
         location: passthrough_content_location(passthrough, content, state),
         subs: Vec::new(),
     };
+    if passthrough.kind == PassthroughKind::AttributeRef
+        && passthrough.substitutions.is_empty()
+        && passthrough.attribute_fragments.is_empty()
+    {
+        return process_intrinsic_attribute(raw, attribute_substitutions, state);
+    }
     if !passthrough.attribute_fragments.is_empty() {
         let mut nodes = Vec::new();
         let remaining = attribute_substitutions.after(&Substitution::Attributes);

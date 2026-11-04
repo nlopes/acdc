@@ -1,0 +1,30 @@
+= Intrinsic references
+
+P01 é {quot} {apos} {lt} {gt} {amp} {plus} {asterisk} {cpp}.
+
+[subs=attributes]
+P02 {quot} {apos} {lt} {gt} {amp}.
+
+[subs="attributes,specialchars"]
+P03 {quot} {apos} {lt} {gt} {amp}.
+
+[subs="attributes,replacements,specialchars"]
+P04 {quot} {apos} {lt} {gt} {amp}.
+
+[subs="specialchars,attributes"]
+P05 {quot} {apos} {lt} {gt} {amp}.
+
+P06 *{quot}é{quot}* and `{amp}` and image:a.png[{quot}Alt{quot},title={apos}Tip{apos}].
+
+[subs="attributes,specialchars,replacements"]
+P07 {quot} {apos} {lt} {gt} {amp}.
+
+[subs="replacements,attributes,specialchars"]
+P08 {quot} {apos} {lt} {gt} {amp}.
+
+[cols="a"]
+|===
+|P09 Ω {quot} {apos} and \{quot}.
+|===
+
+include::includes/intrinsic_references.adoc[tag=selected,indent=0]

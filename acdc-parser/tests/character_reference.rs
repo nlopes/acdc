@@ -254,3 +254,92 @@ fn later_quotes_span_resolved_character_references() -> Result<(), Error> {
     );
     Ok(())
 }
+
+#[test]
+fn intrinsic_references_have_semantic_identity_and_authored_ranges() -> Result<(), Error> {
+    for mode in [
+        acdc_parser::CompatibilityMode::Asciidoctor,
+        acdc_parser::CompatibilityMode::Draft,
+    ] {
+        let options = acdc_parser::Options::builder()
+            .with_compatibility_mode(mode)
+            .build()?;
+        for settings in [
+            "",
+            "[subs=attributes]\n",
+            "[subs=\"specialchars,attributes\"]\n",
+        ] {
+            let source = format!("{settings}é {{quot}} {{apos}} {{plus}} {{asterisk}} {{cpp}}.");
+            let parsed = acdc_parser::parse(&source, &options)?;
+            let Some(acdc_parser::Block::Paragraph(paragraph)) = parsed.document().blocks.first()
+            else {
+                return Err("missing paragraph".into());
+            };
+            let references: Vec<_> = paragraph
+                .content
+                .iter()
+                .filter_map(|node| {
+                    if let InlineNode::CharacterReference(reference) = node {
+                        Some(reference)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            assert_eq!(references.len(), 2, "{source} ({mode:?})");
+            for (reference, (expected, token)) in
+                references.into_iter().zip([(34, "{quot}"), (39, "{apos}")])
+            {
+                assert_eq!(reference.kind(), CharacterReferenceKind::Numeric(expected));
+                assert_eq!(
+                    &parsed.source()
+                        [reference.location.absolute_start..=reference.location.absolute_end],
+                    token
+                );
+            }
+            assert!(
+                !paragraph
+                    .content
+                    .iter()
+                    .any(|node| matches!(node, InlineNode::BoldText(_) | InlineNode::Macro(_)))
+            );
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn intrinsic_references_keep_a_later_escape_stage() -> Result<(), Error> {
+    for mode in [
+        acdc_parser::CompatibilityMode::Asciidoctor,
+        acdc_parser::CompatibilityMode::Draft,
+    ] {
+        let options = acdc_parser::Options::builder()
+            .with_compatibility_mode(mode)
+            .build()?;
+        for substitutions in [
+            "attributes,specialchars",
+            "attributes,replacements,specialchars",
+            "replacements,attributes,specialchars",
+        ] {
+            let source =
+                format!("[subs=\"{substitutions}\"]\n{{quot}} {{apos}} {{lt}} {{gt}} {{amp}}");
+            let parsed = acdc_parser::parse(&source, &options)?;
+            let Some(acdc_parser::Block::Paragraph(paragraph)) = parsed.document().blocks.first()
+            else {
+                return Err("missing paragraph".into());
+            };
+            assert!(
+                !paragraph
+                    .content
+                    .iter()
+                    .any(|node| matches!(node, InlineNode::CharacterReference(_))),
+                "{source} ({mode:?})"
+            );
+            for value in ["&#34;", "&#39;", "<", ">", "&"] {
+                assert!(paragraph.content.iter().any(|node| matches!(node, InlineNode::RawText(raw) if raw.content == value && raw.subs == [acdc_parser::Substitution::SpecialChars])), "missing {value}: {source} ({mode:?})");
+            }
+        }
+    }
+    Ok(())
+}

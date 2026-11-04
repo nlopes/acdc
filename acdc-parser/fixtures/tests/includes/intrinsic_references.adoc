@@ -1,0 +1,4 @@
+Excluded {quot}.
+// tag::selected[]
+  P10 Include é {quot} {apos}.
+// end::selected[]
