@@ -17,6 +17,7 @@ pub(super) fn location(
     for (index, position) in [&value.start, &value.end].into_iter().enumerate() {
         if position.line == 0 || position.file.as_ref().is_some_and(|chain| chain.is_empty()) {
             return Err(Error::InvalidLocation { path: pointer(&path, &index.to_string()),
+                construct: None, location: None,
                 message: "a known boundary needs a positive line and a nonempty include chain when supplied".into() });
         }
         let mut boundary = Map::new();
@@ -70,6 +71,12 @@ pub(super) fn title(
 
 pub(super) fn check(value: &BlockMetadata<'_>, path: &str) -> Result<(), Error> {
     let at = pointer(path, "metadata");
+    value.validate_attributes(&[]).map_err(|error| {
+        unsupported(
+            &pointer(&pointer(&at, "attributes"), &error.name),
+            error.to_string(),
+        )
+    })?;
     for (present, name) in [
         (value.has_document_attributes(), "document_attributes"),
         (value.caption.is_some(), "caption"),

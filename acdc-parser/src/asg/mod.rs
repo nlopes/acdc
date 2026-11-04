@@ -4,6 +4,7 @@
 //! directly and fails if their meaning has no supported mapping. It never reparses
 //! strings, changes the AST, or runs a converter.
 
+mod diagnostics;
 mod metadata;
 mod projection;
 
@@ -11,7 +12,7 @@ use std::sync::OnceLock;
 
 use serde_json::{Map, Value};
 
-use crate::{Document, InlineNode};
+use crate::{Document, InlineNode, Location};
 
 /// Schema identifier used by this exporter.
 pub const SCHEMA_ID: &str = "https://schemas.asciidoc.org/asg/1-0-0/draft-01";
@@ -30,10 +31,36 @@ pub enum Error {
     /// A semantic value has no supported mapping. `path` is a JSON Pointer into
     /// the attempted output, or a native property when no output field exists.
     #[error("unsupported ASG value at {path}: {message}")]
-    Unsupported { path: String, message: String },
+    Unsupported {
+        /// JSON Pointer to the unsupported node or property.
+        path: String,
+        /// Native semantic owner of the value, when known.
+        construct: Option<&'static str>,
+        /// Known source coordinates of that owner; never fabricated.
+        location: Option<Box<Location>>,
+        /// Why the value cannot be represented.
+        message: String,
+    },
     /// Available source coordinates violate the pinned location contract.
     #[error("invalid ASG location at {path}: {message}")]
-    InvalidLocation { path: String, message: String },
+    InvalidLocation {
+        /// JSON Pointer to the invalid boundary.
+        path: String,
+        /// Native owner of the invalid location, when known.
+        construct: Option<&'static str>,
+        /// Valid source coordinates, if the owner has any.
+        location: Option<Box<Location>>,
+        /// Which location requirement failed.
+        message: String,
+    },
+    /// Projected output violates the pinned schema.
+    #[error("invalid ASG projection at {path}: {message}")]
+    Projection {
+        /// JSON Pointer into the projected output.
+        path: String,
+        /// The schema validation failure.
+        message: String,
+    },
 }
 
 /// Export a document without changing its native AST or derived catalogs.
@@ -44,7 +71,8 @@ pub enum Error {
 /// semantics and validates against [`SCHEMA_REVISION`]; it does not establish
 /// source round-trip fidelity or complete language conformance.
 pub fn document(document: &Document<'_>) -> Result<Value, Error> {
-    let value = projection::document(document)?;
+    let value = projection::document(document)
+        .map_err(|error| error.with_context("document", &document.location))?;
     validate(&value, "")?;
     Ok(value)
 }
@@ -79,6 +107,8 @@ pub fn inlines(inlines: &[InlineNode<'_>]) -> Result<Value, Error> {
 fn unsupported(path: &str, message: impl Into<String>) -> Error {
     Error::Unsupported {
         path: path.into(),
+        construct: None,
+        location: None,
         message: message.into(),
     }
 }
@@ -98,9 +128,24 @@ fn validate(value: &Value, prefix: &str) -> Result<(), Error> {
         .map_err(|message| Error::Schema(message.clone()))?;
     validator.validate(value).map_err(|error| {
         let path = error.instance_path().to_string();
-        unsupported(
-            path.strip_prefix(prefix).unwrap_or(&path),
-            error.to_string(),
-        )
+        Error::Projection {
+            path: path.strip_prefix(prefix).unwrap_or(&path).into(),
+            message: error.to_string(),
+        }
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Error, validate};
+
+    #[test]
+    fn invalid_projection_is_not_reported_as_unsupported_source() {
+        let value = serde_json::json!({"name":"document", "type":"block", "blocks":[{
+            "name":"paragraph", "type":"block", "inlines":"wrong shape"
+        }]});
+        assert!(
+            matches!(validate(&value, ""), Err(Error::Projection { path, .. }) if path == "/blocks/0")
+        );
+    }
 }

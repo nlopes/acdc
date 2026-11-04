@@ -3,11 +3,11 @@ use std::collections::BTreeMap;
 use serde_json::{Map, Value};
 
 use crate::{
-    Block, BlockMetadata, ContentAttribute, Document, DocumentAttributeAssignment, Form,
+    Block, BlockMetadata, ContentAttribute, Document, DocumentAttributeAssignment, Form, Header,
     InlineNode, Section, SectionKind, Substitution, Title,
 };
 
-use super::{Error, metadata, pointer, unsupported};
+use super::{Error, diagnostics, metadata, pointer, unsupported};
 
 type Node = Map<String, Value>;
 
@@ -25,6 +25,11 @@ pub(super) fn inlines(values: &[InlineNode<'_>], path: &str) -> Result<Value, Er
 }
 
 fn inline(value: &InlineNode<'_>, path: &str) -> Result<Value, Error> {
+    inline_value(value, path)
+        .map_err(|error| error.with_context(diagnostics::inline_construct(value), value.location()))
+}
+
+fn inline_value(value: &InlineNode<'_>, path: &str) -> Result<Value, Error> {
     let mut result = match value {
         InlineNode::PlainText(text) => literal("text", text.content),
         InlineNode::VerbatimText(_) => {
@@ -122,11 +127,13 @@ fn span_node(
     content: &[InlineNode<'_>],
     path: &str,
 ) -> Result<Node, Error> {
-    if role.is_some() || has_id {
-        return Err(unsupported(
-            &pointer(path, "metadata"),
-            "upstream inline spans have no identity or role fields",
-        ));
+    for (present, property) in [(has_id, "id"), (role.is_some(), "role")] {
+        if present {
+            return Err(unsupported(
+                &pointer(path, property),
+                "upstream inline spans have no identity or role fields",
+            ));
+        }
     }
     let mut result = node("span", "inline");
     result.insert("variant".into(), name.into());
@@ -155,12 +162,58 @@ struct Export<'a, 'doc> {
     targets: BTreeMap<String, Target<'a, 'doc>>,
 }
 
-pub(super) fn document(value: &Document<'_>) -> Result<Value, Error> {
-    if !value.footnotes.is_empty() {
+fn project_header(header: &Header<'_>) -> Result<Value, Error> {
+    if !header.title.is_present() {
         return Err(unsupported(
-            "/footnotes",
-            "footnote definitions have no supported upstream mapping",
+            "/header/title",
+            "the upstream header requires a present title",
         ));
+    }
+    metadata::header(&header.metadata)?;
+    if header.subtitle.is_some() {
+        return Err(unsupported(
+            "/header/subtitle",
+            "the upstream header has no subtitle field",
+        ));
+    }
+    let mut projected = Map::new();
+    metadata::title(&mut projected, &header.title, "/header")?;
+    if !header.authors.is_empty() {
+        projected.insert(
+            "authors".into(),
+            Value::Array(
+                header
+                    .authors
+                    .iter()
+                    .map(|author| {
+                        let mut author_node = Map::from_iter([
+                            ("firstname".into(), author.first_name.into()),
+                            ("lastname".into(), author.last_name.into()),
+                            ("initials".into(), author.initials.into()),
+                        ]);
+                        if let Some(middle) = author.middle_name {
+                            author_node.insert("middlename".into(), middle.into());
+                        }
+                        if let Some(email) = author.email {
+                            author_node.insert("address".into(), email.into());
+                        }
+                        Value::Object(author_node)
+                    })
+                    .collect(),
+            ),
+        );
+    }
+    metadata::location(&mut projected, &header.location, "/header")?;
+    Ok(Value::Object(projected))
+}
+
+pub(super) fn document(value: &Document<'_>) -> Result<Value, Error> {
+    if let Some(note) = value.footnotes.first() {
+        return Err(unsupported(
+            "/footnotes/0",
+            "footnote definitions have no supported upstream mapping",
+        )
+        .with_context("footnote", &note.location));
     }
     let mut result = node("document", "block");
     let mut attributes = Map::new();
@@ -191,42 +244,9 @@ pub(super) fn document(value: &Document<'_>) -> Result<Value, Error> {
         result.insert("attributes".into(), Value::Object(attributes));
     }
     if let Some(header) = &value.header {
-        metadata::header(&header.metadata)?;
-        if header.subtitle.is_some() {
-            return Err(unsupported(
-                "/header/subtitle",
-                "the upstream header has no subtitle field",
-            ));
-        }
-        let mut projected = Map::new();
-        metadata::title(&mut projected, &header.title, "/header")?;
-        if !header.authors.is_empty() {
-            projected.insert(
-                "authors".into(),
-                Value::Array(
-                    header
-                        .authors
-                        .iter()
-                        .map(|author| {
-                            let mut author_node = Map::from_iter([
-                                ("firstname".into(), author.first_name.into()),
-                                ("lastname".into(), author.last_name.into()),
-                                ("initials".into(), author.initials.into()),
-                            ]);
-                            if let Some(middle) = author.middle_name {
-                                author_node.insert("middlename".into(), middle.into());
-                            }
-                            if let Some(email) = author.email {
-                                author_node.insert("address".into(), email.into());
-                            }
-                            Value::Object(author_node)
-                        })
-                        .collect(),
-                ),
-            );
-        }
-        metadata::location(&mut projected, &header.location, "/header")?;
-        result.insert("header".into(), Value::Object(projected));
+        let projected = project_header(header)
+            .map_err(|error| error.with_context("header", &header.location))?;
+        result.insert("header".into(), projected);
     }
     let mut export = Export {
         targets: BTreeMap::new(),
@@ -240,74 +260,82 @@ pub(super) fn document(value: &Document<'_>) -> Result<Value, Error> {
 impl<'a, 'doc> Export<'a, 'doc> {
     fn blocks(&mut self, values: &'a [Block<'doc>], path: &str) -> Result<Value, Error> {
         let mut result = Vec::new();
-        for (index, value) in values.iter().enumerate() {
-            let at = pointer(path, &index.to_string());
-            let projected = match value {
-                Block::Paragraph(paragraph) => {
-                    let mut result = node("paragraph", "block");
-                    metadata::apply(&mut result, &paragraph.metadata, &at)?;
-                    metadata::title(&mut result, &paragraph.title, &at)?;
-                    result.insert(
-                        "inlines".into(),
-                        inlines(&paragraph.content, &pointer(&at, "inlines"))?,
-                    );
-                    self.target(&paragraph.metadata, &paragraph.title, None, &at)?;
-                    result
-                }
-                Block::Section(section) => {
-                    if section.kind != SectionKind::Normal || !section.numbering_is_disabled() {
-                        return Err(unsupported(
-                            &at,
-                            "section category or numbering requires a defined semantic mapping",
-                        ));
-                    }
-                    if !section.title.is_present() {
-                        return Err(unsupported(
-                            &pointer(&at, "title"),
-                            "the upstream section requires a present title",
-                        ));
-                    }
-                    let mut result = node("section", "block");
-                    metadata::apply(&mut result, &section.metadata, &at)?;
-                    result.insert("id".into(), Value::String(section.id().into_owned()));
-                    result.insert(
-                        "title".into(),
-                        inlines(section.title.as_ref(), &pointer(&at, "title"))?,
-                    );
-                    result.insert("level".into(), section.level.into());
-                    self.target(&section.metadata, &section.title, Some(section), &at)?;
-                    result.insert(
-                        "blocks".into(),
-                        self.blocks(&section.content, &pointer(&at, "blocks"))?,
-                    );
-                    result
-                }
-                Block::Comment(_) => continue,
-                Block::TableOfContents(_)
-                | Block::Admonition(_)
-                | Block::DiscreteHeader(_)
-                | Block::DocumentAttribute(_)
-                | Block::ThematicBreak(_)
-                | Block::PageBreak(_)
-                | Block::UnorderedList(_)
-                | Block::OrderedList(_)
-                | Block::CalloutList(_)
-                | Block::DescriptionList(_)
-                | Block::DelimitedBlock(_)
-                | Block::Image(_)
-                | Block::Audio(_)
-                | Block::Video(_) => {
-                    return Err(unsupported(
-                        &at,
-                        "this block form has no supported upstream mapping",
-                    ));
-                }
-            };
-            let mut projected = projected;
-            metadata::location(&mut projected, value.location(), &at)?;
-            result.push(Value::Object(projected));
+        for value in values {
+            let at = pointer(path, &result.len().to_string());
+            if let Some(projected) = self.block(value, &at).map_err(|error| {
+                error.with_context(diagnostics::block_construct(value), value.location())
+            })? {
+                result.push(projected);
+            }
         }
         Ok(Value::Array(result))
+    }
+
+    fn block(&mut self, value: &'a Block<'doc>, at: &str) -> Result<Option<Value>, Error> {
+        let projected = match value {
+            Block::Paragraph(paragraph) => {
+                let mut result = node("paragraph", "block");
+                metadata::apply(&mut result, &paragraph.metadata, at)?;
+                metadata::title(&mut result, &paragraph.title, at)?;
+                result.insert(
+                    "inlines".into(),
+                    inlines(&paragraph.content, &pointer(at, "inlines"))?,
+                );
+                self.target(&paragraph.metadata, &paragraph.title, None, at)?;
+                result
+            }
+            Block::Section(section) => {
+                if section.kind != SectionKind::Normal || !section.numbering_is_disabled() {
+                    return Err(unsupported(
+                        at,
+                        "section category or numbering requires a defined semantic mapping",
+                    ));
+                }
+                if !section.title.is_present() {
+                    return Err(unsupported(
+                        &pointer(at, "title"),
+                        "the upstream section requires a present title",
+                    ));
+                }
+                let mut result = node("section", "block");
+                metadata::apply(&mut result, &section.metadata, at)?;
+                result.insert("id".into(), Value::String(section.id().into_owned()));
+                result.insert(
+                    "title".into(),
+                    inlines(section.title.as_ref(), &pointer(at, "title"))?,
+                );
+                result.insert("level".into(), section.level.into());
+                self.target(&section.metadata, &section.title, Some(section), at)?;
+                result.insert(
+                    "blocks".into(),
+                    self.blocks(&section.content, &pointer(at, "blocks"))?,
+                );
+                result
+            }
+            Block::Comment(_) => return Ok(None),
+            Block::TableOfContents(_)
+            | Block::Admonition(_)
+            | Block::DiscreteHeader(_)
+            | Block::DocumentAttribute(_)
+            | Block::ThematicBreak(_)
+            | Block::PageBreak(_)
+            | Block::UnorderedList(_)
+            | Block::OrderedList(_)
+            | Block::CalloutList(_)
+            | Block::DescriptionList(_)
+            | Block::DelimitedBlock(_)
+            | Block::Image(_)
+            | Block::Audio(_)
+            | Block::Video(_) => {
+                return Err(unsupported(
+                    at,
+                    "this block form has no supported upstream mapping",
+                ));
+            }
+        };
+        let mut projected = projected;
+        metadata::location(&mut projected, value.location(), at)?;
+        Ok(Some(Value::Object(projected)))
     }
 
     fn target(
@@ -343,6 +371,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
             let at = pointer("/references", id);
             let target = self.targets.get(*id).ok_or_else(|| {
                 unsupported(&at, "reference data has no supported exported owner")
+                    .with_context("reference", &reference.location)
             })?;
             let label = target.label.filter(|content| {
                 content.iter().any(|inline| match inline {
@@ -388,7 +417,8 @@ impl<'a, 'doc> Export<'a, 'doc> {
                 return Err(unsupported(
                     &at,
                     "independent reference meaning cannot be reconstructed from exported owners",
-                ));
+                )
+                .with_context("reference", &reference.location));
             }
         }
         for (index, entry) in value.toc_entries.iter().enumerate() {
@@ -402,6 +432,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
                         &at,
                         "table-of-contents data has no supported exported section",
                     )
+                    .with_context("table of contents entry", &entry.location)
                 })?;
             if entry.title != target.title
                 || entry.level != target.level
@@ -412,7 +443,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
                 return Err(unsupported(
                     &at,
                     "independent table-of-contents meaning cannot be reconstructed from exported sections",
-                ));
+                ).with_context("table of contents entry", &entry.location));
             }
         }
         Ok(())

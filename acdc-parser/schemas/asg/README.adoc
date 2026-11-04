@@ -94,7 +94,11 @@ schema to make native JSON pass.
 Enable the `asg` Cargo feature and call `asg::document(parsed.document())` or
 `asg::inlines(parsed.inlines())`. Export reads the AST directly, then validates
 against this pin. It returns a complete JSON value or a typed error with a
-JSON Pointer path. It never expands attributes, parses strings again, registers
+JSON Pointer path. Unsupported-value and invalid-location errors identify the
+nearest semantic owner and retain its coordinates when known. An unknown inner
+location stays unknown; an outer document range is not substituted for it.
+Schema loading and invalid projected output have separate error variants.
+It never expands attributes, parses strings again, registers
 macros, or invokes a converter. Native JSON and parsing behavior stay unchanged.
 
 The initial subset includes document attributes, headers/authors, paragraphs,
