@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Inline image alternatives and tooltips preserve literal trailing dashes instead of replacing them with an em dash.
+
 ### Changed
 
 - Curved quotes and apostrophes retain their punctuation in body text, image

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Image alternatives retain the parser-selected text in fallback output.
+
 ### Fixed
 
 - Block `subs=` settings work in every build. Literal and escaped text,

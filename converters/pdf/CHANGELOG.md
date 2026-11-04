@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Missing block images use the same resolved alternative text as embedded images. Replacement characters now appear in this fallback; Asciidoctor PDF keeps block alternatives literal.
+
 ### Changed
 
 - Source arrows now use the parser’s resolved value consistently in inline

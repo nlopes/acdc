@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Inline image alternatives preserve literal trailing dashes in fallback text.
+
 ### Changed
 
 - Block `subs=` settings now work in every build. Literal content, escaped

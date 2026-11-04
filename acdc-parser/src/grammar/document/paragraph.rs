@@ -60,6 +60,7 @@ pub(super) fn process_normal_indented<'a>(
         &map,
         metadata,
         &state.document_attributes,
+        crate::grammar::state::InlineRules::default(),
     )
 }
 

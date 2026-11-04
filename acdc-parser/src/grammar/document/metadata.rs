@@ -2,7 +2,7 @@
 
 use crate::{
     Anchor, AttributeValue, Block, BlockMetadata, CompatibilityMode, ContentAttribute, Error,
-    InlineNode, Location, Plain, Title, Warning, WarningKind,
+    InlineNode, Location, Title, Warning, WarningKind,
     ast::BlockRef,
     document_attribute::AttributeDeclaration,
     grammar::{
@@ -18,8 +18,9 @@ use crate::{
             BlockParsingMetadata, RESERVED_NAMED_ATTRIBUTE_ID, RESERVED_NAMED_ATTRIBUTE_OPTIONS,
             RESERVED_NAMED_ATTRIBUTE_ROLE, RESERVED_NAMED_ATTRIBUTE_SUBS,
         },
-        inline_preprocessor::SourceMap,
-        inline_processing::{process_attribute_inlines, process_inlines},
+        inline_preprocessor::{ProcessedKind, SourceMap},
+        inline_processing::{process_attribute_inlines, process_inlines, process_mapped_inlines},
+        state::InlineRules,
     },
     model::{
         AttributePosition, Caption, CaptionKind, PositionalAttribute, SectionLevel, Substitution,
@@ -1021,28 +1022,42 @@ fn resolve_image_alt<'a>(
                 "missing captured attribute input".into(),
             )
         })?;
-    let nodes = if state.options.compatibility_mode == CompatibilityMode::Draft {
-        literal_attribute_inlines(state, &value)
-    } else if matches!(source.mode, BlockAttributeMode::Block)
-        && value.quote == AttributeQuote::Single
-    {
-        process_attribute_inlines(state, &value)?
-    } else {
-        let text = state.intern_str(&value.text.replace("\\]", "]"));
-        if text.is_empty() {
-            Vec::new()
-        } else {
-            vec![InlineNode::PlainText(Plain {
-                content: text,
-                location: state.create_block_location(
-                    value.source_range.start,
-                    value.source_range.end,
-                    0,
-                ),
-                escaped: false,
-            })]
+    if state.options.compatibility_mode == CompatibilityMode::Draft {
+        return Ok(ContentAttribute::new(literal_attribute_inlines(
+            state, &value,
+        )));
+    }
+    let formatted =
+        matches!(source.mode, BlockAttributeMode::Block) && value.quote == AttributeQuote::Single;
+    let mut value = value;
+    if !formatted && value.text.contains("\\]") {
+        let mut escapes = SourceMap::default();
+        for (position, _) in value.text.match_indices("\\]") {
+            escapes.add_replacement(position, position + 2, 1, ProcessedKind::Escape);
         }
+        value.text = state.intern_str(&value.text.replace("\\]", "]"));
+        value.source_map = escapes.with_origin(value.source_map, 0);
+    }
+    // Block macro alt receives replacements, but never formatting or macros.
+    let substitutions = if formatted {
+        SubstitutionPlan::default()
+    } else {
+        SubstitutionPlan::from_substitutions(&[
+            Substitution::SpecialChars,
+            Substitution::Replacements,
+        ])
     };
+    let nodes = process_mapped_inlines(
+        state,
+        value.text,
+        &value.source_map,
+        &BlockParsingMetadata {
+            substitutions,
+            ..BlockParsingMetadata::default()
+        },
+        &value.attributes,
+        InlineRules::default() | InlineRules::ISOLATED_TEXT,
+    )?;
     Ok(ContentAttribute::new(nodes))
 }
 

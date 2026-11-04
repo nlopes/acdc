@@ -205,6 +205,8 @@ bitflags! {
         const NAMED_INDEX_LABEL = 1 << 9;
         /// Keep empty verse lines inside the same inline content.
         const PRESERVE_BLANK_LINES = 1 << 10;
+        /// Treat the outer text edges as boundaries for replacement characters.
+        const ISOLATED_TEXT = 1 << 11;
     }
 }
 

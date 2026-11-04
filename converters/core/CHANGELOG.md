@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Image alternatives retain the parser-selected text, including literal trailing dashes in inline images.
+
 ### Added
 
 - Converters can resolve explicit block substitution settings in every build.

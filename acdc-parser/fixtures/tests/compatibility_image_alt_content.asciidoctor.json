@@ -171,11 +171,26 @@
         {
           "name": "text",
           "type": "string",
-          "value": "*Literal* &amp; ->",
+          "value": "*Literal* &amp; ",
           "location": [
             {
               "line": 6,
               "col": 7
+            },
+            {
+              "line": 6,
+              "col": 22
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "→",
+          "location": [
+            {
+              "line": 6,
+              "col": 23
             },
             {
               "line": 6,

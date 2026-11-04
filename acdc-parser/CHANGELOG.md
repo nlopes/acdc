@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Block image alt text now contains resolved replacement symbols in Asciidoctor mode. Draft alt text stays literal. JSON consumers must accept symbol nodes in alternative text.
+
 ### Breaking changes
 
 - Native JSON now identifies bibliography anchors with `bibliography: true` and

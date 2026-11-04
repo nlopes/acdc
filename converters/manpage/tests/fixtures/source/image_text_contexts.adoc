@@ -1,0 +1,36 @@
+= image-text-contexts(1)
+:doctype: manpage
+:revdate: 2026-10-22
+:manmanual: Image text tests
+:mansource: acdc
+
+== NAME
+
+image-text-contexts - image alt and tooltip contexts
+
+== DESCRIPTION
+
+:word: π (C) -> --
+:entry: alt="Expanded π (C) -> --"
+
+image::bird.png[alt="(C) -> --"]
+
+image:bird.png[alt="(C) -> --",title="(C) -> --"].
+
+image::bird.png[alt="*Literal* footnote:unused[Note] & <tag> --"]
+
+[alt='*Formatted* -> --']
+image::bird.png[]
+
+image::bird.png[alt="π \] (C) -> --"]
+
+[{entry}]
+image::bird.png[]
+
+image::bird.png[alt="{word}"]
+
+image:bird.png[alt="",title=""].
+
+image::bird.png[]
+
+image::bird.png[alt=""]

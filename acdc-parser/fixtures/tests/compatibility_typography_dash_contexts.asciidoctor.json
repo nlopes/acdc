@@ -120,11 +120,41 @@
         {
           "name": "text",
           "type": "string",
-          "value": "α left--right",
+          "value": "α left",
           "location": [
             {
               "line": 7,
               "col": 19
+            },
+            {
+              "line": 7,
+              "col": 24
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "—​",
+          "location": [
+            {
+              "line": 7,
+              "col": 25
+            },
+            {
+              "line": 7,
+              "col": 33
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "right",
+          "location": [
+            {
+              "line": 7,
+              "col": 34
             },
             {
               "line": 7,

@@ -273,3 +273,83 @@ fn remote_image_embedding_without_network_reports_a_warning() -> Result<(), Erro
     );
     Ok(())
 }
+
+#[test]
+fn image_text_survives_embedding_and_fallback_modes() -> Result<(), Error> {
+    let directory = tempfile::tempdir()?;
+    fs::write(directory.path().join("media.svg"), SVG)?;
+    for mode in [
+        acdc_parser::CompatibilityMode::Asciidoctor,
+        acdc_parser::CompatibilityMode::Draft,
+    ] {
+        for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+            for data_uri in [false, true] {
+                for (target, controls, fallback) in [
+                    ("media.svg", "", false),
+                    ("media.svg", ",opts=interactive", true),
+                    ("media.svg", ",opts=interactive,fallback=media.svg", false),
+                    ("missing.svg", ",opts=inline", true),
+                ] {
+                    let header = if data_uri { ":data-uri:\n\n" } else { "" };
+                    let input = format!(
+                        "{header}image::{target}[alt=\"(C) -> --\"{controls}]\n\nimage:{target}[alt=\"(C) -> --\",title=\"(C) -> --\"{controls}].\n"
+                    );
+                    let parsed = parse(
+                        &input,
+                        &ParserOptions::builder()
+                            .with_compatibility_mode(mode)
+                            .build()?,
+                    )?;
+                    let processor = Processor::new_with_variant(
+                        Options::builder().safe_mode(SafeMode::Safe).build(),
+                        ParserOptions::builder().with_compatibility_mode(mode),
+                        variant,
+                    )?;
+                    let mut output = Vec::new();
+                    let mut warnings = Vec::new();
+                    processor.convert_to_writer(
+                        parsed.document(),
+                        &mut output,
+                        &RenderOptions {
+                            embedded: true,
+                            source_dir: Some(directory.path().to_owned()),
+                            ..RenderOptions::default()
+                        },
+                        &mut Diagnostics::new(&WarningSource::new("html"), &mut warnings),
+                    )?;
+                    let html = String::from_utf8(output)?;
+                    let block_alt = if mode == acdc_parser::CompatibilityMode::Draft {
+                        "(C) -&gt; --"
+                    } else {
+                        "© →\u{2009}—\u{2009}"
+                    };
+                    let block_html = if mode == acdc_parser::CompatibilityMode::Draft {
+                        "(C) -&gt; --"
+                    } else {
+                        "&#169; &#8594;&thinsp;&mdash;&thinsp;"
+                    };
+                    for (alt, text) in [(block_alt, block_html), ("© → --", "&#169; &#8594; --")]
+                    {
+                        let expected = if fallback {
+                            format!("<span class=\"alt\">{text}</span>")
+                        } else {
+                            format!("alt=\"{alt}\"")
+                        };
+                        assert!(
+                            html.contains(&expected),
+                            "{mode:?} {variant:?} {controls}: {html}"
+                        );
+                    }
+                    if controls.contains("inline") {
+                        assert_eq!(warnings.len(), 2);
+                    } else {
+                        assert!(html.contains("title=\"© → --\""), "{html}");
+                        assert!(warnings.is_empty(), "{warnings:?}");
+                    }
+                    assert_eq!(parsed.document().footnotes.len(), 0);
+                }
+            }
+        }
+    }
+    Ok(())
+}

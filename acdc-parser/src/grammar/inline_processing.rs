@@ -45,6 +45,7 @@ pub(super) fn process_attribute_inlines_with_substitutions<'a>(
         &source.source_map,
         &metadata,
         &source.attributes,
+        InlineRules::default(),
     )
 }
 
@@ -54,8 +55,16 @@ pub(super) fn process_mapped_inlines<'a>(
     source_map: &SourceMap,
     metadata: &BlockParsingMetadata<'a>,
     attributes: &Rc<crate::DocumentAttributes<'a>>,
+    rules: InlineRules,
 ) -> Result<Vec<InlineNode<'a>>, Error> {
-    let mut child = ParserState::for_inline_parsing(text, state, InlineContext::default());
+    let mut child = ParserState::for_inline_parsing(
+        text,
+        state,
+        InlineContext {
+            rules,
+            ..InlineContext::default()
+        },
+    );
     child.document_attributes = Rc::clone(attributes);
     child.warnings = Rc::default();
     child.warnings_start = 0;
@@ -324,6 +333,7 @@ fn inline_context(
     autolinks: bool,
 ) -> InlineContext {
     let mut rules = state.inline_ctx.rules;
+    rules.remove(InlineRules::ISOLATED_TEXT);
     rules.set(InlineRules::AUTOLINKS, autolinks);
     rules.set(
         InlineRules::PRESERVE_BLANK_LINES,
@@ -426,7 +436,8 @@ fn parse_processed_inlines<'a>(
     inlines = super::inlines::typography::resolve_plain(
         inlines,
         &inline_peg_state,
-        state.scope == ParserScope::Document,
+        state.scope == ParserScope::Document
+            || state.inline_ctx.rules.contains(InlineRules::ISOLATED_TEXT),
     );
     super::passthrough_processing::prepare_index_catalogs(&mut inlines, &inline_peg_state);
     let labels = inlines

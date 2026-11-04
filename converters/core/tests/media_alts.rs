@@ -63,10 +63,10 @@ fn image_and_icon_fallbacks_keep_distinct_target_policies() -> Result<(), TestEr
 
 #[test]
 fn explicit_and_empty_alternatives_outlive_temporary_sources() -> Result<(), TestError> {
-    for (markup, expected) in [
-        ("", ""),
-        ("*Bird* &amp; ->", "Bird &amp; →"),
-        ("*Bird* &#38; ->", "Bird &#38; →"),
+    for (markup, image_text, icon_text) in [
+        ("", "", ""),
+        ("*Bird* &amp; ->", "Bird &amp; ->", "Bird &amp; →"),
+        ("*Bird* &#38; ->", "Bird &#38; ->", "Bird &#38; →"),
     ] {
         let (image, icon, typed_image, typed_icon) = {
             let text = String::from(markup);
@@ -92,10 +92,10 @@ fn explicit_and_empty_alternatives_outlive_temporary_sources() -> Result<(), Tes
             )
         };
         assert!(matches!(image, Cow::Owned(_)));
-        assert_eq!(image, expected);
-        assert_eq!(icon, expected);
-        assert_eq!(typed_image, expected);
-        assert_eq!(typed_icon, expected);
+        assert_eq!(image, image_text);
+        assert_eq!(icon, icon_text);
+        assert_eq!(typed_image, image_text);
+        assert_eq!(typed_icon, icon_text);
     }
     Ok(())
 }
@@ -163,4 +163,37 @@ fn non_utf8_paths_keep_an_empty_image_alternative() {
     assert_eq!(target.file_name(), None);
     assert_eq!(media::image_alt_from_content(target, None), "");
     assert_eq!(icon::alt_from_content(target, None), "bad�.png");
+}
+
+#[test]
+fn image_alternatives_preserve_parser_selected_boundaries() -> Result<(), TestError> {
+    for mode in [
+        acdc_parser::CompatibilityMode::Asciidoctor,
+        acdc_parser::CompatibilityMode::Draft,
+    ] {
+        let options = Options::builder().with_compatibility_mode(mode).build()?;
+        let parsed = parse_inline(
+            "image:bird.png[alt=\"(C) -> --\",title=\"(C) -> --\"]",
+            &options,
+        )?;
+        let [InlineNode::Macro(acdc_parser::InlineMacro::Image(image))] = parsed.inlines() else {
+            return Err("expected inline image".into());
+        };
+        let alt = image.alt.as_ref().ok_or("missing alt")?;
+        let tooltip = image.tooltip.as_ref().ok_or("missing tooltip")?;
+        let expected = "© → --";
+        assert_eq!(media::image_alt(&image.source, Some(alt)), expected);
+        assert_eq!(
+            media::image_alt_from_content((&image.source).into(), Some(alt.into())),
+            expected
+        );
+        assert_eq!(
+            acdc_converters_core::inline_text::InlineTextTransform::default()
+                .rendered_replacements(false)
+                .decode_char_refs(true)
+                .content_to_string(tooltip.into()),
+            expected
+        );
+    }
+    Ok(())
 }

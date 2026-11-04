@@ -2230,7 +2230,8 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
                 .tooltip()
                 .map(|value| {
                     InlineTextTransform::default()
-                        .rendered_replacements(true)
+                        .rendered_replacements(false)
+                        .decode_char_refs(true)
                         .content_to_string(value)
                 })
                 .as_deref(),

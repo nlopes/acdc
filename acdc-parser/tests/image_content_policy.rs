@@ -285,3 +285,41 @@ fn preceding_alt_expansion_uses_its_declaration_snapshot(
     }
     Ok(())
 }
+
+#[rstest::rstest]
+fn compatible_block_alt_resolves_replacements_without_enabling_markup(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    let source = "image::bird.png[alt=\"π \\] (C) -> -- *literal* footnote:unused[Note]\"]\n";
+    let parsed = parse(
+        source,
+        &Options::builder().with_compatibility_mode(mode).build()?,
+    )?;
+    let Some(Block::Image(image)) = parsed.document().blocks.first() else {
+        return Err("expected block image".into());
+    };
+    assert_eq!(parsed.document().footnotes.len(), 0);
+    let alt = image.alt.as_ref().ok_or("missing alt")?;
+    if mode == CompatibilityMode::Draft {
+        assert!(matches!(alt.as_ref(), [InlineNode::RawText(_)]));
+    } else {
+        assert!(alt.iter().any(|node| matches!(node, InlineNode::Symbol(_))));
+        assert!(
+            alt.iter()
+                .all(|node| matches!(node, InlineNode::PlainText(_) | InlineNode::Symbol(_)))
+        );
+        for node in alt {
+            let location = node.location();
+            let authored = source
+                .get(location.absolute_start..=location.absolute_end)
+                .ok_or("invalid source span")?;
+            if matches!(node, InlineNode::Symbol(_)) {
+                assert!(
+                    matches!(authored.trim(), "(C)" | "->" | "--"),
+                    "{authored:?}"
+                );
+            }
+        }
+    }
+    Ok(())
+}
