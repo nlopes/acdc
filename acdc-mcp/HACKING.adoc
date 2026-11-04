@@ -71,6 +71,14 @@ Set `strict:true` to reject documents with recovered or omitted source content.
 Search reports failures for individual files and continues with the remaining documents.
 Fatal parsing or file errors return an MCP tool error.
 
+== Outbound links
+
+`adoc_links` reads hyperlinks and cross-references from retained content, including titles, captions, alternative text, tooltips, reference labels, and nested inline fields.
+It also reports `link=` controls on blocks, inline images, and icons.
+Media source paths and other scalar attribute values are not interpreted as links.
+Each owned occurrence is reported once; derived reference, footnote, and TOC catalogs are not searched again.
+Results retain original include locations and use the same response budgets and continuation rules as other tools.
+
 == Response budgets and continuation
 
 Successful tool results contain one text block holding a JSON page:

@@ -8,8 +8,8 @@ use std::{
 use acdc_parser::{
     AttributeValue,
     ast::{
-        AttributeValueRef, AuthorRef, BlockKind, BlockRef, CalloutListItemRef, ContentRef,
-        HeaderRef, InlineKind, ListItemRef, PositionRef,
+        AttributeValueRef, AuthorRef, BlockKind, BlockRef, ContentRef, HeaderRef, InlineKind,
+        InlineRef, PositionRef, StructuralRef,
     },
 };
 use ignore::WalkBuilder;
@@ -421,24 +421,18 @@ impl Engine {
 
     pub(super) fn links(&self, request: &FileRequest) -> Result<String> {
         let document = self.load(&request.path, &request.common)?;
-        let entries = document.entries()?;
+        // Apply the same depth and block limits as the other navigation tools.
+        document.entries()?;
         let mut items = document.warnings();
-        if let Some(header) = document.parsed().document_ref().header() {
-            if let Some(title) = header.title() {
-                collect_links(&document, title, &mut items);
-            }
-            if let Some(subtitle) = header.subtitle() {
-                collect_links(&document, subtitle, &mut items);
-            }
-        }
-        for entry in &entries {
-            if let Some(attributes) = entry.block().attributes()
+        for node in document.parsed().document_ref().descendants() {
+            if let StructuralRef::Block(block) = node
+                && let Some(attributes) = block.attributes()
                 && let Some(AttributeValueRef::Text(link)) = attributes.get("link")
             {
-                items.push(json!({"kind":"link", "link_type":"link", "target":link,"path":document.path(),"source":document.source(entry.block().location())}));
+                items.push(json!({"kind":"link", "link_type":"link", "target":link,"path":document.path(),"source":document.source(block.location())}));
             }
-            for nodes in own_inlines(entry.block()) {
-                collect_links(&document, nodes, &mut items);
+            for field in node.content_fields() {
+                collect_links(&document, field.content(), &mut items);
             }
         }
         self.page(
@@ -593,87 +587,46 @@ fn resolve_anchor(document: &Document, id: &str, items: &mut Vec<Value>) -> Resu
     Ok(())
 }
 
-fn own_inlines(block: BlockRef<'_>) -> Vec<ContentRef<'_>> {
-    let mut groups = Vec::new();
-    if let Some(title) = block.title() {
-        groups.push(title);
-    }
-    if let Some(attributes) = block.attributes() {
-        for name in ["attribution", "citetitle"] {
-            if let Some(AttributeValueRef::Content(content)) = attributes.get(name) {
-                groups.push(content);
-            }
-        }
-    }
-    match block.kind() {
-        BlockKind::Paragraph(p) => groups.push(p.content()),
-        BlockKind::UnorderedList(l) => groups.extend(l.items().map(ListItemRef::principal)),
-        BlockKind::OrderedList(l) => groups.extend(l.items().map(ListItemRef::principal)),
-        BlockKind::CalloutList(l) => groups.extend(l.items().map(CalloutListItemRef::principal)),
-        BlockKind::DescriptionList(l) => {
-            for item in l.items() {
-                groups.push(item.term());
-                groups.push(item.principal());
-            }
-        }
-        BlockKind::Listing(n) => groups.push(n.content()),
-        BlockKind::Literal(n) => groups.push(n.content()),
-        BlockKind::Verse(n) => groups.push(n.content()),
-        BlockKind::Passthrough(n) => groups.push(n.content()),
-        _ => {}
-    }
-    groups
-}
-
 fn collect_links(document: &Document, nodes: ContentRef<'_>, items: &mut Vec<Value>) {
     for node in nodes.inlines() {
-        let mut link = None;
-        let children = match node.kind() {
-            InlineKind::Bold(n) => Some(n.content()),
-            InlineKind::Italic(n) => Some(n.content()),
-            InlineKind::Monospace(n) => Some(n.content()),
-            InlineKind::Highlight(n) => Some(n.content()),
-            InlineKind::Subscript(n) => Some(n.content()),
-            InlineKind::Superscript(n) => Some(n.content()),
-            InlineKind::CurvedQuotation(n) => Some(n.content()),
-            InlineKind::CurvedApostrophe(n) => Some(n.content()),
+        collect_link(document, node, items);
+        for field in node.content_occurrences() {
+            for child in field.content().inlines() {
+                collect_link(document, child, items);
+            }
+        }
+    }
+}
 
-            InlineKind::Link(l) => {
-                link = Some(("link", l.target().to_string()));
-                Some(l.text())
-            }
-            InlineKind::Url(l) => {
-                link = Some(("url", l.target().to_string()));
-                Some(l.text())
-            }
-            InlineKind::Mailto(l) => {
-                link = Some(("mailto", format!("mailto:{}", l.target())));
-                Some(l.text())
-            }
-            InlineKind::Autolink(l) => {
-                link = Some(("url", l.target().to_string()));
-                None
-            }
-            InlineKind::CrossReference(l) => {
-                link = Some((
-                    "xref",
-                    if l.target_is_local() {
-                        format!("#{}", l.target())
-                    } else {
-                        l.target().to_owned()
-                    },
-                ));
-                Some(l.text())
-            }
-            InlineKind::Footnote(f) => Some(f.content()),
+fn collect_link(document: &Document, node: InlineRef<'_>, items: &mut Vec<Value>) {
+    let link = match node.kind() {
+        InlineKind::Link(link) => Some(("link", link.target().to_string())),
+        InlineKind::Url(link) => Some(("url", link.target().to_string())),
+        InlineKind::Mailto(link) => Some(("mailto", link.target().to_string())),
+        InlineKind::Autolink(link) => Some(("url", link.target().to_string())),
+        InlineKind::CrossReference(link) => Some((
+            "xref",
+            if link.target_is_local() {
+                format!("#{}", link.target())
+            } else {
+                link.target().to_owned()
+            },
+        )),
+        InlineKind::Image(image) => image
+            .attributes()
+            .get("link")
+            .and_then(|value| match value {
+                AttributeValueRef::Text(target) => Some(("link", target.to_owned())),
+                _ => None,
+            }),
+        InlineKind::Icon(icon) => icon.attributes().get("link").and_then(|value| match value {
+            AttributeValueRef::Text(target) => Some(("link", target.to_owned())),
             _ => None,
-        };
-        if let Some((kind, target)) = link {
-            items.push(json!({"kind":"link", "link_type":kind,"target":target,"path":document.path(),"source":document.source(node.location())}));
-        }
-        if let Some(children) = children {
-            collect_links(document, children, items);
-        }
+        }),
+        _ => None,
+    };
+    if let Some((kind, target)) = link {
+        items.push(json!({"kind":"link", "link_type":kind,"target":target,"path":document.path(),"source":document.source(node.location())}));
     }
 }
 

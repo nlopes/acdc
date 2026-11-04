@@ -1,5 +1,6 @@
 use std::{
     ffi::OsString,
+    fmt::Write as _,
     fs,
     path::{Path, PathBuf},
     sync::Arc,
@@ -865,5 +866,84 @@ fn tree_and_exact_selectors_share_all_retained_block_ids() {
                 .iter()
                 .any(|entry| entry["kind"] == "resolved" && entry["selector"] == selector)
         );
+    }
+}
+
+#[test]
+fn links_include_inline_media_controls_and_complete_owned_content_once() {
+    let root = TempDir::new().unwrap();
+    write(
+        root.path(),
+        "links.adoc",
+        "= link:https://example.org/header[Header]\n:experimental:\n\n.Title link:https://example.org/title[Title]\n[caption='link:https://example.org/caption[Caption]']\n====\nBody link:https://example.org/body[Body].\n====\n\n[quote,attribution='link:https://example.org/credit[Credit]',citetitle='link:https://example.org/citation[Citation]']\n____\nfootnote:n[link:https://example.org/note[Note]] footnote:n[]\n____\n\nimage::block.png[Block,link=https://example.org/block]\n\nimage:inline.png[alt='link:https://example.org/alt[Alt]',title='link:https://example.org/tip[Tip]',link=https://example.org/inline,extension=https://example.org/ignored]\n\nicon:heart[link=https://example.org/icon]\n\n[#reference,reftext='link:https://example.org/reference[Reference]']\nReferenced paragraph.\n\nSee <<reference>>. mailto:team@example.org[Team]\n\n[cols=\"a\"]\n|===\n|link:https://example.org/cell[Cell]\n|===\n",
+    );
+    for mode in ["asciidoctor", "draft"] {
+        let engine = engine_with_compatibility_mode(root.path(), mode);
+        let links = records(&engine.links(&file("links.adoc")).unwrap());
+        let targets = links
+            .iter()
+            .filter_map(|item| item["target"].as_str())
+            .collect::<Vec<_>>();
+        for suffix in [
+            "header", "title", "caption", "body", "credit", "citation", "note", "block", "alt",
+            "tip", "inline", "icon", "cell",
+        ] {
+            let target = format!("https://example.org/{suffix}");
+            assert_eq!(
+                targets.iter().filter(|value| **value == target).count(),
+                1,
+                "{mode}: {target}: {targets:?}"
+            );
+        }
+        assert!(targets.contains(&"#reference"), "{targets:?}");
+        assert!(targets.contains(&"mailto:team@example.org"), "{targets:?}");
+        let reference_links = usize::from(mode == "draft");
+        assert_eq!(
+            targets
+                .iter()
+                .filter(|value| **value == "https://example.org/reference")
+                .count(),
+            reference_links,
+            "{mode}: {targets:?}"
+        );
+        assert_eq!(targets.len(), 15 + reference_links, "{mode}: {targets:?}");
+    }
+}
+
+#[test]
+fn link_continuation_preserves_occurrence_order_and_include_origins() {
+    let root = TempDir::new().unwrap();
+    write(
+        root.path(),
+        "book.adoc",
+        "= Book\n\ninclude::parts/links.adoc[]\n",
+    );
+    let mut source = String::new();
+    for index in 0..30 {
+        writeln!(source, "image:bird.png[Bird,link=../target-{index}.adoc]\n").unwrap();
+    }
+    write(root.path(), "parts/links.adoc", &source);
+    let included = root.path().join("parts/links.adoc").canonicalize().unwrap();
+    for mode in ["asciidoctor", "draft"] {
+        let engine = engine_with_compatibility_mode(root.path(), mode);
+        let mut request = file("book.adoc");
+        request.common.max_tokens = Some(256);
+        let mut links = Vec::new();
+        loop {
+            let response = engine.links(&request).unwrap();
+            assert!(response.len() <= 1024, "{response}");
+            let page: Value = serde_json::from_str(&response).unwrap();
+            links.extend(page["items"].as_array().unwrap().iter().cloned());
+            request.common.cursor = page["next_cursor"].as_str().map(str::to_owned);
+            if request.common.cursor.is_none() {
+                break;
+            }
+        }
+        assert_eq!(links.len(), 30, "{mode}: {links:?}");
+        for (index, link) in links.iter().enumerate() {
+            assert_eq!(link["target"], format!("../target-{index}.adoc"));
+            assert_eq!(link["source"]["file"], json!(included));
+            assert_eq!(link["source"]["line"], index * 2 + 1);
+        }
     }
 }

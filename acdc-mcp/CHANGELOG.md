@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- `adoc_links` includes inline-image and icon `link=` targets and links in retained captions, alternative text, tooltips, reference labels, and UI content. Each owned occurrence is reported once, with its original source location. Mail links no longer repeat the `mailto:` scheme.
+
 - Anchored paragraphs and thematic breaks now appear in the tree and can be selected by their retained IDs. Tree, exact selectors and reference resolution use the same primary and alias identities. Normalized block output retains the primary anchor.
 
 - Character-reference nodes retain their reference spelling in AsciiDoc responses and use character values in plain-text responses.
