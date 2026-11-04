@@ -29,7 +29,6 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             class.push(' ');
             class.push_str(float);
         }
-        let class = escape_attribute(&class);
         writeln!(self.writer, " class=\"{class}\">")?;
 
         if video.title().is_some() {
@@ -162,7 +161,7 @@ fn visit_video_semantic<'a, W: Write>(
     let has_title = video.title().is_some();
 
     let tag = if has_title { "figure" } else { "div" };
-    let class = escape_attribute(&build_class("video-block", video.roles().iter()));
+    let class = build_class("video-block", video.roles().iter());
     write!(visitor.writer, "<{tag}")?;
     write_element_id(&mut visitor.writer, video.id())?;
     write!(visitor.writer, " class=\"{class}\"")?;

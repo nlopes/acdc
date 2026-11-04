@@ -752,7 +752,7 @@ impl<'a, W: Write> BlockVisitor<'a> for HtmlVisitor<'a, '_, W> {
             BlockKind::ThematicBreak(br) => {
                 write!(self.writer, "<hr")?;
                 if let Some(id) = br.id() {
-                    write!(self.writer, " id=\"{}\"", id.as_str())?;
+                    crate::write_element_id(&mut self.writer, Some(id))?;
                 }
                 writeln!(self.writer, ">")?;
                 Ok(())
@@ -862,10 +862,10 @@ impl<'a, W: Write> acdc_converters_core::visitor::DocumentVisitor<'a> for HtmlVi
             body_classes.extend(header.roles().iter().map(str::to_owned));
         }
 
-        let body_class = body_classes.join(" ");
+        let body_class = crate::inlines::escape_role(&body_classes.join(" "));
 
         if let Some(id) = doc.id() {
-            let id = id.as_str();
+            let id = crate::inlines::escape_attribute(id.as_str());
             writeln!(self.writer, "<body id=\"{id}\" class=\"{body_class}\">")?;
         } else {
             writeln!(self.writer, "<body class=\"{body_class}\">")?;
@@ -1415,7 +1415,7 @@ impl<'a, W: Write> Visitor<'a> for HtmlVisitor<'a, '_, W> {
     ) -> Result<(), Self::Error> {
         write!(self.writer, "<hr")?;
         if let Some(id) = ThematicBreakRef::from(br).id() {
-            write!(self.writer, " id=\"{}\"", id.as_str())?;
+            crate::write_element_id(&mut self.writer, Some(id))?;
         }
         writeln!(self.writer, ">")?;
         Ok(())
@@ -2077,18 +2077,8 @@ mod title_media_tests {
             assert!(!output.contains("fallback"));
             assert!(output.contains("style=\"width: 75%;\""));
             assert!(output.contains("stretch right") || output.contains("grid-all right"));
-            assert_eq!(
-                output.matches("id=\"primary&amp;\"").count(),
-                if variant == HtmlVariant::Standard {
-                    2
-                } else {
-                    1
-                }
-            );
-            assert_eq!(
-                output.matches("id=\"primary&\"").count(),
-                usize::from(variant == HtmlVariant::Semantic)
-            );
+            assert_eq!(output.matches("id=\"primary&amp;\"").count(), 2);
+            assert_eq!(output.matches("id=\"primary&\"").count(), 0);
             assert_eq!(warnings, [] as [acdc_converters_core::Warning; 0]);
         }
         Ok(())

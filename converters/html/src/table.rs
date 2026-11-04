@@ -415,6 +415,7 @@ pub(crate) fn render_table<'a, W: Write>(
 
     write!(writer, "<table")?;
     crate::write_element_id(writer, table.id())?;
+    let class_parts = crate::inlines::escape_role(&class_parts);
     writeln!(writer, " class=\"{class_parts}\"{width_style}>")?;
 
     // Render caption with table number if title exists

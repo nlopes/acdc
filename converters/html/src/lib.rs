@@ -827,6 +827,7 @@ pub(crate) fn write_id<W: Write + ?Sized>(
     Ok(())
 }
 
+/// Build an escaped HTML class value.
 pub(crate) fn build_class(base: &str, roles: impl IntoIterator<Item = impl AsRef<str>>) -> String {
     let mut class = base.to_owned();
     let mut separator = if base.is_empty() { "" } else { " " };
@@ -835,7 +836,11 @@ pub(crate) fn build_class(base: &str, roles: impl IntoIterator<Item = impl AsRef
         class.push_str(role.as_ref());
         separator = " ";
     }
-    class
+    if class.contains(['&', '<', '>', '"']) {
+        inlines::escape_role(&class)
+    } else {
+        class
+    }
 }
 
 #[cfg(feature = "highlighting")]

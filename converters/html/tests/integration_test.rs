@@ -68,6 +68,51 @@ fn inline_identity_attributes_cannot_create_html_elements() -> Result<(), Error>
     Ok(())
 }
 
+#[test]
+fn block_identity_attributes_cannot_create_html_elements() -> Result<(), Error> {
+    let source = include_str!("fixtures/source/html/embedded/block_identity_attributes.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            source,
+            &ParserOptions::builder()
+                .with_compatibility_mode(mode)
+                .build()?,
+        )?;
+        for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+            let processor = Processor::new_with_variant(
+                ConverterOptions::default(),
+                ParserOptions::builder().with_compatibility_mode(mode),
+                variant,
+            )?;
+            let mut output = Vec::new();
+            let mut warnings = Vec::new();
+            let warning_source = WarningSource::new("html");
+            let mut diagnostics = Diagnostics::new(&warning_source, &mut warnings);
+            processor.convert_to_writer(
+                parsed.document(),
+                &mut output,
+                &RenderOptions::default(),
+                &mut diagnostics,
+            )?;
+            let output = String::from_utf8(output)?;
+            assert!(!output.contains("<svg"), "{output}");
+            for expected in [
+                "id=\"document&quot;target\"",
+                "id=\"paragraph&quot;target\"",
+                "id=\"section&quot;target\"",
+                "id=\"discrete&quot;target\"",
+                "href=\"#section&quot;target\"",
+                "document&quot;role",
+                "toc&quot;role",
+            ] {
+                assert!(output.contains(expected), "missing {expected}: {output}");
+            }
+            assert!(warnings.is_empty(), "{warnings:?}");
+        }
+    }
+    Ok(())
+}
+
 fn rendered_code_texts(output: &str) -> Result<Vec<String>, Error> {
     output
         .split("<code")

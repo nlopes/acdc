@@ -95,7 +95,11 @@ fn render_entries<'a, 'doc, W: Write>(
 
     for (i, (entry_index, entry)) in current_level_entries.iter().enumerate() {
         writeln!(visitor.writer_mut(), "<li>")?;
-        write!(visitor.writer_mut(), "<a href=\"#{}\">", entry.id())?;
+        write!(
+            visitor.writer_mut(),
+            "<a href=\"#{}\">",
+            crate::inlines::escape_attribute(entry.id())
+        )?;
 
         // Include section number if available
         if let Some(Some(number)) = config.section_numbers.get(*entry_index) {
@@ -198,6 +202,8 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             } else {
                 config.toc_class()
             };
+
+            let toc_class = crate::inlines::escape_role(toc_class);
 
             // toc::[] macro adds class="title" to the toctitle div
             let is_macro = placement == "macro";

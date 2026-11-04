@@ -117,7 +117,7 @@ pub(crate) fn escape_attribute(text: &str) -> String {
     escape_pcdata(text).replace('"', "&quot;")
 }
 
-fn escape_role(role: &str) -> String {
+pub(crate) fn escape_role(role: &str) -> String {
     // Roles retain source entity references, including an authored &amp;.
     escape_ampersands(role)
         .replace('<', "&lt;")
@@ -938,11 +938,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         let has_wrapper = !is_semantic || classes.len() > 1;
         let w = self.writer_mut();
         if has_wrapper {
-            write!(
-                w,
-                "<span class=\"{}\">",
-                escape_attribute(&classes.join(" "))
-            )?;
+            write!(w, "<span class=\"{}\">", escape_role(&classes.join(" ")))?;
         }
 
         let link = image.attributes().get("link").and_then(attribute_scalar);
@@ -1170,7 +1166,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         } else {
             format!(
                 " class=\"{}\"",
-                escape_attribute(&xref.roles().iter().collect::<Vec<_>>().join(" "))
+                escape_role(&xref.roles().iter().collect::<Vec<_>>().join(" "))
             )
         };
         if !xref.target_is_local() {

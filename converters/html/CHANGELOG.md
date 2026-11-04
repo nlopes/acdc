@@ -124,6 +124,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Escape document and block IDs, roles, and table-of-contents classes and links
+  in both HTML variants. Quotes and markup stay inside their attribute values.
+  Roles containing character references now behave consistently with Asciidoctor
+  across blocks, inline elements, and media.
+
 - Escape quotes and markup in inline anchor IDs, hyperlink IDs and roles,
   footnote IDs, and cross-reference destinations in both HTML variants. Authored
   attribute values can no longer create extra HTML elements or attributes.

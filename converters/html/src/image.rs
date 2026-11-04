@@ -47,7 +47,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         write!(
             self.writer,
             " class=\"{}\">",
-            escape_attribute(&classes.join(" "))
+            crate::inlines::escape_role(&classes.join(" "))
         )?;
         write!(self.writer, "<div class=\"content\">")?;
         // Get alt text from attribute or generate from filename
@@ -122,7 +122,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         write!(
             self.writer,
             "<{tag} class=\"{}\"",
-            escape_attribute(&classes.join(" "))
+            crate::inlines::escape_role(&classes.join(" "))
         )?;
         crate::write_element_id(&mut self.writer, img.id())?;
         if !styles.is_empty() {

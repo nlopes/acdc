@@ -109,7 +109,7 @@ fn visit_admonition_semantic<'a, W: Write>(
     let class = crate::build_class(&base_class, admon.roles().iter());
     write!(writer, "<{tag} class=\"{class}\"")?;
     if let Some(id) = admon.id() {
-        write!(writer, " id=\"{}\"", id.as_str())?;
+        crate::write_element_id(writer, Some(id))?;
     }
     writeln!(writer, " role=\"{role}\">")?;
 

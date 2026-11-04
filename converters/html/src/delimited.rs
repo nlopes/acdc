@@ -163,7 +163,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 )?;
             }
             if let Some(id) = block.id() {
-                write!(self.writer, " id=\"{}\"", id.as_str())?;
+                crate::write_element_id(&mut self.writer, Some(id))?;
             }
             if is_open {
                 writeln!(self.writer, " open>")?;
@@ -308,7 +308,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                             let base = build_class("quote-block abstract", data.roles().iter());
                             write!(self.writer, "<section class=\"{base}\"")?;
                             if let Some(id) = data.id() {
-                                write!(self.writer, " id=\"{}\"", id.as_str())?;
+                                crate::write_element_id(&mut self.writer, Some(id))?;
                             }
                             writeln!(self.writer, ">")?;
                             self.render_captioned_title_with_wrapper(

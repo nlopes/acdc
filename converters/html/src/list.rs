@@ -85,7 +85,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         };
         write!(self.writer, "<{wrapper_tag}")?;
         if let Some(id) = data.id() {
-            write!(self.writer, " id=\"{}\"", id.as_str())?;
+            crate::write_element_id(&mut self.writer, Some(id))?;
         }
         let mut wrapper_class = String::from("ulist");
         if is_checklist && !semantic {
@@ -170,7 +170,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         };
         write!(self.writer, "<{wrapper_tag}")?;
         if let Some(id) = data.id() {
-            write!(self.writer, " id=\"{}\"", id.as_str())?;
+            crate::write_element_id(&mut self.writer, Some(id))?;
         }
         let class = build_class(&format!("olist {style}"), data.roles().iter());
         writeln!(self.writer, " class=\"{class}\">")?;
@@ -481,7 +481,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         // Start the description list outer div
         write!(self.writer, "<div")?;
         if let Some(id) = data.id() {
-            write!(self.writer, " id=\"{}\"", id.as_str())?;
+            crate::write_element_id(&mut self.writer, Some(id))?;
         }
 
         // Description list
@@ -749,7 +749,7 @@ fn visit_description_list_semantic<'a, W: Write>(
     let wrapper_tag = if has_title { "section" } else { "div" };
     write!(visitor.writer, "<{wrapper_tag}")?;
     if let Some(id) = data.id() {
-        write!(visitor.writer, " id=\"{}\"", id.as_str())?;
+        crate::write_element_id(&mut visitor.writer, Some(id))?;
     }
     write!(visitor.writer, " class=\"{class}\"")?;
     if is_qanda {

@@ -83,7 +83,10 @@ impl<'a, W: std::io::Write> HtmlVisitor<'a, '_, W> {
                 } else if let Some(rotate) = attribute_text(attrs, "rotate") {
                     write!(classes, " fa-rotate-{rotate}")?;
                 }
-                format!("<i class=\"{}\"{tooltip}></i>", escape_attribute(&classes))
+                format!(
+                    "<i class=\"{}\"{tooltip}></i>",
+                    crate::inlines::escape_role(&classes)
+                )
             }
             IconMode::Image => {
                 let target = attribute_text(attrs, "icon").map_or_else(
@@ -121,7 +124,7 @@ impl<'a, W: std::io::Write> HtmlVisitor<'a, '_, W> {
         }
         Ok(format!(
             "<span class=\"{}\">{inner}</span>",
-            escape_attribute(&class)
+            crate::inlines::escape_role(&class)
         ))
     }
 }

@@ -50,7 +50,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         section: SectionRef<'_>,
     ) -> Result<(), Error> {
         let processor = self.processor.clone();
-        let id = section.resolve_id();
+        let id = crate::inlines::escape_attribute(&section.resolve_id());
         let effective_level = effective_section_level(section.level(), section.kind());
 
         let is_appendix = section.kind() == SectionKind::Appendix;
@@ -141,7 +141,7 @@ pub(crate) fn visit_discrete_header<'a, W: Write>(
     header: DiscreteHeaderRef<'_>,
     visitor: &mut HtmlVisitor<'a, '_, W>,
 ) -> Result<(), Error> {
-    let id = header.resolve_id();
+    let id = crate::inlines::escape_attribute(&header.resolve_id());
     let level = header.level() + 1; // Level 1 = h2
 
     // asciidoctor emits a `class` only when the discreteness came from the
