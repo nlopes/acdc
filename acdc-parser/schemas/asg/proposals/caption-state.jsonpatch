@@ -1,0 +1,114 @@
+[
+  {
+    "op": "add",
+    "path": "/$defs/captioning",
+    "value": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "custom"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "unnumbered"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "counter",
+            "label"
+          ],
+          "properties": {
+            "kind": {
+              "const": "numbered"
+            },
+            "counter": {
+              "enum": [
+                "example",
+                "figure",
+                "listing",
+                "table"
+              ]
+            },
+            "label": {
+              "type": "string"
+            },
+            "number": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/abstractBlock/properties/captioning",
+    "value": {
+      "$ref": "#/$defs/captioning"
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/abstractBlock/allOf",
+    "value": [
+      {
+        "if": {
+          "required": [
+            "captioning"
+          ],
+          "properties": {
+            "captioning": {
+              "required": [
+                "kind"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "custom"
+                }
+              }
+            }
+          }
+        },
+        "then": {
+          "required": [
+            "caption"
+          ]
+        },
+        "else": {
+          "if": {
+            "required": [
+              "captioning"
+            ]
+          },
+          "then": {
+            "not": {
+              "required": [
+                "caption"
+              ]
+            }
+          }
+        }
+      }
+    ]
+  }
+]

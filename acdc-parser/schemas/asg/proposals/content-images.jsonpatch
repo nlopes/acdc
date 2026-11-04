@@ -1,0 +1,102 @@
+[
+  {
+    "op": "replace",
+    "path": "/$id",
+    "value": "urn:acdc:asg:proposal:content-images"
+  },
+  {
+    "op": "replace",
+    "path": "/title",
+    "value": "Proposed ASG content attributes and images"
+  },
+  {
+    "op": "add",
+    "path": "/$defs/abstractBlock/properties/caption",
+    "value": {
+      "$ref": "#/$defs/inlines"
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/abstractBlock/properties/attribution",
+    "value": {
+      "$ref": "#/$defs/inlines"
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/abstractBlock/properties/citetitle",
+    "value": {
+      "$ref": "#/$defs/inlines"
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/inlineImage",
+    "value": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "type",
+        "target"
+      ],
+      "properties": {
+        "name": {
+          "const": "image"
+        },
+        "type": {
+          "const": "inline"
+        },
+        "target": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "alt": {
+          "$ref": "#/$defs/inlines"
+        },
+        "tooltip": {
+          "$ref": "#/$defs/inlines"
+        },
+        "metadata": {
+          "$ref": "#/$defs/blockMetadata"
+        },
+        "location": {
+          "$ref": "#/$defs/location"
+        }
+      }
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/inline/oneOf/-",
+    "value": {
+      "$ref": "#/$defs/inlineImage"
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/blockMacro/allOf/-",
+    "value": {
+      "if": {
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "const": "image"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "alt": {
+            "$ref": "#/$defs/inlines"
+          }
+        }
+      }
+    }
+  }
+]

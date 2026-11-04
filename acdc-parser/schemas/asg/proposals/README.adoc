@@ -1,0 +1,122 @@
+= Proposal: content attributes and image nodes
+
+Add the missing promoted content fields and inline images to the ASG. Keep
+resolved content in the graph so consumers can inspect it without running a
+converter. This is a proposal for discussion. It has not been submitted upstream
+and does not change acdc's export profiles or the vendored schema.
+
+== Sources and scope
+
+The schema base is the unchanged link:../schema.json[pinned ASG draft].
+The design references below use the separately verified AsciiDoc Language
+checkout at revision `0e120dad7daf17711c9aa163ca30939c2ab61dd8`:
+
+* https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/0e120dad7daf17711c9aa163ca30939c2ab61dd8/spec/sdrs/sdr-002-block-attrlist-parsing.adoc[SDR-2: block attribute-list parsing].
+* https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/0e120dad7daf17711c9aa163ca30939c2ab61dd8/spec/sdrs/sdr-005-formal-grammar-for-inline-syntax.adoc[SDR-5: inline grammar and conversion].
+
+That checkout's schema has the same SHA-256 as the pin. Its design notes are
+historical draft evidence, not a claim about the latest upstream decisions.
+SDR-2 promotes title, reference text, caption, attribution and citation content to
+inline arrays. It also calls for retaining their unparsed strings in the generic
+attribute map. This proposal removes that duplication requirement: the semantic
+field owns the interpreted value. A source-editing application can retain source
+ranges or an explicitly separate source representation when needed.
+
+SDR-5 separates attribute expansion and protected input from the resulting inline
+structure. Expanded input and temporary placeholders do not become parallel
+content values in this proposal. Literal text stays literal; parsed emphasis,
+references and nested image content keep their nodes. Output escaping belongs to
+the selected backend.
+
+Neither cited decision establishes a complete alt/tooltip policy. Inline arrays
+for those fields are a proposed way to preserve acdc's current resolved meaning.
+Whether the language should restrict them to literal text remains an upstream
+question. This proposal does not claim that all Asciidoctor substitutions are
+required by the draft.
+
+== Core patch
+
+link:content-images.jsonpatch[] is an RFC 6902 patch against the pinned schema.
+It adds `caption`, `attribution` and `citetitle` inline arrays to block properties;
+`title` and `reftext` already have that representation. It also adds an inline
+`image` node with a target, optional alt/tooltip arrays, identity, scalar metadata,
+roles/options and location. Block image macros gain `alt`; audio, video and TOC
+macros do not acquire that field.
+
+Missing and present-empty content remain distinct. For example:
+
+[source,json]
+----
+{"name":"image","type":"inline","target":"photo.png"}
+{"name":"image","type":"inline","target":"photo.png","alt":[],"tooltip":[]}
+----
+
+The first image leaves fallback behavior available. The second supplies empty
+alternative and hover text. A caption or title on a block image remains separate
+from an inline image's tooltip. Dimensions and links remain string controls;
+formatting is never encoded as generated HTML inside a text attribute.
+
+The patch edits the property definitions that the closed node schemas inherit.
+It keeps `additionalProperties` and `unevaluatedProperties` checks. An `allOf`
+sibling cannot add fields to an already closed upstream definition.
+The proposal schema has its own identifier. It does not reuse the upstream ID
+for changed bytes or add acdc's output `profile` marker to an upstream document.
+
+== Resolved caption state
+
+A content array alone cannot describe acdc's assigned caption counter, label and
+ordinal, or distinguish unnumbered caption-capable state from an absent caption.
+SDR-2 does not settle whether those resolved properties belong in the ASG.
+
+link:caption-state.jsonpatch[] is a separate, optional discussion supplement.
+Apply it after the core patch. It adds a closed `captioning` object alongside the
+`caption` content array:
+
+[source,json]
+----
+{"caption":[],"captioning":{"kind":"custom"}}
+{"captioning":{"kind":"unnumbered"}}
+{"captioning":{"kind":"numbered","counter":"figure","label":"Figure","number":1}}
+----
+
+A custom state requires its content array, including `[]`. Numbered and unnumbered
+states cannot also supply a custom prefix. An unassigned ordinal is absent,
+and zero is invalid. This supplement needs an explicit upstream decision; it is
+not a requirement inferred from the promoted-content rule.
+
+== Examples and checks
+
+link:../../../fixtures/tests/asg_content_images.adoc[The source example] combines
+formatted quote attribution/citation, image alt and tooltip text, an image in a
+block title, a formatted custom caption, and a block image. Its paired native JSON
+expectations show the two compatibility modes. They do not claim ASG conformance.
+
+`tests/asg_proposal.rs` applies the exact patches in memory. It demonstrates
+rejection by the pinned schema, acceptance by the proposal, and rejection of
+unknown properties, scalar content fields, malformed images and contradictory
+caption states. It also maps the example's acdc graph into the proposed shape and
+checks that content arrays, caption state and the native document remain intact.
+It never rewrites the schema pin or native JSON into an ASG.
+
+[source,console]
+----
+cargo nextest run -p acdc-parser --all-features -E 'binary(asg_proposal) | test(/asg_content_images/)'
+----
+
+== Migration if upstream accepts a representation
+
+Keep `urn:acdc:asg:1` stable. Add the accepted upstream revision as a separately
+identified export contract with its own schema checks. Read the same semantic
+owners directly at that projection boundary; the parser API does not need to
+store another raw or expanded copy.
+
+For the proposed shapes here, acdc's custom caption `prefix` array becomes the
+upstream `caption` array. The remaining caption kind/counter/label/number becomes
+`captioning` if the supplement is accepted. Other supported content and image
+fields already have corresponding representations. No content is reparsed.
+
+If upstream accepts only scalar alt/tooltip values or omits resolved caption
+state, validate whether the selected semantic value fits that contract. Keep an
+explicit error for values that cannot be represented and retain the existing acdc
+profile for them. Do not silently flatten formatting or omit state. Upstream
+submission, discussion links and an accepted revision can be added after review.

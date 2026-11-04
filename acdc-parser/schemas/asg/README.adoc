@@ -302,3 +302,10 @@ and images can be exported. Tables and block STEM remain unsupported. Admonition
 currently lack their real delimiter in the native owner, so export rejects that
 missing provenance; it does not infer a universal example delimiter. Extension
 support must preserve the paragraph/delimited distinction and actual opening token.
+
+== Proposed upstream additions
+
+link:proposals/README.adoc[The content/image proposal] contains minimal schema
+patches, semantic examples and executable positive/negative controls. It separates
+promoted caption content from the open question of resolved caption state.
+It has not been submitted upstream and does not change either export contract.

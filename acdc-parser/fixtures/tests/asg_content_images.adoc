@@ -1,0 +1,14 @@
+= Content attributes
+
+[quote,attribution='*Ada*',citetitle='_Book_']
+____
+A paragraph with image:icon.png[alt='*Icon*',title='_Tooltip_',width=24].
+____
+
+.Caption image:badge.png[Badge]
+[caption='*Sample* ']
+====
+Body.
+====
+
+image::photo.png[alt='*Bird*']

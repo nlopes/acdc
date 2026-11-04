@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Documented a proposed upstream ASG representation for formatted attributes and images, with a migration path from acdc's caption format. Existing export formats are unchanged.
+
 - The acdc ASG profile preserves inline images and block-image alternative content, including empty alt/tooltips, dimensions, links, identity, roles/options and source locations. Images can occur inside supported titles, captions and other content attributes. Use `asg::inlines_with_profile` for standalone content; strict upstream export still rejects unsupported image semantics.
 
 - `asg::document_with_profile(document, asg::Profile::Acdc)` preserves resolved captions, attribution and citation content under the versioned `urn:acdc:asg:1` extension schema. Empty values and formatted content remain structured. The existing export functions still use the pinned upstream subset and reject unsupported properties.
